@@ -4,10 +4,13 @@ import {
 	startSecondServer,
 	stopSecondServer,
 	createUserOnRemote,
-	connectRemoteInstance
+	connectRemoteInstance,
+	getRoomOnRemote,
+	postMessageOnRemote
 } from './fixtures/multiServer';
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
+import * as routes from './routes';
 
 test.describe('Add Server (sidebar entry point)', () => {
 	test('sidebar "+" opens the Add Server dialog', async ({ page, chatPage }) => {
@@ -79,8 +82,50 @@ test.describe('Leave Server', () => {
 		await expect(page).toHaveURL(/\/chat\/-/);
 		await expect(
 			page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
-		).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+		).toHaveAttribute('title', /needs sign-in/, { timeout: TIMEOUTS.UI_STANDARD });
 		await expect(page.getByTitle('Sign out')).toBeVisible();
+	});
+
+	test('keeps a remote server live after signing out of the origin', async ({ page, chatPage }) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (error) => pageErrors.push(error.message));
+
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+
+		const baseURL = remoteBaseURL(remoteServer!);
+		const remoteHostname = new URL(baseURL).hostname;
+		const remoteViewer = await createUserOnRemote(
+			baseURL,
+			'remote-after-origin-signout',
+			'password123'
+		);
+		const remoteSender = await createUserOnRemote(
+			baseURL,
+			'remote-after-origin-sender',
+			'password123'
+		);
+		const generalRoomId = await getRoomOnRemote(baseURL, remoteViewer.token, 'general');
+		await connectRemoteInstance(page, { ...remoteServer!, baseURL }, remoteViewer.userId);
+
+		await page.goto(routes.browseRooms);
+		await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+		await page.getByTitle('Sign out').click();
+		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await page.getByRole('button', { name: 'Current Server' }).click();
+
+		const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
+		await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
+			timeout: TIMEOUTS.COMPLEX_OPERATION
+		});
+		await chatPage.enterRoom('general');
+
+		const liveMessage = 'remote delivery after origin sign-out';
+		await postMessageOnRemote(baseURL, remoteSender.token, generalRoomId, liveMessage);
+		await expect(page.getByText(liveMessage, { exact: true })).toBeVisible({
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		expect(pageErrors).toEqual([]);
 	});
 
 	test('can remove the selected remote server when it is unreachable', async (
@@ -99,9 +144,13 @@ test.describe('Leave Server', () => {
 		await stopSecondServer(remoteServer!, testInfo);
 		remoteServer = undefined;
 
-		await page.getByTitle('Sign out').click();
+		const remoteSidebarIcon = page
+			.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
+			.first();
+		await remoteSidebarIcon.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Remove server' }).click();
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-		await page.getByRole('button', { name: 'Current Server' }).click();
+		await page.getByRole('button', { name: 'Remove Server' }).click();
 
 		await expect(page).toHaveURL(/\/chat\/-/);
 		await expect(

@@ -2,58 +2,35 @@
 /// <reference types="@sveltejs/kit" />
 
 /**
- * Service Worker for Chatto's PWA shell and push notifications.
+ * Service Worker for Chatto's push notifications.
  *
- * Keeps the app shell available during offline launches while leaving live
- * Chatto data on the network. It also handles Web Push notifications and
- * notification-click navigation.
+ * Frontend and uploaded-asset requests use the browser's normal HTTP caching
+ * behavior without service-worker interception.
  */
 
-import { build, files, version } from '$service-worker';
-import { OFFLINE_SHELL_PATH, classifyServiceWorkerRequest } from '$lib/pwa/serviceWorkerPolicy';
+import { APP_BADGE_REFRESH_MESSAGE_TYPE } from '$lib/notifications/appBadge';
 import {
   routeNotificationClick,
   type NotificationClickClients
 } from '$lib/pwa/notificationClick.worker';
-import {
-  normalizeUnknownBadgeIntent,
-  ServiceWorkerBadgeCoordinator,
-  createCacheForegroundBadgeIntentStorage,
-  type ServiceWorkerBadgeIntent
-} from '$lib/pwa/notificationBadge.worker';
 
 declare const self: ServiceWorkerGlobalScope;
 
-const CACHE_PREFIX = 'chatto-shell';
-const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
-const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v2';
-const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
-const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
-
-type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
-  setAppBadge?: (contents?: number) => Promise<void>;
-  clearAppBadge?: () => Promise<void>;
-};
-
-const badgeCoordinator = new ServiceWorkerBadgeCoordinator(
-  self.registration,
-  navigator as ServiceWorkerAppBadgeNavigator,
-  createCacheForegroundBadgeIntentStorage(caches, BADGE_STATE_CACHE_NAME)
-);
+const RETIRED_SHELL_CACHE_PREFIX = 'chatto-shell-';
+const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
 
 /**
- * Immediately activate new service worker versions.
- * Without this, users must close all tabs before updates take effect.
+ * Retire an existing request-intercepting worker promptly, even when Chatto
+ * tabs remain open. Installation performs no network or cache work.
  */
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => Promise.all(PRECACHE_ASSETS.map((path) => cacheShellAsset(cache, path))))
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
+/**
+ * Delete Cache Storage left by earlier worker versions. Current workers do not
+ * intercept requests or populate caches.
+ */
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
@@ -61,7 +38,9 @@ self.addEventListener('activate', (event) => {
       await Promise.all(
         cacheNames
           .filter(
-            (cacheName) => cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME
+            (cacheName) =>
+              cacheName.startsWith(RETIRED_SHELL_CACHE_PREFIX) ||
+              RETIRED_BADGE_CACHE_NAMES.has(cacheName)
           )
           .map((cacheName) => caches.delete(cacheName))
       );
@@ -69,76 +48,6 @@ self.addEventListener('activate', (event) => {
     })()
   );
 });
-
-self.addEventListener('message', (event) => {
-  handleBadgeStateMessage(event);
-});
-
-/**
- * Serve known app-shell assets from the versioned cache. For navigations, try
- * the network first and fall back to the cached SPA shell only when offline.
- *
- * Chat data, API responses, auth endpoints, uploaded assets, and cross-origin
- * requests stay network-only so stale data never masquerades as live state.
- */
-self.addEventListener('fetch', (event) => {
-  const policy = classifyServiceWorkerRequest(
-    event.request,
-    event.request.url,
-    SHELL_ASSETS,
-    self.location.origin
-  );
-
-  if (policy.networkOnly) return;
-
-  if (policy.cacheableShellAsset) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const url = new URL(event.request.url);
-        const cached = await cache.match(url.pathname);
-        if (cached) return cached;
-
-        const response = await fetch(event.request);
-        if (response.ok) {
-          await cache.put(url.pathname, response.clone());
-        }
-        return response;
-      })()
-    );
-    return;
-  }
-
-  if (policy.navigationRequest) {
-    event.respondWith(
-      (async () => {
-        try {
-          return await fetch(event.request);
-        } catch (err) {
-          const cache = await caches.open(CACHE_NAME);
-          const shell = await getCachedOfflineShell(cache);
-          if (shell) return shell;
-          throw err;
-        }
-      })()
-    );
-  }
-});
-
-async function cacheShellAsset(cache: Cache, path: string): Promise<void> {
-  try {
-    const response = await fetch(path, { cache: 'reload' });
-    if (!response.ok) return;
-    await cache.put(path, response);
-  } catch {
-    // A missing static fallback in local preview must not invalidate the whole
-    // service worker. Production nginx serves the same shell through /200.html.
-  }
-}
-
-async function getCachedOfflineShell(cache: Cache): Promise<Response | undefined> {
-  return (await cache.match(OFFLINE_SHELL_PATH)) ?? cache.match('/');
-}
 
 // Type for push notification payload from server
 interface PushPayload {
@@ -149,8 +58,7 @@ interface PushPayload {
   tag?: string;
   notificationId?: string;
   url?: string;
-  // "dismiss" action is used to close notifications on other devices
-  action?: 'dismiss';
+  app_badge?: string | number;
 }
 
 interface DeclarativePushPayload extends PushPayload {
@@ -176,7 +84,6 @@ interface DeclarativeNotificationPayload {
 type NormalizedPushNotification = {
   title: string;
   options: NotificationOptions;
-  appBadgeIntent: ServiceWorkerBadgeIntent;
 };
 
 type DeclarativePushEventNotification = Pick<
@@ -184,31 +91,11 @@ type DeclarativePushEventNotification = Pick<
   'title' | 'body' | 'icon' | 'tag' | 'data'
 > & {
   badge?: string;
-  app_badge?: string | number;
 };
 
 type PushEventWithDeclarativeNotification = PushEvent & {
   notification?: DeclarativePushEventNotification | null;
 };
-
-function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
-  const message = event.data as Record<string, unknown> | undefined;
-  if (!message || message.type !== 'chatto-badge-state') return false;
-
-  const badgeIntent =
-    normalizeUnknownBadgeIntent(message.badgeIntent) ??
-    (typeof message.notificationCount === 'number'
-      ? legacyBadgeIntentFromCount(message.notificationCount)
-      : null);
-  if (!badgeIntent) return false;
-
-  event.waitUntil(
-    badgeCoordinator.applyForegroundBadgeIntent(badgeIntent, {
-      serviceWorkerAppBadgeEnabled: message.serviceWorkerAppBadgeEnabled === true
-    })
-  );
-  return true;
-}
 
 function normalizePushNotification(payload: DeclarativePushPayload): NormalizedPushNotification {
   const notification = payload.notification;
@@ -226,8 +113,7 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
         notificationId,
         url
       }
-    },
-    appBadgeIntent: declarativeAppBadgeIntent(notification?.app_badge)
+    }
   };
 }
 
@@ -240,30 +126,10 @@ function declarativePayloadFromEventNotification(
       body: notification.body,
       icon: notification.icon,
       badge: notification.badge,
-      app_badge: notification.app_badge,
       tag: notification.tag,
       data: notificationData(notification.data)
     }
   };
-}
-
-function legacyBadgeIntentFromCount(notificationCount: number): ServiceWorkerBadgeIntent {
-  if (!Number.isFinite(notificationCount)) return { kind: 'clear' };
-  const count = Math.max(0, Math.floor(notificationCount));
-  return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
-}
-
-function declarativeAppBadgeIntent(appBadge: unknown): ServiceWorkerBadgeIntent {
-  if (typeof appBadge === 'number' && Number.isFinite(appBadge)) {
-    const count = Math.max(0, Math.floor(appBadge));
-    return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
-  }
-  if (typeof appBadge !== 'string' || appBadge.trim() === '') return { kind: 'flag' };
-
-  const count = Number(appBadge);
-  if (!Number.isFinite(count)) return { kind: 'flag' };
-  const normalized = Math.max(0, Math.floor(count));
-  return normalized > 0 ? { kind: 'count', count: normalized } : { kind: 'clear' };
 }
 
 function notificationData(data: unknown): DeclarativeNotificationPayload['data'] {
@@ -279,9 +145,28 @@ function stringProperty(record: object, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+/** Ask visible pages to restore their authoritative aggregate after a regular push. */
+async function refreshVisibleAppBadges(): Promise<void> {
+  let windowClients: readonly WindowClient[];
+  try {
+    windowClients = (await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    })) as WindowClient[];
+  } catch {
+    return;
+  }
+
+  for (const client of windowClients) {
+    if (client.visibilityState === 'visible') {
+      client.postMessage({ type: APP_BADGE_REFRESH_MESSAGE_TYPE });
+    }
+  }
+}
+
 /**
  * Handle incoming push events.
- * Parse the payload and display a native notification, or dismiss existing ones.
+ * Parse the payload and display a native notification.
  */
 self.addEventListener('push', (event) => {
   const declarativeNotification = (event as PushEventWithDeclarativeNotification).notification;
@@ -300,30 +185,13 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  // Handle dismiss action - close matching notifications on this device
-  if (payload.action === 'dismiss' && payload.tag) {
-    event.waitUntil(
-      (async () => {
-        const notifications = await self.registration.getNotifications({ tag: payload.tag });
-        notifications.forEach((n) => n.close());
-        await badgeCoordinator.reconcileAfterDismissPush();
-      })()
-    );
-    return;
-  }
-
-  badgeCoordinator.recordRegularPush();
   const notification = normalizePushNotification(payload);
 
   event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(notification.title, notification.options),
-      notification.appBadgeIntent.kind === 'count'
-        ? badgeCoordinator.setPushAppBadgeCount(notification.appBadgeIntent.count)
-        : notification.appBadgeIntent.kind === 'flag'
-          ? badgeCoordinator.setProvisionalPushFlagBadge()
-          : badgeCoordinator.setPushAppBadgeCount(0)
-    ])
+    (async () => {
+      await self.registration.showNotification(notification.title, notification.options);
+      await refreshVisibleAppBadges();
+    })()
   );
 });
 
@@ -339,18 +207,12 @@ self.addEventListener('notificationclick', (event) => {
   const rawUrl =
     typeof event.notification.data?.url === 'string' ? event.notification.data.url : undefined;
   event.waitUntil(
-    (async () => {
-      try {
-        await routeNotificationClick(
-          rawUrl,
-          self.location.origin,
-          self.clients as unknown as NotificationClickClients,
-          { logger: console }
-        );
-      } finally {
-        await badgeCoordinator.reconcileAfterNotificationClick().catch(() => {});
-      }
-    })().catch((err) => {
+    routeNotificationClick(
+      rawUrl,
+      self.location.origin,
+      self.clients as unknown as NotificationClickClients,
+      { logger: console }
+    ).catch((err) => {
       console.error('[SW] Error handling notification click:', err);
     })
   );

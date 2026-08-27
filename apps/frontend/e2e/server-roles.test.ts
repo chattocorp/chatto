@@ -16,6 +16,7 @@ import {
   getDefaultRoomGroupIdViaConnect,
   joinRoomViaConnect
 } from './fixtures/connectHelpers';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
 import * as routes from './routes';
 
 interface TestServer {
@@ -73,7 +74,8 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
  * Logs in an existing user via HTTP endpoint.
  */
 async function loginUser(page: Page, login: string, password: string): Promise<void> {
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: { login, password }
   });
 
@@ -634,10 +636,10 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.space());
 
       // Admin should see settings link in sidebar
-      await serverAdminPage.expectAdminLinkVisible();
+      await serverAdminPage.expectSettingsLinkVisible();
     });
 
-    test('user without server.manage permission cannot see settings link', async ({
+    test('user without server.manage permission sees only permitted management links', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -654,8 +656,13 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Non-admin should not see settings link in sidebar
-      await serverAdminPage.expectAdminLinkNotVisible();
+      // Bots remains available through the default bot.create grant, while
+      // General stays hidden without server.manage.
+      await serverAdminPage.expectSettingsLinkVisible();
+      await serverAdminPage.settingsLink.click();
+      await page.waitForURL(routes.serverAdminBots);
+      await serverAdminPage.expectBotsNavVisible();
+      await serverAdminPage.expectGeneralNavNotVisible();
     });
   });
 
@@ -814,7 +821,7 @@ test.describe('Server Permission Enforcement', () => {
   });
 
   test.describe('room.manage permission', () => {
-    test('administration gear hidden when user lacks room.manage permission', async ({ page }) => {
+    test('Settings only exposes Bots when user lacks room.manage permission', async ({ page }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
@@ -831,11 +838,15 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration gear should NOT be visible
-      await expect(page.getByRole('link', { name: 'Server administration' })).not.toBeVisible();
+      // Fresh servers grant bot.create to everyone, so the administration
+      // entry remains available for Bots while room management stays hidden.
+      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await page.waitForURL(routes.serverAdminBots);
+      await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Rooms', exact: true })).not.toBeVisible();
     });
 
-    test('administration gear visible when user has room.manage permission', async ({ page }) => {
+    test('Settings exposes Rooms when user has room.manage permission', async ({ page }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
@@ -855,8 +866,8 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration gear should be visible
-      await expect(page.getByRole('link', { name: 'Server administration' })).toBeVisible();
+      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await expect(page.getByRole('link', { name: 'Rooms', exact: true })).toBeVisible();
     });
   });
 });

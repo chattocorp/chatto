@@ -40,6 +40,9 @@ client_secret = ''
 [video]
 enabled = true
 
+[asset_processing]
+enabled = true
+
 [nats.embedded]
 # Enable embedded NATS server.
 enabled = true

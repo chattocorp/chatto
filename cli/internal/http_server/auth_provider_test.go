@@ -18,13 +18,13 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	jose "github.com/go-jose/go-jose/v3"
-	josejwt "github.com/go-jose/go-jose/v3/jwt"
+	jose "github.com/go-jose/go-jose/v4"
+	josejwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/markbates/goth"
 	gothgithub "github.com/markbates/goth/providers/github"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestProviderScopesForOIDC(t *testing.T) {
@@ -160,7 +160,15 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.config.Webserver.URL = "http://chat.example"
-		s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}
+		s.oauthClientResolveHook = func(_ context.Context, clientID string) (OAuthClient, bool, error) {
+			if clientID != testOAuthClientID {
+				return OAuthClient{}, false, nil
+			}
+			return OAuthClient{
+				ClientID: clientID, ClientName: "Test Client", ClientURI: "https://client.example",
+				RedirectURIs: []string{"https://client.example/servers/callback"},
+			}, true, nil
+		}
 		s.config.Auth.Providers = []config.AuthProviderConfig{{
 			ID:            "oidc-no-email",
 			Type:          config.AuthProviderTypeOpenIDConnect,
@@ -205,14 +213,15 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		t.Fatalf("CountVerifiedAccounts = %d, %v; want 1", got, err)
 	}
 
-	if err := chattoCore.GrantOAuthConsent(t.Context(), user.Id, "https://client.example"); err != nil {
-		t.Fatalf("GrantOAuthConsent: %v", err)
+	if err := chattoCore.GrantOAuthClientConsent(t.Context(), user.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example"); err != nil {
+		t.Fatalf("GrantOAuthClientConsent: %v", err)
 	}
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 	redirectURI := "https://client.example/servers/callback"
 	state := "multi-server-provider-state"
 	authorizeResp, err := client.Get(ts.URL + "/oauth/authorize?" + url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {redirectURI},
 		"code_challenge":        {core.GenerateCodeChallenge(verifier)},
 		"code_challenge_method": {"S256"},
@@ -243,6 +252,7 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		Code:         callbackURL.Query().Get("code"),
 		CodeVerifier: verifier,
 		RedirectURI:  redirectURI,
+		ClientID:     testOAuthClientID,
 	})
 	if err != nil {
 		t.Fatalf("encode multi-server token exchange: %v", err)
@@ -265,7 +275,7 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		t.Fatal("multi-server token exchange returned no access token")
 	}
 
-	issuanceSubject := events.UserAggregate(user.Id).Subject(events.EventBearerTokenIssued)
+	issuanceSubject := evtstream.UserAggregate(user.Id).Subject(evtstream.EventBearerTokenIssued)
 	issuedBefore, _, err := chattoCore.EventPublisher.SubjectEvents(t.Context(), issuanceSubject)
 	if err != nil {
 		t.Fatalf("SubjectEvents before provider login: %v", err)
@@ -374,6 +384,74 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 
 	if issuer.UserInfoRequests() == 0 {
 		t.Fatal("expected userinfo fallback when ID token has no email claim")
+	}
+}
+
+func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	requestEmail := false
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyInviteOnly
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID:            "oidc-invited",
+			Type:          config.AuthProviderTypeOpenIDConnect,
+			Label:         "Invited OIDC",
+			IssuerURL:     issuer.URL(),
+			ClientID:      "client-id",
+			ClientSecret:  "client-secret",
+			RequestEmail:  &requestEmail,
+			AutoProvision: boolPtr(true),
+		}}
+		s.setupOIDCRoutes()
+	})
+
+	admin, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "oidc-invite-admin", "OIDC Invite Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := chattoCore.AssignAdminRole(t.Context(), admin.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	maxUses := uint32(1)
+	invitation, err := chattoCore.CreateInvitation(t.Context(), admin.Id, &maxUses, nil)
+	if err != nil {
+		t.Fatalf("CreateInvitation: %v", err)
+	}
+	bindResp, err := client.Get(ts.URL + chattoCore.InvitationLinkPath(invitation.ID))
+	if err != nil {
+		t.Fatalf("GET invite link: %v", err)
+	}
+	bindResp.Body.Close()
+	if bindResp.StatusCode != http.StatusSeeOther || bindResp.Header.Get("Location") != "/register?invited=1" {
+		t.Fatalf("GET invite link = %d %q", bindResp.StatusCode, bindResp.Header.Get("Location"))
+	}
+
+	issuer.SetSubject("subject-invited-create")
+	createToken := completeNoEmailOIDCHandshake(t, client, ts.URL, "oidc-invited", "/chat")
+	flow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), createToken)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
+	}
+	if flow.InvitationID != invitation.ID {
+		t.Fatalf("flow invitation = %q, want %q", flow.InvitationID, invitation.ID)
+	}
+	if _, err := chattoCore.CreateUserForExternalIdentity(t.Context(), "oidc-invited-user", "OIDC Invited User", flow); err != nil {
+		t.Fatalf("CreateUserForExternalIdentity: %v", err)
+	}
+	state, err := chattoCore.GetInvitation(t.Context(), admin.Id, invitation.ID)
+	if err != nil || state.UseCount != 1 {
+		t.Fatalf("invitation after SSO signup = %+v, %v; want one use", state, err)
+	}
+
+	issuer.SetSubject("subject-missing-invite")
+	startLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-invited", url.Values{"redirect": {"/chat"}})
+	location := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-invited", authStateFromLocation(t, startLocation))
+	if location != "/login?error=invalid_invitation" {
+		t.Fatalf("uninvited auto-provision Location = %q, want invalid invitation", location)
 	}
 }
 
@@ -701,7 +779,7 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 		Name:          "No Email User",
 		PreferredUser: "no-email-user",
 	}
-	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).CompactSerialize()
+	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).Serialize()
 	if err != nil {
 		panic(err)
 	}

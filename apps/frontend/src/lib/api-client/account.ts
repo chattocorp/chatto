@@ -2,10 +2,10 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import {
-  TimeFormat as APITimeFormat,
+  TimeFormat,
   type UserSettings as APIUserSettings
 } from '@chatto/api-types/api/v1/viewer_pb';
-import { TimeFormat } from './renderTypes.js';
+import { timeFormatOrAuto } from './timeFormat.js';
 
 export type AccountAPIConfig = {
   baseUrl: string;
@@ -82,7 +82,8 @@ export function createAccountAPI(config: AccountAPIConfig) {
       const response = await client.updateSettings(
         {
           timezone: input.timezone === null ? '' : input.timezone,
-          timeFormat: input.timeFormat === undefined ? undefined : timeFormatToAPI(input.timeFormat)
+          timeFormat:
+            input.timeFormat === undefined ? undefined : timeFormatOrAuto(input.timeFormat)
         },
         { headers: headers() }
       );
@@ -123,31 +124,6 @@ function accountUser(user: APIUser | undefined): AccountUser {
 function userSettings(settings: APIUserSettings | undefined): AccountUserSettings {
   return {
     timezone: settings?.timezone ?? null,
-    timeFormat: settings ? apiTimeFormat(settings.timeFormat) : TimeFormat.Auto
+    timeFormat: timeFormatOrAuto(settings?.timeFormat)
   };
-}
-
-function timeFormatToAPI(format: TimeFormat): APITimeFormat {
-  switch (format) {
-    case TimeFormat.TwelveHour:
-      return APITimeFormat.TIME_FORMAT_12_HOUR;
-    case TimeFormat.TwentyFourHour:
-      return APITimeFormat.TIME_FORMAT_24_HOUR;
-    case TimeFormat.Auto:
-    default:
-      return APITimeFormat.TIME_FORMAT_AUTO;
-  }
-}
-
-function apiTimeFormat(format: APITimeFormat): TimeFormat {
-  switch (format) {
-    case APITimeFormat.TIME_FORMAT_12_HOUR:
-      return TimeFormat.TwelveHour;
-    case APITimeFormat.TIME_FORMAT_24_HOUR:
-      return TimeFormat.TwentyFourHour;
-    case APITimeFormat.TIME_FORMAT_AUTO:
-    case APITimeFormat.TIME_FORMAT_UNSPECIFIED:
-    default:
-      return TimeFormat.Auto;
-  }
 }

@@ -1,7 +1,57 @@
 import { describe, expect, it } from 'vitest';
+import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { GetViewerResponse, ServerViewerState } from '@chatto/api-types/api/v1/viewer_pb';
+import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { ServerProjectionStore } from './projection.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
 
 describe('RoomUnreadStore', () => {
+  it('reads authoritative room and aggregate unread state directly from the projection', () => {
+    const projection = new ServerProjectionStore();
+    projection.viewer = new GetViewerResponse({
+      viewerState: new ServerViewerState({ hasUnreadRooms: true })
+    });
+    projection.rooms.set(
+      'room-1',
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'room-1' }),
+          viewerState: new RoomViewerState({ hasUnread: true })
+        })
+      })
+    );
+    const store = new RoomUnreadStore(() => projection);
+
+    expect(store.roomIsUnread('room-1')).toBe(true);
+    expect(store.hasAnyUnread).toBe(true);
+
+    projection.rooms.get('room-1')!.room!.viewerState = new RoomViewerState({ hasUnread: false });
+    projection.viewer.viewerState = new ServerViewerState({ hasUnreadRooms: false });
+
+    expect(store.roomIsUnread('room-1')).toBe(false);
+    expect(store.hasAnyUnread).toBe(false);
+  });
+
+  it('lets concrete projected room state supersede a stale viewer aggregate', () => {
+    const projection = new ServerProjectionStore();
+    projection.viewer = new GetViewerResponse({
+      viewerState: new ServerViewerState({ hasUnreadRooms: true })
+    });
+    projection.rooms.set(
+      'room-1',
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'room-1' }),
+          viewerState: new RoomViewerState({ hasUnread: false })
+        })
+      })
+    );
+    const store = new RoomUnreadStore(() => projection);
+
+    expect(store.hasAnyUnread).toBe(false);
+  });
+
   it('initializes room unread state from an authoritative directory snapshot', () => {
     const store = new RoomUnreadStore();
 
@@ -183,5 +233,35 @@ describe('RoomUnreadStore', () => {
 
     read.rollback();
     expect(store.roomIsUnread('room-1')).toBe(true);
+  });
+
+  it('keeps an optimistic read until the projection confirms the room is read', () => {
+    const projection = new ServerProjectionStore();
+    projection.rooms.set(
+      'room-1',
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'room-1' }),
+          viewerState: new RoomViewerState({ hasUnread: true })
+        })
+      })
+    );
+    const store = new RoomUnreadStore(() => projection);
+    const read = store.beginOptimisticRead('room-1');
+
+    store.acknowledgeRoomProjection('room-1', true);
+    expect(store.roomIsUnread('room-1')).toBe(false);
+
+    read.commit();
+    expect(store.roomIsUnread('room-1')).toBe(false);
+
+    store.acknowledgeRoomProjection('room-1', true);
+    expect(store.roomIsUnread('room-1')).toBe(true);
+
+    const nextRead = store.beginOptimisticRead('room-1');
+    store.acknowledgeRoomProjection('room-1', false);
+    projection.rooms.get('room-1')!.room!.viewerState = new RoomViewerState({ hasUnread: false });
+    nextRead.commit();
+    expect(store.roomIsUnread('room-1')).toBe(false);
   });
 });

@@ -26,7 +26,7 @@ describe('AddServerDialog', () => {
 
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEY);
-    serverRegistry.servers = [];
+    serverRegistry.removeAll();
     startServerOAuthFlowMock.mockReset();
     startServerOAuthFlowMock.mockResolvedValue(undefined);
     originalFetch = globalThis.fetch;
@@ -55,7 +55,8 @@ describe('AddServerDialog', () => {
       makeProbeResponse({
         profile: {
           name: 'Remote Chatto',
-          version: '0.0.150'
+          version: '0.0.150',
+          bannerUrl: 'https://chat.example.com/banner.png'
         },
         login: {
           directRegistrationEnabled: true,
@@ -85,19 +86,18 @@ describe('AddServerDialog', () => {
     });
 
     const [requestUrl, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
-    const parsedRequestUrl = new URL(String(requestUrl));
-    expect(`${parsedRequestUrl.origin}${parsedRequestUrl.pathname}`).toBe(
+    expect(requestUrl).toBe(
       'https://chat.example.com/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer'
     );
-    expect(parsedRequestUrl.searchParams.get('connect')).toBe('v1');
-    expect(parsedRequestUrl.searchParams.get('encoding')).toBe('json');
-    expect(parsedRequestUrl.searchParams.get('message')).toBe('{}');
-    expect(requestInit?.method).toBe('GET');
+    expect(requestInit?.method).toBe('POST');
 
     // The server-supplied name appears in the (visually-marked) preview
     // card, not in any action button.
     expect(container.textContent).toContain('Remote Chatto');
     expect(container.textContent).toContain('chat.example.com');
+    expect(
+      container.querySelector<HTMLImageElement>('[data-testid="server-preview-banner"]')?.className
+    ).toContain('h-24');
   });
 
   it('handles the real chat.chatto.run response shape', async () => {
@@ -152,6 +152,10 @@ describe('AddServerDialog', () => {
   });
 
   it('starts the shared OAuth flow from the preview stage', async () => {
+    const onclose = vi.fn();
+    startServerOAuthFlowMock.mockImplementationOnce(
+      async (_serverUrl, _serverInfo, beforeNavigate?: () => void) => beforeNavigate?.()
+    );
     globalThis.fetch = vi.fn(async () =>
       makeProbeResponse({
         profile: {
@@ -166,7 +170,7 @@ describe('AddServerDialog', () => {
     ) as unknown as typeof fetch;
 
     const { container } = render(AddServerDialog, {
-      props: { visible: true, onclose: () => {} }
+      props: { visible: true, onclose }
     });
 
     const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
@@ -177,9 +181,9 @@ describe('AddServerDialog', () => {
     container.querySelector('form')!.requestSubmit();
 
     await vi.waitFor(() => {
-      expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toMatch(
-        /^\s*Sign in\s*$/
-      );
+      expect(
+        container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent
+      ).toMatch(/^\s*Sign in\s*$/);
     });
 
     container.querySelector('form')!.requestSubmit();
@@ -190,9 +194,11 @@ describe('AddServerDialog', () => {
         expect.objectContaining({
           name: 'Remote Chatto',
           authorizeUrl: '/oauth/authorize'
-        })
+        }),
+        expect.any(Function)
       );
     });
+    expect(onclose).toHaveBeenCalledOnce();
   });
 
   it('shows an error when the probe response is not a Chatto server', async () => {
@@ -217,21 +223,24 @@ describe('AddServerDialog', () => {
   });
 
   it('blocks adding a server that is already connected', async () => {
-    serverRegistry.servers = [
+    serverRegistry.removeAll();
+    serverRegistry.addServer(
       {
         id: 'remote',
         url: 'https://chat.example.com',
         name: 'Remote',
         iconUrl: null,
+        addedAt: 0
+      },
+      {
         token: 'abc',
         userId: 'user-1',
         userLogin: 'someone',
         userDisplayName: null,
         userAvatarUrl: null,
-        reauthRequiredAt: null,
-        addedAt: 0
+        reauthRequiredAt: null
       }
-    ];
+    );
 
     const fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy as unknown as typeof fetch;

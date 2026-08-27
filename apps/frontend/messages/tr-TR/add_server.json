@@ -1,0 +1,22 @@
+{
+  "add_server": {
+    "title": "Sunucu Ekle",
+    "sign_in": "Oturum aç",
+    "connect": "Bağlan",
+    "redirecting": "Oturum açma bekleniyor...",
+    "connecting": "Bağlanıyor...",
+    "start_failed": "Oturum açma işlemi başlatılamadı.",
+    "invalid_url": "Lütfen geçerli bir URL girin.",
+    "already_connected": "Bu sunucu zaten bağlı.",
+    "not_chatto_server": "Bu bir Chatto sunucusu gibi görünmüyor.",
+    "oauth_unsupported": "Bu sunucu OAuth kimlik doğrulamasını desteklemiyor. Güncellenmesi gerekebilir.",
+    "connection_timed_out": "Bağlantı zaman aşımına uğradı. URL'yi kontrol edin ve tekrar deneyin.",
+    "connection_failed": "Bağlantı kurulamadı. URL'yi kontrol edip tekrar deneyin.",
+    "connect_failed": "Bağlantı başarısız oldu.",
+    "edit_url": "Yanlış sunucu mu? URL'yi düzenle",
+    "description_url": "Chatto dağıtılmıştır - istemciniz her sunucuya doğrudan bağlanır. Başka bir tane eklemek için bir URL girin.",
+    "description_preview": "Doğrudan bu sunucuda oturum açabilmeniz için ayrı bir pencere açılacaktır.",
+    "url_label": "Sunucu URL'si",
+    "url_placeholder": "sohbet.example.com"
+  }
+}

@@ -1,13 +1,11 @@
-import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
+import {
+  authHeaders,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig,
+} from "./connect.js";
 import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
-
-export type ConnectAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type MarkRoomAsReadResult = {
   lastReadAt: string | null;

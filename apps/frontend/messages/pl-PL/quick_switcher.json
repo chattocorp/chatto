@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "Przejdź gdzieś lub wpisz ?, aby wyszukać wiadomości...",
+    "no_results": "Brak wyników",
+    "recent": "Najnowsze",
+    "kind": {
+      "destination": "Przejdź do",
+      "server": "Serwer",
+      "room": "Pokój",
+      "dm": "Czat DM",
+      "user": "Użytkownik",
+      "message": "Wiadomość"
+    },
+    "message_search": {
+      "prompt": "Wpisz tekst po ?, aby przeszukać wiadomości na wszystkich serwerach",
+      "no_results": "Nie znaleziono wiadomości"
+    }
+  }
+}

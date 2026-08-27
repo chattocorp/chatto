@@ -1,0 +1,18 @@
+go 1.26.0
+
+use (
+	./authling
+	./cli
+	./pkg/appconfig
+	./pkg/datacrypto
+	./pkg/events
+	./pkg/natsruntime
+)
+
+// protoc-gen-doc still requires pre-split Google root modules. In workspace
+// mode its tool graph participates in module selection, so use post-split root
+// versions to avoid overlapping packages with their modern submodules.
+replace (
+	cloud.google.com/go v0.94.1 => cloud.google.com/go v0.123.0
+	google.golang.org/genproto v0.0.0-20210917145530-b395a37504d4 => google.golang.org/genproto v0.0.0-20260724162435-b2f20204f0df
+)

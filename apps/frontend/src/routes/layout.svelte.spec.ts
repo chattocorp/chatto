@@ -18,7 +18,8 @@ const { mocks } = vi.hoisted(() => ({
       showConnectionLostIcon: false,
       showConnectionLostBanner: false,
       forceReconnect: vi.fn()
-    }
+    },
+    updateAppBadge: vi.fn(async () => {})
   }
 }));
 
@@ -45,9 +46,15 @@ vi.mock('$app/state', () => ({
   }
 }));
 
-vi.mock('$lib/hooks', () => ({
-  usePageTitle: () => () => 'Chatto',
-  usePinchZoomPrevention: vi.fn(),
+vi.mock('$lib/hooks/usePageTitle.svelte', () => ({
+  usePageTitle: () => () => 'Chatto'
+}));
+
+vi.mock('$lib/hooks/usePinchZoomPrevention.svelte', () => ({
+  usePinchZoomPrevention: vi.fn()
+}));
+
+vi.mock('$lib/hooks/useVisualViewport.svelte', () => ({
   useVisualViewport: vi.fn()
 }));
 
@@ -58,6 +65,11 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
 vi.mock('$lib/notifications/notificationNavigationUi', () => ({
   prepareUiForNotificationPath: vi.fn(),
   prepareUiForNotificationTarget: vi.fn()
+}));
+
+vi.mock('$lib/notifications/appBadge', () => ({
+  listenForAppBadgeRefresh: vi.fn(() => vi.fn()),
+  updateAppBadge: mocks.updateAppBadge
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -73,7 +85,12 @@ vi.mock('$lib/state/server/useServerRegistry.svelte', () => ({
   useServerRegistry: vi.fn()
 }));
 
+vi.mock('$lib/state/server/ServerRuntimeCoordinator.svelte', async () => ({
+  default: (await import('./chat/ChatRootTestStub.svelte')).default
+}));
+
 vi.mock('$lib/state/server/registry.svelte', () => ({
+  generateServerId: vi.fn(() => 'server-id'),
   serverRegistry: {
     servers: [],
     originServer: { id: 'origin' },
@@ -119,6 +136,8 @@ function renderLayout() {
     version: 'test',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: true,
+    directLoginEnabled: true,
+    accountCreationPolicy: 'open',
     welcomeMessage: null,
     description: null,
     iconUrl: null,
@@ -151,28 +170,47 @@ function pointer(type: string, x: number, y = 120) {
 describe('root layout mobile sidebar animation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    document.documentElement.dir = 'ltr';
     installMobileMatchMedia();
     resetSidebar();
   });
 
-  it('keeps edge target presses from bubbling to app-level outside-click handlers', async () => {
+  it('keeps the left edge free for normal app controls', async () => {
     const { container } = renderLayout();
-    const onWindowPointerDown = vi.fn();
-    window.addEventListener('pointerdown', onWindowPointerDown);
+    await tick();
 
-    try {
-      await tick();
+    const child = q(container, '[data-testid="layout-child"]');
+    expect(child).not.toBeNull();
+    if (!child) return;
+    const onClick = vi.fn();
+    child.addEventListener('click', onClick);
 
-      const edge = q(container, '[data-testid="mobile-sidebar-edge"]');
-      expect(edge).not.toBeNull();
-      if (!edge) return;
+    child.dispatchEvent(pointer('pointerdown', 2));
+    window.dispatchEvent(pointer('pointerup', 2));
+    child.click();
 
-      edge.dispatchEvent(pointer('pointerdown', 2));
+    expect(q(container, '[data-testid="mobile-sidebar-edge"]')).toBeNull();
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(sidebarNav.isOpen).toBe(false);
+  });
 
-      expect(onWindowPointerDown).not.toHaveBeenCalled();
-    } finally {
-      window.removeEventListener('pointerdown', onWindowPointerDown);
-    }
+  it('opens the mobile sidebar from a rightward drag in app content', async () => {
+    const { container } = renderLayout();
+    await tick();
+
+    const child = q(container, '[data-testid="layout-child"]');
+    expect(child).not.toBeNull();
+    if (!child) return;
+
+    child.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
+    await tick();
+
+    expect(sidebarNav.isOpen).toBe(true);
+    expect(q(container, '[data-testid="mobile-sidebar-panel"]')?.style.transform).toBe(
+      'translateX(calc(0px * var(--inline-direction)))'
+    );
   });
 
   it('keeps the sidebar and backdrop mounted while the mobile close animation runs', async () => {
@@ -191,7 +229,7 @@ describe('root layout mobile sidebar animation', () => {
     expect(backdrop).not.toBeNull();
     if (!panel || !backdrop) return;
 
-    expect(panel.style.transform).toBe('translateX(0px)');
+    expect(panel.style.transform).toBe('translateX(calc(0px * var(--inline-direction)))');
     expect(getComputedStyle(panel).visibility).toBe('visible');
     expect(backdrop.disabled).toBe(false);
     expect(backdrop.style.opacity).toBe('1');
@@ -202,7 +240,7 @@ describe('root layout mobile sidebar animation', () => {
     expect(q(container, '[data-testid="mobile-sidebar-backdrop"]')).toBe(backdrop);
     expect(backdrop.disabled).toBe(true);
     expect(backdrop.style.opacity).toBe('0');
-    expect(panel.style.transform).toBe('translateX(-324px)');
+    expect(panel.style.transform).toBe('translateX(calc(-324px * var(--inline-direction)))');
     expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
   });
 
@@ -223,6 +261,38 @@ describe('root layout mobile sidebar animation', () => {
     await tick();
 
     expect(sidebarNav.isOpen).toBe(false);
-    expect(panel.style.transform).toBe('translateX(-324px)');
+    expect(panel.style.transform).toBe('translateX(calc(-324px * var(--inline-direction)))');
+  });
+
+  it('opens the inline-start sidebar from a leftward drag in RTL', async () => {
+    document.documentElement.dir = 'rtl';
+    const { container } = renderLayout();
+    await tick();
+
+    const child = q(container, '[data-testid="layout-child"]');
+    expect(child).not.toBeNull();
+    if (!child) return;
+
+    child.dispatchEvent(pointer('pointerdown', 310));
+    window.dispatchEvent(pointer('pointermove', 100));
+    window.dispatchEvent(pointer('pointerup', 100));
+    await tick();
+
+    expect(sidebarNav.isOpen).toBe(true);
+  });
+});
+
+describe('root layout notification synchronization', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    installMobileMatchMedia();
+    resetSidebar();
+  });
+
+  it('mounts badge synchronization for a signed-out page', async () => {
+    const { container } = renderLayout();
+
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
+    expect(container.querySelector('[data-testid="chat-root-component-stub"]')).not.toBeNull();
   });
 });

@@ -1,0 +1,10 @@
+{
+  "error_page": {
+    "title": "Kaut kas nogāja greizi",
+    "description": "Šo skatu nevarēja atvērt. Varat atgriezties pie Chatto un mēģināt vēlreiz no turienes.",
+    "unknown": "Nezināma kļūda",
+    "home_link": "Atpakaļ uz Chatto",
+    "missing_media_title": "Multivide nav pieejama",
+    "missing_media_description": "Šo failu nevarēja atvērt no šīs saites. Iespējams, tas ir noņemts, vai arī privātā multivides saite vairs nav pieejama."
+  }
+}

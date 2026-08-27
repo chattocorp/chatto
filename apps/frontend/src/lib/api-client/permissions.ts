@@ -24,9 +24,7 @@ export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
 export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM';
 
 export type PermissionScope =
-  | { tier: 'server' }
-  | { tier: 'group'; groupId: string }
-  | { tier: 'room'; roomId: string };
+  { tier: 'server' } | { tier: 'group'; groupId: string } | { tier: 'room'; roomId: string };
 
 export type TierPermissions = {
   permissions: string[];
@@ -62,6 +60,7 @@ export type MatrixCell = {
   scopeId: string;
   override: MatrixDecision;
   effective: MatrixDecision;
+  allowPermitted?: boolean;
 };
 
 export type MatrixData = {
@@ -106,21 +105,30 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    async getRolePermissionTierMatrix(input: {
-      roomId?: string | null;
-      groupId?: string | null;
-    }): Promise<TierRoles | null> {
+    async getRolePermissionTierMatrix(
+      input: {
+        roomId?: string | null;
+        groupId?: string | null;
+      },
+      options: { signal?: AbortSignal } = {}
+    ): Promise<TierRoles | null> {
       const response = await client.getRolePermissionTierMatrix(
         {
           scope: apiTierMatrixScope(input)
         },
-        { headers: headers() }
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
       );
       return response.matrix ? tierRoles(response.matrix) : null;
     },
 
-    async getRolePermissionMatrix(roleName: string): Promise<RolePermissionMatrix | null> {
-      const response = await client.getRolePermissionMatrix({ roleName }, { headers: headers() });
+    async getRolePermissionMatrix(
+      roleName: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<RolePermissionMatrix | null> {
+      const response = await client.getRolePermissionMatrix(
+        { roleName },
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+      );
       return response.matrix ? rolePermissionMatrix(response.matrix) : null;
     },
 
@@ -135,8 +143,14 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
       };
     },
 
-    async getUserPermissionMatrix(userId: string): Promise<UserPermissionMatrix | null> {
-      const response = await client.getUserPermissionMatrix({ userId }, { headers: headers() });
+    async getUserPermissionMatrix(
+      userId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<UserPermissionMatrix | null> {
+      const response = await client.getUserPermissionMatrix(
+        { userId },
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+      );
       return response.matrix ? userPermissionMatrix(response.matrix) : null;
     },
 
@@ -248,7 +262,8 @@ function matrixCell(cell: APIPermissionMatrixCell): MatrixCell {
     permission: cell.permission,
     scopeId: cell.scopeId,
     override: matrixDecision(cell.override),
-    effective: matrixDecision(cell.effective)
+    effective: matrixDecision(cell.effective),
+    ...(cell.allowPermitted !== undefined ? { allowPermitted: cell.allowPermitted } : {})
   };
 }
 

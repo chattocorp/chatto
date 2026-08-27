@@ -1,6 +1,8 @@
 package core
 
-import "context"
+import (
+	"context"
+)
 
 // ThreadFollows returns the operation-level model for user-facing thread
 // follow state changes.
@@ -29,8 +31,18 @@ func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorI
 	return s.core.HasUnreadFollowedThreads(ctx, actorID, []string{LegacySpaceIDForRoomKind(KindChannel)})
 }
 
+// ListFollowedThreadViewerStates returns an exhaustive, authoritative set for
+// realtime replacement semantics. Unlike the user-facing directory list, it
+// fails on uncertain rows instead of silently omitting them.
+func (s *ThreadFollowModel) ListFollowedThreadViewerStates(ctx context.Context, actorID string) ([]*FollowedThread, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	return s.core.listFollowedThreadViewerStates(ctx, actorID)
+}
+
 func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
 	if err != nil {
 		return err
 	}
@@ -41,7 +53,7 @@ func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, t
 }
 
 func (s *ThreadFollowModel) UnfollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
 	if err != nil {
 		return err
 	}

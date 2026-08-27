@@ -4,6 +4,7 @@ package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
 import "chatto/core/v1/auth_events.proto";
+import "chatto/core/v1/authorization_events.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/message_events.proto";
 import "chatto/core/v1/moderation_events.proto";
@@ -14,6 +15,8 @@ import "chatto/core/v1/room_group_events.proto";
 import "chatto/core/v1/config_events.proto";
 import "chatto/core/v1/thread_events.proto";
 import "chatto/core/v1/user_events.proto";
+import "chatto/core/v1/invitation_events.proto";
+import "chatto/core/v1/oauth_client_events.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -73,6 +76,8 @@ message Event {
     RoomUniversalChangedEvent room_universal_changed = 305;
     // Field 306 was RoomBecameRegularEvent. Removed alongside the auto-join
     // feature; oneof tags don't reserve, so don't reuse that number.
+    RoomSlowModeChangedEvent room_slow_mode_changed = 307;
+    RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;
@@ -94,6 +99,8 @@ message Event {
     MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
     MessageBodyEvent message_body = 404;
+    MessagePinnedEvent message_pinned = 405;
+    MessageUnpinnedEvent message_unpinned = 406;
 
     // ----- Threads (425-449, durable, room-owned) -----
     ThreadCreatedEvent thread_created = 425;
@@ -102,13 +109,15 @@ message Event {
 
     // ----- Assets (450-474, durable) -----
     // The asset aggregate. AssetCreated establishes content identity for
-    // one uploaded or generated binary; AssetProcessingStarted/Succeeded/
-    // Failed track derivative work; AssetDeleted terminates the lifecycle.
+    // one uploaded or generated binary; AssetAttached binds an upload to one
+    // message as an attachment; processing events track derivative work;
+    // AssetDeleted terminates the lifecycle.
     AssetCreatedEvent asset_created = 450;
     AssetProcessingStartedEvent asset_processing_started = 451;
     AssetProcessingSucceededEvent asset_processing_succeeded = 452;
     AssetProcessingFailedEvent asset_processing_failed = 453;
     AssetDeletedEvent asset_deleted = 454;
+    AssetAttachedEvent asset_attached = 455;
 
     // ----- Config / preferences (500-599, durable) -----
     // These variants live on the EVT stream (subjects under evt.config.>)
@@ -128,10 +137,14 @@ message Event {
     UserTimezoneClearedEvent user_timezone_cleared = 511;
     UserTimeFormatChangedEvent user_time_format_changed = 512;
     UserTimeFormatClearedEvent user_time_format_cleared = 513;
-    UserServerNotificationLevelSetEvent user_server_notification_level_set = 514;
-    UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515;
-    UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516;
-    UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517;
+    // Legacy Notifications 1.0 variants retained only to decode EVT history.
+    // Current code never writes them.
+    UserServerNotificationLevelSetEvent user_server_notification_level_set = 514 [deprecated = true];
+    UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515 [deprecated = true];
+    UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516 [deprecated = true];
+    UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517 [deprecated = true];
+    UserNotificationPolicyChangedEvent user_notification_policy_changed = 518;
+    UserRoomGroupNotificationPolicyChangedEvent user_room_group_notification_policy_changed = 519;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.
@@ -176,6 +189,10 @@ message Event {
     UserCustomStatusSetEvent user_custom_status_set = 715;
     UserCustomStatusClearedEvent user_custom_status_cleared = 716;
     UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
+    UserKeyShreddingRequestedEvent user_key_shredding_requested = 718;
+    BotApiKeyCreatedEvent bot_api_key_created = 719;
+    BotApiKeyRotatedEvent bot_api_key_rotated = 720;
+    BotOwnerReassignedEvent bot_owner_reassigned = 721;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;
@@ -189,6 +206,9 @@ message Event {
     RbacPermissionDeniedEvent rbac_permission_denied = 811;
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
     RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
+
+    // ----- Authorization concurrency fence (830-839, durable) -----
+    AuthorizationFenceAdvancedEvent authorization_fence_advanced = 830;
 
     // ----- Moderation (840-899, durable, room-owned) -----
     RoomMemberBannedEvent room_member_banned = 840;
@@ -215,6 +235,13 @@ message Event {
     BearerTokenRevokedEvent bearer_token_revoked = 912;
     OAuthConsentGrantedEvent oauth_consent_granted = 913;
     OAuthConsentDeniedEvent oauth_consent_denied = 914;
+    OAuthClientAuthorizationRecordedEvent oauth_client_authorization_recorded = 915;
+    OAuthClientPolicyChangedEvent oauth_client_policy_changed = 916;
+
+    // ----- Invite links (930-939, durable, evt.invitation.{id}) -----
+    InvitationCreatedEvent invitation_created = 930;
+    InvitationRedeemedEvent invitation_redeemed = 931;
+    InvitationRevokedEvent invitation_revoked = 932;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy

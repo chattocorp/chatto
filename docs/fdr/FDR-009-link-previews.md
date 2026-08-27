@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-07-13
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -13,13 +13,14 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - Only the first URL in a message gets a preview. There is no multi-preview layout.
 - URLs inside code spans, code blocks, pre-formatted text, and blockquotes do not trigger link previews.
 - YouTube URLs get a specialized embed-ready card without scraping the page.
+- Supported public social-post URLs use a native Chatto card populated from provider data. The card can include the provider, author, post text, attached images, an embedded website card, and one quoted post with its own common media. Bluesky and Mastodon are supported providers. Mastodon content warnings and accepted quote posts use the same common fields; warned text and media stay concealed until the reader reveals them, and boosts show the original post without boost attribution. If structured post data is unavailable, the post falls back to a normal link preview.
 - Direct JPEG, PNG, GIF, and static WebP URLs up to 5 MB are imported as pending room attachments when the author has `message.attach`. Animated GIFs use the ordinary attachment video-processing path when it is enabled.
 - Imported direct images use the same presentation, image viewer, attachment limits, room Files index, permissions, and deletion lifecycle as uploaded images. The source URL remains ordinary message text.
 - Dismissing an imported image removes it from the draft. An imported image that is never claimed by a message expires through the existing pending-attachment cleanup.
 - A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
-- When the server returns an OpenGraph or specialized preview to the composer, it also returns a short-lived opaque preview token.
-- When a generic preview is sent, the client sends only the preview token. When an imported image is sent, the client supplies its pending attachment asset ID through the ordinary attachment field.
-- Stored preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes.
+- When the server returns an OpenGraph, social-post, or specialized preview to the composer, it also returns a short-lived opaque preview token.
+- When a card preview is sent, the client sends only the preview token. When an imported image is sent, the client supplies its pending attachment asset ID through the ordinary attachment field.
+- Stored preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes. Structured social-post fields use the corresponding text, URL, and asset limits, carry at most four images per post, and allow only one quoted-post level.
 - After posting, the message author can delete the preview from the message without deleting the message.
 
 ## Design Decisions
@@ -50,7 +51,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ### 5. Generic preview images are downloaded, resized, and stored as persisted assets
 
-**Decision:** OpenGraph preview images are fetched once, resized to 1200×630 max, converted to WebP, and stored through the configured persisted asset backend (S3 when configured, otherwise NATS `SERVER_ASSETS`). Sent message bodies carry the preview image as `LinkPreview.image_asset` (`AssetRecord`); `image_asset_id` remains as a compatibility field for older stored previews.
+**Decision:** OpenGraph and structured social-post preview images are fetched once, resized to bounded dimensions, converted to WebP, and stored through the configured persisted asset backend (S3 when configured, otherwise NATS `SERVER_ASSETS`). Sent message bodies carry preview images as server-issued asset records; compatibility IDs remain for older stored previews.
 **Why:** Hot-linking preview images from third-party sites means broken previews when those sites change URLs, plus a privacy leak (the third party sees each preview fetch). Storing locally fixes both.
 **Tradeoff:** Per-server storage cost. Acceptable given the small fixed size cap and the fact that posted message previews should not lose images just because a cache expired.
 
@@ -62,7 +63,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ### 7. Message posting uses server-issued preview tokens
 
-**Decision:** `MessageService.FetchLinkPreview` returns display metadata plus a short-lived opaque token. `MessageService.CreateMessage` accepts only that token for link previews and never accepts client-provided title, description, image asset ID, site name, or embed metadata.
+**Decision:** For card previews, `MessageService.FetchLinkPreview` returns display metadata plus a short-lived opaque token. `MessageService.CreateMessage` accepts only that token for link previews and never accepts client-provided title, description, image asset ID, site name, or embed metadata. Direct-image imports return a pending attachment instead.
 **Why:** The composer still needs preview metadata to let the author accept or dismiss the card, but trusting the same client to send final metadata would allow spoofed titles, descriptions, and image asset references.
 **Tradeoff:** Posting a preview depends on the cached server preview and token still being valid. If either expires, the client must fetch the preview again before sending it.
 
@@ -71,6 +72,12 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 **Decision:** Preview metadata attached to a sent message is accepted only within generous per-field size limits.
 **Why:** Even though metadata is server-fetched, it is persisted with the message body. Bounding it keeps a single message from carrying arbitrarily large URL metadata.
 **Tradeoff:** A page with unusually large metadata requires the server fetch/cache layer to trim or omit the preview before sending.
+
+### 9. Social posts use bounded, provider-neutral snapshots
+
+**Decision:** Provider adapters resolve recognized public social posts into one bounded snapshot containing common presentation data. A snapshot may include one quoted post, but quotes within that post are omitted. Chatto persists the snapshot and its images, then renders it with native card components. Bluesky and Mastodon use the same snapshot and native card; the existing OpenGraph card remains the fallback. Mastodon normally uses origin-bound oEmbed discovery. Federated proxy permalinks that lack oEmbed metadata instead require origin-bound public instance metadata before Chatto trusts the server's status API.
+**Why:** A provider-neutral snapshot keeps durable message data and the public API independent from any one social network. Native cards stay visually consistent with the timeline, avoid loading a full third-party website inside a message, and prevent client-side provider requests when reading history.
+**Tradeoff:** Chatto deliberately implements only a common subset of social-post presentation. Provider-specific features require explicit additive support, changes made to the original post are not reflected after the snapshot is stored, and the current snapshot does not identify who boosted or reposted a post.
 
 ## Permissions
 

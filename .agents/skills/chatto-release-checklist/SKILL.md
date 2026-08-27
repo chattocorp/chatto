@@ -35,7 +35,7 @@ git rev-parse <candidate-ref>
 git log --oneline <baseline>..<candidate-ref>
 git log --first-parent --merges --pretty=format:'%h %s' <baseline>..<candidate-ref>
 git diff --stat <baseline>..<candidate-ref>
-git diff --name-status <baseline>..<candidate-ref> -- proto/chatto/api/v1 proto/chatto/core/v1 cli/internal/connectapi cli/internal/http_server/server_info.go cli/internal/http_server/realtime.go apps/frontend/src/lib/api/server.ts
+git diff --name-status <baseline>..<candidate-ref> -- proto/chatto/auth/v1 proto/chatto/discovery/v1 proto/chatto/api/v1 proto/chatto/admin/v1 proto/chatto/realtime/v1 proto/chatto/core/v1 cli/internal/connectapi cli/internal/http_server/realtime.go packages/api-types apps/frontend/src/lib/api-client/server.ts apps/frontend/src/lib/state/server
 gh pr view <number> --json number,title,url,body,mergedAt
 ```
 
@@ -56,16 +56,18 @@ If the candidate version already has a tag, compare `<baseline>..<candidate-tag>
    - Check relevant FDRs/ADRs when a change is user-facing or architectural enough that the announcement would otherwise be guesswork.
    - Build an evidence map that links major announcement bullets to PRs, commits, or docs. Keep this map in the developer checklist, not the announcement.
 3. Review API changes separately:
-   - Public ConnectRPC/protobuf API: inspect diffs under `proto/chatto/api/v1/`, generated frontend files under `apps/frontend/src/lib/pb/chatto/api/v1/`, generated Go files under `cli/internal/pb/chatto/api/v1/`, and generated docs under `apps/docs-website/src/content/docs/reference/connectrpc-api/`.
+   - Use `chatto-api-compatibility` for every public API or protocol change and carry its temporal compatibility classification into the checklist.
+   - Public ConnectRPC/protobuf API: inspect diffs under `proto/chatto/{auth,discovery,api,admin}/v1/`, generated TypeScript under `packages/api-types/src/chatto/`, generated Go under `cli/internal/pb/chatto/{auth,discovery,api,admin}/v1/`, and generated docs under `apps/docs-website/src/content/docs/reference/connectrpc-api/`.
    - Persisted protobuf/event shapes: inspect `proto/chatto/core/v1/` and call out higher-risk persisted EVT/RUNTIME_STATE compatibility changes. When these files change, read `proto/AGENTS.md` and use `chatto-event-sourcing` guidance. Check removed fields, reused tags/oneof numbers, reserved or retired tags, replay compatibility, and old self-hosted event streams.
-   - Realtime websocket API: inspect `proto/chatto/api/v1/realtime.proto`, `cli/internal/http_server/realtime.go`, `cli/internal/core/my_events_model.go`, and frontend event-bus/client code under `apps/frontend/src/lib/state/server/`.
+   - Realtime websocket API: inspect `proto/chatto/realtime/v1/realtime.proto`, `cli/internal/http_server/realtime.go`, `cli/internal/core/my_events_model.go`, and frontend event-bus/client code under `apps/frontend/src/lib/state/server/`.
    - Retired legacy API compatibility: only call this out when a release removes, reintroduces, or changes compatibility behavior for retired public API clients. The current public API is ConnectRPC plus `/api/realtime`.
-   - Server discovery and stable HTTP surfaces: inspect `GET /api/server` implementation in `cli/internal/http_server/server_info.go`, matching tests, and frontend client code in `apps/frontend/src/lib/api/server.ts`.
+   - Server discovery and stable HTTP surfaces: inspect `proto/chatto/discovery/v1/`, `cli/internal/connectapi/server.go`, matching tests, and frontend client code in `apps/frontend/src/lib/api-client/server.ts`. Classify protocol capability and minimum bundled-client changes separately from ordinary profile metadata.
    - Other client-visible HTTP endpoints: call out auth, upload, asset, webhook, health, metrics, or CORS behavior changes when present.
 4. Classify API changes:
    - Breaking: removed fields/services/endpoints, renamed fields, changed required fields, changed enum/string meanings, tightened validation, changed auth/CORS requirements, incompatible persisted protobuf changes, or behavior that can strand older clients.
    - Additive: new optional fields, new services/methods/endpoints, new enum values clients can ignore, expanded response metadata, or backward-compatible docs/codegen refreshes.
    - Internal-only: generated code churn or resolver refactors with no external behavior change.
+   - For additive, behavioural, deprecated, and breaking public changes, state both older-client/newer-server and newer-client/older-server impact. Confirm whether capability discovery or a minimum bundled-client version is required.
 5. Classify announcement items:
    - `feat` commits and new user/operator/client capabilities go under `New Features`.
    - `fix` commits go under `Bug Fixes`, using `Fixed an issue ...` phrasing.

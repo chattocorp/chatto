@@ -1,25 +1,27 @@
 <script lang="ts">
+  import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { m } from '$lib/i18n/messages';
 
-  import { useRenderData } from '$lib/render/data';
-  import { RoomEventViewDocument, type RoomEventView } from '$lib/render/types';
-  import { createThreadAPI, type FollowedThread as APIFollowedThread } from '$lib/api-client/threads';
-  import { EmptyState, Hint, PaneHeader } from '$lib/ui';
+  import { createThreadAPI, type FollowedThread } from '$lib/api-client/threads';
+  import { queryClient } from '$lib/query/client';
+  import {
+    flattenFollowedThreads,
+    reconcileFollowedThreadViewerStates,
+    threadQueryKeys,
+    updateFollowedThreadSummary,
+    type FollowedThreadsData
+  } from '$lib/query/threads';
+  import { EmptyState, Hint, PaneHeader, SegmentedControl } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button } from '$lib/ui/form';
   import RoomEvent from '../[roomId]/RoomEvent.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { formatDate } from '$lib/utils/formatTime';
+  import { formatDate, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
-  import { useEvent } from '$lib/hooks';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import {
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS,
@@ -28,52 +30,71 @@
     createMentionRoles
   } from '$lib/state/room';
 
-  // Provide stub room contexts so MessageEvent can render in read-only mode.
+  const serverScope = useServerScope();
+  const serverStore = $derived(serverScope.store);
+
+  // Provide room contexts so MessageEvent can render in read-only mode.
   // All permissions are false (no editing, deleting, reacting from this view),
-  // members list is empty (no mention highlighting), composer context is a no-op.
+  // and the members list is empty; role highlighting uses server reference data.
   createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
   createRoomMembers();
   createComposerContext();
-  createMentionRoles();
+  createMentionRoles(() => serverStore.mentionRoles.roles);
 
-  const connection = useConnection();
-  const userSettings = getUserSettings();
+  const userSettings = $derived(timeFormatSettingsFor(serverStore.currentUser.user?.settings));
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 
-  type FollowedThreadItem = {
-    roomId: string;
-    roomName: string;
-    threadRootEventId: string;
-    rootMessage: RoomEventView | null;
-    replyCount: number;
-    lastReplyAt: string | null;
-    hasUnread: boolean;
-  };
+  $effect(() => {
+    void serverStore.mentionRoles.refresh();
+  });
 
-  function mapThread(t: APIFollowedThread): FollowedThreadItem {
-    const rootMessage = t.rootMessage ? useRenderData(RoomEventViewDocument, t.rootMessage) : null;
+  let reconciledQueryScope: string | null = null;
+  let reconciledMountedSnapshot = false;
 
-    return {
-      roomId: t.roomId,
-      roomName: t.roomName,
-      threadRootEventId: t.threadRootEventId,
-      rootMessage,
-      replyCount: t.replyCount,
-      lastReplyAt: t.lastReplyAt,
-      hasUnread: t.hasUnread
-    };
-  }
+  const threadsQuery = createInfiniteQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      return {
+        queryKey: threadQueryKeys.followed(serverId, connection),
+        queryFn: async ({ pageParam, signal }) => {
+          const result = await connection
+            .getAPI(createThreadAPI)
+            .listFollowedThreads({ limit: PAGE_SIZE, offset: pageParam }, { signal });
+          const pageData = {
+            ...result,
+            nextOffset: pageParam + result.threads.length
+          };
+          if (!serverScope.isCurrent() || connection !== serverScope.connection) return pageData;
+          return reconcilePageWithCurrentProjection(pageData, pageParam);
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, lastPageParam) =>
+          lastPage.hasMore && lastPage.nextOffset > lastPageParam ? lastPage.nextOffset : undefined
+      };
+    },
+    () => queryClient
+  );
 
-  let threads = $state<FollowedThreadItem[]>([]);
-  let loading = $state(true);
-  let loadingMore = $state(false);
-  let error = $state<string | null>(null);
-  let hasMore = $state(false);
-  let totalCount = $state(0);
-  let loadId = 0;
+  const threads = $derived(flattenFollowedThreads(threadsQuery.data));
+  const loading = $derived(threadsQuery.isPending);
+  const loadingMore = $derived(threadsQuery.isFetchingNextPage);
+  const error = $derived(
+    threadsQuery.isError
+      ? threadsQuery.error instanceof Error
+        ? threadsQuery.error.message
+        : 'Failed to load threads'
+      : null
+  );
+  const hasMore = $derived(threadsQuery.hasNextPage);
+  const totalCount = $derived(threadsQuery.data?.pages[0]?.totalCount ?? 0);
 
   const filter = $derived(page.state.threadFilter ?? 'all');
+  const filterOptions = $derived([
+    { value: 'all' as const, label: m('chat.threads.filter_all') },
+    { value: 'unread' as const, label: m('chat.threads.filter_unread') }
+  ]);
 
   function setFilter(value: 'all' | 'unread') {
     replaceState('', { ...page.state, threadFilter: value });
@@ -83,74 +104,92 @@
     filter === 'unread' ? threads.filter((t) => t.hasUnread) : threads
   );
 
-  async function loadThreads({ append = false }: { append?: boolean } = {}) {
-    const thisId = ++loadId;
-    if (append) {
-      loadingMore = true;
-    } else {
-      loading = true;
+  function reconcilePageWithCurrentProjection(
+    pageData: FollowedThreadsData['pages'][number],
+    pageParam: number
+  ): FollowedThreadsData['pages'][number] {
+    if (!serverStore.realtimeSync.hasUsableProjection) return pageData;
+    let data: FollowedThreadsData | undefined = { pages: [pageData], pageParams: [pageParam] };
+    data = reconcileFollowedThreadViewerStates(
+      data,
+      serverStore.projection.threadViewerStates
+    ).data;
+    for (const thread of data?.pages[0]?.threads ?? []) {
+      data = applyProjectedTimelineSummary(data, thread);
     }
-    error = null;
+    return data?.pages[0] ?? pageData;
+  }
 
-    try {
-      const conn = connection();
-      const result = await createThreadAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).listFollowedThreads({
-        limit: PAGE_SIZE,
-        offset: append ? threads.length : 0
-      });
+  function applyProjectedTimelineSummary(
+    data: FollowedThreadsData | undefined,
+    thread: FollowedThread
+  ): FollowedThreadsData | undefined {
+    const event = serverStore.projection.timelines
+      .get(thread.roomId)
+      ?.events.find((candidate) => candidate.id === thread.threadRootEventId);
+    const message = event?.event.case === 'messagePosted' ? event.event.value.message : null;
+    const summary = message?.thread;
+    if (!summary) return data;
+    return updateFollowedThreadSummary(data, {
+      roomId: thread.roomId,
+      threadRootEventId: thread.threadRootEventId,
+      replyCount: summary.replyCount,
+      lastReplyAt: summary.lastReplyAt?.toDate().toISOString() ?? null,
+      hasUnread: summary.viewerState?.hasUnread
+    });
+  }
 
-      if (thisId !== loadId) return;
+  function reconcileCachedProjection(
+    states: ReadonlyMap<string, { hasUnread?: boolean }>,
+    refetchUnknown: boolean
+  ) {
+    const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
+    const current = queryClient.getQueryData<FollowedThreadsData>(queryKey);
+    if (!current) return;
 
-      const nextThreads = result.threads.map(mapThread);
-      threads = append ? mergeThreads(threads, nextThreads) : nextThreads;
-      hasMore = result.hasMore;
-      totalCount = result.totalCount;
-    } catch (e) {
-      if (thisId !== loadId) return;
-      error = e instanceof Error ? e.message : 'Failed to load threads';
-    } finally {
-      if (thisId === loadId) {
-        loading = false;
-        loadingMore = false;
-      }
+    const reconciled = reconcileFollowedThreadViewerStates(current, states);
+    let next = reconciled.data;
+    for (const thread of flattenFollowedThreads(next)) {
+      next = applyProjectedTimelineSummary(next, thread);
+    }
+    if (next !== current) queryClient.setQueryData(queryKey, next);
+    if (refetchUnknown && reconciled.hasUnknownThreads) {
+      void queryClient.invalidateQueries({ queryKey, exact: true });
     }
   }
 
-  function mergeThreads(
-    existing: FollowedThreadItem[],
-    next: FollowedThreadItem[]
-  ): FollowedThreadItem[] {
-    const seen = new Set(existing.map((thread) => thread.threadRootEventId));
-    return [...existing, ...next.filter((thread) => !seen.has(thread.threadRootEventId))];
-  }
-
+  // Reconcile after every query commit so an append cannot restore an older
+  // page snapshot over a projection update that arrived while it was in flight.
   $effect(() => {
-    loadThreads();
-  });
-
-  // Real-time: Refresh when thread follow state changes
-  $effect(() => onThreadFollowChanged(() => loadThreads()));
-
-  // Real-time: Refresh when a new thread reply arrives
-  useEvent((spaceEvent) => {
-    const event = spaceEvent.event;
-    if (!event) return;
-    if (isMessagePostedEvent(event) && event.threadRootEventId) {
-      // Only refresh if it's a reply in a thread we're displaying
-      if (threads.some((t) => t.threadRootEventId === event.threadRootEventId)) {
-        loadThreads();
-      }
+    const queryScope = serverScope.connection.queryScope;
+    const queryData = threadsQuery.data;
+    if (reconciledQueryScope !== queryScope) {
+      reconciledQueryScope = queryScope;
+      reconciledMountedSnapshot = false;
     }
+
+    if (!serverStore.realtimeSync.hasUsableProjection || !queryData) return;
+    const refetchUnknown = !reconciledMountedSnapshot;
+    reconciledMountedSnapshot = true;
+    reconcileCachedProjection(serverStore.projection.threadViewerStates, refetchUnknown);
   });
 
-  function navigateToThread(thread: FollowedThreadItem) {
+  async function loadMore() {
+    if (loading || loadingMore || !hasMore) return;
+    await threadsQuery.fetchNextPage();
+  }
+
+  const loadMoreWhenVisible = useLoadMoreWhenVisible({
+    getCursor: () =>
+      hasMore ? `${threadsQuery.data?.pageParams.at(-1) ?? 0}:${threads.length}` : null,
+    loadMore,
+    hasError: () => error !== null
+  });
+
+  function navigateToThread(thread: FollowedThread) {
     goto(
       resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: serverIdToSegment(getActiveServer()),
+        serverId: serverIdToSegment(serverScope.serverId),
         roomId: thread.roomId,
         threadId: thread.threadRootEventId
       })
@@ -166,83 +205,56 @@
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffMins < 1) return m['chat.notifications.time_now']();
-    if (diffMins < 60) return m['chat.notifications.time_minutes']({ count: diffMins });
-    if (diffHours < 24) return m['chat.notifications.time_hours']({ count: diffHours });
-    if (diffDays < 7) return m['chat.notifications.time_days']({ count: diffDays });
+    if (diffMins < 1) return m('chat.notifications.time_now');
+    if (diffMins < 60) return m('chat.notifications.time_minutes', { count: diffMins });
+    if (diffHours < 24) return m('chat.notifications.time_hours', { count: diffHours });
+    if (diffDays < 7) return m('chat.notifications.time_days', { count: diffDays });
 
     return formatDate(date, userSettings, activeLocale);
   }
 </script>
 
-<PageTitle title={m['chat.threads.title']()} />
+<PageTitle title={m('chat.threads.title')} />
 
 <div class="flex h-full w-full flex-col">
-  <PaneHeader
-    title={m['chat.threads.title']()}
-    subtitle={m['chat.threads.subtitle']()}
-    showMobileNav
-  >
+  <PaneHeader title={m('chat.threads.title')} subtitle={m('chat.threads.subtitle')} showMobileNav>
     {#snippet actions()}
-      <div
-        class="flex rounded-md border border-border text-sm"
-        role="radiogroup"
-        aria-label={m['chat.threads.filter_label']()}
-      >
-        <button
-          class={[
-            'cursor-pointer rounded-l-md px-3 py-1',
-            filter === 'all' ? 'bg-surface-200 font-medium' : 'text-muted hover:bg-surface-100'
-          ]}
-          onclick={() => setFilter('all')}
-          role="radio"
-          aria-checked={filter === 'all'}>{m['chat.threads.filter_all']()}</button
-        >
-        <button
-          class={[
-            'cursor-pointer rounded-r-md border-l border-border px-3 py-1',
-            filter === 'unread' ? 'bg-surface-200 font-medium' : 'text-muted hover:bg-surface-100'
-          ]}
-          onclick={() => setFilter('unread')}
-          role="radio"
-          aria-checked={filter === 'unread'}>{m['chat.threads.filter_unread']()}</button
-        >
-      </div>
+      <SegmentedControl
+        label={m('chat.threads.filter_label')}
+        options={filterOptions}
+        value={filter}
+        onchange={setFilter}
+      />
     {/snippet}
   </PaneHeader>
 
   <div class="flex flex-1 flex-col overflow-y-auto">
     {#if loading && threads.length === 0}
-      <div class="p-6 text-muted">{m['common.loading']()}</div>
+      <div class="p-6 text-muted">{m('common.loading')}</div>
     {:else if error}
       <div class="m-6">
         <Hint tone="danger">{error}</Hint>
       </div>
     {:else if threads.length === 0}
-      <EmptyState icon="uil--comment-lines" title={m['chat.threads.empty_title']()}>
-        {m['chat.threads.empty_body']()}
+      <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
+        {m('chat.threads.empty_body')}
       </EmptyState>
     {:else if filteredThreads.length === 0}
       <EmptyState
-        icon="uil--comment-check"
-        title={hasMore ? m['chat.threads.no_unread_loaded']() : m['chat.threads.all_caught_up']()}
+        icon="icon-[uil--comment-check]"
+        title={hasMore ? m('chat.threads.no_unread_loaded') : m('chat.threads.all_caught_up')}
       >
         {#if hasMore}
           <div class="flex flex-col items-center gap-3">
             <span>
-              {m['chat.threads.loaded_count']({ loaded: threads.length, total: totalCount })}
+              {m('chat.threads.loaded_summary', { loaded: threads.length, total: totalCount })}
             </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={loadingMore}
-              onclick={() => loadThreads({ append: true })}
-            >
-              {m['chat.threads.load_more']()}
-            </Button>
+            <div class="min-h-8 text-muted" {@attach loadMoreWhenVisible}>
+              {#if loadingMore}{m('common.loading')}{/if}
+            </div>
           </div>
         {:else}
-          {m['chat.threads.no_unread']()}
+          {m('chat.threads.no_unread')}
         {/if}
       </EmptyState>
     {:else}
@@ -254,9 +266,9 @@
               <div class="w-11 shrink-0"></div>
               <div class="text-muted">
                 <span
-                  >{#if thread.lastReplyAt}{formatRelativeTime(thread.lastReplyAt)}, {m[
+                  >{#if thread.lastReplyAt}{formatRelativeTime(thread.lastReplyAt)}, {m(
                       'chat.threads.in_room'
-                    ]()}{:else}{m['chat.threads.in_room_capitalized']()}{/if}
+                    )}{:else}{m('chat.threads.in_room_capitalized')}{/if}
                   #{thread.roomName}:</span
                 >
               </div>
@@ -278,21 +290,15 @@
                 />
               {:else}
                 <div class="px-2 md:mx-2">
-                  <p class="text-sm text-muted">{m['chat.threads.message_missing']()}</p>
+                  <p class="text-sm text-muted">{m('chat.threads.message_missing')}</p>
                 </div>
               {/if}
             </div>
           </div>
         {/each}
         {#if hasMore}
-          <div class="flex justify-center p-4">
-            <Button
-              variant="secondary"
-              loading={loadingMore}
-              onclick={() => loadThreads({ append: true })}
-            >
-              {m['chat.threads.load_more']()}
-            </Button>
+          <div class="flex min-h-14 justify-center p-4 text-muted" {@attach loadMoreWhenVisible}>
+            {#if loadingMore}{m('common.loading')}{/if}
           </div>
         {/if}
       </div>

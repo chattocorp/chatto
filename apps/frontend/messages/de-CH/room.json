@@ -1,0 +1,11 @@
+{
+  "room": {
+    "sidebar": {
+      "resize": "Raumdetails-Bereich vergrössern/verkleinern"
+    },
+    "thread": {
+      "close": "Thread schliessen"
+    },
+    "close_extras": "Raumdetails schliessen"
+  }
+}

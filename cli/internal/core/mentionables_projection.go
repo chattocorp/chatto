@@ -11,9 +11,10 @@ import (
 
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type mentionableOwnerKind string
@@ -35,10 +36,13 @@ type mentionableOwner struct {
 // separate claim record.
 type MentionablesProjection struct {
 	events.MemoryProjection
-	owners      map[string]map[mentionableOwner]struct{}
-	userLogins  map[string]string
-	dekResolver *unwrappedDEKResolver
-	dekEvents   map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
+	owners     map[string]map[mentionableOwner]struct{}
+	userLogins map[string]string
+	// userLoginSources retains only the latest encrypted login event per user.
+	// Snapshot codecs use it instead of persisting the decrypted handle index.
+	userLoginSources map[string]*corev1.Event
+	dekResolver      *unwrappedDEKResolver
+	dekEvents        map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
 }
 
 // NewMentionablesProjection creates the global mentionable-handle read model.
@@ -50,10 +54,11 @@ func NewMentionablesProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Read
 
 func newMentionablesProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver) *MentionablesProjection {
 	p := &MentionablesProjection{
-		owners:      make(map[string]map[mentionableOwner]struct{}),
-		userLogins:  make(map[string]string),
-		dekResolver: dekResolver,
-		dekEvents:   make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
+		owners:           make(map[string]map[mentionableOwner]struct{}),
+		userLogins:       make(map[string]string),
+		userLoginSources: make(map[string]*corev1.Event),
+		dekResolver:      dekResolver,
+		dekEvents:        make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 	}
 	p.addOwner(MentionHandleAll, mentionableOwner{kind: mentionableOwnerVirtual, id: MentionHandleAll})
 	p.addOwner(MentionHandleHere, mentionableOwner{kind: mentionableOwnerVirtual, id: MentionHandleHere})
@@ -61,7 +66,7 @@ func newMentionablesProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver)
 }
 
 func (p *MentionablesProjection) Subjects() []string {
-	return []string{events.EventSubjectFilter()}
+	return []string{evtstream.EventSubjectFilter()}
 }
 
 func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
@@ -75,13 +80,28 @@ func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
 	case *corev1.Event_UserDekGenerated:
 		p.applyDEKGenerated(e.UserDekGenerated)
 	case *corev1.Event_UserAccountCreated:
-		p.applyUserAccountCreated(event.GetId(), e.UserAccountCreated)
+		if err := p.applyUserAccountCreated(event.GetId(), e.UserAccountCreated); err != nil {
+			return err
+		}
+		if p.userLogins[e.UserAccountCreated.GetUserId()] != "" {
+			p.userLoginSources[e.UserAccountCreated.GetUserId()] = proto.Clone(event).(*corev1.Event)
+		}
 	case *corev1.Event_UserLoginChanged:
-		p.applyUserLoginChanged(event.GetId(), e.UserLoginChanged)
+		if err := p.applyUserLoginChanged(event.GetId(), e.UserLoginChanged); err != nil {
+			return err
+		}
+		if p.userLogins[e.UserLoginChanged.GetUserId()] != "" {
+			p.userLoginSources[e.UserLoginChanged.GetUserId()] = proto.Clone(event).(*corev1.Event)
+		}
 	case *corev1.Event_UserAccountDeleted:
 		p.applyUserAccountDeleted(e.UserAccountDeleted)
+		delete(p.userLoginSources, e.UserAccountDeleted.GetUserId())
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.applyUserKeyShredded(e.UserKeyShreddingRequested.GetUserId())
+		delete(p.userLoginSources, e.UserKeyShreddingRequested.GetUserId())
 	case *corev1.Event_UserKeyShredded:
-		p.applyUserKeyShredded(e.UserKeyShredded)
+		p.applyUserKeyShredded(e.UserKeyShredded.GetUserId())
+		delete(p.userLoginSources, e.UserKeyShredded.GetUserId())
 	case *corev1.Event_RbacRoleCreated:
 		p.addOwner(e.RbacRoleCreated.GetRoleName(), mentionableOwner{kind: mentionableOwnerRole, id: strings.ToLower(e.RbacRoleCreated.GetRoleName())})
 	case *corev1.Event_RbacRoleDeleted:
@@ -108,26 +128,34 @@ func (p *MentionablesProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEve
 	epochs[e.GetEpoch()] = proto.Clone(e).(*corev1.UserDEKGeneratedEvent)
 }
 
-func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent) {
+func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent) error {
 	if e == nil || e.GetUserId() == "" {
-		return
+		return nil
 	}
-	login, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIString(eventID, e.GetUserId(), evtstream.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	if err != nil {
+		return err
+	}
 	if !ok || login == "" {
-		return
+		return nil
 	}
 	p.setUserLogin(e.GetUserId(), login)
+	return nil
 }
 
-func (p *MentionablesProjection) applyUserLoginChanged(eventID string, e *corev1.UserLoginChangedEvent) {
+func (p *MentionablesProjection) applyUserLoginChanged(eventID string, e *corev1.UserLoginChangedEvent) error {
 	if e == nil || e.GetUserId() == "" {
-		return
+		return nil
 	}
-	login, ok := p.userPIIString(eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIString(eventID, e.GetUserId(), evtstream.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	if err != nil {
+		return err
+	}
 	if !ok || login == "" {
-		return
+		return nil
 	}
 	p.setUserLogin(e.GetUserId(), login)
+	return nil
 }
 
 func (p *MentionablesProjection) applyUserAccountDeleted(e *corev1.UserAccountDeletedEvent) {
@@ -137,21 +165,22 @@ func (p *MentionablesProjection) applyUserAccountDeleted(e *corev1.UserAccountDe
 	p.removeUserLogin(e.GetUserId())
 }
 
-func (p *MentionablesProjection) applyUserKeyShredded(e *corev1.UserKeyShreddedEvent) {
-	if e == nil || e.GetUserId() == "" {
+func (p *MentionablesProjection) applyUserKeyShredded(userID string) {
+	if userID == "" {
 		return
 	}
-	delete(p.dekEvents, e.GetUserId())
+	delete(p.dekEvents, userID)
+	p.removeUserLogin(userID)
 }
 
 func (p *MentionablesProjection) setUserLogin(userID, login string) {
 	p.removeUserLogin(userID)
-	normalized := normalizeMentionableHandle(login)
-	if normalized == "" {
+	key := mentionableLookupKey(login)
+	if key == "" {
 		return
 	}
-	p.userLogins[userID] = normalized
-	p.addOwner(normalized, mentionableOwner{kind: mentionableOwnerUser, id: userID})
+	p.userLogins[userID] = key
+	p.addOwnerKey(key, mentionableOwner{kind: mentionableOwnerUser, id: userID})
 }
 
 func (p *MentionablesProjection) removeUserLogin(userID string) {
@@ -160,71 +189,80 @@ func (p *MentionablesProjection) removeUserLogin(userID string) {
 		return
 	}
 	delete(p.userLogins, userID)
-	p.removeOwner(old, mentionableOwner{kind: mentionableOwnerUser, id: userID})
+	p.removeOwnerKey(old, mentionableOwner{kind: mentionableOwnerUser, id: userID})
 }
 
 func (p *MentionablesProjection) addOwner(handle string, owner mentionableOwner) {
-	normalized := normalizeMentionableHandle(handle)
-	if normalized == "" || owner.kind == "" || owner.id == "" {
+	p.addOwnerKey(mentionableLookupKey(handle), owner)
+}
+
+func (p *MentionablesProjection) addOwnerKey(key string, owner mentionableOwner) {
+	if key == "" || owner.kind == "" || owner.id == "" {
 		return
 	}
-	owners := p.owners[normalized]
+	owners := p.owners[key]
 	if owners == nil {
 		owners = make(map[mentionableOwner]struct{})
-		p.owners[normalized] = owners
+		p.owners[key] = owners
 	}
 	owners[owner] = struct{}{}
 }
 
 func (p *MentionablesProjection) removeOwner(handle string, owner mentionableOwner) {
-	normalized := normalizeMentionableHandle(handle)
-	owners := p.owners[normalized]
+	p.removeOwnerKey(mentionableLookupKey(handle), owner)
+}
+
+func (p *MentionablesProjection) removeOwnerKey(key string, owner mentionableOwner) {
+	owners := p.owners[key]
 	if owners == nil {
 		return
 	}
 	delete(owners, owner)
 	if len(owners) == 0 {
-		delete(p.owners, normalized)
+		delete(p.owners, key)
 	}
 }
 
-func (p *MentionablesProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool) {
+func (p *MentionablesProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool, error) {
 	if encrypted == nil {
-		return "", false
+		return "", false, nil
 	}
 	byPurpose := p.dekEvents[userID]
 	if byPurpose == nil {
-		return "", false
+		return "", false, nil
 	}
 	event := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
 	if event == nil {
 		event = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
 	}
 	if event == nil || p.dekResolver == nil {
-		return "", false
+		return "", false, nil
 	}
 	dek, err := p.dekResolver.Resolve(context.Background(), event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
-	if err != nil || dek == nil || len(dek.key) == 0 {
-		return "", false
+	if err != nil {
+		if errors.Is(err, encryption.ErrKeyNotFound) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("resolve mentionable user PII key: %w", err)
+	}
+	if dek == nil || len(dek.key) == 0 {
+		return "", false, nil
 	}
 	plaintext, err := decryptUserPIIString(dek.key, eventID, userID, eventType, purpose, encrypted)
 	if err != nil {
-		if errors.Is(err, encryption.ErrDecryptionFailed) || errors.Is(err, encryption.ErrKeyNotFound) {
-			return "", false
-		}
-		return "", false
+		return "", false, fmt.Errorf("decrypt mentionable user PII: %w", err)
 	}
-	return plaintext, true
+	return plaintext, true, nil
 }
 
 func (p *MentionablesProjection) Availability(handle string, allowedOwner *mentionableOwner) MentionableAvailability {
-	normalized := normalizeMentionableHandle(handle)
-	if normalized == "" {
+	key := mentionableLookupKey(handle)
+	if key == "" {
 		return MentionableAvailability{Available: false}
 	}
 	p.RLock()
 	defer p.RUnlock()
-	owners := p.owners[normalized]
+	owners := p.owners[key]
 	if len(owners) == 0 {
 		return MentionableAvailability{Available: true}
 	}
@@ -268,24 +306,31 @@ type MentionableAvailability struct {
 }
 
 type MentionablesModel struct {
-	projection *MentionablesProjection
-	projector  *events.Projector
+	mentionables events.ProjectionHandle[*MentionablesProjection]
 }
 
-func newMentionablesModel(projection *MentionablesProjection, projector *events.Projector) *MentionablesModel {
-	return &MentionablesModel{projection: projection, projector: projector}
+func newMentionablesModel(mentionables events.ProjectionHandle[*MentionablesProjection]) *MentionablesModel {
+	return &MentionablesModel{mentionables: mentionables}
 }
 
 func (s *MentionablesModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
-	return s.projector.WaitFor(ctx, pos)
+	return s.mentionables.Projector().WaitFor(ctx, pos)
 }
 
 func (s *MentionablesModel) Availability(handle string, allowedOwner *mentionableOwner) MentionableAvailability {
-	return s.projection.Availability(handle, allowedOwner)
+	return s.mentionables.Projection().Availability(handle, allowedOwner)
 }
 
 func normalizeMentionableHandle(handle string) string {
 	return strings.ToLower(strings.TrimSpace(handle))
+}
+
+func mentionableLookupKey(handle string) string {
+	normalized := normalizeMentionableHandle(handle)
+	if normalized == "" {
+		return ""
+	}
+	return userPIILookupHash(normalized)
 }
 
 func mentionableRetryDelay(attempt int) time.Duration {

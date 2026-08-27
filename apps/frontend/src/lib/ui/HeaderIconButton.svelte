@@ -11,10 +11,10 @@ the component renders the matching element and gets accessible name
 from the required `label` prop.
 
 ```svelte
-<HeaderIconButton icon="uil--bell" label="Follow thread" onclick={toggle} />
-<HeaderIconButton icon="uil--bell" label="Unfollow thread" tone="active" onclick={toggle} />
-<HeaderIconButton icon="uil--cog" label="Settings" href="/settings" />
-<HeaderIconButton icon="uil--trash" label="Delete" tone="danger" onclick={destroy} />
+<HeaderIconButton icon="icon-[uil--bell]" label="Follow thread" onclick={toggle} />
+<HeaderIconButton icon="icon-[uil--bell]" label="Unfollow thread" tone="active" onclick={toggle} />
+<HeaderIconButton icon="icon-[uil--cog]" label="Settings" href="/settings" />
+<HeaderIconButton icon="icon-[uil--trash]" label="Delete" tone="danger" onclick={destroy} />
 ```
 
 For the "back" affordance to the left of a `PaneHeader` title, use
@@ -33,9 +33,10 @@ arrow aligned with the sidebar nav items below.
     tone = 'default',
     iconSize = 'md',
     disabled = false,
+    mirrorInRtl = false,
     title
   }: {
-    /** Iconify utility class (e.g. `'uil--bell'`). */
+    /** Iconify utility class (e.g. `'icon-[uil--bell]'`). */
     icon: string;
     /** Accessible label. Also used as the default `title` (hover hint). */
     label: string;
@@ -54,6 +55,8 @@ arrow aligned with the sidebar nav items below.
     iconSize?: IconSize;
     /** Disabled state — only applies to the button variant. */
     disabled?: boolean;
+    /** Mirror a directional glyph when the document uses right-to-left layout. */
+    mirrorInRtl?: boolean;
     /** Override the default hover tooltip (defaults to `label`). */
     title?: string;
   } = $props();
@@ -73,7 +76,12 @@ arrow aligned with the sidebar nav items below.
     'group/pane-header-icon-button pane-header-icon-button',
     toneClasses[tone]
   ]);
-  const glyphClass = $derived(['pane-header-icon-glyph', iconSizeClasses[iconSize], icon]);
+  const glyphClass = $derived([
+    'pane-header-icon-glyph',
+    iconSizeClasses[iconSize],
+    icon,
+    mirrorInRtl && 'rtl:-scale-x-100'
+  ]);
 </script>
 
 {#if href}

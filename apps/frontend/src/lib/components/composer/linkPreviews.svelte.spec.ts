@@ -52,7 +52,7 @@ describe('LinkPreviewState', () => {
     expect(fetchLinkPreview).not.toHaveBeenCalled();
   });
 
-  it('fetches non-message links and converts the active preview into mutation input', async () => {
+  it('fetches non-message links and exposes the active preview token', async () => {
     vi.useFakeTimers();
     const url = 'https://example.com/story';
     const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockResolvedValue({
@@ -76,9 +76,7 @@ describe('LinkPreviewState', () => {
     await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledOnce());
     cleanup();
 
-    expect(state.buildInput()).toMatchObject({
-      previewToken: 'cht_LPpreviewtoken'
-    });
+    expect(state.buildToken()).toBe('cht_LPpreviewtoken');
   });
 
   it('fetches only the first URL in a draft', async () => {
@@ -117,7 +115,7 @@ describe('LinkPreviewState', () => {
     await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledOnce());
 
     expect(fetchLinkPreview).toHaveBeenCalledWith(url, 'room_1');
-    expect(state.buildInput()).toBeNull();
+    expect(state.buildToken()).toBeNull();
     expect(state.buildAttachmentAssetIds()).toEqual(['asset_linked']);
     expect(state.activeImportedAttachment?.contentType).toBe('image/gif');
   });

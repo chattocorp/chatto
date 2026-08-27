@@ -1,9 +1,11 @@
-import type { RoomEventView } from '$lib/render/types';
-import { isMessagePostedEvent } from '$lib/render/eventKinds';
+import {
+  isMessagePostedEvent,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import type { EditableMessage, RoomPermissions } from '$lib/state/room';
 
 type FindLastEditableMessageOptions = {
-  events: RoomEventView[];
+  events: TimelineEventView[];
   currentUserId: string | null | undefined;
   roomPermissions: RoomPermissions;
   messageEditWindowSeconds: number;

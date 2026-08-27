@@ -38,6 +38,55 @@ func (c *ChattoCore) requireRoomMember(ctx context.Context, actorID, roomID stri
 	return room, kind, nil
 }
 
+// requireRoomMessageReader preserves membership as the first privacy boundary,
+// then requires at least one configured room message-read mode. A caller that
+// has only interaction-scoped access must still filter or authorize the target
+// thread or message.
+func (c *ChattoCore) requireRoomMessageReader(ctx context.Context, actorID, roomID string) (*corev1.Room, RoomKind, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	allowed, err := c.CanAccessRoomMessages(ctx, actorID, kind, room.GetId())
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	if !allowed {
+		return nil, KindChannel, ErrPermissionDenied
+	}
+	return room, kind, nil
+}
+
+func (c *ChattoCore) requireThreadMessageReader(ctx context.Context, actorID, roomID, threadRootEventID string) (*corev1.Room, RoomKind, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	allowed, err := c.CanReadThreadMessages(ctx, actorID, kind, room.GetId(), threadRootEventID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	if !allowed {
+		return nil, KindChannel, ErrPermissionDenied
+	}
+	return room, kind, nil
+}
+
+func (c *ChattoCore) requireMessageReader(ctx context.Context, actorID, roomID, messageEventID string) (*corev1.Room, RoomKind, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	allowed, err := c.CanReadMessage(ctx, actorID, kind, room.GetId(), messageEventID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	if !allowed {
+		return nil, KindChannel, ErrPermissionDenied
+	}
+	return room, kind, nil
+}
+
 func (c *ChattoCore) requireThreadRoot(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) (*corev1.Event, error) {
 	if strings.TrimSpace(threadRootEventID) == "" {
 		return nil, invalidArgument("thread_root_event_id is required")

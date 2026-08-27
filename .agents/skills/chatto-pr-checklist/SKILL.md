@@ -28,9 +28,18 @@ Call out compatibility, rollout, migration, security, or operational implication
 
 ## Breaking Changes Checklist
 
-- If this PR contains changes to our protocol buffers, please notify the user.
-- If this PR adds, removes, or materially changes public API endpoints or
-  compatibility behavior, please notify the user.
+- If this PR changes public protocol buffers, ConnectRPC/realtime handlers,
+  discovery metadata, or public auth/error/pagination/visibility semantics,
+  use `chatto-api-compatibility` and include its additive, behavioural,
+  deprecated, or breaking classification in the PR body.
+- For public API changes, state older-client/newer-server and
+  newer-client/older-server impact. Verify capability discovery and bundled
+  client fallback where relevant.
+- Breaking public API changes require the `api-breaking-change` label, an
+  explicit design benefit and compatibility plan, generated client/docs
+  updates, migration guidance, and release-note coverage.
+- Persisted `chatto.core.v1` changes must remain non-breaking even when a
+  public API break is accepted.
 - If this PR contains any other changes that you feel might be a breaking change, please notify the user.
 - Please make sure that the PR uses Conventional Commit syntax, and PRs that ship breaking changes are marked accordingly.
 

@@ -14,10 +14,6 @@ const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
 export default ts.config(
   includeIgnoreFile(gitignorePath),
-  {
-    // Ignore generated files (these are committed, so not in .gitignore)
-    ignores: ['src/lib/types/core.ts']
-  },
   js.configs.recommended,
   ...ts.configs.recommended,
   ...svelte.configs.recommended,

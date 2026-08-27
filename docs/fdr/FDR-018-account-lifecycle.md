@@ -1,48 +1,56 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-10
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
-This FDR covers the user account from registration through deletion: signup, email verification, account deletion, and the crypto-shredding model that makes deletion permanent and reliable. It does *not* cover authentication mechanics (login, sessions, tokens) — those live in FDR-023.
+This FDR covers human accounts from registration through deletion: signup, email verification, self-service account deletion, and the crypto-shredding model that makes deletion permanent and reliable. The same deletion and crypto-shredding mechanics also apply when a bot is deleted through its management API, as specified by FDR-038. Authentication mechanics (login, sessions, tokens) live in FDR-023.
 
 ## Behavior
 
 ### Registration
 
-- A user signs up with a login, email, and password. The login must pass uniqueness, format, and blocked-username checks; email uniqueness is enforced when the address is verified.
-- After signup, an email is sent to the address with a six-digit verification code.
+- A human user starts registration with an email address. Chatto returns the same generic response whether the address is available or already claimed, so the registration endpoint does not disclose existing accounts.
+- Chatto sends a six-digit verification code to an available address. Verifying the code returns a short-lived completion token; it does not create an account.
+- The user then chooses a login and password. The login must pass uniqueness, format, and blocked-username checks, and the email is checked again in case it was claimed while the completion token was outstanding.
+- Successful completion creates the account with the email already verified. There is no partially registered or unverified account state in the direct-registration flow.
 - Registration and verification codes are backed by `RUNTIME_STATE` HMAC-derived records with configurable per-key TTLs (default 15 minutes). Raw code values are never written to `EVT` or backup archives. If email delivery fails, the pending OTP is cancelled so the failed send does not consume resend throttle capacity.
-- Until the email is verified, the account has limited capabilities (configurable per server) — typically read-only or some restricted set defined by what the `verified` role grants.
-- Entering the verification code marks the email as verified. The user gains the `verified` implicit role and the full set of permissions that role grants.
-- If the verified email matches an entry in `owners.emails` in the server config, the user is auto-assigned the `owner` role on verification.
+- If the verified email matches an entry in `owners.emails` in the server config, the new user is auto-assigned the `owner` role when the verified email is attached.
 
 ### Email management
 
-- A user can have multiple verified email addresses on file.
+- A human user can have multiple verified email addresses on file. Bot accounts cannot have verified emails.
 - Adding a new email triggers a verification mail to the new address; the email is added in pending state until the code is confirmed.
 - A user can delete one of their verified emails as long as at least one verified email remains.
 - Email verification code issuance is recorded in the EVT audit log with a hashed email, expiry, and safe request metadata; the raw code is not recorded.
 
 ### Account deletion
 
-- The user requests deletion via Account Settings.
+- A human user requests their own deletion via Account Settings.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
-- On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`, records `UserKeyShreddedEvent` on the user aggregate, records durable deletion facts for message-owned assets and derivatives, and revokes all their sessions and bearer tokens. An elected cleanup worker retries physical removal for current message-owned asset deletion facts.
+- On deletion, the server: records `UserKeyShreddingRequestedEvent` with the complete opaque key coordinates, immediately tombstones the user's profile, authentication, search, and authored message state, then idempotently shreds app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`. `UserKeyShreddedEvent` records physical completion. Durable workers retry unfinished key shredding and current message-owned asset deletion facts across crashes and replicas.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear after one hour.
-- New durable user events store login, display name, and verified email as encrypted PII payloads. Projections decrypt them while the user's key exists and skip rebuilding them after crypto-shredding.
+- Deleting an account removes its notification list, notification read and
+  visibility boundaries, and push subscriptions. Push-credential cleanup
+  retries from the durable account-deletion fact across crashes and partial
+  failures. Occurrences caused by the deleted account retain no copied profile
+  PII; current actor hydration may disappear without exposing the deleted
+  identity.
+- Historical room join and leave facts remain stored, but timeline messages omit deleted users from membership activity. Grouped activity includes only visible actors, and the row is hidden when none remain.
+- New durable user events store login, display name, and verified email as encrypted PII payloads. Projections retain those encrypted envelopes, decrypt login/email transiently to derive in-memory lookup digests and decrypt fields for reads, and remove user-owned lookup entries when the account is crypto-shredded.
 - The login is freed up for re-use.
+- Bots cannot request their own deletion. Their owner or a human user with `bot.manage` deletes them through `BotService`; deleting a human owner also deletes every bot they own. Those paths use the same durable deletion and crypto-shredding behavior described above.
 
 ## Design Decisions
 
-### 1. Email verification gates non-trivial actions, not access itself
+### 1. Verify email before creating a direct-registration account
 
-**Decision:** Unverified users can sign in and see basic surfaces, but the meaningful permissions come from the `verified` implicit role. Operators decide what that role grants.
-**Why:** Hard-blocking unverified users from logging in is annoying — common operational issues (typo'd email, lost verification mail) become lockouts. Permission-gating instead lets operators decide what "verified" means while keeping the user reachable.
-**Tradeoff:** Operators have to actively configure the `verified` role for it to be meaningful. The default grants ensure the role does something out of the box.
+**Decision:** Direct registration proves control of the email address before asking for the login and password that complete account creation. The verification code yields a short-lived completion token; only successful completion creates the account and attaches the already-verified email.
+**Why:** This avoids durable half-created accounts, prevents unverified users from occupying login names, and ensures every directly registered account begins with a usable recovery address. Generic code-request responses avoid turning the flow into an account-enumeration endpoint.
+**Tradeoff:** Direct registration requires working email delivery before the user can choose credentials or enter the application. A lost or expired code restarts the verification step instead of leaving an account that can be resumed.
 
 ### 2. Multiple verified emails per user
 
@@ -64,9 +72,9 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 4. Crypto-shredding instead of message deletion
 
-**Decision:** Account deletion shreds the app-owned DEK refs and KMS wrapping-key refs that protect the user's purpose-scoped DEKs and appends a durable `UserKeyShreddedEvent`. Encrypted message bodies and durable user PII stay on disk but become permanently unreadable; projections use the shred event to tombstone authored messages before attempting decryption. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
-**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying the content-key records and their wrapping keys destroys all text content atomically, while the shred event gives projections and cleanup code a deterministic audit signal. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
-**Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry.
+**Decision:** Account deletion first appends `UserKeyShreddingRequestedEvent` at the exact user-aggregate tail; a concurrent key mutation conflicts and retries the request. Account deletion aborts if the request cannot be made durable. Projections treat that request as the immediate fail-closed privacy boundary. The request path and a shared durable worker reconstruct affected key refs from the user's immutable DEK-generation facts and surviving runtime DEK records, shred every wrapping key before deleting any DEK record, and then record physical completion with `UserKeyShreddedEvent`. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
+**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Recording deletion intent before irreversible work removes the crash window where keys could be gone without a tombstone fact. The user aggregate already provides a narrow durable index of the affected DEKs, and KEK-first deletion keeps current wrapping refs rediscoverable across retries without duplicating storage coordinates in the request event. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
+**Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry. A deployment must upgrade all request-serving replicas before using the new deletion protocol and cannot safely roll back once request facts exist.
 
 ### 5. Per-user KEKs, not shared keys
 
@@ -76,9 +84,9 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 6. Durable user PII is encrypted, not indexed in EVT
 
-**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active user-PII DEK epoch. The projection decrypts these values and derives in-memory login/email indexes.
+**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active user-PII DEK epoch. User and mentionable projections decrypt login/email transiently while applying events to derive normalised in-memory lookup digests, then discard the plaintext. They retain ciphertext for read hydration; no lookup digest is persisted in EVT.
 **Why:** Immutable event logs are the wrong long-term home for plaintext PII. Keeping the encrypted payload in EVT preserves replayability without a separate PII KV store, and deletion destroys the key needed to rebuild the data. See ADR-007.
-**Tradeoff:** Projections need access to key-unwrapping during replay. If a user's key is gone, cold replay intentionally cannot rebuild their profile PII or uniqueness indexes.
+**Tradeoff:** Projection replay and reads need access to key-unwrapping and may incur KMS latency, mitigated by request-scoped DEK reuse during reads. If a user's key is gone, cold replay intentionally cannot rebuild their PII or uniqueness indexes.
 
 ### 7. KMS service boundary, even though it's in-process
 
@@ -94,14 +102,16 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ## Permissions
 
-- Self: anyone authenticated can update their own profile (FDR-022), add or remove their own emails, and delete their own account.
+- Self: an authenticated human user can update their own profile (FDR-022), add or remove their own emails, and delete their own account.
 - `user.delete-any` — admin permission to delete other users' accounts.
-- `user.delete-self` — gates own-account deletion. Granted to `everyone` by default; operators can revoke to lock down self-deletion.
+- `user.delete-self` — gates a human user's own-account deletion. Granted to `everyone` by default; operators can revoke it to lock down self-deletion. Bots cannot exercise it even if an allow appears in their direct permission matrix.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-060
+  (application-neutral data cryptography), ADR-069 (explicit durable consumer
+  lifecycle), ADR-076 (notification occurrences), ADR-077 (persistent notification list)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-022 (User Profile), FDR-023 (Authentication & Sessions), FDR-038 (Bot Accounts)
 
 ## Open Questions
 

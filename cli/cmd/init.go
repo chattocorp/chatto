@@ -13,6 +13,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/pkg/natsauth"
 )
 
 var initConfigFile string
@@ -71,6 +72,7 @@ var initCmd = &cobra.Command{
 
 		// Build configuration
 		directRegistration := true
+		directLogin := true
 		unlimited := -1
 		cfg := config.ChattoConfig{
 			General: config.GeneralConfig{
@@ -79,6 +81,7 @@ var initCmd = &cobra.Command{
 			},
 			Auth: config.AuthConfig{
 				DirectRegistration: &directRegistration,
+				DirectLogin:        &directLogin,
 				EmailOTP: config.EmailOTPConfig{
 					ThrottlingEnabled: &directRegistration,
 					TTL:               config.Duration(15 * time.Minute),
@@ -92,7 +95,6 @@ var initCmd = &cobra.Command{
 			Webserver: config.WebserverConfig{
 				Port:                   4000,
 				URL:                    "http://localhost:4000",
-				AllowedOrigins:         []string{"*"},
 				CookieSigningSecret:    sessionSecretString,
 				CookieEncryptionSecret: cookieEncryptionSecretString,
 			},
@@ -109,11 +111,14 @@ var initCmd = &cobra.Command{
 				Port:    587,
 				TLS:     config.SMTPTLSMandatory,
 			},
+			AssetProcessing: config.AssetProcessingConfig{
+				Enabled: true,
+			},
 			NATS: config.NATSConfig{
 				Replicas: 1,
 				Client: config.NATSClientConfig{
 					URL:        "nats://nats.example.com:4222",
-					AuthMethod: config.NATSAuthToken,
+					AuthMethod: natsauth.AuthToken,
 					Token:      "replace-me",
 				},
 				Embedded: config.EmbeddedNATSConfig{

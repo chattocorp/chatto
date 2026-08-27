@@ -1,0 +1,25 @@
+{
+  "room_list": {
+    "active_call": "Appel actif",
+    "call_participants": "Participants {count} à l'appel",
+    "go_to_notifications": "Accédez aux notifications {count}",
+    "notifications": "Notifications {count}",
+    "unread_messages": "messages non lus",
+    "go_to_dm_notifications": "Accédez aux notifications par message direct {count}",
+    "new_direct_messages": "{count} nouveaux messages directs",
+    "direct_messages": "Messages directs",
+    "empty_title": "Aucune chambre pour l'instant",
+    "empty_prefix": "Vous n'avez rejoint aucune salle sur ce serveur. Dirigez-vous vers le",
+    "empty_overview": "Présentation",
+    "empty_suffix": "pour parcourir l'annuaire et rejoindre ceux qui vous intéressent.",
+    "mark_as_read": "Marquer comme lu",
+    "remove_server": "Retirer le serveur",
+    "leave_room": "Quitter le salon",
+    "copy_room_id": "Copier l’identifiant du salon",
+    "copy_server_hostname": "Copier le nom d’hôte du serveur",
+    "room_settings": "Paramètres du salon",
+    "group_settings": "Paramètres de {group}",
+    "server_actions": "Actions pour {server}",
+    "room_actions": "Actions pour #{room}"
+  }
+}

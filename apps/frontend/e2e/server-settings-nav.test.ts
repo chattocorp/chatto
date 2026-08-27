@@ -7,6 +7,7 @@ import {
   loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
 import * as routes from './routes';
 
 interface TestServer {
@@ -60,7 +61,8 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
  * Logs in an existing user via HTTP endpoint.
  */
 async function loginUser(page: Page, login: string, password: string): Promise<void> {
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: { login, password }
   });
 
@@ -77,8 +79,8 @@ async function logoutUser(page: Page): Promise<void> {
 }
 
 test.describe('Server Admin Navigation Permissions', () => {
-  test.describe('Server Admin button visibility', () => {
-    test('server admin sees Server Admin button', async ({ serverAdminPage }) => {
+  test.describe('Settings entry visibility', () => {
+    test('server admin sees Settings', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create user and load the primary server
@@ -89,13 +91,11 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Admin should see Server Admin link
-      await serverAdminPage.expectAdminLinkVisible();
+      // Every member sees Settings; permissions filter its Server Configuration group.
+      await serverAdminPage.expectSettingsLinkVisible();
     });
 
-    test('regular member without admin permissions does not see Server Admin button', async ({
-      serverAdminPage
-    }) => {
+    test('regular member enters Server Admin through Bots', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create admin user and load the primary server
@@ -110,13 +110,16 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Regular member without admin permissions should NOT see Server Admin link
-      await serverAdminPage.expectAdminLinkNotVisible();
+      // Fresh servers grant bot.create to everyone, so Bots is this member's
+      // only Server Admin entry point. Unrelated sections remain hidden.
+      await serverAdminPage.expectSettingsLinkVisible();
+      await serverAdminPage.settingsLink.click();
+      await page.waitForURL(routes.serverAdminBots);
+      await serverAdminPage.expectBotsNavVisible();
+      await serverAdminPage.expectGeneralNavNotVisible();
     });
 
-    test('member with only role.assign permission sees Server Admin button', async ({
-      serverAdminPage
-    }) => {
+    test('member with only role.assign permission sees Settings', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create admin user and load the primary server
@@ -134,11 +137,11 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Member with role.assign should see Server Admin link
-      await serverAdminPage.expectAdminLinkVisible();
+      // Settings also contains the member's User Preferences.
+      await serverAdminPage.expectSettingsLinkVisible();
     });
 
-    test('member with only user.delete-any permission sees Server Admin button', async ({
+    test('member with only user.delete-any permission sees Settings', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -150,7 +153,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       // Grant user.delete-any to everyone role. Like the other tests in
       // this block, this picks a single admin-tier permission that is part
       // of the HasAnyAdminPermission set and verifies that holding just
-      // that one perm is enough to surface the Server Admin link.
+      // that one perm is enough to surface its matching Server Configuration item.
       await grantPermission(page, 'everyone', 'user.delete-any');
 
       // Create and login as non-admin user
@@ -161,13 +164,11 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Member with user.delete-any should see Server Admin link
-      await serverAdminPage.expectAdminLinkVisible();
+      // Settings also contains the member's User Preferences.
+      await serverAdminPage.expectSettingsLinkVisible();
     });
 
-    test('member with only role.manage permission sees Server Admin button', async ({
-      serverAdminPage
-    }) => {
+    test('member with only role.manage permission sees Settings', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create admin user and load the primary server
@@ -185,13 +186,13 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Member with role.manage should see Server Admin link
-      await serverAdminPage.expectAdminLinkVisible();
+      // Settings also contains the member's User Preferences.
+      await serverAdminPage.expectSettingsLinkVisible();
     });
   });
 
-  test.describe('Settings nav item filtering', () => {
-    test('server admin sees all settings nav items', async ({ serverAdminPage }) => {
+  test.describe('Server Admin nav item filtering', () => {
+    test('server admin sees all management nav items', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create user and load the primary server
@@ -204,6 +205,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       // Admin should see all nav items
       await serverAdminPage.expectGeneralNavVisible();
       await serverAdminPage.expectMembersNavVisible();
+      await serverAdminPage.expectBotsNavVisible();
       await serverAdminPage.expectRolesNavVisible();
     });
 

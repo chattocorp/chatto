@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
-import "chatto/api/v1/notification_preferences.proto";
 import "chatto/api/v1/permissions.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
@@ -67,30 +66,18 @@ message ServerViewerState {
   bool has_unread_rooms = 1;
 }
 
-// Room notification preference for one joined room.
-message RoomNotificationPreference {
-  reserved 2, 3;
-  reserved "level", "effective_level";
-
-  // Room whose preference is represented.
-  string room_id = 1;
-  // Stored and effective notification preference.
-  NotificationPreference preference = 4;
-}
-
 // Request for the authenticated viewer snapshot.
 message GetViewerRequest {}
 
 // Authenticated viewer snapshot needed by application shells.
 message GetViewerResponse {
+  reserved 3, 4;
+  reserved "server_notification_preference", "room_notification_preferences";
+
   // Current authenticated user.
   ViewerUser user = 1;
   // Permission-derived capabilities.
   ViewerCapabilities capabilities = 2;
-  // Server-wide notification preference.
-  NotificationPreference server_notification_preference = 3;
-  // Notification preferences for rooms the user participates in.
-  repeated RoomNotificationPreference room_notification_preferences = 4;
   // Effective server/channel permission decisions for the authenticated user.
   ServerViewerPermissions viewer_permissions = 5;
   // Non-permission server state for the authenticated user.

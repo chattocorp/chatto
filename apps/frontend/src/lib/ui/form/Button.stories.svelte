@@ -21,7 +21,15 @@
 </script>
 
 <script lang="ts">
-  const variants = ['primary', 'accent', 'secondary', 'ghost', 'warning', 'danger'] as const;
+  const variants = [
+    'action',
+    'neutral',
+    'secondary',
+    'ghost',
+    'warning',
+    'danger',
+    'danger-secondary'
+  ] as const;
   const sizes = ['sm', 'md', 'lg'] as const;
 </script>
 
@@ -32,7 +40,7 @@
     docs: {
       description: {
         story:
-          'The supported semantic tones. Prefer primary or accent for positive flow actions, secondary for cancellation, warning/danger for risky actions, and ghost only for low-emphasis commands.'
+          'Use action for the recommended flow action, neutral for neutral emphasis, secondary for cancellation, warning/danger for risky actions, danger-secondary for a quiet destructive action, and ghost only for low-emphasis commands.'
       }
     }
   }}
@@ -129,5 +137,27 @@
 >
   <div class="max-w-md">
     <Button fullWidth>Continue</Button>
+  </div>
+</Story>
+
+<Story
+  name="Icon only"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Icon-only buttons require an accessible label. Add a matching title when a concise hover hint is useful.'
+      }
+    }
+  }}
+>
+  <div class="flex items-center gap-2">
+    <Button variant="secondary" size="sm" label="Mark read" title="Mark read">
+      <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
+    </Button>
+    <Button variant="danger-secondary" size="sm" label="Delete" title="Delete">
+      <span class="iconify icon-[uil--trash-alt]" aria-hidden="true"></span>
+    </Button>
   </div>
 </Story>

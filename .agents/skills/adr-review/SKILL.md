@@ -37,7 +37,9 @@ Use these sources according to the ADR topic. Adapt paths to the project if its 
 
 - ADR inventory: `docs/adr/INDEX.md`
 - Related decision/feature records: `docs/fdr/`, `docs/rfc/`, `docs/design/`, `docs/features/`, or equivalent project-specific directories when present
-- Current architecture inventory: `docs/ARCHITECTURE.md`, `docs/architecture/`, or equivalent
+- Current architecture inventory: `docs/architecture/` (with
+  `docs/ARCHITECTURE.md` retained only as a compatibility landing page), or the
+  repository's equivalent
 - Canonical vocabulary: `docs/GLOSSARY.md`, terminology docs, or domain model docs when present
 - Public APIs and protocols: API schemas, IDLs, OpenAPI specs, protobuf/Thrift/GraphQL schemas, REST/RPC route definitions, WebSocket protocols, and generated clients
 - Core implementation: service wiring, domain models, persistence code, background jobs, event handlers, migrations, and integration boundaries

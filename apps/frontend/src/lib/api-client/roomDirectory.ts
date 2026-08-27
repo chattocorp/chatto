@@ -16,6 +16,7 @@ import type {
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
 
 export type RoomDirectoryAPIConfig = ConnectAPIConfig;
 
@@ -26,9 +27,14 @@ export type DirectoryRoomSummary = {
   kind: RoomKind;
   archived: boolean;
   isUniversal: boolean;
+  slowModeSeconds: number;
+  threadingMode: RoomThreadingMode;
+  slowModeNextPostAt: string | null;
   isMember: boolean;
   hasUnread: boolean;
+  canReadMessages: boolean | null;
   canJoinRoom: boolean;
+  canManageRoom: boolean;
 };
 
 export type DirectoryRoomDetails = DirectoryRoomSummary & {
@@ -38,7 +44,6 @@ export type DirectoryRoomDetails = DirectoryRoomSummary & {
   canReact: boolean;
   canEchoMessage: boolean;
   canManageOthersMessage: boolean;
-  canManageRoom: boolean;
   canBanRoomMembers: boolean;
 };
 
@@ -65,6 +70,7 @@ export type DirectoryRoomGroup = {
   id: string;
   name: string;
   canCreateRoom: boolean;
+  canManageGroup: boolean;
   roomIds: string[];
   items: DirectoryRoomGroupItem[];
 };
@@ -80,6 +86,8 @@ const RoomPermission = {
   JoinRoom: 'room.join',
   ManageMessage: 'message.manage',
   ManageRoom: 'room.manage',
+  ReadInteractions: 'message.read.interactions',
+  ReadMessages: 'message.read',
   PostInThread: 'message.post-in-thread',
   PostMessage: 'message.post',
   React: 'message.react'
@@ -90,9 +98,15 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    async listRooms(scope: RoomDirectoryScope): Promise<DirectoryRoomSummary[]> {
+    async listRooms(
+      scope: RoomDirectoryScope,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<DirectoryRoomSummary[]> {
       try {
-        const response = await directory.listRooms({ scope }, { headers: headers() });
+        const response = await directory.listRooms(
+          { scope },
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        );
         return response.rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
       } catch (err) {
         return handleAuthError(config, err);
@@ -157,7 +171,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
 
 export type RoomDirectoryAPI = ReturnType<typeof createRoomDirectoryAPI>;
 
-function mapDirectoryRoomDetails(
+export function mapDirectoryRoomDetails(
   entry: RoomWithViewerState | undefined
 ): DirectoryRoomDetails | null {
   if (!entry) return null;
@@ -178,7 +192,7 @@ function mapDirectoryRoomDetails(
   };
 }
 
-function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | null {
+export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | null {
   if (!entry.room) return null;
   return {
     id: entry.room.id,
@@ -187,26 +201,51 @@ function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | nu
     kind: entry.room.kind,
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
+    slowModeSeconds: entry.room.slowModeSeconds ?? 0,
+    threadingMode: normalizeRoomThreadingMode(entry.room.kind, entry.room.threadingMode),
+    slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
-    canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom)
+    canReadMessages: anyRoomPermissionDecision(entry.viewerState, [
+      RoomPermission.ReadMessages,
+      RoomPermission.ReadInteractions
+    ]),
+    canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom),
+    canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom)
   };
 }
 
-function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
+export function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
   return {
     id: group.id,
     name: group.name,
     canCreateRoom: hasRoomGroupPermission(group.viewerState, RoomPermission.CreateRoom),
+    canManageGroup: hasRoomGroupPermission(group.viewerState, RoomPermission.ManageRoom),
     roomIds: uniqueRoomIds(group.items),
     items: sidebarItemsFromAPI(group)
   };
 }
 
 function hasRoomPermission(state: RoomViewerState | undefined, permission: string): boolean {
-  return (
-    state?.permissions.some((grant) => grant.permission === permission && grant.granted) ?? false
-  );
+  return roomPermissionDecision(state, permission) ?? false;
+}
+
+function roomPermissionDecision(
+  state: RoomViewerState | undefined,
+  permission: string
+): boolean | null {
+  const grant = state?.permissions.find((candidate) => candidate.permission === permission);
+  return grant ? grant.granted : null;
+}
+
+function anyRoomPermissionDecision(
+  state: RoomViewerState | undefined,
+  permissions: readonly string[]
+): boolean | null {
+  const decisions = permissions.map((permission) => roomPermissionDecision(state, permission));
+  if (decisions.some((decision) => decision === true)) return true;
+  if (decisions.some((decision) => decision === false)) return false;
+  return null;
 }
 
 function hasRoomGroupPermission(

@@ -22,6 +22,7 @@ Backups contain all persistent JetStream streams, KV buckets, and object stores:
 - **Server data** — users, memberships, roles, permissions, notifications, rooms, messages, threads, reactions, message bodies
 - **Call facts** — room-scoped call start/join/leave/end events used to rebuild active call participant state
 - **NATS-backed assets** — user avatars, server icon and banner, message attachments
+- **NATS-backed projection snapshots** — opaque encrypted derived state when `core.projection_snapshots` is enabled
 
 ## What's excluded
 
@@ -34,6 +35,8 @@ Certain streams are intentionally excluded:
 | LiveKit E2EE call keys | Stored in `ENCRYPTION_KEYS` and excluded unless key backups are explicitly included; active calls cannot be recovered without them |
 | Link preview cache | Regeneratable on demand |
 | Asset cache | Regeneratable (resized image variants) |
+| [Search index](/guides/operations/search/) | Privileged plaintext-derived local cache. Protect its volume separately or rebuild it from retained `EVT` history. |
+| S3-backed assets and projection snapshot generations | Stored outside NATS; protect them through the deployment's S3 backup policy. The encrypted snapshot pointer remains in `RUNTIME_STATE`, but is disposable without its generation object |
 
 <Aside type="tip">
   Use `--encrypt --include-keys` for the simplest complete backup of the built-in KMS. A monolithic encrypted backup is simpler to automate, easier to test, and harder to restore incorrectly.
@@ -44,7 +47,11 @@ Certain streams are intentionally excluded:
 </Aside>
 
 <Aside type="note">
-  `RUNTIME_STATE` is included in backups. Active runtime credentials and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore when the restored server uses the same `core.secret_key`. Backup archives contain HMAC verifier keys, not raw bearer tokens, cookie handles, links, or OAuth codes; changing `core.secret_key` intentionally invalidates those credentials.
+  `RUNTIME_STATE` is included in backups. Active runtime credentials and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore when the restored server uses the same `core.secret_key`. Backup archives contain HMAC verifier keys, not raw bearer access tokens, refresh credentials, cookie handles, links, or OAuth codes; changing `core.secret_key` intentionally invalidates those credentials.
+</Aside>
+
+<Aside type="note">
+  Projection snapshots are never required to restore server state. NATS-backed snapshots and their revisioned pointers remain reusable after restore when the same `core.secret_key` is retained and the snapshot has not expired. Missing or expired generations and key changes only cause the affected projection cohort to replay `EVT`. Snapshot retention defaults to seven days. NATS enforces it through Object Store TTL; S3 deployments use Chatto's marked-object expiry by default or an operator-managed lifecycle policy.
 </Aside>
 
 ## Creating a backup
@@ -94,7 +101,7 @@ vault kv get -field=passphrase secret/chatto | \
   chatto backup -c chatto.toml --encrypt --include-keys --passphrase-stdin
 ```
 
-The legacy `--passphrase` argument is deprecated because command-line secrets can appear in shell history and process listings. Migrate unattended jobs to `--passphrase-file` or `--passphrase-stdin` before Chatto 0.5.
+Chatto does not accept passphrases directly in command-line arguments because secrets can appear in shell history and process listings. Use `--passphrase-file` or `--passphrase-stdin` for unattended jobs.
 Non-interactive commands do not consume stdin unless `--passphrase-stdin` is present; this prevents inherited pipes from hanging a backup or becoming an accidental secret source.
 
 <Aside type="caution">
@@ -110,7 +117,7 @@ Non-interactive commands do not consume stdin unless `--passphrase-stdin` is pre
 Restore accepts regular files and directories only, rejects unsafe manifest and archive paths, and stops archives that exceed the built-in entry-count or expanded-size safety limits. These limits are intentionally generous for production backups while preventing malformed archives from expanding without a bound.
 
 <Aside type="tip">
-  Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer tokens, cookie-session handles, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
+  Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing renewable bearer sessions, cookie-session handles, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
 </Aside>
 
 <Steps>

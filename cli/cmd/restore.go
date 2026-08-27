@@ -14,19 +14,18 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/jsm.go"
 	"github.com/nats-io/jsm.go/api"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/spf13/cobra"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/embedded_nats"
 	"hmans.de/chatto/pkg/natsauth"
+	"hmans.de/chatto/pkg/natsruntime"
 )
 
 var (
 	restoreConfigFile      string
 	restoreConflict        string
-	restorePassphrase      string
 	restorePassphraseFile  string
 	restorePassphraseStdin bool
 )
@@ -56,8 +55,6 @@ func init() {
 	rootCmd.AddCommand(restoreCmd)
 	restoreCmd.Flags().StringVarP(&restoreConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
 	restoreCmd.Flags().StringVar(&restoreConflict, "conflict", "error", "conflict handling: error, skip, overwrite")
-	restoreCmd.Flags().StringVar(&restorePassphrase, "passphrase", "", "decryption passphrase for encrypted backups (if not set, prompts interactively)")
-	_ = restoreCmd.Flags().MarkDeprecated("passphrase", "use --passphrase-stdin or --passphrase-file so the secret is not exposed in process arguments")
 	restoreCmd.Flags().StringVar(&restorePassphraseFile, "passphrase-file", "", "file containing the decryption passphrase")
 	restoreCmd.Flags().BoolVar(&restorePassphraseStdin, "passphrase-stdin", false, "read the decryption passphrase from stdin")
 }
@@ -102,10 +99,8 @@ func runRestore(cmd *cobra.Command, args []string) error {
 	if encrypted {
 		log.Info("Archive is encrypted, decryption required")
 		passphrase, err := getPassphrase(passphraseInput{
-			argument:    restorePassphrase,
-			argumentSet: cmd.Flags().Changed("passphrase"),
-			file:        restorePassphraseFile,
-			stdin:       restorePassphraseStdin,
+			file:  restorePassphraseFile,
+			stdin: restorePassphraseStdin,
 		}, "Enter passphrase for backup decryption: ", false)
 		if err != nil {
 			return fmt.Errorf("failed to read passphrase: %w", err)
@@ -158,14 +153,14 @@ func runRestore(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to NATS: %w", err)
 	}
-	defer nc.Close()
 	if embeddedServer != nil {
 		defer func() {
 			embeddedServer.Shutdown()
-			embeddedServer.WaitForShutdown()
 			log.Info("Temporary NATS server shut down")
 		}()
 	}
+	// Register the client close last so it runs before embedded server shutdown.
+	defer nc.Close()
 
 	ctx := context.Background()
 
@@ -377,37 +372,24 @@ func openRestoreArchive(path string) (*os.File, error) {
 // connectForRestore establishes a NATS connection for restore operations.
 // For embedded NATS: starts a temporary server with no TCP listener.
 // For external NATS: connects via the client config.
-func connectForRestore(cfg config.ChattoConfig) (*nats.Conn, *server.Server, error) {
+func connectForRestore(cfg config.ChattoConfig) (*nats.Conn, *natsruntime.Server, error) {
 	if cfg.NATS.Embedded.Enabled {
 		log.Info("Starting temporary NATS server for restore", "data_dir", cfg.NATS.Embedded.DataDir)
 
-		// Start embedded NATS with no listeners (in-process only)
-		opts := &server.Options{
-			JetStream:  true,
-			StoreDir:   cfg.NATS.Embedded.DataDir,
-			NoSigs:     true,
-			DontListen: true,
-		}
-
-		ns, err := server.NewServer(opts)
+		runtime, err := embedded_nats.StartPrivateServer(cfg.NATS.Embedded.DataDir)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create NATS server: %w", err)
-		}
-
-		ns.Start()
-		if !ns.ReadyForConnections(4 * time.Second) {
-			return nil, nil, fmt.Errorf("NATS server failed to start")
+			return nil, nil, err
 		}
 
 		log.Info("Temporary NATS server ready")
 
-		nc, err := nats.Connect(nats.DefaultURL, embedded_nats.InProcessConnectOption(ns))
+		nc, err := nats.Connect(nats.DefaultURL, runtime.InProcessOption())
 		if err != nil {
-			ns.Shutdown()
+			runtime.Shutdown()
 			return nil, nil, fmt.Errorf("failed to connect to embedded NATS: %w", err)
 		}
 
-		return nc, ns, nil
+		return nc, runtime, nil
 	}
 
 	// External NATS: connect via client config

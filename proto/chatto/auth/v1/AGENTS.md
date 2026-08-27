@@ -1,7 +1,7 @@
 # Instructions for Agents Working in `proto/chatto/auth/v1/`
 
-This directory defines public authentication and authorization-related
-ConnectRPC flows that are not ordinary authenticated account API calls.
+This directory contains public ConnectRPC authentication and authorization
+flows. These flows are not ordinary authenticated account API calls.
 
 ## API Surface
 
@@ -16,11 +16,11 @@ ConnectRPC flows that are not ordinary authenticated account API calls.
 
 ## Comments And Authorization
 
-- Every service and RPC comment must state whether the method is fully public,
-  requires a capability token, or requires an authenticated user.
-- Comments should describe caller-visible behavior and notable absence/error
-  semantics.
-- Avoid implementation workflow text in comments that render into public docs.
+- Each service and RPC comment must say if the method is public, needs a
+  capability token, or needs an authenticated user.
+- Describe behavior visible to the caller and important absence or error cases.
+- Do not put implementation workflow text in comments that appear in public
+  documentation.
 
 ## Reused Shapes
 
@@ -32,8 +32,8 @@ ConnectRPC flows that are not ordinary authenticated account API calls.
 ## Compatibility
 
 - Follow the public API compatibility rules in `proto/AGENTS.md`.
-- The project is pre-1.0, but package, service, and method path changes still
-  need an explicit plan and PR compatibility note.
+- The project is pre-1.0. Package, service, and method-path changes still need
+  an explicit plan and a PR compatibility note.
 
 ## Code Generation
 

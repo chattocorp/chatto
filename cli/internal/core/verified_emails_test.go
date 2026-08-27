@@ -1,11 +1,14 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // ============================================================================
@@ -314,6 +317,161 @@ func TestChattoCore_ApplyConfigOwners(t *testing.T) {
 	eventsAfterSecondApply := eventStreamMsgCount(t, core)
 	if eventsAfterSecondApply != eventsAfterApply {
 		t.Fatalf("expected applyConfigOwners to be idempotent, got %d -> %d events", eventsAfterApply, eventsAfterSecondApply)
+	}
+}
+
+func TestConfiguredOwnerVerificationWaitsForDurableRole(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	core.config.Owners = config.OwnersConfig{Emails: []string{"owner@example.com"}}
+	user, err := core.CreateUser(ctx, SystemActorID, "new-config-owner", "New Config Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.AddVerifiedEmailDirect(ctx, user.Id, "OWNER@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+	if owner, err := core.IsServerOwner(ctx, user.Id); err != nil || !owner {
+		t.Fatalf("owner after successful verification = %v, err=%v", owner, err)
+	}
+	if !core.rbacModel.hasRole(user.Id, RoleOwner) {
+		t.Fatal("successful configured-owner verification returned without durable owner role")
+	}
+}
+
+func TestConfiguredOwnerVerificationFencesServingReplicaRBAC(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "configured-owner-replica-fence-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "configured-owner-replica-fence-signing-secret"},
+		Owners:    config.OwnersConfig{Emails: []string{"owner@example.com"}},
+	}
+	worker, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore worker: %v", err)
+	}
+	startCoreServices(t, worker)
+
+	serving, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore serving: %v", err)
+	}
+	projectorCtx, cancelProjectors := context.WithCancel(context.Background())
+	var projectorWG sync.WaitGroup
+	for _, registration := range serving.projections {
+		registration := registration
+		projectorWG.Add(1)
+		go func() {
+			defer projectorWG.Done()
+			_ = registration.projector.Run(projectorCtx)
+		}()
+	}
+	t.Cleanup(func() {
+		cancelProjectors()
+		projectorWG.Wait()
+	})
+	if err := serving.waitForProjectorsStarted(ctx, 5*time.Second); err != nil {
+		t.Fatalf("wait for serving projectors: %v", err)
+	}
+	if err := serving.WaitForProjectionsCurrent(ctx); err != nil {
+		t.Fatalf("wait for serving projections current: %v", err)
+	}
+
+	user, err := worker.CreateUser(ctx, SystemActorID, "replica-fenced-config-owner", "Replica Fenced Config Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := serving.WaitForProjectionsCurrent(ctx); err != nil {
+		t.Fatalf("wait for serving user: %v", err)
+	}
+
+	// Hold only the serving replica's RBAC projection. The other replica can
+	// commit and acknowledge the owner assignment, but this request must not
+	// return until its own later RBAC fact is visible.
+	servingRBAC := serving.rbacModel.rbac.Projection()
+	servingRBAC.Lock()
+	locked := true
+	defer func() {
+		if locked {
+			servingRBAC.Unlock()
+		}
+	}()
+	done := make(chan error, 1)
+	go func() { done <- serving.AddVerifiedEmailDirect(ctx, user.Id, "owner@example.com") }()
+
+	deadline := time.NewTimer(5 * time.Second)
+	defer deadline.Stop()
+	roleAssigned := time.NewTicker(5 * time.Millisecond)
+	defer roleAssigned.Stop()
+	for !worker.rbacModel.hasRole(user.Id, RoleOwner) {
+		select {
+		case err := <-done:
+			t.Fatalf("verification returned before worker assignment: %v", err)
+		case <-deadline.C:
+			t.Fatal("worker did not materialize configured-owner role")
+		case <-roleAssigned.C:
+		}
+	}
+	select {
+	case err := <-done:
+		t.Fatalf("verification returned before serving RBAC caught up: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	servingRBAC.Unlock()
+	locked = false
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("AddVerifiedEmailDirect: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("verification did not finish after serving RBAC caught up")
+	}
+}
+
+func TestConfiguredOwnerRoleCannotDivergeFromEffectiveVisibility(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	configuredOwner, err := core.CreateVerifiedUser(ctx, SystemActorID, "configured-visibility-owner", "Configured Visibility Owner", "password123", "owner@example.com")
+	if err != nil {
+		t.Fatalf("create configured owner: %v", err)
+	}
+	otherOwner, err := core.CreateUser(ctx, SystemActorID, "other-visibility-owner", "Other Visibility Owner", "password123")
+	if err != nil {
+		t.Fatalf("create other owner: %v", err)
+	}
+	if err := core.AssignOwnerRole(ctx, otherOwner.Id); err != nil {
+		t.Fatalf("assign other owner: %v", err)
+	}
+	core.config.Owners = config.OwnersConfig{Emails: []string{"owner@example.com"}}
+	if err := core.applyConfigOwners(ctx); err != nil {
+		t.Fatalf("apply configured owner: %v", err)
+	}
+
+	room, err := core.CreateRoom(ctx, otherOwner.Id, KindChannel, "", "configured-owner-visibility", "")
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, otherOwner.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("set room universal: %v", err)
+	}
+	if err := core.DenyRoomPermission(ctx, otherOwner.Id, room.Id, RoleEveryone, PermRoomJoin); err != nil {
+		t.Fatalf("deny everyone room.join: %v", err)
+	}
+	if visible, err := core.RoomMembershipExists(ctx, KindChannel, configuredOwner.Id, room.Id); err != nil || !visible {
+		t.Fatalf("configured owner visibility before revoke = (%v, %v), want true", visible, err)
+	}
+
+	if err := core.RevokeServerRole(ctx, otherOwner.Id, configuredOwner.Id, RoleOwner); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("revoke configured owner role error = %v, want ErrPermissionDenied", err)
+	}
+	if !core.rbacModel.hasRole(configuredOwner.Id, RoleOwner) {
+		t.Fatal("configured owner role was revoked")
+	}
+	if visible, err := core.RoomMembershipExists(ctx, KindChannel, configuredOwner.Id, room.Id); err != nil || !visible {
+		t.Fatalf("configured owner visibility after rejected revoke = (%v, %v), want true", visible, err)
 	}
 }
 

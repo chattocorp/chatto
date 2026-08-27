@@ -10,9 +10,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // MaxDMParticipants is the maximum number of participants allowed in a DM.
@@ -161,7 +161,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		Name: "", // DMs don't have names - derived from participants in UI
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 
 	// "system" actor reflects that the conversation is created by
 	// the platform on the first participant's behalf — DMs have no
@@ -182,7 +182,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// "no prior RoomCreated event." Preserves the per-aggregate
 	// uniqueness guarantee under the per-(agg, event-type) subject
 	// shape.
-	entries := []events.BatchEntry{
+	entries := []evtstream.BatchEntry{
 		{
 			Subject:       agg.SubjectFor(createdEvent),
 			Event:         createdEvent,
@@ -196,7 +196,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
 			},
 		})
-		entries = append(entries, events.BatchEntry{
+		entries = append(entries, evtstream.BatchEntry{
 			Subject: agg.SubjectFor(joinEvent),
 			Event:   joinEvent,
 		})
@@ -213,10 +213,10 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// Reaching the last UserJoinedRoom means the earlier RoomCreated has also
 	// landed in the room directory.
 	lastSubject := entries[len(entries)-1].Subject
-	if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+	if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
 		c.logger.Warn("DM room directory projection wait failed", "error", err, "room_id", roomID)
 	}
-	if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+	if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
 		c.logger.Warn("DM room timeline projection wait failed", "error", err, "room_id", roomID)
 	}
 
@@ -224,7 +224,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// HasUnread distinguishes a fresh member from a deploy-era user; see
 	// GetLastReadEventID.
 	for _, pid := range participantIDs {
-		if err := c.SetLastReadEventID(ctx, KindDM, pid, roomID, ""); err != nil {
+		if err := c.initializeLastReadEventID(ctx, pid, roomID, ""); err != nil {
 			c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", pid, "room_id", roomID)
 		}
 	}
@@ -240,80 +240,4 @@ func ensureInList(list []string, id string) []string {
 		}
 	}
 	return append(list, id)
-}
-
-// notifyDMParticipants sends notifications to all DM participants except the sender.
-// This creates persistent notifications (for bell icon) and publishes live events.
-// This is best-effort - failures are logged but don't affect message posting.
-func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID, eventID string) {
-	participants, err := c.GetRoomMembersList(ctx, KindDM, roomID)
-	if err != nil {
-		c.logger.Warn("Failed to get DM participants for notification",
-			"room_id", roomID,
-			"error", err)
-		return
-	}
-
-	for _, participant := range participants {
-		participantID := participant.UserId
-		// Don't notify the sender
-		if participantID == senderID {
-			continue
-		}
-
-		// Skip if user has muted this DM room
-		level, err := c.GetEffectiveNotificationLevel(ctx, participantID, roomID)
-		if err != nil {
-			c.logger.Warn("Failed to get notification level for DM participant, continuing",
-				"user_id", participantID, "error", err)
-		} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			continue
-		}
-		// Create persistent notification (for bell icon and notification center)
-		// This also publishes NotificationCreatedEvent for real-time updates
-		created, createErr := c.CreateNotification(ctx, participantID, senderID, &corev1.Notification{
-			Notification: &corev1.Notification_DmMessage{
-				DmMessage: &corev1.DMMessageNotification{
-					RoomId:  roomID,
-					EventId: eventID,
-				},
-			},
-		})
-		if createErr != nil {
-			c.logger.Warn("Failed to create DM notification",
-				"participant_id", participantID,
-				"sender_id", senderID,
-				"room_id", roomID,
-				"error", createErr)
-			continue
-		}
-		if created == nil {
-			continue
-		}
-		if c.suppressesNotificationAlertsForPresence(ctx, participantID) {
-			continue
-		}
-
-		// Publish live DM notification event for unread indicator real-time update
-		event := newLiveEvent(senderID, &corev1.LiveEvent{
-			Event: &corev1.LiveEvent_NewDirectMessageNotification{
-				NewDirectMessageNotification: &corev1.NewDirectMessageNotificationEvent{
-					RoomId:   roomID,
-					SenderId: senderID,
-				},
-			},
-		})
-
-		subject := subjects.LiveSyncUserEvent(participantID, "dm_message")
-		if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-			c.logger.Warn("Failed to publish DM live event",
-				"participant_id", participantID,
-				"error", err)
-		}
-
-		c.logger.Debug("Created DM notification",
-			"participant_id", participantID,
-			"sender_id", senderID,
-			"room_id", roomID)
-	}
 }

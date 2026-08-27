@@ -2,13 +2,11 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -82,6 +80,43 @@ func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind RoomKind, roomID
 	return ev.GetId(), createdAt, true, nil
 }
 
+// GetRoomLastReadableEvent returns the most recent room-visible message that
+// userID can currently read. Channel echoes use the interaction relationship
+// of their canonical thread root.
+func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind, userID, roomID string) (eventID string, ts time.Time, exists bool, err error) {
+	broad, err := c.CanReadMessages(ctx, userID, kind, roomID)
+	if err != nil {
+		return "", time.Time{}, false, err
+	}
+	interactions := false
+	if !broad && kind != KindDM {
+		interactions, err = c.CanReadMessageInteractions(ctx, userID, kind, roomID)
+		if err != nil {
+			return "", time.Time{}, false, err
+		}
+	}
+	visible := func(event *corev1.Event) bool {
+		message := event.GetMessagePosted()
+		if message == nil || message.GetInThread() != "" {
+			return false
+		}
+		if broad || kind == KindDM {
+			return true
+		}
+		rootID, ok := c.roomModel.threadRootForMessage(roomID, event.GetId())
+		return ok && interactions && c.roomModel.hasThreadInteraction(userID, roomID, rootID)
+	}
+	entry, ok := c.roomModel.lastVisibleRoomEntry(roomID, visible)
+	if !ok || entry == nil || entry.Event == nil {
+		return "", time.Time{}, false, nil
+	}
+	createdAt := time.Time{}
+	if entry.Event.GetCreatedAt() != nil {
+		createdAt = entry.Event.GetCreatedAt().AsTime()
+	}
+	return entry.Event.GetId(), createdAt, true, nil
+}
+
 // roomReadEventKey returns the RUNTIME_STATE key for tracking the user's
 // last-read root event ID in a room.
 func roomReadEventKey(userID, roomID string) string {
@@ -96,17 +131,17 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, user
 	bucket := c.storage.runtimeStateKV
 
 	key := roomReadEventKey(userID, roomID)
-	entry, err := bucket.Get(ctx, key)
-	if err == nil {
-		return string(entry.Value()), nil
+	entry, exists, err := c.readStateModel.index.roomMarker(ctx, userID, roomID)
+	if err != nil {
+		return "", fmt.Errorf("read room marker index: %w", err)
 	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return "", fmt.Errorf("failed to get read marker: %w", err)
+	if exists {
+		return string(entry.value), nil
 	}
 
 	// No marker yet — initialize to the room's current last root event so the
 	// user starts caught up rather than seeing a wall of unreads.
-	lastID, _, exists, err := c.GetRoomLastEvent(ctx, kind, roomID)
+	lastID, _, exists, err := c.GetRoomLastReadableEvent(ctx, kind, userID, roomID)
 	if err != nil {
 		return "", err
 	}
@@ -116,15 +151,23 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, user
 	// Use Create (atomic insert) rather than Put: a concurrent writer
 	// (PostMessage auto-mark, MarkRoomAsRead) may have set a real marker
 	// between our Get and our write, and we must not clobber it.
-	if _, err := bucket.Create(ctx, key, []byte(lastID)); err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			entry, getErr := bucket.Get(ctx, key)
+	revision, err := bucket.Create(ctx, key, []byte(lastID))
+	if err != nil {
+		if jetstreamutil.IsSequenceConflict(err) {
+			current, getErr := bucket.Get(ctx, key)
 			if getErr != nil {
 				return "", fmt.Errorf("failed to re-read read marker after concurrent init: %w", getErr)
 			}
-			return string(entry.Value()), nil
+			if waitErr := c.readStateModel.index.waitForRevision(ctx, key, current.Revision()); waitErr != nil {
+				return "", fmt.Errorf("wait for concurrent read marker: %w", waitErr)
+			}
+			return string(current.Value()), nil
 		}
 		c.logger.Warn("Failed to lazy-initialize read marker", "user_id", userID, "room_id", roomID, "error", err)
+		return lastID, nil
+	}
+	if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+		return "", fmt.Errorf("wait for initialized read marker: %w", err)
 	}
 	return lastID, nil
 }
@@ -132,14 +175,14 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, user
 // PeekLastReadEventID returns the stored read marker for a room without lazy
 // initialization. exists is false when no marker has been written yet.
 func (c *ChattoCore) PeekLastReadEventID(ctx context.Context, userID, roomID string) (eventID string, exists bool, err error) {
-	entry, err := c.storage.runtimeStateKV.Get(ctx, roomReadEventKey(userID, roomID))
-	if err == nil {
-		return string(entry.Value()), true, nil
+	entry, exists, err := c.readStateModel.index.roomMarker(ctx, userID, roomID)
+	if err != nil {
+		return "", false, fmt.Errorf("read room marker index: %w", err)
 	}
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
+	if !exists {
 		return "", false, nil
 	}
-	return "", false, fmt.Errorf("failed to get read marker: %w", err)
+	return string(entry.value), true, nil
 }
 
 // SetLastReadEventID stores the user's last-read root-message event ID.
@@ -149,10 +192,59 @@ func (c *ChattoCore) PeekLastReadEventID(ctx context.Context, userID, roomID str
 // here would make room-level unread comparisons point at the wrong timeline.
 func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID, eventID string) error {
 	bucket := c.storage.runtimeStateKV
-	if _, err := bucket.Put(ctx, roomReadEventKey(userID, roomID), []byte(eventID)); err != nil {
-		return fmt.Errorf("failed to set read marker: %w", err)
+	key := roomReadEventKey(userID, roomID)
+
+	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+		entry, exists, err := c.readStateModel.index.roomMarker(ctx, userID, roomID)
+		if err != nil {
+			return fmt.Errorf("read room marker index: %w", err)
+		}
+
+		var revision uint64
+		if exists {
+			revision, err = bucket.Update(ctx, key, []byte(eventID), entry.revision)
+		} else {
+			revision, err = bucket.Create(ctx, key, []byte(eventID))
+		}
+		if err != nil {
+			if jetstreamutil.IsSequenceConflict(err) {
+				if waitErr := c.readStateModel.index.waitForRevisionAfter(ctx, key, entry.revision); waitErr != nil {
+					return fmt.Errorf("wait for conflicting read marker: %w", waitErr)
+				}
+				continue
+			}
+			return fmt.Errorf("failed to set read marker: %w", err)
+		}
+		if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+			return fmt.Errorf("wait for read marker: %w", err)
+		}
+		c.logger.Debug("Set last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
+		return nil
 	}
-	c.logger.Debug("Set last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
+
+	return fmt.Errorf("read marker update failed after %d retries", maxReadMarkerUpdateRetries)
+}
+
+// initializeLastReadEventID creates the member's initial room marker without
+// replacing a marker already written by another replica or a concurrent
+// user-facing read operation.
+func (c *ChattoCore) initializeLastReadEventID(ctx context.Context, userID, roomID, eventID string) error {
+	bucket := c.storage.runtimeStateKV
+	key := roomReadEventKey(userID, roomID)
+	revision, err := bucket.Create(ctx, key, []byte(eventID))
+	if err != nil {
+		if !jetstreamutil.IsSequenceConflict(err) {
+			return fmt.Errorf("failed to initialize read marker: %w", err)
+		}
+		current, getErr := bucket.Get(ctx, key)
+		if getErr != nil {
+			return fmt.Errorf("re-read concurrently initialized read marker: %w", getErr)
+		}
+		revision = current.Revision()
+	}
+	if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+		return fmt.Errorf("wait for initialized read marker: %w", err)
+	}
 	return nil
 }
 
@@ -170,29 +262,36 @@ func (c *ChattoCore) AdvanceLastReadEventID(ctx context.Context, kind RoomKind, 
 	key := roomReadEventKey(userID, roomID)
 
 	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
-		entry, err := bucket.Get(ctx, key)
+		entry, exists, err := c.readStateModel.index.roomMarker(ctx, userID, roomID)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				if eventID != "" && nextTime.IsZero() {
-					return &LastReadEventIDAdvance{}, nil
-				}
-				if _, err := bucket.Create(ctx, key, []byte(eventID)); err != nil {
-					if errors.Is(err, jetstream.ErrKeyExists) {
-						continue
-					}
-					return nil, fmt.Errorf("failed to create read marker: %w", err)
-				}
-				c.logger.Debug("Advanced last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
-				return &LastReadEventIDAdvance{
-					CurrentEventID: eventID,
-					CurrentTime:    nextTime,
-					Updated:        true,
-				}, nil
+			return nil, fmt.Errorf("read room marker index: %w", err)
+		}
+		if !exists {
+			if eventID != "" && nextTime.IsZero() {
+				return &LastReadEventIDAdvance{}, nil
 			}
-			return nil, fmt.Errorf("failed to get read marker: %w", err)
+			revision, err := bucket.Create(ctx, key, []byte(eventID))
+			if err != nil {
+				if jetstreamutil.IsSequenceConflict(err) {
+					if waitErr := c.readStateModel.index.waitForRevisionAfter(ctx, key, entry.revision); waitErr != nil {
+						return nil, fmt.Errorf("wait for conflicting read marker: %w", waitErr)
+					}
+					continue
+				}
+				return nil, fmt.Errorf("failed to create read marker: %w", err)
+			}
+			if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+				return nil, fmt.Errorf("wait for created read marker: %w", err)
+			}
+			c.logger.Debug("Advanced last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
+			return &LastReadEventIDAdvance{
+				CurrentEventID: eventID,
+				CurrentTime:    nextTime,
+				Updated:        true,
+			}, nil
 		}
 
-		previousEventID := string(entry.Value())
+		previousEventID := string(entry.value)
 		previousTime, err := c.GetEventTimestamp(ctx, kind, roomID, previousEventID)
 		if err != nil {
 			return nil, err
@@ -208,11 +307,18 @@ func (c *ChattoCore) AdvanceLastReadEventID(ctx context.Context, kind RoomKind, 
 			return result, nil
 		}
 
-		if _, err := bucket.Update(ctx, key, []byte(eventID), entry.Revision()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+		revision, err := bucket.Update(ctx, key, []byte(eventID), entry.revision)
+		if err != nil {
+			if jetstreamutil.IsSequenceConflict(err) {
+				if waitErr := c.readStateModel.index.waitForRevisionAfter(ctx, key, entry.revision); waitErr != nil {
+					return nil, fmt.Errorf("wait for conflicting read marker: %w", waitErr)
+				}
 				continue
 			}
 			return nil, fmt.Errorf("failed to advance read marker: %w", err)
+		}
+		if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+			return nil, fmt.Errorf("wait for advanced read marker: %w", err)
 		}
 		result.CurrentEventID = eventID
 		result.CurrentTime = nextTime
@@ -248,7 +354,7 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 	if eventID == "" {
 		return time.Time{}, nil
 	}
-	entry, ok := c.rooms().timelineEntry(eventID)
+	entry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok {
 		return time.Time{}, nil
 	}
@@ -263,9 +369,8 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 }
 
 // HasUnread reports whether a room has unread messages for a user. Returns
-// false if the user is not a member, the room is muted, or there are no
-// messages. Compares the user's stored read marker (event ID) against the
-// room's current last root message.
+// false if the user is not a member or there are no messages. Notification
+// policy is intentionally independent from ordinary room unread state.
 func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
 	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
 	if err != nil {
@@ -275,15 +380,7 @@ func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomI
 		return false, nil
 	}
 
-	level, err := c.GetEffectiveNotificationLevel(ctx, userID, roomID)
-	if err != nil {
-		c.logger.Warn("Failed to get notification level for unread check, continuing with default",
-			"user_id", userID, "kind", kind, "room_id", roomID, "error", err)
-	} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-		return false, nil
-	}
-
-	lastID, lastTime, exists, err := c.GetRoomLastEvent(ctx, kind, roomID)
+	lastID, lastTime, exists, err := c.GetRoomLastReadableEvent(ctx, kind, userID, roomID)
 	if err != nil {
 		return false, err
 	}

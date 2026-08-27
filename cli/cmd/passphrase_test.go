@@ -36,33 +36,15 @@ func TestGetPassphraseExplicitSources(t *testing.T) {
 		})
 	})
 
-	t.Run("argument remains compatible", func(t *testing.T) {
-		got, err := getPassphrase(passphraseInput{argument: "argument-secret", argumentSet: true}, "unused", false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got != "argument-secret" {
-			t.Fatalf("passphrase from deprecated argument = %q", got)
-		}
-	})
 }
 
 func TestGetPassphraseRejectsUnsafeSourceCombinationsAndEmptyValues(t *testing.T) {
-	secret := "must-not-appear"
 	_, err := getPassphrase(passphraseInput{
-		argument:    secret,
-		argumentSet: true,
-		file:        "/tmp/passphrase",
+		file:  "/tmp/passphrase",
+		stdin: true,
 	}, "unused", false)
 	if err == nil || !strings.Contains(err.Error(), "provide only one") {
 		t.Fatalf("conflicting sources error = %v", err)
-	}
-	if strings.Contains(err.Error(), secret) {
-		t.Fatalf("conflicting sources error leaked passphrase: %v", err)
-	}
-
-	if _, err := getPassphrase(passphraseInput{argumentSet: true}, "unused", false); err == nil || err.Error() != "passphrase cannot be empty" {
-		t.Fatalf("empty argument error = %v", err)
 	}
 
 	path := filepath.Join(t.TempDir(), "empty-passphrase")
@@ -82,14 +64,16 @@ func TestGetPassphraseNonInteractiveRequiresExplicitSource(t *testing.T) {
 	})
 }
 
-func TestPassphraseCommandsExposeSecureSourcesAndDeprecateArgument(t *testing.T) {
+func TestPassphraseCommandsExposeOnlySecureAutomationSources(t *testing.T) {
 	for _, cmd := range []*cobra.Command{backupCmd, restoreCmd, keysExportCmd, keysImportCmd} {
 		if cmd.Flags().Lookup("passphrase-file") == nil || cmd.Flags().Lookup("passphrase-stdin") == nil {
 			t.Errorf("%s is missing secure passphrase flags", cmd.CommandPath())
 		}
-		flag := cmd.Flags().Lookup("passphrase")
-		if flag == nil || flag.Deprecated == "" {
-			t.Errorf("%s --passphrase is not deprecated", cmd.CommandPath())
+		if cmd.Flags().Lookup("passphrase") != nil {
+			t.Errorf("%s still accepts passphrases in process arguments", cmd.CommandPath())
+		}
+		if err := cmd.Flags().Parse([]string{"--passphrase", "secret"}); err == nil || !strings.Contains(err.Error(), "unknown flag") {
+			t.Errorf("%s --passphrase parse error = %v, want unknown flag", cmd.CommandPath(), err)
 		}
 	}
 }

@@ -8,12 +8,13 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   Mutations go through the admin permission API via `setRolePermission`.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onDestroy } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import { Hint } from '$lib/ui';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     setRolePermission,
     type MutationScope as RoleMutationScope,
@@ -24,61 +25,67 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     type MatrixScope,
     type CellState
   } from './SubjectPermissionsMatrix.svelte';
+  import { createQuery } from '@tanstack/svelte-query';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { queryClient } from '$lib/query/client';
+  import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
+  import {
+    cancelPermissionMutationScroll,
+    capturePermissionMutationScroll,
+    restorePermissionMutationScroll
+  } from './permissionMutationScroll';
 
   type Matrix = MatrixData & { roleName: string };
 
   let { roleName }: { roleName: string } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
-  function permissionAPI() {
-    const conn = connection();
-    return createPermissionAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
-  }
+  const matrixQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const activeConnection = serverScope.connection;
+      const activeRoleName = roleName;
+      return {
+        queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, activeRoleName),
+        queryFn: ({ signal }) =>
+          activeConnection
+            .getAPI(createPermissionAPI)
+            .getRolePermissionMatrix(activeRoleName, { signal })
+      };
+    },
+    () => queryClient
+  );
 
-  let data = $state<Matrix | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
+  const data = $derived<Matrix | null>(matrixQuery.data ?? null);
+  const loading = $derived(matrixQuery.isPending);
+  const loadError = $derived(matrixQuery.error instanceof Error ? matrixQuery.error.message : null);
+  let mutationError = $state<{ context: string; message: string } | null>(null);
   let updatingKey = $state<string | null>(null);
+  let mutationContext = $state<string | null>(null);
+  let matrixElement = $state<HTMLDivElement>();
+  let mutationGeneration = 0;
   const isOwnerRole = $derived(roleName === 'owner');
-
-  $effect(() => {
-    void load(roleName);
+  const activeMutationContext = $derived(
+    JSON.stringify([serverScope.serverId, serverScope.connection.queryScope, roleName])
+  );
+  const visibleMutationError = $derived(
+    mutationError?.context === activeMutationContext ? mutationError.message : null
+  );
+  const visibleUpdatingKey = $derived(
+    mutationContext === activeMutationContext ? updatingKey : null
+  );
+  onDestroy(() => {
+    mutationGeneration += 1;
   });
 
-  async function load(name: string) {
-    const current = untrack(() => data);
-    if (!current || current.roleName !== name) loading = true;
-    error = null;
-
-    let matrix: Matrix | null = null;
-    try {
-      matrix = await permissionAPI().getRolePermissionMatrix(name);
-    } catch (err) {
-      if (name !== roleName) return;
-      loading = false;
-      error = err instanceof Error ? err.message : String(err);
-      return;
-    }
-
-    if (name !== roleName) return;
-
-    loading = false;
-    if (!matrix) {
-      error = m['admin.permissions.role_not_found']();
-      return;
-    }
-    const loadedMatrix = matrix;
-    data = {
-      roleName: loadedMatrix.roleName,
-      applicablePermissions: [...loadedMatrix.applicablePermissions],
-      scopes: loadedMatrix.scopes.map((s) => ({ ...s })),
-      cells: loadedMatrix.cells.map((c) => ({ ...c }))
+  const trackMatrixElement: Attachment<HTMLDivElement> = (element) => {
+    matrixElement = element;
+    restorePermissionMutationScroll(`role:${activeMutationContext}`, element);
+    return () => {
+      if (matrixElement === element) matrixElement = undefined;
     };
-  }
+  };
 
   function mutationScopeFor(scope: MatrixScope, name: string): RoleMutationScope {
     if (scope.kind === 'GROUP') {
@@ -93,44 +100,62 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   }
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
-    if (!data) return;
+    if (!data || visibleUpdatingKey) return;
+    const generation = ++mutationGeneration;
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const activeRoleName = data.roleName;
+    const context = JSON.stringify([serverId, activeConnection.queryScope, activeRoleName]);
+    const queryKey = adminQueryKeys.rolePermissions(serverId, activeConnection, activeRoleName);
     const cellKey = `${scope.id}::${permission}`;
     updatingKey = cellKey;
-    error = null;
+    mutationContext = context;
+    mutationError = null;
+    capturePermissionMutationScroll(`role:${context}`, matrixElement);
 
     const result = await setRolePermission(
-      permissionAPI(),
-      mutationScopeFor(scope, data.roleName),
+      activeConnection.getAPI(createPermissionAPI),
+      mutationScopeFor(scope, activeRoleName),
       permission,
       next as PermissionState
     );
+    if (mutationGeneration !== generation || !serverScope.isCurrent()) return;
     if (result.error) {
-      error = result.error;
-      toast.error(result.error);
-      updatingKey = null;
+      cancelPermissionMutationScroll(`role:${context}`);
+      if (mutationGeneration === generation && context === activeMutationContext) {
+        mutationError = { context, message: result.error };
+        toast.error(result.error);
+      }
+      if (mutationGeneration === generation) {
+        updatingKey = null;
+      }
       return;
     }
 
-    await load(data.roleName);
-    updatingKey = null;
+    await queryClient.invalidateQueries({ queryKey, exact: true });
+    if (!serverScope.isCurrent()) return;
+    invalidateRolePermissionDependents(serverId, activeConnection, activeRoleName);
+    if (mutationGeneration === generation) updatingKey = null;
   }
 </script>
 
-{#if error}
-  <Hint tone="danger">{error}</Hint>
+{#if visibleMutationError || loadError}
+  <Hint tone="danger">{visibleMutationError ?? loadError}</Hint>
 {/if}
 
 {#if loading}
-  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
+  <div class="text-muted">{m('rbac.permissions.loading')}</div>
 {:else if !data}
-  <Hint tone="info">{m['rbac.permissions.no_data']()}</Hint>
+  <Hint tone="info">{m('admin.permissions.role_not_found')}</Hint>
 {:else}
-  <SubjectPermissionsMatrix
-    {data}
-    {updatingKey}
-    onCycle={handleCycle}
-    subjectKind="role"
-    forceAllow={isOwnerRole}
-    readOnly={isOwnerRole}
-  />
+  <div {@attach trackMatrixElement}>
+    <SubjectPermissionsMatrix
+      {data}
+      updatingKey={visibleUpdatingKey}
+      onCycle={handleCycle}
+      subjectKind="role"
+      forceAllow={isOwnerRole}
+      readOnly={isOwnerRole || visibleUpdatingKey !== null}
+    />
+  </div>
 {/if}

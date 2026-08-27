@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -338,11 +338,7 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, erro
 	aggregateType, aggregateID := parseAggregateSubject(msg.Subject)
 	eventType := eventVariantName(&event)
 
-	payloadJSON, err := protojson.MarshalOptions{
-		Multiline:       true,
-		Indent:          "  ",
-		EmitUnpopulated: false,
-	}.Marshal(&event)
+	payloadJSON, err := marshalEventLogPayloadJSON(&event)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload json: %w", err)
 	}
@@ -360,8 +356,32 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, erro
 	}, nil
 }
 
+// marshalEventLogPayloadJSON redacts credential verifiers from the public
+// audit API without changing the durable event used by projections and replay.
+func marshalEventLogPayloadJSON(event *corev1.Event) ([]byte, error) {
+	redacted, ok := proto.Clone(event).(*corev1.Event)
+	if !ok {
+		return nil, errors.New("clone event for audit payload")
+	}
+	if passwordChanged := redacted.GetUserPasswordHashChanged(); passwordChanged != nil {
+		passwordChanged.PasswordHash = nil
+	}
+	if keyCreated := redacted.GetBotApiKeyCreated(); keyCreated != nil {
+		keyCreated.Verifier = nil
+	}
+	if keyRotated := redacted.GetBotApiKeyRotated(); keyRotated != nil {
+		keyRotated.Verifier = nil
+	}
+
+	return protojson.MarshalOptions{
+		Multiline:       true,
+		Indent:          "  ",
+		EmitUnpopulated: false,
+	}.Marshal(redacted)
+}
+
 func parseAggregateSubject(subject string) (aggregateType, aggregateID string) {
-	rest, ok := strings.CutPrefix(subject, events.SubjectRoot)
+	rest, ok := strings.CutPrefix(subject, evtstream.SubjectRoot)
 	if !ok {
 		return "", ""
 	}

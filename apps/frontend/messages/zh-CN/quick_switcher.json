@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "前往任意位置，或输入 ? 搜索消息...",
+    "no_results": "无结果",
+    "recent": "最近",
+    "kind": {
+      "destination": "前往",
+      "server": "服务器",
+      "room": "聊天室",
+      "dm": "私信",
+      "user": "用户",
+      "message": "消息"
+    },
+    "message_search": {
+      "prompt": "在 ? 后输入内容，搜索所有服务器中的消息",
+      "no_results": "未找到消息"
+    }
+  }
+}

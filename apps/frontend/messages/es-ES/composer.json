@@ -1,0 +1,70 @@
+{
+  "composer": {
+    "attach_file": "Adjuntar archivo",
+    "send": "Enviar mensaje",
+    "send_label": "Enviar",
+    "also_send_to_channel": "También enviar al canal",
+    "post_as_thread": "Publicar como hilo",
+    "thread_label": "Hilo",
+    "echo_label": "Eco",
+    "replying_to": "Respondiendo a",
+    "esc_to_cancel": "para cancelar",
+    "editing": "Editando mensaje",
+    "send_anyway": "Enviar de todos modos",
+    "role_mention_confirm_title": "¿Enviar mención?",
+    "role_mention_confirm_body": "Este mensaje contiene una mención que puede notificar a varias personas.",
+    "link_url": "Enlace URL",
+    "open_link": "Abrir enlace",
+    "remove_link": "Eliminar enlace",
+    "code_language": "Lenguaje de código",
+    "placeholder": "Escribe un mensaje...",
+    "editing_placeholder": "Editando mensaje...",
+    "drop_files_title": "Suelta archivos aquí",
+    "drop_files_subtitle": "Se agregarán imágenes y videos a tu mensaje",
+    "send_failed": "No se pudo enviar el mensaje",
+    "slow_mode_ready": "Modo lento: un mensaje cada {interval}.",
+    "slow_mode_waiting": "Modo lento: vuelve a enviar en {countdown}.",
+    "slow_mode_bypassed": "Modo lento: {interval} (tienes una exención).",
+    "slow_mode_rejected": "El modo lento está activo. Espera antes de enviar otro mensaje.",
+    "threads_encouraged": "Se recomienda usar hilos en esta sala.",
+    "recent_thread_confirm_title": "¿Continuar en tu hilo anterior?",
+    "recent_thread_confirm_body": "Tu mensaje anterior ya tiene un hilo. ¿Dónde quieres publicar este mensaje?",
+    "post_as_new_message": "Publicar como mensaje nuevo",
+    "continue_in_thread": "Continuar en el hilo",
+    "edit_failed": "No se pudo editar el mensaje",
+    "upload": {
+      "preparing": "Preparando…",
+      "uploading": "{percentage}% subido",
+      "uploaded": "Subido",
+      "failed": "Error al subir",
+      "remove": "Eliminar {filename}"
+    },
+    "format": {
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "inline_code": "Código en línea",
+      "heading": "Encabezado",
+      "bullet_list": "Lista con viñetas",
+      "ordered_list": "Lista numerada",
+      "blockquote": "Cita",
+      "code_block": "Bloque de código",
+      "outdent": "Reducir sangría",
+      "indent": "Aumentar sangría"
+    },
+    "timestamp": {
+      "title": "Insertar marca de tiempo",
+      "insert_label": "Insertar marca de tiempo",
+      "date_time": "Fecha y hora",
+      "timezone": "Zona horaria",
+      "insert": "Insertar",
+      "error_required": "Elige una fecha y una hora.",
+      "error_timezone": "Elige una zona horaria IANA válida.",
+      "error_invalid": "Elige una fecha y una hora válidas para esta zona horaria."
+    },
+    "mention": {
+      "all_room_members": "Todos los miembros de la sala",
+      "members_here": "Miembros actualmente aquí",
+      "role": "Rol"
+    }
+  }
+}

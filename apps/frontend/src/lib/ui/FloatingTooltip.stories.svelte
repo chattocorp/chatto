@@ -59,10 +59,13 @@ for interactive floating content.
     }
   }}
 >
-  <div class="flex min-h-32 items-center gap-3 rounded border border-input-border bg-surface p-6 text-text">
+  <div
+    class="flex min-h-32 items-center gap-3 rounded border border-input-border bg-surface p-6 text-text"
+  >
     <button
       type="button"
-      class="meta-badge h-[25px] cursor-pointer gap-1 border-accent/50 px-2 text-sm text-muted"
+      class="meta-badge h-[25px] cursor-pointer gap-1 border-action/50 px-2 text-sm text-muted"
+      aria-label="Thumbs up, 2 reactions"
       aria-describedby={reactionAnchor ? reactionTooltipId : undefined}
       onmouseenter={showReactionTooltip}
       onmouseleave={hideReactionTooltip}

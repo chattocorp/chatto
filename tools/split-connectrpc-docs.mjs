@@ -32,6 +32,12 @@ const categories = [
         slug: 'external-identity-auth',
         title: 'External Identity Auth',
         description: 'Public external-identity confirmation and capability-token auth-flow RPCs.'
+      },
+      {
+        name: 'PushSubscriptionCleanupService',
+        slug: 'push-subscription-cleanup',
+        title: 'Push Subscription Cleanup',
+        description: 'Public capability-authenticated cleanup for exact browser push subscriptions.'
       }
     ]
   },
@@ -62,10 +68,22 @@ const categories = [
         description: 'Chunked room-scoped attachment upload RPCs.'
       },
       {
+        name: 'BotService',
+        slug: 'bots',
+        title: 'Bots',
+        description: 'Bot account lifecycle and API-key management RPCs.'
+      },
+      {
         name: 'MessageService',
         slug: 'messages',
         title: 'Messages',
         description: 'Message creation, editing, deletion, composer link-preview, reaction, and attachment RPCs.'
+      },
+      {
+        name: 'MessageSearchService',
+        slug: 'message-search',
+        title: 'Message Search',
+        description: 'Authorized full-text message search and provider availability RPCs.'
       },
       {
         name: 'MyAccountService',
@@ -74,16 +92,18 @@ const categories = [
         description: 'Self-service account, profile, avatar, presence, status, external identity, and settings RPCs for the authenticated user.'
       },
       {
-        name: 'NotificationPreferencesService',
-        slug: 'notification-preferences',
-        title: 'Notification Preferences',
-        description: 'Server and room notification preference RPCs.'
-      },
-      {
         name: 'NotificationService',
         slug: 'notifications',
         title: 'Notifications',
-        description: 'Notification listing, counts, checks, and dismissal RPCs.'
+        description:
+          'Exact notification occurrence listing, read, deletion, and legacy server/room policy RPCs.'
+      },
+      {
+        name: 'NotificationPolicyService',
+        slug: 'notification-policies',
+        title: 'Notification Policies',
+        description:
+          'Server, room-group, and room notification delivery policy RPCs for the authenticated viewer.'
       },
       {
         name: 'PushNotificationService',
@@ -144,6 +164,18 @@ const categories = [
   {
     title: 'chatto.admin.v1',
     services: [
+      {
+        name: 'AdminInviteLinkService',
+        slug: 'admin-invite-links',
+        title: 'Admin Invite Links',
+        description: 'Invite-link administration RPCs.'
+      },
+      {
+        name: 'AdminOAuthClientService',
+        slug: 'admin-oauth-clients',
+        title: 'Admin OAuth Clients',
+        description: 'Recorded OAuth-client authorization and policy administration RPCs.'
+      },
       {
         name: 'AdminDiagnosticsService',
         slug: 'admin-diagnostics',
@@ -375,7 +407,7 @@ function renderLanding() {
     '',
     '### Authenticated JSON request',
     '',
-    'Use bearer tokens for external clients. The exact token issuance flow depends on how your integration authenticates with the server. This example calls [ViewerService.GetViewer](/reference/connectrpc-api/viewer/#chatto-api-v1-ViewerService-GetViewer).',
+    'Use the short-lived access token from a renewable bearer session for external clients. Persist and rotate its refresh credential as described in [Using the Chatto API](/guides/integrations/chatto-api/). This example calls [ViewerService.GetViewer](/reference/connectrpc-api/viewer/#chatto-api-v1-ViewerService-GetViewer).',
     '',
     '```sh',
     'curl -X POST \\',
@@ -453,6 +485,8 @@ function renderLanding() {
     '',
     'Successful unary JSON calls return the protobuf response message as JSON. Field names use protobuf JSON casing, such as `publicProfile` and `directRegistrationEnabled`.',
     '',
+    'ProtoJSON integrations that need to tolerate future additive oneof variants must configure their decoder to ignore unknown fields. In particular, Notifications 2.0 may add new `NotificationSignal` variants; strict generated JSON clients must be regenerated before receiving such a variant. Binary protobuf is recommended when forward-compatible unknown-field retention is required.',
+    '',
     'Successful binary protobuf calls return the serialized protobuf response message with `Content-Type: application/proto`.',
     '',
     'Failed calls return Connect errors with stable codes. Common codes include:',
@@ -461,16 +495,17 @@ function renderLanding() {
     '- `permission_denied` - the user is authenticated but lacks the required permission.',
     '- `not_found` - a singular lookup target does not exist.',
     '- `invalid_argument` - the request message failed validation.',
+    '- `unimplemented` - the serving version does not understand a requested resource variant.',
     '',
     'Generated clients expose those codes through their Connect client error helpers. Plain HTTP tools receive a Connect error response with an HTTP status mapped from the Connect code.',
     '',
     '## Versioning And Stability',
     '',
-    'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.',
+    'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the current protobuf wire namespaces that clients integrate with.',
     '',
-    'Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.',
+    'Chatto is still pre-1.0, so any release may change the public API in ways that require client changes. The `v1` suffix is part of the current wire name, not a compatibility guarantee. Pin an exact server version, test integrations against the exact upgrade candidate, and read [API Compatibility](/guides/integrations/api-compatibility/) before upgrading.',
     '',
-    'If you call the API directly, ignore unknown fields when possible. Treat documented enum values, error codes, and permission requirements as part of the integration contract.',
+    'Use `ServerDiscoveryService.GetServer` to inspect the server release, then apply an explicit table of releases your integration supports. If you call the API directly, ignore unknown fields and enum values when possible. Treat documented error codes and permission requirements as part of the experimental integration contract.',
     '',
     'The realtime protocol is versioned separately as `chatto.realtime.v1` because it is a WebSocket protocol rather than a ConnectRPC service.',
     '',

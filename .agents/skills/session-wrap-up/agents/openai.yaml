@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Wrap-Up"
+  short_description: "Reflect on friction and improve future sessions"
+  default_prompt: "Use $session-wrap-up to reflect on this session and recommend practical improvements."

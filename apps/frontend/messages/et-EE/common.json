@@ -1,0 +1,53 @@
+{
+  "common": {
+    "cancel": "Tühista",
+    "close_sidebar": "Sule külgriba",
+    "or": "või",
+    "loading": "Laadimine...",
+    "continue": "Jätka",
+    "submit": "Esita",
+    "retry": "Proovige uuesti",
+    "dismiss": "Loobu",
+    "sign_in": "Logi sisse",
+    "create_account": "Loo konto",
+    "email": "Meil",
+    "password": "Parool",
+    "username": "Kasutajanimi",
+    "you": "Sina",
+    "current_call": "Praegune kõne",
+    "confirm_password": "Kinnitage parool",
+    "new_password": "Uus parool",
+    "password_placeholder": "Teie parool",
+    "email_placeholder": "sina@example.com",
+    "username_placeholder": "your_username",
+    "password_min_placeholder": "Vähemalt 8 tähemärki",
+    "password_confirm_placeholder": "Sisestage parool uuesti",
+    "validation": {
+      "email": "Sisestage kehtiv e-posti aadress",
+      "password_min": "Peab olema vähemalt 8 tähemärki",
+      "username_min": "Peab olema vähemalt 2 tähemärki",
+      "username_max": "Peab olema kuni 32 tähemärki",
+      "username_charset": "Ainult tähed, numbrid, punktid, sidekriipsud, allkriipsud",
+      "username_end_alphanumeric": "Peab lõppema tähe või numbriga",
+      "username_no_consecutive_periods": "Järjestikused perioodid pole lubatud",
+      "passwords_match": "Paroolid ei ühti",
+      "fix_errors": "Parandage ülaltoodud vead"
+    },
+    "error": {
+      "network": "Võrgu viga. Palun proovi uuesti.",
+      "generic": "Midagi läks valesti"
+    },
+    "delete": "Kustuta",
+    "save": "Salvesta",
+    "confirm": "Kinnita",
+    "back": "Tagasi",
+    "clear": "Selge",
+    "unknown": "Tundmatu",
+    "deleted_user": "[kustutatud kasutaja]",
+    "got_it": "Sain aru",
+    "saved": "Salvestatud!",
+    "rooms": "Toad",
+    "copy_to_clipboard": "Kopeeri lõikelauale",
+    "copied_to_clipboard": "Kopeeriti lõikelauale"
+  }
+}

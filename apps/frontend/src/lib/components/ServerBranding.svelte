@@ -6,13 +6,15 @@
     iconUrl = null,
     bannerUrl = null,
     description = null,
-    welcomeMessage = null
+    welcomeMessage = null,
+    compact = false
   }: {
     name: string;
     iconUrl?: string | null;
     bannerUrl?: string | null;
     description?: string | null;
     welcomeMessage?: string | null;
+    compact?: boolean;
   } = $props();
 
   let markdownModule: Promise<typeof import('$lib/markdown')> | null = null;
@@ -23,13 +25,17 @@
   }
 </script>
 
-<div class="flex flex-col items-center gap-5">
-  <div class="flex items-center gap-4">
+<div class={['flex flex-col items-center', compact ? 'gap-3' : 'gap-5']}>
+  <div class={['flex items-center', compact ? 'gap-3' : 'gap-4']}>
     {#if iconUrl}
-      <img src={iconUrl} alt="" class="h-12 w-12 rounded-xl" />
+      <img
+        src={iconUrl}
+        alt=""
+        class={compact ? 'h-10 w-10 rounded-lg' : 'h-12 w-12 rounded-xl'}
+      />
     {/if}
 
-    <h3 class="text-2xl font-bold">{name}</h3>
+    <h3 class={compact ? 'text-lg font-bold' : 'text-2xl font-bold'}>{name}</h3>
   </div>
 
   {#if bannerUrl}

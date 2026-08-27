@@ -6,8 +6,14 @@ import MessageComposer, { type MessageComposerApi } from './MessageComposer.svel
 import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
-import { PresenceStatus } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+
+import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { renderMarkdown } from '$lib/markdown';
+import type { CreateMessageInput } from '$lib/api-client/messages';
+import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
+import { Code, ConnectError } from '$lib/api-client/connect';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -20,7 +26,7 @@ function postedMessageEvent(
     actorId: 'test-user',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId,
       body: 'hello world',
       attachments: [],
@@ -77,8 +83,9 @@ const roomStateMock = vi.hoisted(() => ({
 }));
 
 // Mock instance state
+let mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
 const mockInstanceStores = {
-  currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
+  currentUser: { user: { id: 'test-user', login: 'testuser', settings: null }, loading: false },
   serverInfo: {
     videoProcessingEnabled: false,
     maxUploadSize: 25 * 1024 * 1024,
@@ -86,21 +93,29 @@ const mockInstanceStores = {
   },
   roomUnread: {
     setRoomUnread: vi.fn()
+  },
+  get mentionRoles() {
+    return mentionRolesStore;
   }
 };
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: queryMock,
-      mutation: mutationMock,
-      subscription: vi.fn()
-    },
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null,
-    serverId: 'test-instance'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'test-instance',
+    store: mockInstanceStores,
+    connection: {
+      isConnected: true,
+      showConnectionLostBanner: false,
+      client: {
+        query: queryMock,
+        mutation: mutationMock,
+        subscription: vi.fn()
+      },
+      connectBaseUrl: 'http://localhost/api/connect',
+      bearerToken: null,
+      serverId: 'test-instance',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 
@@ -127,21 +142,10 @@ vi.mock('$lib/attachments/prepareFiles', () => ({
   prepareFiles: prepareFilesMock
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => mockInstanceStores,
-    getServer: () => ({ id: 'test-instance', url: 'http://localhost' }),
-    isOriginServer: () => true,
-    originServer: { id: 'test-instance', url: 'http://localhost' },
-    servers: [{ id: 'test-instance', url: 'http://localhost' }]
-  }
-}));
-
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => () => 'test-instance'
-}));
-
 vi.mock('$lib/state/room', () => ({
+  MessagesStore: class {},
+  RoomFilesStore: class {},
+  RoomPinsStore: class {},
   getRoomMembers: () => roomStateMock.members,
   getRoomMembersStore: () => ({
     searchMembers: vi.fn(async () => roomStateMock.members)
@@ -201,7 +205,7 @@ function roomMember(login: string, displayName = login): RoomMember {
     login,
     displayName,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 
@@ -217,9 +221,10 @@ function pasteFile(target: HTMLElement, file: File) {
   );
 }
 
-function pasteText(target: HTMLElement, text: string) {
+function pasteText(target: HTMLElement, text: string, html?: string) {
   const dataTransfer = new DataTransfer();
   dataTransfer.setData('text/plain', text);
+  if (html !== undefined) dataTransfer.setData('text/html', html);
   target.dispatchEvent(
     new ClipboardEvent('paste', {
       bubbles: true,
@@ -280,10 +285,26 @@ async function placeCaretAtEditorEnd(editor: HTMLElement) {
   await tick();
 }
 
+async function selectEditorContents(editor: HTMLElement) {
+  editor.focus();
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  document.dispatchEvent(new Event('selectionchange'));
+  await tick();
+}
+
 async function pressEditorKey(
   editor: HTMLElement,
   key: string,
-  options: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean } = {}
+  options: {
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+    isComposing?: boolean;
+  } = {}
 ) {
   editor.dispatchEvent(
     new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...options })
@@ -327,6 +348,8 @@ function selectFirstAttachment(input: HTMLInputElement, file = imageFile()) {
 
 describe('MessageComposer', () => {
   beforeEach(() => {
+    userPreferences.composerEditor = 'visual';
+    userPreferences.composerSendMode = 'modifier-enter';
     window.getSelection()?.removeAllRanges();
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
     mockInstanceStores.serverInfo.maxUploadSize = 25 * 1024 * 1024;
@@ -379,6 +402,7 @@ describe('MessageComposer', () => {
     fetchLinkPreviewConnectMock.mockResolvedValue(null);
     listRolesConnectMock.mockReset();
     listRolesConnectMock.mockResolvedValue({ roles: [] });
+    mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
     queryMock.mockReset();
     queryMock.mockResolvedValue({ data: null, error: null });
     sessionStorage.clear();
@@ -386,6 +410,7 @@ describe('MessageComposer', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     window.getSelection()?.removeAllRanges();
     vi.restoreAllMocks();
   });
@@ -401,6 +426,59 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(q(container, 'button[title="Attach file"]')).toBeInTheDocument();
+    });
+
+    it('renders the timestamp insertion button', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+
+      await findEditor(container);
+      await expect
+        .element(q(container, 'button[aria-label="Insert timestamp"]'))
+        .toBeInTheDocument();
+    });
+
+    it('keeps editor input above the compact action toolbar', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+
+      const editor = await findEditor(container);
+      const editorRow = q(container, '[data-testid="composer-editor-row"]');
+      const toolbar = q(container, '[data-testid="composer-toolbar"]');
+
+      expect(editorRow?.contains(editor)).toBe(true);
+      expect(toolbar?.contains(q(container, 'button[title="Attach file"]'))).toBe(true);
+      expect(toolbar?.contains(q(container, 'button[aria-label="Bold"]'))).toBe(true);
+      expect(toolbar?.contains(q(container, 'button[aria-label="Insert timestamp"]'))).toBe(true);
+      expect(toolbar?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
+    });
+
+    it('preserves an editor selection when a mouse drag ends over composer padding', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room-selection-padding' });
+      const editor = await findEditor(container);
+      const surface = q(container, '[data-testid="composer-input-surface"]')!;
+      await typeInEditor(editor, 'keep this selected');
+      await selectEditorContents(editor);
+
+      editor.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })
+      );
+      surface.dispatchEvent(
+        new PointerEvent('pointerup', { bubbles: true, button: 0, pointerType: 'mouse' })
+      );
+      surface.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+      await tick();
+
+      expect(window.getSelection()?.toString()).toBe('keep this selected');
+    });
+
+    it('uses the composer width to control labels and keeps formatting controls on one row', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+
+      await findEditor(container);
+
+      expect(q(container, '[data-testid="composer-input-surface"]')).toHaveClass('@container');
+      expect(q(container, '[data-testid="composer-formatting-toolbar"]')).toHaveClass(
+        'flex-nowrap'
+      );
     });
 
     it('hides attachment controls when uploads are not allowed', async () => {
@@ -427,6 +505,391 @@ describe('MessageComposer', () => {
       await expect
         .element(q(container, 'p.is-editor-empty[data-placeholder="Type a message..."]'))
         .toBeInTheDocument();
+    });
+  });
+
+  describe('Markdown editor integration', () => {
+    beforeEach(() => {
+      userPreferences.composerEditor = 'markdown';
+    });
+
+    it('mounts CodeMirror without mounting TipTap and restores source drafts', async () => {
+      sessionStorage.setItem('chatto:draft:markdown-draft', '**saved** draft');
+      const { container } = renderMessageComposer(
+        { roomId: 'markdown-draft' },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(container);
+
+      expect(q(container, '[data-composer-editor="markdown"]')).toBeTruthy();
+      expect(q(container, '[data-composer-editor="visual"]')).toBeNull();
+      await expect.element(editor).toHaveTextContent('**saved** draft');
+    });
+
+    it('formats and submits Markdown source with Ctrl+Enter', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'markdown-send' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, 'first');
+      await userEvent.click(q(container, 'button[aria-label="Bullet list"]')!);
+
+      await expect.element(editor).toHaveTextContent('- first');
+      await expect
+        .element(q(container, 'button[aria-label="Bullet list"]'))
+        .toHaveAttribute('aria-pressed', 'true');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body: '- first' });
+    });
+
+    it('uses CodeMirror line indentation with the toolbar and Tab', async () => {
+      const { container } = renderMessageComposer({ roomId: 'markdown-list-indent' });
+      const editor = await findEditor(container);
+      const indent = q(container, 'button[aria-label="Indent"]') as HTMLButtonElement;
+      const outdent = q(container, 'button[aria-label="Outdent"]') as HTMLButtonElement;
+
+      await vi.waitFor(() => expect(indent.disabled).toBe(false));
+      expect(outdent.disabled).toBe(false);
+      await typeEditorKeys(editor, 'first');
+      await pressEditorKey(editor, 'Enter');
+      await userEvent.type(editor, 'second');
+
+      await pressEditorKey(editor, 'Tab');
+      await vi.waitFor(() =>
+        expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
+          'first',
+          '  second'
+        ])
+      );
+
+      await userEvent.click(outdent);
+      await vi.waitFor(() =>
+        expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
+          'first',
+          'second'
+        ])
+      );
+      await userEvent.click(indent);
+      await pressEditorKey(editor, 'Tab', { shiftKey: true });
+      await vi.waitFor(() =>
+        expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
+          'first',
+          'second'
+        ])
+      );
+      await pressEditorKey(editor, 'Tab', { shiftKey: true });
+      await vi.waitFor(() =>
+        expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
+          'first',
+          'second'
+        ])
+      );
+    });
+
+    it('lets Escape followed by Tab leave the Markdown composer', async () => {
+      const { container } = renderMessageComposer({ roomId: 'markdown-tab-focus' });
+      const editor = await findEditor(container);
+
+      await userEvent.click(editor);
+      await userEvent.keyboard('{Escape}{Tab}');
+
+      expect(document.activeElement).toBe(q(container, 'button[aria-label="Bold"]'));
+    });
+
+    it('completes mentions before Enter can submit Markdown', async () => {
+      roomStateMock.members = [roomMember('alice')];
+      const { container, roomId } = renderMessageComposer({ roomId: 'markdown-mention' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '@ali');
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
+      );
+
+      await pressEditorKey(editor, 'Enter');
+      await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
+      expect(mutationMock).not.toHaveBeenCalled();
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body: '@alice' });
+    });
+
+    it('completes emoji before Enter can submit Markdown', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'markdown-emoji' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, ':fire');
+      await vi.waitFor(() =>
+        expect(
+          [...container.querySelectorAll('button')].some((button) =>
+            button.textContent?.includes(':fire:')
+          )
+        ).toBe(true)
+      );
+
+      await pressEditorKey(editor, 'Enter');
+      await vi.waitFor(() => expect(editor.textContent).toMatch(/^\p{Extended_Pictographic}\s$/u));
+      expect(mutationMock).not.toHaveBeenCalled();
+      const completedEmoji = editor.textContent!.trim();
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: completedEmoji
+      });
+    });
+
+    it('preserves the draft while switching editor implementations', async () => {
+      const { container } = renderMessageComposer({ roomId: 'markdown-switch' });
+      let editor = await findEditor(container);
+      await typeEditorKeys(editor, '**kept** draft');
+
+      userPreferences.composerEditor = 'visual';
+      await vi.waitFor(() => expect(q(container, '[data-composer-editor="visual"]')).toBeTruthy());
+      expect(q(container, '[data-composer-editor="markdown"]')).toBeNull();
+      editor = await findEditor(container);
+      await expect.element(editor).toHaveTextContent('kept draft');
+
+      userPreferences.composerEditor = 'markdown';
+      await vi.waitFor(() =>
+        expect(q(container, '[data-composer-editor="markdown"]')).toBeTruthy()
+      );
+      expect(q(container, '[data-composer-editor="visual"]')).toBeNull();
+      editor = await findEditor(container);
+      await expect.element(editor).toHaveTextContent('**kept** draft');
+    });
+
+    it('uses normal newlines and Ctrl+Enter to send', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'markdown-shortcut' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, 'first');
+      await pressEditorKey(editor, 'Enter');
+      await userEvent.type(editor, 'second');
+
+      expect(mutationMock).not.toHaveBeenCalled();
+      await expect.element(editor).toHaveTextContent('firstsecond');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'first\nsecond'
+      });
+    });
+
+    it('uses Ctrl+Enter for normal Markdown continuation when Return sends', async () => {
+      userPreferences.composerSendMode = 'enter';
+      const { container, roomId } = renderMessageComposer({ roomId: 'markdown-enter-send' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '- first');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await userEvent.type(editor, 'second');
+
+      expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(editor.querySelectorAll('.cm-line')).toHaveLength(2));
+      expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
+        '- first',
+        '- second'
+      ]);
+
+      await pressEditorKey(editor, 'Enter');
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '- first\n- second'
+      });
+    });
+
+    it('preserves Markdown while editing and supports nested reply quotes', async () => {
+      roomStateMock.editState.eventId = 'markdown-edit';
+      roomStateMock.editState.originalBody = '**bold** source';
+      let composerApi: MessageComposerApi | null = null;
+      const { container } = renderMessageComposer({
+        roomId: 'markdown-edit-room',
+        onReady: (api) => (composerApi = api)
+      });
+      const editor = await findEditor(container);
+      await expect.element(editor).toHaveTextContent('**bold** source');
+      await vi.waitFor(() => expect(composerApi).not.toBeNull());
+
+      composerApi!.insertQuote([{ quoteDepth: 1, text: 'nested' }]);
+      await expect.element(editor).toHaveTextContent('> > nested');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'markdown-edit',
+        body: '**bold** source\n\n> > nested'
+      });
+    });
+
+    it('keeps attachments, link previews, slow mode, and focus editor-independent', async () => {
+      fetchLinkPreviewConnectMock.mockResolvedValueOnce({
+        kind: 'preview',
+        preview: {
+          previewToken: 'preview-token',
+          url: 'https://example.com',
+          title: 'Example',
+          description: null,
+          imageUrl: null,
+          imageAssetId: null,
+          siteName: null,
+          embedType: null,
+          embedId: null
+        }
+      });
+      const readyApis: MessageComposerApi[] = [];
+      const { container } = renderMessageComposer({
+        roomId: 'markdown-shared-features',
+        slowModeSeconds: 30,
+        onReady: (api) => readyApis.push(api)
+      });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, 'https://example.com');
+      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await vi.waitFor(() => expect(q(container, 'img')).toBeTruthy());
+      await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+      readyApis[0]!.focus();
+
+      await vi.waitFor(() => expect(document.activeElement).toBe(editor));
+      await expect
+        .element(q(container, '[data-testid="slow-mode-status"]'))
+        .toHaveTextContent('Slow Mode: one message every 30 seconds.');
+      await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalled());
+      await vi.waitFor(() => expect(container.textContent).toContain('Example'));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'https://example.com',
+        linkPreviewToken: 'preview-token'
+      });
+    });
+  });
+
+  describe('Slow Mode', () => {
+    it('shows ready, waiting, and bypassed status', async () => {
+      const ready = renderMessageComposer({ roomId: 'room-ready', slowModeSeconds: 30 });
+      await expect
+        .element(q(ready.container, '[data-testid="slow-mode-status"]'))
+        .toHaveTextContent('Slow Mode: one message every 30 seconds.');
+
+      const nextPostAt = new Date(Date.now() + 65_000).toISOString();
+      const waiting = renderMessageComposer({
+        roomId: 'room-waiting',
+        slowModeSeconds: 120,
+        slowModeNextPostAt: nextPostAt
+      });
+      await expect
+        .element(q(waiting.container, '[data-testid="slow-mode-status"]'))
+        .toHaveTextContent('Slow Mode: send again in 1:05.');
+
+      const bypassed = renderMessageComposer({
+        roomId: 'room-bypassed',
+        slowModeSeconds: 60,
+        slowModeNextPostAt: nextPostAt,
+        slowModeBypassed: true
+      });
+      await expect
+        .element(q(bypassed.container, '[data-testid="slow-mode-status"]'))
+        .toHaveTextContent("Slow Mode: 1 minute (you're exempt).");
+    });
+
+    it('keeps a waiting draft editable while blocking the keyboard send shortcut', async () => {
+      const { container } = renderMessageComposer({
+        roomId: 'room-waiting-draft',
+        slowModeSeconds: 30,
+        slowModeNextPostAt: new Date(Date.now() + 30_000).toISOString()
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'preserve this draft');
+
+      await expect.element(q(container, 'button[aria-label="Send message"]')).toBeDisabled();
+      const draftHtml = editor.innerHTML;
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      expect(createMessageConnectMock).not.toHaveBeenCalled();
+      await expect.element(editor).toHaveTextContent('preserve this draft');
+      expect(editor.innerHTML).toBe(draftHtml);
+    });
+
+    it('starts an optimistic countdown from the successful event timestamp', async () => {
+      const createdAt = new Date(Date.now()).toISOString();
+      createMessageConnectMock.mockResolvedValueOnce({
+        event: { ...postedMessageEvent('slow-message'), createdAt }
+      });
+      const { container } = renderMessageComposer({
+        roomId: 'room-optimistic',
+        slowModeSeconds: 30
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'first message');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() =>
+        expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain(
+          'Slow Mode: send again in 0:30.'
+        )
+      );
+    });
+
+    it('does not include the age of an idle composer in the optimistic countdown', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
+      const onMessageSent = vi.fn();
+      const { container } = renderMessageComposer({
+        roomId: 'room-long-lived',
+        slowModeSeconds: 30,
+        onMessageSent
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'message after leaving the room open');
+
+      vi.setSystemTime(new Date('2026-08-11T12:05:00.000Z'));
+      const createdAt = new Date().toISOString();
+      createMessageConnectMock.mockResolvedValueOnce({
+        event: { ...postedMessageEvent('slow-message'), createdAt }
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
+      await tick();
+      expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain(
+        'Slow Mode: send again in 0:30.'
+      );
+    });
+
+    it('preserves the draft and shows a Slow Mode error after a server race', async () => {
+      createMessageConnectMock.mockRejectedValueOnce(
+        new ConnectError('slow mode active', Code.ResourceExhausted)
+      );
+      const { container } = renderMessageComposer({
+        roomId: 'room-race',
+        slowModeSeconds: 30
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'cross-tab draft');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() =>
+        expect(getToasts().some((entry) => entry.message.includes('Slow Mode is active'))).toBe(
+          true
+        )
+      );
+      await expect.element(editor).toHaveTextContent('cross-tab draft');
+    });
+
+    it('allows editing an existing message during the cooldown', async () => {
+      roomStateMock.editState.eventId = 'message-to-edit';
+      roomStateMock.editState.originalBody = 'existing body';
+      const { container } = renderMessageComposer({
+        roomId: 'room-editing',
+        slowModeSeconds: 30,
+        slowModeNextPostAt: new Date(Date.now() + 30_000).toISOString()
+      });
+      await findEditor(container);
+
+      await expect.element(q(container, 'button[aria-label="Send message"]')).not.toBeDisabled();
     });
   });
 
@@ -478,6 +941,25 @@ describe('MessageComposer', () => {
         .toBeTruthy();
     });
 
+    it('shows selected files in consistently sized cards with their file size', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const input = q(container, 'input[type="file"]') as HTMLInputElement;
+
+      selectFiles(input, [
+        new File([new Uint8Array(2 * 1024)], 'a-long-filename-that-needs-truncating.png', {
+          type: 'image/png'
+        })
+      ]);
+
+      await expect
+        .poll(() => q(container, '[data-testid="composer-attachment-preview"]'))
+        .toBeTruthy();
+      const preview = q(container, '[data-testid="composer-attachment-preview"]')!;
+      expect(preview.className).toContain('w-72');
+      expect(preview.querySelector('img')?.parentElement?.className).toContain('w-12');
+      await expect.element(preview).toHaveTextContent('2 KB');
+    });
+
     it('rejects selected files over the server upload size limit', async () => {
       mockInstanceStores.serverInfo.maxUploadSize = 1;
       const { container } = renderMessageComposer({ roomId: 'room_456' });
@@ -498,6 +980,35 @@ describe('MessageComposer', () => {
   });
 
   describe('initial state', () => {
+    it('publishes its API after initial synchronization and republishes it to replacement callbacks', async () => {
+      const firstReady = vi.fn((api: MessageComposerApi) => {
+        void api.addFiles([imageFile('ready.png')]);
+      });
+      const secondReady = vi.fn();
+      const rendered = renderMessageComposer(
+        { roomId: 'room-ready', onReady: firstReady },
+        { exactRoomId: true }
+      );
+
+      await findEditor(rendered.container);
+      await vi.waitFor(() => expect(firstReady).toHaveBeenCalledOnce());
+      await expect.element(rendered.container).toHaveTextContent('ready.png');
+
+      await rendered.rerender({ roomId: 'room-ready', onReady: secondReady });
+
+      await vi.waitFor(() => expect(secondReady).toHaveBeenCalledOnce());
+    });
+
+    it('fulfils an API focus request made before the editor is ready', async () => {
+      const { container } = renderMessageComposer({
+        roomId: 'room-focus-on-ready',
+        autoFocus: false,
+        onReady: (api) => api.focus()
+      });
+
+      await expect.element(await findEditor(container)).toHaveFocus();
+    });
+
     it('editor is editable initially', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
@@ -536,81 +1047,118 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       const sendButton = q(container, 'button[aria-label="Send message"]');
-      const icon = sendButton?.querySelector('.uil--telegram-alt');
+      const icon = sendButton?.querySelector('[class~="icon-[uil--telegram-alt]"]');
       expect(icon).not.toBeNull();
     });
 
-    it('hides the keyboard shortcut hint in simple mode', async () => {
+    it('disables the composer and shows per-file upload progress while sending', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      let submittedInput!: CreateMessageInput;
+      createMessageConnectMock.mockImplementationOnce((input) => {
+        submittedInput = input;
+        return pendingSend.promise;
+      });
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await typeInEditor(editor, 'large upload');
+      const progressSlot = q(container, '[data-testid="attachment-upload-progress"]');
 
-      expect(q(container, '[title$="Return to Send"]')).toBeNull();
-      await typeEditorLiteralText(editor, 'hint me');
+      await expect.element(progressSlot).toHaveClass('invisible');
+      expect(progressSlot?.getAttribute('role')).toBeNull();
 
-      expect(q(container, '[title$="Return to Send"]')).toBeNull();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await expect.element(editor).toHaveAttribute('contenteditable', 'false');
+      await expect.element(q(container, `button[aria-label="Remove ${file.name}"]`)).toBeDisabled();
+      await expect.element(container).toHaveTextContent('Preparing…');
+
+      submittedInput.onAttachmentUploadUpdate?.({
+        file,
+        phase: 'uploading',
+        committedBytes: 1,
+        totalBytes: 4
+      });
+
+      await expect.element(container).toHaveTextContent('25% uploaded');
+      await expect
+        .element(q(container, `[role="progressbar"][aria-label="${file.name}"]`))
+        .toHaveAttribute('aria-valuenow', '25');
+      await expect.element(progressSlot).not.toHaveClass('invisible');
+
+      submittedInput.onAttachmentUploadUpdate?.({ file, phase: 'uploaded' });
+      await expect.element(container).toHaveTextContent('Uploaded');
+
+      pendingSend.resolve({ event: postedMessageEvent() });
+      await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
     });
 
-    it('exposes simple and rich visual modes', async () => {
-      const { container } = renderMessageComposer({ roomId: 'room_456' });
+    it('does not clear the next room draft when an earlier room send completes', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      const onMessageSent = vi.fn();
+      createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+      const rendered = renderMessageComposer(
+        { roomId: 'room-uploading', onMessageSent },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(rendered.container);
+      selectFirstAttachment(
+        q(rendered.container, 'input[type="file"]') as HTMLInputElement,
+        imageFile('room-a.png')
+      );
+      await typeInEditor(editor, 'room A message');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+
+      sessionStorage.setItem('chatto:draft:room-next', 'room B draft');
+      await rendered.rerender({ roomId: 'room-next', onMessageSent });
+      await expect.element(editor).toHaveTextContent('room B draft');
+
+      pendingSend.resolve({ event: postedMessageEvent('msg-a', 'room-uploading') });
+
+      await expect.element(editor).toHaveTextContent('room B draft');
+      expect(sessionStorage.getItem('chatto:draft:room-next')).toBe('room B draft');
+      expect(onMessageSent).not.toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(sessionStorage.getItem('chatto:draft:room-uploading')).toBeNull()
+      );
+    });
+
+    it('ignores externally added files while a send is in flight', async () => {
+      const pendingSend = deferred<{ event: ReturnType<typeof postedMessageEvent> | null }>();
+      const readyApis: MessageComposerApi[] = [];
+      createMessageConnectMock.mockReturnValueOnce(pendingSend.promise);
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        onReady: (api) => readyApis.push(api)
+      });
       const editor = await findEditor(container);
+      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await typeInEditor(editor, 'sending');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+
+      await readyApis.at(-1)!.addFiles([imageFile('late.png')]);
+
+      expect(prepareFilesMock).toHaveBeenCalledOnce();
+      expect(container.textContent).not.toContain('late.png');
+      pendingSend.resolve({ event: postedMessageEvent() });
+    });
+
+    it('has no adaptive composer mode or visual ring state', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      await findEditor(container);
       const surface = q(container, '[data-testid="composer-input-surface"]');
-
-      expect(surface?.getAttribute('data-composer-mode')).toBe('simple');
-
-      await typeEditorLiteralText(editor, 'make this rich');
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
-
-      await vi.waitFor(() => {
-        expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
-      });
+      expect(surface).not.toHaveAttribute('data-composer-mode');
+      expect(surface).not.toHaveClass('composer-mode-surface');
     });
 
-    it('keeps an empty composer in rich mode after Ctrl+Enter', async () => {
+    it('does not show a send shortcut hint', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
-      const editor = await findEditor(container);
-      const surface = q(container, '[data-testid="composer-input-surface"]');
-
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
-
-      await vi.waitFor(() => {
-        expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
-      });
-      expect(mutationMock).not.toHaveBeenCalled();
-    });
-
-    it('tracks rich structure and returns to simple mode when cleared', async () => {
-      const { container } = renderMessageComposer({ roomId: 'room_456' });
-      const editor = await findEditor(container);
-      const surface = q(container, '[data-testid="composer-input-surface"]');
-
-      await typeEditorLiteralText(editor, '- ');
-      await vi.waitFor(() => {
-        expect(editor.querySelector('ul li')).toBeTruthy();
-        expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
-      });
-
-      editor.focus();
-      document.execCommand('selectAll');
-      document.execCommand('delete');
-      await tick();
-
-      await vi.waitFor(() => {
-        expect(surface?.getAttribute('data-composer-mode')).toBe('simple');
-      });
-    });
-
-    it('shows the enter-again hint after manually activating rich mode', async () => {
-      const { container } = renderMessageComposer({ roomId: 'room_456' });
-      const editor = await findEditor(container);
-
-      await typeEditorLiteralText(editor, 'hint me');
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
-
-      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
-      await vi.waitFor(() => {
-        const hint = q(container, '[title$="to Send"]');
-        expect(hint?.textContent).toMatch(/^(Return|Enter) again to Send$/);
-      });
+      await findEditor(container);
+      const toolbar = q(container, '[data-testid="composer-toolbar"]');
+      expect(toolbar?.textContent).not.toMatch(/to send/i);
+      expect(toolbar?.querySelector('[title*="to send"]')).toBeNull();
     });
 
     it('treats an empty block element as sendable composer content', async () => {
@@ -621,11 +1169,6 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.querySelector('ul li')).toBeTruthy());
 
       await expect.element(q(container, 'button[aria-label="Send message"]')).not.toBeDisabled();
-
-      await vi.waitFor(() => {
-        const hint = q(container, '[title$="Return to Send"]');
-        expect(hint?.textContent).toMatch(/^(Cmd|Ctrl)\+Return to Send$/);
-      });
 
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
@@ -896,7 +1439,7 @@ describe('MessageComposer', () => {
 
       await expect.element(editor).toHaveTextContent('before <b>x</b>');
       expect(editor.querySelector('strong')).toBeNull();
-      editor.focus();
+      await placeCaretAtEditorEnd(editor);
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() => {
@@ -906,9 +1449,10 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('preserves literal HTML-looking text after unmatched backticks', async () => {
+    it('canonically escapes an unmatched backtick while preserving its literal text', async () => {
       const body = '` <b>literal</b>';
       const editedBody = `${body}!`;
+      const serializedBody = `\\${editedBody}`;
       sessionStorage.setItem('chatto:draft:room_unmatched_backtick_draft', body);
 
       const { container } = renderMessageComposer(
@@ -923,7 +1467,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() =>
         expect(sessionStorage.getItem('chatto:draft:room_unmatched_backtick_draft')).toBe(
-          editedBody
+          serializedBody
         )
       );
     });
@@ -974,9 +1518,10 @@ describe('MessageComposer', () => {
       expect(editor.querySelector('code')?.textContent).toContain('</b>');
     });
 
-    it('does not treat unmatched closing link syntax as a markdown link destination', async () => {
+    it('canonically escapes an unmatched closing bracket without creating a link', async () => {
       const body = 'not a link](<b>x</b>)';
       const editedBody = `${body}!`;
+      const serializedBody = editedBody.replace(']', '\\]');
       sessionStorage.setItem('chatto:draft:room_fake_link_draft', body);
 
       const { container } = renderMessageComposer(
@@ -991,7 +1536,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() =>
-        expect(sessionStorage.getItem('chatto:draft:room_fake_link_draft')).toBe(editedBody)
+        expect(sessionStorage.getItem('chatto:draft:room_fake_link_draft')).toBe(serializedBody)
       );
     });
 
@@ -1042,6 +1587,23 @@ describe('MessageComposer', () => {
   });
 
   describe('edit mode transitions', () => {
+    it('keeps an existing message editable when new posting is unavailable', async () => {
+      roomStateMock.editState.eventId = 'evt_historical_thread_edit';
+      roomStateMock.editState.originalBody = 'historical reply';
+      const { container } = renderMessageComposer({ roomId: 'room_456', canPost: false });
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_historical_thread_edit',
+        body: 'historical reply'
+      });
+    });
+
     it('does not start editing on ArrowUp when no editable message is available', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
@@ -1117,7 +1679,7 @@ describe('MessageComposer', () => {
       );
     });
 
-    it('sends a plain text edit with Enter', async () => {
+    it('sends a plain text edit with Ctrl+Enter', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
       const { container } = renderMessageComposer({ roomId: 'room_456' });
@@ -1125,7 +1687,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
       expect(container.textContent).not.toMatch(/(?:Cmd|Ctrl)\+Return to Send/);
-      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
       expect(updateMessageConnectMock).toHaveBeenCalledWith({
@@ -1135,20 +1697,17 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('can force rich keyboard behavior while editing plain text', async () => {
+    it('uses normal Enter and Ctrl+Enter to send while editing', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
       expect(updateMessageConnectMock).not.toHaveBeenCalled();
       await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
-      await vi.waitFor(() =>
-        expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
-      );
 
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
@@ -1161,7 +1720,7 @@ describe('MessageComposer', () => {
     });
 
     it('preserves literal HTML-looking text when restoring and saving an edit', async () => {
-      const body = '<script>alert(1)</script> & <b>bold?</b>';
+      const body = '<script>alert(1)</script> & <b>bold?</b> &#45;';
       const editedBody = `${body}!`;
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = body;
@@ -1181,6 +1740,69 @@ describe('MessageComposer', () => {
         eventId: 'evt_edit',
         body: editedBody
       });
+    });
+
+    it('preserves a labelled channel link across repeated edit and save cycles', async () => {
+      const url = 'https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F';
+      let body = `[#announcements](${url})`;
+
+      for (let cycle = 1; cycle <= 3; cycle += 1) {
+        const eventId = `evt_channel_link_${cycle}`;
+        roomStateMock.editState.eventId = eventId;
+        roomStateMock.editState.originalBody = body;
+        const rendered = renderMessageComposer({ roomId: 'room_456' });
+        const editor = await findEditor(rendered.container);
+
+        await vi.waitFor(() => {
+          const link = editor.querySelector('a');
+          expect(link?.textContent).toBe('#announcements');
+          expect(link?.getAttribute('href')).toBe(url);
+        });
+        await placeCaretAtEditorEnd(editor);
+        document.execCommand('insertText', false, '!');
+        const editedBody = `${body}!`;
+        await vi.waitFor(() =>
+          expect(editor.textContent).toBe(`#announcements${'!'.repeat(cycle)}`)
+        );
+
+        (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+        expect(updateMessageConnectMock).toHaveBeenCalledWith({
+          roomId: expect.any(String),
+          eventId,
+          body: editedBody
+        });
+
+        body = editedBody;
+        rendered.unmount();
+        updateMessageConnectMock.mockClear();
+      }
+    });
+
+    it('keeps an existing GFM table renderable after editing and saving', async () => {
+      const body = '| Name | Role |\n| --- | --- |\n| Ada | Admin |';
+      roomStateMock.editState.eventId = 'evt_table';
+      roomStateMock.editState.originalBody = body;
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveTextContent('| Name | Role |');
+      await placeCaretAtEditorEnd(editor);
+      document.execCommand('insertText', false, '!');
+      await vi.waitFor(() => expect(editor.textContent).toContain('| Ada | Admin |!'));
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      const submittedBody = updateMessageConnectMock.mock.calls[0][0].body as string;
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_table',
+        body: submittedBody
+      });
+      expect(submittedBody).toBe(`${body}!`);
+      expect(await renderMarkdown(submittedBody)).toContain('<table>');
     });
 
     it('clears staged attachments when edit mode is active at mount', async () => {
@@ -1241,7 +1863,36 @@ describe('MessageComposer', () => {
   });
 
   describe('submit behavior', () => {
-    it('uses Enter to complete an active mention before plain Enter can send', async () => {
+    it('inserts a raw timestamp token from the picker before sending', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, 'Call');
+      await userEvent.click(q(container, 'button[aria-label="Insert timestamp"]')!);
+      const dateTimeInput = document.querySelector(
+        'input[type="datetime-local"]'
+      ) as HTMLInputElement;
+      const timezoneInput = document.querySelector(
+        `input[list^="timestamp-timezones-"]`
+      ) as HTMLInputElement;
+      expect(dateTimeInput).toBeTruthy();
+      expect(timezoneInput).toBeTruthy();
+      await vi.waitFor(() => expect(document.activeElement).toBe(dateTimeInput));
+
+      await changeInputValue(dateTimeInput, '2025-04-27T14:30');
+      await changeInputValue(timezoneInput, 'UTC');
+      await userEvent.click(document.querySelector('button[type="submit"]')!);
+
+      await vi.waitFor(() => expect(editor.textContent).toContain('<t:1745764200:F>'));
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalled());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'Call <t:1745764200:F>'
+      });
+    });
+
+    it('uses Enter to complete an active mention before Ctrl+Enter can send', async () => {
       roomStateMock.members = [roomMember('alice')];
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
@@ -1256,7 +1907,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
       expect(mutationMock).not.toHaveBeenCalled();
 
-      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1265,12 +1916,12 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('sends plain text with Enter in simple mode', async () => {
+    it('sends plain text with Ctrl+Enter', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'hello from shortcut');
-      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1281,6 +1932,7 @@ describe('MessageComposer', () => {
 
     it('lets bare Enter insert a line break on touch-primary devices', async () => {
       mockTouchPrimaryPointer();
+      userPreferences.composerSendMode = 'enter';
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
@@ -1411,17 +2063,14 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('activates rich mode with Ctrl+Enter in simple mode', async () => {
+    it('inserts a normal newline and sends with Ctrl+Enter', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'hello from shortcut');
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
       await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
-      await vi.waitFor(() =>
-        expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
-      );
 
       await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
@@ -1432,11 +2081,73 @@ describe('MessageComposer', () => {
       });
     });
 
+    it('uses Ctrl+Enter for a structural paragraph break when Return sends', async () => {
+      userPreferences.composerSendMode = 'enter';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room-enter-send' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'first');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
+      await insertEditorLiteralText(editor, 'second');
+
+      await pressEditorKey(editor, 'Enter');
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'first\n\nsecond'
+      });
+    });
+
+    it('keeps Shift+Enter as a visual hard break when Return sends', async () => {
+      userPreferences.composerSendMode = 'enter';
+      const { container } = renderMessageComposer({ roomId: 'room-hard-break' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'first');
+      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await insertEditorLiteralText(editor, 'second');
+
+      expect(mutationMock).not.toHaveBeenCalled();
+      expect(editor.querySelectorAll(':scope > p')).toHaveLength(1);
+      expect(editor.querySelector('p > br')).toBeTruthy();
+    });
+
+    it('does not send while an input method is composing text', async () => {
+      userPreferences.composerSendMode = 'enter';
+      const { container } = renderMessageComposer({ roomId: 'room-composing-enter' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'composing');
+      await pressEditorKey(editor, 'Enter', { isComposing: true });
+
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
     it('posts markdown after TipTap formatting shortcuts are applied', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorKeys(editor, '**bold**');
+      await vi.waitFor(() => expect(editor.querySelector('strong')?.textContent).toBe('bold'));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '**bold**'
+      });
+    });
+
+    it('posts markdown after composer formatting buttons are applied', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      const boldButton = q(container, 'button[aria-label="Bold"]') as HTMLButtonElement;
+
+      await userEvent.click(boldButton);
+      await expect.element(boldButton).toHaveAttribute('aria-pressed', 'true');
+      await insertEditorLiteralText(editor, 'bold');
       await vi.waitFor(() => expect(editor.querySelector('strong')?.textContent).toBe('bold'));
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
@@ -1490,6 +2201,281 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: '[example](https://example.com)'
+      });
+    });
+
+    it('round-trips a pasted labelled Markdown channel link', async () => {
+      const body = '[#announcements](https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F)';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => {
+        const link = editor.querySelector('a');
+        expect(link?.textContent).toBe('#announcements');
+        expect(link?.getAttribute('href')).toBe('https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F');
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('round-trips a pasted Markdown channel link surrounded by prose', async () => {
+      const url = 'https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F';
+      const body = `See [#announcements](${url}) for details`;
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => {
+        expect(editor.textContent).toBe('See #announcements for details');
+        const link = editor.querySelector('a');
+        expect(link?.textContent).toBe('#announcements');
+        expect(link?.getAttribute('href')).toBe(url);
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('uses the Markdown link from plain text when pasted HTML is also available', async () => {
+      const url = 'https://chat.chatto.run/chat/-/REEi0LIuxqwQl3F';
+      const body = `[#announcements](${url})`;
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body, `<a href="https://wrong.example/">wrong label</a>`);
+
+      await vi.waitFor(() => {
+        const link = editor.querySelector('a');
+        expect(link?.textContent).toBe('#announcements');
+        expect(link?.getAttribute('href')).toBe(url);
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('preserves a single pasted line break without creating separate paragraphs', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, 'test line one\ntest line two');
+
+      await vi.waitFor(() => {
+        expect(editor.querySelectorAll(':scope > p')).toHaveLength(1);
+        expect(editor.querySelectorAll('br')).toHaveLength(1);
+      });
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'test line one  \ntest line two'
+      });
+    });
+
+    it('submits pasted GFM table syntax in a renderable form', async () => {
+      const body = '| Name | Role |\n| --- | --- |\n| Ada | Admin |';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => expect(editor.querySelectorAll('br')).toHaveLength(2));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      const submittedBody = mutationMock.mock.calls[0][1].input.body as string;
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId });
+      expect(await renderMarkdown(submittedBody)).toContain('<table>');
+    });
+
+    it('converts pasted blockquote Markdown and posts it as a rendered quote', async () => {
+      const body = '> moo';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('blockquote')?.textContent).toBe('moo');
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('preserves active inline formatting when pasting plain text', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      await pressEditorKey(
+        editor,
+        'b',
+        navigator.platform.startsWith('Mac') ? { metaKey: true } : { ctrlKey: true }
+      );
+      pasteText(editor, 'pasted text');
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('strong')?.textContent).toBe('pasted text');
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '**pasted text**'
+      });
+    });
+
+    it('combines active inline formatting with a pasted autolink', async () => {
+      const url = 'https://example.com/';
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      await pressEditorKey(
+        editor,
+        'b',
+        navigator.platform.startsWith('Mac') ? { metaKey: true } : { ctrlKey: true }
+      );
+      pasteText(editor, url);
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('a')?.textContent).toBe(url);
+        expect(editor.querySelector('strong')?.textContent).toBe(url);
+      });
+    });
+
+    it('pastes unsupported Markdown syntax literally over selected text', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, 'replace me');
+      await selectEditorContents(editor);
+      pasteText(editor, '---');
+
+      await vi.waitFor(() => {
+        expect(editor.textContent).toBe('---');
+        expect(editor.querySelector('hr')).toBeNull();
+      });
+    });
+
+    it('preserves an intentional blank line in pasted text', async () => {
+      const body = 'first paragraph\n\nsecond paragraph';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('preserves pasted fenced code without adding line breaks between source lines', async () => {
+      const body = [
+        '```go',
+        'type Conn struct {',
+        '\trwc     io.ReadWriteCloser',
+        '\terr     error',
+        '\tr, w, x sync.Mutex',
+        '}',
+        '```'
+      ].join('\n');
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, body);
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('pre code')?.textContent).toBe(
+          'type Conn struct {\n\trwc     io.ReadWriteCloser\n\terr     error\n\tr, w, x sync.Mutex\n}'
+        );
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body });
+    });
+
+    it('prefers plain text when pasted clipboard data also contains HTML', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      editor.focus();
+      pasteText(editor, 'plain line one\nplain line two', '<p>wrong HTML</p><p>content</p>');
+
+      await vi.waitFor(() => {
+        expect(editor.textContent).toBe('plain line oneplain line two');
+        expect(editor.querySelectorAll(':scope > p')).toHaveLength(1);
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'plain line one  \nplain line two'
+      });
+    });
+
+    it('preserves multiline text pasted while editing', async () => {
+      roomStateMock.editState.eventId = 'evt_edit';
+      roomStateMock.editState.originalBody = 'original body';
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
+      await placeCaretAtEditorEnd(editor);
+      pasteText(editor, 'edited line one\nedited line two');
+
+      await vi.waitFor(() => expect(editor.querySelectorAll('br')).toHaveLength(1));
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_edit',
+        body: 'original bodyedited line one  \nedited line two'
+      });
+    });
+
+    it('pastes multiline text literally inside an active code block', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, '```go ');
+      await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
+      pasteText(editor, 'line one\nline two');
+
+      await vi.waitFor(() => {
+        expect(editor.querySelector('pre code')?.textContent).toBe('line one\nline two');
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '```go\nline one\nline two\n```'
       });
     });
 
@@ -1641,7 +2627,7 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'or this:');
-      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await pressEditorKey(editor, 'Enter');
       await insertEditorLiteralText(editor, '```go ');
 
       await vi.waitFor(() => expect(editor.querySelector('pre code')).toBeTruthy());
@@ -1686,7 +2672,7 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('keeps Enter inside an active code block', async () => {
+    it('uses native Enter for a structural newline inside an active code block', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
@@ -1716,23 +2702,22 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('lets Shift+Enter insert a hard break without submitting', async () => {
+    it('lets native Enter insert a structural paragraph break without submitting', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'first');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
       document.execCommand('insertText', false, 'second');
-      await vi.waitFor(() => expect(editor.textContent).toContain('firstsecond'));
-      expect(editor.querySelector('br')).toBeTruthy();
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
 
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
-        body: 'first  \nsecond'
+        body: 'first\n\nsecond'
       });
     });
 
@@ -1756,7 +2741,7 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('lets Enter create another bullet list item instead of submitting', async () => {
+    it('lets native Enter create another bullet list item instead of submitting', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
@@ -1780,7 +2765,29 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('sends with Enter from the visible trailing paragraph after leaving a bullet list', async () => {
+    it('indents visual list items with both the toolbar and Tab', async () => {
+      const { container } = renderMessageComposer({ roomId: 'visual-list-indent' });
+      const editor = await findEditor(container);
+      const indent = q(container, 'button[aria-label="Indent"]') as HTMLButtonElement;
+      const outdent = q(container, 'button[aria-label="Outdent"]') as HTMLButtonElement;
+
+      await typeEditorLiteralText(editor, '- first');
+      await pressEditorKey(editor, 'Enter');
+      document.execCommand('insertText', false, 'second');
+      await vi.waitFor(() => expect(indent.disabled).toBe(false));
+
+      await userEvent.click(indent);
+      await vi.waitFor(() => expect(editor.querySelectorAll('ul ul li')).toHaveLength(1));
+      await pressEditorKey(editor, 'Tab', { shiftKey: true });
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > ul > li')).toHaveLength(2));
+
+      await pressEditorKey(editor, 'Tab');
+      await vi.waitFor(() => expect(editor.querySelectorAll('ul ul li')).toHaveLength(1));
+      await userEvent.click(outdent);
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > ul > li')).toHaveLength(2));
+    });
+
+    it('sends with Ctrl+Enter from the visible trailing paragraph after leaving a bullet list', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
@@ -1791,11 +2798,8 @@ describe('MessageComposer', () => {
       await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
       await vi.waitFor(() => expect(editor.querySelectorAll('ul li')).toHaveLength(1));
-      await vi.waitFor(() =>
-        expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
-      );
 
-      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1819,16 +2823,16 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('starts a bullet list from a visual line after hard breaks', async () => {
+    it('starts a bullet list from a visual line after structural breaks', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'Things I hate:');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter');
       await insertEditorLiteralText(editor, '- ');
       await vi.waitFor(() => expect(editor.querySelector('ul li')).toBeTruthy());
-      expect(editor.querySelector('p br')).toBeTruthy();
+      expect(editor.querySelectorAll(':scope > p')).toHaveLength(2);
 
       document.execCommand('insertText', false, 'lists');
       await vi.waitFor(() => expect(editor.querySelector('ul li')?.textContent).toBe('lists'));
@@ -1842,12 +2846,12 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('starts an ordered list from a visual line after hard breaks', async () => {
+    it('starts an ordered list from a visual line after a structural break', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'Things I like:');
-      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await pressEditorKey(editor, 'Enter');
       await insertEditorLiteralText(editor, '1. ');
       await vi.waitFor(() => expect(editor.querySelector('ol li')).toBeTruthy());
 
@@ -1863,7 +2867,7 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('lets Enter leave a heading without submitting', async () => {
+    it('lets native Enter leave a heading without submitting', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
@@ -1878,11 +2882,8 @@ describe('MessageComposer', () => {
       expect(getComputedStyle(editor.querySelector('p')!).marginTop).not.toBe('0px');
       await pressEditorKey(editor, 'Enter');
       expect(mutationMock).not.toHaveBeenCalled();
-      await vi.waitFor(() =>
-        expect(container.textContent).toMatch(/(?:Return|Enter) again to Send/)
-      );
 
-      await pressEditorKey(editor, 'Enter');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1973,8 +2974,26 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container, 'thread-reply-input');
 
       await typeInEditor(editor, 'hello world');
-      (q(container, 'input[type="checkbox"]') as HTMLInputElement).click();
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      const echoToggle = q(
+        container,
+        'button[aria-label="Also send to channel"]'
+      ) as HTMLButtonElement;
+      expect(echoToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      expect(echoToggle).toHaveTextContent('Echo');
+      expect(echoToggle.querySelector('.iconify')).toHaveClass('icon-[uil--megaphone]');
+      expect(echoToggle.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
+      expect(echoToggle).not.toHaveClass('active:scale-[0.96]');
+      echoToggle.click();
+      const sendButton = q(container, 'button[aria-label="Send message"]') as HTMLButtonElement;
+      expect(sendButton).toHaveTextContent('Send');
+      expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
+      sendButton.click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -1989,11 +3008,220 @@ describe('MessageComposer', () => {
       expect(onMessageSent).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'msg_123',
-          event: expect.objectContaining({ kind: RoomEventKind.MessagePosted })
+          event: expect.objectContaining({ kind: TimelineEventKind.MessagePosted })
         })
       );
       expect(mockInstanceStores.roomUnread.setRoomUnread).toHaveBeenCalledWith(roomId, false);
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
+    });
+
+    it('reports the root ID after a room-level post creates a thread', async () => {
+      const onMessageSent = vi.fn();
+      const onThreadCreated = vi.fn();
+      const { container, roomId } = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        onMessageSent,
+        onThreadCreated
+      });
+      const editor = await findEditor(container);
+      const threadToggle = q(container, 'button[aria-label="Post as thread"]') as HTMLButtonElement;
+
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+      expect(threadToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      expect(threadToggle).toHaveTextContent('Thread');
+      expect(threadToggle.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
+      expect(threadToggle).not.toHaveClass('active:scale-[0.96]');
+      await typeInEditor(editor, 'discuss this');
+      await userEvent.click(threadToggle);
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'discuss this',
+        createThread: true
+      });
+      await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
+      expect(onMessageSent).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg_123' }));
+      expect(onThreadCreated).toHaveBeenCalledWith('msg_123');
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('defaults Thread on for Encouraged drafts while preserving an explicit opt-out', async () => {
+      const rendered = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        createThreadDefault: true,
+        threadsEncouraged: true
+      });
+      const threadToggle = q(
+        rendered.container,
+        'button[aria-label="Post as thread"]'
+      ) as HTMLButtonElement;
+
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'true');
+      await userEvent.click(threadToggle);
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+
+      await rendered.rerender({ threadsEncouraged: true });
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+
+      const editor = await findEditor(rendered.container);
+      await typeInEditor(editor, 'flat by choice');
+      await userEvent.click(
+        q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement
+      );
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ createThread: false });
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('offers a recent thread before upload and routes the draft into it', async () => {
+      const onMessageSent = vi.fn();
+      const onThreadMessageSent = vi.fn();
+      const getRecentThreadRootCandidate = vi.fn(() => ({
+        threadRootEventId: 'previous-root'
+      }));
+      const { container, getByRole } = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        createThreadDefault: true,
+        getRecentThreadRootCandidate,
+        onMessageSent,
+        onThreadMessageSent
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'continue this thought');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+
+      await expect
+        .element(getByRole('dialog', { name: 'Continue your previous thread?' }))
+        .toBeInTheDocument();
+      expect(mutationMock).not.toHaveBeenCalled();
+      await userEvent.click(getByRole('button', { name: 'Continue in thread' }));
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'continue this thought',
+        threadRootEventId: 'previous-root',
+        createThread: false
+      });
+      expect(onMessageSent).not.toHaveBeenCalled();
+      expect(onThreadMessageSent).toHaveBeenCalledWith(
+        'previous-root',
+        expect.objectContaining({ id: 'msg_123' })
+      );
+    });
+
+    it('keeps the prepared root unchanged when the user confirms a new message', async () => {
+      const onMessageSent = vi.fn();
+      const { container, getByRole } = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        createThreadDefault: true,
+        getRecentThreadRootCandidate: () => ({ threadRootEventId: 'previous-root' }),
+        onMessageSent
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'a distinct topic');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+      await userEvent.click(getByRole('button', { name: 'Post as new message' }));
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'a distinct topic',
+        threadRootEventId: null,
+        createThread: true
+      });
+      expect(onMessageSent).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the draft and attachments untouched when the destination choice is cancelled', async () => {
+      const { container, getByRole } = renderMessageComposer({
+        roomId: 'room_456',
+        getRecentThreadRootCandidate: () => ({ threadRootEventId: 'previous-root' })
+      });
+      const editor = await findEditor(container);
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      await typeInEditor(editor, 'keep this destination undecided');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+
+      const dialog = getByRole('dialog', { name: 'Continue your previous thread?' });
+      await expect.element(dialog).toBeInTheDocument();
+      expect(mutationMock).not.toHaveBeenCalled();
+
+      await userEvent.click(getByRole('button', { name: 'Cancel' }));
+
+      await expect.element(dialog).not.toBeInTheDocument();
+      await expect.element(editor).toHaveTextContent('keep this destination undecided');
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      expect(mutationMock).not.toHaveBeenCalled();
+      expect(file.name).toBe('paste.png');
+    });
+
+    it('keeps Required thread creation visible, locked on, and reactive to policy changes', async () => {
+      const rendered = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        createThreadRequired: false
+      });
+      const editor = await findEditor(rendered.container);
+      const threadToggle = q(
+        rendered.container,
+        'button[aria-label="Post as thread"]'
+      ) as HTMLButtonElement;
+
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+      expect(threadToggle.disabled).toBe(false);
+
+      await rendered.rerender({ createThreadRequired: true });
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'true');
+      expect(threadToggle.disabled).toBe(true);
+
+      await typeInEditor(editor, 'required thread root');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId: rendered.roomId,
+        body: 'required thread root',
+        createThread: true
+      });
+
+      await rendered.rerender({ createThreadRequired: false });
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+      expect(threadToggle.disabled).toBe(false);
+    });
+
+    it('clears hidden thread creation state when navigating to another room', async () => {
+      const rendered = renderMessageComposer(
+        { roomId: 'channel-room', showCreateThread: true },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(rendered.container);
+      const threadToggle = q(
+        rendered.container,
+        'button[aria-label="Post as thread"]'
+      ) as HTMLButtonElement;
+
+      threadToggle.click();
+      await rendered.rerender({ roomId: 'dm-room', showCreateThread: false });
+      expect(q(rendered.container, 'button[aria-label="Post as thread"]')).toBeNull();
+
+      await typeInEditor(editor, 'hello from the DM');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId: 'dm-room',
+        body: 'hello from the DM',
+        createThread: false
+      });
     });
 
     it('asks for confirmation before sending a virtual role mention', async () => {
@@ -2186,9 +3414,7 @@ describe('MessageComposer', () => {
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input.linkPreview).toMatchObject({
-        previewToken: 'cht_LPpreviewtoken'
-      });
+      expect(mutationMock.mock.calls[0][1].input.linkPreviewToken).toBe('cht_LPpreviewtoken');
     });
 
     it('shows a directly linked image in the attachment tray and sends its asset ID', async () => {
@@ -2221,7 +3447,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input.attachmentAssetIds).toEqual(['asset_linked']);
-      expect(mutationMock.mock.calls[0][1].input.linkPreview).toBeNull();
+      expect(mutationMock.mock.calls[0][1].input.linkPreviewToken).toBeNull();
     });
 
     it('dismisses a fetched preview so it is not attached to the outgoing message', async () => {
@@ -2239,7 +3465,7 @@ describe('MessageComposer', () => {
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input.linkPreview).toBeNull();
+      expect(mutationMock.mock.calls[0][1].input.linkPreviewToken).toBeNull();
     });
   });
 
@@ -2249,7 +3475,7 @@ describe('MessageComposer', () => {
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await expect.poll(() => q(container, 'img')).toBeTruthy();
 
-      (q(container, 'button.absolute') as HTMLButtonElement).click();
+      (q(container, 'button[aria-label="Remove paste.png"]') as HTMLButtonElement).click();
 
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
       await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
@@ -2264,8 +3490,8 @@ describe('MessageComposer', () => {
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
-      expect(q(container, 'img')).toBeNull();
+      await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test'));
+      await vi.waitFor(() => expect(q(container, 'img')).toBeNull());
     });
   });
 
@@ -2278,20 +3504,12 @@ describe('MessageComposer', () => {
         .toHaveAttribute('title', 'Attach file');
     });
 
-    it('send button title follows composer mode', async () => {
+    it('send button title describes the action', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
-      const editor = await findEditor(container);
+      await findEditor(container);
 
-      await expect
-        .element(q(container, 'button[aria-label="Send message"]'))
-        .toHaveAttribute('title', 'Send message (Enter)');
-
-      await typeEditorLiteralText(editor, '- first');
-      await vi.waitFor(() =>
-        expect(q(container, 'button[aria-label="Send message"]')).toHaveAttribute(
-          'title',
-          'Send message (Ctrl/Cmd+Enter)'
-        )
+      expect(q(container, 'button[aria-label="Send message"]')?.getAttribute('title')).toBe(
+        'Send message'
       );
     });
   });

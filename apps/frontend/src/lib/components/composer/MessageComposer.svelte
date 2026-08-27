@@ -1,72 +1,50 @@
+<script module lang="ts">
+  export type { MessageComposerApi } from './messageComposerState.svelte';
+</script>
+
 <script lang="ts">
-  import { onDestroy, tick, untrack } from 'svelte';
-  import type { RoomEventView } from '$lib/render/types';
   import { createMessageAPI } from '$lib/api-client/messages';
-  import {
-    createLinkPreviewAPI,
-    type ComposerImportedAttachment
-  } from '$lib/api-client/linkPreviews';
-  import { createRoleAPI } from '$lib/api-client/roles';
-  import * as m from '$lib/i18n/messages';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { parseMessageLink } from '$lib/messageLinks';
-  import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
-  import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
-  import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
+  import { m } from '$lib/i18n/messages';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import Dialog from '$lib/ui/Dialog.svelte';
+  import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import {
-    getRoomMembers,
-    getRoomMembersStore,
-    getComposerContext,
-    type QuoteInsertionContent,
-    type RoomMember
-  } from '$lib/state/room';
+  import { getRoomMembers, getRoomMembersStore, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-  import { prefersTouchActions } from '$lib/utils/inputCapabilities';
-  import { hasVisibleContent } from '$lib/validation';
-  import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
-  import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
-  import type { TipTapEditorApi } from './TipTapEditor.svelte';
-  import { DraftState, draftKey } from './draft.svelte';
-  import { AttachmentsState } from './attachments.svelte';
-  import { LinkPreviewState } from './linkPreviews.svelte';
-  import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
+  import { timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
+  import {
+    formatSlowModeCountdown,
+    formatSlowModeInterval,
+    slowModeRemainingSeconds as remainingSlowModeSeconds
+  } from '$lib/slowMode';
+  import { Code, ConnectError } from '$lib/api-client/connect';
+  import { SvelteDate } from 'svelte/reactivity';
+  import type { Component } from 'svelte';
+  import EmojiAutocomplete from './EmojiAutocomplete.svelte';
+  import MentionAutocomplete from './MentionAutocomplete.svelte';
+  import ComposerLinkPreview from './ComposerLinkPreview.svelte';
+  import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
+  import ComposerToolbar from './ComposerToolbar.svelte';
+  import ComposerModeIndicators from './ComposerModeIndicators.svelte';
+  import { MessageComposerState, type MessageComposerProps } from './messageComposerState.svelte';
+  import type { ComposerEditorProps } from './editorTypes';
+  import { userPreferences, type ComposerEditorKind } from '$lib/state/userPreferences.svelte';
 
-  const tipTapEditorModule = import('./TipTapEditor.svelte');
-
-  type ShortcutHints = {
-    submit: string;
-    enterAgain: string;
+  const editorLoaders: Record<
+    ComposerEditorKind,
+    () => Promise<{ default: Component<ComposerEditorProps> }>
+  > = {
+    visual: () => import('./TipTapEditor.svelte'),
+    markdown: () => import('./MarkdownEditor.svelte')
   };
-
-  function getShortcutHints(): ShortcutHints | null {
-    if (typeof navigator === 'undefined' || prefersTouchActions()) return null;
-
-    const userAgentDataPlatform =
-      'userAgentData' in navigator
-        ? (navigator.userAgentData as { platform?: string } | undefined)?.platform
-        : undefined;
-    const platform = userAgentDataPlatform ?? navigator.platform ?? '';
-    const usesReturn = /Mac|iPhone|iPad|iPod/i.test(platform);
-    return usesReturn
-      ? { submit: 'Cmd+Return to Send', enterAgain: 'Return again to Send' }
-      : { submit: 'Ctrl+Return to Send', enterAgain: 'Enter again to Send' };
-  }
-
-  const stores = serverRegistry.getStore(getActiveServer());
+  const serverScope = useServerScope();
+  const stores = serverScope.store;
   const serverInfo = stores.serverInfo;
   const roomUnreadStore = stores.roomUnread;
-
-  export type MessageComposerApi = {
-    addFiles: (files: File[]) => void;
-    focus: () => void;
-    insertQuote: (text: QuoteInsertionContent) => void;
-  };
+  const mentionRolesStore = stores.mentionRoles;
 
   let {
     roomId,
@@ -74,1092 +52,282 @@
     inReplyTo,
     replyDisplayName,
     replyExcerpt,
-    placeholder: customPlaceholder,
+    placeholder,
     canPost = true,
     canAttach = true,
+    slowModeSeconds = 0,
+    slowModeNextPostAt = null,
+    slowModeBypassed = false,
     autoFocus = true,
     onReady,
     onTyping,
     onMessageSent,
+    onThreadCreated,
+    onThreadMessageSent,
     onCancelReply,
     onEscape,
-    showAlsoSendToChannel = false
-  }: {
-    roomId: string;
-    inThread?: string;
-    inReplyTo?: string;
-    replyDisplayName?: string;
-    replyExcerpt?: string;
-    placeholder?: string;
-    canPost?: boolean;
-    canAttach?: boolean;
-    autoFocus?: boolean;
-    onReady?: (api: MessageComposerApi) => void;
-    onTyping?: () => void;
-    onMessageSent?: (event: RoomEventView | null) => void;
-    onCancelReply?: () => void;
-    onEscape?: () => void;
-    showAlsoSendToChannel?: boolean;
-  } = $props();
+    showAlsoSendToChannel = false,
+    showCreateThread = false,
+    createThreadRequired = false,
+    createThreadDefault = false,
+    getRecentThreadRootCandidate = () => null,
+    threadsEncouraged = false
+  }: MessageComposerProps = $props();
 
-  const connection = useConnection();
-
-  let alsoSendToChannel = $state(false);
-
-  // Get room members from context (provided by Room.svelte)
-  const members = $derived(getRoomMembers());
-  const membersStore = getRoomMembersStore();
-  let mentionSearchMembers = $state.raw<RoomMember[]>([]);
-  let mentionSearchTimer: ReturnType<typeof setTimeout> | null = null;
-  let mentionSearchRequestId = 0;
-  const mentionCandidateMembers = $derived(
-    mentionSearchMembers.length > 0 ? mentionSearchMembers : members
+  const clock = new SvelteDate();
+  let optimisticPost = $state<{ roomId: string; createdAt: number } | null>(null);
+  const slowModeInterval = $derived(formatSlowModeInterval(slowModeSeconds, getLocale()));
+  const authoritativeNextPostAt = $derived(
+    slowModeNextPostAt ? Date.parse(slowModeNextPostAt) : Number.NaN
   );
-
-  onDestroy(() => {
-    if (mentionSearchTimer) clearTimeout(mentionSearchTimer);
+  const slowModeDeadline = $derived.by<number | null>(() => {
+    if (slowModeSeconds <= 0 || slowModeBypassed) return null;
+    const optimisticDeadline =
+      optimisticPost?.roomId === roomId
+        ? optimisticPost.createdAt + slowModeSeconds * 1000
+        : Number.NaN;
+    const deadlines = [authoritativeNextPostAt, optimisticDeadline].filter(Number.isFinite);
+    return deadlines.length > 0 ? Math.max(...deadlines) : null;
   });
-
-  const composerContext = getComposerContext();
-  const editState = composerContext.editState;
-  const quoteInsertionState = composerContext.quoteInsertionState;
-  const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const scrollState = composerContext.scrollState;
-  const isEditing = $derived(editState.eventId !== null);
-  const showEditEchoCheckbox = $derived(
-    isEditing &&
-      editState.threadRootEventId !== null &&
-      (editState.channelEchoEventId !== null || editState.canAddChannelEcho)
-  );
-
-  // When the composer resizes (editor grows/shrinks, attachments added/removed),
-  // scroll to bottom if sticky. This replaces the synchronous scrollToBottomIfSticky()
-  // that was lost when the old textarea's autoResize() was removed during TipTap migration.
-  function observeComposerResize(node: HTMLDivElement) {
-    if (!scrollState) return;
-    const observer = new ResizeObserver(() => {
-      scrollState.scrollToBottomIfSticky();
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }
-
-  const DRAFT_KEY = $derived(draftKey(roomId, inThread));
-  let message = $state('');
-
-  // TipTap editor API (received via onReady callback)
-  let editorApi = $state<TipTapEditorApi | null>(null);
-  const draftState = new DraftState();
-  const attachments = new AttachmentsState(() => serverInfo);
-  const linkPreviews = new LinkPreviewState(() => {
-    const conn = connection();
-    return createLinkPreviewAPI({
-      serverId: conn.serverId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
-  });
-  const autocomplete = new AutocompleteState(
-    () => editorApi,
-    () => mentionCandidateMembers,
-    () => mentionRoles
-  );
-  let mentionRoles = $state<MentionRole[]>([]);
-  let mentionRolesLoadComplete = $state(false);
-  let mentionRolesLoadFailed = $state(false);
-  let mentionRolesLoadPromise: Promise<boolean> | null = null;
-
-  $effect(() => {
-    const query = autocomplete.mention?.query ?? null;
-    const requestId = ++mentionSearchRequestId;
-
-    if (mentionSearchTimer) {
-      clearTimeout(mentionSearchTimer);
-      mentionSearchTimer = null;
-    }
-
-    if (!query) {
-      mentionSearchMembers = [];
-      return;
-    }
-
-    mentionSearchTimer = setTimeout(() => {
-      void membersStore.searchMembers(query).then((results) => {
-        if (requestId !== mentionSearchRequestId) return;
-        mentionSearchMembers = results;
-      });
-    }, 150);
-  });
-
-  // Dynamic placeholder changes between normal and edit mode
-  let currentPlaceholder = $derived(
-    isEditing
-      ? m['composer.editing_placeholder']()
-      : (customPlaceholder ?? m['composer.placeholder']())
-  );
-
-  // Testid for E2E tests - distinguishes main input from thread reply input
-  let testid = $derived(inThread ? 'thread-reply-input' : 'message-input');
-  const shortcutHints = getShortcutHints();
-
-  // Track editing transitions by event identity so editor setContent() doesn't
-  // run repeatedly while TipTap echoes updates back through onUpdate.
-  let editSeededForEvent = '';
-
-  // When entering edit mode, pre-fill with original message body and clear any pending attachments.
-  // When exiting edit mode (cancelled or message deleted), clear the input.
-  $effect(() => {
-    const eventId = editState.eventId;
-    const originalBody = editState.originalBody;
-    const api = editorApi;
-
-    if (eventId && originalBody && editSeededForEvent !== eventId) {
-      editSeededForEvent = eventId;
-      autocomplete.reset();
-      draftState.clearText();
-      message = originalBody;
-      manualRichMode = false;
-      alsoSendToChannel = editState.channelEchoEventId !== null;
-      api?.setContent(originalBody);
-      tick().then(() => api?.focus('end'));
-      attachments.clear();
-      linkPreviews.clear();
-    } else if (editSeededForEvent && !eventId) {
-      // Exiting edit mode - clear the input
-      autocomplete.reset();
-      message = '';
-      manualRichMode = false;
-      alsoSendToChannel = false;
-      editSeededForEvent = '';
-      api?.setContent('');
-    }
-  });
-
-  // Load draft from sessionStorage when room changes
-  // Using sessionStorage (not localStorage) so drafts are tab-specific
-  let autocompleteResetRoomId = '';
-  $effect(() => {
-    if (autocompleteResetRoomId !== roomId) {
-      autocompleteResetRoomId = roomId;
-      autocomplete.resetForRoom();
-    }
-
-    if (isEditing) {
-      draftState.switchKey(DRAFT_KEY);
-      attachments.restore([]);
-      return;
-    }
-
-    const draft = draftState.switchKey(DRAFT_KEY);
-    message = draft;
-    manualRichMode = false;
-    editorApi?.setContent(draft);
-    attachments.restore(untrack(() => draftState.takeFiles()));
-
-    return () => {
-      draftState.stashFiles(untrack(() => attachments.filesWithUrls));
-    };
-  });
-
-  // Persist draft to sessionStorage
-  $effect(() => {
-    void DRAFT_KEY;
-    if (isEditing) return;
-    draftState.persistText(message);
-  });
-
-  $effect(() => {
-    return linkPreviews.scheduleDetection(message, isEditing, canAttach ? roomId : undefined);
-  });
-
-  $effect(() => {
-    const conn = connection();
-    const api = createRoleAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
-    let cancelled = false;
-    mentionRoles = [];
-    mentionRolesLoadComplete = false;
-    mentionRolesLoadFailed = false;
-
-    async function loadMentionRoles() {
-      let roles;
-      try {
-        roles = (await api.listRoles()).roles;
-      } catch {
-        if (!cancelled) {
-          mentionRoles = [];
-          mentionRolesLoadFailed = true;
-          mentionRolesLoadComplete = true;
-        }
-        return false;
-      }
-      if (cancelled) return false;
-      mentionRoles =
-        roles.map((role) => ({
-          name: role.name,
-          isSystem: role.isSystem,
-          position: role.position,
-          pingable: role.pingable
-        })) ?? [];
-      mentionRolesLoadFailed = false;
-      mentionRolesLoadComplete = true;
-      return true;
-    }
-
-    mentionRolesLoadPromise = loadMentionRoles();
-    return () => {
-      cancelled = true;
-    };
-  });
-
-  let loading = $state(false);
-  let roleMentionCheckLoading = $state(false);
-  let fileInputElement = $state<HTMLInputElement>();
-
-  // Input is disabled when user can't post or websocket is disconnected.
-  // Note: loading is intentionally excluded — the editor stays editable during sends
-  // so users can type the next message while the current one is in flight.
-  let inputDisabled = $derived(!canPost || connection().showConnectionLostBanner);
-
-  let hasSendableAttachments = $derived(canAttach && attachments.selectedFiles.length > 0);
-
-  // Can submit when there's content, not currently sending, and input is enabled.
-  // hasVisibleContent rejects messages with only invisible Unicode characters.
-  let canSubmit = $derived(
-    !loading &&
-      !roleMentionCheckLoading &&
-      !inputDisabled &&
-      attachments.pendingCount === 0 &&
-      (hasVisibleContent(message) || hasSendableAttachments || isEditing)
-  );
-  let editorNextEnterWillSend = $state(false);
-  let manualRichMode = $state(false);
-  let editorHasRichStructure = $state(false);
-  let isRichComposer = $derived(manualRichMode || editorHasRichStructure);
-  let nextEnterWillSend = $derived(canSubmit && isRichComposer && editorNextEnterWillSend);
-  let submitHint = $derived(
-    shortcutHints && isRichComposer
-      ? nextEnterWillSend
-        ? shortcutHints.enterAgain
-        : shortcutHints.submit
-      : null
-  );
-
-  $effect(() => {
-    if (!canAttach && attachments.filesWithUrls.length > 0) {
-      attachments.clear();
-    }
-  });
-
-  // Auto-focus the input when the component mounts, room changes, a reply
-  // starts, or the editor becomes editable (canPost loads async after a
-  // navigation, so on sidebar/quick-switcher room changes the editor is
-  // briefly contenteditable=false — calling focus() then is a no-op).
-  // Skip on touch devices where the keyboard popup would be jarring.
-  $effect(() => {
-    if (!autoFocus || !shouldAutoFocus()) return;
-
-    // Tracked as dependencies so the effect re-fires on each of these.
-    void roomId;
-    void inReplyTo;
-
-    if (editorApi && !inputDisabled) {
-      tick().then(() => editorApi?.focus());
-    }
-  });
-
-  // Handle emoji selection from autocomplete
-  function handleEmojiSelect(emoji: string, _name: string) {
-    autocomplete.selectEmoji(emoji);
-  }
-
-  function closeEmojiAutocomplete() {
-    autocomplete.closeEmoji();
-  }
-
-  // Handle mention selection from autocomplete
-  function handleMentionSelect(login: string, viaTab: boolean) {
-    autocomplete.selectMention(login, viaTab);
-  }
-
-  function closeMentionAutocomplete() {
-    autocomplete.closeMention();
-  }
-
-  function handleFileSelect(event: Event) {
-    const target = event.target as HTMLInputElement;
-    if (!canAttach) {
-      target.value = '';
-      return;
-    }
-    if (target.files) {
-      void attachments.stageFiles(Array.from(target.files));
-    }
-    // Reset input so same file can be selected again
-    target.value = '';
-  }
-
-  function removeFile(index: number) {
-    attachments.removeFile(index);
-  }
-
-  /**
-   * Add files from an external source (e.g., drag-and-drop).
-   * Creates object URLs for preview and adds to the attachment list.
-   */
-  async function addFiles(files: File[]) {
-    if (!canAttach) return;
-    await attachments.stageFiles(files);
-  }
-
-  // Focus the input programmatically (e.g., when opening thread from mobile action sheet)
-  function focus() {
-    tick().then(() => editorApi?.focus());
-  }
-
-  function insertQuote(text: QuoteInsertionContent) {
-    tick().then(() => editorApi?.insertQuote(text));
-  }
-
-  let insertedQuoteRequestId = 0;
-  $effect(() => {
-    const request = quoteInsertionState.request;
-    const api = editorApi;
-    if (!request || !api || request.id === insertedQuoteRequestId) return;
-
-    insertedQuoteRequestId = request.id;
-    api.insertQuote(request.text);
-  });
-
-  // Expose API to parent via onReady callback
-  $effect(() => {
-    onReady?.({ addFiles, focus, insertQuote });
-  });
-
-  // Handle paste events - intercept images before TipTap processes them
-  function handlePaste(event: ClipboardEvent): boolean {
-    // Don't accept file attachments in edit mode (editMessage only supports text)
-    if (isEditing) return false;
-
-    const items = event.clipboardData?.items;
-    if (!items) return false;
-
-    const pastedFiles: File[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          pastedFiles.push(file);
-        }
-      }
-    }
-
-    if (pastedFiles.length > 0) {
-      if (!canAttach) return true;
-      void attachments.stageFiles(pastedFiles);
-      return true; // Prevent TipTap from processing the paste
-    }
-    return false; // Let TipTap handle text pastes
-  }
-
-  // Collapse runs of 3+ newlines down to 2 (one blank line max).
-  // Applied symmetrically on post and edit so blank-line runs don't
-  // accumulate over time and pasted blank-line runs stay reasonable.
-  function normalizeMessageBody(text: string): string {
-    return text.replace(/\n{3,}/g, '\n\n');
-  }
-
-  function hasStructuralMarkdownBody(text: string): boolean {
-    return text
-      .split('\n')
-      .some((line) => /^ {0,3}(?:#{1,6}|[-+*]|\d{1,9}[.)]|>)[ \t]$/.test(line));
-  }
-
-  function bodyForSend(text: string): string {
-    const normalized = normalizeMessageBody(text);
-    if (hasStructuralMarkdownBody(normalized)) return normalized;
-    return normalizeMessageBody(text.trim());
-  }
-
-  type PreparedPost = {
-    roomId: string;
-    bodyToSend: string;
-    filesToSend: File[] | null;
-    attachmentAssetIds?: string[];
-    linkedAttachment: {
-      url: string;
-      attachment: ComposerImportedAttachment;
-    } | null;
-    threadRootEventId: string | null;
-    inReplyTo: string | null;
-    linkPreviewInput: ReturnType<typeof linkPreviews.buildInput>;
-    alsoSendToChannel: boolean;
-    wasRichComposer: boolean;
-  };
-
-  type SendPreparedPostResponse = {
-    event: RoomEventView | null;
-    error: unknown | null;
-  };
-
-  let pendingRoleMentionConfirmation = $state<PreparedPost | null>(null);
-  let roleMentionConfirmationLoading = $state(false);
-
-  async function ensureMentionRolesLoadedForConfirmation(): Promise<boolean> {
-    if (mentionRolesLoadComplete) return !mentionRolesLoadFailed;
-    return (await mentionRolesLoadPromise) ?? false;
-  }
-
-  function postMentionsRoleOrVirtualTarget(post: PreparedPost, rolesAvailable: boolean): boolean {
-    const hasKnownRoleOrVirtualMention = hasRoleOrVirtualMention(
-      post.bodyToSend,
-      mentionRoles.filter((role) => role.name !== 'everyone').map((role) => role.name)
-    );
-    if (hasKnownRoleOrVirtualMention) return true;
-    if (rolesAvailable) return false;
-
-    return extractMentions(post.bodyToSend).length > 0;
-  }
-
-  async function sendPreparedPost(post: PreparedPost): Promise<SendPreparedPostResponse> {
-    try {
-      const conn = connection();
-      const result = await createMessageAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).createMessage({
-        roomId: post.roomId,
-        body: post.bodyToSend,
-        attachmentAssetIds: post.attachmentAssetIds,
-        attachments: post.filesToSend,
-        threadRootEventId: post.threadRootEventId,
-        inReplyTo: post.inReplyTo,
-        linkPreview: post.linkPreviewInput,
-        alsoSendToChannel: post.alsoSendToChannel
-      });
-
-      return { event: result.event, error: null };
-    } catch (error) {
-      return { event: null, error };
-    }
-  }
-
-  function restorePreparedPost(post: PreparedPost) {
-    autocomplete.reset();
-    message = post.bodyToSend;
-    manualRichMode = post.wasRichComposer;
-    editorApi?.setContent(post.bodyToSend);
-    if (post.filesToSend) {
-      attachments.restore(attachments.filesToPreviewItems(post.filesToSend));
-    }
-    if (post.linkedAttachment) {
-      linkPreviews.restoreImportedAttachment(
-        post.linkedAttachment.url,
-        post.linkedAttachment.attachment
-      );
-    }
-  }
-
-  function handlePostFailure(error: unknown, post: PreparedPost) {
-    toast.error(m['composer.send_failed']());
-    console.error('Error creating message:', error);
-    restorePreparedPost(post);
-  }
-
-  function handlePostSuccess(response: SendPreparedPostResponse, post: PreparedPost) {
-    // Notify parent before scrolling so it can synchronously ingest the
-    // returned event and make the target row available.
-    onMessageSent?.(response.event);
-
-    // Scroll the enclosing pane to the user's new message. The composer
-    // reads `scrollState` from its surrounding ComposerContext, so this
-    // targets the main room's EventList in a room composer and the
-    // thread's EventList in a thread composer.
-    scrollState?.requestScrollToBottom();
-
-    // Clear reply-in-room state after sending
-    onCancelReply?.();
-
-    // Mark this room as read (we just posted, so we've seen all messages)
-    roomUnreadStore.setRoomUnread(post.roomId, false);
-
-    // Reset "also send to channel" checkbox after successful send
-    alsoSendToChannel = false;
-    manualRichMode = false;
-  }
-
-  async function submitPreparedPost(preparedPost: PreparedPost) {
-    // Optimistically clear the editor so the user can start typing the next
-    // message immediately (matches Slack/Discord behavior).
-    autocomplete.reset();
-    message = '';
-    manualRichMode = false;
-    editorApi?.setContent('');
-    attachments.clear();
-    linkPreviews.clear();
-
-    loading = true;
-
-    try {
-      const response = await sendPreparedPost(preparedPost);
-
-      if (response.error) {
-        handlePostFailure(response.error, preparedPost);
-      } else {
-        handlePostSuccess(response, preparedPost);
-      }
-    } finally {
-      loading = false;
-    }
-  }
-
-  function cancelRoleMentionConfirmation() {
-    pendingRoleMentionConfirmation = null;
-  }
-
-  async function confirmRoleMentionSend() {
-    const pendingPost = pendingRoleMentionConfirmation;
-    if (!pendingPost || roleMentionConfirmationLoading) return;
-
-    roleMentionConfirmationLoading = true;
-    try {
-      await submitPreparedPost(pendingPost);
-      pendingRoleMentionConfirmation = null;
-    } finally {
-      roleMentionConfirmationLoading = false;
-    }
-  }
-
-  async function createMessage() {
-    // Require either non-empty message body or attachments.
-    // hasVisibleContent rejects messages with only invisible Unicode characters.
-    const bodyToSend = bodyForSend(message);
-    const hasBody = hasVisibleContent(bodyToSend);
-    const filesToSend = hasSendableAttachments ? [...attachments.selectedFiles] : null;
-    if (!hasBody && !filesToSend) return;
-
-    const linkedAttachment = linkPreviews.activeImportedAttachment;
-    const linkedAttachmentURL = linkPreviews.activeURL;
-    const preparedPost: PreparedPost = {
-      roomId,
-      bodyToSend,
-      filesToSend,
-      attachmentAssetIds: linkPreviews.buildAttachmentAssetIds(),
-      linkedAttachment:
-        linkedAttachment && linkedAttachmentURL
-          ? { url: linkedAttachmentURL, attachment: linkedAttachment }
-          : null,
-      threadRootEventId: inThread ?? null,
-      inReplyTo: inReplyTo ?? null,
-      linkPreviewInput: linkPreviews.buildInput(),
-      alsoSendToChannel,
-      wasRichComposer: isRichComposer
-    };
-
-    let rolesAvailable = mentionRolesLoadComplete && !mentionRolesLoadFailed;
-    if (hasBody && bodyToSend.includes('@') && !mentionRolesLoadComplete) {
-      roleMentionCheckLoading = true;
-      try {
-        rolesAvailable = await ensureMentionRolesLoadedForConfirmation();
-      } finally {
-        roleMentionCheckLoading = false;
-      }
-    }
-
-    if (hasBody && postMentionsRoleOrVirtualTarget(preparedPost, rolesAvailable)) {
-      pendingRoleMentionConfirmation = preparedPost;
-      return;
-    }
-
-    await submitPreparedPost(preparedPost);
-  }
-
-  async function editMessage() {
-    const trimmedBody = bodyForSend(message);
-    if (!trimmedBody) {
-      toast.error('Message cannot be empty');
-      return;
-    }
-
-    const eventId = editState.eventId;
-    if (!eventId) return;
-
-    loading = true;
-
-    const input: {
-      roomId: string;
-      eventId: string;
-      body: string;
-      alsoSendToChannel?: boolean;
-    } = { roomId, eventId, body: trimmedBody };
-    if (showEditEchoCheckbox) {
-      input.alsoSendToChannel = alsoSendToChannel;
-    }
-
-    try {
-      const conn = connection();
-      await createMessageAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).updateMessage(input);
-      autocomplete.reset();
-      message = '';
-      editorApi?.setContent('');
-      editState.cancelEdit();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : m['composer.edit_failed']());
-    }
-
-    loading = false;
-  }
-
-  async function handleSubmit() {
-    // Guard against double-sends while editor stays editable, and against
-    // submitting before pasted/dropped/selected files have finished staging.
-    if (
-      loading ||
-      roleMentionCheckLoading ||
-      roleMentionConfirmationLoading ||
-      pendingRoleMentionConfirmation ||
-      inputDisabled ||
-      attachments.pendingCount > 0
+  const slowModeRemainingSeconds = $derived(
+    Math.min(
+      Math.max(0, slowModeSeconds),
+      remainingSlowModeSeconds(slowModeDeadline, clock.getTime())
     )
-      return;
-    if (isEditing) {
-      await editMessage();
-    } else {
-      await createMessage();
-    }
-  }
+  );
+  const slowModeBlocked = $derived(slowModeRemainingSeconds > 0);
+  const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
 
-  function cancelEdit() {
-    autocomplete.reset();
-    editState.cancelEdit();
-    message = '';
-    manualRichMode = false;
-    editorApi?.setContent('');
-  }
+  $effect(() => {
+    const deadline = slowModeDeadline;
+    const now = clock.getTime();
+    if (deadline === null || deadline <= now) return;
+    const remaining = deadline - now;
+    const delay = remaining % 1000 || 1000;
+    const timeout = window.setTimeout(() => clock.setTime(Date.now()), delay);
+    return () => window.clearTimeout(timeout);
+  });
 
-  // Handle keyboard events from TipTap editor.
-  // Return true to prevent TipTap's default handling.
-  function handleEditorKeyDown(event: KeyboardEvent): boolean {
-    // Handle emoji autocomplete keyboard events first
-    if (autocomplete.emoji && autocomplete.emojiRef) {
-      if (autocomplete.emojiRef.handleKeyDown(event)) {
-        return true;
-      }
-    }
-
-    // Handle mention autocomplete keyboard events
-    if (autocomplete.mention && autocomplete.mentionRef) {
-      if (autocomplete.mentionRef.handleKeyDown(event)) {
-        return true;
-      }
-    }
-
-    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && prefersTouchActions()) {
-      return false;
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey) {
-      if (event.metaKey || event.ctrlKey) {
-        if (isRichComposer) {
-          handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-        } else {
-          editorApi?.insertBlockBreak();
-          // TipTap reports an empty document while inserting the first block break,
-          // so commit manual rich mode after that update has had a chance to clear it.
-          manualRichMode = true;
-        }
-        return true;
-      }
-
-      if (!isRichComposer) {
-        if (canSubmit) {
-          handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-          return true;
-        }
-      } else if (nextEnterWillSend) {
-        handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-        return true;
-      }
-    }
-
-    // Handle Tab for @mention autocomplete
-    if (event.key === 'Tab') {
-      if (autocomplete.handleTabCompletion(event)) {
-        return true;
-      }
-      // If no completion happened, let default Tab behavior occur
-    }
-
-    // Reset tab-completion state on any other key
-    if (event.key !== 'Tab') {
-      autocomplete.resetTabCompletion();
-    }
-
-    if (event.key === 'Escape') {
-      if (isEditing) {
-        cancelEdit();
-        return true;
-      }
-      if (inReplyTo && onCancelReply) {
-        onCancelReply();
-        return true;
-      }
-      if (onEscape) {
-        onEscape();
-        return true;
-      }
-    }
-
-    // Up arrow on empty input: edit last message
-    if (event.key === 'ArrowUp' && !isEditing && (editorApi?.getText() ?? '').trim() === '') {
-      const lastMsg = lastEditableMessageCtx?.getLastEditableMessage();
-      if (lastMsg) {
-        editState.startEdit(lastMsg.eventId, lastMsg.body, {
-          threadRootEventId: lastMsg.threadRootEventId,
-          channelEchoEventId: lastMsg.channelEchoEventId,
-          canAddChannelEcho: lastMsg.canAddChannelEcho
-        });
-        return true;
-      }
-    }
-
-    return false; // Let TipTap handle it (e.g., Shift+Enter for hard break)
-  }
-
-  // Handle content updates from TipTap editor
-  function handleEditorUpdate(text: string) {
-    const previousMessage = message;
-    message = text;
-    if (!text) {
-      manualRichMode = false;
-    }
-    // Only trigger typing indicator for actual user input.
-    // Programmatic setContent calls suppress TipTap update events, but this
-    // guard still protects any same-value editor update from emitting typing.
-    if (text !== previousMessage) {
-      onTyping?.();
-    }
-    autocomplete.update();
-  }
-
-  function handleRichStructureChange(value: boolean) {
-    editorHasRichStructure = value;
-  }
-
-  // Called when TipTap editor is ready - sync any pending state
-  function handleEditorReady(api: TipTapEditorApi) {
-    editorApi = api;
-    // Sync current message state (may have draft loaded before editor was ready)
-    if (message) {
-      api.setContent(message);
-    }
-  }
+  const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
+  const composerContext = getComposerContext();
+  const composer = new MessageComposerState({
+    getRoomId: () => roomId,
+    getThreadRootEventId: () => inThread,
+    getReplyEventId: () => inReplyTo,
+    getCanPost: () => canPost,
+    getCanAttach: () => canAttach,
+    getSlowModeBlocked: () => slowModeBlocked,
+    getCanCreateThread: () => showCreateThread,
+    getCreateThreadRequired: () => createThreadRequired,
+    getCreateThreadDefault: () => createThreadDefault,
+    getRecentThreadRootCandidate: () => getRecentThreadRootCandidate(),
+    getAutoFocus: () => autoFocus,
+    getComposerSendMode: () => userPreferences.composerSendMode,
+    getPlaceholder: () => placeholder,
+    getOnReady: () => onReady,
+    getCallbacks: () => ({
+      onTyping,
+      onMessageSent: (event) => {
+        clock.setTime(Date.now());
+        if (event) optimisticPost = { roomId, createdAt: Date.parse(event.createdAt) };
+        onMessageSent?.(event);
+      },
+      onThreadCreated,
+      onThreadMessageSent,
+      onCancelReply,
+      onEscape
+    }),
+    onPostError: (error) => {
+      if (slowModeSeconds <= 0 || !(error instanceof ConnectError)) return false;
+      if (error.code !== Code.ResourceExhausted) return false;
+      toast.error(m('composer.slow_mode_rejected'));
+      return true;
+    },
+    context: composerContext,
+    getMembers: getRoomMembers,
+    membersStore: getRoomMembersStore(),
+    mentionRolesStore,
+    serverInfo,
+    roomUnreadStore,
+    getMessageAPI: () => serverScope.connection.getAPI(createMessageAPI),
+    getLinkPreviewAPI: () => serverScope.connection.getAPI(createLinkPreviewAPI),
+    isConnectionLost: () => serverScope.connection.showConnectionLostBanner
+  });
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  {@attach observeComposerResize}
+  {@attach composer.observeResize}
   class="flex flex-col gap-2 p-2"
-  onclick={(e) => {
-    if (!(e.target as HTMLElement).closest('button, a, input, label, select, .tiptap')) {
-      editorApi?.focus();
+  onpointerdown={(event) => {
+    const target = event.target;
+    // Keep this on pointerdown: a release-time click after selecting into the
+    // padding would refocus the editor and collapse the selection.
+    if (
+      event.button === 0 &&
+      target instanceof Element &&
+      !target.closest('button, a, input, label, select, [data-composer-editor]')
+    ) {
+      composer.editorApi?.focus();
     }
   }}
 >
-  <!-- Link / message preview -->
-  {#if linkPreviews.activeURL}
-    {@const url = linkPreviews.activeURL}
-    {@const messageLink = parseMessageLink(url)}
-    {#if messageLink}
-      <MessagePreviewCard link={messageLink} onDismiss={() => linkPreviews.dismissPreview(url)} />
-    {:else if linkPreviews.fetchingURLs.has(url)}
-      <LinkPreviewSkeleton />
-    {:else if linkPreviews.previews.get(url)}
-      <LinkPreviewCard
-        preview={linkPreviews.previews.get(url)!}
-        onDismiss={() => linkPreviews.dismissPreview(url)}
-      />
-    {/if}
-  {/if}
+  <ComposerLinkPreview state={composer.linkPreviews} />
+  <ComposerAttachmentPreviews
+    attachments={composer.attachments}
+    importedAttachment={composer.linkPreviews.activeImportedAttachment}
+    disabled={composer.submission.loading}
+    getSubmissionStatus={(file) => composer.submission.attachmentStatus(file)}
+    onremove={(index) => composer.attachments.removeFile(index)}
+    onremoveimported={() => {
+      const url = composer.linkPreviews.activeURL;
+      if (url) composer.linkPreviews.dismissPreview(url);
+    }}
+  />
 
-  <!-- Selected files preview -->
-  {#if attachments.filesWithUrls.length > 0 || linkPreviews.activeImportedAttachment}
-    <div class="flex flex-wrap gap-2 rounded-lg bg-surface-300 p-2">
-      {#if linkPreviews.activeImportedAttachment}
-        {@const linkedAttachment = linkPreviews.activeImportedAttachment}
-        <div class="relative" data-testid="linked-image-attachment-preview">
-          <SkeletonImg
-            src={linkedAttachment.previewUrl}
-            alt={linkedAttachment.filename}
-            class="h-16 w-16 rounded-md object-cover"
-          />
-          <button
-            type="button"
-            onclick={() => {
-              const url = linkPreviews.activeURL;
-              if (url) linkPreviews.dismissPreview(url);
-            }}
-            class="absolute -top-1 -right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500 text-xs text-white hover:bg-red-600"
-            aria-label={m['preview.dismiss']()}
-          >
-            ×
-          </button>
-        </div>
+  {#if slowModeSeconds > 0}
+    <p class="px-0.5 text-xs text-muted" data-testid="slow-mode-status" aria-live="polite">
+      {#if slowModeBypassed}
+        {m('composer.slow_mode_bypassed', { interval: slowModeInterval })}
+      {:else if slowModeBlocked}
+        {m('composer.slow_mode_waiting', {
+          countdown: formatSlowModeCountdown(slowModeRemainingSeconds)
+        })}
+      {:else}
+        {m('composer.slow_mode_ready', { interval: slowModeInterval })}
       {/if}
-      {#each attachments.filesWithUrls as { file, url }, index (url)}
-        <div class="relative">
-          {#if file.type.startsWith('image/')}
-            <img src={url} alt={file.name} class="h-16 w-16 rounded-md object-cover" />
-          {:else if file.type.startsWith('video/')}
-            <!-- Browser renders the first frame as a thumbnail from the object URL -->
-            <video
-              data-testid="video-attachment-preview"
-              src="{url}#t=0.1"
-              preload="metadata"
-              muted
-              class="h-16 w-16 rounded-md object-cover"
-            ></video>
-          {:else if file.type.startsWith('audio/')}
-            <div
-              data-testid="audio-attachment-preview"
-              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
-            >
-              <span class="iconify text-lg text-muted uil--music"></span>
-            </div>
-          {:else}
-            <div
-              data-testid="file-attachment-preview"
-              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
-            >
-              <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
-            </div>
-          {/if}
-          <button
-            type="button"
-            onclick={() => removeFile(index)}
-            class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white hover:bg-red-600"
-          >
-            ×
-          </button>
-        </div>
-      {/each}
-    </div>
+    </p>
   {/if}
 
-  <!-- Hidden file input -->
-  {#if canAttach && !isEditing}
+  {#if threadsEncouraged && inReplyTo && !inThread}
+    <p class="px-0.5 text-xs text-muted" data-testid="threads-encouraged-hint">
+      {m('composer.threads_encouraged')}
+    </p>
+  {/if}
+
+  {#if canAttach && !composer.isEditing}
     <input
-      bind:this={fileInputElement}
+      bind:this={composer.fileInputElement}
       type="file"
       multiple
-      onchange={handleFileSelect}
+      onchange={(event) => composer.handleFileSelect(event)}
       class="hidden"
     />
   {/if}
 
-  <!-- Unified input container -->
   <div
     data-testid="composer-input-surface"
-    data-composer-mode={isRichComposer ? 'rich' : 'simple'}
-    class={[
-      'composer-mode-surface flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
-      isEditing ? 'pl-3' : 'pl-2'
-    ]}
-    class:opacity-50={inputDisabled}
-    class:sending={loading}
+    class="@container relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
+    class:opacity-50={composer.inputDisabled}
   >
-    <!-- Emoji autocomplete popup -->
-    {#if autocomplete.emoji}
+    {#if composer.autocomplete.emoji}
       <EmojiAutocomplete
-        bind:this={autocomplete.emojiRef}
-        query={autocomplete.emoji.query}
-        onSelect={handleEmojiSelect}
-        onClose={closeEmojiAutocomplete}
+        bind:this={composer.autocomplete.emojiRef}
+        query={composer.autocomplete.emoji.query}
+        onSelect={(emoji) => composer.autocomplete.selectEmoji(emoji)}
+        onClose={() => composer.autocomplete.closeEmoji()}
       />
     {/if}
 
-    <!-- Mention autocomplete popup -->
-    {#if autocomplete.mention}
+    {#if composer.autocomplete.mention}
       <MentionAutocomplete
-        bind:this={autocomplete.mentionRef}
-        query={autocomplete.mention.query}
-        members={mentionCandidateMembers}
-        roles={mentionRoles}
-        onSelect={handleMentionSelect}
-        onClose={closeMentionAutocomplete}
+        bind:this={composer.autocomplete.mentionRef}
+        query={composer.autocomplete.mention.query}
+        members={composer.mentionCandidates}
+        roles={composer.mentionRoles}
+        onSelect={(login, viaTab) => composer.autocomplete.selectMention(login, viaTab)}
+        onClose={() => composer.autocomplete.closeMention()}
       />
     {/if}
-    <!-- Attachment button - hidden in edit mode (editMessage only supports text) -->
-    {#if !isEditing && canAttach}
-      <button
-        type="button"
-        onclick={() => fileInputElement?.click()}
-        disabled={inputDisabled}
-        class="flex h-8 w-11 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:text-text disabled:cursor-not-allowed"
-        title={m['composer.attach_file']()}
-      >
-        <span class="iconify text-xl uil--image-upload"></span>
-      </button>
-    {/if}
 
-    <!-- Text input (TipTap editor) -->
-    {#await tipTapEditorModule}
-      <div class="min-h-8 min-w-0 flex-1 py-1" aria-hidden="true"></div>
-    {:then { default: TipTapEditor }}
-      <TipTapEditor
-        placeholder={currentPlaceholder}
-        editable={!inputDisabled}
-        autofocus={autoFocus && shouldAutoFocus()}
-        {testid}
-        onUpdate={handleEditorUpdate}
-        onKeyDown={handleEditorKeyDown}
-        onPaste={handlePaste}
-        onNextEnterWillSendChange={(value) => (editorNextEnterWillSend = value)}
-        onRichStructureChange={handleRichStructureChange}
-        onReady={handleEditorReady}
-      />
-    {/await}
-
-    <div class="flex h-8 shrink-0 items-center gap-2">
-      {#if submitHint && canSubmit}
-        <span
-          aria-hidden="true"
-          title={submitHint}
-          class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted/75"
-        >
-          {submitHint}
-        </span>
-      {/if}
-
-      <!-- Send button -->
-      <button
-        type="button"
-        onpointerdown={(e) => e.preventDefault()}
-        onclick={handleSubmit}
-        disabled={!canSubmit}
-        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-        aria-label={m['composer.send']()}
-        title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
-      >
-        <span class="iconify text-xl uil--telegram-alt"></span>
-      </button>
+    <div class="min-h-9 min-w-0 px-0.5 py-0.5" data-testid="composer-editor-row">
+      {#await editorModule}
+        <div class="min-h-8 min-w-0" aria-hidden="true"></div>
+      {:then { default: Editor }}
+        <Editor
+          placeholder={composer.currentPlaceholder}
+          editable={!composer.inputDisabled}
+          autofocus={autoFocus && shouldAutoFocus()}
+          testid={composer.testid}
+          onUpdate={(text) => composer.handleEditorUpdate(text)}
+          onKeyDown={(event) => composer.handleEditorKeyDown(event)}
+          onPaste={(event) => composer.handlePaste(event)}
+          onFormattingStateChange={(formatting) => (composer.formattingState = { ...formatting })}
+          onIndentStateChange={(state) => (composer.indentState = { ...state })}
+          onReady={(api) => composer.handleEditorReady(api)}
+          onDestroy={(api) => composer.handleEditorDestroyed(api)}
+        />
+      {/await}
     </div>
+
+    <ComposerToolbar
+      formattingState={composer.formattingState}
+      indentState={composer.indentState}
+      editorApi={composer.editorApi}
+      inputDisabled={composer.inputDisabled}
+      {canAttach}
+      isEditing={composer.isEditing}
+      canSubmit={composer.canSubmit}
+      fileInputElement={composer.fileInputElement}
+      effectiveTimezone={userSettings.effectiveTimezone}
+      showCreateThread={showCreateThread && !composer.isEditing && !inThread}
+      createThread={createThreadRequired || composer.createThread}
+      {createThreadRequired}
+      onToggleCreateThread={() => (composer.createThread = !composer.createThread)}
+      showAlsoSendToChannel={(showAlsoSendToChannel && !composer.isEditing) ||
+        composer.showEditEchoToggle}
+      alsoSendToChannel={composer.alsoSendToChannel}
+      onToggleAlsoSendToChannel={() => (composer.alsoSendToChannel = !composer.alsoSendToChannel)}
+      onsubmit={() => composer.submit()}
+    />
   </div>
 
-  <!-- Also send to channel checkbox (thread replies only, when permitted) -->
-  {#if (showAlsoSendToChannel && !isEditing) || showEditEchoCheckbox}
-    <label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
-      <input
-        type="checkbox"
-        bind:checked={alsoSendToChannel}
-        disabled={inputDisabled}
-        class="cursor-pointer accent-primary"
-      />
-      {m['composer.also_send_to_channel']()}
-    </label>
-  {/if}
-
-  <!-- Reply indicator -->
-  {#if inReplyTo && replyDisplayName}
-    <div
-      data-testid="reply-indicator"
-      class="flex items-center justify-between rounded-md bg-surface-200 px-3 py-2 text-sm"
-    >
-      <span class="min-w-0 truncate text-text">
-        {m['composer.replying_to']()} <strong>{replyDisplayName}</strong>
-        {#if replyExcerpt}
-          <span class="text-muted"> &mdash; {replyExcerpt}</span>
-        {/if}
-      </span>
-      <!-- Desktop: clickable "Esc to cancel" -->
-      <button
-        type="button"
-        onclick={() => onCancelReply?.()}
-        class="hidden shrink-0 cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
-      >
-        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd>
-        {m['composer.esc_to_cancel']()}
-      </button>
-      <!-- Mobile: visible "Cancel" button -->
-      <button
-        type="button"
-        onclick={() => onCancelReply?.()}
-        class="shrink-0 cursor-pointer rounded bg-surface-300 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-highlighted sm:hidden"
-      >
-        {m['common.cancel']()}
-      </button>
-    </div>
-  {/if}
-
-  <!-- Edit mode indicator -->
-  {#if isEditing}
-    <div class="flex items-center justify-between rounded-md bg-surface-200 px-3 py-2 text-sm">
-      <span class="text-text">{m['composer.editing']()}</span>
-      <!-- Desktop: clickable "Esc to cancel" -->
-      <button
-        type="button"
-        onclick={cancelEdit}
-        class="hidden cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
-      >
-        <kbd class="rounded bg-surface-300 px-1.5 py-0.5 text-xs">Esc</kbd>
-        {m['composer.esc_to_cancel']()}
-      </button>
-      <!-- Mobile: visible "Cancel" button -->
-      <button
-        type="button"
-        onclick={cancelEdit}
-        class="cursor-pointer rounded bg-surface-300 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-highlighted sm:hidden"
-      >
-        {m['common.cancel']()}
-      </button>
-    </div>
-  {/if}
+  <ComposerModeIndicators
+    {inReplyTo}
+    {replyDisplayName}
+    {replyExcerpt}
+    isEditing={composer.isEditing}
+    oncancelreply={() => onCancelReply?.()}
+    oncanceledit={() => composer.cancelEdit()}
+  />
 </div>
 
-{#if pendingRoleMentionConfirmation}
+{#if composer.submission.pendingRoleMentionConfirmation}
   <ConfirmDialog
-    title={m['composer.role_mention_confirm_title']()}
+    title={m('composer.role_mention_confirm_title')}
     tone="warning"
-    actionLabel={m['composer.send_anyway']()}
-    actionIcon="iconify uil--telegram-alt"
-    loading={roleMentionConfirmationLoading}
-    onconfirm={confirmRoleMentionSend}
-    onclose={cancelRoleMentionConfirmation}
+    actionLabel={m('composer.send_anyway')}
+    actionIcon="iconify icon-[uil--telegram-alt]"
+    loading={composer.submission.roleMentionConfirmationLoading}
+    onconfirm={() => composer.submission.confirmRoleMentionSend()}
+    onclose={() => composer.submission.cancelRoleMentionConfirmation()}
   >
-    {m['composer.role_mention_confirm_body']()}
+    {m('composer.role_mention_confirm_body')}
   </ConfirmDialog>
 {/if}
 
-<style>
-  .sending {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(
-      90deg,
-      var(--color-surface) 0%,
-      var(--color-surface-highlighted) 50%,
-      var(--color-surface) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-  }
+{#if composer.pendingThreadDestinationConfirmation}
+  <Dialog
+    visible
+    size="md"
+    title={m('composer.recent_thread_confirm_title')}
+    onclose={() => composer.cancelThreadDestinationConfirmation()}
+  >
+    <p class="text-muted">{m('composer.recent_thread_confirm_body')}</p>
 
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-</style>
+    {#snippet footer()}
+      <div class="flex justify-end gap-2">
+        <Button variant="secondary" onclick={() => composer.cancelThreadDestinationConfirmation()}>
+          {m('common.cancel')}
+        </Button>
+        <Button variant="secondary" onclick={() => composer.postAsNewRoot()}>
+          {m('composer.post_as_new_message')}
+        </Button>
+        <Button defaultAction variant="action" onclick={() => composer.postInRecentThread()}>
+          <span class="iconify icon-[uil--comment-alt-lines]"></span>
+          {m('composer.continue_in_thread')}
+        </Button>
+      </div>
+    {/snippet}
+  </Dialog>
+{/if}

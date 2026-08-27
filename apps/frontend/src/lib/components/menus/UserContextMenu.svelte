@@ -8,6 +8,8 @@ ContextMenu, which handles both modes automatically.
 **Props:**
 - `user` - The user to display (must include id, login, displayName, presenceStatus)
 - `anchorRect` - Bounding rect of the trigger element (used for desktop positioning)
+- `position` - Viewport point used by right-click and long-press triggers
+- `presentation` - Optional floating/sheet presentation selected by the trigger
 - `canSendMessage` - Whether to show the "Send Message" button
 - `onSendMessage` - Callback when "Send Message" is clicked
 - `canBanFromRoom` - Whether to show the room-ban action
@@ -16,7 +18,8 @@ ContextMenu, which handles both modes automatically.
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
-  import type { PresenceStatus } from '$lib/render/types';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
@@ -26,11 +29,14 @@ ContextMenu, which handles both modes automatically.
     getLiveLogin,
     type CustomUserStatus
   } from '$lib/state/userProfiles.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
+  import { toast } from '$lib/ui/toast';
 
   let {
     user,
     anchorRect,
+    position,
+    presentation = 'auto',
     canSendMessage = false,
     canBanFromRoom = false,
     banningFromRoom = false,
@@ -47,6 +53,8 @@ ContextMenu, which handles both modes automatically.
       customStatus?: CustomUserStatus | null;
     };
     anchorRect?: { top: number; bottom: number; left: number } | null;
+    position?: { x: number; y: number };
+    presentation?: 'auto' | 'floating' | 'sheet';
     canSendMessage?: boolean;
     canBanFromRoom?: boolean;
     banningFromRoom?: boolean;
@@ -66,30 +74,43 @@ ContextMenu, which handles both modes automatically.
   function handleBanFromRoom() {
     onBanFromRoom?.();
   }
+
+  async function handleCopyUserId(): Promise<void> {
+    try {
+      const write = navigator.clipboard.writeText(user.id);
+      onClose?.();
+      await write;
+      toast.success(m('common.copied_to_clipboard'));
+    } catch {
+      toast.error(m('common.error.generic'));
+    }
+  }
 </script>
 
 <ContextMenu
+  {position}
   anchor={anchorRect}
+  {presentation}
   role="dialog"
-  ariaLabel={m['chat.user_menu.profile']()}
+  ariaLabel={m('chat.user_menu.profile')}
   class="w-64"
   onclose={() => onClose?.()}
 >
-  <div class="rounded-md bg-background">
-    <div class="flex items-center gap-3 p-3">
-      <UserAvatar {user} size="md" />
-      <div class="min-w-0 flex-1">
-        <div class="truncate font-semibold">{displayName}</div>
-        <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
-        <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
-      </div>
+  <div class="flex items-center gap-3 menu-section p-3">
+    <UserAvatar {user} size="md" />
+    <div class="min-w-0 flex-1">
+      <div class="truncate font-semibold">{displayName}</div>
+      <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
+      <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
     </div>
+  </div>
 
-    {#if canSendMessage || canBanFromRoom}
-      <div class="border-t border-border p-1">
+  {#if canSendMessage || canBanFromRoom}
+    <div class="menu-section">
+      <nav class="sidebar-nav">
         {#if canSendMessage}
           <button type="button" class="sidebar-item" onclick={handleSendMessage}>
-            {m['chat.user_menu.send_message']()}
+            {m('chat.user_menu.send_message')}
           </button>
         {/if}
         {#if canBanFromRoom}
@@ -99,10 +120,23 @@ ContextMenu, which handles both modes automatically.
             onclick={handleBanFromRoom}
             disabled={banningFromRoom}
           >
-            {banningFromRoom ? m['admin.moderation.banning']() : m['admin.moderation.ban_action']()}
+            {banningFromRoom ? m('admin.moderation.banning') : m('admin.moderation.ban_action')}
           </button>
         {/if}
-      </div>
-    {/if}
+      </nav>
+    </div>
+  {/if}
+
+  <div class="menu-section">
+    <nav class="sidebar-nav">
+      <button
+        type="button"
+        class="sidebar-item"
+        onclick={() => void handleCopyUserId()}
+        data-testid="copy-user-id"
+      >
+        {m('chat.user_menu.copy_user_id')}
+      </button>
+    </nav>
   </div>
 </ContextMenu>

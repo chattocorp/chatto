@@ -1,11 +1,11 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-07-01
+**Last reviewed:** 2026-08-20
 
 ## Overview
 
-Rooms support real-time voice conversations with optional camera video and video-only screen/window/tab sharing. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
+Rooms support real-time voice conversations with optional camera video and screen/window/tab sharing. Supported browsers can include audio from a shared browser tab. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
 
 ## Behavior
 
@@ -17,23 +17,25 @@ Rooms support real-time voice conversations with optional camera video and video
 - A desktop active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route.
 - Camera and screen-share tiles expose hover controls for feed fullscreen, while all joined participant tiles expose a hover local-mute control. Fullscreen is local to the viewer's browser. Remote participant mute is also local to the viewer and does not change server state or other participants' audio. Local participant tiles show the same mute affordance, wired to the viewer's own microphone mute.
 - While the viewer is in any call, the lower-left current-user card shows the active call room plus quick mute, camera, screen-share, and leave controls so the call remains visible outside the room tab.
+- While the viewer is connected to a call, supported browsers request a screen wake lock so the display does not automatically dim or lock. The lock is released when the call ends and requested again when the app returns to the foreground. Browsers that do not support or grant wake locks continue the call without this enhancement; a wake lock does not prevent mobile operating systems from suspending an app that the user backgrounds or manually locks.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
 - Message author names show a compact call presence icon when the author is in the current room's active call: phone for voice-only participants, video camera when the viewer has joined the LiveKit call and can see an active camera track.
-- A member's join/leave updates active call indicators and participant lists, but call lifecycle and participant transitions are not shown as room timeline messages. Explicit user intent is recorded immediately, and LiveKit webhooks/reconciliation confirm or correct the active participant projection.
-- Losing room membership also removes the user from the room's active call. This includes voluntarily leaving the room, being removed by a moderator, being banned, and account-deletion cleanup. Chatto records the call leave from the membership transition and best-effort asks LiveKit to disconnect the participant; if that LiveKit removal fails, the room membership change still succeeds and reconciliation can catch up later.
+- A call start appears in the room timeline as a system row naming the member who started it. While that exact call remains active, the row includes a "Join call" action that opens the room's call sidebar. The final leave adds a separate "The active call has ended" row. Individual participant joins and leaves update call indicators and participant lists without adding timeline rows. Explicit user intent is recorded immediately, and LiveKit webhooks/reconciliation confirm or correct the active participant projection.
+- Losing room membership also removes the user from the room's active call. This includes voluntarily leaving the room, being removed by a moderator, being banned, and account-deletion cleanup. The affected client immediately hides that room's call roster and disconnects its local media when the membership change arrives. Chatto records the call leave from the membership transition and best-effort asks LiveKit to disconnect the participant; if that LiveKit removal fails, the room membership change still succeeds and reconciliation can catch up later.
 - Joined call participants hear fixed synthesized cues from durable participant join/leave events, including their own join/leave events and other participants in the same active call. These call cues are separate from configurable notification sounds and do not use notification sound filters; `CallEndedEvent` does not play a separate cue.
 - The first join starts a call session, creates fresh per-call E2EE key material, and records durable call lifecycle facts. The final leave ends the call, records the end fact, and shreds the call key.
 - Hanging up disconnects from LiveKit and clears the participant from everyone else's view.
 - New clients always enable LiveKit E2EE before connecting. Chatto distributes a KMS-backed per-call shared key with the LiveKit join token; the raw key is never written to EVT and is shredded when the call ends.
-- Screen sharing is video-only in Chatto's UI. Browser tab audio sharing is not published by Chatto today.
+- Screen sharing requests browser-tab audio when the browser supports it. In Chrome, the presenter must select a browser tab and enable **Share tab audio** in the browser picker. Chatto excludes whole-system audio so remote call playback is not captured and fed back into the room.
 - Screen-share state is LiveKit track state only. Users who have not joined the call still see who is in the active call, but they do not see whether a participant is sharing a screen.
+- Screen sharing is one call control on every host. In a web browser it opens the browser's own window/tab/screen picker. On macOS 15 and newer, Chatto Desktop instead opens a Chatto picker with static previews of ordinary visible application windows and complete displays. Selecting a window publishes its video and isolated owning-application audio; selecting a display is video-only so Chatto's remote call playback cannot be captured and echoed upstream. Native sharing offers multiple quality layers so LiveKit can match receiver size and network conditions while pausing unused layers. Browser and native sharing occupy one mutually exclusive share slot, while camera and microphone remain independent.
 - When LiveKit is not configured on the server, all voice UI is hidden — no button, no panel, no indicator.
 
 ## Design Decisions
 
 ### 1. Call lifecycle and join/leave are durable room facts with internal source
 
-**Decision:** `CallStartedEvent`, `CallParticipantJoinedEvent`, `CallParticipantLeftEvent`, and `CallEndedEvent` are persisted in the room EVT aggregate keyed by room ID, on `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`, `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. Explicit frontend join/leave writes use source `USER`; LiveKit webhook writes use source `LIVEKIT`; reconciliation writes use source `RECONCILIATION`. Public APIs expose call state without the internal source or E2EE key ref. Call facts drive active call state, live indicators, and key lifecycle, but are hidden from normal room history.
+**Decision:** `CallStartedEvent`, `CallParticipantJoinedEvent`, `CallParticipantLeftEvent`, and `CallEndedEvent` are persisted in the room EVT aggregate keyed by room ID, on `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`, `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. Explicit frontend join/leave writes use source `USER`; LiveKit webhook writes use source `LIVEKIT`; reconciliation writes use source `RECONCILIATION`. Public APIs expose active call state and call-start/end timeline rows without the internal source or E2EE key ref. Start and end facts drive room history as well as active call state, live indicators, and key lifecycle; participant transitions remain hidden from normal room history.
 **Why:** Calls are realtime/audit facts that should survive process restarts and be delivered through the same durable live EVT path as other room facts. Chatto's product model treats calls as always happening inside a room, with at most one active call per room. Rooms are intentionally cheap coordination spaces, so future private, temporary, or non-public calls can use short-lived rooms and inherit room membership, authorization, naming, visibility, and live-delivery behavior instead of introducing a separate call-membership model. Keeping source internal lets projections distinguish optimistic user intent from media-server observation without adding public API surface.
 **Tradeoff:** Duplicate user/LiveKit/reconciliation reports are collapsed at the call-state write boundary when they do not change participant state. A real join, leave, and later rejoin still records each transition as a distinct call session. The model uses the call projection's per-room applied sequence as the OCC token against `evt.room.{roomId}.>` so lifecycle and participant transitions are guarded by the room aggregate boundary across replicas. The design deliberately favors room-scoped calls over independent call aggregates; if calls later need their own durable lifecycle beyond the room boundary, new writes may need to move to a call aggregate while replaying legacy room-scoped facts.
 
@@ -63,9 +65,9 @@ Rooms support real-time voice conversations with optional camera video and video
 
 ### 6. Screen sharing is joined-client LiveKit track state
 
-**Decision:** Screen/window/tab sharing uses LiveKit's browser screen-share publishing path and is represented only by `Track.Source.ScreenShare` on joined clients. Chatto does not persist separate screen-share events, add public API fields, or expose screen-share state to call observers before they join.
+**Decision:** Screen/window/tab sharing uses LiveKit's browser screen-share publishing path and is represented by screen-share video plus optional browser-provided tab audio on joined clients. Chatto requests tab audio, publishes it with media-oriented stereo settings, and excludes whole-system audio. Chatto does not persist separate screen-share events, add public API fields, or expose screen-share state to call observers before they join.
 **Why:** Screen sharing is media-session state, and the existing durable room facts already answer the server-owned question of who is in the call. Keeping screen-share state inside LiveKit avoids adding durable state that can become stale when browser capture ends.
-**Tradeoff:** Non-joined observers know a call is active and who is in it, but not whether someone is sharing. Browser-tab audio sharing is also out of scope for this version.
+**Tradeoff:** Non-joined observers know a call is active and who is in it, but not whether someone is sharing. Audio capture remains browser- and surface-dependent, and presenters must opt into tab audio in the browser picker.
 
 ### 7. Big-call mode is a desktop pane state, not a separate route
 
@@ -87,13 +89,26 @@ Rooms support real-time voice conversations with optional camera video and video
 
 ### 10. E2EE keys are KMS-backed per-call secrets
 
-**Decision:** `voiceCallToken` returns both `token` and `e2eeKey`. The first join for a room creates a new call ID and per-call E2EE key through Chatto's KMS boundary, stores the raw key in `ENCRYPTION_KEYS` under `call.e2ee.{callId}`, and records only the key ref in `CallStartedEvent`. The final leave records `CallEndedEvent` and shreds the key ref. The frontend creates an `ExternalE2EEKeyProvider`, configures the LiveKit E2EE worker, sets the key, enables E2EE, then connects.
-**Why:** LiveKit E2EE key generation/distribution is application responsibility. Chatto already authorizes token access by room membership, so the token resolver is the narrow place to distribute the shared call key. Keeping the raw key out of EVT and normal backups avoids turning event-log copies into permanent decrypt material for captured media.
-**Tradeoff:** Always-on E2EE breaks media compatibility with older clients that do not enable E2EE. Restoring a backup without `ENCRYPTION_KEYS` cannot recover active call keys; active calls should be considered interrupted across such restores.
+**Decision:** `voiceCallToken` returns both `token` and `e2eeKey`. The first join for a room creates a new call ID and per-call E2EE key through Chatto's KMS boundary, stores the raw key in `ENCRYPTION_KEYS` under `call.e2ee.{callId}`, and records only the key ref in `CallStartedEvent`. The final leave records `CallEndedEvent`, then attempts idempotent key shredding. That event is also the durable trigger for the shared call-key cleanup consumer, which retries unfinished shredding across crashes and replicas. The frontend creates an `ExternalE2EEKeyProvider`, configures the LiveKit E2EE worker, sets the key, enables E2EE, then connects.
+**Why:** LiveKit E2EE key generation/distribution is application responsibility. Chatto already authorizes token access by room membership, so the token resolver is the narrow place to distribute the shared call key. Keeping the raw key out of EVT and normal backups avoids turning event-log copies into permanent decrypt material for captured media. Making the end fact the retry source closes the post-commit crash window without coupling recovery to LiveKit reconciliation.
+**Tradeoff:** Always-on E2EE breaks media compatibility with older clients that do not enable E2EE. Key deletion is at least once, so replicas may repeat the same idempotent shredding attempt; an unavailable KMS can briefly retain an ended call's key until retry succeeds. Restoring a backup without `ENCRYPTION_KEYS` cannot recover active call keys; active calls should be considered interrupted across such restores.
+
+### 11. Screen sharing is one action with an optional native host capability
+
+**Decision:** Voice controls expose one screen-share action. When the host advertises the narrow native screen-share capability, Chatto presents short-lived, single-use opaque window and display offers with in-memory previews in its own picker. Enumeration requires a user action, supersedes any earlier enumeration, and excludes Chatto Desktop's own windows. Without that capability, the action delegates to LiveKit and the browser's picker. Selecting a native source starts a publish-only LiveKit companion connection with its own opaque identity and the same per-call E2EE key. The frontend merges that connection's media into the owning member's logical participant, hides the companion as a separate tile, and never attaches the local owner's companion audio. Window capture publishes owning-application audio; full-display capture is video-only because system audio would contain remote call playback. Starting either implementation replaces the other; camera and microphone publications are unaffected.
+**Why:** One action matches the user's intent independently of where Chatto runs. The browser keeps its required security chooser, while native capture can add previews, deterministic source choice, and owning-application audio that Chromium's path cannot provide consistently. Direct native publication also avoids an H.264 decode, canvas copy, browser capture, and second WebRTC encode. The optional capability pattern from ADR-072 keeps platform knowledge out of the shared product state and leaves macOS, Windows, and feasible Linux providers independent.
+**Tradeoff:** Desktop source enumeration requires macOS Screen & System Audio Recording permission, and static previews can become stale before selection; the helper re-resolves the offered source, verifies a window still belongs to the enumerated application, and fails safely. Full-display viewers do not receive source audio until the native path can exclude Chatto's own playback before capture. The server must mint a separate short-lived publisher credential because reusing the member's LiveKit identity would disconnect their primary call connection. Webhooks and reconciliation exclude companion identities from durable call membership, while stale-room cleanup still removes them. The first macOS target publishes aspect-ratio-preserving H.264 quality classes with maximum edges of 1920, 1280, and 640 pixels at 60, 60, and 30 fps respectively. Encoding multiple layers can consume more publisher CPU and upload when receivers simultaneously request different qualities, while dynacast avoids that cost for unused layers. Actual cadence and quality remain dependent on the source, hardware encoder, network, SFU, and receiving device.
+
+### 12. Active calls request a best-effort screen wake lock
+
+**Decision:** While the viewer is connected to any call, the web client requests a screen wake lock from supporting browsers. Because browsers release locks when a document is hidden, the client requests a fresh lock after returning to the foreground. Ending the call releases the lock. Unsupported or rejected requests do not interrupt the call.
+**Why:** Preventing automatic display sleep reduces avoidable call interruption and friction on mobile devices while respecting the browser's power and permission policy.
+**Tradeoff:** The API can keep a visible screen awake, but it cannot guarantee background execution or override manual device locking, operating-system power policy, or browser suspension. Keeping the display on also uses more battery.
 
 ## Permissions
 
 - `voiceCallToken` query — requires room membership.
+- `CreateCallMediaPublisherToken` — requires room membership and current participation in the active call.
 - `callParticipants` query — requires room membership.
 - `activeCallRoomIds` query — requires server membership.
 - `joinVoiceCall` / `leaveVoiceCall` mutations — require room membership.
@@ -102,8 +117,8 @@ Voice calling doesn't have a dedicated permission today; room membership is the 
 
 ## Related
 
-- **ADRs:** ADR-009 (webhook-driven voice call state), ADR-012 (two-tier real-time events), ADR-020 (build-tag gated test endpoints)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-019 (Room Lifecycle)
+- **ADRs:** ADR-009 (webhook-driven voice call state), ADR-012 (two-tier real-time events), ADR-020 (build-tag gated test endpoints), ADR-051 (server-scoped resumable client projection), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-072 (optional host capabilities)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-019 (Room Lifecycle), FDR-034 (Chatto Desktop)
 
 ## Open Questions
 

@@ -96,3 +96,51 @@ func TestIsYouTubeURL(t *testing.T) {
 	assert.False(t, IsYouTubeURL("https://example.com"))
 	assert.False(t, IsYouTubeURL("https://notyoutube.com/watch?v=dQw4w9WgXcQ"))
 }
+
+func TestIsBlueskyPostURL(t *testing.T) {
+	tests := []struct {
+		url      string
+		expected bool
+	}{
+		{"https://bsky.app/profile/bsky.app/post/3kq7aeuwbg42k", true},
+		{"https://bsky.app/profile/did:plc:z72i7hdynmk6r22z27h6tvur/post/3kq7aeuwbg42k", true},
+		{"https://BSKY.APP/profile/bsky.app/post/3kq7aeuwbg42k?ref=share", true},
+		{"https://bsky.app/profile/bsky.app", false},
+		{"https://bsky.app/profile/bsky.app/post/", false},
+		{"https://embed.bsky.app/profile/bsky.app/post/3kq7aeuwbg42k", false},
+		{"https://notbsky.app/profile/bsky.app/post/3kq7aeuwbg42k", false},
+		{"ftp://bsky.app/profile/bsky.app/post/3kq7aeuwbg42k", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.url, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IsBlueskyPostURL(tt.url))
+		})
+	}
+}
+
+func TestParseMastodonStatusURL(t *testing.T) {
+	tests := []struct {
+		url      string
+		origin   string
+		statusID string
+		ok       bool
+	}{
+		{"https://mastodon.social/@Gargron/103270115826048975", "https://mastodon.social", "103270115826048975", true},
+		{"https://social.example/users/alice/statuses/12345?ref=share", "https://social.example", "12345", true},
+		{"https://social.example/@alice/12345/", "https://social.example", "12345", true},
+		{"https://social.example/@alice", "", "", false},
+		{"https://social.example/@alice/not-a-status", "", "", false},
+		{"https://social.example/tags/12345", "", "", false},
+		{"ftp://social.example/@alice/12345", "", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.url, func(t *testing.T) {
+			origin, statusID, ok := ParseMastodonStatusURL(tt.url)
+			assert.Equal(t, tt.origin, origin)
+			assert.Equal(t, tt.statusID, statusID)
+			assert.Equal(t, tt.ok, ok)
+		})
+	}
+}

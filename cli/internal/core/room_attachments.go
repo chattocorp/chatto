@@ -70,29 +70,42 @@ type BatchRoomAssetsInput struct {
 }
 
 // ListRoomAttachments returns current message-owned attachments for a room the
-// actor belongs to.
+// actor may read.
 func (c *ChattoCore) ListRoomAttachments(ctx context.Context, input ListRoomAttachmentsInput) (*RoomAttachmentsResult, error) {
-	_, kind, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	_, kind, err := c.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
-	return c.GetRoomAttachments(ctx, kind, input.RoomID, input.Limit, input.Offset)
+	return c.getRoomAttachments(ctx, kind, input.RoomID, input.Limit, input.Offset, func(messageEventID string) (bool, error) {
+		return c.CanReadMessage(ctx, input.ActorID, kind, input.RoomID, messageEventID)
+	})
 }
 
-// GetRoomAsset returns one room-scoped asset for a room the actor belongs to.
+// GetRoomAsset returns one room-scoped asset for a room the actor may read.
 // Missing, deleted, and wrong-room asset IDs return ErrNotFound.
 func (c *ChattoCore) GetRoomAsset(ctx context.Context, input RoomAssetInput) (*corev1.Attachment, error) {
-	room, _, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	room, kind, err := c.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
-	return c.roomAsset(room.Id, input.AssetID)
+	attachment, err := c.roomAsset(room.Id, input.AssetID)
+	if err != nil {
+		return nil, err
+	}
+	allowed, err := c.CanReadRoomAsset(ctx, input.ActorID, kind, room.Id, input.AssetID)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, ErrPermissionDenied
+	}
+	return attachment, nil
 }
 
-// BatchGetRoomAssets returns room-scoped assets for a room the actor belongs
+// BatchGetRoomAssets returns room-scoped assets for a room the actor may read
 // to. Missing, deleted, and wrong-room asset IDs are omitted.
 func (c *ChattoCore) BatchGetRoomAssets(ctx context.Context, input BatchRoomAssetsInput) ([]*corev1.Attachment, error) {
-	room, _, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	room, kind, err := c.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +124,13 @@ func (c *ChattoCore) BatchGetRoomAssets(ctx context.Context, input BatchRoomAsse
 			}
 			return nil, err
 		}
+		allowed, err := c.CanReadRoomAsset(ctx, input.ActorID, kind, room.Id, assetID)
+		if err != nil {
+			return nil, err
+		}
+		if !allowed {
+			continue
+		}
 		out = append(out, attachment)
 	}
 	return out, nil
@@ -120,11 +140,11 @@ func (c *ChattoCore) roomAsset(roomID, assetID string) (*corev1.Attachment, erro
 	if assetID == "" {
 		return nil, invalidArgument("asset_id is required")
 	}
-	declared, ok := c.assetLifecycle().AssetCreation(assetID)
-	if !ok || declared == nil || c.assetLifecycle().AssetDeleted(assetID) {
+	declared, ok := c.assetModel.AssetCreation(assetID)
+	if !ok || declared == nil || c.assetModel.AssetDeleted(assetID) {
 		return nil, ErrNotFound
 	}
-	assetRoomID, ok := c.assetLifecycle().AssetRoomID(assetID)
+	assetRoomID, ok := c.assetModel.AssetRoomID(assetID)
 	if !ok || assetRoomID != roomID {
 		return nil, ErrNotFound
 	}
@@ -136,12 +156,27 @@ func (c *ChattoCore) roomAsset(roomID, assetID string) (*corev1.Attachment, erro
 	return attachment, nil
 }
 
+// CanReadRoomAsset reports whether an account can read one room asset. Pending
+// assets without a durable message owner do not qualify for interaction-scoped
+// reads. Callers must enforce current room membership.
+func (c *ChattoCore) CanReadRoomAsset(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) (bool, error) {
+	broad, err := c.CanReadMessages(ctx, actorID, kind, roomID)
+	if err != nil || broad || kind == KindDM {
+		return broad, err
+	}
+	ownerRoomID, messageEventID, ok := c.AssetMessageTarget(assetID)
+	if !ok || ownerRoomID != roomID {
+		return false, nil
+	}
+	return c.CanReadMessage(ctx, actorID, kind, roomID, messageEventID)
+}
+
 // MessageAttachments returns the current attachments for one visible message in
-// a room the actor belongs to. Retracted, hidden, wrong-room, and non-message
+// a room the actor may read. Retracted, hidden, wrong-room, and non-message
 // event IDs return ErrMessageNotFound so callers do not learn more than the
 // timeline read path would reveal.
 func (c *ChattoCore) MessageAttachments(ctx context.Context, input MessageAttachmentsInput) ([]*corev1.Attachment, error) {
-	_, kind, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	_, kind, err := c.requireMessageReader(ctx, input.ActorID, input.RoomID, input.EventID)
 	if err != nil {
 		return nil, err
 	}
@@ -149,10 +184,10 @@ func (c *ChattoCore) MessageAttachments(ctx context.Context, input MessageAttach
 }
 
 // BatchMessageAttachments returns current attachments for visible messages in a
-// room the actor belongs to. Missing, retracted, hidden, wrong-room, and
+// room the actor may read. Missing, retracted, hidden, wrong-room, and
 // non-message event IDs are omitted.
 func (c *ChattoCore) BatchMessageAttachments(ctx context.Context, input BatchMessageAttachmentsInput) ([]*MessageAttachmentSet, error) {
-	_, kind, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	_, kind, err := c.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +199,13 @@ func (c *ChattoCore) BatchMessageAttachments(ctx context.Context, input BatchMes
 			continue
 		}
 		seen[eventID] = struct{}{}
+		allowed, err := c.CanReadMessage(ctx, input.ActorID, kind, input.RoomID, eventID)
+		if err != nil {
+			return nil, err
+		}
+		if !allowed {
+			continue
+		}
 
 		attachments, err := c.messageAttachments(ctx, kind, input.RoomID, eventID)
 		if err != nil {
@@ -188,7 +230,7 @@ func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, room
 	if event == nil || event.GetMessagePosted() == nil {
 		return nil, ErrMessageNotFound
 	}
-	body, err := c.GetFullMessageBodyByEventID(ctx, eventID)
+	body, err := c.GetFullMessageBody(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -215,8 +257,14 @@ func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, room
 // timeline projection's current attachment-message index, and preserves
 // attachment order within each message.
 //
-// Authorization: caller must verify room membership before calling.
+// Authorization: caller must verify room membership and applicable
+// channel-room message-read authority before calling. DM membership authorizes
+// the DM read.
 func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, roomID string, limit int, offset int) (*RoomAttachmentsResult, error) {
+	return c.getRoomAttachments(ctx, kind, roomID, limit, offset, nil)
+}
+
+func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, roomID string, limit int, offset int, visible func(string) (bool, error)) (*RoomAttachmentsResult, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -225,7 +273,7 @@ func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, room
 	}
 
 	items := make([]*RoomAttachmentItem, 0)
-	for _, message := range c.rooms().currentRoomAttachmentMessages(roomID) {
+	for _, message := range c.roomModel.currentRoomAttachmentMessages(roomID) {
 		if message.Entry == nil || message.Entry.Event == nil || message.Body == nil {
 			continue
 		}
@@ -233,7 +281,16 @@ func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, room
 		if posted == nil {
 			continue
 		}
-		attachments := c.MessageBodyAttachments(message.Body)
+		if visible != nil {
+			allowed, err := visible(message.Entry.Event.GetId())
+			if err != nil {
+				return nil, err
+			}
+			if !allowed {
+				continue
+			}
+		}
+		attachments := c.mediaModel.MessageBodyAttachments(message.Body)
 		if len(attachments) == 0 {
 			continue
 		}

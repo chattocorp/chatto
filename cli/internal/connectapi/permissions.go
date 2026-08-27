@@ -148,11 +148,12 @@ func apiPermissionExplanations(explanations []core.PermissionExplanation) []*adm
 
 func apiPermissionExplanation(explanation core.PermissionExplanation) *adminv1.PermissionExplanation {
 	out := &adminv1.PermissionExplanation{
-		Permission:    string(explanation.Permission),
-		State:         apiPermissionExplanationDecision(explanation.State),
-		DecidedAt:     apiPermissionDecisionLevel(explanation.DecidedAt),
-		DecidedByRole: explanation.DecidedByRole,
-		Trace:         make([]*adminv1.PermissionTraceEntry, 0, len(explanation.Trace)),
+		Permission:           string(explanation.Permission),
+		IncludedByPermission: string(explanation.IncludedBy),
+		State:                apiPermissionExplanationDecision(explanation.State),
+		DecidedAt:            apiPermissionDecisionLevel(explanation.DecidedAt),
+		DecidedByRole:        explanation.DecidedByRole,
+		Trace:                make([]*adminv1.PermissionTraceEntry, 0, len(explanation.Trace)),
 	}
 	for i, entry := range winningTraceFirst(explanation) {
 		out.Trace = append(out.Trace, &adminv1.PermissionTraceEntry{
@@ -353,12 +354,16 @@ func apiPermissionMatrixScopes(scopes []core.PermissionMatrixScope) []*adminv1.P
 func apiPermissionMatrixCells(cells []core.PermissionMatrixCell) []*adminv1.PermissionMatrixCell {
 	out := make([]*adminv1.PermissionMatrixCell, 0, len(cells))
 	for _, cell := range cells {
-		out = append(out, &adminv1.PermissionMatrixCell{
+		mapped := &adminv1.PermissionMatrixCell{
 			Permission: cell.Permission,
 			ScopeId:    cell.ScopeID,
 			Override:   apiPermissionDecision(cell.Override),
 			Effective:  apiPermissionDecision(cell.Effective),
-		})
+		}
+		if cell.AllowPermitted != nil {
+			mapped.AllowPermitted = cell.AllowPermitted
+		}
+		out = append(out, mapped)
 	}
 	return out
 }

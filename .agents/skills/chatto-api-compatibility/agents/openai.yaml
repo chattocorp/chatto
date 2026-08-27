@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chatto API Compatibility"
+  short_description: "Review public API changes across versions"
+  default_prompt: "Use $chatto-api-compatibility to review these API changes for client and protocol compatibility."

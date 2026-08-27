@@ -15,6 +15,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
 	"hmans.de/chatto/internal/testutil"
@@ -30,6 +31,14 @@ type wsTestEnv struct {
 }
 
 func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
+	return setupWebSocketTestServerWithTTLs(t, 0, 0)
+}
+
+func setupWebSocketTestServerWithAccessTokenTTL(t testing.TB, accessTokenTTL time.Duration) *wsTestEnv {
+	return setupWebSocketTestServerWithTTLs(t, accessTokenTTL, 0)
+}
+
+func setupWebSocketTestServerWithTTLs(t testing.TB, accessTokenTTL, cookieSessionTTL time.Duration) *wsTestEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -39,6 +48,9 @@ func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 	t.Cleanup(cancel)
 
 	coreConfig := config.CoreConfig{
+		SecretKey:          "test-core-secret",
+		AuthTokenTTL:       cookieSessionTTL,
+		AuthAccessTokenTTL: accessTokenTTL,
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
@@ -63,7 +75,7 @@ func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 
 	s := &HTTPServer{
 		config: config.ChattoConfig{
-			Auth: config.AuthConfig{},
+			Auth: config.AuthConfig{TokenTTL: config.Duration(cookieSessionTTL)},
 			Webserver: config.WebserverConfig{
 				URL:                 "http://localhost:4000",
 				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
@@ -77,9 +89,10 @@ func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 		version: "test",
 		logger:  log.WithPrefix("test"),
 	}
+	s.connectAPI = connectapi.New(chattoCore, s.config, s.version)
 
 	s.setupAuthRoutes()
-	s.setupRealtimeAPI(s.buildAllowedOrigins())
+	s.setupRealtimeAPI()
 
 	ts := httptest.NewServer(router)
 	t.Cleanup(func() { ts.Close() })
@@ -106,7 +119,14 @@ func (env *wsTestEnv) login(t testing.TB, login, password string) {
 	t.Helper()
 
 	loginBody := `{"login":"` + login + `","password":"` + password + `"}`
-	resp, err := env.client.Post(env.server.URL+"/auth/login", "application/json", strings.NewReader(loginBody))
+	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/auth/browser/login", strings.NewReader(loginBody))
+	if err != nil {
+		t.Fatalf("Failed to create login request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	req.Header.Set("Origin", env.server.URL)
+	resp, err := env.client.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}

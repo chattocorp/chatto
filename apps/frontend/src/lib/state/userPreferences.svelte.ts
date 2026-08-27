@@ -1,8 +1,8 @@
 /**
- * User preferences store.
+ * App Preferences store.
  *
  * Stores user preferences in localStorage for persistence across sessions.
- * These are client-side preferences that don't need server sync.
+ * These are app-local preferences that don't need server sync.
  */
 
 import {
@@ -15,21 +15,36 @@ import {
 import { Codecs, globalSlot } from '$lib/storage/slot';
 
 export type DisplayTheme = 'system' | 'light' | 'dark';
+export type ComposerEditorKind = 'visual' | 'markdown';
+export type ComposerSendMode = 'enter' | 'modifier-enter';
 type EffectiveTheme = 'light' | 'dark';
 
-interface Preferences {
+interface AppPreferences {
   displayTheme: DisplayTheme;
+  composerEditor: ComposerEditorKind;
+  composerSendMode: ComposerSendMode;
+}
+
+export interface LegacyNotificationSoundPreferences {
   notificationSound: NotificationSoundId;
   notificationSoundFilters: NotificationSoundFilters;
 }
 
-const defaultPreferences: Preferences = {
+interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPreferences {}
+
+const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
+  composerEditor: 'markdown',
+  composerSendMode: 'enter'
+};
+
+const defaultStoredPreferences: StoredPreferences = {
+  ...defaultAppPreferences,
   notificationSound: defaultSoundId,
   notificationSoundFilters: defaultNotificationSoundFilters
 };
 
-const slot = globalSlot('preferences', defaultPreferences, Codecs.json<Preferences>());
+const slot = globalSlot('preferences', defaultStoredPreferences, Codecs.json<StoredPreferences>());
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -43,6 +58,14 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
 
 function isDisplayTheme(value: unknown): value is DisplayTheme {
   return value === 'system' || value === 'light' || value === 'dark';
+}
+
+function isComposerEditorKind(value: unknown): value is ComposerEditorKind {
+  return value === 'visual' || value === 'markdown';
+}
+
+function isComposerSendMode(value: unknown): value is ComposerSendMode {
+  return value === 'enter' || value === 'modifier-enter';
 }
 
 function getLegacyDisplayTheme(): DisplayTheme | null {
@@ -100,74 +123,82 @@ function normalizeNotificationSoundFilters(value: unknown): NotificationSoundFil
   };
 }
 
-function loadPreferences(): Preferences {
+function loadAppPreferences(): AppPreferences {
   const stored = slot.get();
-  // Validate that the stored sound ID is still valid — silently fall back
-  // to the default if the user migrated away from a sound we no longer ship.
-  const isValidSound = notificationSounds.some((s) => s.id === stored.notificationSound);
   const displayTheme =
-    getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultPreferences.displayTheme;
+    getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultAppPreferences.displayTheme;
   return {
-    ...defaultPreferences,
-    ...stored,
     displayTheme,
+    composerEditor: isComposerEditorKind(stored.composerEditor)
+      ? stored.composerEditor
+      : defaultAppPreferences.composerEditor,
+    composerSendMode: isComposerSendMode(stored.composerSendMode)
+      ? stored.composerSendMode
+      : defaultAppPreferences.composerSendMode
+  };
+}
+
+/**
+ * Read the former global notification-sound fields while per-server slots are
+ * being established. New runtime code must use ServerNotificationPreferences.
+ */
+export function getLegacyNotificationSoundPreferences(): LegacyNotificationSoundPreferences {
+  const stored = slot.get();
+  const isValidSound = notificationSounds.some((sound) => sound.id === stored.notificationSound);
+  return {
     notificationSound: isValidSound ? stored.notificationSound : defaultSoundId,
     notificationSoundFilters: normalizeNotificationSoundFilters(stored.notificationSoundFilters)
   };
 }
 
 export class UserPreferencesState {
-  #prefs = $state<Preferences>(loadPreferences());
+  #preferences = $state<AppPreferences>(loadAppPreferences());
+  // Keep the legacy fields intact whenever App Preferences are saved so a
+  // server first opened later can still migrate the user's previous sound.
+  readonly #legacyNotificationSoundPreferences = getLegacyNotificationSoundPreferences();
 
   get displayTheme(): DisplayTheme {
-    return this.#prefs.displayTheme;
+    return this.#preferences.displayTheme;
   }
 
   set displayTheme(value: DisplayTheme) {
-    const displayTheme = isDisplayTheme(value) ? value : defaultPreferences.displayTheme;
-    this.#prefs.displayTheme = displayTheme;
-    slot.set(this.#prefs);
+    const displayTheme = isDisplayTheme(value) ? value : defaultAppPreferences.displayTheme;
+    this.#preferences.displayTheme = displayTheme;
+    this.#persist();
     applyDisplayTheme(displayTheme);
   }
 
   get effectiveDisplayTheme(): EffectiveTheme {
-    return resolveDisplayTheme(this.#prefs.displayTheme);
+    return resolveDisplayTheme(this.#preferences.displayTheme);
   }
 
-  get notificationSound(): NotificationSoundId {
-    return this.#prefs.notificationSound;
+  get composerEditor(): ComposerEditorKind {
+    return this.#preferences.composerEditor;
   }
 
-  set notificationSound(value: NotificationSoundId) {
-    this.#prefs.notificationSound = value;
-    slot.set(this.#prefs);
+  set composerEditor(value: ComposerEditorKind) {
+    this.#preferences.composerEditor = isComposerEditorKind(value)
+      ? value
+      : defaultAppPreferences.composerEditor;
+    this.#persist();
   }
 
-  get notificationSoundFilters(): NotificationSoundFilters {
-    return this.#prefs.notificationSoundFilters;
+  get composerSendMode(): ComposerSendMode {
+    return this.#preferences.composerSendMode;
   }
 
-  set notificationSoundFilters(value: NotificationSoundFilters) {
-    this.#prefs.notificationSoundFilters = normalizeNotificationSoundFilters(value);
-    slot.set(this.#prefs);
+  set composerSendMode(value: ComposerSendMode) {
+    this.#preferences.composerSendMode = isComposerSendMode(value)
+      ? value
+      : defaultAppPreferences.composerSendMode;
+    this.#persist();
   }
 
-  setNotificationSoundFilter(key: keyof NotificationSoundFilters, value: number) {
-    this.notificationSoundFilters = {
-      ...this.#prefs.notificationSoundFilters,
-      [key]: value
-    };
-  }
-
-  resetNotificationSoundFilters() {
-    this.notificationSoundFilters = defaultNotificationSoundFilters;
-  }
-
-  /**
-   * Check if notifications are muted (sound set to silent).
-   */
-  get isMuted(): boolean {
-    return this.#prefs.notificationSound === 'silent';
+  #persist() {
+    slot.set({
+      ...this.#preferences,
+      ...this.#legacyNotificationSoundPreferences
+    });
   }
 }
 

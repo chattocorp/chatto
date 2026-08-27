@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package chatto.auth.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/descriptor.proto";
+
+// Public capability-authenticated cleanup for browser push subscriptions.
+service PushSubscriptionCleanupService {
+  // Removes the exact current subscription when its Push API auth secret and
+  // per-save cleanup token match. This public RPC requires those capabilities,
+  // not an authenticated account session, and does not reveal whether a match
+  // existed.
+  rpc DeleteSubscription(DeleteSubscriptionRequest) returns (DeleteSubscriptionResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+}
+
+// Capability-authenticated request to remove an exact push subscription.
+message DeleteSubscriptionRequest {
+  // Complete push service endpoint URL. Its opaque path identifies the exact
+  // browser subscription; a provider host alone is not unique.
+  string endpoint = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 4096
+  }];
+
+  // Authentication secret from the same browser PushSubscription.
+  string auth = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
+
+  // Per-save capability supplied with the original Subscribe request. Cleanup
+  // is a no-op after any later save replaces this token.
+  string cleanup_token = 3 [(buf.validate.field).string = {
+    min_len: 32
+    max_len: 128
+  }];
+}
+
+// Response from capability-authenticated subscription cleanup.
+message DeleteSubscriptionResponse {
+  // True when the idempotent cleanup request completed. It does not reveal
+  // whether a matching subscription existed.
+  bool completed = 1;
+}

@@ -2,8 +2,12 @@ package connectapi
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"fmt"
 	"net/url"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -22,9 +26,33 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 	if err != nil {
 		return nil, connectError(err)
 	}
+	if flow.Kind == core.ExternalIdentityFlowKindCreate {
+		flow.LoginHint = availableExternalIdentityLogin(s.api.core, req.Msg.GetToken(), flow.LoginHint)
+	}
 	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
 		Pending: apiPendingExternalIdentity(flow),
 	}), nil
+}
+
+func availableExternalIdentityLogin(chattoCore *core.ChattoCore, token, hint string) string {
+	hint = strings.TrimSpace(hint)
+	if chattoCore.IsLoginAvailable(hint) {
+		return hint
+	}
+	if core.ValidateLogin(hint) != nil {
+		return hint
+	}
+	digest := sha256.Sum256([]byte(token))
+	seed := binary.BigEndian.Uint32(digest[:4]) % 10000
+	const suffixLength = 5 // hyphen plus four digits
+	base := strings.TrimRight(hint[:min(len(hint), core.MaxLoginLength-suffixLength)], ".")
+	for offset := range uint32(100) {
+		candidate := fmt.Sprintf("%s-%04d", base, (seed+offset)%10000)
+		if chattoCore.IsLoginAvailable(candidate) {
+			return candidate
+		}
+	}
+	return hint
 }
 
 func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.Context, req *connect.Request[authv1.CreateExternalIdentityAccountRequest]) (*connect.Response[authv1.CreateExternalIdentityAccountResponse], error) {
@@ -32,22 +60,42 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), flow.DisplayNameHint)
+	if s.api.config.Auth.InvitationRequired() {
+		if strings.TrimSpace(flow.InvitationID) == "" {
+			return nil, connectError(core.ErrInvitationInvalid)
+		}
+	} else {
+		// Pending flows survive configuration rollouts. Re-evaluate admission
+		// now, and never redeem an invitation while the server is open.
+		flow.InvitationID = ""
+	}
+	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), req.Msg.GetDisplayName(), flow.DisplayNameHint)
 	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	token, err := s.api.core.CreateAuthTokenWithSource(ctx, user.GetId(), "external_identity_create")
-	if err != nil {
-		return nil, connectError(err)
+	cookieOnly := strings.EqualFold(
+		strings.TrimSpace(req.Header().Get(BrowserAuthenticationModeHeader)),
+		BrowserAuthenticationModeCookie,
+	)
+	var credentials core.BearerSessionCredentials
+	if !cookieOnly {
+		credentials, err = s.api.core.CreateBearerSessionWithSource(ctx, user.GetId(), "external_identity_create")
+		if err != nil {
+			return nil, connectError(err)
+		}
 	}
-	browserSession, err := createBrowserSessionFromContext(ctx, user.GetId(), "external_identity_create")
-	if err != nil {
-		_ = s.api.core.RevokeAuthTokenWithReason(ctx, token, "external_identity_create_session_failed")
-		return nil, connectError(err)
+	var browserSession BrowserSession
+	if cookieOnly {
+		browserSession, err = createBrowserSessionFromContext(ctx, user.GetId(), "external_identity_create")
+		if err != nil {
+			return nil, connectError(err)
+		}
 	}
 	if err := s.api.core.RecordLoginSucceeded(ctx, user.GetId(), flow.ProviderType+":"+flow.ProviderID); err != nil {
-		_ = s.api.core.RevokeAuthTokenWithReason(ctx, token, "external_identity_create_audit_failed")
+		if credentials.RefreshToken != "" {
+			_ = s.api.core.RevokeRefreshTokenWithReason(ctx, credentials.RefreshToken, "external_identity_create_audit_failed")
+		}
 		if browserSession.Revoke != nil {
 			_ = browserSession.Revoke(ctx)
 		}
@@ -56,15 +104,33 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&authv1.CreateExternalIdentityAccountResponse{
-		UserId: user.GetId(),
-		Login:  user.GetLogin(),
-		Token:  token,
-	}), nil
+	response := connect.NewResponse(&authv1.CreateExternalIdentityAccountResponse{
+		UserId:                user.GetId(),
+		Login:                 user.GetLogin(),
+		Token:                 credentials.AccessToken,
+		RefreshToken:          credentials.RefreshToken,
+		ExpiresIn:             remainingLifetimeSeconds(credentials.AccessTokenExpiresAt),
+		RefreshTokenExpiresIn: remainingLifetimeSeconds(credentials.SessionExpiresAt),
+	})
+	response.Header().Set("Cache-Control", "no-store")
+	response.Header().Set("Pragma", "no-cache")
+	return response, nil
 }
 
-func externalIdentityCreateDisplayName(login, hint string) string {
-	displayName := core.NormalizeDisplayName(hint)
+func remainingLifetimeSeconds(expiresAt time.Time) int64 {
+	remaining := time.Until(expiresAt)
+	if remaining <= 0 {
+		return 0
+	}
+	return int64((remaining + time.Second - 1) / time.Second)
+}
+
+func externalIdentityCreateDisplayName(login, requested, hint string) string {
+	displayName := core.NormalizeDisplayName(requested)
+	if displayName != "" {
+		return displayName
+	}
+	displayName = core.NormalizeDisplayName(hint)
 	if displayName == "" ||
 		utf8.RuneCountInString(displayName) > core.MaxDisplayNameLength ||
 		core.ValidateDisplayName(displayName) != nil {
@@ -255,5 +321,13 @@ func providerLinkedIdentity(provider config.AuthProviderConfig, identities []cor
 }
 
 func isValidInternalRedirectPath(redirect string) bool {
-	return strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !strings.Contains(redirect, "\\")
+	if !strings.HasPrefix(redirect, "/") || strings.HasPrefix(redirect, "//") || strings.Contains(redirect, "\\") {
+		return false
+	}
+	for _, char := range redirect {
+		if char <= 0x1f || char == 0x7f {
+			return false
+		}
+	}
+	return true
 }

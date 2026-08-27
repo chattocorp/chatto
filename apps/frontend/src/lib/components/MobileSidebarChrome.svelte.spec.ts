@@ -19,19 +19,10 @@ function renderChrome() {
   });
 }
 
-function pointer(type: string, x: number, y = 120) {
-  return new PointerEvent(type, {
-    bubbles: true,
-    cancelable: true,
-    pointerId: 1,
-    clientX: x,
-    clientY: y
-  });
-}
-
 describe('MobileSidebarChrome', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    document.documentElement.dir = 'ltr';
     resetSidebar();
   });
 
@@ -40,6 +31,7 @@ describe('MobileSidebarChrome', () => {
 
     expect(q(container, '[data-testid="mobile-sidebar-panel"]')).not.toBeNull();
     expect(q(container, '[data-testid="sidebar-child"]')).not.toBeNull();
+    expect(q(container, '[data-testid="mobile-sidebar-edge"]')).toBeNull();
   });
 
   it('marks mobile sidebar chrome as closed when the sidebar is closed', () => {
@@ -55,7 +47,8 @@ describe('MobileSidebarChrome', () => {
     if (!panel || !backdrop) return;
 
     expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
-    expect(panel.style.transform).toBe('translateX(-324px)');
+    expect(panel.classList.contains('max-md:start-0')).toBe(true);
+    expect(panel.style.transform).toBe('translateX(calc(-324px * var(--inline-direction)))');
     expect(backdrop.disabled).toBe(true);
     expect(backdrop.getAttribute('aria-hidden')).toBe('true');
     expect(backdrop.style.opacity).toBe('0');
@@ -77,7 +70,7 @@ describe('MobileSidebarChrome', () => {
     if (!panel || !backdrop) return;
 
     expect(panel.classList.contains('sidebar-mobile-closed')).toBe(false);
-    expect(panel.style.transform).toBe('translateX(0px)');
+    expect(panel.style.transform).toBe('translateX(calc(0px * var(--inline-direction)))');
     expect(backdrop.disabled).toBe(false);
     expect(backdrop.style.opacity).toBe('1');
 
@@ -86,26 +79,8 @@ describe('MobileSidebarChrome', () => {
 
     expect(q(container, '[data-testid="mobile-sidebar-backdrop"]')).toBe(backdrop);
     expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
-    expect(panel.style.transform).toBe('translateX(-324px)');
+    expect(panel.style.transform).toBe('translateX(calc(-324px * var(--inline-direction)))');
     expect(backdrop.disabled).toBe(true);
     expect(backdrop.style.opacity).toBe('0');
-  });
-
-  it('keeps edge target pointer events from bubbling to window handlers', () => {
-    const { container } = renderChrome();
-    const onWindowPointerDown = vi.fn();
-    window.addEventListener('pointerdown', onWindowPointerDown);
-
-    try {
-      const edge = q(container, '[data-testid="mobile-sidebar-edge"]');
-      expect(edge).not.toBeNull();
-      if (!edge) return;
-
-      edge.dispatchEvent(pointer('pointerdown', 2));
-
-      expect(onWindowPointerDown).not.toHaveBeenCalled();
-    } finally {
-      window.removeEventListener('pointerdown', onWindowPointerDown);
-    }
   });
 });

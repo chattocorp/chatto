@@ -20,8 +20,13 @@ Remove both DM-specific permission strings as product and authorization concepts
 - Reading a DM is allowed by room membership alone.
 - Listing DMs returns the DM rooms the caller participates in.
 - Live DM events are filtered by room membership, the same as channel-room events.
-- Starting a DM and sending root messages in DM rooms are gated by `message.post`.
-- Thread replies in DM rooms are gated by `message.post-in-thread`.
+- A human can start a DM when `message.post` allows it. A bot cannot start or
+  fetch a DM through `RoomService.StartDM`, regardless of its permissions or
+  owner. All participants need `message.post` to send root messages in an
+  existing DM.
+- DMs do not support threads. This is a room-kind invariant enforced by the
+  message operation model and low-level Core write path, not an RBAC decision.
+  Flat reply attribution remains available in DMs.
 - The DM privacy boundary remains: permissions such as `message.manage`, `room.manage`, `message.echo`, and channel-style `room.create` are denied inside DM rooms regardless of role grants.
 
 This decision does not make DMs globally visible. It removes the redundant read gate; the participant set remains the access boundary.
@@ -29,7 +34,15 @@ This decision does not make DMs globally visible. It removes the redundant read 
 ## Consequences
 
 - Operators can still stop DM abuse by revoking `message.post`, suspending the user, or removing the account.
+- A human must start every DM that includes a bot. After that, membership
+  authorizes bot reads and the bot's normal permissions authorize interactions.
 - Users do not lose read access to conversations they are already part of because an operator toggled a broad server permission.
 - The authorization model becomes easier to explain: membership answers "can read this room?", while `message.*` permissions answer "can perform this messaging capability?"
+- Effective owners still resolve every permission through the owner override,
+  but cannot bypass room-kind invariants such as the prohibition on DM threads.
+- Historical DM thread events remain readable for compatibility, but current
+  writers cannot create or extend them.
 - Subscription filtering and sidebar queries no longer need a second DM-specific read check on top of membership.
 - API fields, frontend guards, tests, and permission seed data that existed only for `dm.view` / `dm.write` have been removed.
+- The channel-room `message.read` permission does not apply to DMs. A stored
+  `message.read` decision for a DM does not change participant access.

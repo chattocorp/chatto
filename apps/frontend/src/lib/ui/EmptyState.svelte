@@ -10,7 +10,7 @@ where you want it to take up the remaining space:
 
 ```svelte
 <div class="flex flex-1 flex-col">
-  <EmptyState icon="uil--bell-slash" title="No notifications">
+  <EmptyState icon="icon-[uil--bell-slash]" title="No notifications">
     You're all caught up!
   </EmptyState>
 </div>
@@ -28,7 +28,7 @@ for a simple "select something to continue" placeholder.
     title,
     children
   }: {
-    /** Iconify class, e.g. `'uil--bell-slash'`. Omit for no icon. */
+    /** Iconify class, e.g. `'icon-[uil--bell-slash]'`. Omit for no icon. */
     icon?: string;
     /** Bold headline rendered above the body. */
     title?: string;

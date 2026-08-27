@@ -28,11 +28,19 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" toml="webserver.cookie_signing_secret" required>
-  256-bit hex secret for signing session cookies. Generate with `openssl rand -hex 32`.
+  256-bit hex secret for signing browser-flow cookies and CSRF proofs. The opaque `chatto_auth_*` authentication cookies do not contain signed user data. Generate with `openssl rand -hex 32`.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" toml="webserver.cookie_encryption_secret">
-  Optional hex secret for encrypting session cookies after signing. Must decode to 16, 24, or 32 bytes. Generate an AES-256 key with `openssl rand -hex 32`.
+  Optional hex secret for encrypting browser-flow cookies after signing. Must decode to 16, 24, or 32 bytes. Generate an AES-256 key with `openssl rand -hex 32`.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_API_COMPRESSION" toml="webserver.api_compression" default="true">
+  Compress eligible ConnectRPC API responses with gzip. Disable this to reduce compressor memory and CPU at the cost of higher network usage. Chatto continues to accept compressed API requests.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_API_COMPRESSION_MIN_BYTES" toml="webserver.api_compression_min_bytes" default="1024">
+  Minimum uncompressed ConnectRPC response size, in bytes, eligible for gzip compression. Increase this threshold when small API responses do not save enough bandwidth to justify compressor memory and CPU.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" toml="webserver.websocket_compression" default="true">
@@ -43,16 +51,12 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Log HTTP requests. Successful requests are debug-level and require `CHATTO_LOG_LEVEL=debug`; 4xx and 5xx responses remain visible at warning and error levels.
 </EnvVar>
 
-<EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
-  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-server support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API. Wildcard CORS does not trust OAuth redirect callbacks.
-</EnvVar>
-
-<EnvVar name="CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" toml="webserver.oauth_redirect_origins">
-  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/operations/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
-</EnvVar>
-
 <EnvVar name="CHATTO_WEBSERVER_TRUSTED_PROXIES" toml="webserver.trusted_proxies">
   Comma-separated IP addresses or CIDR ranges for reverse proxies that Chatto may trust to supply `X-Forwarded-For`, `X-Real-IP`, and `X-Forwarded-Host`. The default is empty, so direct clients cannot spoof audit attribution or WebSocket same-origin checks with forwarded headers. Configure the narrow network used by your proxy—for example, `127.0.0.1` for a same-host proxy or the specific container-network CIDR—and make the proxy overwrite forwarded headers rather than preserving client-supplied values. This does not make forwarded protocol headers authoritative for public URL generation; continue setting `webserver.url`.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
+  Comma-separated exact additional HTTPS origins that can use browser cookie authentication through a reverse proxy. Do not use `*` for browser authentication; it is ignored for that purpose. Upgrade all serving replicas before you add an alias, because older replicas do not use this setting.
 </EnvVar>
 
 ### TLS
@@ -135,6 +139,28 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Expose public Shields.io-compatible badge endpoints for aggregate community counts. When enabled, `/.well-known/chatto/shields/online.json` and `/.well-known/chatto/shields/registered.json` return endpoint-badge JSON, while the matching `.png` URLs redirect to Shields.io-rendered badges. Leave disabled for private communities that should not publish size or activity counts.
 </EnvVar>
 
+## Message Search
+
+The consumer-facing feature and bundled provider have separate switches. This lets you expose Search through Chatto while running a compatible provider separately, or embed the bundled Bleve provider in `chatto run` for a single-process deployment.
+
+See [Enabling Search](/guides/operations/search/) for a complete setup guide, analyzer names, storage guidance, and troubleshooting.
+
+<EnvVar name="CHATTO_SEARCH_ENABLED" toml="search.enabled" default="false">
+  Enable consumer-facing message queries. Compatible clients discover the Search protocol independently and use the Search status RPC to distinguish disabled, indexing, ready, degraded, and unavailable states.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_ENABLED" toml="search_provider.enabled" default="false">
+  Start the bundled Bleve provider inside `chatto run`. This does not by itself expose the consumer-facing Search feature.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_DIRECTORY" toml="search_provider.directory" default="./data/search">
+  Directory for the bundled provider's disposable local index. Protect this directory like message data: it contains plaintext-derived search content, is not included in Chatto backups, and can be rebuilt from retained `EVT` history. Do not set it to the embedded NATS data directory or one of its parent directories.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_LANGUAGES" toml="search_provider.languages" default="all bundled analyzers">
+  Comma-separated Bleve analyzer codes to use when indexing messages and analyzing queries. Supported values are `ar`, `cjk`, `ckb`, `da`, `de`, `en`, `es`, `fa`, `fi`, `fr`, `hi`, `hr`, `hu`, `it`, `nl`, `no`, `pl`, `pt`, `ro`, `ru`, `sv`, and `tr`. Changing the set rebuilds the disposable index. Use `none` for language-neutral literal and typo-tolerant matching only; the TOML equivalent is `languages = []`.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">
@@ -153,8 +179,20 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 
 ## Core
 
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOTS" toml="core.projection_snapshots" default="false">
+  Persist encrypted projection snapshots and replay only the later `EVT` delta for eligible projections at startup. Chatto treats `EVT` as authoritative and automatically replays it when a snapshot is missing, incompatible, corrupt, expired, or unavailable. User profile state is eligible, but password verifiers, external identities, and OAuth consent remain outside snapshots and cold-replay from focused event subjects. One elected replica attempts publication after boot and every 23–24 hours.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" toml="core.projection_snapshot_retention" default="7d">
+  Retain projection snapshot generations for this duration. NATS applies the duration as the dedicated Object Store TTL. Chatto uses it as the cutoff for optional S3 expiry. Supports values such as `7d`, `1w`, and `168h`.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" toml="core.projection_snapshot_s3_cleanup" default="true">
+  Delete marked S3 projection snapshot generations older than `core.projection_snapshot_retention`. Disable this when the bucket has an external lifecycle policy for `internal/projection-snapshots/`. When enabled, S3 credentials need permission to list that prefix, inspect object metadata, and delete matching objects. Chatto validates the exact internal generation path, content type, and object-purpose marker before deletion; asset paths are never eligible.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
-  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive.
+  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, account-flow, and invite-link verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions, pending credentials, and existing invite links to remain valid. Changing it invalidates the old links without deleting their durable invitation records; authorised administrators can copy newly derived links. It also makes projection snapshots unreadable, which Chatto safely rebuilds from `EVT`.
 </EnvVar>
 
 ## Assets
@@ -285,12 +323,24 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 
 ## Authentication
 
+<EnvVar name="CHATTO_AUTH_ACCOUNT_CREATION_POLICY" toml="auth.account_creation_policy" default="open">
+  Controls who may create a new account. Use `open` for public self-service account creation or `invite_only` to require a valid invite link for direct registration and external-provider auto-provisioning. Existing account sign-in, account linking, and operator-created accounts are unaffected. Upgrade every serving replica before enabling `invite_only`.
+</EnvVar>
+
 <EnvVar name="CHATTO_AUTH_DIRECT_REGISTRATION" toml="auth.direct_registration" default="true">
-  Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Users can still sign in via configured SSO providers.
+  Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Existing users can still sign in through enabled password login or configured SSO providers.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_DIRECT_LOGIN" toml="auth.direct_login" default="true">
+  Enable direct sign-in with a username or email address and password. When `false`, the password form and recovery link are hidden and the password login endpoint returns `403`. Existing sessions, registration, and authenticated password management are unaffected.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">
-  Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
+  Renewal window for active human sessions and initial lifetime of each same-origin cookie credential. Active bearer sessions advance this window during background refresh. In the final quarter, the bundled browser automatically renews the same cookie handle through a dedicated route. Ordinary validation does not write the session. An inactive session expires after one complete window. Supports durations like `90d` or `2160h`.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_ACCESS_TOKEN_TTL" toml="auth.access_token_ttl" default="15m">
+  Fixed lifetime of each human bearer access token. Validation does not renew it; compatible clients rotate the paired refresh credential before expiry. Supports durations like `15m`, `30m`, or `1h`.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_EMAIL_OTP_THROTTLING_ENABLED" toml="auth.email_otp.throttling_enabled" default="true">
@@ -315,7 +365,7 @@ External login providers are configured as repeated `[[auth.providers]]` tables 
 Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
 
 <EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
-  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`.
+  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`. `CLIENT_SECRET` is optional only for public OIDC clients; OAuth provider types still require it.
 </EnvVar>
 
 For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `oidc` provider with `id = "oidc"`. Do not combine them with counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables.
@@ -334,6 +384,8 @@ auto_provision = false
 Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
 
 `request_email` defaults to `false`, so Chatto does not request provider email scopes unless you opt in. Set `request_email = true` when you want provider-verified email claims. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
+
+For a CIMD-capable OIDC provider, set `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_ID` to `{webserver.url}/oauth/client-metadata.json` and omit `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_SECRET`. Chatto then publishes the public client metadata at that URL. See the [External Login Providers guide](/guides/integrations/external-login-providers/#cimd-public-clients) for an example.
 
 Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 
@@ -395,30 +447,36 @@ See [External Login Providers](/guides/integrations/external-login-providers/) f
   VAPID subject identifier. Use an operator email address, optionally prefixed with `mailto:`, or an `https:` contact URL.
 </EnvVar>
 
-## Video Processing
+## Asset Processing
 
-<EnvVar name="CHATTO_VIDEO_ENABLED" toml="video.enabled" default="false">
-  Enable server-side video processing and video uploads. When enabled, uploaded videos are transcoded into multiple quality variants for adaptive playback. Requires `ffmpeg` and `ffprobe` to be available on the server.
+<EnvVar name="CHATTO_ASSET_PROCESSING_ENABLED" toml="asset_processing.enabled" default="false">
+  Start the built-in durable asset-processing worker inside `chatto run`. `chatto init` writes this as `true` for a self-contained default installation. The explicit `chatto asset-processing` command runs regardless of this setting.
 </EnvVar>
 
-<EnvVar name="CHATTO_VIDEO_FFMPEG_PATH" toml="video.ffmpeg_path">
+<EnvVar name="CHATTO_ASSET_PROCESSING_FFMPEG_PATH" toml="asset_processing.ffmpeg_path">
   Path to the `ffmpeg` binary. If not set, Chatto looks for `ffmpeg` in `PATH`.
 </EnvVar>
 
-<EnvVar name="CHATTO_VIDEO_FFPROBE_PATH" toml="video.ffprobe_path">
+<EnvVar name="CHATTO_ASSET_PROCESSING_FFPROBE_PATH" toml="asset_processing.ffprobe_path">
   Path to the `ffprobe` binary. If not set, Chatto looks for `ffprobe` in `PATH`.
 </EnvVar>
 
-<EnvVar name="CHATTO_VIDEO_MAX_CONCURRENT" toml="video.max_concurrent" default="2">
-  Maximum number of videos to process concurrently. Higher values use more CPU and memory.
+<EnvVar name="CHATTO_ASSET_PROCESSING_MAX_CONCURRENT_JOBS" toml="asset_processing.max_concurrent_jobs" default="2">
+  Maximum number of jobs to process concurrently in each worker process. Higher values use more CPU and memory.
+</EnvVar>
+
+<EnvVar name="CHATTO_ASSET_PROCESSING_TEMP_DIR" toml="asset_processing.temp_dir">
+  Directory for temporary files during transcoding. Defaults to the system temp directory.
+</EnvVar>
+
+## Video Processing
+
+<EnvVar name="CHATTO_VIDEO_ENABLED" toml="video.enabled" default="false">
+  Allow video uploads and enqueue their derivative processing. At least one embedded or standalone asset-processing worker must have `ffmpeg` and `ffprobe` available.
 </EnvVar>
 
 <EnvVar name="CHATTO_VIDEO_MAX_UPLOAD_SIZE" toml="video.max_upload_size" default="100 MB">
-  Max upload size for video files (e.g., `100MB`, `200 MiB`). Only applies when video processing is enabled. Non-video files use `CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE` instead.
-</EnvVar>
-
-<EnvVar name="CHATTO_VIDEO_TEMP_DIR" toml="video.temp_dir">
-  Directory for temporary files during transcoding. Defaults to the system temp directory.
+  Max upload size for video files (e.g., `100MB`, `200 MiB`). Only applies when video uploads are enabled. Non-video files use `CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE` instead.
 </EnvVar>
 
 ## LiveKit (Voice & Video Calls)

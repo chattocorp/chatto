@@ -1,13 +1,13 @@
-import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
+import {
+  authHeaders,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig,
+} from "./connect.js";
 import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
 import { PresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
 
-export type PresenceAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
+export type PresenceAPIConfig = ConnectAPIConfig;
 
 export { PresenceStatus as APIPresenceStatus };
 
@@ -31,3 +31,5 @@ export function createPresenceAPI(config: PresenceAPIConfig) {
     },
   };
 }
+
+export type PresenceAPI = ReturnType<typeof createPresenceAPI>;

@@ -2,7 +2,14 @@
 
 **Date:** 2026-03-01
 
-**Status:** Superseded by ADR-030 (Retire the Space tier) and ADR-042 (protobuf-first public API). The "per-space" framing is obsolete now that the Space tier is gone, and GraphQL subscriptions have been replaced by the Chatto realtime websocket. The pattern — one multiplexed app-session stream with server-side membership filtering — survives at server scope. The decision recorded here is preserved as historical context.
+**Status:** Superseded by ADR-030 (Retire the Space tier), ADR-042
+(protobuf-first public API), and ADR-051 (server-scoped resumable client
+projection). The "per-space" framing is obsolete now that the Space tier is
+gone, GraphQL subscriptions have been replaced by the Chatto realtime
+WebSocket, and reconnect convergence is owned by resumable projection replay
+rather than component refetches. The pattern — one multiplexed app-session
+stream with server-side membership filtering — survives at server scope. The
+decision recorded here is preserved as historical context.
 
 ## Context
 
@@ -23,6 +30,8 @@ The frontend dispatches received events through a `spaceEventBus` that allows co
 - **One WebSocket per space**: Minimal connection overhead. Switching rooms within a space doesn't require new subscriptions.
 - **Server-side membership filtering**: The backend filters events by room membership before sending. Clients never receive events for rooms they haven't joined, even though all room events flow through one subscription.
 - **Event bus complexity on the frontend**: Components register/unregister handlers with the `spaceEventBus`. This is a pub/sub pattern within the client that mirrors the server-side fan-in.
-- **Reconnect invalidates everything**: After a WebSocket reconnect, all cached state for the space may be stale. The `reconnectCount` state drives cache invalidation, and components refetch their data.
+- **Reconnect invalidated everything**: In this historical design,
+  `reconnectCount` drove component refetches. ADR-051 replaces that behavior
+  with cursor-based replay or a compacted reset on the projection stream.
 - **Presence lifecycle is tied to the subscription**: Presence signaling starts when the space subscription opens and stops when it closes. There's no separate presence connection.
 - **Multi-space requires multiple subscriptions**: Users active in multiple spaces have one subscription per space. This is uncommon in practice (users typically focus on one space at a time).

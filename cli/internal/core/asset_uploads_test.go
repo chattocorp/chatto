@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -36,12 +35,12 @@ func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
 	}
 
 	content := []byte("pending asset content")
-	attachment, err := core.uploadAttachmentBinary(ctx, room.Id, "pending.txt", "text/plain", bytes.NewReader(content))
+	attachment, err := core.mediaModel.uploadAttachmentBinary(ctx, room.Id, "pending.txt", "text/plain", bytes.NewReader(content))
 	if err != nil {
 		t.Fatalf("uploadAttachmentBinary: %v", err)
 	}
 	sum := sha256.Sum256(content)
-	if err := core.assetLifecycle().RecordUploadedPendingAttachmentAsset(ctx, user.Id, room.Id, attachment, hex.EncodeToString(sum[:]), time.Now().Add(-time.Minute), false); err != nil {
+	if err := core.assetModel.RecordUploadedPendingAttachmentAsset(ctx, user.Id, room.Id, attachment, hex.EncodeToString(sum[:]), time.Now().Add(-time.Minute), false); err != nil {
 		t.Fatalf("RecordUploadedPendingAttachmentAsset: %v", err)
 	}
 
@@ -51,7 +50,7 @@ func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
 	if err := core.AssetUploads().CleanupExpired(ctx); err != nil {
 		t.Fatalf("CleanupExpired: %v", err)
 	}
-	if _, ok := core.Assets.AssetCreation(attachment.Id); ok {
+	if _, ok := core.assetModel.AssetCreation(attachment.Id); ok {
 		t.Fatal("expired pending asset still projected after cleanup")
 	}
 	if _, _, err := core.GetAttachmentReader(ctx, attachment); err == nil {
@@ -191,7 +190,7 @@ func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *test
 	if err != nil {
 		t.Fatalf("CompleteUpload: %v", err)
 	}
-	declared, ok := core.Assets.AssetCreation(attachment.GetId())
+	declared, ok := core.assetModel.AssetCreation(attachment.GetId())
 	if !ok {
 		t.Fatalf("AssetCreation(%q) missing", attachment.GetId())
 	}
@@ -202,7 +201,7 @@ func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *test
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "gif", []string{attachment.GetId()}, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	if manifest, ok := core.Assets.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil && manifest.Started != nil {
+	if manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil && manifest.Started != nil {
 		t.Fatalf("video processing manifest was started while disabled: %+v", manifest)
 	}
 }
@@ -210,7 +209,7 @@ func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *test
 func TestAssetUploadImportRemoteAnimatedGIFUsesPendingAttachmentLifecycle(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-	core.OnVideoProcessingRequested = func(_ context.Context, _, _ string) error { return nil }
+	core.VideoUploadsEnabled = true
 
 	user, err := core.CreateUser(ctx, SystemActorID, "remote-gif-import", "Remote GIF Import", "password")
 	if err != nil {
@@ -250,7 +249,7 @@ func TestAssetUploadImportRemoteAnimatedGIFUsesPendingAttachmentLifecycle(t *tes
 	if attachment.GetContentType() != "image/gif" || attachment.GetSize() != int64(len(content)) {
 		t.Fatalf("imported attachment = %+v", attachment)
 	}
-	declared, ok := core.Assets.AssetCreation(attachment.GetId())
+	declared, ok := core.assetModel.AssetCreation(attachment.GetId())
 	if !ok {
 		t.Fatalf("AssetCreation(%q) missing", attachment.GetId())
 	}

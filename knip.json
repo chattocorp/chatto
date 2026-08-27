@@ -31,8 +31,6 @@
         "@connectrpc/protoc-gen-connect-es",
         "@iconify/json",
         "@iconify/tailwind4",
-        "@inlang/plugin-m-function-matcher",
-        "@inlang/plugin-message-format",
         "@fontsource-variable/ibm-plex-sans",
         "@fontsource/ibm-plex-mono",
         "svelte2tsx",
@@ -40,12 +38,15 @@
       ],
       "ignoreIssues": {
         "src/lib/i18n/messages.ts": ["exports", "types"],
-        "src/lib/paraglide/**": ["exports", "types"],
         "src/lib/pb/**": ["exports", "types", "enumMembers"]
       }
     },
     "apps/docs-website": {
       "ignoreDependencies": ["@fontsource-variable/ibm-plex-sans"]
+    },
+    "packages/lingua": {
+      "entry": ["src/index.ts", "src/**/*.spec.ts", "test/**/*.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
     }
   }
 }

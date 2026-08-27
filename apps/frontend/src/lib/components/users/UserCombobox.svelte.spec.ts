@@ -1,16 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
+import { queryClient } from '$lib/query/client';
 import UserCombobox from './UserCombobox.svelte';
 
 const mocks = vi.hoisted(() => ({
   listUsers: vi.fn()
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: {},
+    connection: {
+      queryScope: 'origin-session',
+      connectBaseUrl: 'http://localhost/api/connect',
+      bearerToken: null,
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 
@@ -26,9 +33,24 @@ async function settle() {
   flushSync();
 }
 
+function enterSearch(container: Element, search: string) {
+  const input = container.querySelector('input') as HTMLInputElement;
+  input.value = search;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('UserCombobox', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    queryClient.clear();
     mocks.listUsers.mockReset();
     mocks.listUsers.mockResolvedValue({
       members: [
@@ -50,23 +72,191 @@ describe('UserCombobox', () => {
   });
 
   afterEach(() => {
+    queryClient.clear();
     vi.useRealTimers();
   });
 
   it('searches server members as the actor text changes', async () => {
-    const { container } = render(UserCombobox, {
+    const { container, unmount } = render(UserCombobox, {
       props: {
         id: 'actor',
         label: 'Actor'
       }
     });
 
-    const input = container.querySelector('input') as HTMLInputElement;
-    input.value = 'alice';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    enterSearch(container, 'alice');
     await vi.advanceTimersByTimeAsync(220);
     await settle();
 
-    expect(mocks.listUsers).toHaveBeenCalledWith('alice', 10, 0);
+    expect(mocks.listUsers).toHaveBeenCalledWith('alice', 10, 0, {
+      signal: expect.any(AbortSignal)
+    });
+
+    enterSearch(container, 'bob');
+    unmount();
+    await vi.advanceTimersByTimeAsync(220);
+    expect(mocks.listUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses a fresh cached search after remounting', async () => {
+    const first = render(UserCombobox, {
+      props: { id: 'actor', label: 'Actor' }
+    });
+    enterSearch(first.container, 'alice');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+    first.unmount();
+
+    const second = render(UserCombobox, {
+      props: { id: 'actor', label: 'Actor' }
+    });
+    enterSearch(second.container, 'alice');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+
+    expect(mocks.listUsers).toHaveBeenCalledOnce();
+    expect(second.container.textContent).toContain('Alice Admin');
+  });
+
+  it('marks bot results', async () => {
+    mocks.listUsers.mockResolvedValue({
+      members: [
+        {
+          id: 'bot-1',
+          login: 'helper_bot',
+          displayName: 'Helper',
+          deleted: false,
+          isBot: true,
+          avatarUrl: null,
+          presenceStatus: 'OFFLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    const view = render(UserCombobox, {
+      props: { id: 'actor', label: 'Actor' }
+    });
+
+    enterSearch(view.container, 'helper');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+
+    expect(view.container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+  });
+
+  it('omits bot accounts when restricted to human users', async () => {
+    mocks.listUsers.mockResolvedValue({
+      members: [
+        {
+          id: 'bot-1',
+          login: 'helper_bot',
+          displayName: 'Helper',
+          deleted: false,
+          isBot: true,
+          avatarUrl: null,
+          presenceStatus: 'OFFLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        },
+        {
+          id: 'user-1',
+          login: 'alice',
+          displayName: 'Alice Admin',
+          deleted: false,
+          isBot: false,
+          avatarUrl: null,
+          presenceStatus: 'ONLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 2,
+      hasMore: false
+    });
+    const view = render(UserCombobox, {
+      props: { id: 'owner', label: 'Owner', humanOnly: true }
+    });
+
+    enterSearch(view.container, 'a');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+
+    expect(view.container.textContent).toContain('Alice Admin');
+    expect(view.container.textContent).not.toContain('Helper');
+  });
+
+  it('cancels an in-flight search when unmounted', async () => {
+    const pending = deferred<never>();
+    mocks.listUsers.mockReturnValue(pending.promise);
+    const view = render(UserCombobox, {
+      props: { id: 'actor', label: 'Actor' }
+    });
+    enterSearch(view.container, 'alice');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+    const options = mocks.listUsers.mock.calls[0]?.[3] as { signal: AbortSignal };
+
+    view.unmount();
+
+    expect(options.signal.aborted).toBe(true);
+  });
+
+  it('hides a superseded search result while the next term is debouncing', async () => {
+    const alice = deferred<Awaited<ReturnType<typeof mocks.listUsers>>>();
+    mocks.listUsers.mockReturnValueOnce(alice.promise).mockResolvedValue({
+      members: [
+        {
+          id: 'user-2',
+          login: 'bob',
+          displayName: 'Bob Builder',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 'ONLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    const view = render(UserCombobox, {
+      props: { id: 'actor', label: 'Actor' }
+    });
+    enterSearch(view.container, 'alice');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+
+    enterSearch(view.container, 'bob');
+    alice.resolve({
+      members: [
+        {
+          id: 'user-1',
+          login: 'alice',
+          displayName: 'Alice Admin',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 'ONLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    await settle();
+
+    expect(view.container.textContent).not.toContain('Alice Admin');
+
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+    expect(view.container.textContent).toContain('Bob Builder');
   });
 });

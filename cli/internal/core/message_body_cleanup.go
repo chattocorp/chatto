@@ -22,11 +22,11 @@ func (c *ChattoCore) secureDeleteMessageBodyEvents(ctx context.Context, seqs []u
 }
 
 func (c *ChattoCore) secureDeleteObsoleteMessageBodyEvents(ctx context.Context, eventID string) {
-	c.secureDeleteMessageBodyEvents(ctx, c.rooms().obsoleteBodyEventSeqs(eventID))
+	c.secureDeleteMessageBodyEvents(ctx, c.roomModel.obsoleteBodyEventSeqs(eventID))
 }
 
 func (c *ChattoCore) secureDeleteAllMessageBodyEvents(ctx context.Context, eventID string) {
-	seqs, _, ok := c.rooms().bodyEventSeqs(eventID)
+	seqs, _, ok := c.roomModel.bodyEventSeqs(eventID)
 	if !ok {
 		return
 	}
@@ -34,5 +34,5 @@ func (c *ChattoCore) secureDeleteAllMessageBodyEvents(ctx context.Context, event
 }
 
 func (c *ChattoCore) secureDeleteObsoleteProjectedMessageBodyEvents(ctx context.Context) {
-	c.secureDeleteMessageBodyEvents(ctx, c.rooms().allObsoleteBodyEventSeqs())
+	c.secureDeleteMessageBodyEvents(ctx, c.roomModel.allObsoleteBodyEventSeqs())
 }

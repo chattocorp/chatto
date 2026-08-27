@@ -16,7 +16,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
    devices/browsers per user while preventing duplicate subscriptions.
 */
 message PushSubscription {
-  // The push service endpoint URL (provided by the browser)
+  // The push service endpoint URL (provided by the browser).
   string endpoint = 1;
 
   // The client's P-256 ECDH public key for message encryption (base64url-encoded)
@@ -30,4 +30,11 @@ message PushSubscription {
 
   // User agent string (for debugging/device identification)
   string user_agent = 5;
+
+  // URL host of the Chatto server that supplied the installed web app.
+  string client_host = 6;
+
+  // Random per-save capability used to remove a cancelled registration without
+  // relying on whichever account session is current when its request settles.
+  string cleanup_token = 7;
 }

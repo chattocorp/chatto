@@ -1,27 +1,24 @@
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import { RoomType } from '$lib/render/types';
-import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
-import { RoomEventKind } from '$lib/render/eventKinds';
-import { NotificationItemKind } from '$lib/api-client/notifications';
-import { serverStorageKey } from '$lib/storage/serverStorage';
-import {
-  consumePendingRoomSidebarPanel,
-  roomSidebarPanelStorageSuffix
-} from '$lib/storage/roomSidebarPanel';
+
+import { NotificationSignalKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
-import { useEvent } from '$lib/hooks';
+import { getToasts, toast } from '$lib/ui/toast';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     activeCallRoomIds: new Set<string>(),
-    callParticipants: new Map<string, unknown[]>(),
+    projectedCallParticipants: new Map<string, unknown[]>(),
     unreadRoomIds: new Set<string>(),
+    writeClipboardText: vi.fn(),
+    markNavigationRoomAsRead: vi.fn().mockResolvedValue(true),
     pushState: vi.fn(),
     goto: vi.fn(),
     appUi: {
-      disableRoomCallWideFor: vi.fn()
+      disableRoomCallWideFor: vi.fn(),
+      requestRoomSidebarPanel: vi.fn()
     },
     store: {
       currentUser: { user: { id: 'me' } },
@@ -40,11 +37,8 @@ const { mocks } = vi.hoisted(() => ({
           totalCount: 0,
           notification: null
         }),
-        dismiss: vi.fn(),
+        markRead: vi.fn(),
         getCleanPath: vi.fn().mockReturnValue('/chat/-/room')
-      },
-      notificationLevels: {
-        isRoomMuted: vi.fn().mockReturnValue(false)
       },
       roomUnread: {
         roomIsUnread: vi.fn((roomId: string) => mocks.unreadRoomIds.has(roomId)),
@@ -54,12 +48,10 @@ const { mocks } = vi.hoisted(() => ({
         })
       },
       activeCallRooms: {
-        load: vi.fn().mockResolvedValue(undefined),
         has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId)),
-        getParticipants: vi.fn((roomId: string) => mocks.callParticipants.get(roomId) ?? []),
-        handleJoin: vi.fn(),
-        handleLeave: vi.fn(),
-        handleEnd: vi.fn()
+        getParticipants: vi.fn(
+          (roomId: string) => mocks.projectedCallParticipants.get(roomId) ?? []
+        )
       },
       voiceCall: {
         join: vi.fn().mockResolvedValue(undefined),
@@ -69,16 +61,14 @@ const { mocks } = vi.hoisted(() => ({
       serverInfo: {
         livekitUrl: null
       },
-      rooms: {
+      navigation: {
         rooms: [],
-        roomGroups: null as RoomsListGroup[] | null,
+        roomGroups: [] as RoomsListGroup[],
         isInitialLoading: false,
-        currentUserId: 'me',
-        bumpRoom: vi.fn(),
-        clearUnreadNotifications: vi.fn(),
-        decrementUnreadNotification: vi.fn(),
-        incrementUnreadNotification: vi.fn(),
-        refreshNotificationCounts: vi.fn().mockResolvedValue(undefined)
+        currentUserId: 'me'
+      },
+      roomDirectory: {
+        joinRoom: vi.fn()
       },
       pendingHighlights: {
         set: vi.fn()
@@ -104,7 +94,10 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
-    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
+    path
+      .replace('[serverId]', params?.serverId ?? '')
+      .replace('[roomId]', params?.roomId ?? '')
+      .replace('[groupId]', params?.groupId ?? '')
 }));
 
 vi.mock('$lib/navigation', () => ({
@@ -112,13 +105,16 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: () => 'origin'
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: mocks.store,
+    isCurrent: () => true
+  })
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: vi.fn(() => mocks.store),
     isOriginServer: vi.fn(() => true),
     getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
     originServer: { id: 'origin' },
@@ -126,14 +122,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/hooks', () => ({
-  useEvent: vi.fn(),
-  useRoomMarkedAsRead: vi.fn(),
-  useTabResumeCallback: vi.fn()
-}));
-
 vi.mock('$lib/state/appUi.svelte', () => ({
-  getAppUiState: () => mocks.appUi
+  getAppUiState: () => mocks.appUi,
+  getRoomSidebarPresentation: () => 'desktop'
 }));
 
 vi.mock('$lib/state/presenceCache.svelte', () => ({
@@ -148,29 +139,24 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
+vi.mock('$lib/navigation/readActions', () => ({
+  markNavigationRoomAsRead: mocks.markNavigationRoomAsRead
+}));
+
 import RoomList from './RoomList.svelte';
 
 function notification(id: string, roomId: string, isDM = false) {
-  if (isDM) {
-    return {
-      kind: NotificationItemKind.DirectMessage,
-      id,
-      createdAt: '2026-06-18T10:00:00Z',
-      actor: null,
-      summary: 'new direct message',
-      room: { id: roomId }
-    };
-  }
-
   return {
-    kind: NotificationItemKind.Mention,
     id,
     createdAt: '2026-06-18T10:00:00Z',
     actor: null,
-    summary: 'mentioned you',
-    mentionRoom: { id: roomId, name: 'general' },
-    mentionEventId: 'event-1',
-    mentionInThread: 'thread-1'
+    signalKind: isDM
+      ? NotificationSignalKind.DIRECT_MESSAGE
+      : NotificationSignalKind.DIRECT_MENTION,
+    targetSupported: true,
+    room: { id: roomId, name: 'general' },
+    eventId: 'event-1',
+    threadRootId: isDM ? null : 'thread-1'
   };
 }
 
@@ -185,68 +171,80 @@ function user(id: string, login: string, displayName: string) {
 }
 
 function setRooms() {
-  mocks.store.rooms.rooms = [
+  mocks.store.navigation.rooms = [
     {
       id: 'channel-1',
       name: 'general',
-      type: RoomType.Channel,
+      type: RoomKind.CHANNEL,
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: true,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: []
     },
     {
       id: 'joinable-channel',
       name: 'joinable',
-      type: RoomType.Channel,
+      type: RoomKind.CHANNEL,
       isUniversal: false,
       viewerIsMember: false,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: []
     },
     {
       id: 'restricted-channel',
       name: 'restricted',
-      type: RoomType.Channel,
+      type: RoomKind.CHANNEL,
       isUniversal: false,
       viewerIsMember: false,
       viewerCanJoinRoom: false,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: []
     },
     {
       id: 'dm-with-participants',
       name: '',
-      type: RoomType.Dm,
+      type: RoomKind.DM,
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('teal', 'teal', 'Teal')]
     },
     {
       id: 'dm-phone-only',
       name: '',
-      type: RoomType.Dm,
+      type: RoomKind.DM,
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
+      viewerCanManageRoom: false,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('river', 'river', 'River')]
     }
   ] as never;
 }
 
-function setRoomNotificationCount(roomId: string, count: number) {
-  const rooms = mocks.store.rooms.rooms as Array<{
+function setRoomNotificationCount(roomId: string, count: number, importantCount = count) {
+  const rooms = mocks.store.navigation.rooms as Array<{
     id: string;
     viewerNotificationCount: number;
+    viewerImportantNotificationCount: number;
   }>;
   const room = rooms.find((item) => item.id === roomId);
   if (!room) throw new Error(`Missing mocked room ${roomId}`);
   room.viewerNotificationCount = count;
+  room.viewerImportantNotificationCount = importantCount;
 }
 
 function setRoomUnread(roomId: string, hasUnread: boolean) {
@@ -254,29 +252,23 @@ function setRoomUnread(roomId: string, hasUnread: boolean) {
   else mocks.unreadRoomIds.delete(roomId);
 }
 
-function dispatchRoomListEvent(handlerIndex: number, event: Record<string, unknown>) {
-  const handler = vi.mocked(useEvent).mock.calls[handlerIndex]?.[0] as EventHandler | undefined;
-  if (!handler) throw new Error(`RoomList useEvent handler ${handlerIndex} was not registered`);
-  handler({
-    id: 'event-1',
-    createdAt: new Date().toISOString(),
-    actorId: 'other-user',
-    actor: null,
-    event
-  } as EventEnvelope);
-}
-
 beforeEach(() => {
+  toast.clear();
   localStorage.clear();
   sessionStorage.clear();
   mocks.activeCallRoomIds = new Set();
-  mocks.callParticipants = new Map();
+  mocks.projectedCallParticipants = new Map();
   mocks.unreadRoomIds = new Set();
-  mocks.store.rooms.roomGroups = null;
-  mocks.store.rooms.isInitialLoading = false;
-  mocks.store.rooms.currentUserId = 'me';
+  mocks.store.navigation.roomGroups = [];
+  mocks.store.navigation.isInitialLoading = false;
+  mocks.store.navigation.currentUserId = 'me';
   setRooms();
   vi.clearAllMocks();
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: mocks.writeClipboardText },
+    configurable: true
+  });
+  mocks.writeClipboardText.mockResolvedValue(undefined);
   mocks.store.notifications.fetchRoomNotification.mockResolvedValue({
     ok: true,
     totalCount: 0,
@@ -288,18 +280,376 @@ beforeEach(() => {
     notification: null
   });
   mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room');
-  mocks.store.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
+  mocks.store.roomDirectory.joinRoom.mockResolvedValue({ ok: true });
+  mocks.markNavigationRoomAsRead.mockResolvedValue(true);
 });
 
 describe('RoomList', () => {
+  it('hides only DMs explicitly projected without message history', async () => {
+    const empty = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'dm-with-participants'
+    ) as unknown as { hasMessageHistory?: boolean };
+    empty.hasMessageHistory = false;
+
+    const { container } = render(RoomList);
+
+    expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull();
+    await expect.element(q(container, '[href="/chat/-/dm-phone-only"]')).toBeInTheDocument();
+  });
+
+  it('renders a lone configured room group and keeps highlighted rooms visible when collapsed', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: false,
+        roomIds: ['channel-1']
+      }
+    ];
+    setRoomUnread('channel-1', true);
+
+    const { container } = render(RoomList);
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeader = groupHeaders[0];
+
+    expect(groupHeaders).toHaveLength(1);
+    await expect.element(groupHeader).toHaveTextContent('Projects');
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
+    expect(groupHeader?.parentElement?.parentElement?.classList.contains('mt-4')).toBe(false);
+
+    groupHeader?.click();
+
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'false');
+    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+
+    groupHeader?.click();
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('renders a DM-only sidebar with the same first-section disclosure treatment', async () => {
+    const dm = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'dm-with-participants'
+    );
+    mocks.store.navigation.rooms = [dm] as never;
+
+    const { container } = render(RoomList);
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeader = groupHeaders[0];
+
+    expect(groupHeaders).toHaveLength(1);
+    await expect.element(groupHeader).toHaveTextContent('Direct Messages');
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
+    expect(groupHeader?.parentElement?.parentElement?.classList.contains('mt-4')).toBe(false);
+
+    groupHeader?.click();
+
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'false');
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull()
+    );
+
+    groupHeader?.click();
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('renders a full-width separator between adjacent room and DM sections', () => {
+    const { container } = render(RoomList);
+    const roomList = q(container, 'nav.room-list') as HTMLElement;
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const sections = roomList.querySelectorAll<HTMLElement>('[data-testid="room-group-section"]');
+    const separatedSection = sections[1];
+
+    expect(groupHeaders).toHaveLength(2);
+    expect(sections).toHaveLength(2);
+    expect(separatedSection?.classList.contains('border-t')).toBe(true);
+    expect(separatedSection?.previousElementSibling?.contains(groupHeaders[0])).toBe(true);
+    expect(separatedSection?.contains(groupHeaders[1])).toBe(true);
+  });
+
+  it('opens room actions on right-click and marks an unread room as read', async () => {
+    setRoomUnread('channel-1', true);
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+
+    const markRead = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Mark as read'
+    );
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Leave room'
+    );
+    await expect.element(markRead ?? null).toBeInTheDocument();
+    await expect.element(markRead ?? null).toBeEnabled();
+    await expect.element(leave ?? null).toBeInTheDocument();
+    expect(markRead?.closest('.menu-section')).not.toBe(leave?.closest('.menu-section'));
+    expect(q(document.body, '[role="separator"]')).toBeNull();
+
+    markRead!.click();
+
+    expect(mocks.markNavigationRoomAsRead).toHaveBeenCalledWith('origin', 'channel-1');
+  });
+
+  it('shows Copy Room ID as the final context-menu row and copies the ID', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="copy-room-id"]')).not.toBeNull()
+    );
+
+    const copyRoomId = q(document.body, '[data-testid="copy-room-id"]') as HTMLButtonElement;
+    await expect.element(copyRoomId).toHaveTextContent('Copy Room ID');
+    const menuItems = copyRoomId.closest('[role="menu"]')?.querySelectorAll('[role="menuitem"]');
+    expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyRoomId);
+
+    copyRoomId.click();
+
+    await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('channel-1'));
+    expect(getToasts().map((item) => item.message)).toContain('Copied to clipboard');
+  });
+
+  it('offers a join action for a visible non-member room', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Join Room'));
+
+    const join = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Join Room'
+    );
+    const markRead = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Mark as read'
+    );
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Leave room'
+    );
+    await expect.element(join ?? null).toBeEnabled();
+    expect(markRead).toBeUndefined();
+    expect(leave).toBeUndefined();
+
+    join!.click();
+    await vi.waitFor(() =>
+      expect(mocks.store.roomDirectory.joinRoom).toHaveBeenCalledWith('joinable-channel')
+    );
+  });
+
+  it('offers room settings to a non-member room manager alongside Join', async () => {
+    const rooms = mocks.store.navigation.rooms as Array<{
+      id: string;
+      viewerCanManageRoom: boolean;
+    }>;
+    const channel = rooms.find((room) => room.id === 'joinable-channel');
+    if (!channel) throw new Error('Missing mocked room joinable-channel');
+    channel.viewerCanManageRoom = true;
+
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
+
+    const join = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Join Room'
+    );
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    await expect.element(join ?? null).toBeEnabled();
+    await expect.element(settings ?? null).toBeInTheDocument();
+
+    settings!.click();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/joinable-channel');
+  });
+
+  it('shows a disabled join action for a visible restricted room', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Join Room'));
+
+    const join = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Join Room'
+    );
+    await expect.element(join ?? null).toBeDisabled();
+  });
+
+  it('opens room actions after a touch long-press and suppresses its synthetic click', async () => {
+    vi.useFakeTimers();
+    mocks.activeCallRoomIds.add('channel-1');
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    const callIcon = q(row, '[data-testid="room-call-icon"]') as HTMLElement;
+
+    callIcon.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 1,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 20,
+        clientY: 30
+      })
+    );
+    await vi.advanceTimersByTimeAsync(500);
+
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Leave room'
+    );
+    await expect.element(leave ?? null).toBeInTheDocument();
+
+    callIcon.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        pointerId: 1,
+        pointerType: 'touch',
+        isPrimary: true
+      })
+    );
+    callIcon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(mocks.goto).not.toHaveBeenCalled();
+
+    callIcon.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
+    vi.useRealTimers();
+  });
+
+  it('cancels a pending long-press when touch movement indicates scrolling', async () => {
+    vi.useFakeTimers();
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 2,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 10,
+        clientY: 10
+      })
+    );
+    row.dispatchEvent(
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        pointerId: 2,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 20,
+        clientY: 10
+      })
+    );
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(document.querySelector('dialog.bottom-sheet')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('keeps a touch-native contextmenu in the sheet presentation', async () => {
+    vi.useFakeTimers();
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 3,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 12,
+        clientY: 16
+      })
+    );
+    row.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 12, clientY: 16 })
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect
+      .element(q(document.body, 'dialog.bottom-sheet'))
+      .toHaveAttribute('aria-label', 'Actions for #general');
+    vi.useRealTimers();
+  });
+
+  it('does not offer leave for direct-message rooms', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Leave room'
+    );
+    expect(leave).toBeUndefined();
+  });
+
+  it('opens the existing leave-room confirmation flow from room actions', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Leave room'));
+
+    const leave = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Leave room'
+    );
+    leave!.click();
+
+    expect(mocks.pushState).toHaveBeenCalledWith('', {
+      modal: { type: 'leaveRoom', serverId: 'origin', roomId: 'channel-1', roomName: 'general' }
+    });
+  });
+
+  it('opens room settings for viewers who can manage the room', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
+
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    settings!.click();
+
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/channel-1');
+  });
+
+  it('hides room settings without room.manage', async () => {
+    const rooms = mocks.store.navigation.rooms as Array<{
+      id: string;
+      viewerCanManageRoom: boolean;
+    }>;
+    const channel = rooms.find((room) => room.id === 'channel-1');
+    if (!channel) throw new Error('Missing mocked room channel-1');
+    channel.viewerCanManageRoom = false;
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Leave room'));
+
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Room settings'
+    );
+    expect(settings).toBeUndefined();
+  });
+
   it('renders active-call DM rows with the pulse icon and participant avatars', async () => {
     mocks.activeCallRoomIds.add('dm-with-participants');
-    mocks.callParticipants.set('dm-with-participants', [
+    mocks.projectedCallParticipants.set('dm-with-participants', [
       {
         userId: 'teal',
         login: 'teal',
         displayName: 'Teal',
-        avatarUrl: null
+        avatarUrl: null,
+        isBot: true
       }
     ]);
 
@@ -311,12 +661,13 @@ describe('RoomList', () => {
     const pulseIcon = icon?.querySelector('[data-testid="active-call-pulse-icon"]');
     const children = Array.from(dmRow?.children ?? []);
     expect(icon).not.toBeNull();
-    expect(icon?.classList.contains('text-accent')).toBe(true);
-    expect(icon?.querySelector('.uil--phone')).not.toBeNull();
+    expect(icon?.classList.contains('text-action')).toBe(true);
+    expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
     expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
+    expect(dmRow?.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
     expect(children.indexOf(dmRow!.querySelector('[data-testid="room-call-participants"]')!)).toBe(
       children.indexOf(icon!) - 1
     );
@@ -332,14 +683,14 @@ describe('RoomList', () => {
     const dmRow = q(container, '[href="/chat/-/dm-phone-only"]');
     const icon = dmRow?.querySelector('[data-testid="room-call-icon"]');
     expect(icon).not.toBeNull();
-    expect(icon?.querySelector('.uil--phone')).not.toBeNull();
+    expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
     expect(icon?.querySelector('[data-testid="active-call-pulse-icon"]')).not.toBeNull();
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).toBeNull();
   });
 
   it('renders active-call channel rows with the pulse icon and participant avatars', async () => {
     mocks.activeCallRoomIds.add('channel-1');
-    mocks.callParticipants.set('channel-1', [
+    mocks.projectedCallParticipants.set('channel-1', [
       {
         userId: 'teal',
         login: 'teal',
@@ -357,7 +708,7 @@ describe('RoomList', () => {
     const leadingIcon = channelRow?.querySelector('.sidebar-icon');
     const children = Array.from(channelRow?.children ?? []);
     expect(icon).not.toBeNull();
-    expect(icon?.querySelector('.uil--phone')).not.toBeNull();
+    expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(leadingIcon?.textContent).toBe('#');
@@ -373,7 +724,7 @@ describe('RoomList', () => {
 
   it('renders a compact overflow count for larger active calls', async () => {
     mocks.activeCallRoomIds.add('channel-1');
-    mocks.callParticipants.set('channel-1', [
+    mocks.projectedCallParticipants.set('channel-1', [
       { userId: 'teal', login: 'teal', displayName: 'Teal', avatarUrl: null },
       { userId: 'river', login: 'river', displayName: 'River', avatarUrl: null },
       { userId: 'sage', login: 'sage', displayName: 'Sage', avatarUrl: null },
@@ -409,10 +760,12 @@ describe('RoomList', () => {
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
     });
-    expect(
-      localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
-    ).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
+    expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+      'origin',
+      'channel-1',
+      'call',
+      'desktop'
+    );
   });
 
   it('opens the call panel when an active-call DM icon is clicked', async () => {
@@ -430,41 +783,12 @@ describe('RoomList', () => {
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
     });
-    expect(
-      localStorage.getItem(
-        serverStorageKey('origin', roomSidebarPanelStorageSuffix('dm-with-participants'))
-      )
-    ).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'dm-with-participants')).toBe('call');
-  });
-
-  it('updates active call rooms from local event kind', async () => {
-    render(RoomList);
-
-    dispatchRoomListEvent(0, {
-      kind: RoomEventKind.CallParticipantJoined,
-      roomId: 'channel-1',
-      callId: 'call-1'
-    });
-
-    expect(mocks.store.activeCallRooms.handleJoin).toHaveBeenCalledWith(
-      'channel-1',
-      'call-1',
-      null
+    expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+      'origin',
+      'dm-with-participants',
+      'call',
+      'desktop'
     );
-  });
-
-  it('marks inactive rooms unread from local message event kind', async () => {
-    render(RoomList);
-
-    dispatchRoomListEvent(1, {
-      kind: RoomEventKind.MessagePosted,
-      roomId: 'channel-1',
-      threadRootEventId: null
-    });
-
-    expect(mocks.store.rooms.bumpRoom).toHaveBeenCalledWith('channel-1');
-    expect(mocks.store.roomUnread.setRoomUnread).toHaveBeenCalledWith('channel-1', true);
   });
 
   it.each([
@@ -487,10 +811,12 @@ describe('RoomList', () => {
       await vi.waitFor(() => {
         expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
       });
-      expect(
-        localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
-      ).toBe('call');
-      expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
+      expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+        'origin',
+        'channel-1',
+        'call',
+        'desktop'
+      );
     }
   );
 
@@ -515,8 +841,8 @@ describe('RoomList', () => {
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
     const icon = row.querySelector('.sidebar-icon');
-    expect(icon?.classList.contains('uil--lock')).toBe(true);
-    expect(row.querySelectorAll('.uil--lock')).toHaveLength(1);
+    expect(icon?.classList.contains('icon-[uil--lock]')).toBe(true);
+    expect(row.querySelectorAll('[class~="icon-[uil--lock]"]')).toHaveLength(1);
 
     const event = new MouseEvent('click', { bubbles: true, cancelable: true });
     const wasNotCanceled = row.dispatchEvent(event);
@@ -533,18 +859,54 @@ describe('RoomList', () => {
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
     const icon = row.querySelector('.sidebar-icon');
-    expect(row.classList.contains('font-semibold')).toBe(true);
-    expect(row.classList.contains('text-text-top')).toBe(true);
-    expect(row.classList.contains('hover:!text-text-top')).toBe(true);
+    expect(row.classList.contains('sidebar-item-attention')).toBe(true);
     expect(icon?.classList.contains('text-text-top')).toBe(true);
     expect(icon?.classList.contains('text-muted')).toBe(false);
   });
 
+  it('uses the established globe icon for universal joined rooms', async () => {
+    const universal = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    ) as unknown as { isUniversal: boolean };
+    universal.isUniversal = true;
+
+    const { container } = render(RoomList);
+
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    await expect.element(row).toBeInTheDocument();
+    const icon = q(row, '[class~="icon-[uil--globe]"]');
+    await expect.element(icon).toHaveAttribute('aria-label', 'Universal');
+    expect(icon?.getAttribute('title')).toBeTruthy();
+  });
+
+  it('renders room groups as sections and keeps notification rooms visible while collapsed', async () => {
+    setRoomNotificationCount('channel-1', 1);
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'community',
+        name: 'Community',
+        viewerCanManageGroup: false,
+        roomIds: ['channel-1', 'joinable-channel']
+      }
+    ];
+    localStorage.setItem('chatto:i:origin:collapsible:set:community', '1');
+
+    const { container } = render(RoomList);
+
+    await expect.element(q(container, '[data-testid="room-group-section"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-group-section"] button'))
+      .toHaveAttribute('aria-expanded', 'false');
+    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+    expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
+  });
+
   it('renders server-local sidebar links as same-tab anchors resolved against the active server', async () => {
-    mocks.store.rooms.roomGroups = [
+    mocks.store.navigation.roomGroups = [
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {
@@ -565,11 +927,48 @@ describe('RoomList', () => {
     expect(link.getAttribute('rel')).toBeNull();
   });
 
+  it('keeps an empty manageable group visible and opens its settings from a context menu', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'private-group',
+        name: 'Private Group',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Private Group')
+    );
+    await expect.element(groupHeader ?? null).toBeInTheDocument();
+    expect(container.querySelector('[class~="icon-[uil--setting]"]')).toBeNull();
+
+    groupHeader!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('Settings for Private Group')
+    );
+
+    const settings = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Settings for Private Group'
+    );
+    await expect.element(settings ?? null).toBeInTheDocument();
+
+    settings!.click();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/private-group');
+  });
+
   it('renders active-server host sidebar links as same-tab anchors', async () => {
-    mocks.store.rooms.roomGroups = [
+    mocks.store.navigation.roomGroups = [
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {
@@ -594,10 +993,11 @@ describe('RoomList', () => {
   });
 
   it('renders external sidebar links as new-tab anchors', async () => {
-    mocks.store.rooms.roomGroups = [
+    mocks.store.navigation.roomGroups = [
       {
         id: 'g1',
         name: 'Links',
+        viewerCanManageGroup: false,
         roomIds: [],
         items: [
           {
@@ -630,7 +1030,7 @@ describe('RoomList', () => {
       notification: roomNotification
     });
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/channel-1/thread-1');
-    mocks.store.notifications.dismiss.mockResolvedValue(true);
+    mocks.store.notifications.markRead.mockResolvedValue(true);
 
     const { container } = render(RoomList);
 
@@ -645,17 +1045,30 @@ describe('RoomList', () => {
       expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
         'channel-1',
         'thread-1',
-        'event-1'
+        'event-1',
+        'mention-1'
       );
       expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith('origin', 'channel-1');
       expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.goto.mock.invocationCallOrder[0]
       );
-      expect(mocks.store.rooms.decrementUnreadNotification).toHaveBeenCalledWith('channel-1');
-      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
-      expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
+      expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
+      expect(mocks.store.notifications.getCleanPath).toHaveBeenCalledWith(
+        'origin',
+        roomNotification
+      );
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1/thread-1');
     });
+  });
+
+  it('uses a neutral room badge when only ambient notifications are unread', async () => {
+    setRoomNotificationCount('channel-1', 2, 0);
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="room-notification-badge"]');
+    await expect.element(badge).toHaveClass('bg-text');
+    await expect.element(badge).not.toHaveClass('bg-attention');
   });
 
   it('resolves a stale DM badge through the room-scoped notification query', async () => {
@@ -667,7 +1080,7 @@ describe('RoomList', () => {
       notification: dmNotification
     });
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/dm-with-participants');
-    mocks.store.notifications.dismiss.mockResolvedValue(true);
+    mocks.store.notifications.markRead.mockResolvedValue(true);
 
     const { container } = render(RoomList);
 
@@ -680,9 +1093,6 @@ describe('RoomList', () => {
         'dm-with-participants',
         { isDM: true }
       );
-      expect(mocks.store.rooms.decrementUnreadNotification).toHaveBeenCalledWith(
-        'dm-with-participants'
-      );
       expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith(
         'origin',
         'dm-with-participants'
@@ -690,13 +1100,18 @@ describe('RoomList', () => {
       expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.goto.mock.invocationCallOrder[0]
       );
-      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('dm-1');
-      expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
+      expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
+        'dm-with-participants',
+        null,
+        'event-1',
+        'dm-1'
+      );
+      expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
     });
   });
 
-  it('clears a stale room badge when the room-scoped query returns no notifications', async () => {
+  it('leaves a stale room badge to converge through the authoritative projection', async () => {
     setRoomNotificationCount('channel-1', 1);
     mocks.store.notifications.resolveRoomNotification.mockResolvedValue({
       ok: true,
@@ -714,9 +1129,8 @@ describe('RoomList', () => {
       expect(mocks.store.notifications.resolveRoomNotification).toHaveBeenCalledWith('channel-1', {
         isDM: false
       });
-      expect(mocks.store.rooms.clearUnreadNotifications).toHaveBeenCalledWith('channel-1');
       expect(mocks.goto).not.toHaveBeenCalled();
-      expect(mocks.store.notifications.dismiss).not.toHaveBeenCalled();
+      expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
     });
   });
 });

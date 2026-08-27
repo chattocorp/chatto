@@ -84,7 +84,8 @@ message AdminEventLogEntry {
   string actor_id = 7;
   // Event creation timestamp.
   google.protobuf.Timestamp created_at = 8;
-  // Pretty-printed JSON representation of the event payload.
+  // Pretty-printed, sanitized JSON representation of the event payload.
+  // Password verifiers are omitted.
   string payload_json = 9;
 }
 

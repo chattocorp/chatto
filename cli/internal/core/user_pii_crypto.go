@@ -2,11 +2,19 @@ package core
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"hmans.de/chatto/internal/encryption"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func userPIILookupHash(value string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(value))))
+	return hex.EncodeToString(sum[:])
+}
 
 func userPIIAAD(eventID, userID, eventType, purpose string, epoch int32) []byte {
 	return []byte(fmt.Sprintf("chatto:user-pii-context:v1\x00event_id=%s\x00user_id=%s\x00event_type=%s\x00field=%s\x00content_key_epoch=%d", eventID, userID, eventType, purpose, epoch))

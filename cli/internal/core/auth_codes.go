@@ -27,6 +27,9 @@ var (
 	// ErrAuthCodeRedirectMismatch is returned when the redirect_uri doesn't match the one used during authorization.
 	ErrAuthCodeRedirectMismatch = errors.New("redirect URI mismatch")
 
+	// ErrAuthCodeClientMismatch is returned when client_id doesn't match the one used during authorization.
+	ErrAuthCodeClientMismatch = errors.New("client ID mismatch")
+
 	// ErrAuthCodeInvalidMethod is returned when the code_challenge_method is not S256.
 	ErrAuthCodeInvalidMethod = errors.New("unsupported code challenge method: only S256 is supported")
 )
@@ -50,6 +53,7 @@ func (c *ChattoCore) authCodeKey(code string) string {
 // AuthCodeData is the JSON value stored in RUNTIME_STATE for authorization codes.
 type AuthCodeData struct {
 	UserID              string    `json:"user_id"`
+	ClientID            string    `json:"client_id,omitempty"`
 	RedirectURI         string    `json:"redirect_uri"`
 	CodeChallenge       string    `json:"code_challenge"`
 	CodeChallengeMethod string    `json:"code_challenge_method"`
@@ -76,11 +80,20 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 // CreateAuthCodeForGeneration creates an OAuth authorization code for an
 // already-authenticated session that proved authGeneration.
 func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+	return c.CreateAuthCodeForClientGeneration(ctx, userID, "", redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
+}
+
+// CreateAuthCodeForClientGeneration creates an OAuth authorization code bound
+// to the validated public client and authenticated account generation.
+func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, userID, clientID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
 	if userID == "" {
 		return "", ErrAuthCodeNotFound
 	}
 	if codeChallengeMethod != "S256" {
 		return "", ErrAuthCodeInvalidMethod
+	}
+	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
+		return "", err
 	}
 
 	code := NewAuthCode()
@@ -95,6 +108,7 @@ func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, re
 
 	data, err := json.Marshal(AuthCodeData{
 		UserID:              userID,
+		ClientID:            clientID,
 		RedirectURI:         redirectURI,
 		CodeChallenge:       codeChallenge,
 		CodeChallengeMethod: codeChallengeMethod,
@@ -113,6 +127,10 @@ func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, re
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return "", err
 	}
+	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return "", err
+	}
 
 	return code, nil
 }
@@ -125,47 +143,67 @@ func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, re
 //  2. redirect_uri matches the one used during authorization
 //  3. SHA256(code_verifier) == code_challenge (PKCE S256)
 func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, redirectURI string) (string, string, error) {
+	return c.ExchangeAuthCodeForClient(ctx, code, codeVerifier, redirectURI, "")
+}
+
+// ExchangeAuthCodeForClient exchanges a single-use authorization code and
+// requires both its exact redirect URI and client identifier to match.
+func (c *ChattoCore) ExchangeAuthCodeForClient(ctx context.Context, code, codeVerifier, redirectURI, clientID string) (string, string, error) {
+	credentials, userID, err := c.ExchangeAuthCodeForClientSession(ctx, code, codeVerifier, redirectURI, clientID)
+	return credentials.AccessToken, userID, err
+}
+
+// ExchangeAuthCodeForClientSession exchanges a single-use authorization code
+// for a renewable bearer session and requires its exact redirect URI, client
+// identifier, and PKCE proof to match.
+func (c *ChattoCore) ExchangeAuthCodeForClientSession(ctx context.Context, code, codeVerifier, redirectURI, clientID string) (BearerSessionCredentials, string, error) {
 	key := c.authCodeKey(code)
 
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return "", "", ErrAuthCodeNotFound
+			return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
 		}
-		return "", "", fmt.Errorf("failed to get auth code: %w", err)
+		return BearerSessionCredentials{}, "", fmt.Errorf("failed to get auth code: %w", err)
 	}
 
 	// Atomically claim the code before validation and token issuance. A
 	// concurrent exchange that read the same revision must not also succeed.
 	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) || isRuntimeStateRevisionConflict(err) {
-			return "", "", ErrAuthCodeNotFound
+			return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
 		}
-		return "", "", fmt.Errorf("failed to consume auth code: %w", err)
+		return BearerSessionCredentials{}, "", fmt.Errorf("failed to consume auth code: %w", err)
 	}
 
 	var codeData AuthCodeData
 	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
-		return "", "", fmt.Errorf("failed to unmarshal auth code: %w", err)
+		return BearerSessionCredentials{}, "", fmt.Errorf("failed to unmarshal auth code: %w", err)
 	}
 	if codeData.UserID == "" {
-		return "", "", ErrAuthCodeNotFound
+		return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
 	}
 
 	// Validate redirect_uri matches
 	if codeData.RedirectURI != redirectURI {
 		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "redirect_mismatch"); err != nil {
-			return "", "", err
+			return BearerSessionCredentials{}, "", err
 		}
-		return "", "", ErrAuthCodeRedirectMismatch
+		return BearerSessionCredentials{}, "", ErrAuthCodeRedirectMismatch
+	}
+	if codeData.ClientID != clientID {
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "client_mismatch"); err != nil {
+			return BearerSessionCredentials{}, "", err
+		}
+		return BearerSessionCredentials{}, "", ErrAuthCodeClientMismatch
 	}
 
 	// Validate PKCE
 	if !verifyCodeChallenge(codeData.CodeChallengeMethod, codeVerifier, codeData.CodeChallenge) {
 		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "invalid_verifier"); err != nil {
-			return "", "", err
+			return BearerSessionCredentials{}, "", err
 		}
-		return "", "", ErrAuthCodeInvalidVerifier
+		return BearerSessionCredentials{}, "", ErrAuthCodeInvalidVerifier
 	}
 
 	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
@@ -175,29 +213,29 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 	})
 	if err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
-			return "", "", err
+			return BearerSessionCredentials{}, "", err
 		}
 		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "auth_revoked"); err != nil {
-			return "", "", err
+			return BearerSessionCredentials{}, "", err
 		}
-		return "", "", ErrAuthCodeNotFound
+		return BearerSessionCredentials{}, "", ErrAuthCodeNotFound
 	}
 	codeData.AuthGeneration = validation.AuthGeneration
 
-	// Issue a bearer token
-	token, err := c.CreateAuthTokenWithSourceGeneration(ctx, validation.UserID, "oauth_code_exchange", validation.AuthGeneration)
+	// Issue a renewable bearer session.
+	credentials, err := c.CreateOAuthBearerSessionForClient(ctx, validation.UserID, codeData.ClientID, validation.AuthGeneration)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create bearer token: %w", err)
+		return BearerSessionCredentials{}, "", fmt.Errorf("failed to create bearer session: %w", err)
 	}
 
 	if err := c.recordAuthCodeExchangeSucceeded(ctx, codeData.UserID, codeData.RedirectURI); err != nil {
-		if revokeErr := c.RevokeAuthTokenWithReason(ctx, token, "oauth_exchange_audit_failed"); revokeErr != nil {
-			return "", "", fmt.Errorf("%w; failed to revoke issued bearer token: %v", err, revokeErr)
+		if revokeErr := c.RevokeRefreshTokenWithReason(ctx, credentials.RefreshToken, "oauth_exchange_audit_failed"); revokeErr != nil {
+			return BearerSessionCredentials{}, "", fmt.Errorf("%w; failed to revoke issued bearer session: %v", err, revokeErr)
 		}
-		return "", "", err
+		return BearerSessionCredentials{}, "", err
 	}
 
-	return token, validation.UserID, nil
+	return credentials, validation.UserID, nil
 }
 
 // ============================================================================

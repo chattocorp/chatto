@@ -1,8 +1,10 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
-import type { ImportedLinkAttachment } from '@chatto/api-types/api/v1/link_previews_pb';
-
+import type {
+  ImportedLinkAttachment,
+  LinkPreview
+} from '@chatto/api-types/api/v1/link_previews_pb';
+import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
 export type LinkPreviewAPIConfig = {
   serverId?: string;
   baseUrl: string;
@@ -20,6 +22,7 @@ export type ComposerLinkPreview = {
   siteName: string | null;
   embedType: string | null;
   embedId: string | null;
+  socialPost?: SocialPostPreviewView | null;
 };
 
 export type ComposerImportedAttachment = {
@@ -54,6 +57,21 @@ export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
   };
 }
 
+function composerImportedAttachment(
+  asset: ImportedLinkAttachment | undefined
+): ComposerImportedAttachment | null {
+  if (!asset?.assetId || !asset.previewUrl) return null;
+  return {
+    assetId: asset.assetId,
+    filename: asset.filename,
+    contentType: asset.contentType,
+    size: asset.size,
+    width: asset.width,
+    height: asset.height,
+    previewUrl: asset.previewUrl
+  };
+}
+
 function composerLinkPreview(
   preview: LinkPreview | undefined,
   previewToken: string
@@ -68,21 +86,43 @@ function composerLinkPreview(
     imageAssetId: preview.imageAssetId || null,
     siteName: preview.siteName || null,
     embedType: preview.embedType || null,
-    embedId: preview.embedId || null
+    embedId: preview.embedId || null,
+    socialPost: socialPostView(preview.socialPost)
   };
 }
 
-function composerImportedAttachment(
-  asset: ImportedLinkAttachment | undefined
-): ComposerImportedAttachment | null {
-  if (!asset?.assetId || !asset.previewUrl) return null;
+function socialPostView(
+  post: LinkPreview['socialPost'],
+  quoteDepth = 0
+): SocialPostPreviewView | null {
+  if (!post) return null;
   return {
-    assetId: asset.assetId,
-    filename: asset.filename,
-    contentType: asset.contentType,
-    size: asset.size,
-    width: asset.width,
-    height: asset.height,
-    previewUrl: asset.previewUrl
+    provider: post.provider,
+    url: post.url || null,
+    author: post.author
+      ? {
+          displayName: post.author.displayName,
+          handle: post.author.handle,
+          avatarUrl: post.author.avatarUrl || null
+        }
+      : null,
+    text: post.text,
+    publishedAt: post.publishedAt?.toDate().toISOString() ?? null,
+    externalLink: post.externalLink
+      ? {
+          url: post.externalLink.url,
+          title: post.externalLink.title || null,
+          description: post.externalLink.description || null,
+          imageUrl: post.externalLink.imageUrl || null
+        }
+      : null,
+    contentWarning: post.contentWarning || null,
+    images: post.images.map((image) => ({
+      url: image.url,
+      alt: image.alt || null,
+      width: image.width || null,
+      height: image.height || null
+    })),
+    quotedPost: quoteDepth === 0 ? socialPostView(post.quotedPost, quoteDepth + 1) : null
   };
 }

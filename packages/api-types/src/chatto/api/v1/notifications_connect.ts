@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetNotificationsRequest, BatchGetNotificationsResponse, DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, GetNotificationRequest, GetNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationCountsRequest, ListRoomNotificationCountsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse } from "./notifications_pb.js";
+import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, BatchGetNotificationOccurrencesRequest, BatchGetNotificationOccurrencesResponse, BatchGetNotificationPoliciesRequest, BatchGetNotificationPoliciesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, NotificationPolicyServiceGetNotificationPolicyRequest, NotificationPolicyServiceGetNotificationPolicyResponse, NotificationPolicyServiceUpdateNotificationPolicyRequest, NotificationPolicyServiceUpdateNotificationPolicyResponse, UpdateNotificationPolicyRequest, UpdateNotificationPolicyResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads and dismisses pending notifications for the authenticated viewer.
+ * Reads, marks read, and deletes notifications for the authenticated viewer.
  *
  * @generated from service chatto.api.v1.NotificationService
  */
@@ -15,95 +15,181 @@ export const NotificationService = {
   typeName: "chatto.api.v1.NotificationService",
   methods: {
     /**
-     * Lists the authenticated viewer's pending notifications.
+     * Gets one exact visible occurrence. Message-derived occurrences require
+     * current room membership. Channel-room occurrences also require message.read
+     * or a matching thread relationship with message.read.interactions. DM
+     * membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
+     * is absent, deleted, expired, or no longer visible to the authenticated
+     * viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
+     * kind.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.ListNotifications
+     * @generated from rpc chatto.api.v1.NotificationService.GetNotificationOccurrence
      */
-    listNotifications: {
-      name: "ListNotifications",
-      I: ListNotificationsRequest,
-      O: ListNotificationsResponse,
+    getNotificationOccurrence: {
+      name: "GetNotificationOccurrence",
+      I: GetNotificationOccurrenceRequest,
+      O: GetNotificationOccurrenceResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one pending notification. Returns NOT_FOUND when the notification is
-     * unknown or has been dismissed.
+     * Gets an explicit bounded set of visible occurrences. Missing or
+     * inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
+     * UNIMPLEMENTED rather than partially answering when this server cannot
+     * validate one requested signal kind.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.GetNotification
+     * @generated from rpc chatto.api.v1.NotificationService.BatchGetNotificationOccurrences
      */
-    getNotification: {
-      name: "GetNotification",
-      I: GetNotificationRequest,
-      O: GetNotificationResponse,
+    batchGetNotificationOccurrences: {
+      name: "BatchGetNotificationOccurrences",
+      I: BatchGetNotificationOccurrencesRequest,
+      O: BatchGetNotificationOccurrencesResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Gets pending notifications by ID.
+     * Lists exact Notifications 2.0 occurrences. Clients may derive temporary
+     * presentation groups without changing occurrence identity or counts.
+     * Message-derived occurrences require current room membership. Channel-room
+     * occurrences also require message.read or a matching thread relationship
+     * with message.read.interactions. DM membership authorizes DM occurrences.
+     * Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+     * signal kind this server version cannot validate and assemble.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.BatchGetNotifications
+     * @generated from rpc chatto.api.v1.NotificationService.ListNotificationOccurrences
      */
-    batchGetNotifications: {
-      name: "BatchGetNotifications",
-      I: BatchGetNotificationsRequest,
-      O: BatchGetNotificationsResponse,
+    listNotificationOccurrences: {
+      name: "ListNotificationOccurrences",
+      I: ListNotificationOccurrencesRequest,
+      O: ListNotificationOccurrencesResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Lists pending notifications for one room. Non-members receive an empty page.
+     * Marks one occurrence read. Repeating the call is safe. Returns
+     * UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.ListRoomNotifications
+     * @generated from rpc chatto.api.v1.NotificationService.MarkNotificationRead
      */
-    listRoomNotifications: {
-      name: "ListRoomNotifications",
-      I: ListRoomNotificationsRequest,
-      O: ListRoomNotificationsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Lists pending notification counts grouped by room as a finite snapshot.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.ListRoomNotificationCounts
-     */
-    listRoomNotificationCounts: {
-      name: "ListRoomNotificationCounts",
-      I: ListRoomNotificationCountsRequest,
-      O: ListRoomNotificationCountsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Checks whether the authenticated viewer has any pending notifications.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.HasNotifications
-     */
-    hasNotifications: {
-      name: "HasNotifications",
-      I: HasNotificationsRequest,
-      O: HasNotificationsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Dismisses one pending notification. Already-dismissed notifications are
-     * treated as idempotent success.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.DismissNotification
-     */
-    dismissNotification: {
-      name: "DismissNotification",
-      I: DismissNotificationRequest,
-      O: DismissNotificationResponse,
+    markNotificationRead: {
+      name: "MarkNotificationRead",
+      I: MarkNotificationReadRequest,
+      O: MarkNotificationReadResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },
     /**
-     * Dismisses all pending notifications.
+     * Permanently deletes one occurrence while retaining its anti-recreation
+     * tombstone through the original expiry. Repeating the call is safe. Returns
+     * UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.DismissAllNotifications
+     * @generated from rpc chatto.api.v1.NotificationService.DeleteNotificationOccurrence
      */
-    dismissAllNotifications: {
-      name: "DismissAllNotifications",
-      I: DismissAllNotificationsRequest,
-      O: DismissAllNotificationsResponse,
+    deleteNotificationOccurrence: {
+      name: "DeleteNotificationOccurrence",
+      I: DeleteNotificationOccurrenceRequest,
+      O: DeleteNotificationOccurrenceResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Permanently deletes an exact set of occurrences. Repeating the call is
+     * safe because later activity receives different occurrence IDs. Returns
+     * UNIMPLEMENTED rather than partially deleting a signal kind this server
+     * cannot validate.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences
+     */
+    batchDeleteNotificationOccurrences: {
+      name: "BatchDeleteNotificationOccurrences",
+      I: BatchDeleteNotificationOccurrencesRequest,
+      O: BatchDeleteNotificationOccurrencesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Permanently deletes every visible occurrence current at the server's
+     * authoritative mutation boundary. Callers must not retry this mutation
+     * automatically because later activity may arrive after that boundary.
+     * Returns UNIMPLEMENTED rather than partially deleting a signal kind this
+     * server cannot validate.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences
+     */
+    deleteAllNotificationOccurrences: {
+      name: "DeleteAllNotificationOccurrences",
+      I: DeleteAllNotificationOccurrencesRequest,
+      O: DeleteAllNotificationOccurrencesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets explicit and effective modes for every supported signal class.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.GetNotificationPolicy
+     */
+    getNotificationPolicy: {
+      name: "GetNotificationPolicy",
+      I: GetNotificationPolicyRequest,
+      O: GetNotificationPolicyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Atomically sets or clears selected server- or room-scoped signal-class overrides.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.UpdateNotificationPolicy
+     */
+    updateNotificationPolicy: {
+      name: "UpdateNotificationPolicy",
+      I: UpdateNotificationPolicyRequest,
+      O: UpdateNotificationPolicyResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+  }
+} as const;
+
+/**
+ * Reads and updates the authenticated viewer's server, room-group, and room
+ * notification delivery policies.
+ *
+ * @generated from service chatto.api.v1.NotificationPolicyService
+ */
+export const NotificationPolicyService = {
+  typeName: "chatto.api.v1.NotificationPolicyService",
+  methods: {
+    /**
+     * Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+     * for a missing room group or room, and PERMISSION_DENIED when the viewer is
+     * not a current member of a requested room.
+     *
+     * @generated from rpc chatto.api.v1.NotificationPolicyService.GetNotificationPolicy
+     */
+    getNotificationPolicy: {
+      name: "GetNotificationPolicy",
+      I: NotificationPolicyServiceGetNotificationPolicyRequest,
+      O: NotificationPolicyServiceGetNotificationPolicyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets an explicit bounded set of policies. Missing and inaccessible scopes
+     * are omitted, and duplicate scopes are de-duplicated in first-seen order.
+     *
+     * @generated from rpc chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies
+     */
+    batchGetNotificationPolicies: {
+      name: "BatchGetNotificationPolicies",
+      I: BatchGetNotificationPoliciesRequest,
+      O: BatchGetNotificationPoliciesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Atomically sets or clears selected overrides at one explicit scope.
+     *
+     * @generated from rpc chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy
+     */
+    updateNotificationPolicy: {
+      name: "UpdateNotificationPolicy",
+      I: NotificationPolicyServiceUpdateNotificationPolicyRequest,
+      O: NotificationPolicyServiceUpdateNotificationPolicyResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
   }
 } as const;

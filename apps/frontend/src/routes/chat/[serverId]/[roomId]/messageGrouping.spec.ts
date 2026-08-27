@@ -1,32 +1,32 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { computeEventMetadata } from './messageGrouping';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import {
+  TimelineEventKind,
+  type TimelineEventKind as TimelineEventKindValue,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
+import type { TimeFormatSettings } from '$lib/utils/formatTime';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 // Mock settings with explicit UTC timezone so tests are deterministic regardless of host TZ
 const defaultSettings = {
-  get effectiveTimezone(): string | undefined {
-    return 'UTC';
-  },
-  get effectiveHour12(): boolean | undefined {
-    return undefined;
-  }
-} as unknown as UserSettingsState;
+  effectiveTimezone: 'UTC',
+  effectiveHour12: undefined
+} satisfies TimeFormatSettings;
 
 function createMockEvent(
   overrides: Partial<{
     id: string;
     actorId: string;
     createdAt: string;
-    kind: RoomEventKind;
+    kind: TimelineEventKindValue;
     body: string | null;
     attachments: unknown[];
   }> = {}
-): RoomEventView {
-  const kind = overrides.kind ?? RoomEventKind.MessagePosted;
+): TimelineEventView {
+  const kind = overrides.kind ?? TimelineEventKind.MessagePosted;
 
   const baseEvent = {
     id: overrides.id ?? `evt_${Math.random().toString(36).slice(2)}`,
@@ -37,12 +37,12 @@ function createMockEvent(
       login: 'testuser',
       displayName: 'Test User',
       deleted: false,
-      presenceStatus: 'ONLINE',
+      presenceStatus: PresenceStatus.ONLINE,
       avatarUrl: null
     }
   };
 
-  if (kind === RoomEventKind.MessagePosted) {
+  if (kind === TimelineEventKind.MessagePosted) {
     return {
       ...baseEvent,
       event: {
@@ -61,7 +61,7 @@ function createMockEvent(
         threadParticipants: [],
         viewerIsFollowingThread: null
       }
-    } as RoomEventView;
+    } as TimelineEventView;
   }
 
   return {
@@ -71,7 +71,7 @@ function createMockEvent(
       roomId: 'r_test',
       userId: baseEvent.actorId
     }
-  } as RoomEventView;
+  } as TimelineEventView;
 }
 
 describe('computeEventMetadata', () => {
@@ -194,19 +194,19 @@ describe('computeEventMetadata', () => {
           id: 'evt_1',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:00:00Z',
-          kind: RoomEventKind.MessagePosted
+          kind: TimelineEventKind.MessagePosted
         }),
         createMockEvent({
           id: 'evt_2',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:01:00Z',
-          kind: RoomEventKind.UserJoinedRoom
+          kind: TimelineEventKind.UserJoinedRoom
         }),
         createMockEvent({
           id: 'evt_3',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:02:00Z',
-          kind: RoomEventKind.MessagePosted
+          kind: TimelineEventKind.MessagePosted
         })
       ];
 
@@ -357,12 +357,12 @@ describe('computeEventMetadata', () => {
       const event = createMockEvent({ createdAt: '2025-11-20T10:00:00Z' });
       const result = computeEventMetadata([event], defaultSettings);
 
-      expect(result[0].dayLabel).toMatch(/Thursday, November 20/);
+      expect(result[0].dayLabel).toMatch(/Thursday 20 November/);
     });
 
     it('uses an explicit locale for visible day labels', async () => {
-      await loadLocaleMessages('de');
-      setReactiveLocale('de');
+      await loadLocaleMessages('de-DE');
+      setReactiveLocale('de-DE');
 
       try {
         const event = createMockEvent({ createdAt: '2025-11-20T10:00:00Z' });
@@ -372,8 +372,8 @@ describe('computeEventMetadata', () => {
         expect(result[0].dayLabel).toMatch(/November/);
         expect(result[0].dayLabel).toMatch(/20/);
       } finally {
-        await loadLocaleMessages('en');
-        setReactiveLocale('en');
+        await loadLocaleMessages('en-GB');
+        setReactiveLocale('en-GB');
       }
     });
 

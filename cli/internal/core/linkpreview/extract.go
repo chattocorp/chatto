@@ -186,6 +186,41 @@ var youtubePathRegex = regexp.MustCompile(
 	`^/(?:watch\?(?:.*&)?v=|embed/|v/|shorts/)([a-zA-Z0-9_-]{11})`,
 )
 
+var blueskyPostPathRegex = regexp.MustCompile(`^/profile/[^/]+/post/[^/]+/?$`)
+
+var mastodonStatusPathRegexes = []*regexp.Regexp{
+	regexp.MustCompile(`^/@[^/]+/([0-9]+)/?$`),
+	regexp.MustCompile(`^/users/[^/]+/statuses/([0-9]+)/?$`),
+}
+
+// IsBlueskyPostURL reports whether rawURL is a public bsky.app post URL.
+func IsBlueskyPostURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return false
+	}
+
+	return strings.EqualFold(u.Hostname(), "bsky.app") && blueskyPostPathRegex.MatchString(u.Path)
+}
+
+// ParseMastodonStatusURL recognizes the public status permalink forms used by
+// Mastodon and returns the instance origin and local status ID. The caller must
+// still verify the instance through Mastodon's public API before treating the
+// URL as a Mastodon status.
+func ParseMastodonStatusURL(rawURL string) (origin, statusID string, ok bool) {
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", "", false
+	}
+	for _, pattern := range mastodonStatusPathRegexes {
+		matches := pattern.FindStringSubmatch(u.Path)
+		if len(matches) == 2 {
+			return (&url.URL{Scheme: u.Scheme, Host: u.Host}).String(), matches[1], true
+		}
+	}
+	return "", "", false
+}
+
 // ParseYouTubeVideoID extracts the video ID from a YouTube URL.
 // Returns empty string if the URL is not a valid YouTube video URL.
 func ParseYouTubeVideoID(rawURL string) string {

@@ -1,0 +1,71 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "התראות",
+      "subtitle": "הנה מה חדש",
+      "clear_all": "נקה הכל",
+      "empty_title": "אין התראות",
+      "empty_body": "כולכם מדורגים!",
+      "time_now": "ממש עכשיו",
+      "time_minutes": "{count}m לפני",
+      "time_hours": "{count}h לפני",
+      "time_days": "{count}d לפני",
+      "unread": "לא נקרא",
+      "activity": "פעילות חדשה",
+      "summary": {
+        "direct_message": "קיבלת הודעה ישירה מאת {actor}.",
+        "reaction": "נוספה תגובת „{emoji}” מאת {actor} להודעה שלך ב־{channel}.",
+        "reaction_group": "נוספו תגובות „{emoji}” מאת {actor} ואחרים להודעה שלך ב־{channel}.",
+        "reply": "נוספה תשובה מאת {actor} להודעה שלך.",
+        "mention": "קיבלת אזכור מאת {actor}.",
+        "followed_thread": "נוספה תשובה מאת {actor} בשרשור שבמעקב שלך.",
+        "new_message": "נוספה הודעה חדשה מאת {actor}.",
+        "activity": "קיבלת התראה מאת {actor}."
+      }
+    },
+    "sign_out": {
+      "title": "צא",
+      "current_server": "שרת נוכחי",
+      "all_servers": "כל השרתים",
+      "description": "צא רק מהשרת שנבחר, או נתק את כל השרתים מהלקוח הזה."
+    },
+    "overview": {
+      "title": "סקירה כללית"
+    },
+    "server_nav": {
+      "back_to_server": "חזרה לשרת",
+      "server_fallback": "שרת",
+      "administration": "ניהול שרת"
+    },
+    "user_menu": {
+      "profile": "פרופיל משתמש",
+      "send_message": "שלח הודעה",
+      "copy_user_id": "העתקת מזהה המשתמש"
+    },
+    "server_gutter": {
+      "add_server": "הוסף שרת",
+      "version": "גרסה {version}",
+      "version_unknown": "גרסה לא ידועה",
+      "unreachable": "לא ניתן להגיע לשרת",
+      "compatibility_server_too_old": "יש לשדרג את השרת הזה ל-Chatto 0.5 או חדש לפני שהאפליקציה הזו תוכל להתחבר.",
+      "compatibility_unknown": "אפליקציה זו אינה יכולה לקבוע תאימות מגרסת השרת."
+    },
+    "threads": {
+      "title": "השרשורים שלי",
+      "subtitle": "שרשורים שאתה עוקב אחריהם",
+      "filter_label": "חוטי סינון",
+      "filter_all": "הכל",
+      "filter_unread": "לא נקרא",
+      "empty_title": "אין שרשורים במעקב",
+      "empty_body": "שרשורים שאתה עוקב אחריהם יופיעו כאן. אתה עוקב אוטומטית אחר שרשורים שאתה משתתף בהם.",
+      "no_unread_loaded": "לא נטענו שרשורים שלא נקראו",
+      "all_caught_up": "הכל נתפס",
+      "loaded_summary": "{loaded} של {total} בעקבות השרשורים שנטענו.",
+      "load_more": "טען עוד",
+      "no_unread": "אין כרגע שרשורים שלא נקראו.",
+      "message_missing": "ההודעה אינה זמינה עוד",
+      "in_room": "in",
+      "in_room_capitalized": "In"
+    }
+  }
+}

@@ -10,9 +10,11 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
@@ -172,7 +174,7 @@ func TestStreamMyEvents_DeliversMessageRetracted(t *testing.T) {
 	}
 }
 
-func TestStreamMyEvents_RevokesUniversalRoomVisibilityAfterRBACChange(t *testing.T) {
+func TestStreamMyEvents_DeliversRBACChangeWithoutClosingLegacyStream(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -206,24 +208,20 @@ func TestStreamMyEvents_RevokesUniversalRoomVisibilityAfterRBACChange(t *testing
 	if err := core.DenyUserRoomPermission(ctx, author.Id, room.Id, viewer.Id, PermRoomJoin); err != nil {
 		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
-	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "secret after revocation", nil, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
-	}
 
-	timer := time.NewTimer(500 * time.Millisecond)
+	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()
 	for {
 		select {
-		case envelope, ok := <-eventChan:
+		case event, ok := <-eventChan:
 			if !ok {
-				t.Fatal("event stream closed while refreshing RBAC visibility")
+				t.Fatal("event stream closed after RBAC visibility changed")
 			}
-			if envelope.ID() == posted.Id {
-				t.Fatal("viewer received a room event after room.join was revoked")
+			if IsRBACEvent(event.EVTEvent()) {
+				return
 			}
 		case <-timer.C:
-			return
+			t.Fatal("viewer never received RBAC projection invalidation event")
 		}
 	}
 }
@@ -251,7 +249,6 @@ func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom viewer: %v", err)
 	}
-
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
@@ -298,41 +295,94 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 			MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID},
 		},
 	}
-	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
 	seq, err := harness.publisher.Append(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
 
-	// Use a projector whose subject filters do not consume room events. The
-	// projection readiness wait fails immediately, matching the production
-	// failure mode without waiting for the timeout.
-	wrongProjector := harness.projector(NewAssetProjection())
+	timeline := NewRoomTimelineProjection()
+	timelineHandle := testProjectionHandle(harness, timeline)
+	threads := NewThreadProjection()
+	threadsHandle := testProjectionHandle(harness, threads)
+	if err := harness.js.DeleteStream(ctx, "EVT"); err != nil {
+		t.Fatalf("DeleteStream: %v", err)
+	}
 	core := &ChattoCore{logger: testCoreLogger()}
 	core.roomModel = newRoomModel(
+		events.ProjectionHandle[*RoomDirectoryProjection]{},
+		events.ProjectionHandle[*RoomGroupLayoutProjection]{},
+		timelineHandle,
+		threadsHandle,
+		events.ProjectionHandle[*ReactionProjection]{},
+	)
+	service := NewMyEventsModel(core)
+	msg := &nats.Msg{
+		Subject: evtstream.LiveSubjectRoot + strings.TrimPrefix(subject, evtstream.SubjectRoot),
+		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
+	}
+	msg.Data, err = proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	if discontinuity := service.hub.handleLiveEVT(ctx, msg); !discontinuity {
+		t.Fatal("handleLiveEVT discontinuity = false, want true")
+	}
+}
+
+func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+	roomID := "R-call-projection-fail"
+	userID := "U-call-projection-fail"
+	event := &corev1.Event{
+		Id:      "E-call-projection-fail",
+		ActorId: userID,
+		Event: &corev1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+				RoomId: roomID,
+				CallId: "C-call-projection-fail",
+			},
+		},
+	}
+	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
+	seq, err := harness.publisher.Append(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	timelineProjection := NewRoomTimelineProjection()
+	timelineProjector := harness.projector(timelineProjection)
+	startTestProjector(t, timelineProjector)
+	core := &ChattoCore{
+		logger:    testCoreLogger(),
+		callModel: &CallModel{},
+	}
+	core.roomModel = newTestRoomModel(t,
 		nil,
 		nil,
 		nil,
 		nil,
-		NewRoomTimelineProjection(),
-		wrongProjector,
+		timelineProjection,
+		timelineProjector,
 		NewThreadProjection(),
-		wrongProjector,
+		nil,
 		nil,
 		nil,
 	)
 	service := NewMyEventsModel(core)
 	msg := &nats.Msg{
-		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
+		Subject: evtstream.LiveSubjectRoot + strings.TrimPrefix(subject, evtstream.SubjectRoot),
 		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
 	}
-
-	delivered, ok, closeStream := service.filterLiveEVTEvent(ctx, userID, map[string]struct{}{roomID: {}}, msg, event)
-	if delivered != nil || ok {
-		t.Fatalf("filterLiveEVTEvent delivered %T/%v, want dropped", delivered, ok)
+	msg.Data, err = proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
 	}
-	if !closeStream {
-		t.Fatal("filterLiveEVTEvent closeStream = false, want true")
+
+	if discontinuity := service.hub.handleLiveEVT(ctx, msg); !discontinuity {
+		t.Fatal("handleLiveEVT discontinuity = false, want true")
 	}
 }
 
@@ -402,6 +452,78 @@ func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testin
 	delivered, ok = service.filterReadyEVTRoomSubjectEvent(viewer.Id, memberRooms, room.Id, nextEvent, 124)
 	if ok || delivered != nil {
 		t.Fatalf("next room event delivered %T/%v after universal disable, want dropped", delivered, ok)
+	}
+}
+
+func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, room, messageID := setupReactionTest(t, chatto, ctx)
+	message, err := chatto.GetRoomEventByEventID(ctx, KindChannel, room.Id, messageID)
+	if err != nil {
+		t.Fatalf("GetRoomEventByEventID: %v", err)
+	}
+
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
+
+	service := NewMyEventsModel(chatto)
+	memberRooms := map[string]struct{}{room.Id: {}}
+	if delivered, ok := service.filterReadyEVTRoomSubjectEvent(viewer.Id, memberRooms, room.Id, message, 123); ok || delivered != nil {
+		t.Fatalf("message event delivered %T/%v without a message read mode, want dropped", delivered, ok)
+	}
+
+	assetEvent := &corev1.Event{
+		Id: NewEventID(),
+		Event: &corev1.Event_AssetProcessingStarted{AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+			AssetId: "asset-1", MessageEventId: messageID,
+		}},
+	}
+	if delivered, ok := service.filterReadyEVTAssetSubjectEvent(viewer.Id, memberRooms, room.Id, assetEvent, 124); ok || delivered != nil {
+		t.Fatalf("asset event delivered %T/%v without a message read mode, want dropped", delivered, ok)
+	}
+}
+
+func TestMyEventsFilter_DeliversDMFactsDespiteMessageReadDenial(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "live-dm-viewer", "Live DM Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "live-dm-author", "Live DM Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	dm, _, err := chatto.FindOrCreateDM(ctx, viewer.GetId(), []string{author.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	message, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), author.GetId(), "live DM message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	service := NewMyEventsModel(chatto)
+	memberRooms := map[string]struct{}{dm.GetId(): {}}
+	if delivered, ok := service.filterReadyEVTRoomSubjectEvent(viewer.GetId(), memberRooms, dm.GetId(), message, 123); !ok || delivered == nil {
+		t.Fatalf("DM message event delivered %T/%v, want delivery", delivered, ok)
+	}
+	assetEvent := &corev1.Event{
+		Id: NewEventID(),
+		Event: &corev1.Event_AssetProcessingStarted{AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+			AssetId: "dm-asset-1", MessageEventId: message.GetId(),
+		}},
+	}
+	if delivered, ok := service.filterReadyEVTAssetSubjectEvent(viewer.GetId(), memberRooms, dm.GetId(), assetEvent, 124); !ok || delivered == nil {
+		t.Fatalf("DM asset event delivered %T/%v, want delivery", delivered, ok)
 	}
 }
 
@@ -569,6 +691,10 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom viewer: %v", err)
 	}
+	target, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "raw EVT target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage target: %v", err)
+	}
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -582,11 +708,11 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 		Event: &corev1.Event_MessageEdited{
 			MessageEdited: &corev1.MessageEditedEvent{
 				RoomId:  room.Id,
-				EventId: "E-raw-evt",
+				EventId: target.GetId(),
 			},
 		},
 	})
-	if _, err := core.RoomTimelineProjector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(room.Id), event); err != nil {
+	if _, err := core.roomModel.appendTimelineEventually(ctx, core.EventPublisher, evtstream.RoomAggregate(room.Id), event); err != nil {
 		t.Fatalf("append raw EVT event: %v", err)
 	}
 
@@ -598,8 +724,8 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 			if edited == nil {
 				continue
 			}
-			if edited.EventId != "E-raw-evt" {
-				t.Errorf("EventId = %q, want E-raw-evt", edited.EventId)
+			if edited.EventId != target.GetId() {
+				t.Errorf("EventId = %q, want %s", edited.EventId, target.GetId())
 			}
 			return
 		case <-timeout:

@@ -1,14 +1,16 @@
 import { expect } from '@playwright/test';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { connectPost, getRoomIdByNameViaConnect } from './fixtures/connectHelpers';
 import {
   joinRoomFromOverview,
+  withBootstrapAdminRequest,
   withLoggedInServerWindow,
   withServerUser
 } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
-import { SettingsPage } from './pages';
+import { RoomPage, SettingsPage } from './pages';
 
 test.describe('Real-time synchronization', () => {
   test('room list updates when user joins a room from another session', async ({
@@ -97,8 +99,8 @@ test.describe('Real-time synchronization', () => {
     await chatPage.goto();
 
     // User is auto-joined to general and announcements
-    await expect(chatPage.roomList.getByText('# general')).toBeVisible();
-    await expect(chatPage.roomList.getByText('# announcements')).toBeVisible();
+    await expect(chatPage.getRoomLink('general')).toBeVisible();
+    await expect(chatPage.getRoomLink('announcements')).toBeVisible();
 
     // Create a room (user is auto-joined as creator)
     const testRoomName = `testing-${Date.now()}`;
@@ -127,6 +129,62 @@ test.describe('Real-time synchronization', () => {
     await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
   });
 
+  test('universal membership revocation scrubs an open room and thread, then restores them', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomName = `universal-${Date.now().toString().slice(-8)}`;
+    const rootText = `Universal root ${Date.now()}`;
+    await chatPage.createRoom(roomName);
+    const roomId = await getRoomIdByNameViaConnect(page, roomName);
+    await roomPage.sendMessage(rootText);
+    const setUniversal = (universal: boolean) =>
+      withBootstrapAdminRequest(serverURL, (adminRequest) =>
+        connectPost(adminRequest, 'chatto.api.v1.RoomService/UpdateRoom', {
+          roomId,
+          universal
+        })
+      );
+    await setUniversal(true);
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: viewerPage, chatPage: viewerChat, roomPage: viewerRoom }) => {
+        await viewerChat.enterRoom(roomName);
+        await waitForRoomReady(viewerPage, roomName);
+        await viewerRoom.expectMessageVisible(rootText);
+        await viewerRoom.getMessage(rootText).openThread();
+        await viewerRoom.expectThreadPaneVisible();
+        const replyText = `Universal reply ${Date.now()}`;
+        await viewerRoom.postThreadReply(replyText);
+
+        await setUniversal(false);
+        await expect(viewerPage.locator('[role="article"]', { hasText: rootText })).toHaveCount(0, {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(viewerPage.locator('[role="article"]', { hasText: replyText })).toHaveCount(
+          0,
+          { timeout: TIMEOUTS.REALTIME_EVENT }
+        );
+
+        await setUniversal(true);
+        await viewerRoom.expectThreadPaneVisible();
+        await expect(viewerRoom.getThreadMessage(rootText).locator).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(viewerRoom.getThreadMessage(replyText).locator).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+      }
+    );
+  });
+
   test('display name updates propagate to other users in real-time', async ({
     page,
     chatPage,
@@ -145,6 +203,8 @@ test.describe('Real-time synchronization', () => {
       // Join the room via Browse Rooms, then navigate to it
       await joinRoomFromOverview(page2, 'test-room');
       await chatPage2.enterRoom('test-room');
+      const roomPage2 = new RoomPage(page2);
+      await roomPage2.openMembersPanel();
 
       // User 1: Send a message now that both users are in the room
       await roomPage.sendMessage('Hello from User 1');
@@ -170,7 +230,7 @@ test.describe('Real-time synchronization', () => {
       // Note: Live events may take a few seconds to propagate across users
       // Poll for the update with a longer timeout since WebSocket events can be delayed
       await expect(async () => {
-        const memberListText = await page2.locator('[aria-label="Members"]').textContent();
+        const memberListText = await roomPage2.memberList.textContent();
         expect(memberListText).toContain(newDisplayName);
       }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
 
@@ -215,6 +275,8 @@ test.describe('Real-time synchronization', () => {
       // Join the room via Browse Rooms, then navigate to it
       await joinRoomFromOverview(page2, 'error-test');
       await chatPage2.enterRoom('error-test');
+      const roomPage2 = new RoomPage(page2);
+      await roomPage2.openMembersPanel();
 
       // Wait for room to be ready (connection established)
       await expect(page2.getByText('Real-time updates paused')).not.toBeVisible({
@@ -230,7 +292,7 @@ test.describe('Real-time synchronization', () => {
       // Wait for the event to propagate to User 2
       // Check member list for the update
       await expect(async () => {
-        const memberListText = await page2.locator('[aria-label="Members"]').textContent();
+        const memberListText = await roomPage2.memberList.textContent();
         expect(memberListText).toContain(newDisplayName);
       }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
 
@@ -263,7 +325,7 @@ test.describe('Real-time synchronization', () => {
     const roomPage = await chatPage.enterRoom('general');
 
     // User A should see themselves in the member list
-    await expect(roomPage.memberList).toBeVisible();
+    await roomPage.openMembersPanel();
     await roomPage.expectMemberVisible(userA.login);
 
     // User B: Create account and open the server

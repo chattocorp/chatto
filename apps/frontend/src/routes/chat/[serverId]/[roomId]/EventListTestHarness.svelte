@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { RoomEventKind } from '$lib/render/eventKinds';
-  import { PresenceStatus, type RoomEventView } from '$lib/render/types';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import {
+    TimelineEventKind,
+    type TimelineEventView
+  } from '$lib/render/timelineEvents';
   import {
     createComposerContext,
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
-  import { setUserSettings, UserSettingsState } from '$lib/state/userSettings.svelte';
   import EventList from './EventList.svelte';
 
   let {
@@ -19,7 +21,8 @@
     isJumpedMode = false,
     onJumpToPresent,
     updateCounter = 0,
-    pendingHighlightId = null
+    pendingHighlightId = null,
+    hasReachedStart = false
   }: {
     eventIds: string[];
     roomId?: string;
@@ -31,14 +34,14 @@
     onJumpToPresent?: () => Promise<boolean>;
     updateCounter?: number;
     pendingHighlightId?: string | null;
+    hasReachedStart?: boolean;
   } = $props();
 
   createComposerContext({ scroll: true });
   createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
-  setUserSettings(new UserSettingsState());
 
   const events = $derived(
-    eventIds.map((id, index): RoomEventView => {
+    eventIds.map((id, index): TimelineEventView => {
       const base = {
         id,
         createdAt: `2026-06-17T10:47:${String(index).padStart(2, '0')}Z`,
@@ -49,22 +52,22 @@
           displayName: `User ${id}`,
           deleted: false,
           avatarUrl: null,
-          presenceStatus: PresenceStatus.Offline
+          presenceStatus: PresenceStatus.OFFLINE
         }
       };
       if (eventKind === 'join') {
         return {
           ...base,
           event: {
-            kind: RoomEventKind.UserJoinedRoom,
+            kind: TimelineEventKind.UserJoinedRoom,
             roomId
           }
-        } as unknown as RoomEventView;
+        } as unknown as TimelineEventView;
       }
       return {
         ...base,
         event: {
-          kind: RoomEventKind.MessagePosted,
+          kind: TimelineEventKind.MessagePosted,
           roomId,
           body: id,
           attachments: [],
@@ -81,7 +84,7 @@
           threadParticipants: [],
           viewerIsFollowingThread: true
         }
-      } as RoomEventView;
+      } as TimelineEventView;
     })
   );
 
@@ -104,6 +107,7 @@
   {onJumpToPresent}
   {updateCounter}
   {pendingHighlightId}
+  {hasReachedStart}
   {scrollToEventId}
   onScrollToEventComplete={onComplete}
 />

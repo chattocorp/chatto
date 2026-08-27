@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { TIMEOUTS } from '../constants';
-import { csrfHeaders } from '../fixtures/csrf';
+import { browserAuthenticationHeaders, csrfHeaders } from '../fixtures/csrf';
 import * as routes from '../routes';
 
 /**
@@ -331,7 +331,7 @@ export class AuthPage {
   /**
    * Logout the current user.
    *
-   * A pure API call (`page.request.post('/auth/logout')`) is not enough on its
+   * A pure API call (`page.request.post('/auth/browser/logout')`) is not enough on its
    * own: the response Set-Cookie doesn't reliably overwrite the page-side jar
    * that the SPA's subsequent fetches use, so the SPA stays authenticated and
    * a follow-up `goto('/login')` redirects back into the app instead of
@@ -544,8 +544,8 @@ export class AuthPage {
   }> {
     const code = await this.createRegistrationCodeViaTestEndpoint(email);
     const token = await this.verifyRegistrationCodeViaApi(email, code);
-    const response = await this.page.request.post('/auth/register/complete', {
-      headers: { 'Content-Type': 'application/json' },
+    const response = await this.page.request.post('/auth/browser/register/complete', {
+      headers: await browserAuthenticationHeaders(this.page),
       data: { token, login, password, passwordConfirmation: password }
     });
     expect(response.ok()).toBeTruthy();

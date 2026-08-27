@@ -1,8 +1,10 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
-import { PresenceStatus } from '$lib/render/types';
+
 import { q } from '$lib/test-utils';
+import UserAvatar from './UserAvatar.svelte';
 import UserAvatarTestHarness from './UserAvatarTestHarness.svelte';
 
 function computedBackgroundColor(color: string): string {
@@ -15,12 +17,14 @@ function computedBackgroundColor(color: string): string {
 }
 
 describe('UserAvatar', () => {
-  it('renders medium avatars as circles without presence by default', () => {
+  it('renders medium placeholder avatars with a subtle inset ring', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'md' });
     const avatar = q(container, '[aria-label="alice"]')!;
 
     expect(avatar.className).toContain('rounded-full');
-    expect(avatar.className).not.toContain('ring-');
+    expect(avatar.className).toContain('ring-1');
+    expect(avatar.className).toContain('ring-inset');
+    expect(avatar.className).toContain('ring-muted/15');
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeFalsy();
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
@@ -57,7 +61,7 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, {
       size: 'md',
       showPresence: true,
-      presenceStatus: PresenceStatus.Away
+      presenceStatus: PresenceStatus.AWAY
     });
     const presenceDot = q(container, '[aria-label="Away"] span')!;
     const yellow500 = window
@@ -75,5 +79,34 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'xs', showPresence: true });
 
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
+  });
+
+  it('marks bot accounts with a robot badge', () => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'md',
+      isBot: true
+    });
+
+    expect(q(container, '[data-testid="bot-badge"][aria-label="bot"]')).toBeTruthy();
+  });
+
+  it('renders static directory identities without app-level live caches', () => {
+    const { container } = render(UserAvatar, {
+      props: {
+        user: {
+          id: 'bot-1',
+          login: 'helper_bot',
+          displayName: 'Helper Bot',
+          deleted: false,
+          isBot: true,
+          avatarUrl: null,
+          presenceStatus: PresenceStatus.OFFLINE
+        },
+        size: 'sm',
+        useLiveProfile: false
+      }
+    });
+
+    expect(q(container, '[data-testid="bot-badge"]')).toBeTruthy();
   });
 });

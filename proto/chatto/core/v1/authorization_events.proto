@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// AuthorizationFenceAdvancedEvent advances the durable concurrency boundary
+// shared by authorization-changing writes and mutations whose authority must
+// remain valid until commit. It intentionally carries no duplicated policy
+// state; the owning RBAC, user, room, and room-group events remain authoritative.
+message AuthorizationFenceAdvancedEvent {}

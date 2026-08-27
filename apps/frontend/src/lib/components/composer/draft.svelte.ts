@@ -26,8 +26,8 @@ export class DraftState {
     }
   }
 
-  clearText(): void {
-    if (this.key) sessionStorage.removeItem(this.key);
+  clearText(key = this.key): void {
+    if (key) sessionStorage.removeItem(key);
   }
 
   takeFiles(): FileWithUrl[] {
@@ -46,7 +46,10 @@ export class DraftState {
     }
   }
 
-  discardFiles(): void {
-    if (this.key) draftFilesMap.delete(this.key);
+  discardFiles(key = this.key): FileWithUrl[] {
+    if (!key) return [];
+    const files = draftFilesMap.get(key) ?? [];
+    draftFilesMap.delete(key);
+    return files;
   }
 }

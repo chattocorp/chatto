@@ -3,8 +3,8 @@
 
 Presentational matrix used by both the per-user and per-role permissions
 pages. Caller owns data loading and mutation dispatch; this component
-just lays out the rows (permissions grouped by category) and columns
-(server + groups + nested rooms), and forwards cell clicks via `onCycle`.
+lays out alphabetically sorted permission rows and columns (server + groups +
+nested rooms), and forwards cell clicks via `onCycle`.
 
 Cell semantics:
   - `override` ALLOW/DENY → solid (subject has an explicit grant/deny here)
@@ -12,14 +12,18 @@ Cell semantics:
                              baseline at this scope without an override)
 
 A missing cell renders as an empty placeholder (the permission doesn't
-apply at that scope's tier).
+apply at that scope's tier). Hovering or focusing an available cell highlights
+its permission row and scope column. The surrounding pane owns vertical
+scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
-  import { Panel, DataTable } from '$lib/components/admin';
+  import { Panel } from '$lib/components/admin';
+  import { MatrixTable } from '$lib/components/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
-  import { getPermissionDescription } from '$lib/permissions';
+  import { ShortcutTextInput } from '$lib/ui/form';
+  import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
   export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM';
@@ -35,6 +39,8 @@ apply at that scope's tier).
     scopeId: string;
     override: MatrixDecision;
     effective: MatrixDecision;
+    /** Present when a delegation ceiling can prevent storing an allow. */
+    allowPermitted?: boolean;
   };
   export type MatrixData = {
     applicablePermissions: string[];
@@ -42,52 +48,7 @@ apply at that scope's tier).
     cells: MatrixCellData[];
   };
   export type CellState = 'allow' | 'deny' | 'neutral';
-
-  const DEFAULT_CATEGORY_ORDER = [
-    'space',
-    'room',
-    'message',
-    'member',
-    'role',
-    'admin',
-    'dm',
-    'user'
-  ];
-
-  const CATEGORY_META: Record<string, { title: string; description: string }> = {
-    space: {
-      title: m['rbac.permissions.categories.space.title'](),
-      description: m['rbac.permissions.categories.space.description']()
-    },
-    room: {
-      title: m['rbac.permissions.categories.room.title'](),
-      description: m['rbac.permissions.categories.room.description']()
-    },
-    message: {
-      title: m['rbac.permissions.categories.message.title'](),
-      description: m['rbac.permissions.categories.message.description']()
-    },
-    member: {
-      title: m['rbac.permissions.categories.member.title'](),
-      description: m['rbac.permissions.categories.member.description']()
-    },
-    role: {
-      title: m['rbac.permissions.categories.role.title'](),
-      description: m['rbac.permissions.categories.role.description']()
-    },
-    admin: {
-      title: m['rbac.permissions.categories.admin.title'](),
-      description: m['rbac.permissions.categories.admin.description']()
-    },
-    dm: {
-      title: m['rbac.permissions.categories.dm.title'](),
-      description: m['rbac.permissions.categories.dm.description']()
-    },
-    user: {
-      title: m['rbac.permissions.categories.user.title'](),
-      description: m['rbac.permissions.categories.user.description']()
-    }
-  };
+  export type DecisionMode = 'tri-state' | 'binary';
 
   let {
     data,
@@ -96,7 +57,7 @@ apply at that scope's tier).
     subjectKind = 'subject',
     forceAllow = false,
     readOnly = false,
-    categoryOrder = DEFAULT_CATEGORY_ORDER
+    decisionMode = 'tri-state'
   }: {
     data: MatrixData;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
@@ -108,7 +69,8 @@ apply at that scope's tier).
     forceAllow?: boolean;
     /** Disable cell mutation controls. */
     readOnly?: boolean;
-    categoryOrder?: string[];
+    /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
+    decisionMode?: DecisionMode;
   } = $props();
 
   // ----- Column layout ----------------------------------------------------
@@ -137,31 +99,14 @@ apply at that scope's tier).
 
   // ----- Row layout -------------------------------------------------------
 
-  function categoryOf(permission: string): string {
-    const dot = permission.indexOf('.');
-    return dot > 0 ? permission.slice(0, dot) : permission;
-  }
-
-  const groupedPermissions = $derived.by(() => {
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
-    const groups = new Map<string, string[]>();
-    for (const p of data.applicablePermissions) {
-      const cat = categoryOf(p);
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat)!.push(p);
-    }
-    for (const arr of groups.values()) arr.sort((a, b) => a.localeCompare(b));
-    const out: Array<{ category: string; permissions: string[] }> = [];
-    for (const cat of categoryOrder) {
-      const arr = groups.get(cat);
-      if (arr && arr.length) out.push({ category: cat, permissions: arr });
-    }
-    for (const [cat, arr] of groups) {
-      if (!categoryOrder.includes(cat) && arr.length) out.push({ category: cat, permissions: arr });
-    }
-    return out;
+  const permissions = $derived([...data.applicablePermissions].sort((a, b) => a.localeCompare(b)));
+  let permissionFilter = $state('');
+  const filteredPermissions = $derived.by(() => {
+    const query = permissionFilter.trim().toLowerCase();
+    return query
+      ? permissions.filter((permission) => permission.toLowerCase().includes(query))
+      : permissions;
   });
-
   // ----- Cell lookup ------------------------------------------------------
 
   const cellIndex = $derived.by(() => {
@@ -177,15 +122,58 @@ apply at that scope's tier).
     return cellIndex.get(`${scopeId}|${permission}`);
   }
 
+  const matrixScopes = $derived(
+    orderedScopes.filter((scope) => permissions.some((permission) => cellFor(scope.id, permission)))
+  );
+
   function decisionToState(d: MatrixDecision): CellState {
     if (d === 'ALLOW') return 'allow';
     if (d === 'DENY') return 'deny';
     return 'neutral';
   }
 
+  function parentDecision(scope: MatrixScope, permission: string): MatrixDecision {
+    const serverScope = data.scopes.find((candidate) => candidate.kind === 'SERVER');
+    const serverDecision = serverScope
+      ? (cellFor(serverScope.id, permission)?.override ?? 'NONE')
+      : 'NONE';
+    if (scope.kind === 'SERVER') return 'NONE';
+    if (scope.kind === 'GROUP') return serverDecision;
+
+    const groupScope = data.scopes.find(
+      (candidate) => candidate.kind === 'GROUP' && candidate.id === `group:${scope.parentGroupId}`
+    );
+    const groupDecision = groupScope
+      ? (cellFor(groupScope.id, permission)?.override ?? 'NONE')
+      : 'NONE';
+    return groupDecision !== 'NONE' ? groupDecision : serverDecision;
+  }
+
+  function includingPermission(scope: MatrixScope, permission: string): string | null {
+    const including = getIncludedByPermission(permission);
+    if (!including) return null;
+    return cellFor(scope.id, including)?.effective === 'ALLOW' ? including : null;
+  }
+
+  function cycleCell(
+    scope: MatrixScope,
+    permission: string,
+    current: MatrixDecision,
+    next: CellState
+  ) {
+    if (decisionMode !== 'binary') {
+      onCycle(scope, permission, next);
+      return;
+    }
+    // Binary bot edits write only an explicit grant or no decision. Older
+    // clients could create denies, so clicking one clears it instead of
+    // replacing it with a grant.
+    onCycle(scope, permission, next === 'allow' && current !== 'DENY' ? 'allow' : 'neutral');
+  }
+
   function scopeColumnClass(kind: MatrixScopeKind): string {
-    if (kind === 'SERVER') return 'bg-surface-200/40';
-    if (kind === 'GROUP') return 'bg-surface-200/20';
+    if (kind === 'SERVER') return 'bg-surface-emphasized/40';
+    if (kind === 'GROUP') return 'bg-surface-emphasized/20';
     return '';
   }
 </script>
@@ -193,111 +181,168 @@ apply at that scope's tier).
 {#if orderedScopes.length === 0}
   <Hint tone="info">No scopes available for this {subjectKind}.</Hint>
 {:else}
-  <div class="flex flex-col gap-6">
-    {#each groupedPermissions as group (group.category)}
-      {@const meta = CATEGORY_META[group.category]}
-      {@const categoryScopes = orderedScopes.filter((scope) =>
-        group.permissions.some((p) => cellFor(scope.id, p) !== undefined)
-      )}
-      <Panel title={meta?.title ?? group.category} subtitle={meta?.description} noPadding>
-        <div class="overflow-x-auto" style="width: max-content; max-width: 100%">
-          <DataTable
-            items={group.permissions}
-            columns={categoryScopes.length + 1}
-            getKey={(p) => p}
-            emptyMessage={m['rbac.permissions.empty_category']()}
-            hoverable={false}
-          >
-            {#snippet header()}
-              <th
-                class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
-                style="width: 14rem"
-              >
-                Permission
-              </th>
-              {#each categoryScopes as scope (scope.id)}
-                <th
-                  class={[
-                    'px-0 py-3 text-center align-bottom font-medium',
-                    scopeColumnClass(scope.kind)
-                  ]}
-                  style="width: 2rem; min-width: 2rem; height: 12rem"
-                  title={`${scope.label} (${scope.kind.toLowerCase()})`}
-                  data-scope={scope.id}
-                >
-                  <span
-                    class={[
-                      'text-sm',
-                      scope.kind === 'SERVER' ? 'font-semibold' : '',
-                      scope.kind === 'GROUP' ? 'text-primary' : '',
-                      scope.kind === 'ROOM' ? 'text-muted' : ''
-                    ]}
-                    style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-                  >
-                    {#if scope.kind === 'ROOM'}#{/if}{scope.label}
-                  </span>
-                </th>
-              {/each}
-            {/snippet}
-            {#snippet row(permission)}
-              <td class="sticky left-0 z-10 bg-background px-4 py-2 whitespace-nowrap">
-                <code data-testid="permission-name" class="text-sm">{permission}</code>
-                <HelpTooltip label={`About ${permission}`}>
-                  {getPermissionDescription(permission)}
-                </HelpTooltip>
-              </td>
-              {#each categoryScopes as scope (scope.id)}
-                {@const cell = cellFor(scope.id, permission)}
-                {@const cellKey = `${scope.id}::${permission}`}
-                {@const isUpdating = updatingKey === cellKey}
-                <td
-                  class={['px-0 py-2 text-center', scopeColumnClass(scope.kind)]}
-                  style="width: 2.5rem; min-width: 2.5rem"
-                  data-scope={scope.id}
-                  data-permission={permission}
-                >
-                  {#if cell}
-                    {@const ov = decisionToState(cell.override)}
-                    {@const eff = decisionToState(cell.effective)}
-                    {@const displayOverride = forceAllow ? 'allow' : ov}
-                    {@const displayEffective = forceAllow ? 'neutral' : eff}
-                    {@const ariaLabel = forceAllow
-                      ? `${subjectKind} is always granted ${permission} at ${scope.label}`
-                      : ov !== 'neutral'
-                        ? `Override ${ov} for ${permission} at ${scope.label}`
-                        : `No override for ${permission} at ${scope.label}, effective ${eff}`}
-                    {@const titleParts = forceAllow
-                      ? [
-                          'Allow (owners are always granted all permissions)',
-                          'Owner permissions are not editable'
-                        ]
-                      : [
-                          ov !== 'neutral'
-                            ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
-                            : null,
-                          ov === 'neutral' && eff !== 'neutral'
-                            ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
-                            : null,
-                          ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
-                        ].filter(Boolean)}
-                    <MatrixCell
-                      override={displayOverride}
-                      inherited={displayEffective}
-                      updating={isUpdating}
-                      disabled={readOnly}
-                      {ariaLabel}
-                      title={titleParts.join(' · ')}
-                      onCycle={(next) => onCycle(scope, permission, next)}
-                    />
-                  {:else}
-                    <span class="inline-block h-10 w-10" aria-hidden="true"></span>
-                  {/if}
-                </td>
-              {/each}
-            {/snippet}
-          </DataTable>
-        </div>
-      </Panel>
-    {/each}
-  </div>
+  <Panel title={m('admin.permissions.title')} noPadding>
+    {#snippet actions()}
+      <div class="w-48 sm:w-64">
+        <ShortcutTextInput
+          id="permission-filter"
+          testid="permission-filter"
+          label={m('rbac.permissions.filter_label')}
+          labelHidden
+          shortcutKey="/"
+          placeholder={m('rbac.permissions.filter_placeholder')}
+          leadingIcon="iconify icon-[uil--search]"
+          autocomplete="off"
+          bind:value={permissionFilter}
+        />
+      </div>
+    {/snippet}
+    <MatrixTable
+      rows={filteredPermissions}
+      columns={matrixScopes}
+      getRowKey={(permission) => permission}
+      getColumnKey={(scope) => scope.id}
+      emptyMessage={m('rbac.permissions.no_filter_matches')}
+      columnClass={(scope) => scopeColumnClass(scope.kind)}
+      columnAttributes={(scope) => ({ 'data-scope': scope.id })}
+      cellAttributes={(permission, scope) => ({
+        'data-scope': scope.id,
+        'data-permission': permission
+      })}
+      isCellInteractive={(permission, scope) => Boolean(cellFor(scope.id, permission))}
+      spacerTestId="permission-matrix-spacer"
+    >
+      {#snippet leadingHeader()}
+        Permission
+      {/snippet}
+      {#snippet columnHeader(scope, highlighted)}
+        <span
+          class={[
+            scope.kind === 'SERVER' ? 'font-semibold' : '',
+            highlighted ? 'text-action' : '',
+            !highlighted && scope.kind === 'GROUP' ? 'text-neutral-action' : '',
+            !highlighted && scope.kind === 'ROOM' ? 'text-muted' : ''
+          ]}
+          title={`${scope.label} (${scope.kind.toLowerCase()})`}
+        >
+          {#if scope.kind === 'ROOM'}#{/if}{scope.label}
+        </span>
+      {/snippet}
+      {#snippet rowHeader(permission, highlighted)}
+        {@const includedBy = getIncludedByPermission(permission)}
+        <code
+          data-testid="permission-name"
+          class={['text-sm', includedBy ? 'ml-4' : '', highlighted ? 'text-action' : '']}
+          >{permission}</code
+        >
+        <HelpTooltip label={`About ${permission}`}>
+          {getPermissionDescription(permission)}
+          {#if includedBy}
+            <span class="mt-1 block"
+              >{m('rbac.permissions.included_by', { permission: includedBy })}</span
+            >
+          {/if}
+        </HelpTooltip>
+      {/snippet}
+      {#snippet cell(permission, scope)}
+        {@const cell = cellFor(scope.id, permission)}
+        {#if cell}
+          {@const ov = decisionToState(cell.override)}
+          {@const eff = decisionToState(cell.effective)}
+          {@const parent = parentDecision(scope, permission)}
+          {@const configured = cell.override !== 'NONE' ? cell.override : parent}
+          {@const includedBy = includingPermission(scope, permission)}
+          {@const binaryEnabled = configured === 'ALLOW' || includedBy !== null}
+          {@const inheritedBinaryGrant =
+            decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
+          {@const displayOverride = forceAllow
+            ? 'allow'
+            : decisionMode === 'binary'
+              ? cell.override === 'ALLOW'
+                ? 'allow'
+                : 'neutral'
+              : ov}
+          {@const displayEffective = forceAllow
+            ? 'neutral'
+            : decisionMode === 'binary'
+              ? cell.override === 'NONE' && binaryEnabled
+                ? 'allow'
+                : 'neutral'
+              : eff}
+          {@const ariaLabel = forceAllow
+            ? `${subjectKind} is always granted ${permission} at ${scope.label}`
+            : decisionMode === 'binary'
+              ? m('rbac.permissions.binary.aria', {
+                  permission,
+                  state: binaryEnabled
+                    ? m('rbac.permissions.binary.enabled')
+                    : m('rbac.permissions.binary.disabled'),
+                  subject: subjectKind,
+                  scope: scope.label
+                })
+              : ov !== 'neutral'
+                ? `Override ${ov} for ${permission} at ${scope.label}`
+                : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+          {@const allowConstraint =
+            cell.allowPermitted === false
+              ? m('rbac.permissions.binary.owner_ceiling', {
+                  permission,
+                  scope: scope.label
+                })
+              : null}
+          {@const titleParts = forceAllow
+            ? [
+                'Allow (owners are always granted all permissions)',
+                'Owner permissions are not editable'
+              ]
+            : decisionMode === 'binary'
+              ? [
+                  binaryEnabled
+                    ? [
+                        m('rbac.permissions.binary.enabled'),
+                        includedBy
+                          ? m('rbac.permissions.included_by', { permission: includedBy })
+                          : null,
+                        cell.override === 'NONE' ? m('rbac.permissions.binary.inherited') : null,
+                        cell.allowPermitted === false
+                          ? m('rbac.permissions.binary.unavailable')
+                          : null
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
+                    : m('rbac.permissions.binary.disabled'),
+                  allowConstraint
+                ].filter(Boolean)
+              : [
+                  ov !== 'neutral'
+                    ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
+                    : null,
+                  includedBy ? `Effective Allow (included by ${includedBy})` : null,
+                  ov === 'neutral' && eff !== 'neutral'
+                    ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                    : null,
+                  ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
+                  allowConstraint
+                ].filter(Boolean)}
+          <MatrixCell
+            override={displayOverride}
+            inherited={displayEffective}
+            updating={updatingKey === `${scope.id}::${permission}`}
+            disabled={readOnly}
+            locked={inheritedBinaryGrant}
+            allowBlocked={cell.allowPermitted === false &&
+              (decisionMode !== 'binary' || parent !== 'ALLOW')}
+            ceilingBlocked={cell.allowPermitted === false &&
+              (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
+            {decisionMode}
+            {ariaLabel}
+            title={titleParts.join(' · ')}
+            onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
+          />
+        {:else}
+          <span class="inline-block h-10 w-10" aria-hidden="true"></span>
+        {/if}
+      {/snippet}
+    </MatrixTable>
+  </Panel>
 {/if}

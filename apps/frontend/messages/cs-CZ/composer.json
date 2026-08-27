@@ -1,0 +1,70 @@
+{
+  "composer": {
+    "attach_file": "Připojit soubor",
+    "send": "Odeslat zprávu",
+    "send_label": "Odeslat",
+    "also_send_to_channel": "Také odeslat na kanál",
+    "post_as_thread": "Publikovat jako vlákno",
+    "thread_label": "Vlákno",
+    "echo_label": "Echo",
+    "replying_to": "Odpovídání na",
+    "esc_to_cancel": "zrušit",
+    "editing": "Úprava zprávy",
+    "send_anyway": "Přesto odeslat",
+    "role_mention_confirm_title": "Odeslat zmínku?",
+    "role_mention_confirm_body": "Tato zpráva obsahuje zmínku, která může upozornit více lidí.",
+    "link_url": "URL odkazu",
+    "open_link": "Otevřít odkaz",
+    "remove_link": "Odebrat odkaz",
+    "code_language": "Jazyk kódu",
+    "placeholder": "Napište zprávu...",
+    "editing_placeholder": "Úprava zprávy...",
+    "drop_files_title": "Sem přetáhněte soubory",
+    "drop_files_subtitle": "Do vaší zprávy budou přidány obrázky a videa",
+    "send_failed": "Odeslání zprávy se nezdařilo",
+    "slow_mode_ready": "Pomalý režim: jedna zpráva za {interval}.",
+    "slow_mode_waiting": "Pomalý režim: další zprávu můžete poslat za {countdown}.",
+    "slow_mode_bypassed": "Pomalý režim: {interval} (máte výjimku).",
+    "slow_mode_rejected": "Je zapnutý pomalý režim. Před odesláním další zprávy počkejte.",
+    "threads_encouraged": "V této místnosti se doporučuje používat vlákna.",
+    "recent_thread_confirm_title": "Pokračovat v předchozím vlákně?",
+    "recent_thread_confirm_body": "Vaše předchozí zpráva už má vlákno. Kam se má tato zpráva odeslat?",
+    "post_as_new_message": "Poslat jako novou zprávu",
+    "continue_in_thread": "Pokračovat ve vlákně",
+    "edit_failed": "Zprávu se nepodařilo upravit",
+    "upload": {
+      "preparing": "Příprava…",
+      "uploading": "Nahráno {percentage}%",
+      "uploaded": "Nahráno",
+      "failed": "Nahrání se nezdařilo",
+      "remove": "Odebrat {filename}"
+    },
+    "format": {
+      "bold": "Tučné",
+      "italic": "kurzíva",
+      "inline_code": "Vložený kód",
+      "heading": "Směr",
+      "bullet_list": "Seznam odrážek",
+      "ordered_list": "Číslovaný seznam",
+      "blockquote": "Citace",
+      "code_block": "Blok kódu",
+      "outdent": "Zmenšit odsazení",
+      "indent": "Zvětšit odsazení"
+    },
+    "timestamp": {
+      "title": "Vložte časové razítko",
+      "insert_label": "Vložte časové razítko",
+      "date_time": "Datum a čas",
+      "timezone": "Časové pásmo",
+      "insert": "Vložit",
+      "error_required": "Vyberte datum a čas.",
+      "error_timezone": "Vyberte platné časové pásmo IANA.",
+      "error_invalid": "Vyberte platné datum a čas pro toto časové pásmo."
+    },
+    "mention": {
+      "all_room_members": "Všichni členové místnosti",
+      "members_here": "Členové aktuálně zde",
+      "role": "Role"
+    }
+  }
+}

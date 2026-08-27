@@ -1,0 +1,82 @@
+---
+title: Connections From Other Chatto Clients
+description: Understand how Chatto 0.5 clients identify themselves and connect without server-side origin configuration.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Chatto 0.5 servers can be added from a frontend hosted by any other Chatto
+server without changing `chatto.toml` or environment variables.
+
+The frontend publishes a Client ID Metadata Document (CIMD) at
+`/oauth/frontend-client-metadata.json`. When it starts the remote server's
+OAuth Authorization Code flow, it sends that HTTPS document URL as its
+`client_id`. The remote server retrieves and validates the document, including
+the exact callback URI. After the user approves the identified client, the
+frontend exchanges the short-lived code with PKCE and stores the resulting
+short-lived access token, rotating refresh credential, and expiry metadata.
+Routine renewal happens in the background and does not reopen the remote
+server's authorization pages.
+
+Chatto accepts browser HTTP and realtime transport from any origin, but never
+enables credentialed cross-origin requests. A foreign origin cannot use an
+ambient Chatto session cookie; it must present the bearer token issued through
+the OAuth flow.
+
+The bundled frontend refreshes before access expiry, advances the session
+window automatically, coordinates tabs on the same browser profile, and
+reconnects realtime with its existing opaque resume cursor. A transient
+refresh failure is retried without discarding the session. If the server
+rejects the refresh credential permanently, the current route and other
+connected servers remain intact and the affected server shows an explicit
+reconnect action; Chatto never opens OAuth automatically.
+
+<Aside type="note" title="Chatto Desktop and native apps">
+  Chatto Desktop uses the built-in `chatto://desktop` client identity and exact
+  callback. Future native clients can publish HTTPS CIMD metadata that declares
+  an application-specific callback scheme. Neither case needs CORS or redirect
+  origin configuration.
+</Aside>
+
+## What Client Identity Means
+
+Any compatible public application that can publish a valid CIMD document can
+ask a user to connect. This keeps the client ecosystem open while giving the
+server a stable client ID, exact callback registration, and durable consent and
+audit records.
+
+CIMD identity is not an endorsement. The authorization page shows the client
+to the user and requires consent before issuing access. A malicious application
+can still ask a signed-in user to approve it, so users should authorize only
+clients they recognize.
+
+After the first successful authorization, server managers can see the client
+under **Server settings → Security → OAuth clients**. The list includes its
+validated name and identity, callback origins, number of distinct users who
+have authorized it, and when its latest authorization occurred. Metadata probes and denied
+requests do not add entries.
+
+Managers can leave a client at its default policy, label it trusted, or block
+it. Trusted is an informational label; every user must still approve the
+client. Blocking prevents new authorization and rejects or revokes the
+client's existing OAuth access tokens. Active realtime connections belonging
+to that client are closed across every server replica; the same user's
+first-party sessions and connections from other clients remain active.
+
+## Deployment Requirements
+
+- Run Chatto 0.5 or newer on both sides. Pre-0.5 origin-only clients are not
+  compatible with this flow.
+- Upgrade all serving replicas and the bundled client together. Pre-renewal
+  bearer records are rejected and affected users sign in once to obtain a
+  renewable pair.
+- Serve browser client metadata over public HTTPS. Chatto blocks redirects,
+  oversized responses, and private or other special-use network destinations
+  when retrieving CIMD metadata. Loopback HTTP is supported only for loopback
+  development servers.
+- Make the exact callback URL available in the metadata document. The bundled
+  frontend publishes its document automatically.
+
+The old `webserver.allowed_origins` and `webserver.oauth_redirect_origins`
+settings were removed in 0.5. Delete them from existing configuration during
+upgrade.

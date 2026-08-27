@@ -3,15 +3,13 @@ export type UserSummaryForCache = {
   login: string;
   displayName: string;
   deleted: boolean;
+  isBot?: boolean;
   avatarUrl: string | null;
 };
 
 export type ApiClientHooks = {
   onAuthenticationRequired?: (serverId: string) => void;
-  onUserSummaries?: (
-    serverId: string | undefined,
-    users: UserSummaryForCache[],
-  ) => void;
+  onUserSummaries?: (serverId: string | undefined, users: UserSummaryForCache[]) => void;
 };
 
 let configuredHooks: ApiClientHooks = {};
@@ -22,7 +20,7 @@ export function configureApiClientHooks(hooks: ApiClientHooks): void {
 
 export function notifyAuthenticationRequired(
   serverId: string | undefined,
-  localHook?: (serverId: string) => void,
+  localHook?: (serverId: string) => void
 ): void {
   if (!serverId) return;
   localHook?.(serverId);
@@ -32,10 +30,7 @@ export function notifyAuthenticationRequired(
 export function notifyUserSummaries(
   serverId: string | undefined,
   users: UserSummaryForCache[],
-  localHook?: (
-    serverId: string | undefined,
-    users: UserSummaryForCache[],
-  ) => void,
+  localHook?: (serverId: string | undefined, users: UserSummaryForCache[]) => void
 ): void {
   localHook?.(serverId, users);
   configuredHooks.onUserSummaries?.(serverId, users);

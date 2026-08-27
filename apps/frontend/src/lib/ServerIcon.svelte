@@ -4,6 +4,7 @@
   import NotificationBadge from './ui/NotificationBadge.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
   import type { ServerIndicator } from './state/server/store.svelte';
+  import type { Attachment } from 'svelte/attachments';
 
   let {
     server,
@@ -12,13 +13,18 @@
     selected = false,
     indicator = null,
     notificationCount = 0,
+    importantNotificationCount = 0,
+    onclick,
     onIndicatorClick,
+    contextMenuTrigger,
     title,
-    dimmed = false
+    dimmed = false,
+    reauthRequired = false,
+    compatibilityWarning = false
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
-    /** Icon class name for icon-only mode (e.g., "iconify uil--comment-alt-lines") */
+    /** Icon class name for icon-only mode (e.g., "iconify icon-[uil--comment-alt-lines]") */
     icon?: string;
     href: string;
     selected?: boolean;
@@ -26,17 +32,28 @@
     indicator?: ServerIndicator;
     /** Number to render for notification indicators. */
     notificationCount?: number;
+    /** Number of unread notifications that should use notification orange. */
+    importantNotificationCount?: number;
+    /** Optional click behavior for the server link. */
+    onclick?: (event: MouseEvent) => void;
     /** Click handler for the indicator dot. Receives the indicator kind. */
     onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
+    /** Optional right-click/long-press behavior for the server link. */
+    contextMenuTrigger?: Attachment<HTMLElement>;
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
+    /** Show that this server needs the user to sign in again. */
+    reauthRequired?: boolean;
+    /** Show a non-interactive compatibility warning marker. */
+    compatibilityWarning?: boolean;
   } = $props();
 </script>
 
-<div class="server-icon-wrapper relative">
+<div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
     {href}
+    {onclick}
     {title}
     aria-label={title ?? server?.name}
     class={[
@@ -52,6 +69,24 @@
       <span class={icon}></span>
     {/if}
   </a>
+
+  {#if reauthRequired}
+    <span
+      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
+      data-testid="server-reauth-required"
+      aria-hidden="true"
+    >
+      <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>
+    </span>
+  {:else if compatibilityWarning}
+    <span
+      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
+      data-testid="server-compatibility-warning"
+      aria-hidden="true"
+    >
+      <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>
+    </span>
+  {/if}
 
   {#if indicator}
     {#if onIndicatorClick}
@@ -71,13 +106,18 @@
         {#if indicator === 'notification' && notificationCount > 0}
           <NotificationBadge
             count={notificationCount}
+            color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
             overlay
             testid="server-notification-badge"
           />
           <span class="sr-only">{notificationCount} notifications</span>
         {:else}
           <UnreadDot
-            color={indicator === 'notification' ? 'warning' : 'muted'}
+            color={indicator === 'notification'
+              ? importantNotificationCount > 0
+                ? 'warning'
+                : 'ambient'
+              : 'muted'}
             overlay
             testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
           />
@@ -87,6 +127,7 @@
       {#if indicator === 'notification' && notificationCount > 0}
         <NotificationBadge
           count={notificationCount}
+          color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
           overlay
           class="absolute top-0 right-0 z-10"
           testid="server-notification-badge"
@@ -94,7 +135,11 @@
         <span class="sr-only">{notificationCount} notifications</span>
       {:else}
         <UnreadDot
-          color={indicator === 'notification' ? 'warning' : 'muted'}
+          color={indicator === 'notification'
+            ? importantNotificationCount > 0
+              ? 'warning'
+              : 'ambient'
+            : 'muted'}
           overlay
           class="absolute top-0 right-0 z-10"
           testid={indicator === 'unread' ? 'server-unread-dot' : undefined}

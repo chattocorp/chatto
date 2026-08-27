@@ -1,0 +1,15 @@
+{
+  "preview": {
+    "dismiss": "Zavřít náhled",
+    "delete": "Smazat náhled",
+    "open_link": "Otevřít odkaz",
+    "copy_url": "Kopírovat URL",
+    "show_content": "Zobrazit obsah",
+    "hide_content": "Skrýt obsah",
+    "youtube_title": "Video YouTube",
+    "youtube_dismiss": "Zavřít video",
+    "youtube_delete": "Smazat video",
+    "youtube_open": "Otevřít na YouTube",
+    "youtube_delete_embed": "Smazat vložení"
+  }
+}

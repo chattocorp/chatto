@@ -3,6 +3,7 @@ import {
   type CurrentUser,
   type ViewerAPIConfig
 } from '$lib/api-client/viewer';
+import { browserCookieAuthenticationHeaders } from './authenticationMode';
 import { clearCachedUser } from './loadAuth';
 import { csrfFetch } from './csrf';
 import { isAuthenticationRequiredError } from './errors';
@@ -76,7 +77,7 @@ export class CurrentUserState {
     if (this.#isLoggingOut) return;
 
     if (!this.#cookieAuth) {
-      console.log('Remote server auth failure — marking reauthentication required');
+      console.warn('Remote server auth failure — marking reauthentication required');
       this.#onAuthenticationRequired?.();
       this.loading = false;
       return;
@@ -85,7 +86,14 @@ export class CurrentUserState {
     this.#isLoggingOut = true;
 
     if (options.revokeServerSession) {
-      await csrfFetch('/auth/logout', { method: 'POST' }).catch(() => {});
+      await csrfFetch('/auth/browser/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...browserCookieAuthenticationHeaders
+        },
+        body: '{}'
+      }).catch(() => {});
       this.user = undefined;
       clearCachedUser();
       this.loading = false;

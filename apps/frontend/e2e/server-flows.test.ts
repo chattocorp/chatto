@@ -2,7 +2,13 @@ import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@play
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
-import { startSecondServer, stopSecondServer, createUserOnRemote } from './fixtures/multiServer';
+import {
+  startSecondServer,
+  stopSecondServer,
+  createUserOnRemote,
+  getRoomOnRemote,
+  postMessageOnRemote
+} from './fixtures/multiServer';
 import { connectPost } from './fixtures/connectHelpers';
 import type { ServerInfo } from './fixtures/server';
 import { DMPage } from './pages/DMPage';
@@ -58,8 +64,8 @@ test.describe('Landing Page', () => {
     serverURL
   }) => {
     await createAndLoginTestUser(page);
-    const sessionCookie = (await page.context().cookies()).find(
-      (cookie) => cookie.name === 'chatto_session'
+    const sessionCookie = (await page.context().cookies()).find((cookie) =>
+      cookie.name.startsWith('chatto_auth_')
     );
     expect(sessionCookie).toBeDefined();
 
@@ -68,7 +74,14 @@ test.describe('Landing Page', () => {
       async ({ context, page: freshPage }) => {
         await context.addCookies([sessionCookie!]);
 
-        const rejectedResponse = await freshPage.request.post('/auth/logout');
+        const rejectedResponse = await freshPage.request.post('/auth/browser/logout', {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Chatto-Authentication-Mode': 'cookie',
+            Origin: new URL(serverURL).origin
+          },
+          data: {}
+        });
         expect(rejectedResponse.status()).toBe(403);
 
         const viewer = await connectPost<ViewerResponse>(
@@ -78,7 +91,7 @@ test.describe('Landing Page', () => {
         expect(viewer.user?.profile?.id).toBeTruthy();
 
         await freshPage.goto(routes.settings);
-        await expect(freshPage.getByRole('heading', { name: 'Profile' })).toBeVisible();
+        await expect(freshPage.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
         await expect(freshPage).not.toHaveURL(routes.login);
       },
       { baseURL: serverURL }
@@ -259,18 +272,20 @@ test.describe('Add Server - Remote Auth Flow', () => {
   }
 
   /**
-   * Drive the dialog up to (but not through) the OAuth redirect: open it
+   * Drive the dialog up to (but not through) the OAuth popup: open it
    * from the sidebar `+` button, fill the URL, click Connect to probe, and
    * click the static "Sign in" button on the preview.
    */
-  async function driveAddServerToOAuth(page: Page, hostname: string): Promise<void> {
-    await page.getByTitle('Add Server').click();
+  async function driveAddServerToOAuth(page: Page, hostname: string): Promise<Page> {
+    await page.getByRole('button', { name: 'Add Server', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostname);
     await page.getByRole('button', { name: 'Connect' }).click();
     await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
+    const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    return popupPromise;
   }
 
   test('previewing a valid remote server then continuing redirects to remote OAuth login', async ({
@@ -283,13 +298,13 @@ test.describe('Add Server - Remote Auth Flow', () => {
     const baseURL = remoteBaseURL(remoteServer);
     const hostname = new URL(baseURL).host;
 
-    await driveAddServerToOAuth(page, hostname);
+    const remoteLoginPage = await driveAddServerToOAuth(page, hostname);
 
-    // Should redirect to the remote's OAuth login page
-    await expect(page).toHaveURL(/\/login\?redirect=/, {
+    // The main client stays mounted while the remote login opens separately.
+    await expect(remoteLoginPage).toHaveURL(/\/login\?redirect=/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    await expect(page.locator('input[autocomplete="username"]')).toBeVisible();
+    await expect(remoteLoginPage.locator('input[autocomplete="username"]')).toBeVisible();
   });
 
   test('signing in to remote server via OAuth flow adds it to sidebar', async ({
@@ -304,19 +319,21 @@ test.describe('Add Server - Remote Auth Flow', () => {
     const remoteHostname = new URL(baseURL).hostname;
     await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
-    await driveAddServerToOAuth(page, hostname);
-    await expect(page).toHaveURL(/\/login\?redirect=/, {
+    const remoteLoginPage = await driveAddServerToOAuth(page, hostname);
+    await expect(remoteLoginPage).toHaveURL(/\/login\?redirect=/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
     // Fill in credentials on the remote's login page
-    await page.locator('input[autocomplete="username"]').fill('remoteuser');
-    await page.locator('input[autocomplete="current-password"]').fill('password123');
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await expect(page).toHaveURL(/\/oauth\/consent/, {
+    await remoteLoginPage.locator('input[autocomplete="username"]').fill('remoteuser');
+    await remoteLoginPage.locator('input[autocomplete="current-password"]').fill('password123');
+    await remoteLoginPage.getByRole('button', { name: 'Sign In' }).click();
+    await expect(remoteLoginPage).toHaveURL(/\/oauth\/consent/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    await page.getByRole('button', { name: 'Allow Access' }).click();
+    const popupClosed = remoteLoginPage.waitForEvent('close');
+    await remoteLoginPage.getByRole('button', { name: 'Allow Access' }).click();
+    await popupClosed;
 
     // Post-PR(a) the OAuth callback drops the user directly into the
     // newly-added remote instance's chat tree (`/chat/<hostname>/...`).
@@ -331,6 +348,64 @@ test.describe('Add Server - Remote Auth Flow', () => {
     ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
+  test('a remote server stays live while the origin is signed out', async ({ page, chatPage }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await page.goto('/');
+    await expect(page).toHaveURL(routes.login);
+
+    const baseURL = remoteBaseURL(remoteServer);
+    const hostname = new URL(baseURL).host;
+    const remoteHostname = new URL(baseURL).hostname;
+    const remoteViewer = await createUserOnRemote(baseURL, 'remoteonlyuser', 'password123');
+    const remoteSender = await createUserOnRemote(baseURL, 'remoteonlysender', 'password123');
+    const generalRoomId = await getRoomOnRemote(baseURL, remoteViewer.token, 'general');
+
+    const remoteLoginPage = await driveAddServerToOAuth(page, hostname);
+    await expect(remoteLoginPage).toHaveURL(/\/login\?redirect=/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+
+    await remoteLoginPage.locator('input[autocomplete="username"]').fill('remoteonlyuser');
+    await remoteLoginPage.locator('input[autocomplete="current-password"]').fill('password123');
+    await remoteLoginPage.getByRole('button', { name: 'Sign In' }).click();
+    await expect(remoteLoginPage).toHaveURL(/\/oauth\/consent/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    const popupClosed = remoteLoginPage.waitForEvent('close');
+    await remoteLoginPage.getByRole('button', { name: 'Allow Access' }).click();
+    await popupClosed;
+
+    const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');
+    await page.waitForURL(new RegExp(`/chat/${remoteHostnameEsc}(/|$)`), {
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
+    await expect(
+      page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`).first()
+    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await chatPage.enterRoom('general');
+    const liveMessage = 'remote-only realtime delivery';
+    await postMessageOnRemote(baseURL, remoteSender.token, generalRoomId, liveMessage);
+    await expect(page.getByText(liveMessage, { exact: true })).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+
+    // A full reload on the signed-out landing route matches Chatto Desktop's
+    // cold-start lifecycle: no server is URL-active, but restored remote
+    // sessions must still receive their initial serialized catch-up.
+    await page.goto(routes.login);
+    const remoteIcon = page
+      .locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
+      .first();
+    await expect(remoteIcon).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(remoteIcon).not.toHaveAttribute('title', /connection unavailable|needs sign-in/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    expect(pageErrors).toEqual([]);
+  });
+
   test('invalid credentials show error on remote OAuth login page', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -338,22 +413,22 @@ test.describe('Add Server - Remote Auth Flow', () => {
     const baseURL = remoteBaseURL(remoteServer);
     const hostname = new URL(baseURL).host;
 
-    await driveAddServerToOAuth(page, hostname);
-    await expect(page).toHaveURL(/\/login\?redirect=/, {
+    const remoteLoginPage = await driveAddServerToOAuth(page, hostname);
+    await expect(remoteLoginPage).toHaveURL(/\/login\?redirect=/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
-    await page.locator('input[autocomplete="username"]').fill('wronguser');
-    await page.locator('input[autocomplete="current-password"]').fill('wrongpassword');
-    await page.getByRole('button', { name: 'Sign In' }).click();
+    await remoteLoginPage.locator('input[autocomplete="username"]').fill('wronguser');
+    await remoteLoginPage.locator('input[autocomplete="current-password"]').fill('wrongpassword');
+    await remoteLoginPage.getByRole('button', { name: 'Sign In' }).click();
 
     // Should show an auth error on the remote's login page
-    await expect(page.getByText(/failed|invalid|not found/i)).toBeVisible({
+    await expect(remoteLoginPage.getByText(/failed|invalid|not found/i)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
     // Should stay on the remote's OAuth login page
-    await expect(page).toHaveURL(/\/login\?redirect=/);
+    await expect(remoteLoginPage).toHaveURL(/\/login\?redirect=/);
   });
 });
 

@@ -1,12 +1,11 @@
 /// <reference types="vitest/config" />
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig, type Plugin } from 'vite';
-import { playwright } from '@vitest/browser-playwright';
+import { defineConfig, type Plugin, type UserConfig } from 'vite';
+
+import { catalogSections, isPublicCatalogSection } from './src/lib/i18n/catalogSections.js';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -16,6 +15,20 @@ const backendTarget =
 const tiptapDeps = ['@tiptap/pm/state'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
+
+function localeCatalogChunkName(moduleId: string): string | null {
+  const match = moduleId.match(/[\\/]messages[\\/]([^\\/]+)[\\/]([^\\/]+)\.json(?:\?.*)?$/);
+  if (!match) return null;
+
+  const [, locale, section] = match;
+  if (locale === 'en-GB') return null;
+  if (!catalogSections.includes(section as (typeof catalogSections)[number])) return null;
+
+  const boundary = isPublicCatalogSection(section as (typeof catalogSections)[number])
+    ? 'public'
+    : 'chat';
+  return `lingua-${locale}-${boundary}`;
+}
 
 function normalizeHighlightLanguageToken(value: string): string | null {
   return (
@@ -116,99 +129,13 @@ function highlightLanguageMetadata(): Plugin {
   };
 }
 
-export default defineConfig({
-  clearScreen: false,
-  plugins: [
-    tailwindcss(),
-    highlightLanguageMetadata(),
-    paraglideVitePlugin({
-      project: './project.inlang',
-      outdir: './src/lib/paraglide',
-      strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
-      emitTsDeclarations: true,
-      outputStructure: 'locale-modules'
-    }),
-    sveltekit(),
-    devtoolsJson()
-  ],
-  build: {
-    reportCompressedSize: false,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('src/lib/paraglide/messages/de.js')) return 'i18n-de';
-        },
-        experimentalMinChunkSize: 20_000
-      }
-    }
-  },
-  resolve: {
-    alias: {
-      // The lowlight package root re-exports `all`, which imports every
-      // highlight.js grammar. We only need createLowlight, so point bundling
-      // at the implementation module to keep language grammars lazy.
-      lowlight: fileURLToPath(new URL('./node_modules/lowlight/lib/index.js', import.meta.url))
-    }
-  },
-  ssr: {
-    // TipTap is browser-only but imported in Svelte components that are
-    // compiled for SSR. Bundle them into the SSR output to avoid
-    // "could not be resolved" warnings (the code paths are guarded by
-    // $effect which doesn't run during SSR).
-    noExternal: [
-      '@tiptap/core',
-      '@tiptap/extension-code-block-lowlight',
-      '@tiptap/extension-placeholder',
-      '@tiptap/markdown',
-      '@tiptap/starter-kit'
-    ]
-  },
-  optimizeDeps: {
-    include: [...tiptapDeps]
-  },
-  server: {
-    // Proxy some URL routes to the Go backend process in development.
-    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : undefined,
-    host: true,
-    allowedHosts: ['fatso.fritz.box', '.orb.local'],
-    // Bind-mount inotify on macOS (Docker Desktop / OrbStack) drops events
-    // during bursty changes. Polling is reliable; cost is negligible at this
-    // tree size.
-    watch: {
-      usePolling: true,
-      interval: 300
-    },
-    proxy: {
-      '/api': {
-        target: backendTarget,
-        ws: true,
-        changeOrigin: true,
-        secure: false,
-        cookieDomainRewrite: { '*': '' },
-        // Rewrite the Origin header on WebSocket upgrades so the
-        // backend's CheckOrigin accepts the connection.
-        rewriteWsOrigin: true
-      },
-      '/auth': {
-        target: backendTarget,
-        changeOrigin: true,
-        cookieDomainRewrite: { '*': '' }
-      },
-      '/assets': {
-        target: backendTarget,
-        changeOrigin: true
-      },
-      '/.well-known/chatto/shields': {
-        target: backendTarget,
-        changeOrigin: true
-      },
-      '/webhooks': {
-        target: backendTarget,
-        changeOrigin: true
-      }
-    }
-  },
-  test: {
+async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
+  const [{ playwright }, { storybookTest }] = await Promise.all([
+    import('@vitest/browser-playwright'),
+    import('@storybook/addon-vitest/vitest-plugin')
+  ]);
+
+  return {
     expect: { requireAssertions: true },
     projects: [
       {
@@ -242,7 +169,129 @@ export default defineConfig({
           exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
           testTimeout: 10000 // CI is slower with Svelte module transforms
         }
+      },
+      {
+        extends: true,
+        plugins: [
+          storybookTest({
+            configDir: fileURLToPath(new URL('./.storybook', import.meta.url))
+          })
+        ],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: !process.env.SHOW_BROWSER,
+            instances: [{ browser: 'chromium' }]
+          }
+        }
       }
     ]
-  }
+  };
+}
+
+const testConfig = process.env.VITEST ? await createTestConfig() : undefined;
+
+async function createServePlugins() {
+  const { default: devtoolsJson } = await import('vite-plugin-devtools-json');
+  return [devtoolsJson()];
+}
+
+export default defineConfig(async ({ command }) => {
+  const servePlugins = command === 'serve' ? await createServePlugins() : [];
+
+  return {
+    clearScreen: false,
+    plugins: [tailwindcss(), highlightLanguageMetadata(), sveltekit(), ...servePlugins],
+    build: {
+      reportCompressedSize: false,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [{ name: localeCatalogChunkName }]
+          }
+        }
+      }
+    },
+    resolve: {
+      alias: {
+        // The lowlight package root re-exports `all`, which imports every
+        // highlight.js grammar. We only need createLowlight, so point bundling
+        // at the implementation module to keep language grammars lazy.
+        lowlight: fileURLToPath(new URL('./node_modules/lowlight/lib/index.js', import.meta.url))
+      }
+    },
+    ssr: {
+      // TipTap is browser-only but imported in Svelte components that are
+      // compiled for SSR. Bundle them into the SSR output to avoid
+      // "could not be resolved" warnings (the code paths are guarded by
+      // $effect which doesn't run during SSR).
+      noExternal: [
+        '@tiptap/core',
+        '@tiptap/extension-code-block-lowlight',
+        '@tiptap/extension-placeholder',
+        '@tiptap/markdown',
+        '@tiptap/starter-kit'
+      ]
+    },
+    optimizeDeps: {
+      include: [...tiptapDeps]
+    },
+    server: {
+      // Proxy some URL routes to the Go backend process in development.
+      port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : undefined,
+      host: true,
+      allowedHosts: ['fatso.fritz.box', '.orb.local'],
+      // Regional Lingua catalogs live beside the Svelte source tree so the
+      // public and chat section imports can remain independently lazy.
+      fs: {
+        allow: [fileURLToPath(new URL('./messages', import.meta.url))]
+      },
+      // Bind-mount inotify on macOS (Docker Desktop / OrbStack) drops events
+      // during bursty changes. Polling is reliable; cost is negligible at this
+      // tree size.
+      watch: {
+        usePolling: true,
+        interval: 300
+      },
+      proxy: {
+        '/oauth': {
+          target: backendTarget,
+          // Cookie authentication compares the browser Origin with the
+          // request target. Preserve Vite's public Host so both values match.
+          changeOrigin: false,
+          cookieDomainRewrite: { '*': '' }
+        },
+        '/api': {
+          target: backendTarget,
+          ws: true,
+          changeOrigin: false,
+          secure: false,
+          cookieDomainRewrite: { '*': '' },
+          // Preserve the public browser origin so the backend can accept
+          // same-origin cookie authentication on the WebSocket upgrade.
+          rewriteWsOrigin: false
+        },
+        '/auth': {
+          target: backendTarget,
+          changeOrigin: false,
+          cookieDomainRewrite: { '*': '' }
+        },
+        '/assets': {
+          target: backendTarget,
+          changeOrigin: true
+        },
+        '/.well-known/chatto/shields': {
+          target: backendTarget,
+          changeOrigin: true
+        },
+        '/webhooks': {
+          target: backendTarget,
+          changeOrigin: true
+        }
+      }
+    },
+    test: testConfig
+  };
 });

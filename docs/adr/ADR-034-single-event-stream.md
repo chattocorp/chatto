@@ -1,6 +1,14 @@
-# ADR-034: Single Event Stream with Event-Type Subject Lanes
+# ADR-034: Single Domain Event Stream with Event-Type Subject Lanes
 
 **Date:** 2026-05-24
+
+**Updated:** 2026-08-19
+
+> **Scope clarification:** This decision establishes one primary stream for
+> authoritative domain state. It does not forbid an explicitly designed,
+> purpose-bounded secondary log whose facts are derived from `EVT` and have a
+> different lifecycle. [ADR-076](ADR-076-deterministic-notification-occurrences.md)
+> applies that pattern to the finite notification lifecycle.
 
 ## Context
 
@@ -17,7 +25,14 @@ Cross-aggregate ordering — "did the user join the room before or after sending
 
 ## Decision
 
-Use a single JetStream stream named `EVT` for all event-sourced domain state.
+Use a single JetStream stream named `EVT` for all authoritative event-sourced
+domain state.
+
+Additional streams are not aggregate shards or alternate domain authorities.
+They require their own ADR, bounded purpose, retention and backup contract,
+stream identity, replay model, and recoverable handoff from the authoritative
+source facts. Their writers must derive work from committed domain facts rather
+than add implementation-only trigger events to `EVT`.
 
 ### Subject layout
 
@@ -25,7 +40,7 @@ Use a single JetStream stream named `EVT` for all event-sourced domain state.
 
 - **Aggregate types** are stable identifiers like `room`, `user`, `rbac`, `config`, and `auth`. The list grows as ADR-035 migrates aggregates over.
 - **Aggregate IDs** are the existing NanoIDs from [ADR-022](ADR-022-nanoid-with-entity-prefixes.md). No renaming required.
-- **Event types** are snake_case tokens derived from the protobuf oneof variant on `corev1.Event` (`user_joined`, `room_created`, `server_name_changed`). The canonical mapping lives in `events.EventTypeOf(*corev1.Event)` — the payload is the single source of truth, the subject token is computed from it, never authored independently.
+- **Event types** are snake_case tokens derived from the protobuf oneof variant on `corev1.Event` (`user_joined`, `room_created`, `server_name_changed`). The canonical mapping lives in `evtstream.EventTypeOf(*corev1.Event)` — the payload is the single source of truth, the subject token is computed from it, never authored independently.
 - **Singleton aggregates** (server-wide config and similar) use a stable sentinel id like `server` rather than introducing a different subject shape. Keeps the parser, the OCC formula, and the framework code uniform. Anonymous auth audit facts use `evt.auth.server` for the same reason.
 
 We deliberately do **not** nest the new event log under `server.>`. The legacy `SERVER_EVENTS` stream already claims `server.>` as its subject root, and NATS won't allow two streams to share an overlapping subject space. The new stream is named simply `EVT`: the word "server" already has a specific product meaning in Chatto (the user-facing concept), and reusing it as a NATS-level prefix on the event log conflated infrastructure naming with domain naming. `EVT` is short, unambiguous, and parallels the `evt.>` subject root.
@@ -74,14 +89,14 @@ The realtime websocket consumes `live.evt.>` server-side and turns it into the u
 
 Ordinary projectors must not publish live events from `Apply`. Every app replica has its own local projectors, so projector-side publish effects would multiply one committed EVT event by the number of Chatto replicas.
 
-Transient UI sync signals that are not durable facts use a separate `corev1.LiveEvent` wrapper on `live.sync.>`. The realtime websocket consumes these server-side, applies the same room/user/config authorization gates, and adapts them into the public protobuf live-event shape. This keeps the durable `Event` wrapper centered on EVT facts while still allowing non-durable signals such as typing, voice-call presence, notification sync, preferences, and config invalidations.
+Transient UI and latest-value sync signals that are not durable facts use a separate `corev1.LiveEvent` wrapper on `live.sync.>`. The realtime websocket consumes these server-side and applies the same room/user/config authorization gates. Genuinely transient activity such as typing and presence may become a public `RealtimeEventEnvelope`; notification, preference, profile, read-state, and layout signals instead trigger authoritative client-projection operations or a reset. The internal `LiveEvent` shape is not the public contract. Voice-call state is durable EVT state and converges through `active_calls_replace`.
 
-`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated EVT-backed mutations should not publish direct Event-envelope live mirrors. `live.evt.>` and `live.sync.>` are the only live delivery roots for the public realtime stream: durable facts reach clients through EVT republish, and transient UI sync signals reach them through LiveEvent.
+`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated EVT-backed mutations should not publish direct Event-envelope live mirrors. `live.evt.>` and `live.sync.>` are the only server-side ingress roots for the public realtime stream: durable facts reach the mapper through EVT republish, while ephemeral activity and latest-value invalidations reach it through `LiveEvent`. Both are converted to authorized public projection operations or explicitly transient envelopes.
 
 ### Replication and retention
 
 - **Replication is stream-level.** R3 applies to the entire event log, not per aggregate type.
-- **Retention is forever** for the foreseeable future. Trimming is deliberately deferred; addressed alongside snapshot orchestration in a future ADR.
+- **Retention is forever** for the foreseeable future. Trimming remains a separate deferred decision; [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) explicitly introduces snapshots without permitting EVT expiration, compaction, truncation, or archival.
 - **Compression** uses S2, matching today's `SERVER_EVENTS`.
 
 ### Coexistence with the legacy stream
@@ -90,7 +105,11 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream serve
 
 ## Consequences
 
-- **One stream to back up, replicate, consume.** Operational surface stays small. `chatto backup` and clustering both treat the event log as a single resource. Operator mental model is simpler than "track N streams and reconcile their states."
+- **One primary domain stream to back up, replicate, and consume.** The
+  operational surface for reconstructing domain state stays small. Explicit
+  bounded secondary logs add resources only when their distinct lifecycle
+  earns that cost; they are backed up when their finite state is itself
+  user-visible or contains accepted work.
 - **No fanout consumer multiplexing.** A projection that needs events for all rooms takes one consumer with a wildcard filter (`evt.room.>`). The per-process consumer count grows with projections, not aggregates.
 - **Subject cardinality is bounded by aggregate count × event types.** Rooms, users, RBAC namespaces, and a small fixed set of event-type lanes are orders of magnitude lower than per-message subjects. This is the property that makes the NATS subject index manageable, and the direct reason ADR-033 unlocks a RAM win.
 - **Single point of contention for hot streams.** Writes across all aggregates serialize through one stream leader. For Chatto's scale (one server per deployment, not a multi-tenant SaaS) this is acceptable. If we ever need to scale past a single stream's write throughput, [ADR-013](ADR-013-per-space-stream-sharding.md) shows the codebase can carry a sharding abstraction — that's a future option, not a current need.
@@ -101,6 +120,9 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream serve
 
 ## Out of scope for this ADR
 
-- Retention, archival, and snapshot orchestration — deferred.
-- Sharding the event log across multiple streams — not needed today; revisit if write contention forces it.
+- Snapshot orchestration — decided separately in [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md), without changing this ADR's indefinite EVT retention decision.
+- Event expiration, compaction, and archival — still deferred.
+- Sharding authoritative domain history across multiple streams — not needed
+  today; a purpose-bounded secondary log such as `NOTIFICATIONS` is not
+  sharding.
 - Cross-deployment replication / federation — entirely out of scope.

@@ -1,12 +1,59 @@
 package encryption
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/chacha20poly1305"
 )
+
+func TestSharedBodyEncryptionPreservesRawCipherFormat(t *testing.T) {
+	key := bytes.Repeat([]byte{0x11}, KeySize)
+	nonce := bytes.Repeat([]byte{0x22}, XNonceSize)
+	plaintext := []byte("persisted message body")
+	applicationAAD := []byte("event=E123\x00room=R123\x00author=U123")
+	rawAAD := []byte("chatto:message-body:v2\x00event=E123\x00room=R123\x00author=U123")
+	require.Equal(t, rawAAD, aadForBody(applicationAAD))
+
+	aead, err := chacha20poly1305.NewX(key)
+	require.NoError(t, err)
+	rawCiphertext := aead.Seal(nil, nonce, plaintext, rawAAD)
+
+	opened, err := DecryptWithContentKey(key, rawCiphertext, nonce, applicationAAD)
+	require.NoError(t, err)
+	require.Equal(t, plaintext, opened)
+
+	sealed, err := EncryptWithContentKey(key, plaintext, applicationAAD)
+	require.NoError(t, err)
+	opened, err = aead.Open(nil, sealed.Nonce, sealed.Ciphertext, rawAAD)
+	require.NoError(t, err)
+	require.Equal(t, plaintext, opened)
+}
+
+func TestSharedKeyWrappingPreservesRawCipherFormat(t *testing.T) {
+	wrappingKey := bytes.Repeat([]byte{0x33}, KeySize)
+	contentKey := bytes.Repeat([]byte{0x44}, KeySize)
+	nonce := bytes.Repeat([]byte{0x55}, XNonceSize)
+	applicationAAD := []byte("user=U123\x00epoch=1")
+	rawAAD := []byte("chatto:content-key:v2\x00user=U123\x00epoch=1")
+	require.Equal(t, rawAAD, aadForContentKey(applicationAAD))
+
+	aead, err := chacha20poly1305.NewX(wrappingKey)
+	require.NoError(t, err)
+	rawCiphertext := aead.Seal(nil, nonce, contentKey, rawAAD)
+
+	unwrapped, err := UnwrapContentKey(wrappingKey, rawCiphertext, nonce, applicationAAD)
+	require.NoError(t, err)
+	require.Equal(t, contentKey, unwrapped)
+
+	wrapped, err := WrapContentKey(wrappingKey, contentKey, applicationAAD)
+	require.NoError(t, err)
+	unwrapped, err = aead.Open(nil, wrapped.Nonce, wrapped.EncryptedContentKey, rawAAD)
+	require.NoError(t, err)
+	require.Equal(t, contentKey, unwrapped)
+}
 
 func TestEncryptDecrypt(t *testing.T) {
 	tests := []struct {

@@ -61,9 +61,9 @@ const (
 
 // AdminPermissionServiceClient is a client for the chatto.admin.v1.AdminPermissionService service.
 type AdminPermissionServiceClient interface {
-	// Gets the role-permission matrix for a single tier. Requires role.manage
-	// for server/group scope; room scope requires role.manage or room.manage in
-	// that room.
+	// Gets the role-permission matrix for a single tier. Server scope requires
+	// role.manage; group and room scopes require role.manage or effective
+	// room.manage at the requested resource.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
 	// Gets one role's full permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
@@ -71,17 +71,22 @@ type AdminPermissionServiceClient interface {
 	// Lists one role's permission decisions as resource-oriented rows. Requires
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
-	// Gets one user's full permission matrix. Requires user.manage-permissions.
+	// Gets one user's full permission matrix. Human targets require
+	// user.manage-permissions; bot targets require ownership or bot.manage.
 	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
-	// Lists one user's permission decisions as resource-oriented rows. Requires
-	// user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+	// Lists one user's permission decisions as resource-oriented rows. Human
+	// targets require user.manage-permissions; bot targets require ownership or
+	// bot.manage. Returns NOT_FOUND when the user does not exist.
 	ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error)
 	// Explains permission resolution for another user. Requires role.manage.
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
-	// Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+	// Sets one role permission decision. Server scope requires role.manage;
+	// group and room scopes also accept effective room.manage at that resource.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
-	// Sets one user permission decision. Requires user.manage-permissions.
+	// Sets one user permission decision. Human targets require
+	// user.manage-permissions; bot targets require ownership or bot.manage and
+	// accept only allow or clear within the bot owner's current authority.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
 
@@ -205,9 +210,9 @@ func (c *adminPermissionServiceClient) SetUserPermission(ctx context.Context, re
 // AdminPermissionServiceHandler is an implementation of the chatto.admin.v1.AdminPermissionService
 // service.
 type AdminPermissionServiceHandler interface {
-	// Gets the role-permission matrix for a single tier. Requires role.manage
-	// for server/group scope; room scope requires role.manage or room.manage in
-	// that room.
+	// Gets the role-permission matrix for a single tier. Server scope requires
+	// role.manage; group and room scopes require role.manage or effective
+	// room.manage at the requested resource.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
 	// Gets one role's full permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
@@ -215,17 +220,22 @@ type AdminPermissionServiceHandler interface {
 	// Lists one role's permission decisions as resource-oriented rows. Requires
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
-	// Gets one user's full permission matrix. Requires user.manage-permissions.
+	// Gets one user's full permission matrix. Human targets require
+	// user.manage-permissions; bot targets require ownership or bot.manage.
 	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
-	// Lists one user's permission decisions as resource-oriented rows. Requires
-	// user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+	// Lists one user's permission decisions as resource-oriented rows. Human
+	// targets require user.manage-permissions; bot targets require ownership or
+	// bot.manage. Returns NOT_FOUND when the user does not exist.
 	ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error)
 	// Explains permission resolution for another user. Requires role.manage.
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
-	// Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+	// Sets one role permission decision. Server scope requires role.manage;
+	// group and room scopes also accept effective room.manage at that resource.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
-	// Sets one user permission decision. Requires user.manage-permissions.
+	// Sets one user permission decision. Human targets require
+	// user.manage-permissions; bot targets require ownership or bot.manage and
+	// accept only allow or clear within the bot owner's current authority.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
 

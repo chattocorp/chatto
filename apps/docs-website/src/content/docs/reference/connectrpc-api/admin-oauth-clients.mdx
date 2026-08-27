@@ -1,0 +1,118 @@
+---
+title: AdminOAuthClientService
+description: Recorded OAuth-client authorization and policy administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminOAuthClientService"></a>
+
+## AdminOAuthClientService
+
+Manages OAuth clients authorized through this server. Requires server.manage.
+
+<a id="chatto-admin-v1-AdminOAuthClientService-ListOAuthClients"></a>
+
+### ListOAuthClients
+
+Lists clients that completed at least one authorization. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/ListOAuthClients
+```
+
+<a id="chatto-admin-v1-ListOAuthClientsRequest"></a>
+
+#### Input: ListOAuthClientsRequest
+
+Lists OAuth clients with recorded authorizations using offset pagination.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`chatto.api.v1.PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Requested offset and page size. |
+
+
+<a id="chatto-admin-v1-ListOAuthClientsResponse"></a>
+
+#### Result: ListOAuthClientsResponse
+
+One page of OAuth clients in stable first-authorization order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_clients` | repeated [`OAuthClient`](/reference/connectrpc-api/types/#chatto-admin-v1-OAuthClient) | Clients visible to the caller in this page. |
+| `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Total count and whether another page is available. |
+
+
+<a id="chatto-admin-v1-AdminOAuthClientService-GetOAuthClient"></a>
+
+### GetOAuthClient
+
+Gets one recorded client or returns NOT_FOUND. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/GetOAuthClient
+```
+
+<a id="chatto-admin-v1-GetOAuthClientRequest"></a>
+
+#### Input: GetOAuthClientRequest
+
+Identifies one OAuth client by its exact stable client ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Exact CIMD URL or built-in application URI. |
+
+
+<a id="chatto-admin-v1-GetOAuthClientResponse"></a>
+
+#### Result: GetOAuthClientResponse
+
+Returns one OAuth client with a recorded authorization.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_client` | [`OAuthClient`](/reference/connectrpc-api/types/#chatto-admin-v1-OAuthClient) | The requested client. |
+
+
+<a id="chatto-admin-v1-AdminOAuthClientService-UpdateOAuthClientPolicy"></a>
+
+### UpdateOAuthClientPolicy
+
+Replaces a client's policy and revokes tokens when blocked. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/UpdateOAuthClientPolicy
+```
+
+<a id="chatto-admin-v1-UpdateOAuthClientPolicyRequest"></a>
+
+#### Input: UpdateOAuthClientPolicyRequest
+
+Replaces the administrative policy for one OAuth client.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Exact CIMD URL or built-in application URI. |
+| `policy` | [`OAuthClientPolicy`](/reference/connectrpc-api/types/#chatto-admin-v1-OAuthClientPolicy) | New complete policy value. Default removes any trusted or blocked label. |
+
+
+<a id="chatto-admin-v1-UpdateOAuthClientPolicyResponse"></a>
+
+#### Result: UpdateOAuthClientPolicyResponse
+
+Returns the OAuth client with its updated policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_client` | [`OAuthClient`](/reference/connectrpc-api/types/#chatto-admin-v1-OAuthClient) | The updated client. |

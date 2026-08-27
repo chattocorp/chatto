@@ -7,19 +7,17 @@ const mocks = vi.hoisted(() => ({
   ensureRegistered: vi.fn(),
   getPushCapability: vi.fn(),
   getPermission: vi.fn(),
+  refreshPushSubscriptions: vi.fn(),
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
-  toastError: vi.fn(),
-  serverInfo: {
-    pushNotificationsEnabled: true,
-    vapidPublicKey: 'vapid-key' as string | null
-  }
+  toastError: vi.fn()
 }));
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
   ensureRegistered: mocks.ensureRegistered,
   getPushCapability: mocks.getPushCapability,
-  getPermission: mocks.getPermission
+  getPermission: mocks.getPermission,
+  refreshPushSubscriptions: mocks.refreshPushSubscriptions
 }));
 
 vi.mock('$lib/ui/toast', () => ({
@@ -30,14 +28,11 @@ vi.mock('$lib/ui/toast', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    originServer: { id: 'origin' },
-    getStore: () => ({
-      serverInfo: mocks.serverInfo
-    })
-  }
-}));
+const promptProps = {
+  serverId: 'origin',
+  userId: 'user-1',
+  vapidPublicKey: 'vapid-key'
+};
 
 async function settle() {
   await Promise.resolve();
@@ -58,10 +53,10 @@ function buttonWithText(container: Element, text: string): HTMLButtonElement {
 describe('PushNotificationPrompt', () => {
   beforeEach(() => {
     localStorage.clear();
-    mocks.serverInfo.pushNotificationsEnabled = true;
-    mocks.serverInfo.vapidPublicKey = 'vapid-key';
     mocks.ensureRegistered.mockReset();
     mocks.ensureRegistered.mockResolvedValue(true);
+    mocks.refreshPushSubscriptions.mockReset();
+    mocks.refreshPushSubscriptions.mockResolvedValue(undefined);
     mocks.getPermission.mockReset();
     mocks.getPermission.mockReturnValue('default');
     mocks.getPushCapability.mockReset();
@@ -72,7 +67,7 @@ describe('PushNotificationPrompt', () => {
   });
 
   it('shows the prompt when push is configured, supported, and permission is unset', async () => {
-    const { container } = render(PushNotificationPrompt, { props: { userId: 'user-1' } });
+    const { container } = render(PushNotificationPrompt, { props: promptProps });
     await settle();
 
     expect(container.textContent).toContain('Enable push notifications');
@@ -84,14 +79,14 @@ describe('PushNotificationPrompt', () => {
   it('does not show when permission is already granted', async () => {
     mocks.getPermission.mockReturnValue('granted');
 
-    const { container } = render(PushNotificationPrompt, { props: { userId: 'user-1' } });
+    const { container } = render(PushNotificationPrompt, { props: promptProps });
     await settle();
 
     expect(container.textContent).not.toContain('Enable push notifications');
   });
 
   it('persists opt-out for the current server and user', async () => {
-    const { container } = render(PushNotificationPrompt, { props: { userId: 'user-1' } });
+    const { container } = render(PushNotificationPrompt, { props: promptProps });
     await settle();
 
     buttonWithText(container, 'No thanks').click();
@@ -101,10 +96,25 @@ describe('PushNotificationPrompt', () => {
     expect(localStorage.getItem('chatto:i:origin:user:user-1:pushPromptDismissed')).toBe('1');
   });
 
+  it('supports a remote server as the prompt target', async () => {
+    const props = {
+      serverId: 'remote',
+      userId: 'remote-user',
+      vapidPublicKey: 'remote-vapid'
+    };
+    const { container } = render(PushNotificationPrompt, { props });
+    await settle();
+
+    buttonWithText(container, 'No thanks').click();
+    await settle();
+
+    expect(localStorage.getItem('chatto:i:remote:user:remote-user:pushPromptDismissed')).toBe('1');
+  });
+
   it('does not show after the user opted out locally', async () => {
     localStorage.setItem('chatto:i:origin:user:user-1:pushPromptDismissed', '1');
 
-    const { container } = render(PushNotificationPrompt, { props: { userId: 'user-1' } });
+    const { container } = render(PushNotificationPrompt, { props: promptProps });
     await settle();
 
     expect(container.textContent).not.toContain('Enable push notifications');
@@ -114,7 +124,7 @@ describe('PushNotificationPrompt', () => {
     mocks.getPushCapability.mockReturnValue('ios_home_screen_required');
     mocks.getPermission.mockReturnValue(null);
 
-    const { container } = render(PushNotificationPrompt, { props: { userId: 'user-1' } });
+    const { container } = render(PushNotificationPrompt, { props: promptProps });
     await settle();
 
     expect(container.textContent).toContain('Add Chatto to your Home Screen');
@@ -135,13 +145,14 @@ describe('PushNotificationPrompt', () => {
       return true;
     });
 
-    const { container } = render(PushNotificationPrompt, { props: { userId: 'user-1' } });
+    const { container } = render(PushNotificationPrompt, { props: promptProps });
     await settle();
 
     buttonWithText(container, 'Enable').click();
     await settle();
 
-    expect(mocks.ensureRegistered).toHaveBeenCalledWith('vapid-key', { prompt: true });
+    expect(mocks.ensureRegistered).toHaveBeenCalledWith('origin', 'vapid-key', { prompt: true });
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
     expect(mocks.toastSuccess).toHaveBeenCalledWith('Push notifications enabled');
     expect(container.textContent).not.toContain('Enable push notifications');
   });

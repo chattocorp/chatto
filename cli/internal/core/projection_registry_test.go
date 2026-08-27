@@ -2,17 +2,31 @@ package core
 
 import (
 	"regexp"
-	"slices"
 	"testing"
+
+	"hmans.de/chatto/internal/notificationstream"
+	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
+func registeredProjector(t *testing.T, core *ChattoCore, key string) *events.Projector {
+	t.Helper()
+	for _, registration := range core.projections {
+		if registration.key == key {
+			return registration.projector
+		}
+	}
+	t.Fatalf("projection %q is not registered", key)
+	return nil
+}
+
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 12 {
-		t.Fatalf("registered projections = %d, want 12", len(core.projections))
+	if len(core.projections) != 17 {
+		t.Fatalf("registered projections = %d, want 17", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -32,6 +46,15 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 		}
 		if projection.estimate == nil {
 			t.Fatalf("projection %q has nil estimate", projection.name)
+		}
+		if projection.streamName == "" || projection.identityResolver == nil {
+			t.Fatalf("projection %q has incomplete event-log binding", projection.name)
+		}
+		if projection.key == projectionsnapshot.ProjectionNotificationsKey && projection.streamName != notificationstream.StreamName {
+			t.Fatalf("Notifications projection stream = %q, want %q", projection.streamName, notificationstream.StreamName)
+		}
+		if projection.key != projectionsnapshot.ProjectionNotificationsKey && projection.streamName != "EVT" {
+			t.Fatalf("projection %q stream = %q, want EVT", projection.name, projection.streamName)
 		}
 		if _, exists := registryNames[projection.name]; exists {
 			t.Fatalf("duplicate projection registration name %q", projection.name)
@@ -55,6 +78,12 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	if _, ok := registryNames["Room Group Layout"]; !ok {
 		t.Fatal("Room Group Layout projection is not registered")
 	}
+	if _, ok := registryNames["Notification Decisions"]; !ok {
+		t.Fatal("Notification Decisions projection is not registered")
+	}
+	if _, ok := registryNames["Notifications"]; !ok {
+		t.Fatal("Notifications projection is not registered")
+	}
 	if _, ok := registryNames["Call State"]; !ok {
 		t.Fatal("Call State projection is not registered")
 	}
@@ -63,6 +92,15 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 	if _, ok := registryNames["Mentionables"]; !ok {
 		t.Fatal("Mentionables projection is not registered")
+	}
+	if _, ok := registryNames["User Auth"]; !ok {
+		t.Fatal("User Auth projection is not registered")
+	}
+	if _, ok := registryNames["Invitations"]; !ok {
+		t.Fatal("Invitations projection is not registered")
+	}
+	if _, ok := registryNames["OAuth Clients"]; !ok {
+		t.Fatal("OAuth Clients projection is not registered")
 	}
 
 	states, err := core.ProjectionAdminStates(testContext(t))
@@ -92,29 +130,55 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 }
 
-func TestProjectionRunGroupsUseSingleEVTReplayConsumer(t *testing.T) {
+func TestProjectionRegistryDefinesIndependentConsumers(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	groups := projectionRunGroups(core.projections)
-	if len(groups) != 1 {
-		t.Fatalf("projection run groups = %d, want 1", len(groups))
-	}
-
-	group := groups[0]
-	if !slices.Equal(group.replaySubjects, []string{"evt.>"}) {
-		t.Fatalf("replay subjects = %v, want [evt.>]", group.replaySubjects)
-	}
-	if len(group.projectors) != len(core.projections) {
-		t.Fatalf("group projectors = %d, registered projections = %d", len(group.projectors), len(core.projections))
-	}
-
-	names := make(map[string]bool, len(group.names))
-	for _, name := range group.names {
-		names[name] = true
-	}
-	for _, want := range []string{"Room Timeline", "Threads", "Room Directory", "Reactions", "Call State", "Mentionables"} {
-		if !names[want] {
-			t.Fatalf("single replay group missing %q: %v", want, group.names)
+	seen := make(map[*events.Projector]string, len(core.projections))
+	for _, registration := range core.projections {
+		if previous, duplicate := seen[registration.projector]; duplicate {
+			t.Fatalf("%s and %s share one projector", previous, registration.name)
 		}
+		seen[registration.projector] = registration.name
+		if replaySubjects := registration.projector.ReplaySubjects(); len(replaySubjects) == 0 {
+			t.Fatalf("%s projection has no physical replay filter", registration.name)
+		}
+	}
+}
+
+func TestProjectionRegistryDefinesSnapshotEligibility(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	wantEligible := map[string]struct{}{
+		projectionsnapshot.ProjectionThreadsKey:               {},
+		projectionsnapshot.ProjectionRoomDirectoryKey:         {},
+		projectionsnapshot.ProjectionNotificationDecisionsKey: {},
+		projectionsnapshot.ProjectionNotificationsKey:         {},
+		projectionsnapshot.ProjectionServerConfigKey:          {},
+		projectionsnapshot.ProjectionRoomGroupLayoutKey:       {},
+		projectionsnapshot.ProjectionRoomTimelineKey:          {},
+		projectionsnapshot.ProjectionCallStateKey:             {},
+		projectionsnapshot.ProjectionAssetsKey:                {},
+		projectionsnapshot.ProjectionReactionsKey:             {},
+		projectionsnapshot.ProjectionContentKeysKey:           {},
+		projectionsnapshot.ProjectionRBACKey:                  {},
+		projectionsnapshot.ProjectionMentionablesKey:          {},
+		projectionsnapshot.ProjectionUsersKey:                 {},
+	}
+
+	for _, registration := range core.projections {
+		_, want := wantEligible[registration.key]
+		got := registration.snapshotPolicy == sharedSnapshots
+		if got != want {
+			t.Errorf(
+				"projection %q snapshot eligibility = %t, want %t",
+				registration.key,
+				got,
+				want,
+			)
+		}
+		delete(wantEligible, registration.key)
+	}
+	if len(wantEligible) != 0 {
+		t.Fatalf("snapshot-eligible projections are not registered: %v", wantEligible)
 	}
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
 
   let {
@@ -28,9 +28,9 @@
   // that began inside (e.g. text selection) from closing on release outside.
   // Defaults to `true` so a click that reaches the dialog without an observed
   // pointerdown is treated as "not a backdrop click" and ignored — only a
-  // real pointerdown on the backdrop arms the close path. Required on mobile,
-  // where the sidebar's tap-forwarding (`useSidebarSwipe`) can synthesize a
-  // stray click that bubbles to the dialog right as it opens.
+  // real pointerdown on the backdrop arms the close path. This also protects
+  // against programmatic or keyboard-synthesized clicks being mistaken for a
+  // backdrop dismissal.
   let pressStartedInside = true;
 
   // Stable per-instance id for the title (so screen readers announce it
@@ -39,10 +39,14 @@
   const titleId = `${dialogId}-title`;
 
   const sizeClasses = {
-    sm: 'w-100 max-w-[60vw]',
-    md: 'w-150 max-w-[80vw]',
-    lg: 'w-200 max-w-[90vw]'
+    sm: 'w-100 max-w-[calc(100vw-2rem)]',
+    md: 'w-150 max-w-[calc(100vw-2rem)]',
+    lg: 'w-200 max-w-[calc(100vw-2rem)]'
   };
+
+  function getDefaultAction(node: ParentNode): HTMLButtonElement | null {
+    return node.querySelector<HTMLButtonElement>('button[data-dialog-default]:not([disabled])');
+  }
 
   function syncDialogVisibility(node: HTMLDialogElement) {
     dialogEl = node;
@@ -53,23 +57,22 @@
       // showModal() naturally focuses the first focusable element, which
       // for our layout is the Close (X) button in the header — not what
       // users expect. Move focus to the first form field, falling back
-      // to the form's submit button (so confirm-style dialogs get Enter
-      // wired to confirm, not close). Skipped on touch devices to avoid
-      // popping the on-screen keyboard. A field that already received
-      // focus via the native `autofocus` attribute is left alone.
+      // to the form's submit button or explicitly marked default action (so
+      // Enter confirms instead of closing). Skipped on touch devices to avoid
+      // popping the on-screen keyboard. A field that already received focus
+      // via the native `autofocus` attribute is left alone.
       if (shouldAutoFocus()) {
         queueMicrotask(() => {
           const fieldSelector =
             'input:not([type="hidden"]):not([disabled]),textarea:not([disabled]),select:not([disabled])';
           const active = document.activeElement;
           const alreadyOnField =
-            active instanceof HTMLElement &&
-            node.contains(active) &&
-            active.matches(fieldSelector);
+            active instanceof HTMLElement && node.contains(active) && active.matches(fieldSelector);
           if (alreadyOnField) return;
           const target =
             node.querySelector<HTMLElement>(fieldSelector) ??
-            node.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+            node.querySelector<HTMLElement>('button[type="submit"]:not([disabled])') ??
+            getDefaultAction(node);
           target?.focus();
         });
       }
@@ -93,11 +96,41 @@
       dialogEl?.close();
     }, 100);
   }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (
+      event.key !== 'Enter' ||
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.repeat
+    ) {
+      return;
+    }
+
+    if (!dialogEl) return;
+    const defaultAction = getDefaultAction(dialogEl);
+    if (!defaultAction) return;
+
+    const target = event.target;
+    // Forms own Enter through native submission. Textareas use Enter for a
+    // new line, so neither should invoke a dialog-level default action.
+    if (
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof Element &&
+        target.closest('form, button, a, select, [role="button"], [contenteditable="true"]'))
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    defaultAction.click();
+  }
 </script>
 
 <dialog
   {@attach syncDialogVisibility}
   onclose={handleNativeClose}
+  onkeydown={handleKeydown}
   oncancel={(e) => {
     // Always run our animated close path; never let the browser close the
     // dialog instantly without the fade-out.
@@ -140,41 +173,39 @@
     leak into selectors like `button[type="submit"]` on the host page.
   -->
   {#if visible || closing}
-    <!-- Outer "tray" frame, mirroring the .menu utility used by ContextMenu/QuickSwitcher. -->
-    <div class="rounded-lg border border-text/10 bg-surface-100 p-2 shadow-xl">
-      <!-- Inner content well, mirroring .menu-section. -->
-      <div class="max-h-[78vh] overflow-y-auto rounded-md bg-background p-3">
-        <!--
+    <div
+      class="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-lg border border-text/10 bg-surface p-5 shadow-xl sm:max-h-[78vh]"
+    >
+      <!--
           Header row holds the title (if any) and the close button, so
           they share a baseline and the title isn't artificially indented
           relative to the body content below.
         -->
-        <header class={['flex items-start justify-between gap-3', title ? 'mb-4' : 'mb-2']}>
-          {#if title}
-            <h2 id={titleId} class="text-xl font-semibold text-text">{title}</h2>
-          {:else}
-            <span></span>
-          {/if}
-          <button
-            type="button"
-            onclick={close}
-            class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
-            aria-label={m['ui.close']()}
-          >
-            <span class="iconify text-xl uil--times"></span>
-          </button>
-        </header>
-
-        <div class="text-text">
-          {@render children()}
-        </div>
-
-        {#if footer}
-          <footer class="mt-6">
-            {@render footer()}
-          </footer>
+      <header class={['flex shrink-0 items-center justify-between gap-3', title ? 'mb-4' : 'mb-2']}>
+        {#if title}
+          <h2 id={titleId} class="text-lg font-semibold text-balance text-text-top">{title}</h2>
+        {:else}
+          <span></span>
         {/if}
+        <button
+          type="button"
+          onclick={close}
+          class="-m-2 icon-action shrink-0"
+          aria-label={m('ui.close')}
+        >
+          <span class="iconify icon-[uil--times] text-xl"></span>
+        </button>
+      </header>
+
+      <div class="min-h-0 overflow-y-auto text-text">
+        {@render children()}
       </div>
+
+      {#if footer}
+        <footer class="mt-6 shrink-0">
+          {@render footer()}
+        </footer>
+      {/if}
     </div>
   {/if}
 </dialog>

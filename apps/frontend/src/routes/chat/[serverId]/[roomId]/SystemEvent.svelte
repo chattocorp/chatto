@@ -1,13 +1,25 @@
 <script lang="ts">
-  import type { RoomEventView, UserAvatarUserView } from '$lib/render/types';
-  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
-  import { useRenderData } from '$lib/render/data';
-  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+  import {
+    TimelineEventKind,
+    timelineEventKind,
+    type TimelineEventView
+  } from '$lib/render/timelineEvents';
+  import type { UserAvatarUserView } from '$lib/render/users';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
-  let { event }: { event: RoomEventView } = $props();
+  let {
+    event,
+    activeCallId = null,
+    onOpenCall
+  }: {
+    event: TimelineEventView;
+    activeCallId?: string | null;
+    onOpenCall?: () => void;
+  } = $props();
 
   type Subject = {
     id: string;
@@ -20,7 +32,7 @@
   }
 
   const subject = $derived.by<Subject>(() => {
-    const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
+    const actor = event.actor ?? null;
     if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }
@@ -28,25 +40,67 @@
     return { id: event?.actorId ?? 'unknown', name: 'Deleted User', user: null };
   });
 
+  const eventKind = $derived(timelineEventKind(event.event));
+
+  function threadingModeLabel(mode: RoomThreadingMode): string {
+    switch (mode) {
+      case RoomThreadingMode.REQUIRED:
+        return m('admin.rooms_admin.threading_mode_required');
+      case RoomThreadingMode.ENCOURAGED:
+        return m('admin.rooms_admin.threading_mode_encouraged');
+      case RoomThreadingMode.ENABLED:
+        return m('admin.rooms_admin.threading_mode_enabled');
+      case RoomThreadingMode.DISABLED:
+        return m('admin.rooms_admin.threading_mode_disabled');
+      default:
+        return m('admin.rooms_admin.threading_mode_disabled');
+    }
+  }
+
   const action = $derived.by(() => {
-    if (!event?.event) return null;
-    switch (roomEventKind(event.event)) {
-      case RoomEventKind.UserJoinedRoom:
-        return m['room.system_events.joined']({ count: 1 });
-      case RoomEventKind.UserLeftRoom:
-        return m['room.system_events.left']({ count: 1 });
-      case RoomEventKind.RoomArchived:
-        return m['room.system_events.archived']();
-      case RoomEventKind.RoomUnarchived:
-        return m['room.system_events.unarchived']();
+    switch (eventKind) {
+      case TimelineEventKind.UserJoinedRoom:
+        return m('room.system_events.joined_count', { count: 1 });
+      case TimelineEventKind.UserLeftRoom:
+        return m('room.system_events.left_count', { count: 1 });
+      case TimelineEventKind.RoomArchived:
+        return m('room.system_events.archived');
+      case TimelineEventKind.RoomUnarchived:
+        return m('room.system_events.unarchived');
+      case TimelineEventKind.CallStarted:
+        return m('room.system_events.call_started');
+      case TimelineEventKind.RoomThreadingModeChanged:
+        return event.event.kind === TimelineEventKind.RoomThreadingModeChanged
+          ? m('room.system_events.threading_mode_changed', {
+              mode: threadingModeLabel(event.event.threadingMode)
+            })
+          : null;
       default:
         return null;
     }
   });
 
+  const isDeletedJoinLeave = $derived(
+    !subject.user &&
+      (eventKind === TimelineEventKind.UserJoinedRoom ||
+        eventKind === TimelineEventKind.UserLeftRoom)
+  );
+
+  const isActiveCallStart = $derived(
+    event.event.kind === TimelineEventKind.CallStarted &&
+      event.event.callId === activeCallId &&
+      onOpenCall !== undefined
+  );
 </script>
 
-{#if action}
+{#if eventKind === TimelineEventKind.CallEnded}
+  <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
+    <div class="flex w-11 shrink-0 items-center justify-center text-muted">
+      <span class="iconify icon-[uil--phone-slash] text-base"></span>
+    </div>
+    <span class="text-sm text-muted">{m('room.system_events.call_ended')}</span>
+  </div>
+{:else if action && !isDeletedJoinLeave}
   <div class="mt-4 flex items-center gap-4 px-2 md:px-4" data-event-id={event.id}>
     <!-- Avatar column (w-11 matches MessageEvent avatar width) -->
     <div class="flex w-11 shrink-0 items-center justify-center">
@@ -55,9 +109,9 @@
       {:else}
         <!-- Deleted user placeholder -->
         <div
-          class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-200 text-muted"
+          class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-emphasized text-muted"
         >
-          <span class="iconify text-xs uil--user-times"></span>
+          <span class="iconify icon-[uil--user-times] text-xs"></span>
         </div>
       {/if}
     </div>
@@ -69,6 +123,16 @@
         <DeletedUserLabel />
       {/if}
       {action}
+      {#if isActiveCallStart}
+        <span aria-hidden="true" class="mx-1">·</span>
+        <button
+          type="button"
+          class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
+          onclick={onOpenCall}
+        >
+          {m('voice.join_call')}
+        </button>
+      {/if}
     </span>
   </div>
 {/if}

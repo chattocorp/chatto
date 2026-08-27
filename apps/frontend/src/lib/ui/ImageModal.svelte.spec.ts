@@ -1,8 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ImageModal from './ImageModal.svelte';
 
 describe('ImageModal', () => {
+  afterEach(() => {
+    document.documentElement.dir = 'ltr';
+  });
+
   it('keeps the original image action as a native link', async () => {
     const { container } = render(ImageModal, {
       props: {
@@ -35,5 +39,23 @@ describe('ImageModal', () => {
     await expect
       .element(container.querySelector<HTMLAnchorElement>('a')!)
       .toHaveAttribute('href', 'https://cdn.example.com/display.jpg');
+  });
+
+  it('mirrors arrow-key navigation in RTL', async () => {
+    document.documentElement.dir = 'rtl';
+    const { container } = render(ImageModal, {
+      props: {
+        items: [
+          { src: 'https://cdn.example.com/first.jpg', alt: 'First' },
+          { src: 'https://cdn.example.com/second.jpg', alt: 'Second' }
+        ],
+        onclose: () => {}
+      }
+    });
+
+    const dialog = container.querySelector('dialog')!;
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+
+    await expect.element(container.querySelector('img')!).toHaveAttribute('alt', 'Second');
   });
 });

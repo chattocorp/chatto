@@ -25,10 +25,11 @@ popover repositions reactively — callers wanting "follow the trigger on
 scroll" can simply update the prop on scroll.
 
 If `onclose` is provided, the popover dismisses itself when the user
-clicks/taps outside or scrolls a container that isn't part of it. The
-caller still owns Escape handling (the dismissal contract is different
-between tooltips and menus, and `onclose` here is intentionally
-pointer-only).
+clicks/taps outside or, by default, scrolls a container that isn't part
+of it. Set `scrollDismissal` to `"user"` for interactions that should
+survive programmatic scrolling but still close before an outside wheel,
+touch/pointer, scrollbar, or keyboard scroll. The caller still owns Escape
+handling because its dismissal contract varies between tooltips and menus.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -47,6 +48,7 @@ pointer-only).
     id,
     class: className,
     onclose,
+    scrollDismissal = 'all',
     onmouseenter,
     onmouseleave,
     children
@@ -65,6 +67,8 @@ pointer-only).
      * dismissal triggers are the caller's responsibility.
      */
     onclose?: () => void;
+    /** Which outside scrolling interactions dismiss the popover. */
+    scrollDismissal?: 'all' | 'user' | 'none';
     onmouseenter?: () => void;
     onmouseleave?: () => void;
     children: Snippet;
@@ -171,6 +175,7 @@ pointer-only).
   // immediately close the popover).
   function closeOnOutsideInteraction(popover: HTMLDivElement) {
     if (!open || !onclose) return;
+    const dismissalMode = scrollDismissal;
     const handlePointerDown = (e: PointerEvent) => {
       if (popover.contains(e.target as Node)) return;
       onclose();
@@ -179,14 +184,35 @@ pointer-only).
       if (popover.contains(e.target as Node)) return;
       onclose();
     };
+    const handleWheel = (e: WheelEvent) => {
+      if (popover.contains(e.target as Node)) return;
+      onclose();
+    };
+    const handleScrollKey = (e: KeyboardEvent) => {
+      if (popover.contains(e.target as Node)) return;
+      if (!['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) {
+        return;
+      }
+      onclose();
+    };
     const frame = requestAnimationFrame(() => {
       document.addEventListener('pointerdown', handlePointerDown);
-      window.addEventListener('scroll', handleScroll, { capture: true });
+      if (dismissalMode === 'all') {
+        window.addEventListener('scroll', handleScroll, { capture: true });
+      } else if (dismissalMode === 'user') {
+        document.addEventListener('wheel', handleWheel, { capture: true });
+        document.addEventListener('keydown', handleScrollKey, { capture: true });
+      }
     });
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('scroll', handleScroll, { capture: true });
+      if (dismissalMode === 'all') {
+        window.removeEventListener('scroll', handleScroll, { capture: true });
+      } else if (dismissalMode === 'user') {
+        document.removeEventListener('wheel', handleWheel, { capture: true });
+        document.removeEventListener('keydown', handleScrollKey, { capture: true });
+      }
     };
   }
 </script>

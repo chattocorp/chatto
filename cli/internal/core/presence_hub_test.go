@@ -2,10 +2,59 @@ package core
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"testing"
 	"time"
 )
+
+func TestPresenceHubGetUserPresencesReturnsDetachedSnapshot(t *testing.T) {
+	hub := NewPresenceHub(nil, nil)
+	hub.snapshot["online-user"] = PresenceStatusOnline
+	hub.snapshot["away-user"] = PresenceStatusAway
+	close(hub.ready)
+
+	got, err := hub.GetUserPresences(testContext(t), []string{
+		"online-user",
+		"away-user",
+		"offline-user",
+		"bad>",
+		"online-user",
+	})
+	if err != nil {
+		t.Fatalf("GetUserPresences returned error: %v", err)
+	}
+	want := map[string]string{
+		"online-user":  PresenceStatusOnline,
+		"away-user":    PresenceStatusAway,
+		"offline-user": PresenceStatusOffline,
+		"bad>":         PresenceStatusOffline,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("GetUserPresences len = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for userID, wantStatus := range want {
+		if got[userID] != wantStatus {
+			t.Fatalf("GetUserPresences[%q] = %q, want %q", userID, got[userID], wantStatus)
+		}
+	}
+
+	got["online-user"] = PresenceStatusOffline
+	if hub.snapshot["online-user"] != PresenceStatusOnline {
+		t.Fatal("mutating returned statuses changed the hub snapshot")
+	}
+}
+
+func TestPresenceHubGetUserPresencesHonorsContextWhileWaitingForInitialSync(t *testing.T) {
+	hub := NewPresenceHub(nil, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := hub.GetUserPresences(ctx, []string{"user"})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("GetUserPresences error = %v, want context canceled", err)
+	}
+}
 
 func TestPresenceHub_BasicFanOut(t *testing.T) {
 	core, _ := setupTestCore(t)

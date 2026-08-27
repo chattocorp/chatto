@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -233,7 +234,7 @@ func (b *Builtin) CreateKey(ctx context.Context, owner string) (string, error) {
 			return "", err
 		}
 		if _, err := b.kv.Create(ctx, keyPath(keyRef), data); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return "", fmt.Errorf("failed to store encryption key: %w", err)
@@ -277,7 +278,7 @@ func (b *Builtin) CreateCallKey(ctx context.Context, callID string) (string, str
 		return "", "", fmt.Errorf("failed to encode call key: %w", err)
 	}
 	if _, err := b.kv.Create(ctx, keyPath(keyRef), data); err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			return "", "", fmt.Errorf("call key already exists: %w", err)
 		}
 		return "", "", fmt.Errorf("failed to store call key: %w", err)

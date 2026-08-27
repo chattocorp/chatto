@@ -1,15 +1,14 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
-import { PresenceStatus } from '$lib/render/types';
+
 import { presencePreference } from '$lib/state/presencePreference.svelte';
-import {
-  consumePendingRoomSidebarPanel,
-  getRoomSidebarPanelState,
-  roomSidebarPanelStorageSuffix
-} from '$lib/storage/roomSidebarPanel';
-import { serverStorageKey } from '$lib/storage/serverStorage';
+import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
 function computedBackgroundColor(color: string): string {
@@ -32,11 +31,17 @@ type MockRoomMember = {
 type MockRoom = {
   id: string;
   name: string;
-  type: 'CHANNEL' | 'DM';
+  type: RoomKind;
   members: MockRoomMember[];
 };
 
-const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
+const {
+  currentUserState,
+  voiceCallState,
+  roomsState,
+  inputCapabilities,
+  customStatusEditorModuleLoaded
+} = vi.hoisted(() => ({
   currentUserState: {
     user: null as {
       id: string;
@@ -62,9 +67,11 @@ const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
     isCameraPending: false,
     isScreenShareEnabled: false,
     isScreenSharePending: false,
+    isNativeScreenSharePending: false,
     toggleMute: vi.fn(),
     toggleCamera: vi.fn(),
     toggleScreenShare: vi.fn(),
+    startNativeScreenShare: vi.fn(),
     leave: vi.fn()
   },
   roomsState: {
@@ -73,11 +80,17 @@ const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
       {
         id: 'room-1',
         name: 'general',
-        type: 'CHANNEL',
+        // RoomKind.CHANNEL; vi.hoisted cannot reference module imports.
+        type: 1 as RoomKind,
         members: []
       }
     ] as MockRoom[]
-  }
+  },
+  inputCapabilities: {
+    prefersTouchActions: false,
+    supportsHoverActions: true
+  },
+  customStatusEditorModuleLoaded: vi.fn()
 }));
 const navigation = vi.hoisted(() => ({
   goto: vi.fn(),
@@ -88,10 +101,24 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    connectBaseUrl: 'https://chat.example.test',
-    bearerToken: 'token'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: {
+      currentUser: currentUserState,
+      voiceCall: voiceCallState,
+      navigation: roomsState
+    },
+    connection: {
+      connectBaseUrl: 'https://chat.example.test',
+      bearerToken: 'token',
+      apiConfig: {
+        serverId: 'origin',
+        baseUrl: 'https://chat.example.test',
+        bearerToken: 'token'
+      }
+    },
+    isCurrent: () => true
   })
 }));
 
@@ -100,25 +127,25 @@ vi.mock('$app/navigation', () => ({
   pushState: navigation.pushState
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    isOriginServer: () => true,
-    tryGetStore: () => ({
-      currentUser: currentUserState,
-      voiceCall: voiceCallState,
-      rooms: roomsState
-    })
-  }
-}));
-
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback
 }));
 
+vi.mock('$lib/utils/inputCapabilities', () => ({
+  prefersTouchActions: () => inputCapabilities.prefersTouchActions,
+  supportsHoverActions: () => inputCapabilities.supportsHoverActions
+}));
+
+vi.mock('./UserCustomStatusEditor.svelte', async (importOriginal) => {
+  customStatusEditorModuleLoaded();
+  return importOriginal();
+});
+
 describe('CurrentUserBar', () => {
   beforeEach(() => {
+    document.documentElement.dir = 'ltr';
     localStorage.clear();
     sessionStorage.clear();
     currentUserState.user = {
@@ -126,13 +153,13 @@ describe('CurrentUserBar', () => {
       login: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
-      presenceStatus: PresenceStatus.Offline,
+      presenceStatus: PresenceStatus.OFFLINE,
       customStatus: null,
       hasVerifiedEmail: true,
       settings: null
     };
     presencePreference.mode = 'auto';
-    presencePreference.effectiveStatus = PresenceStatus.Online;
+    presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
@@ -141,9 +168,11 @@ describe('CurrentUserBar', () => {
     voiceCallState.isCameraPending = false;
     voiceCallState.isScreenShareEnabled = false;
     voiceCallState.isScreenSharePending = false;
+    voiceCallState.isNativeScreenSharePending = false;
     voiceCallState.toggleMute.mockClear();
     voiceCallState.toggleCamera.mockClear();
     voiceCallState.toggleScreenShare.mockClear();
+    voiceCallState.startNativeScreenShare.mockClear();
     voiceCallState.leave.mockClear();
     navigation.goto.mockClear();
     roomsState.currentUserId = 'user-1';
@@ -151,10 +180,14 @@ describe('CurrentUserBar', () => {
       {
         id: 'room-1',
         name: 'general',
-        type: 'CHANNEL',
+        type: RoomKind.CHANNEL,
         members: []
       }
     ];
+    inputCapabilities.prefersTouchActions = false;
+    inputCapabilities.supportsHoverActions = true;
+    customStatusEditorModuleLoaded.mockClear();
+    delete window.chattoDesktop;
   });
 
   it('uses the seeded presence cache instead of the first-login offline fallback', () => {
@@ -172,7 +205,7 @@ describe('CurrentUserBar', () => {
   });
 
   it('uses the presence cache instead of local presence preference for the current user dot', () => {
-    presencePreference.effectiveStatus = PresenceStatus.Away;
+    presencePreference.effectiveStatus = PresenceStatus.AWAY;
 
     const { container } = render(CurrentUserBarTestHarness);
 
@@ -186,10 +219,10 @@ describe('CurrentUserBar', () => {
   });
 
   it('renders the current user dot from the seeded away presence cache value', () => {
-    presencePreference.effectiveStatus = PresenceStatus.Online;
+    presencePreference.effectiveStatus = PresenceStatus.ONLINE;
 
     const { container } = render(CurrentUserBarTestHarness, {
-      cachedPresence: PresenceStatus.Away
+      cachedPresence: PresenceStatus.AWAY
     });
 
     expect(q(container, '[aria-label="Presence: Away"]')).toBeTruthy();
@@ -212,6 +245,18 @@ describe('CurrentUserBar', () => {
     const card = q(container, '[data-testid="current-user-identity-card"]')!;
     expect(card.textContent).toContain('alice');
     expect(card.textContent).toContain('@alice');
+  });
+
+  it('aligns an isolated LTR login to the logical start in RTL', () => {
+    document.documentElement.dir = 'rtl';
+
+    const { container } = render(CurrentUserBarTestHarness);
+    const loginLine = q(container, '[data-testid="current-user-login"]')!;
+    const login = q(loginLine, 'bdi[dir="ltr"]')!;
+
+    expect(loginLine.classList).toContain('text-start');
+    expect(window.getComputedStyle(loginLine).direction).toBe('rtl');
+    expect(window.getComputedStyle(login).direction).toBe('ltr');
   });
 
   it('opens the combined presence menu with a custom status action from the avatar', async () => {
@@ -263,6 +308,31 @@ describe('CurrentUserBar', () => {
       expect(container.textContent).not.toContain('Do Not Disturb');
     });
     expect(presencePreference.mode).toBe('away');
+  });
+
+  it('loads the custom status editor only after opening the touch bottom sheet', async () => {
+    inputCapabilities.prefersTouchActions = true;
+    inputCapabilities.supportsHoverActions = false;
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    await tick();
+    await Promise.resolve();
+    expect(customStatusEditorModuleLoaded).not.toHaveBeenCalled();
+    expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="current-user-custom-status-action"]')).toBeTruthy();
+    });
+    (
+      q(container, '[data-testid="current-user-custom-status-action"]') as HTMLButtonElement
+    ).click();
+
+    await vi.waitFor(() => {
+      expect(customStatusEditorModuleLoaded).toHaveBeenCalledOnce();
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
+    }, 10_000);
   });
 
   it('opens the custom status dialog from the status menu', async () => {
@@ -350,24 +420,20 @@ describe('CurrentUserBar', () => {
     const presenceButton = q(card, '[data-testid="current-user-presence-menu"]')!;
     const avatar = q(presenceButton, '[aria-label]')!;
     const identityText = q(card, '[data-testid="current-user-identity-text"]')!;
-    const settingsLink = q(card, 'a[href$="/settings"]')!;
+    expect(identityText.querySelector('bdi:not([dir])')?.textContent).toContain('Alice');
+    expect(identityText.querySelector('bdi[dir="ltr"]')?.textContent).toContain('@alice');
     const presenceRect = presenceButton.getBoundingClientRect();
     const avatarRect = avatar.getBoundingClientRect();
     const textRect = identityText.getBoundingClientRect();
-    const settingsRect = settingsLink.getBoundingClientRect();
 
     expect(presenceRect.left).toBeGreaterThanOrEqual(cardRect.left);
     expect(avatarRect.height).toBeLessThan(cardRect.height);
     expect(avatarRect.top - cardRect.top).toBeGreaterThanOrEqual(6);
     expect(cardRect.bottom - avatarRect.bottom).toBeGreaterThanOrEqual(6);
     expect(textRect.left).toBeGreaterThan(presenceRect.right);
-    expect(settingsRect.left).toBeGreaterThan(textRect.right);
-    expect(settingsRect.right).toBeLessThanOrEqual(cardRect.right);
+    expect(textRect.right).toBeLessThanOrEqual(cardRect.right);
     expect(textRect.left - presenceRect.right).toBeLessThanOrEqual(12);
-
-    const settingsIcon = q(card, 'a[href$="/settings"] .iconify')!;
-    const settingsIconRect = settingsIcon.getBoundingClientRect();
-    expect(settingsIconRect.height).toBeLessThan(cardRect.height / 2);
+    expect(card.querySelector('a[href$="/settings"]')).toBeNull();
   });
 
   it('hides call controls when the user is not in a call', () => {
@@ -380,16 +446,14 @@ describe('CurrentUserBar', () => {
   it('shows active call controls and links to the call room', async () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
-    const storageEvents: StorageEvent[] = [];
-    const listener = (event: StorageEvent) => storageEvents.push(event);
-    window.addEventListener('storage', listener);
 
     const { container } = render(CurrentUserBarTestHarness);
 
     expect(q(container, '[data-testid="current-user-call-card"]')).toBeTruthy();
     expect(q(container, '[data-testid="current-user-identity-card"]')).toBeTruthy();
     const link = q(container, '[data-testid="current-user-call-link"]') as HTMLButtonElement;
-    expect(link.textContent).toContain('# general');
+    expect(link.getAttribute('aria-label')).toBe('Open # general');
+    expect(link.textContent?.trim()).toBe('');
     link.click();
 
     const muteButton = q(container, '[data-testid="current-user-call-mute"]') as HTMLButtonElement;
@@ -418,17 +482,69 @@ describe('CurrentUserBar', () => {
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
     expect(getRoomSidebarPanelState('origin', 'room-1')).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'room-1')).toBe('call');
-    expect(storageEvents).toHaveLength(1);
-    expect(storageEvents[0].key).toBe(
-      serverStorageKey('origin', roomSidebarPanelStorageSuffix('room-1'))
-    );
-    expect(storageEvents[0].newValue).toBe('call');
     expect(voiceCallState.toggleMute).toHaveBeenCalledOnce();
     expect(voiceCallState.toggleCamera).toHaveBeenCalledOnce();
     expect(voiceCallState.toggleScreenShare).toHaveBeenCalledOnce();
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
-    window.removeEventListener('storage', listener);
+  });
+
+  it('aligns the equal-width call controls with the user card', () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+
+    const { container } = render(CurrentUserBarTestHarness);
+    const bar = container.firstElementChild as HTMLElement;
+    bar.style.width = '224px';
+
+    const callCard = q(container, '[data-testid="current-user-call-card"]')!;
+    const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
+    const callCardRect = callCard.getBoundingClientRect();
+    const identityCardRect = identityCard.getBoundingClientRect();
+    const controlWidths = Array.from(
+      callCard.children,
+      (control) => control.getBoundingClientRect().width
+    );
+
+    expect(callCardRect.left).toBe(identityCardRect.left);
+    expect(callCardRect.right).toBe(identityCardRect.right);
+    expect(controlWidths).toHaveLength(5);
+    expect(controlWidths.every((width) => width === controlWidths[0])).toBe(true);
+  });
+
+  it('opens the native chooser when the host exposes screen sharing', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    window.chattoDesktop = {
+      screenShare: {
+        listSources: async () => ({
+          protocolVersion: 1,
+          sources: [
+            {
+              id: 'window:42',
+              kind: 'window',
+              applicationName: 'Moonring',
+              bundleIdentifier: 'com.fluttermind.moonring',
+              title: 'Moonring',
+              width: 1920,
+              height: 1080,
+              preview: new Uint8Array()
+            }
+          ]
+        }),
+        startPublisher: () => 'request-1'
+      }
+    };
+
+    const { getByRole } = render(CurrentUserBarTestHarness);
+    await tick();
+    await userEvent.click(getByRole('button', { name: 'Share screen' }));
+
+    await expect.element(getByRole('heading', { name: 'Share screen' })).toBeInTheDocument();
+    expect(voiceCallState.toggleScreenShare).not.toHaveBeenCalled();
+
+    await userEvent.click(getByRole('button', { name: /Moonring/ }));
+
+    expect(voiceCallState.startNativeScreenShare).toHaveBeenCalledWith('window:42', 'Moonring');
   });
 
   it('uses green only for active compact call media controls', () => {
@@ -471,7 +587,7 @@ describe('CurrentUserBar', () => {
       const button = q(container, `[data-testid="${testId}"]`) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
       expect(button.getAttribute('aria-busy')).toBe('true');
-      expect(q(button, '.animate-spin.uil--spinner')).toBeTruthy();
+      expect(q(button, '.animate-spin[class~="icon-[uil--spinner]"]')).toBeTruthy();
     }
   });
 
@@ -482,21 +598,21 @@ describe('CurrentUserBar', () => {
       {
         id: 'dm-1',
         name: 'dm-1',
-        type: 'DM',
+        type: RoomKind.DM,
         members: [
           {
             id: 'user-1',
             login: 'alice',
             displayName: 'Alice',
             avatarUrl: null,
-            presenceStatus: PresenceStatus.Online
+            presenceStatus: PresenceStatus.ONLINE
           },
           {
             id: 'user-2',
             login: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
-            presenceStatus: PresenceStatus.Online
+            presenceStatus: PresenceStatus.ONLINE
           }
         ]
       }
@@ -506,6 +622,7 @@ describe('CurrentUserBar', () => {
 
     const callLink = q(container, '[data-testid="current-user-call-link"]');
     expect(callLink).toBeTruthy();
-    expect(callLink!.textContent ?? '').toContain('Bob');
+    expect(callLink!.getAttribute('aria-label')).toBe('Open Bob');
+    expect(callLink!.textContent?.trim()).toBe('');
   });
 });

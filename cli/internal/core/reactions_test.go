@@ -2,16 +2,46 @@ package core
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
-func TestChattoCore_AddReaction(t *testing.T) {
+var reactionLimitTestEmoji = []string{
+	"100", "blush", "clap", "eyes", "fire", "heart", "heart_eyes", "kissing_heart", "laughing", "muscle",
+	"ok_hand", "pray", "raised_hands", "rocket", "smile", "star", "tada", "thinking", "thumbsup", "wave", "wink", "joy",
+}
+
+func TestTimelineFacadesHandleUnavailableRoomTimeline(t *testing.T) {
+	for name, core := range map[string]*ChattoCore{
+		"nil core":          nil,
+		"nil room model":    {},
+		"nil room timeline": {roomModel: &RoomModel{}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if echoID, ok := core.ChannelEchoEventID("M1"); ok || echoID != "" {
+				t.Fatalf("ChannelEchoEventID = %q/%v, want empty/false", echoID, ok)
+			}
+			if echoID, ok := core.LinkedChannelEchoEventID("M1"); ok || echoID != "" {
+				t.Fatalf("LinkedChannelEchoEventID = %q/%v, want empty/false", echoID, ok)
+			}
+			if core.IsHiddenChannelEcho("M1") {
+				t.Fatal("IsHiddenChannelEcho = true, want false")
+			}
+			if got := core.CanonicalReactionMessageEventID("R1", "M1"); got != "M1" {
+				t.Fatalf("CanonicalReactionMessageEventID = %q, want M1", got)
+			}
+		})
+	}
+}
+
+func TestReactionModel_AddReactionWrite(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -35,7 +65,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	eventID := event.Id
 
 	t.Run("add new reaction", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -46,7 +76,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 
 	t.Run("add duplicate reaction returns false", func(t *testing.T) {
 		// Try to add the same reaction again
-		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -56,7 +86,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("different users can add same emoji", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "other-user")
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "other-user")
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -66,7 +96,7 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("same user can add different emoji", func(t *testing.T) {
-		added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "heart", user.Id)
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "heart", user.Id)
 		if err != nil {
 			t.Fatalf("AddReaction failed: %v", err)
 		}
@@ -76,21 +106,70 @@ func TestChattoCore_AddReaction(t *testing.T) {
 	})
 
 	t.Run("add reaction with unicode emoji is rejected", func(t *testing.T) {
-		_, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "🎉", user.Id)
+		_, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "🎉", user.Id)
 		if err == nil {
 			t.Error("Expected error when adding reaction with Unicode emoji")
 		}
 	})
 
 	t.Run("add reaction with invalid input", func(t *testing.T) {
-		_, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "not_valid", user.Id)
+		_, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "not_valid", user.Id)
 		if err == nil {
 			t.Error("Expected error for invalid emoji input")
 		}
 	})
 }
 
-func TestChattoCore_AddReactionConcurrentDuplicate(t *testing.T) {
+func TestReactionNotificationOccurrenceLifecycle(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-notification-author", "Reaction Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reactor, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-notification-reactor", "Reaction Reactor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reactor: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "reaction-notification-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, reactor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %q: %v", userID, err)
+		}
+	}
+	message, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "react to this", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	added, err := chattoCore.ReactionModel().addReaction(ctx, KindChannel, room.Id, message.Id, "thumbsup", reactor.Id)
+	if err != nil || !added {
+		t.Fatalf("addReaction = %v, %v", added, err)
+	}
+	occurrences := testNotificationOccurrences(t, chattoCore, author.Id)
+	if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], notificationTestSignalReaction) {
+		t.Fatalf("reaction occurrences = %+v, want one reaction occurrence", occurrences)
+	}
+	if NotificationOccurrenceMessageReference(occurrences[0]).GetEventId() != message.Id || occurrences[0].GetActorId() != reactor.Id || occurrences[0].GetSignal().GetReactionReceived().GetEmoji() != "thumbsup" {
+		t.Fatalf("reaction occurrence = %+v, want message %q and actor %q", occurrences[0], message.Id, reactor.Id)
+	}
+	if got := occurrences[0].GetAttentionLevel(); got != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT {
+		t.Fatalf("reaction attention = %v, want AMBIENT", got)
+	}
+
+	removed, err := chattoCore.ReactionModel().removeReaction(ctx, KindChannel, room.Id, message.Id, "thumbsup", reactor.Id)
+	if err != nil || !removed {
+		t.Fatalf("removeReaction = %v, %v", removed, err)
+	}
+	if occurrences := testNotificationOccurrences(t, chattoCore, author.Id); len(occurrences) != 0 {
+		t.Fatalf("reaction occurrences after removal = %+v, want none", occurrences)
+	}
+}
+
+func TestReactionModel_AddReactionConcurrentDuplicate(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -102,7 +181,7 @@ func TestChattoCore_AddReactionConcurrentDuplicate(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			added, err := core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+			added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 			if err != nil {
 				t.Errorf("AddReaction failed: %v", err)
 				return
@@ -126,22 +205,136 @@ func TestChattoCore_AddReactionConcurrentDuplicate(t *testing.T) {
 	}
 }
 
-func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
+func TestReactionModel_AddReactionEnforcesPerUserMessageLimit(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, eventID := setupReactionTest(t, core, ctx)
+
+	for _, emoji := range reactionLimitTestEmoji[:MaxReactionsPerUserPerMessage] {
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id)
+		if err != nil || !added {
+			t.Fatalf("add reaction %q: added=%v err=%v", emoji, added, err)
+		}
+	}
+
+	duplicate, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, reactionLimitTestEmoji[0], user.Id)
+	if err != nil || duplicate {
+		t.Fatalf("duplicate at limit: added=%v err=%v, want false/nil", duplicate, err)
+	}
+	if _, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, reactionLimitTestEmoji[MaxReactionsPerUserPerMessage], user.Id); !errors.Is(err, ErrReactionLimitExceeded) {
+		t.Fatalf("reaction beyond limit error = %v, want ErrReactionLimitExceeded", err)
+	}
+
+	removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, reactionLimitTestEmoji[0], user.Id)
+	if err != nil || !removed {
+		t.Fatalf("remove reaction at limit: removed=%v err=%v", removed, err)
+	}
+	added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, reactionLimitTestEmoji[MaxReactionsPerUserPerMessage], user.Id)
+	if err != nil || !added {
+		t.Fatalf("add reaction after freeing slot: added=%v err=%v", added, err)
+	}
+}
+
+func TestReactionModel_AddReactionConcurrentFinalSlot(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, eventID := setupReactionTest(t, core, ctx)
+
+	for _, emoji := range reactionLimitTestEmoji[:MaxReactionsPerUserPerMessage-1] {
+		if added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id); err != nil || !added {
+			t.Fatalf("seed reaction %q: added=%v err=%v", emoji, added, err)
+		}
+	}
+
+	type result struct {
+		added bool
+		err   error
+	}
+	results := make(chan result, 2)
+	var wg sync.WaitGroup
+	for _, emoji := range reactionLimitTestEmoji[MaxReactionsPerUserPerMessage-1 : MaxReactionsPerUserPerMessage+1] {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id)
+			results <- result{added: added, err: err}
+		}()
+	}
+	wg.Wait()
+	close(results)
+
+	var addedCount, limitCount int
+	for got := range results {
+		if got.added && got.err == nil {
+			addedCount++
+		} else if !got.added && errors.Is(got.err, ErrReactionLimitExceeded) {
+			limitCount++
+		} else {
+			t.Fatalf("unexpected concurrent final-slot result: %+v", got)
+		}
+	}
+	if addedCount != 1 || limitCount != 1 {
+		t.Fatalf("final-slot results: added=%d limited=%d, want 1/1", addedCount, limitCount)
+	}
+}
+
+func TestReactionModel_PreservesHistoricalReactionsAboveLimit(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, eventID := setupReactionTest(t, core, ctx)
+
+	var lastPosition events.StreamPosition
+	for _, emoji := range reactionLimitTestEmoji[:MaxReactionsPerUserPerMessage+1] {
+		event := newReactionAddedEvent(user.Id, room.Id, eventID, emoji)
+		subject := evtstream.RoomAggregate(room.Id).SubjectFor(event)
+		seq, err := core.EventPublisher.AppendEventually(ctx, subject, event)
+		if err != nil {
+			t.Fatalf("append historical reaction %q: %v", emoji, err)
+		}
+		lastPosition = events.SubjectPosition(subject, seq)
+	}
+	if err := core.roomModel.waitForReactions(ctx, lastPosition); err != nil {
+		t.Fatalf("wait for historical reactions: %v", err)
+	}
+	if got := core.roomModel.reactionMutationSnapshot(room.Id, eventID, "joy", user.Id).UserReactionCount; got != MaxReactionsPerUserPerMessage+1 {
+		t.Fatalf("historical reaction count = %d, want %d", got, MaxReactionsPerUserPerMessage+1)
+	}
+
+	if _, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "joy", user.Id); !errors.Is(err, ErrReactionLimitExceeded) {
+		t.Fatalf("add above historical limit error = %v, want ErrReactionLimitExceeded", err)
+	}
+	for _, emoji := range reactionLimitTestEmoji[:2] {
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id)
+		if err != nil || !removed {
+			t.Fatalf("remove historical reaction %q: removed=%v err=%v", emoji, removed, err)
+		}
+		if emoji == reactionLimitTestEmoji[0] {
+			if _, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "joy", user.Id); !errors.Is(err, ErrReactionLimitExceeded) {
+				t.Fatalf("add at limit error = %v, want ErrReactionLimitExceeded", err)
+			}
+		}
+	}
+	added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "joy", user.Id)
+	if err != nil || !added {
+		t.Fatalf("add after historical count fell below limit: added=%v err=%v", added, err)
+	}
+}
+
+func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
 
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	core := &ChattoCore{
-		logger:             testCoreLogger(),
-		EventPublisher:     harness.publisher,
-		Reactions:          reactions,
-		ReactionsProjector: reactionsProjector,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
 	}
-	core.roomModel = newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	core.roomModel = newTestRoomModel(t, nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	service := &ReactionModel{core: core}
 
 	addedOnOtherReplica := newReactionAddedEvent("U1", "R1", "M1", "thumbsup")
-	addSubject := events.RoomAggregate("R1").SubjectFor(addedOnOtherReplica)
+	addSubject := evtstream.RoomAggregate("R1").SubjectFor(addedOnOtherReplica)
 	addSeq, err := harness.publisher.AppendEventually(ctx, addSubject, addedOnOtherReplica)
 	if err != nil {
 		t.Fatalf("append existing reaction: %v", err)
@@ -151,7 +344,7 @@ func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	}
 
 	removedOnOtherReplica := newReactionRemovedEvent("U1", "R1", "M1", "thumbsup")
-	removeSubject := events.RoomAggregate("R1").SubjectFor(removedOnOtherReplica)
+	removeSubject := evtstream.RoomAggregate("R1").SubjectFor(removedOnOtherReplica)
 	if _, err := harness.publisher.AppendEventually(ctx, removeSubject, removedOnOtherReplica); err != nil {
 		t.Fatalf("append remote reaction removal: %v", err)
 	}
@@ -165,7 +358,7 @@ func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	}
 	resultCh := make(chan result, 1)
 	go func() {
-		added, err := core.publishReactionMutation(
+		added, _, err := service.publishReactionMutation(
 			ctx,
 			KindChannel,
 			"R1",
@@ -196,7 +389,61 @@ func TestChattoCore_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	}
 }
 
-func TestChattoCore_RemoveReaction(t *testing.T) {
+func TestReactionModel_AddReactionRefreshesStaleLimitSnapshot(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	reactions := NewReactionProjection()
+	reactionsProjector := harness.projector(reactions)
+	core := &ChattoCore{logger: testCoreLogger(), EventPublisher: harness.publisher}
+	core.roomModel = newTestRoomModel(t, nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	service := &ReactionModel{core: core}
+
+	for i, emoji := range reactionLimitTestEmoji[:MaxReactionsPerUserPerMessage] {
+		event := newReactionAddedEvent("U1", "R1", "M1", emoji)
+		subject := evtstream.RoomAggregate("R1").SubjectFor(event)
+		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
+		if err != nil {
+			t.Fatalf("append existing reaction %q: %v", emoji, err)
+		}
+		if err := reactions.Apply(event, seq); err != nil {
+			t.Fatalf("apply existing reaction %d: %v", i, err)
+		}
+	}
+
+	removed := newReactionRemovedEvent("U1", "R1", "M1", reactionLimitTestEmoji[0])
+	removeSubject := evtstream.RoomAggregate("R1").SubjectFor(removed)
+	if _, err := harness.publisher.AppendEventually(ctx, removeSubject, removed); err != nil {
+		t.Fatalf("append remote reaction removal: %v", err)
+	}
+	if got := reactions.ReactionMutationSnapshot("R1", "M1", "wink", "U1").UserReactionCount; got != MaxReactionsPerUserPerMessage {
+		t.Fatalf("stale reaction count = %d, want %d", got, MaxReactionsPerUserPerMessage)
+	}
+
+	type result struct {
+		added bool
+		err   error
+	}
+	resultCh := make(chan result, 1)
+	go func() {
+		added, _, err := service.publishReactionMutation(ctx, KindChannel, "R1", "M1", "wink", "U1", newReactionAddedEvent("U1", "R1", "M1", "wink"))
+		resultCh <- result{added: added, err: err}
+	}()
+
+	select {
+	case got := <-resultCh:
+		t.Fatalf("AddReaction returned before stale limit snapshot catch-up: %+v", got)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	startTestProjector(t, reactionsProjector)
+	got := <-resultCh
+	if got.err != nil || !got.added {
+		t.Fatalf("AddReaction after stale-limit catch-up: added=%v err=%v", got.added, got.err)
+	}
+}
+
+func TestReactionModel_RemoveReactionWrite(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -220,13 +467,13 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	eventID := event.Id
 
 	// Add a reaction first
-	_, err = core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+	_, err = core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("AddReaction failed: %v", err)
 	}
 
 	t.Run("remove existing reaction", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -236,7 +483,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove non-existent reaction returns false", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -246,7 +493,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove reaction that was never added", func(t *testing.T) {
-		removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "tada", user.Id)
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "tada", user.Id)
 		if err != nil {
 			t.Fatalf("RemoveReaction failed: %v", err)
 		}
@@ -256,7 +503,7 @@ func TestChattoCore_RemoveReaction(t *testing.T) {
 	})
 
 	t.Run("remove reaction with unicode emoji is rejected", func(t *testing.T) {
-		_, err := core.RemoveReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
+		_, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, "🚀", user.Id)
 		if err == nil {
 			t.Error("Expected error when removing reaction with Unicode emoji")
 		}
@@ -297,9 +544,9 @@ func TestChattoCore_GetReactions(t *testing.T) {
 	})
 
 	// Add some reactions
-	core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user1")
-	core.AddReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user2")
-	core.AddReaction(ctx, KindChannel, room.Id, eventID, "heart", "user1")
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user1")
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "thumbsup", "user2")
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "heart", "user1")
 
 	t.Run("get aggregated reactions", func(t *testing.T) {
 		reactions, err := core.GetReactions(ctx, eventID)
@@ -370,11 +617,11 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 	event2, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Message 2", nil, "", "", nil, false)
 
 	// Add reactions to message 1
-	core.AddReaction(ctx, KindChannel, room.Id, event1.Id, "thumbsup", user.Id)
-	core.AddReaction(ctx, KindChannel, room.Id, event1.Id, "heart", "user2")
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, event1.Id, "thumbsup", user.Id)
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, event1.Id, "heart", "user2")
 
 	// Add reaction to message 2
-	core.AddReaction(ctx, KindChannel, room.Id, event2.Id, "tada", user.Id)
+	core.ReactionModel().addReaction(ctx, KindChannel, room.Id, event2.Id, "tada", user.Id)
 
 	t.Run("batch fetch returns reactions for multiple messages", func(t *testing.T) {
 		result, err := core.GetReactionsBatch(ctx, []string{event1.Id, event2.Id})
@@ -443,7 +690,7 @@ func TestChattoCore_GetReactionsBatch(t *testing.T) {
 	})
 }
 
-func TestChattoCore_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
+func TestReactionModel_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -483,7 +730,7 @@ func TestChattoCore_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 		t.Fatal("Echo event not found in room events")
 	}
 
-	added, err := core.AddReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
+	added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("AddReaction on echo failed: %v", err)
 	}
@@ -515,7 +762,7 @@ func TestChattoCore_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 		t.Fatalf("batch reactions = %+v, want matching original and echo entries", batch)
 	}
 
-	added, err = core.AddReaction(ctx, KindChannel, room.Id, replyEvent.Id, "thumbsup", user.Id)
+	added, err = core.ReactionModel().addReaction(ctx, KindChannel, room.Id, replyEvent.Id, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("duplicate AddReaction via original failed: %v", err)
 	}
@@ -523,7 +770,7 @@ func TestChattoCore_EchoReactionsCanonicalizeToOriginal(t *testing.T) {
 		t.Fatal("duplicate AddReaction via original added = true, want false")
 	}
 
-	removed, err := core.RemoveReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
+	removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, echoEventID, "thumbsup", user.Id)
 	if err != nil {
 		t.Fatalf("RemoveReaction via echo failed: %v", err)
 	}

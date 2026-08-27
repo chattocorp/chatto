@@ -121,7 +121,7 @@ All critical data is durably stored and replicated:
 
 - **Server data** — users, memberships, configuration, roles, permissions, rooms, message bodies, reactions, threads, read status, call start/join/leave/end facts
 - **Assets** — avatars, attachments (unless offloaded to S3)
-- **Auth tokens** — bearer tokens for cross-origin authentication
+- **Authentication state** — cookie credential verifiers, short-lived bearer access verifiers, and renewable-session authorities; raw credentials are never stored
 - **Notifications** — user notifications (90-day TTL)
 
 ### Ephemeral Storage (memory-backed)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -56,6 +57,8 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 		router: router,
 		core:   chattoCore,
 	}
+	browserStore := newJetStreamBrowserSessionStore(chattoCore)
+	s.browserSessions = newBrowserSessionManager(browserStore, s.config.Auth.TokenTTLOrDefault(), false)
 	router.Use(func(c *gin.Context) {
 		if c.GetHeader("X-Test-Cancel-Authentication") == "true" {
 			ctx, cancel := context.WithCancel(c.Request.Context())
@@ -137,6 +140,21 @@ func csrfCookieValue(t *testing.T, client *http.Client, serverURL string) string
 		}
 	}
 	t.Fatal("CSRF cookie was not set")
+	return ""
+}
+
+func storedCSRFCookieValue(t *testing.T, client *http.Client, serverURL string) string {
+	t.Helper()
+	parsedURL, err := url.Parse(serverURL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+	for _, cookie := range client.Jar.Cookies(parsedURL) {
+		if cookie.Name == csrfCookieName {
+			return cookie.Value
+		}
+	}
+	t.Fatal("CSRF cookie was not stored")
 	return ""
 }
 
@@ -339,7 +357,7 @@ func TestCSRFMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("does not rotate CSRF token or rewrite session cookie when refreshing CSRF cookie", func(t *testing.T) {
+	t.Run("does not rewrite cookies on an ordinary safe request", func(t *testing.T) {
 		server, client := setupCSRFTestServer(t)
 		initialToken := csrfCookieValue(t, client, server.URL)
 
@@ -354,20 +372,20 @@ func TestCSRFMiddleware(t *testing.T) {
 			t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
 		}
 
-		foundCSRFCookie := false
 		for _, cookie := range resp.Cookies() {
 			switch cookie.Name {
 			case csrfCookieName:
-				foundCSRFCookie = true
-				if cookie.Value != initialToken {
-					t.Fatal("CSRF refresh should reuse the existing signed token")
-				}
+				t.Fatal("safe request should not rewrite the CSRF cookie")
 			case "chatto_session":
-				t.Fatal("CSRF refresh should not rewrite the signed session cookie")
+				t.Fatal("safe request should not rewrite the flow-state cookie")
+			default:
+				if isBrowserSessionCookieName(cookie.Name) {
+					t.Fatal("safe request should not rewrite an authentication cookie")
+				}
 			}
 		}
-		if !foundCSRFCookie {
-			t.Fatal("CSRF refresh did not set CSRF cookie")
+		if got := storedCSRFCookieValue(t, client, server.URL); got != initialToken {
+			t.Fatal("safe request changed the CSRF token")
 		}
 	})
 

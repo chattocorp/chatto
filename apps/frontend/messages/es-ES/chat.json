@@ -1,0 +1,71 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "Notificaciones",
+      "subtitle": "Esto es lo nuevo",
+      "clear_all": "Borrar todo",
+      "empty_title": "Sin notificaciones",
+      "empty_body": "¡Están todos atrapados!",
+      "time_now": "Justo ahora",
+      "time_minutes": "Hace {count}m",
+      "time_hours": "Hace {count}h",
+      "time_days": "Hace {count}d",
+      "unread": "No leído",
+      "activity": "Actividad nueva",
+      "summary": {
+        "direct_message": "{actor} te ha enviado un mensaje directo.",
+        "reaction": "{actor} ha reaccionado con «{emoji}» a tu mensaje en {channel}.",
+        "reaction_group": "{actor} y otras personas han reaccionado con «{emoji}» a tu mensaje en {channel}.",
+        "reply": "{actor} ha respondido a tu mensaje.",
+        "mention": "{actor} te ha mencionado.",
+        "followed_thread": "{actor} ha respondido en un hilo que sigues.",
+        "new_message": "{actor} ha publicado un mensaje nuevo.",
+        "activity": "{actor} te ha enviado una notificación."
+      }
+    },
+    "sign_out": {
+      "title": "Cerrar sesión",
+      "current_server": "Servidor actual",
+      "all_servers": "Todos los servidores",
+      "description": "Cierra sesión solo en el servidor seleccionado o desconecta todos los servidores de este cliente."
+    },
+    "overview": {
+      "title": "Descripción general"
+    },
+    "server_nav": {
+      "back_to_server": "Volver al servidor",
+      "server_fallback": "Servidor",
+      "administration": "Administración del servidor"
+    },
+    "user_menu": {
+      "profile": "Perfil de usuario",
+      "send_message": "Enviar Mensaje",
+      "copy_user_id": "Copiar ID de usuario"
+    },
+    "server_gutter": {
+      "add_server": "Agregar servidor",
+      "version": "Versión {version}",
+      "version_unknown": "Versión desconocida",
+      "unreachable": "Servidor inaccesible",
+      "compatibility_server_too_old": "Este servidor debe actualizarse a Chatto 0.5 o una versión posterior antes de que esta aplicación pueda conectarse.",
+      "compatibility_unknown": "Esta aplicación no puede determinar la compatibilidad a partir de la versión del servidor."
+    },
+    "threads": {
+      "title": "Mis hilos",
+      "subtitle": "Temas que estás siguiendo",
+      "filter_label": "Filtrar hilos",
+      "filter_all": "Todos",
+      "filter_unread": "No leído",
+      "empty_title": "No se siguen hilos",
+      "empty_body": "Los hilos que sigues aparecerán aquí. Sigues automáticamente los hilos en los que participas.",
+      "no_unread_loaded": "No se cargaron hilos no leídos",
+      "all_caught_up": "Todos atrapados",
+      "loaded_summary": "{loaded} de {total} siguió los hilos cargados.",
+      "load_more": "Cargar más",
+      "no_unread": "No hay hilos sin leer en este momento.",
+      "message_missing": "Mensaje ya no disponible",
+      "in_room": "en",
+      "in_room_capitalized": "En"
+    }
+  }
+}

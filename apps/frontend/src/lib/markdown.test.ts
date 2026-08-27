@@ -7,7 +7,156 @@ import {
   lowlight
 } from './codeHighlighting';
 
+function tableSource(columns: number, bodyRows: number): string {
+  return [
+    Array.from({ length: columns }, (_, index) => `h${index}`).join('|'),
+    Array.from({ length: columns }, () => '---').join('|'),
+    ...Array.from({ length: bodyRows }, () => '|')
+  ].join('\n');
+}
+
 describe('renderMarkdown', () => {
+  describe('GFM tables', () => {
+    it('renders a pipe table with semantic sections', async () => {
+      const html = await renderMarkdown('| Name | Role |\n| --- | --- |\n| Ada | Admin |');
+
+      expect(html).toContain('<div class="table-scroll" tabindex="0"><table>');
+      expect(html).toContain('<thead>');
+      expect(html).toContain('<th>Name</th>');
+      expect(html).toContain('<tbody>');
+      expect(html).toContain('<td>Ada</td>');
+      expect(html).toContain('</table></div>');
+    });
+
+    it('renders tables without outer pipes', async () => {
+      const html = await renderMarkdown('Name | Role\n--- | ---\nAda | Admin');
+
+      expect(html).toContain('<table>');
+      expect(html).toContain('<td>Ada</td>');
+    });
+
+    it('honours GFM column alignment', async () => {
+      const html = await renderMarkdown(
+        '| Left | Centre | Right |\n| :--- | :---: | ---: |\n| a | b | c |'
+      );
+
+      expect(html).toContain('<th style="text-align:left">Left</th>');
+      expect(html).toContain('<th style="text-align:center">Centre</th>');
+      expect(html).toContain('<th style="text-align:right">Right</th>');
+      expect(html).toContain('<td style="text-align:center">b</td>');
+    });
+
+    it('renders inline Markdown and escaped pipes inside cells', async () => {
+      const html = await renderMarkdown(
+        '| Value | Notes |\n| --- | --- |\n| **bold** | one \\| two |\n| `a\\|b` | [link](https://example.com) |'
+      );
+
+      expect(html).toContain('<strong>bold</strong>');
+      expect(html).toContain('<td>one | two</td>');
+      expect(html).toContain('<code>a|b</code>');
+      expect(html).toContain('href="https://example.com"');
+    });
+
+    it('leaves table-like text literal without a valid delimiter row', async () => {
+      const html = await renderMarkdown('| Name | Role |\n| Ada | Admin |');
+
+      expect(html).not.toContain('<table>');
+    });
+
+    it('does not expand adversarial short rows into an oversized table', async () => {
+      const body = tableSource(256, 256);
+
+      const html = await renderMarkdown(body);
+
+      expect(html).not.toContain('<table>');
+      expect(html).not.toContain('<td>');
+      expect(html.length).toBeLessThan(20_000);
+    });
+
+    it('accepts the column limit and rejects one additional column', async () => {
+      const atLimit = await renderMarkdown(tableSource(64, 1));
+      const overLimit = await renderMarkdown(tableSource(65, 1));
+
+      expect(atLimit).toContain('<table>');
+      expect(overLimit).not.toContain('<table>');
+    });
+
+    it('accepts the row limit and rejects one additional row', async () => {
+      // The header counts as one of the 256 rows.
+      const atLimit = await renderMarkdown(tableSource(2, 255));
+      const overLimit = await renderMarkdown(tableSource(2, 256));
+
+      expect(atLimit).toContain('<table>');
+      expect(overLimit).not.toContain('<table>');
+    });
+
+    it('accepts the per-table cell limit and rejects one additional row of cells', async () => {
+      // 64 columns × 64 rows, including the header, is exactly 4,096 cells.
+      const atLimit = await renderMarkdown(tableSource(64, 63));
+      const overLimit = await renderMarkdown(tableSource(64, 64));
+
+      expect(atLimit).toContain('<table>');
+      expect(overLimit).not.toContain('<table>');
+    });
+
+    it('limits cumulative table cells across one message', async () => {
+      const maximumTable = tableSource(64, 63);
+      const html = await renderMarkdown(
+        `${maximumTable}\n\n${maximumTable}\n\n| Extra | Table |\n| --- | --- |\n| x | y |`
+      );
+
+      expect(html.match(/<table>/g)).toHaveLength(2);
+      expect(html).toContain('| Extra | Table |');
+    });
+
+    it('applies table expansion limits inside blockquotes', async () => {
+      const lines = tableSource(128, 128).split('\n');
+      const html = await renderMarkdown(lines.map((line) => `> ${line}`).join('\n'));
+
+      expect(html).not.toContain('<table>');
+      expect(html).not.toContain('<td>');
+    });
+  });
+
+  describe('invisible spacing', () => {
+    it('collapses lines made from encoded non-breaking spaces', async () => {
+      const html = await renderMarkdown(`before\n${'&nbsp;\n'.repeat(500)}after`);
+
+      expect(html).toContain('before');
+      expect(html).toContain('after');
+      expect(html).not.toContain('&nbsp;');
+      expect(html.match(/<br>/g)).toHaveLength(1);
+    });
+
+    it('preserves word separation when normalizing non-breaking spaces', async () => {
+      const html = await renderMarkdown('bread&nbsp;and&#160;butter');
+
+      expect(html).toContain('<p>bread and butter</p>');
+    });
+
+    it('removes paragraphs made only from encoded non-breaking spaces', async () => {
+      const html = await renderMarkdown(`before\n\n${'&nbsp;\n\n'.repeat(500)}after`);
+
+      expect(html.match(/<p>/g)).toHaveLength(2);
+      expect(html).toContain('<p>before</p>');
+      expect(html).toContain('<p>after</p>');
+    });
+
+    it('preserves non-breaking-space entity source in code', async () => {
+      const html = await renderMarkdown('`&nbsp;`\n\n```text\n&nbsp;\n```');
+
+      expect(html).toContain('<code>&amp;nbsp;</code>');
+      expect(html).toContain('<span class="line">&amp;nbsp;</span>');
+    });
+
+    it('preserves entity spellings Markdown-it does not decode', async () => {
+      const html = await renderMarkdown('&NBSP;\n&#00000160;');
+
+      expect(html).toContain('&amp;NBSP;');
+      expect(html).toContain('&amp;#00000160;');
+    });
+  });
+
   describe('literal backslashes', () => {
     it('preserves the backslash in the shrug kaomoji', async () => {
       const html = await renderMarkdown('¯\\_(ツ)_/¯');
@@ -145,6 +294,16 @@ describe('renderMarkdown', () => {
     it('preserves literal markdown chars inside code spans', async () => {
       const html = await renderMarkdown('`*not bold*`');
       expect(html).toContain('<code>*not bold*</code>');
+    });
+
+    it('groups inline content in tight list items', async () => {
+      const html = await renderMarkdown(
+        '1. Connect to `/api/realtime` using `chatto.realtime.v1`.'
+      );
+
+      expect(html).toContain(
+        '<li><span class="list-item-content">Connect to <code>/api/realtime</code> using <code>chatto.realtime.v1</code>.</span>'
+      );
     });
   });
 

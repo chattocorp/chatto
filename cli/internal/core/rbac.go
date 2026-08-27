@@ -16,8 +16,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // SystemActorID is used for internal/bootstrap operations that bypass permission checks.
@@ -97,17 +98,26 @@ func (c *ChattoCore) HasServerPermission(ctx context.Context, userID string, per
 // IsServerAdmin checks if a user has the admin role via RBAC.
 // Does NOT check config fallback (owners.emails) - caller should check that separately.
 func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, error) {
-	return c.RBAC.HasRole(userID, RoleAdmin), nil
+	return c.rbacModel.hasRole(userID, RoleAdmin), nil
 }
 
-// IsServerOwner checks whether a user is an effective server owner. Durable
-// owner-role assignments and configured owners.emails both count so a
-// configured owner cannot be locked out by edited RBAC state.
+// IsServerOwner checks whether a user has the durable owner role. Configured
+// owners.emails entries are materialized into that role at boot and by the
+// durable notification-effects worker after email verification, so live and
+// event-time authorization cannot diverge.
 func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, error) {
-	if c.RBAC.HasRole(userID, RoleOwner) {
-		return true, nil
+	return c.rbacModel.hasRole(userID, RoleOwner), nil
+}
+
+func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool, error) {
+	if len(c.config.Owners.Emails) == 0 {
+		return false, nil
 	}
-	for _, ve := range c.Users.VerifiedEmails(userID) {
+	emails, err := c.userModel.verifiedEmails(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	for _, ve := range emails {
 		if c.config.Owners.IsServerOwnerEmail(ve.Email) {
 			return true, nil
 		}
@@ -154,9 +164,10 @@ func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userI
 	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }
 
-// hasRoomPermission checks a permission at the room level. Room-scoped
-// decisions, group decisions, and server decisions all contribute; any
-// applicable deny wins for non-owners.
+// hasRoomPermission checks a permission at the room level. Each direct user or
+// named role contributes its nearest room/group/server decision; named denies
+// win across those subjects. Everyone supplies a scoped baseline: a named allow
+// overrides its deny only at the same or a nearer scope.
 func (c *ChattoCore) hasRoomPermission(ctx context.Context, kind RoomKind, roomID, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasRoomPermission(ctx, userID, kind, roomID, perm)
 }
@@ -195,13 +206,13 @@ func (c *ChattoCore) RevokeAdminRole(ctx context.Context, userID string) error {
 // ListAdmins returns all user IDs with the admin role assigned via RBAC.
 // Does NOT include config-based admins (owners.emails).
 func (c *ChattoCore) ListAdmins(ctx context.Context) ([]string, error) {
-	return c.RBAC.GetRoleUsers(RoleAdmin), nil
+	return c.rbacModel.roleUsers(RoleAdmin), nil
 }
 
 // AssignServerRole assigns any role to a user.
 // The role must exist (system or custom). The everyone role cannot be assigned (it's implicit).
-// Authorization is enforced by the API boundary (`role.assign`); this model
-// method validates role existence and writes the assignment fact.
+// The model enforces that non-owner actors cannot assign authority they do not
+// possess; API boundaries additionally require role.assign.
 func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
@@ -211,11 +222,17 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
 	}})
 
-	if _, err := c.appendRBACEvent(ctx, event, func() error {
-		if _, ok := c.RBAC.GetRole(roleName); !ok {
+	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
+		if kind, _, ok := c.userModel.isBotAndOwner(userID); ok && kind {
+			return ErrHumanAccountRequired
+		}
+		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}
-		if c.RBAC.HasRole(userID, roleName) {
+		if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, false); err != nil {
+			return err
+		}
+		if c.rbacModel.hasRole(userID, roleName) {
 			return errRBACNoop
 		}
 		return nil
@@ -243,11 +260,17 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
 	}})
 
-	if _, err := c.appendRBACEventWithUserCheck(ctx, userID, event, func() error {
-		if _, ok := c.RBAC.GetRole(roleName); !ok {
+	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
+		if kind, _, ok := c.userModel.isBotAndOwner(userID); ok && kind {
+			return ErrHumanAccountRequired
+		}
+		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}
-		if c.RBAC.HasRole(userID, roleName) {
+		if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, false); err != nil {
+			return err
+		}
+		if c.rbacModel.hasRole(userID, roleName) {
 			return errRBACNoop
 		}
 		return nil
@@ -264,8 +287,8 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 
 // RevokeServerRole removes an role from a user.
 // The role must exist (system or custom). The everyone role cannot be revoked (it's implicit).
-// Authorization is enforced by the API boundary (`role.assign`). The only
-// service-level guard is self-owner lockout prevention.
+// The model enforces assignment-authority bounds and self-owner lockout;
+// API boundaries additionally require role.assign.
 func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
@@ -275,12 +298,24 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 	}})
 
-	if _, err := c.appendRBACEvent(ctx, event, func() error {
+	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
 		if roleName == RoleOwner && actorID == userID {
 			return ErrCannotRevokeSelfAdmin
 		}
-		if _, ok := c.RBAC.GetRole(roleName); !ok {
+		if roleName == RoleOwner {
+			configured, err := c.isConfiguredOwner(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if configured {
+				return ErrPermissionDenied
+			}
+		}
+		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
+		}
+		if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, true); err != nil {
+			return err
 		}
 		return nil
 	}); err != nil {
@@ -304,12 +339,24 @@ func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actor
 		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 	}})
 
-	if _, err := c.appendRBACEventWithUserCheck(ctx, userID, event, func() error {
+	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
 		if roleName == RoleOwner && actorID == userID {
 			return ErrCannotRevokeSelfAdmin
 		}
-		if _, ok := c.RBAC.GetRole(roleName); !ok {
+		if roleName == RoleOwner {
+			configured, err := c.isConfiguredOwner(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if configured {
+				return ErrPermissionDenied
+			}
+		}
+		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
+		}
+		if err := c.requireRoleAssignmentWithinAuthority(ctx, actorID, roleName, true); err != nil {
+			return err
 		}
 		return nil
 	}); err != nil {
@@ -326,17 +373,17 @@ func (c *ChattoCore) GetRoleUsers(ctx context.Context, roleName string) ([]strin
 	if roleName == RoleEveryone {
 		return []string{}, nil
 	}
-	if !c.RBAC.RoleExists(roleName) {
+	if !c.rbacModel.roleExists(roleName) {
 		return nil, ErrRoleNotFound
 	}
-	return c.RBAC.GetRoleUsers(roleName), nil
+	return c.rbacModel.roleUsers(roleName), nil
 }
 
 // GetUserRoles returns the explicit role assignments for a user. The implicit
 // `everyone` role is omitted — callers that need it can prepend it themselves
 // based on the relevant scope (e.g. space membership).
 func (c *ChattoCore) GetUserRoles(ctx context.Context, userID string) ([]string, error) {
-	assignedRoles := c.RBAC.GetUserRoles(userID)
+	assignedRoles := c.rbacModel.userRoles(userID)
 	result := make([]string, 0, len(assignedRoles))
 	for _, role := range assignedRoles {
 		if role != RoleEveryone {
@@ -366,10 +413,10 @@ func (c *ChattoCore) RevokeServerPermission(ctx context.Context, actorID, roleNa
 		RbacPermissionCleared: rbacRolePermissionClearedEvent(ScopeServer, "", roleName, perm),
 	}})
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
-		if !c.RBAC.RoleExists(roleName) {
+		if !c.rbacModel.roleExists(roleName) {
 			return ErrRoleNotFound
 		}
-		if c.RBAC.GetDecision(ScopeServer, "", roleName, perm) != DecisionAllow {
+		if c.rbacModel.decision(ScopeServer, "", roleName, perm) != DecisionAllow {
 			return errRBACNoop
 		}
 		return nil
@@ -386,20 +433,20 @@ func (c *ChattoCore) RevokeServerPermission(ctx context.Context, actorID, roleNa
 // GetServerRolePermissions returns all permissions granted to an role.
 // Note: Admin roles are NOT special-cased - permissions are materialized in the RBAC projection.
 func (c *ChattoCore) GetServerRolePermissions(ctx context.Context, roleName string) ([]Permission, error) {
-	if !c.RBAC.RoleExists(roleName) {
+	if !c.rbacModel.roleExists(roleName) {
 		return nil, ErrRoleNotFound
 	}
-	grants, _ := c.RBAC.DecisionsForRoleServer(roleName)
+	grants, _ := c.rbacModel.decisionsForRoleServer(roleName)
 	return grants, nil
 }
 
 // GetServerRolePermissionDenials returns all permissions denied by an role.
 // Note: Admin roles are NOT special-cased - they can have denials like any other role.
 func (c *ChattoCore) GetServerRolePermissionDenials(ctx context.Context, roleName string) ([]Permission, error) {
-	if !c.RBAC.RoleExists(roleName) {
+	if !c.rbacModel.roleExists(roleName) {
 		return nil, ErrRoleNotFound
 	}
-	_, denials := c.RBAC.DecisionsForRoleServer(roleName)
+	_, denials := c.rbacModel.decisionsForRoleServer(roleName)
 	return denials, nil
 }
 
@@ -437,7 +484,7 @@ func (c *ChattoCore) GetUserServerPermissions(ctx context.Context, userID string
 // ListServerRoles returns all roles with their permissions.
 // Note: Admin roles are NOT special-cased - permissions are read from the RBAC projection.
 func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions, error) {
-	roles := c.RBAC.ListRoles()
+	roles := c.rbacModel.roles()
 	result := make([]RoleWithPermissions, 0, len(roles))
 	for _, role := range roles {
 		perms, _ := c.GetServerRolePermissions(ctx, role.Name)
@@ -482,7 +529,7 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 	var role *corev1.Role
 	event := newEvent(actorID, &corev1.Event{})
 	if _, err := c.appendRBACEventWithMentionableCheck(ctx, event, func() error {
-		if c.RBAC.RoleExists(name) {
+		if c.rbacModel.roleExists(name) {
 			return ErrRoleAlreadyExists
 		}
 		if err := c.requireRoleMentionHandleAvailable(name); err != nil {
@@ -492,7 +539,7 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
-			Position:    c.RBAC.NextAvailablePosition(),
+			Position:    c.rbacModel.nextAvailablePosition(),
 			Pingable:    pingable,
 		}
 		event.Event = &corev1.Event_RbacRoleCreated{
@@ -534,7 +581,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleDisplayNameChanged{
 		RbacRoleDisplayNameChanged: &corev1.RbacRoleDisplayNameChangedEvent{RoleName: name, DisplayName: displayName},
 	}}), func() error {
-		existing, ok := c.RBAC.GetRole(name)
+		existing, ok := c.rbacModel.role(name)
 		if !ok {
 			return ErrRoleNotFound
 		}
@@ -559,7 +606,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleDescriptionChanged{
 		RbacRoleDescriptionChanged: &corev1.RbacRoleDescriptionChangedEvent{RoleName: name, Description: description},
 	}}), func() error {
-		existing, ok := c.RBAC.GetRole(name)
+		existing, ok := c.rbacModel.role(name)
 		if !ok {
 			return ErrRoleNotFound
 		}
@@ -586,7 +633,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 		if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRolePingableChanged{
 			RbacRolePingableChanged: &corev1.RbacRolePingableChangedEvent{RoleName: name, Pingable: pingable},
 		}}), func() error {
-			existing, ok := c.RBAC.GetRole(name)
+			existing, ok := c.rbacModel.role(name)
 			if !ok {
 				return ErrRoleNotFound
 			}
@@ -610,7 +657,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 	}
 
 	if updated == nil {
-		existing, ok := c.RBAC.GetRole(name)
+		existing, ok := c.rbacModel.role(name)
 		if !ok {
 			return nil, ErrRoleNotFound
 		}
@@ -636,7 +683,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 // GetServerRole returns a single role by name.
 // Note: Admin roles are NOT special-cased - permissions are read from the RBAC projection.
 func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithPermissions, error) {
-	role, ok := c.RBAC.GetRole(name)
+	role, ok := c.rbacModel.role(name)
 	if !ok {
 		return nil, ErrRoleNotFound
 	}
@@ -668,7 +715,7 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string)
 		RbacRoleDeleted: &corev1.RbacRoleDeletedEvent{RoleName: name},
 	}})
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
-		if !c.RBAC.RoleExists(name) {
+		if !c.rbacModel.roleExists(name) {
 			return ErrRoleNotFound
 		}
 		return nil
@@ -695,7 +742,7 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 	event := newEvent(actorID, &corev1.Event{})
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
 		customRoles := make(map[string]struct{})
-		for _, role := range c.RBAC.ListRoles() {
+		for _, role := range c.rbacModel.roles() {
 			if role.GetName() == "" || IsSystemRole(role.GetName()) {
 				continue
 			}
@@ -723,7 +770,7 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 		return nil, err
 	}
 
-	allRoles := c.RBAC.ListRoles()
+	allRoles := c.rbacModel.roles()
 	result := make([]RoleWithPermissions, 0, len(allRoles))
 	for _, role := range allRoles {
 		perms, _ := c.GetServerRolePermissions(ctx, role.Name)
@@ -749,14 +796,14 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 // for a role in a specific room. Reads ADR-031's room_allow / room_deny
 // key families.
 func (c *ChattoCore) GetRoomRolePermissions(ctx context.Context, roomID, roleName string) (grants []Permission, denials []Permission, err error) {
-	grants, denials = c.RBAC.DecisionsFor(ScopeRoom, roomID, roleName)
+	grants, denials = c.rbacModel.decisionsFor(ScopeRoom, roomID, roleName)
 	return grants, denials, nil
 }
 
 // GetGroupRolePermissions returns the set-scope grants and denials for a role
 // in a specific room group (ADR-031).
 func (c *ChattoCore) GetGroupRolePermissions(ctx context.Context, groupID, roleName string) (grants []Permission, denials []Permission, err error) {
-	grants, denials = c.RBAC.DecisionsFor(ScopeGroup, groupID, roleName)
+	grants, denials = c.rbacModel.decisionsFor(ScopeGroup, groupID, roleName)
 	return grants, denials, nil
 }
 
@@ -798,14 +845,6 @@ func (c *ChattoCore) ClearGroupPermissionState(ctx context.Context, actorID, gro
 // permission, ensuring consistent resolution logic (DM rooms
 // additionally have their boundary deny-list applied).
 func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind RoomKind, userID string) ([]Permission, error) {
-	if kind == KindDM {
-		return []Permission{
-			PermRoomJoin,
-			PermMessagePost,
-			PermMessageReact,
-		}, nil
-	}
-
 	var result []Permission
 	for _, permMeta := range PermissionsForScope(ScopeServer) {
 		perm := permMeta.Permission
@@ -826,21 +865,21 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind 
 // Used during LeaveSpace cleanup and account deletion.
 // Authorization: Internal use only (no permission check needed).
 func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, actorID, userID string) error {
-	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
 	if err != nil {
 		return fmt.Errorf("read RBAC seq: %w", err)
 	}
-	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(evtstream.RBACSubjectFilter(), rbacSeq)); err != nil {
 		return fmt.Errorf("wait for RBAC projection: %w", err)
 	}
 
-	roles := c.RBAC.GetUserRoles(userID)
-	entries := make([]events.BatchEntry, 0, len(roles))
+	roles := c.rbacModel.userRoles(userID)
+	entries := make([]evtstream.BatchEntry, 0, len(roles))
 	for _, roleName := range roles {
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
 			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
 	if _, err := c.appendRBACBatch(ctx, entries, nil); err != nil {
 		return fmt.Errorf("failed to revoke user roles: %w", err)

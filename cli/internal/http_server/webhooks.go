@@ -33,7 +33,7 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		return
 	}
 
-	// Extract space and room IDs from the LiveKit room name
+	// Parse the legacy LiveKit room name at the integration boundary.
 	if event.Room == nil {
 		c.Status(http.StatusOK)
 		return
@@ -43,8 +43,8 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		c.Status(http.StatusOK)
 		return
 	}
-	spaceID, roomID, callID := core.ParseLiveKitRoomIdentity(event.Room.Name)
-	if spaceID == "" || roomID == "" {
+	legacySpaceID, roomID, callID := core.ParseLiveKitRoomIdentity(event.Room.Name)
+	if legacySpaceID == "" || roomID == "" {
 		logger.Warn("Unrecognized LiveKit room name", "name", event.Room.Name)
 		c.Status(http.StatusOK)
 		return
@@ -57,6 +57,9 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		if event.Participant == nil {
 			break
 		}
+		if core.IsCallMediaPublisher(event.Participant.Metadata) {
+			break
+		}
 		md := core.ParseParticipantMetadata(event.Participant.Metadata)
 		eventCallID := callID
 		if eventCallID == "" {
@@ -67,10 +70,8 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 			break
 		}
 		if err := s.core.HandleCallParticipantJoined(
-			ctx, spaceID, roomID,
+			ctx, roomID,
 			event.Participant.Identity,
-			event.Participant.Name,
-			md.Login, md.AvatarURL,
 			eventCallID,
 		); err != nil {
 			logger.Warn("Failed to handle participant joined", "error", err)
@@ -78,6 +79,9 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 
 	case webhook.EventParticipantLeft:
 		if event.Participant == nil {
+			break
+		}
+		if core.IsCallMediaPublisher(event.Participant.Metadata) {
 			break
 		}
 		if liveKitParticipantLeftIsConnectionHandoff(event.Participant) {
@@ -93,7 +97,7 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 			break
 		}
 		if err := s.core.HandleCallParticipantLeft(
-			ctx, spaceID, roomID,
+			ctx, roomID,
 			event.Participant.Identity,
 			eventCallID,
 		); err != nil {
@@ -105,7 +109,7 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 			logger.Warn("Ignoring LiveKit room finished without call ID", "room", event.Room.Name)
 			break
 		}
-		if err := s.core.HandleCallRoomFinished(ctx, spaceID, roomID, callID); err != nil {
+		if err := s.core.HandleCallRoomFinished(ctx, roomID, callID); err != nil {
 			logger.Warn("Failed to handle room finished", "error", err)
 		}
 	}

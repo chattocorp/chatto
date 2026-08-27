@@ -1,6 +1,6 @@
 # Releasing Chatto
 
-Chatto uses release-please to prepare beta releases from `main`. Stable releases
+Chatto uses release-please to prepare alpha releases from `main`. Stable releases
 and maintenance patches come from `release-x.y` branches. Each branch uses the
 same `.release-please-config.json` and `.release-please-manifest.json` paths; the
 configuration committed to that branch determines whether it produces
@@ -32,7 +32,7 @@ existing `vX.Y.Z` image.
 
 The release-please configuration on `main` uses prerelease versioning. Feature
 work merges into `main`, and release-please prepares versions such as
-`0.5.0-beta.1`, `0.5.0-beta.2`, and so on. Prereleases publish the `next`
+`0.5.0-alpha.1`, `0.5.0-alpha.2`, and so on. Prereleases publish the `next`
 container tags.
 
 When development moves to a new version series, force its first version with a
@@ -42,12 +42,47 @@ When development moves to a new version series, force its first version with a
 git switch -c begin-0.6 origin/main
 git commit --allow-empty \
   -m "chore(release): begin 0.6 prereleases" \
-  -m "Release-As: 0.6.0-beta.1"
+  -m "Release-As: 0.6.0-alpha.1"
 git push -u origin begin-0.6
 ```
 
 Merge this branch into `main`, preserving the `Release-As` footer in the squash
 commit or pull request body.
+
+## Chatto Desktop releases
+
+Chatto Desktop is an independently versioned component under `apps/desktop`.
+Its release-please package owns `apps/desktop/CHANGELOG.md` and
+`apps/desktop/package.json`, and its tags use
+`chatto-desktop/vX.Y.Z`. Desktop-only changes are excluded from Chatto's root
+server release component.
+
+Merging a Chatto Desktop release PR creates a draft GitHub release and the
+component tag. The release workflow checks and builds macOS, Windows, and Linux
+bundles from that tag, signs and notarises the macOS bundle, signs and verifies
+every Windows executable, requires the expected ChattoCorp publisher on the
+main application, uploads archives and SHA-256 checksums, then publishes the
+release. Linux and ordinary CI artifacts remain unsigned experimental builds.
+Windows and macOS use separate protected signing environments. Signing-service
+provisioning, protected-environment settings, renewal, and emergency revocation
+are documented in [`apps/desktop/README.md`](../apps/desktop/README.md).
+
+The desktop shell version and the bundled Chatto frontend version answer
+different questions. The desktop version identifies packaging and runtime
+changes; client-server compatibility continues to use the official frontend
+version embedded by the tagged commit.
+
+Before publishing a tag, the release workflow can verify the complete desktop
+packaging path without creating a release or building a Chatto server image.
+Run the `release` workflow manually, select the `desktop` target, and optionally
+provide a branch, tag, or commit reachable from `origin/main` in the `ref`
+input. Signed desktop builds reject other commits before running repository
+code or requesting signing credentials. The workflow builds and packages all
+three platforms, generates the same checksum file used by a tagged release, and
+uploads the assembled files as a one-day verification artifact.
+
+Desktop release tags must also point to commits reachable from `origin/main`.
+The signing jobs enforce this before running repository code.
 
 ## Create a stable release branch
 

@@ -1,0 +1,10 @@
+{
+  "admin": {
+    "system": {
+      "largest_stream": "Grösster Stream"
+    },
+    "event_log": {
+      "filtered_scan": "Der gefilterte Scan hat {limit} aufbewahrte Events geprüft und kann ältere Treffer ausserhalb dieses Fensters haben."
+    }
+  }
+}

@@ -15,33 +15,75 @@ message GetSystemInfoResponse {
   repeated AdminProjectionState projections = 2;
   // Recoverable physical deletion worker health.
   AdminAssetCleanupStatus asset_cleanup = 3;
+  // Known durable worker queues and their current broker-derived health.
+  repeated AdminDurableWorkerStatus durable_workers = 4;
+  // Whether projection diagnostics were collected successfully.
+  optional bool projections_available = 5;
+}
+
+// Broker-derived health for one known durable worker queue.
+message AdminDurableWorkerStatus {
+  // Stable machine-readable worker key.
+  string key = 1;
+  // Current availability and work state.
+  AdminDurableWorkerHealth health = 2;
+  // Deliveries not yet handed to a handler.
+  string pending_count = 3;
+  // Deliveries awaiting acknowledgement; this does not prove handler liveness.
+  string ack_pending_count = 4;
+  // Pull requests currently waiting for work.
+  string waiting_count = 5;
+  // Redelivered messages that remain unacknowledged.
+  string redelivered_count = 6;
+  // Latest EVT stream sequence delivered to this queue.
+  string last_delivered_sequence = 7;
+  // Highest contiguous EVT stream sequence acknowledged by this queue.
+  string ack_floor_sequence = 8;
+}
+
+// Operator-facing state derived from a durable consumer.
+enum AdminDurableWorkerHealth {
+  ADMIN_DURABLE_WORKER_HEALTH_UNSPECIFIED = 0;
+  // This optional worker is not required by current server configuration.
+  ADMIN_DURABLE_WORKER_HEALTH_INACTIVE = 1;
+  // A worker is waiting and all known work is acknowledged.
+  ADMIN_DURABLE_WORKER_HEALTH_HEALTHY = 2;
+  // A worker is available and unacknowledged work remains.
+  ADMIN_DURABLE_WORKER_HEALTH_WORKING = 3;
+  // An acknowledgement is pending, but broker state cannot prove whether a
+  // handler is active or the delivery is awaiting recovery after a crash.
+  ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED = 4;
+  // The consumer exists but has neither a waiting pull nor an ack-pending delivery.
+  ADMIN_DURABLE_WORKER_HEALTH_STALLED = 5;
+  // The required consumer is unavailable.
+  ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE = 6;
 }
 
 // Current health of recoverable message-owned asset deletion.
 message AdminAssetCleanupStatus {
-  // Operator-facing worker state derived from lease and heartbeat state.
+  // Operator-facing state derived from the shared durable consumer.
   AdminAssetCleanupHealth health = 1;
   // Deletion effects currently waiting for a successful retry.
   int64 pending_count = 2;
-  // Creation time of the oldest pending deletion, when known.
-  google.protobuf.Timestamp oldest_pending_at = 3;
-  // Whether the elected worker is currently running a cleanup pass.
-  bool pass_in_progress = 4;
-  // Completion time of the most recent pass.
-  google.protobuf.Timestamp last_pass_at = 5;
-  // Completion time of the most recent fully successful pass.
-  google.protobuf.Timestamp last_successful_pass_at = 6;
-  // Time of the latest elected-worker heartbeat.
-  google.protobuf.Timestamp updated_at = 7;
-  // Whether the most recent completed pass had one or more failures.
-  bool last_pass_failed = 8;
-  // Global EVT sequence through which deletion facts were inspected.
+  // Deprecated. Shared durable consumers do not expose this value.
+  google.protobuf.Timestamp oldest_pending_at = 3 [deprecated = true];
+  // Deprecated. Shared durable consumers run continuously rather than in passes.
+  bool pass_in_progress = 4 [deprecated = true];
+  // Deprecated. Shared durable consumers run continuously rather than in passes.
+  google.protobuf.Timestamp last_pass_at = 5 [deprecated = true];
+  // Deprecated. Shared durable consumers run continuously rather than in passes.
+  google.protobuf.Timestamp last_successful_pass_at = 6 [deprecated = true];
+  // Deprecated. Shared durable consumers do not publish a liveness heartbeat.
+  google.protobuf.Timestamp updated_at = 7 [deprecated = true];
+  // Deprecated. Use health and pending_count instead.
+  bool last_pass_failed = 8 [deprecated = true];
+  // Global EVT sequence of the most recently delivered deletion fact.
   string last_inspected_sequence = 9;
   // Current latest global EVT sequence matching asset deletion facts.
   string latest_deletion_sequence = 10;
 }
 
-// Operator-facing state for the elected asset cleanup worker.
+// Operator-facing state for the shared durable asset cleanup queue.
 enum AdminAssetCleanupHealth {
   ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED = 0;
   ADMIN_ASSET_CLEANUP_HEALTH_INACTIVE = 1;

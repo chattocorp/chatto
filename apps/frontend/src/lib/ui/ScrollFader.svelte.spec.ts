@@ -13,6 +13,17 @@ function getBottomFade(container: HTMLElement) {
 }
 
 describe('ScrollFader', () => {
+  it('layers the fades above sticky table cells across the full scroll viewport', () => {
+    const { container } = render(ScrollFaderTestHarness);
+    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+
+    expect(fades).toHaveLength(2);
+    expect(fades[0].className).toContain('inset-x-0');
+    expect(fades[0].className).toContain('z-30');
+    expect(fades[1].className).toContain('inset-x-0');
+    expect(fades[1].className).toContain('z-30');
+  });
+
   it('recomputes bottom fade visibility when refreshed without a scroll event', async () => {
     const { container, component } = render(ScrollFaderTestHarness);
 

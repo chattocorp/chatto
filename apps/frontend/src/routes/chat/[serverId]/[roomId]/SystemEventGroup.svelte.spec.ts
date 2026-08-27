@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SystemEventGroup from './SystemEventGroup.svelte';
@@ -19,7 +18,7 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
   })
 }));
 
-function systemEvents(actorNames: string[]): RoomEventView[] {
+function systemEvents(actorNames: string[]): TimelineEventView[] {
   return actorNames.map(
     (actorName, index) =>
       ({
@@ -34,10 +33,10 @@ function systemEvents(actorNames: string[]): RoomEventView[] {
           presenceStatus: null
         },
         event: {
-          kind: RoomEventKind.UserJoinedRoom,
+          kind: TimelineEventKind.UserJoinedRoom,
           roomId: 'room-1'
         }
-      }) as unknown as RoomEventView
+      }) as unknown as TimelineEventView
   );
 }
 
@@ -48,8 +47,8 @@ function renderedCopy(container: HTMLElement): string {
 
 describe('SystemEventGroup', () => {
   beforeEach(async () => {
-    await loadLocaleMessages('en');
-    setReactiveLocale('en');
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
   });
 
   it('separates two actors with the localized conjunction', () => {
@@ -63,6 +62,10 @@ describe('SystemEventGroup', () => {
     });
 
     expect(renderedCopy(container)).toBe('Alice and Bob joined the room');
+    expect([...container.querySelectorAll('bdi')].map((name) => name.textContent)).toEqual([
+      'Alice',
+      'Bob'
+    ]);
   });
 
   it('uses comma-separated formatting for three actors', () => {
@@ -91,9 +94,61 @@ describe('SystemEventGroup', () => {
     expect(renderedCopy(container)).toBe('Alice and Bob left the room');
   });
 
+  it('filters deleted actors before formatting names and pluralization', () => {
+    const events = systemEvents(['Alice', 'Deleted User']);
+    if (events[1].actor) events[1].actor.deleted = true;
+
+    const { container } = render(SystemEventGroup, {
+      props: {
+        events,
+        kind: 'join',
+        expanded: false,
+        onExpandedChange: vi.fn()
+      }
+    });
+
+    expect(renderedCopy(container)).toBe('Alice joined the room');
+    expect(container.querySelector('[aria-label="alice"]')).not.toBeNull();
+    expect(container.textContent).not.toContain('Deleted User');
+  });
+
+  it('omits missing actors from mixed groups', () => {
+    const events = systemEvents(['Alice', 'Deleted User', 'Bob']);
+    events[1].actor = null;
+
+    const { container } = render(SystemEventGroup, {
+      props: {
+        events,
+        kind: 'join',
+        expanded: false,
+        onExpandedChange: vi.fn()
+      }
+    });
+
+    expect(renderedCopy(container)).toBe('Alice and Bob joined the room');
+    expect(container.textContent).not.toContain('[deleted user]');
+  });
+
+  it('renders no row when every actor is deleted or missing', () => {
+    const events = systemEvents(['Deleted User', 'Missing User']);
+    if (events[0].actor) events[0].actor.deleted = true;
+    events[1].actor = null;
+
+    const { container } = render(SystemEventGroup, {
+      props: {
+        events,
+        kind: 'leave',
+        expanded: false,
+        onExpandedChange: vi.fn()
+      }
+    });
+
+    expect(container.querySelector('[data-event-id]')).toBeNull();
+  });
+
   it('localizes the conjunction and plural action wording in German', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
     const { container } = render(SystemEventGroup, {
       props: {
         events: systemEvents(['Alice', 'Bob']),

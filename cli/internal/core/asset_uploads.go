@@ -155,7 +155,7 @@ type AssetUploadModel struct {
 }
 
 func (c *ChattoCore) AssetUploads() *AssetUploadModel {
-	return &AssetUploadModel{core: c}
+	return c.assetUploadModel
 }
 
 func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCreateInput) (*AssetUploadSession, error) {
@@ -271,7 +271,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 		return nil, nil, ErrPermissionDenied
 	}
 	if session.Status == AssetUploadStatusCompleted {
-		declared, ok := m.core.assetLifecycle().AssetCreation(session.AssetID)
+		declared, ok := m.core.assetModel.AssetCreation(session.AssetID)
 		if !ok {
 			return nil, nil, ErrNotFound
 		}
@@ -301,9 +301,9 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 		return nil, nil, err
 	}
 	pendingExpiresAt := time.Now().Add(defaultPendingAttachmentAssetTTL)
-	needsVideoProcessing := m.core.OnVideoProcessingRequested != nil && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
-	if err := m.core.assetLifecycle().RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
-		m.core.media().DeleteAttachmentFromStorage(ctx, attachment)
+	needsVideoProcessing := m.core.VideoUploadsEnabled && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
+	if err := m.core.assetModel.RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
+		m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment)
 		return nil, nil, err
 	}
 	session.Status = AssetUploadStatusCompleted
@@ -377,39 +377,39 @@ func (m *AssetUploadModel) ImportRemoteAttachment(ctx context.Context, input Rem
 		return nil, err
 	}
 	pendingExpiresAt := time.Now().Add(defaultPendingAttachmentAssetTTL)
-	needsVideoProcessing := m.core.OnVideoProcessingRequested != nil && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
-	if err := m.core.assetLifecycle().RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, input.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
-		m.core.media().DeleteAttachmentFromStorage(ctx, attachment)
+	needsVideoProcessing := m.core.VideoUploadsEnabled && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
+	if err := m.core.assetModel.RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, input.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
+		m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment)
 		return nil, err
 	}
 	attachmentData, err := proto.Marshal(attachment)
 	if err != nil {
-		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
-		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		_ = m.core.assetModel.RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.mediaModel.DeleteAttachmentFromStorage(context.Background(), attachment)
 		return nil, fmt.Errorf("encode linked image import attachment: %w", err)
 	}
 	committedRecord, err := json.Marshal(linkedImageImportRecord{State: linkedImageImportStateCommitted, CreatedAt: time.Now(), Attachment: attachmentData})
 	if err != nil {
-		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
-		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		_ = m.core.assetModel.RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.mediaModel.DeleteAttachmentFromStorage(context.Background(), attachment)
 		return nil, fmt.Errorf("encode committed linked image import: %w", err)
 	}
 	lockRevision, err := m.acquireLinkedImageImportLock(ctx, input.ActorID)
 	if err != nil {
-		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
-		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		_ = m.core.assetModel.RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.mediaModel.DeleteAttachmentFromStorage(context.Background(), attachment)
 		return nil, err
 	}
 	defer m.releaseLinkedImageImportLock(input.ActorID, lockRevision)
 	if err := m.core.storage.runtimeStateKV.Delete(ctx, reservation.Key, jetstream.LastRevision(reservation.Revision)); err != nil {
-		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
-		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		_ = m.core.assetModel.RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.mediaModel.DeleteAttachmentFromStorage(context.Background(), attachment)
 		return nil, fmt.Errorf("replace linked image import reservation: %w", err)
 	}
 	reservationActive = false
 	if _, err := m.core.storage.runtimeStateKV.Create(ctx, reservation.Key, committedRecord, jetstream.KeyTTL(defaultPendingAttachmentAssetTTL)); err != nil {
-		_ = m.core.assetLifecycle().RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
-		_ = m.core.media().DeleteAttachmentFromStorage(context.Background(), attachment)
+		_ = m.core.assetModel.RecordAssetDeleted(context.Background(), SystemActorID, input.RoomID, attachment.GetId())
+		_ = m.core.mediaModel.DeleteAttachmentFromStorage(context.Background(), attachment)
 		return nil, fmt.Errorf("commit linked image import reservation: %w", err)
 	}
 	return attachment, nil
@@ -664,23 +664,23 @@ func (m *AssetUploadModel) cleanupOrphanUploadChunks(ctx context.Context, now ti
 }
 
 func (m *AssetUploadModel) cleanupExpiredPendingAssets(ctx context.Context, now time.Time) error {
-	claimed := make(map[string]struct{})
-	for _, owner := range m.core.assetLifecycle().MessageAssetOwners() {
-		if owner.AssetID != "" && !m.core.assetLifecycle().MessageTombstoned(owner.MessageEventID) {
-			claimed[owner.AssetID] = struct{}{}
+	attached := make(map[string]struct{})
+	for _, owner := range m.core.assetModel.MessageAssetOwners() {
+		if owner.AssetID != "" && !m.core.assetModel.MessageTombstoned(owner.MessageEventID) {
+			attached[owner.AssetID] = struct{}{}
 		}
 	}
-	for _, declared := range m.core.assetLifecycle().PendingExpiredAssets(now) {
+	for _, declared := range m.core.assetModel.PendingExpiredAssets(now) {
 		asset := declared.GetAsset()
 		if asset == nil || asset.GetId() == "" {
 			continue
 		}
-		if _, ok := claimed[asset.GetId()]; ok {
+		if _, ok := attached[asset.GetId()]; ok {
 			continue
 		}
 		roomID := declared.GetRoomId()
 		if roomID == "" {
-			if projectedRoomID, ok := m.core.assetLifecycle().AssetRoomID(asset.GetId()); ok {
+			if projectedRoomID, ok := m.core.assetModel.AssetRoomID(asset.GetId()); ok {
 				roomID = projectedRoomID
 			}
 		}
@@ -692,10 +692,14 @@ func (m *AssetUploadModel) cleanupExpiredPendingAssets(ctx context.Context, now 
 			continue
 		}
 		attachment.RoomId = roomID
-		if err := m.core.assetLifecycle().RecordAssetDeleted(ctx, SystemActorID, roomID, asset.GetId()); err != nil {
+		deleted, err := m.core.assetModel.RecordExpiredPendingAssetDeleted(ctx, roomID, asset.GetId(), now)
+		if err != nil {
 			return fmt.Errorf("record expired pending asset deletion: %w", err)
 		}
-		if err := m.core.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+		if !deleted {
+			continue
+		}
+		if err := m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 			m.core.logger.Warn("Failed to delete expired pending attachment binary", "attachment_id", asset.GetId(), "error", err)
 		}
 	}
@@ -763,7 +767,7 @@ func (m *AssetUploadModel) updateUpload(ctx context.Context, session *AssetUploa
 	if ttl <= 0 {
 		ttl = time.Second
 	}
-	if _, err := m.core.updateRuntimeStateTokenTTL(ctx, assetUploadKey(session.UploadID), value, revision, ttl); err != nil {
+	if _, err := m.core.updateRuntimeStateWithTTL(ctx, assetUploadKey(session.UploadID), value, revision, ttl); err != nil {
 		return fmt.Errorf("update upload session: %w", err)
 	}
 	return nil

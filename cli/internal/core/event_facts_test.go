@@ -46,6 +46,16 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 			visible: false,
 		},
 		{
+			name: "threading mode changed",
+			event: &corev1.Event{Event: &corev1.Event_RoomThreadingModeChanged{
+				RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
+					RoomId: "R1", ThreadingMode: corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED,
+				},
+			}},
+			roomID:  "R1",
+			visible: true,
+		},
+		{
 			name: "room member joined",
 			event: &corev1.Event{Event: &corev1.Event_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
@@ -67,7 +77,7 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 				VoiceCallStarted: &corev1.CallStartedEvent{RoomId: "R1"},
 			}},
 			roomID:  "R1",
-			visible: false,
+			visible: true,
 		},
 		{
 			name: "voice call ended",
@@ -75,7 +85,7 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 				VoiceCallEnded: &corev1.CallEndedEvent{RoomId: "R1"},
 			}},
 			roomID:  "R1",
-			visible: false,
+			visible: true,
 		},
 		{
 			name: "voice call participant joined",
@@ -130,6 +140,65 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 	}
 }
 
+func TestMessageEventSourceMessageID(t *testing.T) {
+	core := &ChattoCore{}
+	tests := []struct {
+		name  string
+		event *corev1.Event
+		want  string
+		ok    bool
+	}{
+		{
+			name: "posted message",
+			event: &corev1.Event{Id: "M1", Event: &corev1.Event_MessagePosted{
+				MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
+			}},
+			want: "M1", ok: true,
+		},
+		{
+			name: "reaction target",
+			event: &corev1.Event{Event: &corev1.Event_ReactionAdded{
+				ReactionAdded: &corev1.ReactionAddedEvent{RoomId: "R1", MessageEventId: "M2"},
+			}},
+			want: "M2", ok: true,
+		},
+		{
+			name: "pin target",
+			event: &corev1.Event{Event: &corev1.Event_MessagePinned{
+				MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M3"},
+			}},
+			want: "M3", ok: true,
+		},
+		{
+			name: "attached asset target",
+			event: &corev1.Event{Event: &corev1.Event_AssetAttached{
+				AssetAttached: &corev1.AssetAttachedEvent{RoomId: "R1", MessageEventId: "M4"},
+			}},
+			want: "M4", ok: true,
+		},
+		{
+			name: "asset creation has no message source",
+			event: &corev1.Event{Event: &corev1.Event_AssetCreated{
+				AssetCreated: &corev1.AssetCreatedEvent{RoomId: "R1"},
+			}},
+		},
+		{
+			name: "wrong room fails closed",
+			event: &corev1.Event{Event: &corev1.Event_MessagePinned{
+				MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R2", MessageEventId: "M5"},
+			}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := core.MessageEventSourceMessageID("R1", tt.event)
+			if got != tt.want || ok != tt.ok {
+				t.Fatalf("MessageEventSourceMessageID = %q, %v; want %q, %v", got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
 func TestEventFactsAssetLifecycle(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -147,6 +216,20 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			name: "created",
 			event: &corev1.Event{Event: &corev1.Event_AssetCreated{
 				AssetCreated: &corev1.AssetCreatedEvent{Asset: &corev1.AssetRecord{Id: "A1"}},
+			}},
+			assetID:     "A1",
+			lifecycle:   true,
+			liveAsset:   false,
+			liveRoomEVT: false,
+			reactions:   false,
+			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "attached",
+			event: &corev1.Event{Event: &corev1.Event_AssetAttached{
+				AssetAttached: &corev1.AssetAttachedEvent{AssetId: "A1", RoomId: "R1", MessageEventId: "M1", UserId: "U1"},
 			}},
 			assetID:     "A1",
 			lifecycle:   true,
@@ -180,7 +263,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   false,
 			liveRoomEVT: true,
 			reactions:   false,
-			threads:     false,
+			threads:     true,
 			directory:   false,
 			callState:   false,
 		},
@@ -258,6 +341,32 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveAsset:   false,
 			liveRoomEVT: true,
 			reactions:   true,
+			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "message pinned",
+			event: &corev1.Event{Event: &corev1.Event_MessagePinned{
+				MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "message unpinned",
+			event: &corev1.Event{Event: &corev1.Event_MessageUnpinned{
+				MessageUnpinned: &corev1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
 			threads:     false,
 			directory:   false,
 			callState:   false,
@@ -353,11 +462,11 @@ func TestEventFactsUserLiveEVT(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "login change is not delivered",
+			name: "login change refreshes the public user projection",
 			event: &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 				UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: "U1"},
 			}},
-			want: false,
+			want: true,
 		},
 	}
 	for _, tt := range tests {

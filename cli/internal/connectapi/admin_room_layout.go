@@ -13,16 +13,52 @@ type adminRoomLayoutService struct {
 	api *API
 }
 
+func (s *adminRoomLayoutService) GetRoom(ctx context.Context, req *connect.Request[adminv1.GetRoomRequest]) (*connect.Response[adminv1.GetRoomResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	details, err := s.api.core.GetAdminRoom(ctx, caller.UserID, req.Msg.GetRoomId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.GetRoomResponse{
+		Room:                       apiRoom(details.Room),
+		ViewerCanManageRoom:        details.CanManageRoom,
+		ViewerCanManagePermissions: details.CanManagePermissions,
+	}), nil
+}
+
+func (s *adminRoomLayoutService) GetRoomGroup(ctx context.Context, req *connect.Request[adminv1.GetRoomGroupRequest]) (*connect.Response[adminv1.GetRoomGroupResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	details, err := s.api.core.GetAdminRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.GetRoomGroupResponse{
+		Group: &adminv1.AdminRoomLayoutGroup{
+			Id:          details.Group.GetId(),
+			Name:        details.Group.GetName(),
+			Description: details.Group.GetDescription(),
+		},
+		ViewerCanManageGroup:       details.CanManageGroup,
+		ViewerCanManagePermissions: details.CanManagePermissions,
+	}), nil
+}
+
 func (s *adminRoomLayoutService) ListRoomGroups(ctx context.Context, req *connect.Request[adminv1.ListRoomGroupsRequest]) (*connect.Response[adminv1.ListRoomGroupsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	canManageRoles, err := s.api.core.CanManageRoles(ctx, caller.UserID)
+	canManageRooms, err := s.api.core.CanManageAnyRoom(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if !canManageRoles {
+	if !canManageRooms {
 		return nil, connectError(core.ErrPermissionDenied)
 	}
 
@@ -58,7 +94,7 @@ func (s *adminRoomLayoutService) UpdateRoomGroup(ctx context.Context, req *conne
 	if err != nil {
 		return nil, connectError(err)
 	}
-	roomsByID, err := s.visibleChannelRoomsByID(ctx, caller.UserID)
+	roomsByID, err := s.channelRoomsByID(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -118,7 +154,7 @@ func (s *adminRoomLayoutService) ReorderSidebarItemsInGroup(ctx context.Context,
 	if err != nil {
 		return nil, connectError(err)
 	}
-	roomsByID, err := s.visibleChannelRoomsByID(ctx, caller.UserID)
+	roomsByID, err := s.channelRoomsByID(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -183,7 +219,7 @@ func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, u
 	if err != nil {
 		return nil, err
 	}
-	roomsByID, err := s.visibleChannelRoomsByID(ctx, userID)
+	roomsByID, err := s.channelRoomsByID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -200,20 +236,14 @@ func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, u
 	return apiGroups, nil
 }
 
-func (s *adminRoomLayoutService) visibleChannelRoomsByID(ctx context.Context, userID string) (map[string]*corev1.Room, error) {
+func (s *adminRoomLayoutService) channelRoomsByID(ctx context.Context) (map[string]*corev1.Room, error) {
 	rooms, err := s.api.core.ListRooms(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}
 	roomsByID := make(map[string]*corev1.Room, len(rooms))
 	for _, room := range rooms {
-		visible, err := s.api.core.CanSeeRoom(ctx, userID, core.KindChannel, room.GetId())
-		if err != nil {
-			return nil, err
-		}
-		if visible {
-			roomsByID[room.GetId()] = room
-		}
+		roomsByID[room.GetId()] = room
 	}
 	return roomsByID, nil
 }

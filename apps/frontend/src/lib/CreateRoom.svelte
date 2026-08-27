@@ -1,35 +1,46 @@
 <script lang="ts">
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { m } from '$lib/i18n/messages';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import {
-    TextInput,
-    TextArea,
-    Checkbox,
-    Button,
-    FormError,
-    createFormState,
-    z
-  } from '$lib/ui/form';
+  import { normalizeRoomName, roomNameValidationError } from '$lib/utils/roomName';
+  import { TextInput, createFormState, z } from '$lib/ui/form';
+  import { FormDialog } from '$lib/ui';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     groupId,
+    visible = $bindable(true),
+    onclose,
     onroomcreated
   }: {
     /** The room group the new channel room is placed into. */
     groupId?: string;
+    visible?: boolean;
+    onclose?: () => void;
     onroomcreated?: (roomId: string) => void;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
+
+  const roomNameSchema = z
+    .string()
+    .refine((name) => roomNameValidationError(name) !== 'empty', m('room.create.name_required'))
+    .refine(
+      (name) => roomNameValidationError(name) !== 'too_long',
+      m('admin.rooms_admin.room_name_too_long')
+    )
+    .refine(
+      (name) => roomNameValidationError(name) !== 'invalid',
+      m('admin.rooms_admin.room_name_invalid')
+    );
 
   const schema = z.object({
-    name: z.string().trim().min(1, m['room.create.name_required']()),
-    description: z.string(),
-    isUniversal: z.boolean()
+    name: roomNameSchema
   });
 
-  const form = createFormState(schema, { name: '', description: '', isUniversal: false });
+  const form = createFormState(schema, {
+    name: ''
+  });
 
   let isLoading = $state(false);
   /** Server-side / network error from the mutations. Validation errors live on form. */
@@ -39,6 +50,16 @@
     submitError = '';
   }
 
+  function handleNameInput() {
+    form.touch('name');
+    clearSubmitError();
+  }
+
+  function handleClose() {
+    visible = false;
+    onclose?.();
+  }
+
   const handleSubmit = form.handleSubmit(async (values) => {
     isLoading = true;
     submitError = '';
@@ -46,77 +67,53 @@
     try {
       const targetGroupId = groupId;
       if (!targetGroupId) {
-        submitError = m['room.create.missing_group']();
+        submitError = m('room.create.missing_group');
         return;
       }
 
-      const conn = connection();
-      const api = createRoomCommandAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = serverScope.connection.getAPI(createRoomCommandAPI);
       const created = await api.createRoom({
-        name: values.name.trim(),
-        description: values.description.trim() || null,
+        name: normalizeRoomName(values.name),
+        description: null,
         groupId: targetGroupId,
-        universal: values.isUniversal
+        universal: false,
+        threadingMode: RoomThreadingMode.ENABLED
       });
       const roomId = created?.id;
-      if (!roomId) throw new Error(m['room.create.failed']());
+      if (!roomId) throw new Error(m('room.create.failed'));
 
       await api.joinRoom(roomId);
 
+      if (!serverScope.isCurrent()) return;
       onroomcreated?.(roomId);
     } catch (err) {
-      submitError = err instanceof Error ? err.message : m['room.create.failed']();
+      submitError = err instanceof Error ? err.message : m('room.create.failed');
     } finally {
       isLoading = false;
     }
   });
 </script>
 
-<form onsubmit={handleSubmit} class="space-y-4">
+<FormDialog
+  bind:visible
+  title={m('admin.rooms_admin.create_room')}
+  size="sm"
+  submitLabel={m('room.create.submit_and_configure')}
+  submitIcon="iconify icon-[uil--plus]"
+  submitLoadingText={m('room.create.creating')}
+  loading={isLoading}
+  disabled={!form.isValid}
+  error={submitError}
+  onsubmit={handleSubmit}
+  onclose={handleClose}
+>
   <TextInput
     id="room-name"
-    label={m['room.create.name_label']()}
+    label={m('room.create.name_label')}
     bind:value={form.values.name}
     error={form.fieldError('name')}
-    onkeydown={() => form.touch('name')}
-    oninput={clearSubmitError}
-    placeholder={m['room.create.name_placeholder']()}
+    oninput={handleNameInput}
+    placeholder={m('room.create.name_placeholder')}
     disabled={isLoading}
   />
-
-  <TextArea
-    id="room-description"
-    label={m['room.create.description_label']()}
-    bind:value={form.values.description}
-    placeholder={m['room.create.description_placeholder']()}
-    disabled={isLoading}
-    oninput={clearSubmitError}
-    rows={3}
-  />
-
-  <Checkbox
-    id="room-universal"
-    bind:checked={form.values.isUniversal}
-    disabled={isLoading}
-    onchange={clearSubmitError}
-    label={m['room.create.universal_label']()}
-    description={m['room.create.universal_description']()}
-  />
-
-  <FormError error={submitError} />
-
-  <Button
-    type="submit"
-    size="lg"
-    loading={isLoading}
-    disabled={!form.isValid}
-    loadingText={m['room.create.creating']()}
-  >
-    <span class="iconify uil--plus"></span>
-    {m['room.create.submit']()}
-  </Button>
-</form>
+</FormDialog>

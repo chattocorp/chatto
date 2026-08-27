@@ -37,8 +37,8 @@
   <div class="w-[480px] rounded-md border border-border">
     <PaneHeader title="Thread in #pico-8" onBack={() => {}} backLabel="Back to room">
       {#snippet actions()}
-        <HeaderIconButton icon="uil--bell" label="Follow thread" tone="active" />
-        <HeaderIconButton icon="uil--times" label="Close thread" />
+        <HeaderIconButton icon="icon-[uil--bell]" label="Follow thread" tone="active" />
+        <HeaderIconButton icon="icon-[uil--times]" label="Close thread" />
       {/snippet}
     </PaneHeader>
   </div>
@@ -48,9 +48,9 @@
   <div class="w-[480px] rounded-md border border-border">
     <PaneHeader title="#general" subtitle="Public · 142 members">
       {#snippet actions()}
-        <HeaderIconButton icon="uil--bell" label="Notifications" />
-        <HeaderIconButton icon="uil--sign-out-alt" label="Leave room" />
-        <HeaderIconButton icon="uil--cog" label="Room settings" />
+        <HeaderIconButton icon="icon-[uil--bell]" label="Notifications" />
+        <HeaderIconButton icon="icon-[uil--sign-out-alt]" label="Leave room" />
+        <HeaderIconButton icon="icon-[uil--cog]" label="Room settings" />
       {/snippet}
     </PaneHeader>
   </div>

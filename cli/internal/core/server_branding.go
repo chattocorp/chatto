@@ -12,7 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -84,8 +84,9 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 
 	headers := nats.Header{}
 	headers.Set("Content-Type", "image/webp")
+	objectKey := PublicServerAssetObjectKey(assetID)
 	meta := jetstream.ObjectMeta{
-		Name:    assetID,
+		Name:    objectKey,
 		Headers: headers,
 	}
 	info, err := c.storage.serverAssets.Put(ctx, meta, bytes.NewReader(webpData))
@@ -94,7 +95,7 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 	}
 	c.logger.Info("Uploaded server "+kind, "asset_id", assetID, "size", info.Size)
 	asset.Size = int64(info.Size)
-	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}}
+	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}}
 	return asset, nil
 }
 
@@ -114,7 +115,7 @@ func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset 
 // SetServerLogo / SetServerBanner. Publishes ServerUpdatedEvent on
 // success so subscribers can refetch the updated branding.
 func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind string, asset *corev1.AssetRecord) error {
-	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
+	if c.configModel == nil {
 		return fmt.Errorf("config model not configured")
 	}
 	if asset == nil {
@@ -123,7 +124,7 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 
 	var oldAsset *corev1.AssetRecord
 	changed := false
-	err := c.configManager.model.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		oldAsset = c.projectedServerBrandingAsset(kind)
 		if assetRecordsEqual(oldAsset, asset) {
 			changed = false
@@ -166,22 +167,26 @@ func (c *ChattoCore) GetServerBanner(ctx context.Context) (*corev1.AssetRecord, 
 }
 
 func (c *ChattoCore) getServerBrandingAsset(_ context.Context, kind string) (*corev1.AssetRecord, error) {
-	if c.ServerConfig == nil {
+	if c.configModel == nil {
 		return nil, nil
 	}
 	return c.projectedServerBrandingAsset(kind), nil
 }
 
 func (c *ChattoCore) projectedServerBrandingAsset(kind string) *corev1.AssetRecord {
-	if c.ServerConfig == nil {
+	return c.configModel.serverBrandingAsset(kind)
+}
+
+func (cm *ConfigModel) serverBrandingAsset(kind string) *corev1.AssetRecord {
+	if cm == nil || cm.config.Projection() == nil {
 		return nil
 	}
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
 	if kind == "logo" {
-		asset, _, _ := c.ServerConfig.ServerLogo()
-		return asset
+		return cloneAssetRecord(cm.config.Projection().server.logo)
 	}
-	asset, _, _ := c.ServerConfig.ServerBanner()
-	return asset
+	return cloneAssetRecord(cm.config.Projection().server.banner)
 }
 
 // GetServerLogoURL returns the URL for the server's logo, optionally
@@ -209,17 +214,17 @@ func (c *ChattoCore) GetServerBannerURL(ctx context.Context, width, height *int,
 // serverAssetURL builds the public URL for an server-scoped asset,
 // optionally with transform parameters.
 func (c *ChattoCore) serverAssetURL(asset *corev1.AssetRecord, width, height *int, fit string) string {
-	assetID := asset.GetId()
-	if assetID == "" {
+	assetKey := ServerAssetDeliveryKey(asset)
+	if assetKey == "" {
 		return ""
 	}
 	if width != nil && height != nil {
 		if fit == "" {
 			fit = "cover"
 		}
-		return c.GetTransformedServerAssetURL(assetID, *width, *height, fit)
+		return c.GetTransformedServerAssetURL(assetKey, *width, *height, fit)
 	}
-	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetID))
+	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetKey))
 }
 
 // DeleteServerLogo clears the server's logo pointer and object-store asset.
@@ -235,13 +240,13 @@ func (c *ChattoCore) DeleteServerBanner(ctx context.Context, actorID string) err
 }
 
 func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kind string) error {
-	if c.configManager == nil || c.configManager.model == nil || c.ServerConfig == nil {
+	if c.configModel == nil {
 		return fmt.Errorf("config model not configured")
 	}
 
 	var asset *corev1.AssetRecord
 	changed := false
-	err := c.configManager.model.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		asset = c.projectedServerBrandingAsset(kind)
 		if asset == nil {
 			changed = false
@@ -278,11 +283,9 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kin
 func (c *ChattoCore) PublishServerUpdated(ctx context.Context, actorID string) {
 	name := ""
 	description := ""
-	if cm := c.ConfigManager(); cm != nil {
-		if n, err := cm.GetEffectiveServerName(ctx); err == nil {
-			name = n
-		}
-		if cfg, err := cm.GetServerConfig(ctx); err == nil && cfg != nil {
+	if cm := c.ConfigModel(); cm != nil {
+		name = cm.GetEffectiveServerName()
+		if cfg := cm.GetServerConfig(); cfg != nil {
 			description = cfg.Description
 		}
 	}

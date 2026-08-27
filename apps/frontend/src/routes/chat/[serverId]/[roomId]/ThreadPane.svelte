@@ -1,33 +1,34 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
+  import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
-  import { createThreadAPI } from '$lib/api-client/threads';
-  import { useEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
-  import * as m from '$lib/i18n/messages';
+  import { useProjectionEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
+  import { m } from '$lib/i18n/messages';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
   import { appState } from '$lib/state/globals.svelte';
+  import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
+  import { THREAD_PANE_MAX_WIDTH, THREAD_PANE_MIN_WIDTH } from '$lib/storage/threadPaneWidth';
   import {
     getRoomMembers,
     createComposerContext,
-    MessagesStore,
     type QuoteInsertionRequest
   } from '$lib/state/room';
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
+  import { expoOutTransition } from '$lib/ui/motion';
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import TimelineEventsPane from './TimelineEventsPane.svelte';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
+  import ResizeHandle from '$lib/components/ResizeHandle.svelte';
+  import EventList from './EventList.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
+  import { ThreadFollowState } from './threadFollowState.svelte';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     roomId,
@@ -37,9 +38,13 @@
     canPostInThread = true,
     canAttach = true,
     canEchoMessage = false,
+    slowModeSeconds = 0,
+    slowModeNextPostAt = null,
+    slowModeBypassed = false,
     highlightEventId = null,
     pendingQuote = null,
     pendingReply = null,
+    threadingMode = RoomThreadingMode.ENABLED,
     onHighlightComplete,
     onQuoteConsumed,
     onReplyConsumed
@@ -51,24 +56,43 @@
     canPostInThread?: boolean;
     canAttach?: boolean;
     canEchoMessage?: boolean;
+    slowModeSeconds?: number;
+    slowModeNextPostAt?: string | null;
+    slowModeBypassed?: boolean;
     highlightEventId?: string | null;
     pendingQuote?: QuoteInsertionRequest | null;
     pendingReply?: PendingThreadReplyRequest | null;
+    threadingMode?: RoomThreadingMode;
     onHighlightComplete?: () => void;
     onQuoteConsumed?: () => void;
     onReplyConsumed?: () => void;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const connection = () => serverScope.connection;
+  const activeServerId = $derived(serverScope.serverId);
   const members = $derived(getRoomMembers());
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const stores = $derived(serverScope.store);
+  const currentUser = $derived(stores.currentUser);
 
-  const store = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
-  onDestroy(() => store.dispose());
+  const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
+
+  // Thread timelines contain decrypted history and are useful only while a
+  // pane renders them. Ref-count the stable selector so closing or switching
+  // a pane releases its store instead of retaining every thread ever opened.
+  $effect(() => {
+    const mountedStores = stores;
+    const mountedStore = store;
+    const mountedRoomId = roomId;
+    const mountedThreadRootEventId = threadRootEventId;
+    mountedStores.retainMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+    return () =>
+      mountedStores.releaseMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+  });
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
-      if (detail.roomId !== roomId) return;
+      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
       if (detail.reason === 'message-deleted') {
         store.applyLocalMessageDeletion(detail.eventId);
         return;
@@ -85,10 +109,11 @@
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
     markerWindowFromReadResult: (result, markedAtMs) =>
-      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null
+      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null,
+    getMarkerEvents: () => threadEvents,
+    getMarkerSkipActorId: () => currentUser.user?.id ?? null
   });
 
-  // Typing indicator for this thread
   const typingIndicator = createTypingIndicator(() => ({
     roomId,
     threadRootEventId,
@@ -110,8 +135,7 @@
     canPostInThread && canAttach
       ? dropZone({
           onDrop: (files) => composerApi?.addFiles(files),
-          onDragStateChange: (dragging) => (isDraggingFiles = dragging),
-          acceptedTypes: ['image/*', 'video/*', 'audio/*']
+          onDragStateChange: (dragging) => (isDraggingFiles = dragging)
         })
       : undefined
   );
@@ -131,10 +155,38 @@
     store.setThread(roomId, threadRootEventId);
   });
 
-  // Jump to a specific message when highlightEventId prop is set
+  // Load a permalink target outside the latest page before asking the
+  // virtualized timeline to scroll to it.
+  let handledHighlightKey: string | null = null;
+  let highlightRequestId = 0;
   $effect(() => {
-    if (!highlightEventId || store.isInitialLoading) return;
-    jumpState.jumpToMessage(highlightEventId);
+    const targetEventId = highlightEventId;
+    const targetThreadRootEventId = threadRootEventId;
+    if (!targetEventId) {
+      handledHighlightKey = null;
+      highlightRequestId += 1;
+      return;
+    }
+    if (store.isInitialLoading) return;
+
+    const highlightKey = `${targetThreadRootEventId}:${targetEventId}`;
+    if (handledHighlightKey === highlightKey) return;
+    handledHighlightKey = highlightKey;
+    const requestId = ++highlightRequestId;
+
+    void (async () => {
+      if (!threadEvents.some((event) => event.id === targetEventId)) {
+        await store.refreshCurrentWindow(targetEventId);
+      }
+      if (
+        requestId !== highlightRequestId ||
+        threadRootEventId !== targetThreadRootEventId ||
+        highlightEventId !== targetEventId
+      ) {
+        return;
+      }
+      await jumpState.jumpToMessage(targetEventId);
+    })();
   });
 
   $effect(() => {
@@ -168,122 +220,41 @@
   // Subscribe to server events: clear typing indicator on a thread reply,
   // forward to the store, and mark the thread as read (with explicit event
   // ID) for replies arriving from other users while the user is present.
-  useEvent((serverEvent) => {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
+  useProjectionEvent((projectionEvent) => {
+    for (const operation of projectionEvent.operations) {
+      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+      const update = operation.operation.value;
+      if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
+      if (update.event.event.value.message?.threadRootEventId !== threadRootEventId) continue;
 
-    if (
-      isMessagePostedEvent(eventData) &&
-      eventData.roomId === roomId &&
-      eventData.threadRootEventId === threadRootEventId
-    ) {
-      const actorId = serverEvent.actorId;
-      if (actorId) {
-        typingIndicator.removeTypingUser(actorId);
-      }
-
-      if (currentUser.user && actorId !== currentUser.user.id) {
-        if (appState.isPresent) {
-          void unread.markAsRead(threadRootEventId, serverEvent.id);
-        }
-      }
-    }
-
-    store.ingestServerEvent(serverEvent);
-  });
-
-  // -- Thread follow state --
-  // Subscription events (auto-follow on reply, cross-tab sync) are authoritative.
-  // If one fires for this thread before the initial query resolves we must not
-  // let the query's stale viewerIsFollowingThread clobber it. Track per-thread
-  // so that switching to a different thread starts fresh.
-  let isFollowingThread = $state(false);
-  let _followSeededForThread = '';
-  let _followSubFiredForThread = '';
-  let threadFollowRequestId = 0;
-  let isThreadFollowPending = $state(false);
-
-  function setAuthoritativeThreadFollowState(value: boolean) {
-    threadFollowRequestId += 1;
-    isThreadFollowPending = false;
-    isFollowingThread = value;
-  }
-
-  $effect(() => {
-    const threadId = threadRootEventId;
-
-    if (threadId !== _followSeededForThread) {
-      threadFollowRequestId += 1;
-      isThreadFollowPending = false;
-      // Only reset if the subscription hasn't already authoritatively set the
-      // state for this thread (auto-follow can fire before the initial query
-      // resolves).
-      if (_followSubFiredForThread !== threadId) {
-        setAuthoritativeThreadFollowState(false);
-      }
-
-      // Wait until data has loaded before reading follow state
-      if (!store.isInitialLoading) {
-        _followSeededForThread = threadId;
-        if (_followSubFiredForThread !== threadId) {
-          const rootEvent = threadEvents.find((e) => e.id === threadId);
-          if (isMessagePostedEvent(rootEvent?.event)) {
-            setAuthoritativeThreadFollowState(rootEvent.event.viewerIsFollowingThread ?? false);
-          }
-        }
+      const actorId = projectionEvent.actorId;
+      if (actorId) typingIndicator.removeTypingUser(actorId);
+      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
+        void unread.markAsRead(threadRootEventId, projectionEvent.id);
       }
     }
   });
 
-  async function toggleThreadFollow() {
-    if (isThreadFollowPending) return;
-
-    const wasFollowing = isFollowingThread;
-    const nextFollowing = !wasFollowing;
-    const requestId = ++threadFollowRequestId;
-
-    isThreadFollowPending = true;
-    isFollowingThread = nextFollowing;
-
-    try {
-      const conn = connection();
-      const api = createThreadAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
-      const input = { roomId, threadRootEventId };
-      const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
-      if (threadFollowRequestId !== requestId) return;
-      setAuthoritativeThreadFollowState(result.following);
-    } catch {
-      if (threadFollowRequestId !== requestId) return;
-      isThreadFollowPending = false;
-      isFollowingThread = wasFollowing;
+  const threadFollow = new ThreadFollowState({
+    getConnection: connection,
+    getSnapshot: () => {
+      const rootEvent = threadEvents.find((event) => event.id === threadRootEventId);
+      const following =
+        !store.isInitialLoading && isMessagePostedEvent(rootEvent?.event)
+          ? (rootEvent.event.viewerIsFollowingThread ?? false)
+          : null;
+      return { roomId, threadRootEventId, following };
     }
-  }
-
-  // Sync thread follow state from live events (auto-follow on reply, cross-tab sync).
-  $effect(() =>
-    onThreadFollowChanged((update) => {
-      if (update.threadRootEventId === threadRootEventId) {
-        setAuthoritativeThreadFollowState(update.isFollowing);
-        _followSubFiredForThread = update.threadRootEventId;
-      }
-    })
-  );
+  });
 
   async function markThreadAsRead(
     currentThreadId: string,
     upToEventId?: string
   ): Promise<MarkThreadAsReadResult | null> {
     try {
-      const conn = connection();
-      return await createReadStateAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
+      return await connection()
+        .getAPI(createReadStateAPI)
+        .markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
     } catch (err) {
       console.error('Failed to mark thread as read:', err);
       return null;
@@ -292,31 +263,44 @@
 </script>
 
 <div
-  class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+  class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
   data-testid="thread-pane"
-  transition:fly={{ x: 300, duration: 200 }}
+  style:--thread-pane-width={`${threadPaneWidth.value}px`}
+  transition:fly|global={{ x: fromInlineEndOffset(300), ...expoOutTransition() }}
   {@attach threadDropZone}
 >
+  <div class="hidden @min-[768px]:block">
+    <ResizeHandle
+      width={threadPaneWidth.value}
+      min={THREAD_PANE_MIN_WIDTH}
+      max={THREAD_PANE_MAX_WIDTH}
+      onResize={(width) => threadPaneWidth.set(width)}
+      onReset={() => threadPaneWidth.reset()}
+      edge="start"
+      label={`${m('ui.resize_handle.resize')}: ${m('room.thread.title', { room: roomName })}`}
+    />
+  </div>
   <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
-    title={m['room.thread.title']({ room: roomName })}
+    title={m('room.thread.title', { room: roomName })}
     onBack={onClose}
-    backLabel={m['room.thread.back_to_room']()}
+    backLabel={m('room.thread.back_to_room')}
   >
     {#snippet actions()}
       <HeaderIconButton
-        icon={isFollowingThread ? 'uil--bell' : 'uil--bell-slash'}
-        label={isFollowingThread ? m['room.thread.unfollow']() : m['room.thread.follow']()}
-        tone={isFollowingThread ? 'active' : 'default'}
-        onclick={toggleThreadFollow}
-        disabled={isThreadFollowPending}
+        icon={threadFollow.following ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'}
+        label={threadFollow.following ? m('room.thread.unfollow') : m('room.thread.follow')}
+        tone={threadFollow.following ? 'active' : 'default'}
+        onclick={() => void threadFollow.toggle()}
+        disabled={threadFollow.pending}
       />
-      <HeaderIconButton icon="uil--times" label={m['room.thread.close']()} onclick={onClose} />
+      <HeaderIconButton icon="icon-[uil--times]" label={m('room.thread.close')} onclick={onClose} />
     {/snippet}
   </PaneHeader>
 
-  <TimelineEventsPane
+  <EventList
     {roomId}
+    permalinkThreadRootEventId={threadRootEventId}
     messageStore={store}
     events={threadEvents}
     alwaysScrollToBottom={false}
@@ -330,12 +314,9 @@
     {updateCounter}
     enableLastEditableFinder={true}
     isLoading={store.isInitialLoading}
-    emptyMessage={m['room.thread.not_found']()}
-    unreadMarkerEventId={unread.unreadMarkerEventId}
-    unreadMarkerWindow={unread.unreadMarkerWindow}
-    unreadMarkerSkipActorId={currentUser.user?.id ?? null}
-    onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
-    onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
+    emptyMessage={m('room.thread.not_found')}
+    unreadAfterEventId={unread.unreadMarkerEventId}
+    onReachedBottom={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}
     scrollToEventId={jumpState.scrollToEventId}
@@ -344,6 +325,7 @@
       onHighlightComplete?.();
     }}
     pendingHighlightId={highlightEventId}
+    {threadingMode}
   />
   <MessageComposer
     {roomId}
@@ -352,16 +334,19 @@
     replyDisplayName={replyState.actorDisplayName || undefined}
     replyExcerpt={replyState.excerpt || undefined}
     onCancelReply={() => replyState.cancelReply()}
-    placeholder={m['room.thread.reply_placeholder']()}
+    placeholder={m('room.thread.reply_placeholder')}
     {canPost}
     {canAttach}
+    {slowModeSeconds}
+    {slowModeNextPostAt}
+    {slowModeBypassed}
     showAlsoSendToChannel={canEchoMessage}
     onEscape={onClose}
     onReady={(api: MessageComposerApi) => {
       composerApi = api;
       api.focus();
     }}
-    onTyping={() => typingIndicator?.sendTypingIndicator()}
+    onTyping={canPost ? () => typingIndicator?.sendTypingIndicator() : undefined}
     onMessageSent={(event) => {
       typingIndicator?.resetDebounce();
       if (event) {

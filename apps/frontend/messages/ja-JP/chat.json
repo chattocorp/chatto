@@ -1,0 +1,71 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "通知",
+      "subtitle": "新機能はこちら",
+      "clear_all": "すべてクリア",
+      "empty_title": "通知はありません",
+      "empty_body": "みんなも追いつきました！",
+      "time_now": "ただいま",
+      "time_minutes": "{count}分前",
+      "time_hours": "{count}時間前",
+      "time_days": "{count}d 前",
+      "unread": "未読",
+      "activity": "新しいアクティビティ",
+      "summary": {
+        "direct_message": "{actor}さんからダイレクトメッセージが届きました。",
+        "reaction": "{actor}さんが{channel}であなたのメッセージに「{emoji}」でリアクションしました。",
+        "reaction_group": "{actor}さんと他のユーザーが{channel}であなたのメッセージに「{emoji}」でリアクションしました。",
+        "reply": "{actor}さんがあなたのメッセージに返信しました。",
+        "mention": "{actor}さんがあなたをメンションしました。",
+        "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました。",
+        "new_message": "{actor}さんが新しいメッセージを投稿しました。",
+        "activity": "{actor}さんから通知が届きました。"
+      }
+    },
+    "sign_out": {
+      "title": "サインアウト",
+      "current_server": "現在のサーバー",
+      "all_servers": "すべてのサーバー",
+      "description": "選択したサーバーのみからサインアウトするか、すべてのサーバーをこのクライアントから切断します。"
+    },
+    "overview": {
+      "title": "概要"
+    },
+    "server_nav": {
+      "back_to_server": "サーバーに戻る",
+      "server_fallback": "サーバー",
+      "administration": "サーバー管理"
+    },
+    "user_menu": {
+      "profile": "ユーザープロフィール",
+      "send_message": "メッセージを送信",
+      "copy_user_id": "ユーザーIDをコピー"
+    },
+    "server_gutter": {
+      "add_server": "サーバーの追加",
+      "version": "バージョン {version}",
+      "version_unknown": "バージョン不明",
+      "unreachable": "サーバーに接続できません",
+      "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",
+      "compatibility_unknown": "このアプリはサーバーのバージョンから互換性を判断できません。"
+    },
+    "threads": {
+      "title": "私のスレッド",
+      "subtitle": "あなたがフォローしているスレッド",
+      "filter_label": "スレッドのフィルタリング",
+      "filter_all": "全て",
+      "filter_unread": "未読",
+      "empty_title": "フォローされているスレッドはありません",
+      "empty_body": "あなたがフォローしているスレッドがここに表示されます。参加しているスレッドを自動的にフォローします。",
+      "no_unread_loaded": "未読のスレッドがロードされていません",
+      "all_caught_up": "みんな追いつきました",
+      "loaded_summary": "{total} の {loaded} に従ってスレッドがロードされました。",
+      "load_more": "もっと読み込む",
+      "no_unread": "現在、未読のスレッドはありません。",
+      "message_missing": "メッセージは利用できなくなりました",
+      "in_room": "で",
+      "in_room_capitalized": "で"
+    }
+  }
+}

@@ -64,7 +64,8 @@ Result of fetching link preview metadata.
 Creates a message for the current user. The user must be a room member and
 must have message.post for room messages or message.post-in-thread for
 thread replies. Echoing a thread reply also requires message.echo and
-message.post.
+message.post. The room's Threading Mode may automatically establish a root
+thread or reject a thread placement that the mode does not allow.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/CreateMessage
@@ -80,11 +81,12 @@ Request to create a message in a room or thread.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room where the message should be created. |
 | `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
-| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. At most 10 IDs may be supplied. |
+| `attachment_asset_ids` | `repeated string` | Completed room-scoped asset IDs uploaded by the caller and not yet attached to a message. The server attaches them exclusively and atomically to this message. At most 10 IDs may be supplied. |
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
+| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -104,7 +106,10 @@ Result of creating a message.
 
 Edits a message body. Authors can edit their own messages within the edit
 window. Non-authors need message.manage and cannot change channel echo
-state.
+state. Disabled rooms reject creation of a new channel echo while allowing
+an existing echo to be removed. Room membership is also required.
+Channel-room edits require message.read or a matching thread relationship
+with message.read.interactions. DM membership authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
@@ -242,9 +247,12 @@ Result of removing a link preview from a message.
 ### GetMessage
 
 Reads one renderable message, including current body, attachment metadata,
-link preview, reactions, and thread metadata. Authentication and room
-membership are required. Returns NOT_FOUND when the event does not exist,
-is not a message, has been retracted, or belongs to a different room.
+link preview, reactions, thread metadata, and pin state. Authentication
+and room membership are required. Channel-room reads also require
+message.read or a matching thread relationship with
+message.read.interactions. DM membership authorizes DM reads. Returns
+NOT_FOUND when the event does not exist, is not a message, has been
+retracted, or belongs to a different room.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/GetMessage
@@ -277,10 +285,13 @@ Response containing one renderable message.
 
 ### BatchGetMessages
 
-Reads many renderable messages in one room. Authentication and room
-membership are required. Missing, retracted, non-message, and wrong-room
-event IDs are omitted. Results preserve first-seen request order and
-repeated event IDs are de-duplicated.
+Reads many renderable messages and their current pin state in one room.
+Authentication and room membership are required. Channel-room reads also
+require message.read or a matching thread relationship with
+message.read.interactions. DM membership authorizes DM reads. Missing,
+retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
+Results preserve first-seen request order, and repeated event IDs are
+de-duplicated.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
@@ -314,7 +325,9 @@ Response containing renderable messages.
 ### AddReaction
 
 Adds a reaction to a message. The user must be a room member and have
-message.react in the target room.
+message.react. Channel-room reactions also require message.read or a
+matching thread relationship with message.read.interactions. DM membership
+authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/AddReaction
@@ -328,7 +341,9 @@ Request to add the current user's reaction to a message.
 
 When `message_event_id` names a channel echo of a thread reply, the server
 treats it as an alias for the original thread reply and stores the reaction
-on that original event.
+on that original event. The server returns `RESOURCE_EXHAUSTED` when the
+current user already has 20 distinct emoji reactions on the canonical
+message; adding an emoji that already exists remains an idempotent success.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -354,7 +369,9 @@ Result of adding a reaction.
 ### RemoveReaction
 
 Removes a reaction from a message. The user must be a room member and have
-message.react in the target room.
+message.react. Channel-room reactions also require message.read or a
+matching thread relationship with message.read.interactions. DM membership
+authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/RemoveReaction

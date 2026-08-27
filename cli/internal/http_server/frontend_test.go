@@ -1,6 +1,8 @@
 package http_server
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -18,6 +20,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/signedurl"
 )
 
 func TestExtractImmutableETag(t *testing.T) {
@@ -149,6 +152,47 @@ func TestImmutableAssetCaching(t *testing.T) {
 	})
 }
 
+func TestImmutableFrontendAssetNeverCarriesAuthenticationCookies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	chattoCore := setupFrontendTestCoreWithLogo(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "immutable-cookie-user", "Immutable Cookie User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	sessionID, _, err := chattoCore.CreateCookieSession(ctx, user.GetId(), "password_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+
+	router := gin.New()
+	store := cookie.NewStore([]byte("test-secret-key-32-bytes-long!!"))
+	router.Use(sessions.Sessions("chatto_session", store))
+	server := &HTTPServer{
+		config: config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: "https://example.com"},
+		},
+		core:   chattoCore,
+		router: router,
+	}
+	router.Use(server.csrfMiddleware())
+	if err := server.setupFrontendRoutes(); err != nil {
+		t.Fatalf("setupFrontendRoutes: %v", err)
+	}
+
+	assetRequest := httptest.NewRequest(http.MethodGet, "/_app/immutable/entry/start.CxnbWTuF.js", nil)
+	assetRequest.AddCookie(&http.Cookie{Name: browserSessionCookieName, Value: sessionID})
+	assetResponse := httptest.NewRecorder()
+	router.ServeHTTP(assetResponse, assetRequest)
+
+	if values := assetResponse.Header().Values("Set-Cookie"); len(values) != 0 {
+		t.Fatalf("immutable asset Set-Cookie = %v, want none", values)
+	}
+	if got := assetResponse.Header().Get("Cache-Control"); got != cacheControlImmutable {
+		t.Fatalf("immutable asset Cache-Control = %q, want %q", got, cacheControlImmutable)
+	}
+}
+
 func TestServiceWorkerETag(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -191,6 +235,7 @@ func TestServiceWorkerETag(t *testing.T) {
 func TestDynamicPWAManifest(t *testing.T) {
 	staticManifest := []byte(`{
   "name": "Chatto",
+  "short_name": "Chatto",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
@@ -203,16 +248,23 @@ func TestDynamicPWAManifest(t *testing.T) {
   ]
 }`)
 
-	t.Run("keeps static manifest when no server logo is available", func(t *testing.T) {
-		got, err := dynamicPWAManifest(staticManifest, nil)
+	t.Run("uses server name without requiring a server logo", func(t *testing.T) {
+		got, err := dynamicPWAManifest(staticManifest, "Engineering", nil)
 		if err != nil {
 			t.Fatalf("dynamicPWAManifest: %v", err)
 		}
-		assert.Equal(t, string(staticManifest), string(got))
+
+		var manifest map[string]any
+		if err := json.Unmarshal(got, &manifest); err != nil {
+			t.Fatalf("unmarshal manifest: %v", err)
+		}
+		assert.Equal(t, "Engineering", manifest["name"])
+		assert.Equal(t, "Engineering", manifest["short_name"])
+		assert.Len(t, manifest["icons"], 2)
 	})
 
 	t.Run("replaces install and shortcut icons with server logo URLs", func(t *testing.T) {
-		got, err := dynamicPWAManifest(staticManifest, &pwaServerIconURLs{
+		got, err := dynamicPWAManifest(staticManifest, "Engineering", &pwaServerIconURLs{
 			Icon192: "/assets/server/logo/t/192",
 			Icon512: "/assets/server/logo/t/512",
 		})
@@ -224,6 +276,8 @@ func TestDynamicPWAManifest(t *testing.T) {
 		if err := json.Unmarshal(got, &manifest); err != nil {
 			t.Fatalf("unmarshal manifest: %v", err)
 		}
+		assert.Equal(t, "Engineering", manifest["name"])
+		assert.Equal(t, "Engineering", manifest["short_name"])
 
 		icons := manifest["icons"].([]any)
 		assert.Len(t, icons, 4)
@@ -244,7 +298,7 @@ func TestDynamicPWAManifest(t *testing.T) {
 	})
 }
 
-func TestSameOriginPWAAssetURL(t *testing.T) {
+func TestSameOriginServerAssetURL(t *testing.T) {
 	tests := []struct {
 		name string
 		url  string
@@ -269,18 +323,9 @@ func TestSameOriginPWAAssetURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, sameOriginPWAAssetURL(tt.url))
+			assert.Equal(t, tt.want, sameOriginServerAssetURL(tt.url))
 		})
 	}
-}
-
-func TestInjectAppleTouchIcon(t *testing.T) {
-	content := []byte(`<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />`)
-
-	got := injectAppleTouchIcon(content, "/assets/server/logo/t/180?a=1&b=2")
-
-	assert.Contains(t, string(got), `href="/assets/server/logo/t/180?a=1&amp;b=2"`)
-	assert.NotContains(t, string(got), defaultAppleTouchIconHref)
 }
 
 func TestClientAcceptsEncoding(t *testing.T) {
@@ -332,12 +377,147 @@ func TestClientAcceptsEncoding(t *testing.T) {
 			expected:       true,
 			encoding:       "br",
 		},
+		{
+			name:           "zero quality rejects encoding",
+			acceptEncoding: "gzip, br;q=0",
+			expected:       false,
+			encoding:       "br",
+		},
+		{
+			name:           "wildcard accepts encoding",
+			acceptEncoding: "*;q=0.5",
+			expected:       true,
+			encoding:       "br",
+		},
+		{
+			name:           "specific rejection overrides wildcard",
+			acceptEncoding: "*;q=1, br;q=0",
+			expected:       false,
+			encoding:       "br",
+		},
+		{
+			name:           "encoding names are case insensitive",
+			acceptEncoding: "GZip",
+			expected:       true,
+			encoding:       "gzip",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := clientAcceptsEncoding(tt.acceptEncoding, tt.encoding)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func gzipFrontendTestData(t *testing.T, content []byte) []byte {
+	t.Helper()
+	var compressed bytes.Buffer
+	writer := gzip.NewWriter(&compressed)
+	if _, err := writer.Write(content); err != nil {
+		t.Fatalf("write gzip test data: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close gzip test data: %v", err)
+	}
+	return compressed.Bytes()
+}
+
+func TestReadFrontendIdentityFile(t *testing.T) {
+	original := []byte("console.log('embedded');")
+	compressed := gzipFrontendTestData(t, original)
+
+	t.Run("prefers raw file when present", func(t *testing.T) {
+		clientFS := fstest.MapFS{
+			"app.js":    &fstest.MapFile{Data: original},
+			"app.js.gz": &fstest.MapFile{Data: []byte("not gzip")},
+		}
+		content, err := readFrontendIdentityFile(clientFS, "app.js")
+		assert.NoError(t, err)
+		assert.Equal(t, original, content)
+	})
+
+	t.Run("inflates gzip when raw file was omitted", func(t *testing.T) {
+		clientFS := fstest.MapFS{
+			"app.js.gz": &fstest.MapFile{Data: compressed},
+		}
+		content, err := readFrontendIdentityFile(clientFS, "app.js")
+		assert.NoError(t, err)
+		assert.Equal(t, original, content)
+		assert.True(t, frontendFileExists(clientFS, "app.js"))
+	})
+
+	t.Run("rejects corrupt gzip fallback", func(t *testing.T) {
+		clientFS := fstest.MapFS{
+			"app.js.gz": &fstest.MapFile{Data: []byte("not gzip")},
+		}
+		_, err := readFrontendIdentityFile(clientFS, "app.js")
+		assert.Error(t, err)
+	})
+
+	t.Run("reports missing file", func(t *testing.T) {
+		clientFS := fstest.MapFS{}
+		_, err := readFrontendIdentityFile(clientFS, "app.js")
+		assert.Error(t, err)
+		assert.False(t, frontendFileExists(clientFS, "app.js"))
+	})
+}
+
+func TestServeFrontendFile(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	original := []byte("console.log('embedded');")
+	brotli := []byte("brotli representation")
+	compressed := gzipFrontendTestData(t, original)
+	clientFS := fstest.MapFS{
+		"app.js.br": &fstest.MapFile{Data: brotli},
+		"app.js.gz": &fstest.MapFile{Data: compressed},
+	}
+
+	tests := []struct {
+		name           string
+		acceptEncoding string
+		wantBody       []byte
+		wantEncoding   string
+	}{
+		{
+			name:           "serves Brotli when accepted",
+			acceptEncoding: "gzip, br",
+			wantBody:       brotli,
+			wantEncoding:   "br",
+		},
+		{
+			name:           "serves gzip when accepted",
+			acceptEncoding: "gzip",
+			wantBody:       compressed,
+			wantEncoding:   "gzip",
+		},
+		{
+			name:     "inflates gzip for identity client",
+			wantBody: original,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			router.GET("/app.js", func(c *gin.Context) {
+				if err := serveFrontendFile(c, clientFS, "app.js"); err != nil {
+					c.Status(http.StatusInternalServerError)
+				}
+			})
+			req := httptest.NewRequest(http.MethodGet, "/app.js", nil)
+			if tt.acceptEncoding != "" {
+				req.Header.Set("Accept-Encoding", tt.acceptEncoding)
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, req)
+
+			assert.Equal(t, http.StatusOK, response.Code)
+			assert.Equal(t, tt.wantBody, response.Body.Bytes())
+			assert.Equal(t, tt.wantEncoding, response.Header().Get("Content-Encoding"))
+			assert.Equal(t, "Accept-Encoding", response.Header().Get("Vary"))
+			assert.Contains(t, response.Header().Get("Content-Type"), "javascript")
 		})
 	}
 }
@@ -400,31 +580,6 @@ func TestServeSPAFallback(t *testing.T) {
 		assert.NotContains(t, w.Body.String(), "OG_META_PLACEHOLDER")
 	})
 
-	t.Run("injects server logo apple touch icon when server logo exists", func(t *testing.T) {
-		mockFS := fstest.MapFS{
-			"200.html": &fstest.MapFile{
-				Data: []byte(`<!DOCTYPE html><html><head><!-- OG_META_PLACEHOLDER --><link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" /></head><body>SPA</body></html>`),
-			},
-		}
-
-		server := newTestServer()
-		server.core = setupFrontendTestCoreWithLogo(t)
-		server.core.AssetBaseURL = "https://assets.example.com"
-		router := gin.New()
-		router.GET("/test", func(c *gin.Context) {
-			server.serveSPAFallback(c, mockFS)
-		})
-
-		req := httptest.NewRequest("GET", "/test", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), `href="/assets/server/logo-asset/t/`)
-		assert.NotContains(t, w.Body.String(), "assets.example.com")
-		assert.NotContains(t, w.Body.String(), defaultAppleTouchIconHref)
-	})
-
 	t.Run("returns 500 when 200.html is missing", func(t *testing.T) {
 		// Empty filesystem - no 200.html
 		mockFS := fstest.MapFS{}
@@ -444,6 +599,78 @@ func TestServeSPAFallback(t *testing.T) {
 	})
 }
 
+func TestBrowserIconRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	newServer := func(t *testing.T, chattoCore *core.ChattoCore) *HTTPServer {
+		t.Helper()
+		server := &HTTPServer{
+			config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
+			core:   chattoCore,
+			router: gin.New(),
+		}
+		if err := server.setupFrontendRoutes(); err != nil {
+			t.Fatalf("setupFrontendRoutes: %v", err)
+		}
+		return server
+	}
+
+	t.Run("redirects to distinct same-origin server logo transforms", func(t *testing.T) {
+		chattoCore := setupFrontendTestCoreWithLogo(t)
+		chattoCore.AssetBaseURL = "https://assets.example.com"
+		server := newServer(t, chattoCore)
+
+		expectedSizes := map[string]int{
+			"/favicon":          32,
+			"/apple-touch-icon": 180,
+		}
+		locations := make(map[string]string)
+		for iconPath, expectedSize := range expectedSizes {
+			req := httptest.NewRequest(http.MethodGet, iconPath, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
+			assert.Equal(t, cacheControlNoCache, w.Header().Get("Cache-Control"))
+			location := w.Header().Get("Location")
+			assert.True(t, strings.HasPrefix(location, "/assets/server/logo-asset/t/"))
+			assert.NotContains(t, location, "assets.example.com")
+
+			signedPath := strings.TrimPrefix(location, "/assets/server/logo-asset/t/")
+			params, err := signedurl.ParseSignedTransformPath(
+				"test-signing-secret",
+				core.ServerAssetSignResource,
+				"logo-asset",
+				signedPath,
+			)
+			if err != nil {
+				t.Fatalf("parse transform for %s: %v", iconPath, err)
+			}
+			assert.Equal(t, expectedSize, params.Width)
+			assert.Equal(t, expectedSize, params.Height)
+			assert.Equal(t, "cover", params.Fit)
+			locations[iconPath] = location
+		}
+		assert.NotEqual(t, locations["/favicon"], locations["/apple-touch-icon"])
+	})
+
+	t.Run("redirects to embedded icons when no server logo exists", func(t *testing.T) {
+		server := newServer(t, nil)
+		tests := map[string]string{
+			"/favicon":          "/icons/favicon.png",
+			"/apple-touch-icon": "/icons/apple-touch-icon.png",
+		}
+		for iconPath, fallbackPath := range tests {
+			req := httptest.NewRequest(http.MethodGet, iconPath, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
+			assert.Equal(t, fallbackPath, w.Header().Get("Location"))
+		}
+	})
+}
+
 func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -459,6 +686,7 @@ func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 		},
 	}
 	chattoCore := setupFrontendTestCoreWithLogo(t)
+	setTestServerName(t, context.Background(), chattoCore, "Engineering")
 	chattoCore.AssetBaseURL = "https://assets.example.com"
 	server := &HTTPServer{
 		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
@@ -480,6 +708,8 @@ func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &manifest); err != nil {
 		t.Fatalf("unmarshal manifest: %v", err)
 	}
+	assert.Equal(t, "Engineering", manifest["name"])
+	assert.Equal(t, "Engineering", manifest["short_name"])
 	icons := manifest["icons"].([]any)
 	assert.True(t, strings.HasPrefix(icons[0].(map[string]any)["src"].(string), "/assets/server/logo-asset/t/"))
 	assert.NotContains(t, icons[0].(map[string]any)["src"], "assets.example.com")

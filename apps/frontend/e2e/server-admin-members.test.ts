@@ -8,6 +8,7 @@ import {
   type TestUser
 } from './fixtures/testUser';
 import { TIMEOUTS } from './constants';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
 import * as routes from './routes';
 
 interface TestServer {
@@ -61,7 +62,8 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
  * Logs in an existing user via HTTP endpoint.
  */
 async function loginUser(page: Page, login: string, password: string): Promise<void> {
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: { login, password }
   });
 
@@ -158,7 +160,7 @@ test.describe('Server Admin Members', () => {
       // Should see admin's login
       await expect(page.getByText(`@${admin.login}`)).toBeVisible();
 
-      // The refreshed summary should show server-admin-relevant account facts.
+      // The refreshed summary should show manage/server-relevant account facts.
       await expect(page.getByText('Space Roles')).not.toBeVisible();
       await expect(page.getByText('Roles', { exact: true })).toBeVisible();
       await expect(page.getByText('Joined')).toBeVisible();
@@ -214,8 +216,11 @@ test.describe('Server Admin Members', () => {
       // Should see Role Assignments section heading
       await expect(page.locator('h2', { hasText: 'Role Assignments' })).toBeVisible();
 
-      // Should see at least one checkbox (role assignment control)
-      await expect(page.locator('input[type="checkbox"]').first()).toBeVisible();
+      // The visible option label owns the hit area; the native checkbox remains
+      // available to assistive technology and form-state assertions.
+      const roleOption = page.locator('label:has(input[type="checkbox"])').first();
+      await expect(roleOption).toBeVisible();
+      await expect(roleOption.getByRole('checkbox')).toBeAttached();
     });
 
     test('back to members button works', async ({ serverAdminPage }) => {

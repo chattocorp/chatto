@@ -15,7 +15,8 @@ export default defineConfig({
     "/guides/community-structure": "/guides/operations/community-structure",
     "/guides/identity-login": "/guides/operations/identity-login",
     "/guides/permissions": "/guides/operations/permissions",
-    "/guides/notifications-web-push": "/guides/operations/notifications-web-push",
+    "/guides/notifications-web-push":
+      "/guides/operations/notifications-web-push",
     "/guides/privacy-erasure": "/guides/operations/privacy-erasure",
     "/guides/server-operations": "/guides/operations/server-operations",
     "/guides/backup-restore": "/guides/operations/backup-restore",
@@ -28,7 +29,8 @@ export default defineConfig({
     "/guides/video-processing": "/guides/infrastructure/video-processing",
     "/guides/voice-calls": "/guides/infrastructure/voice-calls",
     "/guides/integrating-with-chatto": "/guides/integrations/chatto-api",
-    "/guides/external-login-providers": "/guides/integrations/external-login-providers",
+    "/guides/external-login-providers":
+      "/guides/integrations/external-login-providers",
     "/guides/community-shields": "/guides/integrations/community-shields",
   },
   integrations: [
@@ -54,6 +56,7 @@ export default defineConfig({
           items: [
             "getting-started/introduction",
             "getting-started/quick-start",
+            "getting-started/message-formatting",
             "getting-started/faq",
           ],
         },
@@ -74,9 +77,12 @@ export default defineConfig({
             "guides/operations/identity-login",
             "guides/operations/permissions",
             "guides/operations/notifications-web-push",
+            "guides/operations/cross-server-connections",
             "guides/operations/security",
             "guides/operations/privacy-erasure",
             "guides/operations/server-operations",
+            "guides/operations/pinned-messages",
+            "guides/operations/search",
             "guides/operations/operator-cli",
             "guides/operations/backup-restore",
           ],
@@ -96,6 +102,8 @@ export default defineConfig({
           label: "Integrations",
           items: [
             "guides/integrations/chatto-api",
+            "guides/integrations/bot-accounts",
+            "guides/integrations/api-compatibility",
             "guides/integrations/external-login-providers",
             "guides/integrations/community-shields",
             "guides/integrations/pocket-id",
@@ -103,7 +111,12 @@ export default defineConfig({
         },
         {
           label: "Releases",
-          items: ["releases/0-4-0", "releases/0-3-0", "releases/0-2-0"],
+          items: [
+            "releases/0-5-0",
+            "releases/0-4-0",
+            "releases/0-3-0",
+            "releases/0-2-0",
+          ],
         },
         {
           label: "API Reference",
@@ -111,7 +124,10 @@ export default defineConfig({
             "reference/connectrpc-api",
             {
               label: "chatto.auth.v1",
-              items: ["reference/connectrpc-api/external-identity-auth"],
+              items: [
+                "reference/connectrpc-api/external-identity-auth",
+                "reference/connectrpc-api/push-subscription-cleanup",
+              ],
             },
             {
               label: "chatto.discovery.v1",
@@ -122,9 +138,10 @@ export default defineConfig({
               items: [
                 "reference/connectrpc-api/assets",
                 "reference/connectrpc-api/asset-uploads",
+                "reference/connectrpc-api/bots",
                 "reference/connectrpc-api/messages",
+                "reference/connectrpc-api/message-search",
                 "reference/connectrpc-api/account",
-                "reference/connectrpc-api/notification-preferences",
                 "reference/connectrpc-api/notifications",
                 "reference/connectrpc-api/push-notifications",
                 "reference/connectrpc-api/roles",
@@ -140,6 +157,8 @@ export default defineConfig({
             {
               label: "chatto.admin.v1",
               items: [
+                "reference/connectrpc-api/admin-invite-links",
+                "reference/connectrpc-api/admin-oauth-clients",
                 "reference/connectrpc-api/admin-diagnostics",
                 "reference/connectrpc-api/admin-event-log",
                 "reference/connectrpc-api/admin-permissions",

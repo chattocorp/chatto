@@ -1,7 +1,7 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
-import type { LinkPreviewInput, RoomEventView } from './renderTypes.js';
+import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { messageToRawEvent, timelineUsersForMessages } from './roomTimeline.js';
+import { messageToTimelineEvent, timelineUsersForMessages } from './roomTimeline.js';
 import { createAssetUploadAPI } from './assetUploads.js';
 
 export type MessageAPIConfig = {
@@ -19,8 +19,20 @@ export type CreateMessageInput = {
   threadRootEventId?: string | null;
   inReplyTo?: string | null;
   alsoSendToChannel?: boolean;
-  linkPreview?: LinkPreviewInput | null;
+  createThread?: boolean;
+  linkPreviewToken?: string | null;
+  onAttachmentUploadUpdate?: (update: AttachmentUploadUpdate) => void;
 };
+
+export type AttachmentUploadUpdate =
+  | {
+      file: File;
+      phase: 'uploading';
+      committedBytes: number;
+      totalBytes: number;
+    }
+  | { file: File; phase: 'uploaded' }
+  | { file: File; phase: 'failed' };
 
 export type UpdateMessageInput = {
   roomId: string;
@@ -30,12 +42,12 @@ export type UpdateMessageInput = {
 };
 
 export type CreateMessageResult = {
-  event: RoomEventView | null;
+  event: TimelineEventView | null;
 };
 
 export type UpdateMessageResult = {
   updated: boolean;
-  event: RoomEventView | null;
+  event: TimelineEventView | null;
 };
 
 export function createMessageAPI(config: MessageAPIConfig) {
@@ -56,7 +68,8 @@ export function createMessageAPI(config: MessageAPIConfig) {
             threadRootEventId: input.threadRootEventId ?? '',
             inReplyTo: input.inReplyTo ?? '',
             alsoSendToChannel: input.alsoSendToChannel ?? false,
-            linkPreviewToken: input.linkPreview?.previewToken ?? ''
+            createThread: input.createThread ?? false,
+            linkPreviewToken: input.linkPreviewToken ?? ''
           },
           { headers: headers() }
         );
@@ -64,7 +77,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
         const users = await timelineUsersForMessages(config, response.message ? [response.message] : []);
         return {
           event: response.message
-            ? (messageToRawEvent(response.message, users) as RoomEventView | null)
+            ? messageToTimelineEvent(response.message, users)
             : null
         };
       } catch (err) {
@@ -96,7 +109,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
         return {
           updated: true,
           event: response.message
-            ? (messageToRawEvent(response.message, users) as RoomEventView | null)
+            ? messageToTimelineEvent(response.message, users)
             : null
         };
       } catch (err) {
@@ -147,13 +160,33 @@ async function uploadMessageAttachments(config: MessageAPIConfig, input: CreateM
   const files = input.attachments;
   if (!files?.length) return [];
   const uploads = createAssetUploadAPI(config);
-  const assets = await Promise.all(
-    files.map((file) =>
-      uploads.uploadAttachment({
-        roomId: input.roomId,
-        file
-      })
-    )
+  const results = await Promise.allSettled(
+    files.map(async (file) => {
+      try {
+        const asset = await uploads.uploadAttachment({
+          roomId: input.roomId,
+          file,
+          onProgress: (committedBytes, totalBytes) => {
+            input.onAttachmentUploadUpdate?.({
+              file,
+              phase: 'uploading',
+              committedBytes,
+              totalBytes
+            });
+          }
+        });
+        input.onAttachmentUploadUpdate?.({ file, phase: 'uploaded' });
+        return asset;
+      } catch (error) {
+        input.onAttachmentUploadUpdate?.({ file, phase: 'failed' });
+        throw error;
+      }
+    })
   );
-  return assets.map((asset) => asset.assetId);
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed) throw failed.reason;
+  return results.map((result) => {
+    if (result.status === 'rejected') throw result.reason;
+    return result.value.assetId;
+  });
 }

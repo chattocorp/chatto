@@ -1,0 +1,53 @@
+{
+  "search": {
+    "title": "Hledat zprávy",
+    "open": "Hledat zprávy",
+    "in_room": "Hledejte v této místnosti",
+    "action": "Hledat",
+    "checking": "Kontrola dostupnosti vyhledávání...",
+    "searching": "Vyhledávání zpráv...",
+    "loading_more": "Načítání dalších výsledků...",
+    "check_again": "Zkontrolujte znovu",
+    "degraded": "Vyhledávání je k dispozici, ale některé výsledky mohou chybět.",
+    "attachments": "{count} připojeno",
+    "results": "Výsledky",
+    "query": {
+      "label": "Vyhledávací dotaz",
+      "placeholder": "Slova, fráze nebo filtry..."
+    },
+    "scope": {
+      "all_rooms": "Všechny pokoje",
+      "room": "Místnost",
+      "clear": "Prohledejte všechny místnosti"
+    },
+    "order": {
+      "label": "Pořadí výsledků",
+      "relevance": "Nejrelevantnější",
+      "newest": "Nejnovější"
+    },
+    "prompt": {
+      "title": "Najděte zprávu",
+      "description": "Prohledejte text zprávy v místnostech, které si můžete přečíst."
+    },
+    "no_results": {
+      "title": "Nebyly nalezeny žádné zprávy",
+      "description": "Vyzkoušejte různá slova nebo filtry."
+    },
+    "error": {
+      "title": "Hledání se nezdařilo",
+      "description": "Zkontrolujte svůj dotaz a zkuste to znovu."
+    },
+    "disabled": {
+      "title": "Vyhledávání je zakázáno",
+      "description": "Operátor serveru nepovolil vyhledávání zpráv."
+    },
+    "unavailable": {
+      "title": "Vyhledávání je nedostupné",
+      "description": "Poskytovatel vyhledávání nyní nemůže odpovědět."
+    },
+    "indexing": {
+      "title": "Hledání se připravuje",
+      "description": "Zprávy se indexují. Vyhledávání bude dostupné automaticky."
+    }
+  }
+}

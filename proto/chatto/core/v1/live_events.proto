@@ -38,8 +38,9 @@ message LiveEvent {
   // ID of the user or system actor that triggered this signal.
   string actor_id = 3;
 
-  reserved 10, 41;
-  reserved "config_updated", "video_processing_completed";
+  reserved 10, 24, 41, 50, 51, 70, 71;
+  reserved "config_updated", "notification_level_changed", "video_processing_completed",
+    "mention_notification", "new_direct_message_notification", "notification_created", "notification_dismissed";
 
   oneof event {
     // ----- User lifecycle / preferences -----
@@ -50,7 +51,6 @@ message LiveEvent {
     UserDeletedEvent user_deleted = 21 [deprecated = true];
     UserProfileUpdatedEvent user_profile_updated = 22;
     ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 23;
-    NotificationLevelChangedEvent notification_level_changed = 24;
     ThreadFollowChangedEvent thread_follow_changed = 25;
 
     // ----- Server membership / lifecycle -----
@@ -63,17 +63,12 @@ message LiveEvent {
     // ----- Presence -----
     PresenceChangedEvent presence_changed = 45;
 
-    // ----- Notifications -----
-    MentionNotificationEvent mention_notification = 50;
-    NewDirectMessageNotificationEvent new_direct_message_notification = 51;
-
     // ----- Voice calls -----
     CallParticipantJoinedEvent call_participant_joined = 60;
     CallParticipantLeftEvent call_participant_left = 61;
 
     // ----- Notification sync -----
-    NotificationCreatedEvent notification_created = 70;
-    NotificationDismissedEvent notification_dismissed = 71;
+    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 72;
 
     // ----- Unread indicators -----
     RoomMarkedAsReadEvent room_marked_as_read = 80;
@@ -96,19 +91,6 @@ message LiveEvent {
 // on an otherwise-healthy WebSocket. It is never persisted and never
 // travels over NATS.
 message HeartbeatEvent {}
-// NotificationLevelChangedEvent is published when a user changes their notification
-// level for the server or a specific room. User-scoped: only delivered to the user
-// who changed it.
-message NotificationLevelChangedEvent {
-  reserved 1;
-  reserved "space_id";
-  // The room whose notification level was changed (empty for server-level changes).
-  string room_id = 2;
-  // The explicitly set level.
-  NotificationLevel level = 3;
-  // The effective level after inheritance resolution.
-  NotificationLevel effective_level = 4;
-}
 
 // ============================================================================
 // SERVER LIFECYCLE EVENTS (deployment-scoped)
@@ -157,71 +139,27 @@ message PresenceChangedEvent {
 }
 
 // ============================================================================
-// NOTIFICATION EVENTS (server-scoped — KV tracks persistent state)
-// ============================================================================
-
-// Notifies a user that they were mentioned in a message.
-// Published as a server-scoped live event to the mentioned user.
-// This is a transient notification — the KV bucket tracks persistent state.
-message MentionNotificationEvent {
-  reserved 1;
-  reserved "space_id";
-
-  // Room ID where the mention occurred
-  string room_id = 2;
-
-  // User ID of the person who mentioned them (the message author)
-  string mentioned_by_user_id = 3;
-}
-
-// Notifies a user that a new message was posted in a DM conversation they're part of.
-// Published as a server-scoped live event to all participants except the sender.
-// Every DM message triggers this notification (unlike mentions which are opt-in).
-message NewDirectMessageNotificationEvent {
-  // Room ID of the DM conversation
-  string room_id = 1;
-
-  // User ID of the person who sent the message
-  string sender_id = 2;
-}
-
-// ============================================================================
 // NOTIFICATION SYNC EVENTS (server-scoped)
 // ============================================================================
 
-// Published when a new notification is created for a user.
-// Enables real-time notification updates in the UI.
-message NotificationCreatedEvent {
-  // The notification ID
-  string notification_id = 1;
-
-  reserved 2;
-  reserved "space_id";
-
-  // Navigation context (optional fields for routing)
-  string room_id = 3;
-  string event_id = 4;
-  string in_reply_to_id = 5;
-
-  // True when clients should update notification state without playing a local
-  // alert sound. Used for Do Not Disturb delivery.
-  bool silent = 6;
-}
-
-// Published when a notification is dismissed by the user.
-// Enables cross-device sync of dismissed notifications.
-message NotificationDismissedEvent {
-  // The dismissed notification ID
-  string notification_id = 1;
+// User-scoped invalidation for Notifications 2.0 authoritative replacement.
+message NotificationOccurrencesInvalidatedEvent {
+  // Legacy candidate for a one-shot local sound on a push-eligible
+  // occurrence. Consumers must still validate the candidate against the
+  // current occurrence and policy. Retained for rolling compatibility.
+  optional string alert_candidate_notification_id = 1;
+  // Candidate occurrence for one-shot in-app sound. New publishers set this
+  // for both in-app and push-notification modes. Older consumers ignore it.
+  optional string sound_candidate_notification_id = 2;
 }
 
 // ============================================================================
 // THREAD FOLLOW EVENTS (user-scoped)
 // ============================================================================
 
-// ThreadFollowChangedEvent is published when a user's thread follow state changes
-// (follow or unfollow, including auto-follow on posting). User-scoped: delivered
-// only to the user whose follow state changed, for multi-tab/multi-device sync.
+// ThreadFollowChangedEvent invalidates one user's viewer-specific thread state.
+// It is published for follow/unfollow and read-marker changes and is user-scoped
+// for multi-tab/multi-device projection convergence.
 message ThreadFollowChangedEvent {
   reserved 1;
   reserved "space_id";

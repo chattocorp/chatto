@@ -1,12 +1,12 @@
 import { Codecs, globalSlot } from './slot';
 
-export const THREAD_PANE_MIN_WIDTH = 25;
-export const THREAD_PANE_MAX_WIDTH = 75;
-const DEFAULT_WIDTH = 50; // percentage
+export const THREAD_PANE_DEFAULT_WIDTH = 420;
+export const THREAD_PANE_MIN_WIDTH = 280;
+export const THREAD_PANE_MAX_WIDTH = 720;
 
 const slot = globalSlot(
   'threadPaneWidth',
-  DEFAULT_WIDTH,
+  THREAD_PANE_DEFAULT_WIDTH,
   Codecs.number({ min: THREAD_PANE_MIN_WIDTH, max: THREAD_PANE_MAX_WIDTH })
 );
 

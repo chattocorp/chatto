@@ -1,12 +1,8 @@
-<script lang="ts" module>
-  import { UserAvatarUserViewDocument } from '$lib/render/types';
-
-  export const UserAvatarViewData = UserAvatarUserViewDocument;
-</script>
-
 <script lang="ts">
-  import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import { untrack } from 'svelte';
+  import { m } from '$lib/i18n/messages';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
@@ -14,12 +10,13 @@
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
-  type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl';
 
   const sizeClasses: Record<Size, string> = {
     xs: 'h-5 w-5',
     sm: 'h-8 w-8',
     md: 'h-10 w-10',
+    message: 'h-11 w-11',
     lg: 'h-12 w-12',
     xl: 'h-16 w-16'
   };
@@ -28,21 +25,24 @@
     xs: 'text-xs',
     sm: 'text-sm',
     md: 'text-base',
+    message: 'text-base',
     lg: 'text-lg',
     xl: 'text-xl'
   };
 
   const presenceDotColorClasses: Record<PresenceStatus, string> = {
-    [PresenceStatus.Online]: 'bg-presence-online',
-    [PresenceStatus.Away]: 'bg-presence-away',
-    [PresenceStatus.DoNotDisturb]: 'bg-presence-do-not-disturb',
-    [PresenceStatus.Offline]: 'bg-presence-offline'
+    [PresenceStatus.UNSPECIFIED]: 'bg-presence-offline',
+    [PresenceStatus.ONLINE]: 'bg-presence-online',
+    [PresenceStatus.AWAY]: 'bg-presence-away',
+    [PresenceStatus.DO_NOT_DISTURB]: 'bg-presence-do-not-disturb',
+    [PresenceStatus.OFFLINE]: 'bg-presence-offline'
   };
 
   const presenceDotSizeClasses: Record<Size, string> = {
     xs: '',
     sm: 'h-2 w-2',
     md: 'h-2.5 w-2.5',
+    message: 'h-2.5 w-2.5',
     lg: 'h-3 w-3',
     xl: 'h-3.5 w-3.5'
   };
@@ -51,6 +51,7 @@
     xs: '',
     sm: 'h-3.5 w-3.5',
     md: 'h-4 w-4',
+    message: 'h-4 w-4',
     lg: 'h-[18px] w-[18px]',
     xl: 'h-5 w-5'
   };
@@ -59,56 +60,70 @@
     xs: 'text-[10px]',
     sm: 'text-xs',
     md: 'text-sm',
+    message: 'text-sm',
     lg: 'text-base',
     xl: 'text-lg'
   };
   let {
     user,
+    serverId,
     size = 'md',
     showPresence = false,
     showStatus = false,
+    useLiveProfile = true,
     class: className = ''
   }: {
     user: AvatarUser;
+    /** Server identity for live presence. Omit when only static avatar data is rendered. */
+    serverId?: string;
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
+    /** Disable app-context profile/presence lookups for static directory renderers. */
+    useLiveProfile?: boolean;
     class?: string;
   } = $props();
 
-  const presenceCache = getPresenceCache();
-  const serverId = $derived(getActiveServer());
-
+  // Context capture is an initialization concern; callers do not switch one
+  // mounted avatar between static and live modes.
+  const liveProfileEnabled = untrack(() => useLiveProfile);
+  const presenceCache = liveProfileEnabled ? getPresenceCache() : null;
   // Guard all derived computations against null user — during tab resume/reconnect,
   // fragment data can be transiently null. An unguarded crash here poisons Svelte 5's
   // reactive graph and deadlocks the entire UI.
   const initials = $derived(user ? getAvatarInitials(user.displayName, user.login) : '');
 
   const avatarUrl = $derived(
-    user && !user.deleted ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null) : null
+    user && !user.deleted
+      ? liveProfileEnabled
+        ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null)
+        : (user.avatarUrl ?? null)
+      : null
   );
 
   // Use live presence from global cache if available, otherwise fall back to the initial value.
-  // The global cache is populated by ServerEventProvider, so all UserAvatar instances — including
+  // The global cache is populated by ServerPresenceSync, so all UserAvatar instances — including
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived.by(() => {
     if (!user || user.deleted) return undefined;
-    return presenceCache.get({ serverId, userId: user.id }, user.presenceStatus);
+    return serverId && presenceCache
+      ? presenceCache.get({ serverId, userId: user.id }, user.presenceStatus)
+      : user.presenceStatus;
   });
 
   const customStatus = $derived(
-    user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
+    user && !user.deleted
+      ? liveProfileEnabled
+        ? getLiveCustomStatus(user.id, user.customStatus)
+        : (user.customStatus ?? null)
+      : null
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
-  const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot);
+  const showBotBadge = $derived(!!user && !user.deleted && user.isBot === true);
+  const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot || showBotBadge);
   const wrapperClass = $derived(
-    [
-      sizeClasses[size],
-      'inline-grid shrink-0 rounded-full',
-      hasOverlay && 'relative',
-      className
-    ]
+    [sizeClasses[size], 'inline-grid shrink-0 rounded-full', hasOverlay && 'relative', className]
       .filter(Boolean)
       .join(' ')
   );
@@ -117,18 +132,18 @@
     [
       avatarClass,
       textSizeClasses[size],
-      'flex items-center justify-center bg-surface-200 font-semibold text-muted'
+      'flex items-center justify-center bg-surface-emphasized font-semibold text-muted ring-1 ring-inset ring-muted/15'
     ]
       .filter(Boolean)
       .join(' ')
   );
 
   const presenceLabel = $derived(
-    presence === 'ONLINE'
+    presence === PresenceStatus.ONLINE
       ? 'Online'
-      : presence === 'AWAY'
+      : presence === PresenceStatus.AWAY
         ? 'Away'
-        : presence === 'DO_NOT_DISTURB'
+        : presence === PresenceStatus.DO_NOT_DISTURB
           ? 'Do not disturb'
           : 'Offline'
   );
@@ -144,9 +159,22 @@
         class="{avatarClass} object-cover"
       />
     {:else}
-      <div class={placeholderClass} aria-label={user.login}>
+      <div class={placeholderClass} role="img" aria-label={user.login}>
         {initials}
       </div>
+    {/if}
+    {#if showBotBadge}
+      <span
+        class={[
+          size === 'xs' ? 'h-3 w-3 text-[8px]' : 'h-4 w-4 text-[11px]',
+          'pointer-events-none absolute top-0 left-0 grid -translate-x-1/4 -translate-y-1/4 place-items-center rounded-full border border-surface bg-neutral-action text-on-neutral-action shadow-sm'
+        ]}
+        data-testid="bot-badge"
+        role="img"
+        aria-label={m('settings.bots.singular')}
+      >
+        <span class="iconify icon-[uil--robot]" aria-hidden="true"></span>
+      </span>
     {/if}
     {#if showCustomStatusBadge}
       <UserCustomStatusBadge
@@ -162,6 +190,7 @@
           presenceDotShellSizeClasses[size],
           'pointer-events-none absolute right-0 bottom-0 grid translate-x-0.5 translate-y-0.5 place-items-center rounded-full border-2 border-surface bg-surface'
         ]}
+        role="img"
         aria-label={presenceLabel}
       >
         <span

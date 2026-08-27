@@ -1,12 +1,15 @@
 [tools]
 actionlint = "latest"
+"aqua:axllent/mailpit" = "1.30.6"
 buf = "latest"
-go = "1.26.2"
+go = "1.26.7"
 goreleaser = "latest"
 node = "22"
+uv = "0.11.30"
 
 [env]
 _.file = '.env'
+CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 
 # =============================================================================
 # Setup
@@ -14,7 +17,16 @@ _.file = '.env'
 
 [tasks.setup]
 description = "Set up the development environment"
-run = [{ task = "setup-cli" }, { task = "setup-frontend" }]
+run = [
+    { task = "setup-appconfig" },
+    { task = "setup-cli" },
+    { task = "setup-datacrypto" },
+    { task = "setup-events" },
+    { task = "setup-natsruntime" },
+    { task = "setup-frontend" },
+    { task = "build-api-types" },
+    { task = "build-lingua" },
+]
 
 # =============================================================================
 # Dependencies
@@ -24,6 +36,30 @@ run = [{ task = "setup-cli" }, { task = "setup-frontend" }]
 description = "Install Go dependencies"
 dir = "cli"
 run = "go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-appconfig]
+description = "Install application configuration dependencies"
+dir = "pkg/appconfig"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-datacrypto]
+description = "Install data cryptography dependencies"
+dir = "pkg/datacrypto"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-events]
+description = "Install event framework Go dependencies"
+dir = "pkg/events"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-natsruntime]
+description = "Install embedded NATS runtime Go dependencies"
+dir = "pkg/natsruntime"
+run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
 [tasks.deps-frontend]
@@ -42,6 +78,22 @@ run = { task = "deps-*" }
 description = "Set up the CLI module"
 depends = ["deps-cli", "sync-cli-legal"]
 
+[tasks.setup-appconfig]
+description = "Set up the application configuration module"
+depends = ["deps-appconfig"]
+
+[tasks.setup-datacrypto]
+description = "Set up the data cryptography module"
+depends = ["deps-datacrypto"]
+
+[tasks.setup-events]
+description = "Set up the event framework module"
+depends = ["deps-events"]
+
+[tasks.setup-natsruntime]
+description = "Set up the embedded NATS runtime module"
+depends = ["deps-natsruntime"]
+
 [tasks.setup-frontend]
 description = "Set up the frontend module"
 depends = ["deps-frontend"]
@@ -52,7 +104,7 @@ depends = ["deps-frontend"]
 
 [tasks.license-check]
 description = "Check SPDX/REUSE license metadata"
-run = "mise x uv@latest -- uvx reuse lint"
+run = "uvx --with charset-normalizer 'reuse==6.2.0' lint"
 
 # =============================================================================
 # Code Generation
@@ -74,12 +126,6 @@ description = "Generate Go emoji map from gemoji npm package"
 depends = ["setup-frontend"]
 run = "node tools/gen-emoji-map.mjs"
 
-[tasks.codegen-types]
-description = "Generate TypeScript types from Go using tygo"
-depends = ["setup-cli"]
-dir = "cli"
-run = "go tool tygo generate"
-
 [tasks.codegen]
 description = "Run all code generation tasks"
 run = { task = "codegen-*" }
@@ -87,6 +133,9 @@ run = { task = "codegen-*" }
 # =============================================================================
 # Build
 # =============================================================================
+
+# Chatto does not expose Gin's MessagePack binding. Keep the nomsgpack tag on
+# every Chatto binary build so the large, unused ugorji codec is not linked.
 
 [tasks.sync-cli-legal]
 description = "Copy root legal files into the CLI module for go:embed"
@@ -101,8 +150,14 @@ sources = ["LICENSES/AGPL-3.0-or-later.txt", "NOTICE"]
 outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/embedded/NOTICE"]
 
 [tasks.build]
-description = "Build the entire project for all architectures"
+description = "Build Chatto and its bundled frontend"
 run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
+
+[tasks.desktop-build]
+description = "Build the experimental Chatto desktop app for the host platform"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+run = "pnpm build"
 
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
@@ -111,17 +166,22 @@ dir = "packages/api-types"
 run = "pnpm build"
 sources = ["package.json", "tsconfig.json", "src/**/*"]
 
+[tasks.build-lingua]
+description = "Build the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm build"
+sources = ["package.json", "tsconfig.json", "src/**/*"]
+
 [tasks.build-frontend]
 description = "Build the frontend application"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
 run = [
     "pnpm svelte-kit sync",
     "pnpm build",
     "touch build/.mise-build-stamp",
-    "rm -rf ../../cli/internal/http_server/.client",
-    "cp -r build ../../cli/internal/http_server/.client",
-    "touch ../../cli/internal/http_server/.client/.gitkeep",
+    "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
 ]
 sources = [
     "../../.npmrc",
@@ -129,7 +189,11 @@ sources = [
     "../../pnpm-lock.yaml",
     "../../pnpm-workspace.yaml",
     "../../packages/api-types/dist/**/*",
+    "../../packages/lingua/dist/**/*",
     "package.json",
+    "messages/**/*",
+    "scripts/check-bundle-size.mjs",
+    "../../tools/prepare-embedded-frontend.sh",
     "src/**/*",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",
@@ -146,7 +210,7 @@ outputs = ["build/.mise-build-stamp", "../../cli/internal/http_server/.client/.g
 description = "Build the development CLI application for the current architecture"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go build -trimpath -tags bootstrap -o bin/chatto ."
+run = "go build -trimpath -tags 'bootstrap nomsgpack' -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto ."
 sources = [
     "go.mod",
     "go.sum",
@@ -167,7 +231,7 @@ dir = "cli"
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../apps/frontend/e2e/fixtures/bin/chatto ."
+run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap nomsgpack test_endpoints' -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
@@ -176,20 +240,40 @@ sources = [
 ]
 outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 
+[tasks.build-compatibility-server]
+description = "Build the production Chatto binary used as the current side of compatibility tests"
+depends = ["setup-cli", "build-frontend"]
+dir = "cli"
+run = "CGO_ENABLED=0 go build -trimpath -tags nomsgpack -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
+sources = [
+    "**/*.go",
+    "cmd/embedded/LICENSE",
+    "cmd/embedded/NOTICE",
+    "internal/http_server/.client/**/*",
+]
+outputs = ["../apps/frontend/e2e/fixtures/bin/chatto-current"]
+
 [tasks.storybook]
-description = "Run the Storybook design-system catalog on the workspace port"
+description = "Run the Storybook design-system catalog with Portless"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
+tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
-  CHATTO_STORYBOOK_PORT = "{{env.CHATTO_STORYBOOK_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
+  PORTLESS_PORT = "{{env.CHATTO_DEV_PROXY_PORT | default(value='42444')}}",
+  PORTLESS_HTTPS = "1",
+  PORTLESS_SYNC_HOSTS = "0",
+  CHATTO_DEV_ROUTE_SUFFIX = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}",
 }
-run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_PORT\" --no-open"
+run = '''
+exec portless "storybook.$CHATTO_DEV_ROUTE_SUFFIX" -- \
+  sh -c 'exec pnpm exec storybook dev --host "$HOST" --port "$PORT" --no-open'
+'''
 
 [tasks.dev-backend]
 description = "Build and run the local development backend"
 depends = ["setup-cli"]
 dir = "cli"
-run = "go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags 'bootstrap nomsgpack' -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto-dev . && exec ./bin/chatto-dev start"
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"
@@ -197,84 +281,260 @@ depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
 
+[tasks.desktop-dev]
+description = "Run the experimental Chatto desktop app with the latest frontend build"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+run = "pnpm dev"
+
 [tasks.dev-livekit]
 description = "Run a local LiveKit server with workspace-safe ports"
 env = {
-  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_DEV_LIVEKIT_KEYS = "devkey: devsecret",
   CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
   CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
   CHATTO_DEV_LIVEKIT_UDP_PORTS = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}",
 }
-run = "exec livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$CHATTO_DEV_LIVEKIT_KEYS\" --port \"$CHATTO_DEV_LIVEKIT_PORT\" --rtc.tcp_port \"$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT\" --udp-port \"$CHATTO_DEV_LIVEKIT_UDP_PORTS\""
+run = "exec mise x 'go:github.com/livekit/livekit-server/cmd/server@v1.13.5' -- server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$CHATTO_DEV_LIVEKIT_KEYS\" --port \"$CHATTO_DEV_LIVEKIT_PORT\" --rtc.tcp_port \"$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT\" --udp-port \"$CHATTO_DEV_LIVEKIT_UDP_PORTS\""
 
 [tasks.dev-mailpit]
 description = "Run a local Mailpit SMTP server with workspace-safe ports"
 env = {
-  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
   CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}",
 }
 run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen \"127.0.0.1:$CHATTO_DEV_MAILPIT_UI_PORT\""
 
 [tasks.dev]
-description = "Run the local backend and frontend development servers"
-depends = ["setup-cli", "build-api-types"]
+description = "Run the regular local development services with Portless"
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 env = {
-  VITE_PORT = "{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
-  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}",
-  CHATTO_WEBSERVER_URL = "{% if env.CHATTO_WEBSERVER_URL is defined and env.CHATTO_WEBSERVER_URL != '' %}{{env.CHATTO_WEBSERVER_URL}}{% else %}http://localhost:{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}{% endif %}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_NATS_EMBEDDED_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2)}}",
-  CHATTO_NATS_CLIENT_URL = "{% if env.CHATTO_NATS_CLIENT_URL is defined and env.CHATTO_NATS_CLIENT_URL != '' %}{{env.CHATTO_NATS_CLIENT_URL}}{% else %}nats://localhost:{{env.CHATTO_NATS_EMBEDDED_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2)}}{% endif %}",
-  CHATTO_METRICS_PORT = "{{env.CHATTO_METRICS_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3)}}",
-  CHATTO_EXPORTER_PORT = "{{env.CHATTO_EXPORTER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 4)}}",
-  CHATTO_LIVEKIT_URL = "{% if env.CHATTO_LIVEKIT_URL is defined and env.CHATTO_LIVEKIT_URL != '' %}{{env.CHATTO_LIVEKIT_URL}}{% else %}ws://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 5}}{% endif %}",
-  CHATTO_LIVEKIT_WEBHOOK_URL = "{% if env.CHATTO_LIVEKIT_WEBHOOK_URL is defined and env.CHATTO_LIVEKIT_WEBHOOK_URL != '' %}{{env.CHATTO_LIVEKIT_WEBHOOK_URL}}{% else %}http://localhost:{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}/webhooks/livekit{% endif %}",
-  CHATTO_SMTP_PORT = "{{env.CHATTO_SMTP_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8)}}",
+  PORTLESS_PORT = "{{env.CHATTO_DEV_PROXY_PORT | default(value='42444')}}",
+  PORTLESS_HTTPS = "1",
+  PORTLESS_SYNC_HOSTS = "0",
+  CHATTO_DEV_ROUTE_SUFFIX = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}",
 }
-run = { tasks = ["dev-backend", "dev-frontend", "dev-livekit", "dev-mailpit"] }
+run = '''
+exec tools/dev-supervisor.sh mise run --jobs 5 --output prefix \
+  dev-stack-mailpit ::: dev-stack-livekit ::: dev-stack-authling ::: \
+  dev-stack-backend ::: dev-stack-frontend
+'''
+
+[tasks.dev-stack-mailpit]
+hide = true
+tools = { node = "24", "npm:portless" = "0.15.5" }
+env = {
+  CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
+  CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 9}}",
+}
+run = '''
+set -eu
+mailpit_url=$(portless get "mailpit.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+mailpit_url=${mailpit_url/http:/https:}
+exec portless \
+  "mailpit.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$CHATTO_DEV_MAILPIT_UI_PORT" -- \
+  mailpit --smtp "127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT" \
+  --listen "127.0.0.1:$CHATTO_DEV_MAILPIT_UI_PORT" \
+  --api-cors "${mailpit_url#https://}"
+'''
+
+[tasks.dev-stack-livekit]
+hide = true
+tools = { node = "24", "npm:portless" = "0.15.5" }
+env = {
+  CHATTO_DEV_BACKEND_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_DEV_LIVEKIT_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 5}}",
+  CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 6}}",
+  CHATTO_DEV_LIVEKIT_UDP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 7}}",
+}
+run = '''
+set -eu
+livekit_config=$(printf 'port: %s\nrtc:\n  tcp_port: %s\n  udp_port: %s\n  use_external_ip: false\n  enable_loopback_candidate: true\nkeys:\n  devkey: compose-only-livekit-secret-change-me\nwebhook:\n  urls:\n    - http://localhost:%s/webhooks/livekit\n  api_key: devkey\nlogging:\n  level: info\n' "$CHATTO_DEV_LIVEKIT_PORT" "$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT" "$CHATTO_DEV_LIVEKIT_UDP_PORT" "$CHATTO_DEV_BACKEND_PORT")
+exec portless \
+  "livekit.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$CHATTO_DEV_LIVEKIT_PORT" -- \
+  mise x 'go:github.com/livekit/livekit-server/cmd/server@v1.13.5' -- \
+  server --bind 127.0.0.1 --node-ip 127.0.0.1 --config-body "$livekit_config"
+'''
+
+[tasks.dev-stack-authling]
+hide = true
+tools = { node = "24", "npm:portless" = "0.15.5" }
+env = {
+  AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
+  AUTHLING_HTTP_TRUST_PROXY_HEADERS = "true",
+  AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH = "10",
+  AUTHLING_NATS_REPLICAS = "1",
+  AUTHLING_NATS_EMBEDDED_ENABLED = "true",
+  AUTHLING_SMTP_ENABLED = "true",
+  AUTHLING_SMTP_HOST = "127.0.0.1",
+  AUTHLING_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
+  AUTHLING_SMTP_TLS = "opportunistic",
+  AUTHLING_SMTP_FROM = "authling@authling.local",
+}
+run = '''
+set -eu
+project_dir=$(pwd -P)
+workspace_slug=${CONDUCTOR_WORKSPACE_NAME:-$(basename "$project_dir")}
+chatto_url=$(portless get "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+authling_url=$(portless get "authling.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+chatto_url=${chatto_url/http:/https:}
+authling_url=${authling_url/http:/https:}
+chatto_host=${chatto_url#https://}
+chatto_host=${chatto_host%%:*}
+data_root="$project_dir/.context/dev-portless/$workspace_slug/nested/authling"
+mkdir -p "$data_root/nats"
+cd authling
+mise build
+export AUTHLING_HTTP_PUBLIC_URL="$authling_url"
+export AUTHLING_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
+export AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS="$chatto_host"
+exec portless \
+  "authling.$CHATTO_DEV_ROUTE_SUFFIX" \
+  --app-port "${AUTHLING_HTTP_BIND_ADDRESS##*:}" -- bin/authling run
+'''
+
+[tasks.dev-stack-backend]
+hide = true
+tools = { node = "24", "npm:portless" = "0.15.5" }
+env = {
+  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 4}}",
+  CHATTO_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
+  CHATTO_LOG_LEVEL = "debug",
+  CHATTO_LOG_FORMAT = "text",
+  CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET = "871a846584490a6153305533cce100b8e6f39d4184c2fb499d2ed198a9ed37a3",
+  CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET = "a3955a342ba4cb4ffb457a1177295779fbbb73f8e22cd4f68ecb9fb584afcf66",
+  CHATTO_METRICS_ENABLED = "false",
+  CHATTO_EXPORTER_ENABLED = "false",
+  CHATTO_OPERATOR_API_ENABLED = "false",
+  CHATTO_SEARCH_ENABLED = "true",
+  CHATTO_SEARCH_PROVIDER_ENABLED = "true",
+  CHATTO_SEARCH_PROVIDER_LANGUAGES = "de,en",
+  CHATTO_CORE_SECRET_KEY = "2ff88b0e8ceb09c399193d1b9339577e6b0fac883777176231e84f92aa78f794",
+  CHATTO_CORE_PROJECTION_SNAPSHOTS = "true",
+  CHATTO_CORE_ASSETS_SIGNING_SECRET = "2e5cac66f8ea81759952186886d233410c1e6e18e3048bc680792935206240e0",
+  CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE = "25MB",
+  CHATTO_CORE_ASSETS_CACHE_ENABLED = "true",
+  CHATTO_CORE_ASSETS_CACHE_TTL = "7d",
+  CHATTO_AUTH_ACCOUNT_CREATION_POLICY = "open",
+  CHATTO_AUTH_PROVIDERS_0_ID = "authling",
+  CHATTO_AUTH_PROVIDERS_0_TYPE = "oidc",
+  CHATTO_AUTH_PROVIDERS_0_LABEL = "Authling",
+  CHATTO_AUTH_PROVIDERS_0_SCOPES = "openid",
+  CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL = "false",
+  CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION = "true",
+  CHATTO_SMTP_ENABLED = "true",
+  CHATTO_SMTP_HOST = "127.0.0.1",
+  CHATTO_SMTP_TLS = "opportunistic",
+  CHATTO_SMTP_FROM = "chatto@chatto.local",
+  CHATTO_VIDEO_ENABLED = "true",
+  CHATTO_ASSET_PROCESSING_ENABLED = "true",
+  CHATTO_LIVEKIT_ENABLED = "true",
+  CHATTO_LIVEKIT_API_KEY = "devkey",
+  CHATTO_LIVEKIT_API_SECRET = "compose-only-livekit-secret-change-me",
+  CHATTO_NATS_EMBEDDED_ENABLED = "true",
+  CHATTO_NATS_EMBEDDED_AUTH_TOKEN = "a4a3102bf032b2d8ec14cf4c23fe54cb6a2054e1ad5e24aa4ada78768340e263",
+  CHATTO_BOOTSTRAP_USERS_0_LOGIN = "alice",
+  CHATTO_BOOTSTRAP_USERS_0_DISPLAY_NAME = "Alice",
+  CHATTO_BOOTSTRAP_USERS_0_EMAIL = "alice@example.com",
+  CHATTO_BOOTSTRAP_USERS_0_PASSWORD = "foobar123",
+  CHATTO_BOOTSTRAP_USERS_0_SERVER_ROLE = "owner",
+  CHATTO_BOOTSTRAP_USERS_1_LOGIN = "bob",
+  CHATTO_BOOTSTRAP_USERS_1_DISPLAY_NAME = "Bob",
+  CHATTO_BOOTSTRAP_USERS_1_EMAIL = "bob@example.com",
+  CHATTO_BOOTSTRAP_USERS_1_PASSWORD = "foobar123",
+  CHATTO_BOOTSTRAP_SERVER_NAME = "Chatto + Authling",
+}
+run = '''
+set -eu
+project_dir=$(pwd -P)
+chatto_url=$(portless get "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+authling_url=$(portless get "authling.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+livekit_url=$(portless get "livekit.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+chatto_url=${chatto_url/http:/https:}
+authling_url=${authling_url/http:/https:}
+livekit_url=${livekit_url/http:/https:}
+data_root="$project_dir/cli/data"
+mkdir -p cli/internal/http_server/.client "$data_root/nats" "$data_root/search"
+touch cli/internal/http_server/.client/.gitkeep
+cd cli
+go build -trimpath -tags 'bootstrap nomsgpack' -ldflags "-X main.Version=$CHATTO_DEVELOPMENT_VERSION" -o bin/chatto-dev .
+export CHATTO_WEBSERVER_URL="$chatto_url"
+export CHATTO_SEARCH_PROVIDER_DIRECTORY="$data_root/search"
+export CHATTO_AUTH_PROVIDERS_0_ISSUER_URL="$authling_url"
+export CHATTO_AUTH_PROVIDERS_0_CLIENT_ID="$chatto_url/oauth/client-metadata.json"
+export CHATTO_LIVEKIT_URL="${livekit_url/https:/wss:}"
+export CHATTO_LIVEKIT_WEBHOOK_URL="http://localhost:$CHATTO_WEBSERVER_PORT/webhooks/livekit"
+export CHATTO_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
+exec bin/chatto-dev start
+'''
+
+[tasks.dev-stack-frontend]
+hide = true
+tools = { node = "24", "npm:portless" = "0.15.5" }
+env = {
+  VITE_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_BACKEND_URL = "http://127.0.0.1:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+}
+run = '''
+set -eu
+cd apps/frontend
+exec portless \
+  "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$VITE_PORT" -- \
+  ./node_modules/.bin/vite dev --host 127.0.0.1
+'''
 
 [tasks.dev-docs-website]
-description = "Run the docs website development server with workspace-safe ports"
+description = "Run the docs website development server with Portless"
 depends = ["setup-frontend"]
 dir = "apps/docs-website"
-raw = true
-run = """
-workspace_port_base="${CONDUCTOR_PORT:-${PASEO_PORT:-4000}}"
-docs_website_port="${CHATTO_DOCS_WEBSITE_PORT:-$workspace_port_base}"
-
-exec pnpm astro dev --host 127.0.0.1 --port "$docs_website_port"
-"""
+tools = { node = "24", "npm:portless" = "0.15.5" }
+env = {
+  PORTLESS_PORT = "{{env.CHATTO_DEV_PROXY_PORT | default(value='42444')}}",
+  PORTLESS_HTTPS = "1",
+  PORTLESS_SYNC_HOSTS = "0",
+  CHATTO_DEV_ROUTE_SUFFIX = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}",
+}
+run = '''
+exec portless "docs.$CHATTO_DEV_ROUTE_SUFFIX" -- \
+  sh -c 'exec pnpm astro dev --host "$HOST" --port "$PORT"'
+'''
 
 [tasks.chatto]
 description = "Build and run the bundled Chatto CLI command with workspace-safe ports"
 depends = ["build-dev-cli"]
 dir = "cli"
 env = {
-  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
-  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1}}",
-  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1}}",
+  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
   CHATTO_METRICS_ENABLED = "true",
   CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
-  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2}}",
+  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
   CHATTO_METRICS_PATH = "/metrics",
   CHATTO_EXPORTER_ENABLED = "true",
   CHATTO_EXPORTER_BIND_ADDRESS = "127.0.0.1",
-  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3}}",
+  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}",
   CHATTO_EXPORTER_PATH = "/metrics",
   CHATTO_LIVEKIT_ENABLED = "true",
-  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 5}}",
+  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 5}}",
   CHATTO_LIVEKIT_API_KEY = "devkey",
   CHATTO_LIVEKIT_API_SECRET = "devsecret",
-  CHATTO_LIVEKIT_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int}}/webhooks/livekit",
+  CHATTO_LIVEKIT_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int}}/webhooks/livekit",
   CHATTO_SMTP_ENABLED = "true",
   CHATTO_SMTP_HOST = "127.0.0.1",
-  CHATTO_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8}}",
+  CHATTO_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
   CHATTO_SMTP_TLS = "opportunistic",
   CHATTO_SMTP_FROM = "chatto-dev@chatto.localhost",
 }
 run = "exec bin/chatto"
+
+[tasks.dev-compiled]
+description = "Build and run the bundled Chatto stack with LiveKit and Mailpit"
+run = { tasks = ["chatto run", "dev-livekit", "dev-mailpit"] }
 
 # =============================================================================
 # Benchmarking
@@ -304,8 +564,51 @@ run = "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionR
 description = "Run CLI tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./..."
+run = [
+    "../tools/dev-supervisor_test.sh",
+    "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
+]
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
+
+[tasks.test-appconfig]
+description = "Run application configuration tests standalone and in the repository workspace"
+depends = ["setup-appconfig"]
+dir = "pkg/appconfig"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
+[tasks.test-events]
+description = "Run event framework tests standalone and in the repository workspace"
+depends = ["setup-events"]
+dir = "pkg/events"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
+[tasks.test-datacrypto]
+description = "Run data cryptography tests standalone and in the repository workspace"
+depends = ["setup-datacrypto"]
+dir = "pkg/datacrypto"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
+[tasks.test-natsruntime]
+description = "Run embedded NATS runtime tests standalone and in the repository workspace"
+depends = ["setup-natsruntime"]
+dir = "pkg/natsruntime"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
 
 [tasks.test-cli-shutdown]
 description = "Run backend process shutdown integration tests"
@@ -316,14 +619,20 @@ sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.knip]
 description = "Find unused frontend/docs files, dependencies, and exports"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 run = "pnpm knip"
 
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
 run = ["pnpm check", "pnpm lint"]
+
+[tasks.lint-lingua]
+description = "Type-check the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm check"
 
 [tasks.lint]
 description = "Run linters"
@@ -331,9 +640,36 @@ run = [{ task = "lint-*" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
-run = "pnpm vitest --run"
+run = "pnpm test:unit:run"
+
+[tasks.test-lingua]
+description = "Test the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm test"
+
+[tasks.test-workspace]
+description = "Run all pnpm workspace package tests"
+depends = ["setup-frontend"]
+run = "pnpm test"
+
+[tasks.test-desktop]
+description = "Check and test the experimental Chatto desktop app"
+depends = ["setup-frontend"]
+dir = "apps/desktop"
+run = "pnpm check"
+
+[tasks.test-desktop-macos-capture]
+description = "Test the native macOS game-capture helper"
+dir = "apps/desktop/native/macos-capture-probe"
+run = '''
+if [ -z "${DEVELOPER_DIR:-}" ] && [ "$(xcode-select -p)" = "/Library/Developer/CommandLineTools" ] && [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+xcrun swift test
+'''
 
 [tasks.test-e2e]
 description = "Run E2E tests"
@@ -341,9 +677,30 @@ depends = ["setup-frontend", "build-e2e-server"]
 dir = "apps/frontend"
 run = "pnpm exec playwright test"
 
+[tasks.test-e2e-performance]
+description = "Run the large synthetic-server E2E performance suite"
+depends = ["setup-frontend", "build-e2e-server"]
+dir = "apps/frontend"
+run = "pnpm exec playwright test --config playwright.performance.config.ts"
+
+[tasks.compare-e2e-performance]
+description = "Compare two large-server E2E performance result files"
+depends = ["setup-frontend"]
+dir = "apps/frontend"
+run = "node scripts/compare-e2e-performance.mjs"
+
 [tasks.test]
 description = "Run all tests"
-run = [{ task = "test-cli" }, { task = "test-frontend" }, { task = "test-e2e" }]
+run = [
+    { task = "test-appconfig" },
+    { task = "test-datacrypto" },
+    { task = "test-events" },
+    { task = "test-natsruntime" },
+    { task = "test-cli" },
+    { task = "test-desktop" },
+    { task = "test-workspace" },
+    { task = "test-e2e" },
+]
 
 # =============================================================================
 # Utility
@@ -362,6 +719,8 @@ run = [
     "rm -rf cli/cmd/embedded",
     "rm -rf cli/internal/http_server/.client",
     "rm -rf apps/frontend/build",
+    "rm -rf apps/desktop/dist",
+    "rm -rf packages/lingua/dist",
 ]
 
 [tasks.reset-config]
@@ -370,6 +729,10 @@ confirm = "Are you sure you want to re-initialize chatto.toml? This will delete 
 depends = ["setup-cli"]
 dir = "cli"
 run = ["rm chatto.toml", "go run . init"]
+
+[tasks.reset]
+description = "Reset the local development environment"
+run = [{ task = "reset-data" }]
 
 [tasks.reset-data]
 description = "Reset the development environment (NATS data etc.)"
@@ -395,14 +758,18 @@ goreleaser check
 
 actionlint .github/workflows/*.yml
 
-docker/nats-wrapper_test.sh
-
-docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
-docker buildx build --check -f docker/Dockerfile.frontend.dev .
-docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
-
 tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
 trap 'rm -rf "$tmp"' EXIT
+
+docker/nats-wrapper_test.sh
+compose_example="$tmp/dockercompose"
+cp -R examples/dockercompose "$compose_example"
+cp "$compose_example/.env.example" "$compose_example/.env"
+docker compose --project-directory "$compose_example" --env-file "$compose_example/.env" -f "$compose_example/compose.yml" config --quiet
+
+docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
+docker buildx build --check -f apps/frontend/Dockerfile.storybook .
+
 context="$tmp/linux-amd64"
 mkdir -p "$context/docker"
 cp docker/Dockerfile.goreleaser "$context/Dockerfile"

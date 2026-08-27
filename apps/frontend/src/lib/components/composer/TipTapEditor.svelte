@@ -12,761 +12,57 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onUpdate` - Called with markdown content on each change
 - `onKeyDown` - Keyboard event handler; return true to prevent TipTap default
 - `onPaste` - Paste event handler; return true to prevent TipTap default
-- `onNextEnterWillSendChange` - Called when selection enters/leaves a trailing empty paragraph
-- `onRichStructureChange` - Called when the document gains/loses structural Markdown blocks
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { Editor, Extension, InputRule, mergeAttributes, type JSONContent } from '@tiptap/core';
-  import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
-  import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
-  import StarterKit from '@tiptap/starter-kit';
-  import Link from '@tiptap/extension-link';
-  import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-  import { Markdown } from '@tiptap/markdown';
-  import Placeholder from '@tiptap/extension-placeholder';
+  import { Editor } from '@tiptap/core';
+  import { Slice } from '@tiptap/pm/model';
+  import { CODE_LANGUAGE_OPTIONS, ensureCodeLanguagesLoaded } from '$lib/codeHighlighting';
+  import { m } from '$lib/i18n/messages';
+  import type {
+    ComposerEditorApi,
+    ComposerEditorProps,
+    ComposerFormattingCommand,
+    ComposerFormattingState,
+    ComposerIndentState
+  } from './editorTypes';
+  import { emptyComposerIndentState } from './editorTypes';
+  import { createComposerExtensions } from './extensions';
   import {
-    CODE_LANGUAGE_OPTIONS,
-    ensureCodeLanguagesLoaded,
-    lowlight
-  } from '$lib/codeHighlighting';
-  import * as m from '$lib/i18n/messages';
-  import type { QuoteInsertionContent, SelectedQuoteBlock } from '$lib/state/room';
-
-  const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
-  const codeFenceLineRegex = /^```([\w-]+)?$/;
-  const markdownBulletListLineRegex = /^[ \t]{0,3}[-+*]\s(.*)$/;
-  const markdownOrderedListLineRegex = /^[ \t]{0,3}(\d{1,9})[.)]\s(.*)$/;
-
-  const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
-    renderHTML({ node, HTMLAttributes }) {
-      const language = node.attrs.language || 'text';
-
-      return [
-        'pre',
-        mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
-          'data-language': language
-        }),
-        [
-          'code',
-          {
-            class: language ? this.options.languageClassPrefix + language : null
-          },
-          0
-        ]
-      ];
-    }
-  });
-
-  const ComposerLink = Link.extend({ inclusive: false });
-
-  function paragraphTextWithLineBreaks(node: ProseMirrorNode) {
-    return node.textBetween(0, node.content.size, '\n', '\n');
-  }
-
-  function isDefaultEmptyDocument(doc: ProseMirrorNode): boolean {
-    if (doc.childCount !== 1) return false;
-    const firstChild = doc.firstChild;
-    return firstChild?.type.name === 'paragraph' && firstChild.content.size === 0;
-  }
-
-  function createParagraphFromText(schema: Schema, text: string) {
-    const paragraph = schema.nodes.paragraph;
-    const hardBreak = schema.nodes.hardBreak;
-    if (!text) return paragraph.create();
-
-    const content = text.split('\n').flatMap((line, index, lines) => {
-      const nodes = [];
-      if (line) nodes.push(schema.text(line));
-      if (index < lines.length - 1 && hardBreak) nodes.push(hardBreak.create());
-      return nodes;
-    });
-
-    return paragraph.create(null, content);
-  }
-
-  function buildCodeFenceReplacement({
-    schema,
-    paragraph,
-    openLineIndex,
-    closeLineIndex,
-    appendTrailingParagraph
-  }: {
-    schema: Schema;
-    paragraph: Parameters<typeof paragraphTextWithLineBreaks>[0];
-    openLineIndex: number;
-    closeLineIndex: number | null;
-    appendTrailingParagraph: boolean;
-  }) {
-    const text = paragraphTextWithLineBreaks(paragraph);
-    const lines = text.split('\n');
-    const openingMatch = lines[openLineIndex]?.match(codeFenceLineRegex);
-    const codeBlock = schema.nodes.codeBlock;
-    if (!openingMatch || !codeBlock) return null;
-
-    const beforeText = lines.slice(0, openLineIndex).join('\n');
-    const codeText =
-      closeLineIndex === null ? '' : lines.slice(openLineIndex + 1, closeLineIndex).join('\n');
-    const afterText =
-      closeLineIndex === null
-        ? lines.slice(openLineIndex + 1).join('\n')
-        : lines.slice(closeLineIndex + 1).join('\n');
-    const language = openingMatch[1] || null;
-
-    const nodes = [];
-    const beforeNode = beforeText ? createParagraphFromText(schema, beforeText) : null;
-    if (beforeNode) nodes.push(beforeNode);
-    const codeNode = codeBlock.create(
-      language ? { language } : undefined,
-      codeText ? schema.text(codeText) : null
-    );
-    nodes.push(codeNode);
-    if (afterText) {
-      nodes.push(createParagraphFromText(schema, afterText));
-    } else if (appendTrailingParagraph) {
-      nodes.push(schema.nodes.paragraph.create());
-    }
-
-    return { nodes, codeNode, beforeNodeSize: beforeNode?.nodeSize ?? 0 };
-  }
-
-  function buildListMarkerReplacement({
-    schema,
-    paragraph,
-    markerLineIndex
-  }: {
-    schema: Schema;
-    paragraph: Parameters<typeof paragraphTextWithLineBreaks>[0];
-    markerLineIndex: number;
-  }) {
-    const text = paragraphTextWithLineBreaks(paragraph);
-    const lines = text.split('\n');
-    const markerLine = lines[markerLineIndex] ?? '';
-    const bulletMatch = markerLine.match(markdownBulletListLineRegex);
-    const orderedMatch = markerLine.match(markdownOrderedListLineRegex);
-    if (!bulletMatch && !orderedMatch) return null;
-
-    const listNodeType = bulletMatch ? schema.nodes.bulletList : schema.nodes.orderedList;
-    const listItem = schema.nodes.listItem;
-    const paragraphNode = schema.nodes.paragraph;
-    if (!listNodeType || !listItem || !paragraphNode) return null;
-
-    const itemText = bulletMatch ? (bulletMatch[1] ?? '') : (orderedMatch?.[2] ?? '');
-    const beforeText = lines.slice(0, markerLineIndex).join('\n');
-    const afterText = lines.slice(markerLineIndex + 1).join('\n');
-    const beforeNode = beforeText ? createParagraphFromText(schema, beforeText) : null;
-    const itemParagraph = itemText
-      ? paragraphNode.create(null, schema.text(itemText))
-      : paragraphNode.create();
-    const listAttrs = orderedMatch ? { start: Number.parseInt(orderedMatch[1], 10) } : undefined;
-    const listNode = listNodeType.create(listAttrs, listItem.create(null, itemParagraph));
-    const nodes = [];
-
-    if (beforeNode) nodes.push(beforeNode);
-    nodes.push(listNode);
-    if (afterText) nodes.push(createParagraphFromText(schema, afterText));
-
-    return {
-      nodes,
-      itemText,
-      listNode,
-      beforeNodeSize: beforeNode?.nodeSize ?? 0
-    };
-  }
-
-  const MarkdownLinkInputRule = Extension.create({
-    name: 'markdownLinkInputRule',
-
-    addInputRules() {
-      return [
-        new InputRule({
-          find: markdownLinkInputRegex,
-          handler: ({ state, range, match }) => {
-            const prefix = match[1] ?? '';
-            const label = match[2];
-            const href = match[3];
-            const linkType = state.schema.marks.link;
-            if (!label || !href || !linkType) return null;
-
-            const from = range.from + prefix.length;
-            const to = range.to;
-            const tr = state.tr;
-
-            tr.delete(from, to);
-            tr.insertText(label, from);
-            tr.addMark(from, from + label.length, linkType.create({ href }));
-            tr.removeStoredMark(linkType);
-          }
-        })
-      ];
-    }
-  });
-
-  const CompletedMarkdownCodeFence = Extension.create({
-    name: 'completedMarkdownCodeFence',
-
-    addProseMirrorPlugins() {
-      return [
-        new Plugin({
-          key: new PluginKey('completedMarkdownCodeFence'),
-          appendTransaction: (transactions, _oldState, newState) => {
-            if (!transactions.some((transaction) => transaction.docChanged)) return null;
-
-            let paragraphPos = 0;
-            for (let index = 0; index < newState.doc.childCount; index += 1) {
-              const paragraph = newState.doc.child(index);
-              const currentParagraphPos = paragraphPos;
-              paragraphPos += paragraph.nodeSize;
-              if (paragraph.type.name !== 'paragraph') continue;
-
-              const lines = paragraphTextWithLineBreaks(paragraph).split('\n');
-              for (let openLineIndex = 0; openLineIndex < lines.length; openLineIndex += 1) {
-                if (!codeFenceLineRegex.test(lines[openLineIndex] ?? '')) continue;
-
-                for (
-                  let closeLineIndex = openLineIndex + 1;
-                  closeLineIndex < lines.length;
-                  closeLineIndex += 1
-                ) {
-                  if (lines[closeLineIndex] !== '```') continue;
-
-                  const appendTrailingParagraph =
-                    currentParagraphPos + paragraph.nodeSize === newState.doc.content.size &&
-                    closeLineIndex === lines.length - 1;
-                  const replacement = buildCodeFenceReplacement({
-                    schema: newState.schema,
-                    paragraph,
-                    openLineIndex,
-                    closeLineIndex,
-                    appendTrailingParagraph
-                  });
-                  if (!replacement) return null;
-
-                  const tr = newState.tr.replaceWith(
-                    currentParagraphPos,
-                    currentParagraphPos + paragraph.nodeSize,
-                    replacement.nodes
-                  );
-                  const codeEnd =
-                    currentParagraphPos +
-                    replacement.beforeNodeSize +
-                    replacement.codeNode.nodeSize;
-                  tr.setSelection(TextSelection.near(tr.doc.resolve(codeEnd + 1), 1));
-                  return tr;
-                }
-              }
-            }
-
-            return null;
-          }
-        })
-      ];
-    }
-  });
-
-  const MarkdownListMarkerAfterHardBreak = Extension.create({
-    name: 'markdownListMarkerAfterHardBreak',
-
-    addProseMirrorPlugins() {
-      return [
-        new Plugin({
-          key: new PluginKey('markdownListMarkerAfterHardBreak'),
-          appendTransaction: (transactions, _oldState, newState) => {
-            if (!transactions.some((transaction) => transaction.docChanged)) return null;
-
-            const selectionFrom = newState.selection.$from;
-            if (selectionFrom.depth !== 1 || selectionFrom.parent.type.name !== 'paragraph') {
-              return null;
-            }
-
-            const paragraph = selectionFrom.parent;
-            const paragraphPos = selectionFrom.before(1);
-            const textBeforeCursor = paragraph.textBetween(
-              0,
-              selectionFrom.parentOffset,
-              '\n',
-              '\n'
-            );
-            const currentLineIndex = textBeforeCursor.split('\n').length - 1;
-            const currentLine = textBeforeCursor.split('\n').at(-1) ?? '';
-
-            if (
-              !markdownBulletListLineRegex.test(currentLine) &&
-              !markdownOrderedListLineRegex.test(currentLine)
-            ) {
-              return null;
-            }
-
-            const replacement = buildListMarkerReplacement({
-              schema: newState.schema,
-              paragraph,
-              markerLineIndex: currentLineIndex
-            });
-            if (!replacement) return null;
-
-            const listPosition = paragraphPos + replacement.beforeNodeSize;
-            const selectionPosition = listPosition + 3 + replacement.itemText.length;
-            const tr = newState.tr.replaceWith(
-              paragraphPos,
-              paragraphPos + paragraph.nodeSize,
-              replacement.nodes
-            );
-            tr.setSelection(TextSelection.create(tr.doc, selectionPosition));
-            return tr;
-          }
-        })
-      ];
-    }
-  });
-
-  const TrailingParagraphAfterCodeBlock = Extension.create({
-    name: 'trailingParagraphAfterCodeBlock',
-
-    addProseMirrorPlugins() {
-      return [
-        new Plugin({
-          key: new PluginKey('trailingParagraphAfterCodeBlock'),
-          appendTransaction: (_transactions, _oldState, newState) => {
-            const paragraph = newState.schema.nodes.paragraph;
-            const lastChild = newState.doc.lastChild;
-            if (!paragraph || !lastChild || lastChild.type.name !== 'codeBlock') return null;
-
-            return newState.tr.insert(newState.doc.content.size, paragraph.create());
-          }
-        })
-      ];
-    }
-  });
-
-  const ClearMarksOnEmptyDocument = Extension.create({
-    name: 'clearMarksOnEmptyDocument',
-
-    addProseMirrorPlugins() {
-      return [
-        new Plugin({
-          key: new PluginKey('clearMarksOnEmptyDocument'),
-          appendTransaction: (transactions, _oldState, newState) => {
-            if (!transactions.some((transaction) => transaction.docChanged)) return null;
-            if (!isDefaultEmptyDocument(newState.doc)) return null;
-            if ((newState.storedMarks?.length ?? 0) === 0) return null;
-
-            return newState.tr.setStoredMarks([]);
-          }
-        })
-      ];
-    }
-  });
-
-  function encodeMarkdownTextHtml(text: string): string {
-    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  }
-
-  function decodeSerializedTextEntities(text: string): string {
-    return text
-      .split(/(\n)/)
-      .map((part) => {
-        if (part === '\n') return part;
-
-        const leadingBlockquoteMarker = part.match(/^( {0,3})&gt;(?=\s|$)/);
-        const protectedPart = leadingBlockquoteMarker
-          ? `${leadingBlockquoteMarker[1]}__CHATTO_LITERAL_BLOCKQUOTE_MARKER__${part.slice(leadingBlockquoteMarker[0].length)}`
-          : part;
-
-        return protectedPart
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&amp;/g, '&')
-          .replace('__CHATTO_LITERAL_BLOCKQUOTE_MARKER__', '&gt;');
-      })
-      .join('');
-  }
-
-  function transformOutsideMarkdownLinkDestinations(
-    text: string,
-    transformText: (text: string) => string
-  ): string {
-    let result = '';
-    let index = 0;
-    let textStart = 0;
-    const bracketStack: number[] = [];
-
-    while (index < text.length) {
-      const char = text[index];
-      if (char === '\\') {
-        index += 2;
-        continue;
-      }
-
-      if (char === '[') {
-        bracketStack.push(index);
-        index += 1;
-        continue;
-      }
-
-      if (char !== ']' || text[index + 1] !== '(' || bracketStack.length === 0) {
-        index += 1;
-        continue;
-      }
-
-      bracketStack.pop();
-      const destinationStart = index;
-      const destinationContentStart = destinationStart + 2;
-      let destinationEnd = destinationContentStart;
-      let nestedParens = 0;
-      while (destinationEnd < text.length) {
-        const char = text[destinationEnd];
-        if (char === '\\') {
-          destinationEnd += 2;
-          continue;
-        }
-        if (char === '(') {
-          nestedParens += 1;
-        } else if (char === ')') {
-          if (nestedParens === 0) break;
-          nestedParens -= 1;
-        }
-        destinationEnd += 1;
-      }
-
-      if (destinationEnd >= text.length) {
-        result += transformOutsideMarkdownAutolinks(text.slice(textStart), transformText);
-        return result;
-      }
-
-      result += transformOutsideMarkdownAutolinks(
-        text.slice(textStart, destinationContentStart),
-        transformText
-      );
-      result += text.slice(destinationContentStart, destinationEnd + 1);
-      index = destinationEnd + 1;
-      textStart = index;
-    }
-
-    result += transformOutsideMarkdownAutolinks(text.slice(textStart), transformText);
-    return result;
-  }
-
-  function transformOutsideMarkdownAutolinks(
-    text: string,
-    transformText: (text: string) => string
-  ): string {
-    let result = '';
-    let index = 0;
-    const autolinkPattern = /<https?:\/\/[^\s<>]+>/gi;
-
-    for (const match of text.matchAll(autolinkPattern)) {
-      result += transformText(text.slice(index, match.index));
-      result += match[0];
-      index = match.index + match[0].length;
-    }
-
-    result += transformText(text.slice(index));
-    return result;
-  }
-
-  type MarkdownTransformOptions = {
-    skipLinkDestinations?: boolean;
-    preserveInlineCode?: boolean;
-  };
-
-  function transformMarkdownTextSegment(
-    text: string,
-    transformText: (text: string) => string,
-    { skipLinkDestinations = false }: MarkdownTransformOptions = {}
-  ): string {
-    return skipLinkDestinations
-      ? transformOutsideMarkdownLinkDestinations(text, transformText)
-      : transformText(text);
-  }
-
-  function transformOutsideInlineCode(
-    line: string,
-    transformText: (text: string) => string,
-    options: MarkdownTransformOptions = {}
-  ): string {
-    let result = '';
-    let index = 0;
-
-    while (index < line.length) {
-      const codeStart = line.indexOf('`', index);
-      if (codeStart === -1) {
-        result += transformMarkdownTextSegment(line.slice(index), transformText, options);
-        break;
-      }
-
-      result += transformMarkdownTextSegment(line.slice(index, codeStart), transformText, options);
-
-      let delimiterEnd = codeStart + 1;
-      while (line[delimiterEnd] === '`') delimiterEnd += 1;
-
-      const delimiter = line.slice(codeStart, delimiterEnd);
-      const codeEnd = line.indexOf(delimiter, delimiterEnd);
-      if (codeEnd === -1) {
-        result += transformMarkdownTextSegment(line.slice(codeStart), transformText, options);
-        break;
-      }
-
-      result += line.slice(codeStart, codeEnd + delimiter.length);
-      index = codeEnd + delimiter.length;
-    }
-
-    return result;
-  }
-
-  function transformMarkdownOutsideCode(
-    markdown: string,
-    transformText: (text: string) => string,
-    options: MarkdownTransformOptions = {}
-  ): string {
-    const lines = markdown.match(/[^\n]*(?:\n|$)/g) ?? [];
-    if (lines[lines.length - 1] === '') {
-      lines.pop();
-    }
-
-    let result = '';
-    let pendingText = '';
-    let inFence = false;
-    let fenceChar = '';
-    let fenceLength = 0;
-    let canStartIndentedCode = true;
-
-    const flushPendingText = () => {
-      if (!pendingText) return;
-      result +=
-        options.preserveInlineCode === false
-          ? transformMarkdownTextSegment(pendingText, transformText, options)
-          : transformOutsideInlineCode(pendingText, transformText, options);
-      pendingText = '';
-    };
-
-    for (const lineWithBreak of lines) {
-      const hasLineBreak = lineWithBreak.endsWith('\n');
-      const line = hasLineBreak ? lineWithBreak.slice(0, -1) : lineWithBreak;
-      const blockquoteContent = line.replace(/^(?: {0,3}> ?)+/, '');
-
-      if (/^ *$/.test(blockquoteContent)) {
-        if (inFence) {
-          result += lineWithBreak;
-        } else {
-          pendingText += lineWithBreak;
-        }
-        canStartIndentedCode = true;
-        continue;
-      }
-
-      const fence = blockquoteContent.match(/^ {0,3}(`{3,}|~{3,})/);
-      if (fence) {
-        flushPendingText();
-        const marker = fence[1];
-        if (!inFence) {
-          inFence = true;
-          fenceChar = marker[0];
-          fenceLength = marker.length;
-        } else if (
-          marker[0] === fenceChar &&
-          marker.length >= fenceLength &&
-          new RegExp(`^ {0,3}\\${fenceChar}{${fenceLength},} *$`).test(blockquoteContent)
-        ) {
-          inFence = false;
-          fenceChar = '';
-          fenceLength = 0;
-        }
-
-        result += lineWithBreak;
-        canStartIndentedCode = true;
-        continue;
-      }
-
-      if (inFence) {
-        result += lineWithBreak;
-        continue;
-      }
-
-      if (canStartIndentedCode && /^( {4,}|\t)/.test(blockquoteContent)) {
-        flushPendingText();
-        result += lineWithBreak;
-        continue;
-      }
-
-      pendingText += lineWithBreak;
-      canStartIndentedCode = false;
-    }
-
-    flushPendingText();
-    return result;
-  }
-
-  function escapeMarkdownHtml(markdown: string): string {
-    return transformMarkdownOutsideCode(markdown, encodeMarkdownTextHtml, {
-      skipLinkDestinations: true
-    });
-  }
-
-  function decodeSerializedMarkdownText(markdown: string): string {
-    return transformMarkdownOutsideCode(markdown, decodeSerializedTextEntities);
-  }
-
-  function hasTrailingEmptyParagraph(e: Editor): boolean {
-    if (e.state.doc.childCount <= 1) return false;
-    const lastChild = e.state.doc.lastChild;
-    return lastChild?.type.name === 'paragraph' && lastChild.content.size === 0;
-  }
-
-  function trimSerializedTrailingEmptyParagraph(markdown: string, e: Editor): string {
-    if (!hasTrailingEmptyParagraph(e)) return markdown;
-    return markdown.replace(/(?:\n\n(?:&nbsp;|\u00a0))+$/, '');
-  }
-
-  function normalizeSerializedHardBreaksBeforeLists(markdown: string): string {
-    return markdown.replace(/ {2,}(\n\s*\n\s*(?:[-+*]|\d{1,9}[.)])\s)/g, '$1');
-  }
-
-  function encodeSerializedHeadingClosingHashes(markdown: string): string {
-    return transformMarkdownOutsideCode(
-      markdown,
-      (text) =>
-        text.replace(
-          /(^|\n)((?:[ \t]{0,3}>[ \t]?)*[ \t]{0,3}#{1,6}[ \t]+[^\n]*?)([ \t]+)(#{1,})([ \t]*)(?=\n|$)/g,
-          (_match, lineStart, headingStart, separator, hashes, trailingWhitespace) =>
-            `${lineStart}${headingStart}${separator}${hashes.replace(/#/g, '&#35;')}${trailingWhitespace}`
-        ),
-      { preserveInlineCode: false }
-    );
-  }
-
-  function getSerializedMarkdown(e: Editor): string {
-    return normalizeSerializedHardBreaksBeforeLists(
-      encodeSerializedHeadingClosingHashes(
-        trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
-      )
-    );
-  }
-
-  function hasDefaultEmptyDocument(e: Editor): boolean {
-    return isDefaultEmptyDocument(e.state.doc);
-  }
-
-  function isSelectionInTrailingEmptyParagraph(e: Editor): boolean {
-    const { doc, selection } = e.state;
-    if (!selection.empty || doc.childCount <= 1) return false;
-
-    const selectionFrom = selection.$from;
-    if (selectionFrom.depth !== 1 || selectionFrom.parent.type.name !== 'paragraph') return false;
-    if (selectionFrom.parent.content.size !== 0 || selectionFrom.parentOffset !== 0) return false;
-    if (selectionFrom.after(1) !== doc.content.size) return false;
-
-    const previousNode = doc.child(doc.childCount - 2);
-    return previousNode.type.name !== 'paragraph' || previousNode.content.size > 0;
-  }
-
-  function hasRichStructure(e: Editor): boolean {
-    let found = false;
-    e.state.doc.descendants((node) => {
-      if (
-        ['heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock'].includes(node.type.name)
-      ) {
-        found = true;
-        return false;
-      }
-      return true;
-    });
-    return found;
-  }
-
-  function quoteParagraphsForText(text: string): JSONContent[] {
-    return text
-      .replace(/\r\n?/g, '\n')
-      .split('\n')
-      .map((line) => ({
-        type: 'paragraph',
-        content: line ? [{ type: 'text', text: line }] : undefined
-      }));
-  }
-
-  function normalizeQuoteInsertionContent(text: QuoteInsertionContent): SelectedQuoteBlock[] {
-    if (typeof text !== 'string') {
-      return text
-        .map((block) => ({
-          quoteDepth: Math.max(0, Math.floor(block.quoteDepth)),
-          text: block.text.replace(/\r\n?/g, '\n').trim()
-        }))
-        .filter((block) => block.text.length > 0);
-    }
-
-    const normalized = text.replace(/\r\n?/g, '\n').trim();
-    if (!normalized) return [];
-    return normalized.split('\n').map((line) => ({ quoteDepth: 0, text: line }));
-  }
-
-  function buildQuoteContent(blocks: SelectedQuoteBlock[]): JSONContent[] {
-    const content: JSONContent[] = [];
-
-    for (const block of blocks) {
-      let target = content;
-
-      for (let depth = 0; depth < block.quoteDepth; depth++) {
-        let current = target.at(-1);
-        if (current?.type !== 'blockquote') {
-          current = { type: 'blockquote', content: [] };
-          target.push(current);
-        }
-        current.content ??= [];
-        target = current.content;
-      }
-
-      target.push(...quoteParagraphsForText(block.text));
-    }
-
-    return content;
-  }
-
-  export type TipTapEditorApi = {
-    /** Get the editor's plain text content */
-    getText: () => string;
-    /** Set editor content from markdown */
-    setContent: (markdown: string) => void;
-    /** Focus the editor */
-    focus: (position?: 'start' | 'end') => void;
-    /** Get plain text from document start to cursor position */
-    getTextBeforeCursor: () => string;
-    /** Whether the current selection is inside a code block */
-    isInCodeBlock: () => boolean;
-    /**
-     * Replace N characters before the cursor with new text.
-     * Used for mention/emoji completion where we know the pattern
-     * length relative to the cursor.
-     */
-    replaceTextBeforeCursor: (charCount: number, replacement: string) => void;
-    /** Insert selected reply text as a blockquote at the current cursor. */
-    insertQuote: (text: QuoteInsertionContent) => void;
-    /** Insert the same block break the editor would create for a plain Enter key. */
-    insertBlockBreak: () => void;
+    applyDestinationMarks,
+    buildQuoteContent,
+    createClipboardContent,
+    getSerializedMarkdown,
+    hasDefaultEmptyDocument,
+    prepareMarkdownForEditor
+  } from './markdown';
+  import { normalizeQuoteInsertionContent } from './quotes';
+
+  const emptyFormattingState: ComposerFormattingState = {
+    bold: false,
+    italic: false,
+    inlineCode: false,
+    heading: false,
+    bulletList: false,
+    orderedList: false,
+    blockquote: false,
+    codeBlock: false
   };
 
   let {
-    placeholder = m['composer.placeholder'](),
+    placeholder = m('composer.placeholder'),
     editable = true,
     autofocus = false,
     testid,
     onUpdate,
     onKeyDown,
     onPaste,
-    onNextEnterWillSendChange,
-    onRichStructureChange,
-    onReady
-  }: {
-    placeholder?: string;
-    editable?: boolean;
-    autofocus?: boolean;
-    testid?: string;
-    onUpdate?: (text: string) => void;
-    onKeyDown?: (event: KeyboardEvent) => boolean;
-    onPaste?: (event: ClipboardEvent) => boolean;
-    onNextEnterWillSendChange?: (value: boolean) => void;
-    onRichStructureChange?: (value: boolean) => void;
-    onReady?: (api: TipTapEditorApi) => void;
-  } = $props();
+    onFormattingStateChange,
+    onIndentStateChange,
+    onReady,
+    onDestroy
+  }: ComposerEditorProps = $props();
 
   let editorElement = $state<HTMLDivElement>();
   let editorFrameElement = $state<HTMLDivElement>();
@@ -778,8 +74,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let linkHrefDraft = $state('');
   let linkDraftInitializedFor = $state<string | null>(null);
   let codeLanguageLoadToken = 0;
-  let lastNextEnterWillSend = false;
-  let lastRichStructure = false;
+  let replayingEnter = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   let activeCodeBlockLanguageLabel = $derived(
@@ -855,21 +150,32 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     };
   }
 
-  function updateNextEnterWillSend(e: Editor) {
-    const value = !e.isDestroyed && isSelectionInTrailingEmptyParagraph(e);
-    if (value === lastNextEnterWillSend) return;
-    lastNextEnterWillSend = value;
-    onNextEnterWillSendChange?.(value);
+  function getFormattingState(e: Editor): ComposerFormattingState {
+    if (e.isDestroyed) return emptyFormattingState;
+    return {
+      bold: e.isActive('bold'),
+      italic: e.isActive('italic'),
+      inlineCode: e.isActive('code'),
+      heading: e.isActive('heading', { level: 2 }),
+      bulletList: e.isActive('bulletList'),
+      orderedList: e.isActive('orderedList'),
+      blockquote: e.isActive('blockquote'),
+      codeBlock: e.isActive('codeBlock')
+    };
   }
 
-  function updateRichStructure(e: Editor) {
-    const value = !e.isDestroyed && hasRichStructure(e);
-    if (value === lastRichStructure) return;
-    lastRichStructure = value;
-    onRichStructureChange?.(value);
+  function getIndentState(e: Editor): ComposerIndentState {
+    if (e.isDestroyed) return emptyComposerIndentState;
+    return {
+      canIndent: e.can().sinkListItem('listItem'),
+      canOutdent: e.can().liftListItem('listItem')
+    };
   }
 
   function updateActiveControls(e: Editor) {
+    onFormattingStateChange?.(getFormattingState(e));
+    onIndentStateChange?.(getIndentState(e));
+
     if (e.isActive('codeBlock')) {
       activeCodeBlockLanguage = e.getAttributes('codeBlock').language || 'text';
     } else {
@@ -1009,12 +315,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     window.open(href, '_blank', 'noopener,noreferrer');
   }
 
-  function buildApi(e: Editor): TipTapEditorApi {
+  function buildApi(e: Editor): ComposerEditorApi {
     const syncControls = () => {
       if (e.isDestroyed) return;
       updateActiveControls(e);
-      updateNextEnterWillSend(e);
-      updateRichStructure(e);
     };
 
     return {
@@ -1022,11 +326,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
       setContent: (markdown: string) => {
         if (e.isDestroyed) return;
-        e.commands.setContent(escapeMarkdownHtml(markdown), {
+        e.commands.setContent(prepareMarkdownForEditor(markdown), {
           contentType: 'markdown',
           emitUpdate: false
         });
-        updateRichStructure(e);
         ensureEditorCodeLanguages(e);
         tick().then(syncControls);
       },
@@ -1034,6 +337,17 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       focus: (position: 'start' | 'end' = 'end') => {
         if (e.isDestroyed) return;
         e.commands.focus(position);
+        tick().then(syncControls);
+      },
+
+      performEnter: () => {
+        if (e.isDestroyed) return;
+        replayingEnter = true;
+        try {
+          e.commands.enter();
+        } finally {
+          replayingEnter = false;
+        }
         tick().then(syncControls);
       },
 
@@ -1056,7 +370,57 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         tick().then(syncControls);
       },
 
-      insertQuote: (text: QuoteInsertionContent) => {
+      insertText: (text: string) => {
+        if (e.isDestroyed || !text) return;
+        e.chain().focus().insertContent(text).run();
+        tick().then(syncControls);
+      },
+
+      toggleFormatting: (command: ComposerFormattingCommand) => {
+        if (e.isDestroyed) return;
+
+        const chain = e.chain().focus();
+        switch (command) {
+          case 'bold':
+            chain.toggleBold().run();
+            break;
+          case 'italic':
+            chain.toggleItalic().run();
+            break;
+          case 'inlineCode':
+            chain.toggleCode().run();
+            break;
+          case 'heading':
+            chain.toggleHeading({ level: 2 }).run();
+            break;
+          case 'bulletList':
+            chain.toggleBulletList().run();
+            break;
+          case 'orderedList':
+            chain.toggleOrderedList().run();
+            break;
+          case 'blockquote':
+            chain.toggleBlockquote().run();
+            break;
+          case 'codeBlock':
+            chain.toggleCodeBlock().run();
+            ensureEditorCodeLanguages(e);
+            break;
+        }
+        tick().then(syncControls);
+      },
+
+      adjustIndent: (direction) => {
+        if (e.isDestroyed) return false;
+        const applied =
+          direction === 'indent'
+            ? e.chain().focus().sinkListItem('listItem').run()
+            : e.chain().focus().liftListItem('listItem').run();
+        if (applied) tick().then(syncControls);
+        return applied;
+      },
+
+      insertQuote: (text) => {
         if (e.isDestroyed) return;
         const quoteBlocks = normalizeQuoteInsertionContent(text);
         if (quoteBlocks.length === 0) return;
@@ -1073,12 +437,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           ])
           .run();
         tick().then(syncControls);
-      },
-
-      insertBlockBreak: () => {
-        if (e.isDestroyed) return;
-        e.chain().focus().splitBlock().run();
-        tick().then(syncControls);
       }
     };
   }
@@ -1094,78 +452,75 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       () =>
         new Editor({
           element: editorElement,
-          extensions: [
-            StarterKit.configure({
-              // Keep the composer subset aligned with the rendered message markdown.
-              codeBlock: false,
-              strike: false,
-              underline: false,
-              horizontalRule: false,
-              trailingNode: false,
-              link: false
-            }),
-            ComposerLink.configure({
-              autolink: true,
-              linkOnPaste: true,
-              openOnClick: false,
-              enableClickSelection: true
-            }),
-            Markdown.configure({
-              markedOptions: {
-                breaks: true
-              }
-            }),
-            ComposerCodeBlockLowlight.configure({ lowlight }),
-            MarkdownLinkInputRule,
-            CompletedMarkdownCodeFence,
-            MarkdownListMarkerAfterHardBreak,
-            TrailingParagraphAfterCodeBlock,
-            ClearMarksOnEmptyDocument,
-            Placeholder.configure({ placeholder })
-          ],
+          extensions: createComposerExtensions(placeholder),
           content: '',
           contentType: 'markdown',
           editable,
           autofocus: autofocus ? 'end' : false,
           editorProps: {
-            attributes: testid ? { 'data-testid': testid } : {},
+            attributes: {
+              'aria-label': placeholder,
+              ...(testid ? { 'data-testid': testid } : {})
+            },
             handleKeyDown: (_view, event) => {
+              if (replayingEnter && event.key === 'Enter') return false;
               return onKeyDown?.(event) ?? false;
             },
-            handlePaste: (_view, event) => {
-              return onPaste?.(event) ?? false;
+            clipboardTextParser: (text, context, _plain, view) => {
+              const normalizedText = text.replace(/\r\n?/g, '\n');
+              const markdown = editor?.markdown;
+              const destinationMarks = view.state.storedMarks ?? context.marks();
+              const document = markdown
+                ? view.state.schema.nodeFromJSON(
+                    markdown.parse(prepareMarkdownForEditor(normalizedText))
+                  )
+                : null;
+              const content =
+                document && document.content.size > 0
+                  ? applyDestinationMarks(document, destinationMarks).content
+                  : createClipboardContent(normalizedText, view.state.schema, destinationMarks);
+
+              return Slice.maxOpen(content);
+            },
+            handlePaste: (view, event) => {
+              if (onPaste?.(event)) return true;
+
+              const text = event.clipboardData?.getData('text/plain');
+              const html = event.clipboardData?.getData('text/html');
+              if (!text || !html || editor?.isActive('codeBlock')) return false;
+
+              // Prefer and Markdown-parse the textual representation when the clipboard also
+              // supplies HTML.
+              view.pasteText(text);
+              return true;
             }
           },
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
-            updateNextEnterWillSend(ed);
-            updateRichStructure(ed);
             ensureEditorCodeLanguages(ed);
             onUpdate?.(hasDefaultEmptyDocument(ed) ? '' : getSerializedMarkdown(ed));
           },
           onSelectionUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
-            updateNextEnterWillSend(ed);
-            updateRichStructure(ed);
           }
         })
     );
 
     editor = e;
 
+    const api = buildApi(e);
+
     // Notify parent that editor is ready with API
     tick().then(() => {
       if (e.isDestroyed || editor !== e) return;
-      updateNextEnterWillSend(e);
-      updateRichStructure(e);
-      onReady?.(buildApi(e));
+      updateActiveControls(e);
+      onReady?.(api);
     });
 
     return () => {
-      lastNextEnterWillSend = false;
-      onNextEnterWillSendChange?.(false);
-      lastRichStructure = false;
-      onRichStructureChange?.(false);
+      onFormattingStateChange?.(emptyFormattingState);
+      onIndentStateChange?.(emptyComposerIndentState);
+      onDestroy?.(api);
       editor?.destroy();
       editor = null;
     };
@@ -1181,6 +536,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   // React to placeholder prop changes (e.g., switching between normal and edit mode)
   $effect(() => {
     if (!editor) return;
+    if (editor.view.dom.getAttribute('aria-label') !== placeholder) {
+      editor.view.dom.setAttribute('aria-label', placeholder);
+    }
     const ext = editor.extensionManager.extensions.find((e) => e.name === 'placeholder');
     if (ext && ext.options.placeholder !== placeholder) {
       ext.options.placeholder = placeholder;
@@ -1192,13 +550,18 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
 <svelte:window onresize={() => editor && updateActiveControls(editor)} />
 
-<div bind:this={editorFrameElement} class="relative flex min-w-0 flex-1 flex-col gap-1">
+<div
+  bind:this={editorFrameElement}
+  data-composer-editor="visual"
+  class="relative flex min-w-0 flex-1 flex-col gap-1"
+>
   {#if hasLinkControls}
     <div class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
       <div class="flex min-w-0 items-center gap-1">
         <input
-          aria-label={m['composer.link_url']()}
-          title={m['composer.link_url']()}
+          name="composer-link-url"
+          aria-label={m('composer.link_url')}
+          title={m('composer.link_url')}
           value={linkHrefDraft}
           disabled={!editable}
           oninput={(event) => (linkHrefDraft = event.currentTarget.value)}
@@ -1209,27 +572,27 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }
           }}
           onblur={applyLinkHref}
-          class="h-10 w-48 min-w-0 rounded border border-border bg-surface-200 px-2 text-xs text-text transition-[background-color,border-color] outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-10 w-48 min-w-0 rounded border border-border bg-surface-emphasized px-2 text-xs text-text transition-[background-color,border-color] outline-none hover:bg-surface-strong focus:border-action disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
-          aria-label={m['composer.open_link']()}
-          title={m['composer.open_link']()}
+          aria-label={m('composer.open_link')}
+          title={m('composer.open_link')}
           disabled={!activeLinkHref}
           onclick={openActiveLink}
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-300 hover:text-text active:scale-[0.96]"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96]"
         >
-          <span class="iconify text-base uil--external-link-alt"></span>
+          <span class="iconify icon-[uil--external-link-alt] text-base"></span>
         </button>
         <button
           type="button"
-          aria-label={m['composer.remove_link']()}
-          title={m['composer.remove_link']()}
+          aria-label={m('composer.remove_link')}
+          title={m('composer.remove_link')}
           disabled={!editable}
           onclick={removeLink}
-          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-300 hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span class="iconify text-base uil--link-broken"></span>
+          <span class="iconify icon-[uil--link-broken] text-base"></span>
         </button>
       </div>
     </div>
@@ -1239,7 +602,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     bind:this={editorElement}
     onscroll={() => editor && updateActiveControls(editor)}
     class={[
-      'tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
+      'composer-code-palette tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
       !editable && 'cursor-not-allowed'
     ]}
   ></div>
@@ -1247,13 +610,14 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   {#if activeCodeBlockLanguage !== null && activeCodeBlockSelectorPosition}
     <div class="absolute z-10" style={codeLanguageSelectStyle}>
       <div
-        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-200 pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-300 focus-within:text-text focus-within:ring-1 focus-within:ring-accent hover:bg-surface-300 hover:text-text"
+        class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-emphasized pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
       >
         <span>{activeCodeBlockLanguageLabel}</span>
-        <span class="iconify size-3 uil--angle-down"></span>
+        <span class="iconify icon-[uil--angle-down] size-3"></span>
         <select
-          aria-label={m['composer.code_language']()}
-          title={m['composer.code_language']()}
+          name="composer-code-language"
+          aria-label={m('composer.code_language')}
+          title={m('composer.code_language')}
           value={activeCodeBlockLanguage}
           disabled={!editable}
           onchange={(event) => setCodeBlockLanguage(event.currentTarget.value)}
@@ -1276,6 +640,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     word-break: break-word;
     font-size: 16px; /* Prevent iOS Safari auto-zoom on focus */
     line-height: 1.5;
+    text-align: start;
   }
 
   :global(.tiptap-editor .ProseMirror p),
@@ -1290,6 +655,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   :global(.tiptap-editor .ProseMirror h5),
   :global(.tiptap-editor .ProseMirror h6) {
     margin: 0;
+    /* Stable wrapping is essential while editing: `pretty` and `balance`
+       may move an earlier line break whenever the document changes. */
+    text-wrap: wrap;
   }
 
   :global(.tiptap-editor .ProseMirror > p),
@@ -1330,7 +698,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   :global(.tiptap-editor .ProseMirror ul),
   :global(.tiptap-editor .ProseMirror ol) {
-    padding-left: 1.5em;
+    padding-inline-start: 1.5em;
   }
 
   :global(.tiptap-editor .ProseMirror ul) {
@@ -1338,15 +706,37 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   :global(.tiptap-editor .ProseMirror ol) {
-    list-style-type: decimal;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 0.4em;
+    padding-inline-start: 0;
+    list-style: none;
+  }
+
+  :global(.tiptap-editor .ProseMirror ol > li) {
+    counter-increment: list-item;
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  :global(.tiptap-editor .ProseMirror ol > li::before) {
+    content: counter(list-item) '.';
+    grid-column: 1;
+    text-align: end;
+  }
+
+  :global(.tiptap-editor .ProseMirror ol > li > *) {
+    grid-column: 2;
   }
 
   :global(.tiptap-editor .ProseMirror blockquote) {
-    --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-accent) 42%);
+    --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
     --composer-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
 
-    border-left: 3px solid var(--composer-quote-border);
-    padding: 0.35em 0 0.35em 0.9em;
+    border-inline-start: 3px solid var(--composer-quote-border);
+    padding-block: 0.35em;
+    padding-inline-start: 0.9em;
     color: var(--composer-quote-text);
     font-style: italic;
   }
@@ -1361,10 +751,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   :global(.tiptap-editor .ProseMirror code:not(pre code)) {
     border-radius: 0.25rem;
-    background: var(--color-surface-200);
+    background: var(--color-surface-emphasized);
     padding: 0.125rem 0.375rem;
     font-family: var(--font-mono);
     font-size: 0.9em;
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 
   :global(.tiptap-editor .ProseMirror pre) {
@@ -1372,13 +764,27 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     position: relative;
     width: 100%;
     border-radius: 0.375rem;
-    border: 1px solid var(--color-surface-200);
+    border: 1px solid var(--color-surface-emphasized);
     background: transparent;
     padding: 0.5rem 0.75rem;
     font-family: var(--font-mono);
     font-size: 0.875rem;
     line-height: 1.5;
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  :global(.tiptap-editor .ProseMirror p),
+  :global(.tiptap-editor .ProseMirror li),
+  :global(.tiptap-editor .ProseMirror blockquote),
+  :global(.tiptap-editor .ProseMirror h1),
+  :global(.tiptap-editor .ProseMirror h2),
+  :global(.tiptap-editor .ProseMirror h3),
+  :global(.tiptap-editor .ProseMirror h4),
+  :global(.tiptap-editor .ProseMirror h5),
+  :global(.tiptap-editor .ProseMirror h6) {
+    unicode-bidi: plaintext;
   }
 
   :global(.tiptap-editor .ProseMirror > pre) {
@@ -1399,7 +805,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     right: 0;
     bottom: 0;
     border-top-left-radius: 0.375rem;
-    background: var(--color-surface-200);
+    background: var(--color-surface-emphasized);
     padding: 0.125rem 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.75rem;
@@ -1419,26 +825,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     line-height: inherit;
     color: var(--composer-code-text);
     white-space: pre;
-  }
-
-  :global(.tiptap-editor) {
-    --composer-code-text: #24292f;
-    --composer-code-comment: #6e7781;
-    --composer-code-keyword: #cf222e;
-    --composer-code-string: #0a3069;
-    --composer-code-title: #8250df;
-    --composer-code-literal: #0550ae;
-    --composer-code-attribute: #953800;
-  }
-
-  :global(:root[data-theme='dark'] .tiptap-editor) {
-    --composer-code-text: #d0d7de;
-    --composer-code-comment: #8b949e;
-    --composer-code-keyword: #ff7b72;
-    --composer-code-string: #a5d6ff;
-    --composer-code-title: #d2a8ff;
-    --composer-code-literal: #79c0ff;
-    --composer-code-attribute: #ffa657;
   }
 
   :global(.tiptap-editor .ProseMirror .hljs-comment),

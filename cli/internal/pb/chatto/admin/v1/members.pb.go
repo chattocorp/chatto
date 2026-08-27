@@ -346,8 +346,17 @@ type GetMemberResponse struct {
 	ViewerCanManageRoles bool `protobuf:"varint,5,opt,name=viewer_can_manage_roles,json=viewerCanManageRoles,proto3" json:"viewer_can_manage_roles,omitempty"`
 	// Whether the caller may edit direct user permissions.
 	ViewerCanManageUserPermissions bool `protobuf:"varint,6,opt,name=viewer_can_manage_user_permissions,json=viewerCanManageUserPermissions,proto3" json:"viewer_can_manage_user_permissions,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	// Roles the caller may assign without granting authority the caller does not
+	// possess. Populated when assignment limits are enforced.
+	AssignableRoleNames []string `protobuf:"bytes,7,rep,name=assignable_role_names,json=assignableRoleNames,proto3" json:"assignable_role_names,omitempty"`
+	// Roles the caller may revoke without removing restrictions or authority
+	// beyond the caller's own. Populated when assignment limits are enforced.
+	RevocableRoleNames []string `protobuf:"bytes,8,rep,name=revocable_role_names,json=revocableRoleNames,proto3" json:"revocable_role_names,omitempty"`
+	// True when assignable_role_names and revocable_role_names are authoritative.
+	// Older servers leave this false and clients may retain legacy behaviour.
+	RoleAssignmentLimitsEnforced bool `protobuf:"varint,9,opt,name=role_assignment_limits_enforced,json=roleAssignmentLimitsEnforced,proto3" json:"role_assignment_limits_enforced,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *GetMemberResponse) Reset() {
@@ -418,6 +427,27 @@ func (x *GetMemberResponse) GetViewerCanManageRoles() bool {
 func (x *GetMemberResponse) GetViewerCanManageUserPermissions() bool {
 	if x != nil {
 		return x.ViewerCanManageUserPermissions
+	}
+	return false
+}
+
+func (x *GetMemberResponse) GetAssignableRoleNames() []string {
+	if x != nil {
+		return x.AssignableRoleNames
+	}
+	return nil
+}
+
+func (x *GetMemberResponse) GetRevocableRoleNames() []string {
+	if x != nil {
+		return x.RevocableRoleNames
+	}
+	return nil
+}
+
+func (x *GetMemberResponse) GetRoleAssignmentLimitsEnforced() bool {
+	if x != nil {
+		return x.RoleAssignmentLimitsEnforced
 	}
 	return false
 }
@@ -1169,14 +1199,17 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x10GetMemberRequest\x12\"\n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06userId\x12\x1f\n" +
 	"\x05login\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05loginB\b\n" +
-	"\x06target\"\xea\x02\n" +
+	"\x06target\"\x97\x04\n" +
 	"\x11GetMemberResponse\x124\n" +
 	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\x120\n" +
 	"\x05roles\x18\x02 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles\x123\n" +
 	"\x15available_permissions\x18\x03 \x03(\tR\x14availablePermissions\x125\n" +
 	"\x17viewer_can_assign_roles\x18\x04 \x01(\bR\x14viewerCanAssignRoles\x125\n" +
 	"\x17viewer_can_manage_roles\x18\x05 \x01(\bR\x14viewerCanManageRoles\x12J\n" +
-	"\"viewer_can_manage_user_permissions\x18\x06 \x01(\bR\x1eviewerCanManageUserPermissions\"E\n" +
+	"\"viewer_can_manage_user_permissions\x18\x06 \x01(\bR\x1eviewerCanManageUserPermissions\x122\n" +
+	"\x15assignable_role_names\x18\a \x03(\tR\x13assignableRoleNames\x120\n" +
+	"\x14revocable_role_names\x18\b \x03(\tR\x12revocableRoleNames\x12E\n" +
+	"\x1frole_assignment_limits_enforced\x18\t \x01(\bR\x1croleAssignmentLimitsEnforced\"E\n" +
 	"\x16BatchGetMembersRequest\x12+\n" +
 	"\buser_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
 	"\b\x01\x10d\"\x04r\x02\x10\x01R\auserIds\"|\n" +

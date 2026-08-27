@@ -1,0 +1,70 @@
+{
+  "composer": {
+    "attach_file": "Dosya ekle",
+    "send": "Mesaj gönder",
+    "send_label": "Gönder",
+    "also_send_to_channel": "Ayrıca kanala gönder",
+    "post_as_thread": "Konu olarak gönder",
+    "thread_label": "Konu",
+    "echo_label": "Yankı",
+    "replying_to": "Yanıtlanıyor",
+    "esc_to_cancel": "iptal etmek",
+    "editing": "Mesaj düzenleniyor",
+    "send_anyway": "Yine de Gönder",
+    "role_mention_confirm_title": "Söz gönderilsin mi?",
+    "role_mention_confirm_body": "Bu mesaj birden fazla kişiyi bilgilendirebilecek bir söz içeriyor.",
+    "link_url": "Bağlantı URL'si",
+    "open_link": "Bağlantıyı aç",
+    "remove_link": "Bağlantıyı kaldır",
+    "code_language": "Kod dili",
+    "placeholder": "Bir mesaj yazın...",
+    "editing_placeholder": "Mesaj düzenleniyor...",
+    "drop_files_title": "Dosyaları buraya bırakın",
+    "drop_files_subtitle": "Mesajınıza resim ve videolar eklenecek",
+    "send_failed": "Mesaj gönderilemedi",
+    "slow_mode_ready": "Yavaş mod: her {interval} bir mesaj.",
+    "slow_mode_waiting": "Yavaş mod: {countdown} sonra tekrar gönderin.",
+    "slow_mode_bypassed": "Yavaş mod: {interval} (muafsınız).",
+    "slow_mode_rejected": "Yavaş mod etkin. Başka bir mesaj göndermeden önce bekleyin.",
+    "threads_encouraged": "Bu odada konuların kullanılması teşvik edilir.",
+    "recent_thread_confirm_title": "Önceki ileti dizinize devam edilsin mi?",
+    "recent_thread_confirm_body": "Önceki mesajınızın zaten bir ileti dizisi var. Bu mesaj nereye gönderilsin?",
+    "post_as_new_message": "Yeni mesaj olarak gönder",
+    "continue_in_thread": "İleti dizisinde devam et",
+    "edit_failed": "Mesaj düzenlenemedi",
+    "upload": {
+      "preparing": "Hazırlanıyor…",
+      "uploading": "%{percentage} yüklendi",
+      "uploaded": "Yüklendi",
+      "failed": "Yükleme başarısız oldu",
+      "remove": "{filename} öğesini kaldır"
+    },
+    "format": {
+      "bold": "Kalın",
+      "italic": "italik",
+      "inline_code": "Satır içi kod",
+      "heading": "Başlık",
+      "bullet_list": "Madde işareti listesi",
+      "ordered_list": "Numaralı liste",
+      "blockquote": "Alıntı",
+      "code_block": "Kod bloğu",
+      "outdent": "Girintiyi azalt",
+      "indent": "Girintiyi artır"
+    },
+    "timestamp": {
+      "title": "Zaman damgası ekle",
+      "insert_label": "Zaman damgası ekle",
+      "date_time": "Tarih ve saat",
+      "timezone": "Saat dilimi",
+      "insert": "Ekle",
+      "error_required": "Bir tarih ve saat seçin.",
+      "error_timezone": "Geçerli bir IANA saat dilimi seçin.",
+      "error_invalid": "Bu saat dilimi için geçerli bir tarih ve saat seçin."
+    },
+    "mention": {
+      "all_room_members": "Tüm oda üyeleri",
+      "members_here": "Şu anda burada olan üyeler",
+      "role": "Rol"
+    }
+  }
+}

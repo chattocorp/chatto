@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { SvelteMap } from 'svelte/reactivity';
 
 type ServerMock = {
   id: string;
@@ -37,7 +38,7 @@ import ServerGutter from './ServerGutter.svelte';
 
 beforeEach(() => {
   mocks.servers = [];
-  mocks.stores = new Map();
+  mocks.stores = new SvelteMap();
 });
 
 describe('ServerGutter', () => {
@@ -59,5 +60,24 @@ describe('ServerGutter', () => {
     const { container } = render(ServerGutter);
 
     expect(container.querySelector('[data-testid="server-entry"]')).toBeNull();
+  });
+
+  it('remounts an entry when authentication replaces its same-ID store', async () => {
+    mocks.servers = [{ id: 'remote', reauthRequiredAt: null }];
+    mocks.stores.set('remote', {
+      isAuthenticated: true,
+      currentUser: { user: { id: 'user-1' } }
+    });
+    const { container } = render(ServerGutter);
+    const originalEntry = container.querySelector('[data-testid="server-entry"]');
+
+    mocks.stores.set('remote', {
+      isAuthenticated: true,
+      currentUser: { user: { id: 'user-1' } }
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="server-entry"]')).not.toBe(originalEntry);
+    });
   });
 });

@@ -1,0 +1,9 @@
+{
+  "ui": {
+    "close": "Schliessen",
+    "resize_handle": {
+      "resize": "Grösse ändern",
+      "resize_sidebar": "Seitenleiste vergrössern/verkleinern"
+    }
+  }
+}

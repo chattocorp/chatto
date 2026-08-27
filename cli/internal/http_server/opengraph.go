@@ -89,11 +89,11 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 	// is the single source of truth for link previews.
 	serverName := "Chatto"
 	description := "Come join our community!"
-	if s.core != nil && s.core.ConfigManager() != nil {
-		if name, err := s.core.ConfigManager().GetEffectiveServerName(ctx); err == nil && name != "" {
+	if s.core != nil && s.core.ConfigModel() != nil {
+		if name := s.core.ConfigModel().GetEffectiveServerName(); name != "" {
 			serverName = name
 		}
-		if desc, err := s.core.ConfigManager().GetEffectiveDescription(ctx); err == nil && desc != "" {
+		if desc := s.core.ConfigModel().GetEffectiveDescription(); desc != "" {
 			description = desc
 		}
 	}

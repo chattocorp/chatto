@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -27,7 +27,7 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind RoomKind, ro
 	// only events arriving after subscription are surfaced; the
 	// initial-load path is GetRoomEvents (projection-backed).
 	stream := c.storage.serverEvtStream
-	filterSubject := events.RoomAggregate(room_id).AllEventsFilter()
+	filterSubject := evtstream.RoomAggregate(room_id).AllEventsFilter()
 	cons, err := stream.OrderedConsumer(ctx, jetstream.OrderedConsumerConfig{
 		FilterSubjects:    []string{filterSubject},
 		DeliverPolicy:     jetstream.DeliverNewPolicy,

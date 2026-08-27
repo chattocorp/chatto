@@ -1,0 +1,70 @@
+{
+  "composer": {
+    "attach_file": "Załącz plik",
+    "send": "Wyślij wiadomość",
+    "send_label": "Wyślij",
+    "also_send_to_channel": "Wyślij także do kanału",
+    "post_as_thread": "Opublikuj jako wątek",
+    "thread_label": "Wątek",
+    "echo_label": "Echo",
+    "replying_to": "Odpowiadanie na",
+    "esc_to_cancel": ", aby anulować",
+    "editing": "Edytowanie wiadomości",
+    "send_anyway": "Wyślij mimo to",
+    "role_mention_confirm_title": "Wysłać wzmiankę?",
+    "role_mention_confirm_body": "Ta wiadomość zawiera wzmiankę, która może powiadomić wiele osób.",
+    "link_url": "Połącz URL",
+    "open_link": "Otwórz link",
+    "remove_link": "Usuń link",
+    "code_language": "Język kodu",
+    "placeholder": "Wpisz wiadomość...",
+    "editing_placeholder": "Edytowanie wiadomości...",
+    "drop_files_title": "Upuść pliki tutaj",
+    "drop_files_subtitle": "Zdjęcia i filmy zostaną dodane do Twojej wiadomości",
+    "send_failed": "Nie udało się wysłać wiadomości",
+    "slow_mode_ready": "Tryb powolny: jedna wiadomość co {interval}.",
+    "slow_mode_waiting": "Tryb powolny: wyślij ponownie za {countdown}.",
+    "slow_mode_bypassed": "Tryb powolny: {interval} (ograniczenie Cię nie dotyczy).",
+    "slow_mode_rejected": "Tryb powolny jest aktywny. Zaczekaj przed wysłaniem kolejnej wiadomości.",
+    "threads_encouraged": "W tym pokoju zalecane jest używanie wątków.",
+    "recent_thread_confirm_title": "Kontynuować w poprzednim wątku?",
+    "recent_thread_confirm_body": "Twoja poprzednia wiadomość ma już wątek. Gdzie opublikować tę wiadomość?",
+    "post_as_new_message": "Opublikuj jako nową wiadomość",
+    "continue_in_thread": "Kontynuuj w wątku",
+    "edit_failed": "Nie udało się edytować wiadomości",
+    "upload": {
+      "preparing": "Przygotowywanie…",
+      "uploading": "Przesłano {percentage}%",
+      "uploaded": "Przesłano",
+      "failed": "Przesyłanie nie powiodło się",
+      "remove": "Usuń {filename}"
+    },
+    "format": {
+      "bold": "Pogrubienie",
+      "italic": "Kursywa",
+      "inline_code": "Kod w wierszu",
+      "heading": "Nagłówek",
+      "bullet_list": "Lista punktowana",
+      "ordered_list": "Lista numerowana",
+      "blockquote": "Cytat",
+      "code_block": "Blok kodu",
+      "outdent": "Zmniejsz wcięcie",
+      "indent": "Zwiększ wcięcie"
+    },
+    "timestamp": {
+      "title": "Wstaw znacznik czasu",
+      "insert_label": "Wstaw znacznik czasu",
+      "date_time": "Data i godzina",
+      "timezone": "Strefa czasowa",
+      "insert": "Wstaw",
+      "error_required": "Wybierz datę i godzinę.",
+      "error_timezone": "Wybierz prawidłową strefę czasową IANA.",
+      "error_invalid": "Wybierz prawidłową datę i godzinę dla tej strefy czasowej."
+    },
+    "mention": {
+      "all_room_members": "Wszyscy członkowie pokoju",
+      "members_here": "Członkowie obecnie tutaj",
+      "role": "Rola"
+    }
+  }
+}

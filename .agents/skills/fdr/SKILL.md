@@ -157,7 +157,7 @@ For each FDR being audited, launch a dedicated Explore subagent that:
 
 1. **Reads the FDR** in full
 2. **Verifies each claim** against the codebase:
-   - Permission names — do the constants exist in `cli/internal/core/permissions.go`?
+   - Permission names — do the constants exist in `cli/internal/core/permission.go`?
    - Behavioral claims — does the code actually work this way?
    - Design Decisions — are the stated rationales still accurate? Has the implementation drifted?
    - Related ADRs/FDRs — do the cited records still exist and still apply?
@@ -180,7 +180,7 @@ Run audits in parallel via the Agent tool when auditing multiple FDRs.
 
 When auditing or creating an FDR, verify:
 
-- [ ] All permission strings exist in `cli/internal/core/permissions.go`
+- [ ] All permission strings exist in `cli/internal/core/permission.go`
 - [ ] Permission strings use hyphens, not underscores
 - [ ] User-facing behaviors match the code
 - [ ] Design Decisions still reflect the current implementation

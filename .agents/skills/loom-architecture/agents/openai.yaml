@@ -1,0 +1,4 @@
+interface:
+  display_name: "Loom Architecture"
+  short_description: "Apply the shared NATS event-sourcing architecture"
+  default_prompt: "Use $loom-architecture to design or review this NATS and JetStream state flow."

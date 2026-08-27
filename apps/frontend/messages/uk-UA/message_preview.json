@@ -1,0 +1,9 @@
+{
+  "message_preview": {
+    "attachments_count": { "other": "Додатки {count}" },
+    "attachment_image": "Зображення",
+    "attachment_video": "Відео",
+    "attachment_audio": "Аудіо",
+    "attachment_file": "Файл"
+  }
+}

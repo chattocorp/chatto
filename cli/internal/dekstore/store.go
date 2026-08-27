@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
+	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -109,7 +110,7 @@ func (s *Store) Create(ctx context.Context, dek *corev1.UserDataEncryptionKey) (
 			return "", err
 		}
 		if _, err := s.kv.Create(ctx, ref, data); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return "", fmt.Errorf("failed to store content key: %w", err)

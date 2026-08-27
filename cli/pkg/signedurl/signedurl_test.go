@@ -237,6 +237,67 @@ func TestAssetAccessTicket_Expired(t *testing.T) {
 	}
 }
 
+func TestSignedHLSAccessTicket(t *testing.T) {
+	secret := "test-secret"
+	ticket := signedurl.HLSAccessTicket{
+		AssetID:   "A-video",
+		UserID:    "U-viewer",
+		ExpiresAt: time.Now().Add(time.Hour).Unix(),
+	}
+
+	signed, err := signedurl.SignedHLSAccessTicket(secret, ticket)
+	if err != nil {
+		t.Fatalf("SignedHLSAccessTicket failed: %v", err)
+	}
+	parsed, err := signedurl.ParseSignedHLSAccessTicket(secret, signed)
+	if err != nil {
+		t.Fatalf("ParseSignedHLSAccessTicket failed: %v", err)
+	}
+	if *parsed != ticket {
+		t.Fatalf("parsed ticket = %#v, want %#v", parsed, ticket)
+	}
+	if err := parsed.Validate(); err != nil {
+		t.Fatalf("valid ticket failed validation: %v", err)
+	}
+	if parsed.Expired(ticket.ExpiresAt - 1) {
+		t.Fatal("ticket expired before its deadline")
+	}
+	if !parsed.Expired(ticket.ExpiresAt) {
+		t.Fatal("ticket did not expire at its deadline")
+	}
+	if _, err := signedurl.ParseSignedHLSAccessTicket("wrong-secret", signed); err == nil {
+		t.Fatal("wrong secret unexpectedly parsed HLS ticket")
+	}
+
+	tampered := signed[:len(signed)-1] + "0"
+	if tampered == signed {
+		tampered = signed[:len(signed)-1] + "1"
+	}
+	if _, err := signedurl.ParseSignedHLSAccessTicket(secret, tampered); err == nil {
+		t.Fatal("tampered HLS ticket unexpectedly parsed")
+	}
+	if _, err := signedurl.ParseSignedAssetAccessTicket(secret, signed); err == nil {
+		t.Fatal("HLS ticket unexpectedly parsed as an asset ticket")
+	}
+}
+
+func TestHLSAccessTicketValidate(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		ticket signedurl.HLSAccessTicket
+	}{
+		{name: "missing asset", ticket: signedurl.HLSAccessTicket{UserID: "U", ExpiresAt: 1}},
+		{name: "missing user", ticket: signedurl.HLSAccessTicket{AssetID: "A", ExpiresAt: 1}},
+		{name: "missing expiry", ticket: signedurl.HLSAccessTicket{AssetID: "A", UserID: "U"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.ticket.Validate(); err == nil {
+				t.Fatal("invalid ticket passed validation")
+			}
+		})
+	}
+}
+
 func TestSignedTransformPath_AllFitModes(t *testing.T) {
 	secret := "test-secret"
 	spaceID := "sp"

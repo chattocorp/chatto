@@ -6,6 +6,7 @@ import {
   loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
 import * as routes from './routes';
 
 interface TestServer {
@@ -63,7 +64,8 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
  * Logs in an existing user via HTTP endpoint.
  */
 async function loginUser(page: Page, login: string, password: string): Promise<void> {
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: { login, password }
   });
 
@@ -168,7 +170,9 @@ test.describe('Server Admin Page', () => {
     await serverAdminPage.expectSaveDisabled();
   });
 
-  test('admin link only visible for server admins', async ({ serverAdminPage }) => {
+  test('Settings link leads each member to their first permitted Server Configuration section', async ({
+    serverAdminPage
+  }) => {
     const { page } = serverAdminPage;
 
     // Create first user (server admin)
@@ -177,7 +181,7 @@ test.describe('Server Admin Page', () => {
 
     // Navigate to server - admin should see admin link in sidebar
     await gotoServer(page);
-    await serverAdminPage.expectAdminLinkVisible();
+    await serverAdminPage.expectSettingsLinkVisible();
 
     // Create second user (non-admin)
     const nonAdmin = await createSecondTestUser(page);
@@ -186,14 +190,18 @@ test.describe('Server Admin Page', () => {
     await logoutUser(page);
     await loginUser(page, nonAdmin.login, nonAdmin.password);
 
-    // Navigate to server - non-admin should NOT see admin link
+    // A regular member still has the Bots management surface because fresh
+    // servers grant bot.create to everyone.
     await gotoServer(page);
 
     // Wait for the page to load (server name should be visible)
     await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-    // Settings link should not be visible
-    await serverAdminPage.expectAdminLinkNotVisible();
+    await serverAdminPage.expectSettingsLinkVisible();
+    await serverAdminPage.settingsLink.click();
+    await page.waitForURL(routes.serverAdminBots);
+    await serverAdminPage.expectBotsNavVisible();
+    await serverAdminPage.expectGeneralNavNotVisible();
   });
 
   test('server admin can upload and remove a logo', async ({ serverAdminPage }) => {

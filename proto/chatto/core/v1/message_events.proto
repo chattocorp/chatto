@@ -32,8 +32,10 @@ message MessagePostedEvent {
   // For nested replies, in_thread references the original root.
   string in_thread = 5;
 
-  // User IDs of users mentioned via @username in the message body.
-  // Only includes valid, resolved user IDs (invalid mentions are silently ignored).
+  // User IDs selected by valid resolved mentions. This is a flattened view of
+  // direct, role, @here, and @all recipients and does not identify which cause
+  // selected a user. Use mentions whenever policy or cause depends on mention
+  // provenance; older events may have only mentioned_user_ids.
   repeated string mentioned_user_ids = 6;
 
   // Echo fields (empty for regular messages, set for "also send to channel" echoes).
@@ -48,6 +50,36 @@ message MessagePostedEvent {
 
   // The message's durable event ID lives on the Event envelope, not on this
   // payload.
+
+  // Resolved mention facts at the time this message was accepted. Unlike
+  // mentioned_user_ids, these preserve whether each recipient was selected by
+  // a direct, role, presence-scoped, or room-wide mention. Derived consumers
+  // can therefore apply the correct policy without re-parsing message content
+  // or consulting newer room state.
+  repeated MessageMention mentions = 10;
+}
+
+message DirectUserMention {}
+
+message RoleMessageMention {
+  string role_name = 1;
+}
+
+message HereMessageMention {}
+
+message AllMessageMention {}
+
+// MessageMention records one user selected by one resolved mention cause. A
+// user can appear more than once when a message reaches them through several
+// independently configurable causes.
+message MessageMention {
+  string user_id = 1;
+  oneof cause {
+    DirectUserMention direct = 2;
+    RoleMessageMention role = 3;
+    HereMessageMention here = 4;
+    AllMessageMention all = 5;
+  }
 }
 // ============================================================================
 // MESSAGE MUTATION EVENTS (room-scoped)
@@ -106,6 +138,27 @@ message MessageRetractedEvent {
   // Optional human-readable reason (e.g. "spam", "user requested",
   // "moderator action"). May be empty.
   string reason = 3;
+}
+
+// MessagePinnedEvent adds a canonical message to its channel room's pinned
+// message set. The actor performing the pin lives on the Event envelope.
+message MessagePinnedEvent {
+  // Channel room containing the message.
+  string room_id = 1;
+
+  // Event ID of the canonical MessagePostedEvent being pinned.
+  string message_event_id = 2;
+}
+
+// MessageUnpinnedEvent removes a canonical message from its channel room's
+// pinned message set. The actor performing the unpin lives on the Event
+// envelope.
+message MessageUnpinnedEvent {
+  // Channel room containing the message.
+  string room_id = 1;
+
+  // Event ID of the canonical MessagePostedEvent being unpinned.
+  string message_event_id = 2;
 }
 
 message MessageUpdatedEvent {

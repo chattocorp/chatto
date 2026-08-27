@@ -1,0 +1,446 @@
+{
+  "settings": {
+    "nav": {
+      "title": "Innstillinger",
+      "back_to_server": "Tilbake til server",
+      "profile": "Profil",
+      "display": "Innstillinger",
+      "notifications": "Varsler",
+      "account": "Konto",
+      "bots": "Botter",
+      "user_preferences": "Brukerinnstillinger",
+      "server_configuration": "Serverkonfigurasjon"
+    },
+    "app_preferences": {
+      "title": "Appinnstillinger",
+      "subtitle": "Valg for denne appen som gjelder for alle registrerte servere",
+      "appearance": { "title": "Utseende" },
+      "composer": { "title": "Meldingsskriving" }
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Administrer profilinformasjonen din",
+      "avatar": {
+        "title": "Avatar",
+        "drop_title": "Slipp bildet",
+        "drop_subtitle": "Last opp som din avatar",
+        "alt": "Avataren din",
+        "description": "Last opp en avatar. Bildene vil bli endret til 256 x 256 piksler.",
+        "uploading": "Laster opp ...",
+        "upload": "Last opp avatar",
+        "change": "Endre avatar",
+        "removing": "Fjerner...",
+        "remove": "Fjern",
+        "invalid_type": "Velg en bildefil",
+        "too_large": "Bildet må være mindre enn 10 MB",
+        "uploaded": "Avataren ble lastet opp",
+        "upload_failed": "Kunne ikke laste opp avatar",
+        "removed": "Avatar fjernet",
+        "delete_failed": "Kunne ikke slette avataren"
+      },
+      "display_name": {
+        "label": "Vist navn",
+        "placeholder": "Skriv inn visningsnavnet ditt",
+        "invalid": "Ugyldig visningsnavn"
+      },
+      "username": {
+        "label": "Brukernavn",
+        "placeholder": "Skriv inn brukernavnet ditt",
+        "invalid": "Ugyldig brukernavn",
+        "cooldown_error": "Du kan bare endre brukernavnet ditt én gang hver 30. dag. Prøv igjen i {remaining}.",
+        "cooldown_notice": "Du kan endre brukernavnet ditt igjen i {remaining}.",
+        "confirm_title": "Endre brukernavn",
+        "confirm_prompt": "Er du sikker på at du vil endre brukernavnet ditt til @{login}?",
+        "confirm_cooldown": "Du kan bare endre brukernavnet ditt én gang hver 30. dag.",
+        "confirm_button": "Endre brukernavn"
+      },
+      "status": {
+        "title": "Egendefinert status",
+        "dialog_title": "Angi en status",
+        "set_custom_status": "Angi egendefinert status",
+        "edit_button": "Rediger status",
+        "emoji": {
+          "label": "Status-emoji",
+          "placeholder": "🌿",
+          "choose": "Velg emoji"
+        },
+        "text": {
+          "label": "Statustekst",
+          "placeholder": "I fokusmodus"
+        },
+        "expires_at": {
+          "label": "Slett automatisk kl"
+        },
+        "expiry": {
+          "today": "I dag",
+          "thirty_minutes": "30 minutter",
+          "one_hour": "1 time",
+          "four_hours": "4 timer",
+          "tomorrow": "I morgen",
+          "never": "Ikke tøm",
+          "custom": "Egendefinert",
+          "custom_date": "Egendefinert ryddetid"
+        },
+        "suggestions": "Forslag",
+        "template": {
+          "label": "Mal",
+          "none": "Ingen status",
+          "out_for_lunch": "Ut til lunsj",
+          "vacation": "Ferie",
+          "sick": "Syk",
+          "custom": "Egendefinert"
+        },
+        "emoji_required": "Velg en emoji for statusen din",
+        "text_required": "Skriv inn statustekst",
+        "saved": "Status oppdatert",
+        "save_failed": "Kunne ikke lagre status",
+        "cleared": "Status slettet",
+        "clear_failed": "Kunne ikke slette status",
+        "save_button": "Lagre status",
+        "clear_button": "Slett status"
+      },
+      "presence": {
+        "button": "Tilstedeværelse: {status}",
+        "title": "Tilstedeværelse",
+        "auto": "På nett",
+        "away": "Borte",
+        "do_not_disturb": "Ikke forstyrr",
+        "offline": "Frakoblet",
+        "invisible": "Se offline"
+      },
+      "saved": "Profilen ble oppdatert",
+      "save_failed": "Kunne ikke lagre profilen",
+      "save_button": "Lagre endringer"
+    },
+    "preferences": {
+      "title": "Tid og region",
+      "subtitle": "Velg hvordan denne serveren viser datoer og klokkeslett for deg",
+      "browser_scope": "Dette valget gjelder for alle Chatto-servere i denne nettleseren.",
+      "theme": {
+        "title": "Tema",
+        "system": {
+          "label": "System",
+          "description": "Følg nettleseren eller operativsystemets utseende"
+        },
+        "light": {
+          "label": "Lys",
+          "description": "Bruk lysgrensesnittet på denne nettleseren"
+        },
+        "dark": {
+          "label": "Mørkt",
+          "description": "Bruk det mørke grensesnittet på denne nettleseren"
+        }
+      },
+      "editor": {
+        "title": "Meldingsredigering",
+        "visual": {
+          "label": "Visuell",
+          "description": "Formater meldinger uten å se Markdown-syntaks"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Rediger Markdown-kilde med syntaksutheving"
+        }
+      },
+      "send_mode": {
+        "title": "Send meldinger med",
+        "enter": {
+          "label": "Return",
+          "description": "Return sender; Cmd/Ctrl+Return utfører redigeringsprogrammets vanlige Return-handling"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sender; Return utfører redigeringsprogrammets vanlige handling"
+        }
+      },
+      "language": {
+        "title": "Språk",
+        "description": "Velg språk og regionale ordlyd for denne nettleseren.",
+        "english_uk": "Engelsk (Storbritannia)",
+        "english_us": "Engelsk (USA)",
+        "german": "Tysk"
+      },
+      "timezone": {
+        "title": "Tidssone",
+        "description": "Still inn tidssonen din til å vise tidsstempler i lokal tid. La stå tomt for å bruke nettleserens standard.",
+        "browser_default": "Nettleserstandard",
+        "clear": "Slett tidssone (bruk nettleserstandard)",
+        "invalid": "Velg en gyldig tidssone fra listen",
+        "more_results": "{count} mer – skriv for å begrense resultatene",
+        "current_time": "Gjeldende tid der: {time}"
+      },
+      "time_format": {
+        "title": "Tidsformat",
+        "browser_default": {
+          "label": "Nettleserstandard",
+          "description": "Bruk nettleserens lokalitet for å bestemme 12- eller 24-timersformat"
+        },
+        "12h": {
+          "label": "12 timer",
+          "description": "f.eks. 2:30 PM"
+        },
+        "24h": {
+          "label": "24 timer i døgnet",
+          "description": "f.eks. 14:30"
+        }
+      },
+      "save_button": "Lagre tidsinnstillinger",
+      "saved": "Tidsinnstillinger lagret",
+      "save_failed": "Kunne ikke lagre tidsinnstillinger"
+    },
+    "notifications": {
+      "title": "Varsler",
+      "subtitle": "Konfigurer hvordan du mottar varsler",
+      "push": {
+        "title": "Push-varsler",
+        "not_configured": "Push-varsler er ikke konfigurert på denne serveren",
+        "not_supported": "Push-varsler støttes ikke i denne nettleseren.",
+        "ios_home_screen_title": "Legg til Chatto på startskjermen",
+        "ios_home_screen_description": "På støttede versjoner av iOS/iPadOS legger du til Chatto på startskjermen og åpner den fra appikonet for å aktivere push-varslinger.",
+        "blocked_title": "Push-varsler blokkert",
+        "blocked_description": "Aktiver varsler i nettleseren eller OS-innstillingene, og åpne Chatto igjen.",
+        "enabled_title": "Push-varsler aktivert",
+        "enabled_description": "Chatto bruker nettleser- eller OS-varslingstillatelsen din som bryter. For å slå av varsler, deaktiver dem for dette nettstedet i nettleseren eller OS-innstillingene.",
+        "test_button": "Send testvarsel",
+        "testing": "Sender …",
+        "test_sent": "Testvarsel er sendt.",
+        "test_failed": "Kunne ikke sende et testvarsel. Prøv å aktivere push-varsler igjen.",
+        "enable_title": "Aktiver push-varsler",
+        "enable_description": "Bli varslet om nye meldinger mens Chatto er lukket eller kjører i bakgrunnen.",
+        "enable_button": "Aktiver",
+        "enabling": "Aktiverer...",
+        "blocked_error": "Push-varsler er blokkert i nettleseren eller OS-innstillingene.",
+        "enable_failed": "Kunne ikke aktivere push-varsler. Vennligst prøv igjen.",
+        "enable_error": "Det oppstod en feil under aktivering av push-varsler"
+      },
+      "push_prompt": {
+        "title": "Aktiver push-varsler",
+        "message": "Bli varslet om DM, omtaler og svar.",
+        "ios_home_screen_title": "Legg til Chatto på startskjermen",
+        "ios_home_screen_message": "På støttede versjoner av iOS/iPadOS åpner du Chatto fra startskjermikonet før du aktiverer push-varsler.",
+        "enabled": "Push-varsler aktivert",
+        "blocked": "Push-varsler er blokkert i nettleseren eller OS-innstillingene",
+        "enable_failed": "Kunne ikke aktivere push-varsler",
+        "enabling": "Aktiverer...",
+        "enable": "Aktiver",
+        "dismiss": "Nei takk"
+      },
+      "sound": {
+        "title": "Varslingslyd",
+        "shape_title": "Lydform",
+        "preview": "Forhåndsvisning",
+        "reset": "Tilbakestill",
+        "off": "Av",
+        "volume": "Volum",
+        "tinny": "Tinny",
+        "muffled": "Dempet",
+        "echo": "Ekko",
+        "reverb": "Reverb",
+        "crunch": "Crunch",
+        "category": {
+          "silent": "Stille",
+          "simple": "Enkelt",
+          "playful": "Leken",
+          "robots": "Roboter",
+          "musical": "Musikal",
+          "here_be_dragons": "Here Be Dragons"
+        },
+        "name": {
+          "silent": "Stille",
+          "ding": "Ding",
+          "chime_up": "Stigende ringetone",
+          "chime_down": "Fallende ringetone",
+          "pop": "Myk pop",
+          "bubble": "Boble",
+          "retro": "Retro pip",
+          "coin": "Myntsamling",
+          "powerup": "Slå på",
+          "fanfare": "8-bits fanfare",
+          "laser": "Laser Zap",
+          "robot": "Robotstemme",
+          "ufo": "UFO",
+          "beepboop": "Pip bop",
+          "dialup": "Oppringt",
+          "r2d2": "R2-D2",
+          "harp": "Harpe blomstrer",
+          "music_box": "Musikkboks",
+          "celesta": "Celesta Dream",
+          "synth": "Synthakkord",
+          "orchestra": "Orkesterhit",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Kaos",
+          "glitch": "Feil",
+          "siren": "Varslingssirene",
+          "dubstep": "Dubstep Drop",
+          "circus": "Sirkus"
+        }
+      },
+      "policy": {
+        "title": "Varslingsregler",
+        "description": "Velg hvordan hver aktivitet varsler deg på server-, romgruppe- og romnivå. Rom arver fra gruppen sin og deretter fra serveren.",
+        "load_failed": "Kunne ikke laste varslingsreglene",
+        "save_failed": "Kunne ikke lagre varslingsreglene",
+        "effective": "Gjeldende: {mode}",
+        "filter_label": "Filtrer varslingsområder",
+        "filter_placeholder": "Filtrer grupper og rom…",
+        "no_filter_matches": "Ingen varslingsområder samsvarer med dette filteret.",
+        "legend": "Leveringsmåter for varsler",
+        "cell_aria": "{cause}, {scope}. Overstyring: {override}. Gjeldende: {effective}. Aktiver for å angi {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktiver for å angi {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Ikke relevant.",
+        "delivery_mode": {
+          "inherit": "Arv",
+          "off": "Av",
+          "notification": "Varsel",
+          "push_notification": "Push-varsel"
+        },
+        "reason": {
+          "direct_message": "Direktemeldinger",
+          "direct_mention": "Direkte omtaler",
+          "reply": "Svar på meldingene dine",
+          "role_mention": "Rolleomtaler",
+          "here": "@here-omtaler",
+          "all": "@all-omtaler",
+          "followed_thread": "Fulgte tråder",
+          "followed_room": "Fulgte rom",
+          "reaction": "Reaksjoner på meldingene dine",
+          "activity": "Aktivitet",
+          "room_invitation": "Invitasjoner til rom"
+        },
+        "reason_hint": {
+          "direct_message": "Meldinger som andre medlemmer sender i direktemeldingssamtaler.",
+          "direct_mention": "Meldinger som omtaler brukernavnet ditt direkte.",
+          "reply": "Meldinger som svarer på en av meldingene dine.",
+          "role_mention": "Meldinger som omtaler en rolle du er tildelt.",
+          "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
+          "all": "Meldinger som bruker @all i et rom du er medlem av.",
+          "followed_thread": "Nye svar i tråder du følger.",
+          "followed_room": "Meldinger på toppnivå i rom du følger.",
+          "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
+        }
+      }
+    },
+    "account": {
+      "title": "Konto",
+      "subtitle": "Administrer kontoinnstillingene dine",
+      "info_title": "Kontoinformasjon",
+      "username": "Brukernavn",
+      "display_name": "Visningsnavn",
+      "danger_title": "Faresone",
+      "danger_description": "Sletting av kontoen din er permanent og kan ikke angres. Alle dataene dine vil bli fjernet.",
+      "delete_button": "Slett konto",
+      "delete_failed": "Kunne ikke slette kontoen",
+      "delete_request_failed": "Kunne ikke be om sletting av kontoen",
+      "password": {
+        "title": "Passord",
+        "add_description": "Legg til et passord slik at du kan logge på direkte og koble fra din siste SSO-leverandør.",
+        "change_description": "Endre passordet som brukes for direkte pålogging.",
+        "current_label": "Nåværende passord",
+        "current_required": "Skriv inn ditt nåværende passord.",
+        "add_button": "Legg til passord",
+        "change_button": "Endre passord",
+        "saving": "Lagrer passord...",
+        "saved": "Passord lagt til",
+        "changed": "Passord endret",
+        "save_failed": "Kunne ikke lagre passordet",
+        "fresh_auth_required": "Logg på igjen før du legger til et passord.",
+        "already_set": "Denne kontoen har allerede et passord."
+      },
+      "sso": {
+        "title": "Enkel pålogging",
+        "loading": "Laster påloggingsleverandører ...",
+        "load_failed": "Kunne ikke laste inn påloggingsleverandører",
+        "none_configured": "Ingen eksterne påloggingsleverandører er konfigurert.",
+        "linked": "Koblet",
+        "not_linked": "Ikke koblet",
+        "link_button": "Link",
+        "link_failed": "Kunne ikke koble påloggingsleverandøren",
+        "fresh_auth_required": "Logg på igjen før du kobler til en annen leverandør.",
+        "provider_unconfigured": "Leverandøren er ikke lenger konfigurert",
+        "disconnect_button": "Koble fra",
+        "disconnecting": "Kobler fra...",
+        "disconnect_failed": "Kunne ikke koble fra påloggingsleverandøren",
+        "disconnect_last_method": "Legg til et passord eller en annen påloggingsmetode før du kobler fra denne leverandøren.",
+        "disconnect_fresh_auth_required": "Logg på igjen før du kobler fra denne leverandøren.",
+        "disconnect_modal": {
+          "title": "Koble fra leverandøren",
+          "body": "Vil du koble {provider} fra denne kontoen?",
+          "action": "Koble fra"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Leverandøren kan ikke kobles fra",
+          "body": "{provider} er din eneste påloggingsmetode. Legg til et passord eller koble til en annen leverandør først."
+        },
+        "fresh_auth_modal": {
+          "title": "Bekreft passord",
+          "body": "Skriv inn ditt nåværende passord før du kobler til {provider}.",
+          "action": "Fortsett"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Bekreft passord",
+          "body": "Skriv inn ditt nåværende passord før du kobler fra {provider}.",
+          "action": "Koble fra"
+        }
+      },
+      "delete_modal": {
+        "title": "Slett konto",
+        "warning_label": "Advarsel:",
+        "warning_text": "Denne handlingen er permanent og kan ikke angres.",
+        "intro": "Dette vil slette kontoen din permanent og:",
+        "remove_from_rooms": "Fjern deg fra alle rom og rom",
+        "delete_messages": "Slett alle meldingene dine (innhold vil ikke kunne gjenopprettes)",
+        "delete_profile": "Slett profilen din, avataren din og tilhørende data",
+        "confirm_label": "Skriv DELETE for å bekrefte",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Avbryt",
+        "deleting": "Sletter..."
+      }
+    },
+    "bots": {
+      "title": "Botter",
+      "subtitle": "Opprett API-kontoer og kontroller nøyaktig hva de kan gjøre",
+      "singular": "bot",
+      "unsupported": "Denne serverversjonen støtter ikke bot-kontoer.",
+      "list_title": "Botkontoer",
+      "loading": "Laster inn roboter...",
+      "empty_title": "Ingen roboter ennå",
+      "empty_body": "Opprett en bot når en integrasjon trenger sin egen identitet og tillatelser.",
+      "create_permission_required": "Du kan administrere eksisterende boter, men du har ikke tillatelse til å opprette en ny.",
+      "create": "Opprett bot",
+      "create_title": "Opprett bot-konto",
+      "create_failed": "Kunne ikke opprette bot",
+      "created": "Bote opprettet",
+      "edit": "Rediger",
+      "edit_title": "Rediger botkonto",
+      "updated": "Bot oppdatert",
+      "update_failed": "Kunne ikke oppdatere bot",
+      "update_conflict": "Noen andre oppdaterte denne boten. Last inn siden på nytt og prøv igjen.",
+      "username": "Brukernavn",
+      "username_hint": "Botebrukernavn må ende på _bot.",
+      "display_name": "Visningsnavn",
+      "owner": "Eier",
+      "reassign_owner": "Tilordne eier på nytt",
+      "reassign_owner_warning": "Botens API-nøkkel og konfigurerte tillatelser forblir uendret. Effektive tillatelser følger den nye eieren umiddelbart.",
+      "owner_reassigned": "Bot-eier tilordnet på nytt",
+      "owner_reassign_failed": "Kunne ikke tilordne bot-eier på nytt",
+      "api_key_title": "Lagre denne API-nøkkelen",
+      "api_key_warning": "Denne nøkkelen vises bare én gang. Oppbevar det et sikkert sted før du lukker dette vinduet.",
+      "key_created": "API-nøkkel opprettet",
+      "key_rotated_at": "Sist rotert",
+      "key_copied": "API-nøkkel kopiert",
+      "rotate_key": "Roteringsnøkkel",
+      "rotate_title": "Roter API-nøkkel",
+      "rotate_warning": "Gjeldende nøkkel slutter å virke umiddelbart. Enhver integrasjon som bruker det, må oppdateres.",
+      "key_rotated": "API-nøkkel rotert",
+      "rotate_failed": "Kunne ikke rotere API-nøkkel",
+      "delete_title": "Slett bot",
+      "delete_warning": "Vil du slette {name}? API-nøkkelen slutter å fungere umiddelbart, og kontoen kan ikke gjenopprettes.",
+      "deleted": "Bote slettet",
+      "delete_failed": "Kunne ikke slette bot",
+      "permissions": {
+        "owner_ceiling": "Velg hva denne boten kan gjøre. Du kan bare gi den tillatelser du selv har. Hvis du mister en tillatelse, kan boten heller ikke bruke den lenger.",
+        "save_failed": "Kunne ikke oppdatere bottillatelsen"
+      }
+    }
+  }
+}

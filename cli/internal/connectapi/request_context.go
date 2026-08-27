@@ -2,6 +2,14 @@ package connectapi
 
 import "context"
 
+const (
+	// BrowserAuthenticationModeHeader lets the bundled same-origin browser ask
+	// an authentication flow to establish only its HttpOnly cookie session.
+	// Programmatic clients omit it and keep the bearer response contract.
+	BrowserAuthenticationModeHeader = "X-Chatto-Authentication-Mode"
+	BrowserAuthenticationModeCookie = "cookie"
+)
+
 type requestBaseURLContextKey struct{}
 type browserSessionCreatorContextKey struct{}
 

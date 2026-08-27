@@ -1,0 +1,218 @@
+{
+  "room": {
+    "create": {
+      "title": "Skapa ett nytt rum",
+      "description": "Rum är konversationer på din server.",
+      "name_placeholder": "Ange rummets namn",
+      "description_placeholder": "Vad handlar det här rummet om?",
+      "name_label": "Rumsnamn",
+      "description_label": "Beskrivning (valfritt)",
+      "universal_label": "Universellt rum",
+      "universal_description": "Alla servermedlemmar (med tillåtelse) är automatiskt medlemmar i detta rum.",
+      "name_required": "Rumsnamn krävs",
+      "missing_group": "Välj en rumsgrupp innan du skapar ett rum.",
+      "failed": "Det gick inte att skapa rum",
+      "creating": "Skapar...",
+      "submit_and_configure": "Skapa och konfigurera rummet"
+    },
+    "join": {
+      "title": "Gå med i rummet",
+      "action": "Gå med i rummet",
+      "prompt": "Gå med i #{room} för att läsa och delta i det här rummet.",
+      "inline_prompt": "Gå med i det här rummet för att läsa och delta.",
+      "group_label": "I {group}",
+      "member_preview_label": "Rumsmedlemmar",
+      "member_count": {
+        "one": "{count} medlem",
+        "other": "{count} medlemmar"
+      },
+      "success": "Gick med i #{room}",
+      "success_generic": "Anslöt sig till rummet",
+      "failed": "Det gick inte att gå med i rummet",
+      "access_title": "Tillgång till rummet",
+      "access_denied": "Du har inte behörighet att gå med i det här rummet."
+    },
+    "leave": {
+      "title": "Lämna rummet",
+      "action": "Lämna rummet",
+      "prompt": "Är du säker på att du vill lämna #{room}? Du kan gå med igen senare.",
+      "failed": "Det gick inte att lämna rummet"
+    },
+    "directory": {
+      "universal_title": "Universalrum ansluts automatiskt",
+      "joined": "Gick med",
+      "leave": "Lämna",
+      "restricted_title": "Du har inte behörighet att gå med i det här rummet",
+      "search_placeholder": "Sök rum...",
+      "empty": "Inga rum på den här servern än.",
+      "no_results": "Inga rum matchar ditt filter.",
+      "universal": "Universal",
+      "joined_title": "Gick med i #{room} – klicka för att lämna",
+      "leaving": "Lämnar",
+      "joining": "Går med",
+      "join": "Gå med",
+      "restricted": "Begränsad",
+      "join_all": "Gå med alla",
+      "already_in_group": "Redan i alla rum i {group}",
+      "joined_group_one": "Anslöt sig till ett rum i {group}",
+      "joined_group_many": "Anslöt sig till {count} rum i {group}",
+      "join_group_failed": "Det gick inte att gå med i gruppen",
+      "left": "Vänster #{room}",
+      "left_generic": "Vänster rummet",
+      "leave_confirm": "Är du säker på att du vill lämna #{room}?"
+    },
+    "server": {
+      "remove_title": "Ta bort server",
+      "remove_action": "Ta bort server",
+      "remove_prompt": "Ta bort {server} från det här sidofältet? Detta tar bara bort servern från den här enheten. Ditt konto och dina data på servern raderas inte.",
+      "remove_account_prefix": "Om du vill radera ditt konto permanent öppnar du ",
+      "remove_account_link": "Kontoinställningar",
+      "remove_account_suffix": " för den här servern innan du tar bort den."
+    },
+    "timeline": {
+      "beginning": "Det här är början på den här konversationen.",
+      "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet."
+    },
+    "message": {
+      "empty": "Inga meddelanden än",
+      "delete_title": "Ta bort meddelande",
+      "delete_prompt": "Är du säker på att du vill ta bort det här meddelandet? Detta kan inte ångras.",
+      "delete_failed": "Det gick inte att radera meddelandet",
+      "reaction_failed": "Det gick inte att uppdatera reaktionen",
+      "reaction_limit_reached": "Du kan lägga till upp till 20 reaktioner på ett meddelande.",
+      "deleted": "Meddelande raderat",
+      "actions": {
+        "toolbar": "Meddelandeåtgärder",
+        "react_with": "Reagera med {emoji}",
+        "remove_reaction": "Ta bort {emoji}",
+        "add_reaction": "Lägg till reaktion",
+        "more_reactions": "Fler reaktioner",
+        "reply": "Svara",
+        "reply_room": "Svara i rummet",
+        "reply_thread": "Svara i tråden",
+        "open_thread": "Öppna tråden",
+        "edit": "Redigera meddelande",
+        "more": "Fler åtgärder",
+        "edit_short": "Redigera",
+        "copy_text": "Kopiera text",
+        "copy_text_failed": "Det gick inte att kopiera texten",
+        "copy_link": "Kopiera länk"
+      },
+      "meta": {
+        "pinned": "Fäst meddelande",
+        "thread": "Tråd",
+        "edited": "Redigerat meddelande",
+        "echoed_to_channel": "Även skickat till kanalen",
+        "reply_count_one": "1 svar",
+        "reply_count_many": "{count} svarar",
+        "follow_thread": "Följ tråden",
+        "unfollow_thread": "Sluta följa tråden",
+        "add_reaction_label": "Lägg till {emoji}-reaktion ({count})",
+        "remove_reaction_label": "Ta bort {emoji}-reaktion ({count})",
+        "reaction_users_more": "+ {count} mer",
+        "copy_link_title": "Klicka för att kopiera länken till detta meddelande",
+        "in_reply_to": "som svar på",
+        "reply_preview_fallback": "Meddelande",
+        "deleted": "Det här meddelandet har tagits bort."
+      },
+      "timestamp": {
+        "details_title": "Datum och tid",
+        "local_time": "Lokalt",
+        "relative_time": "Relativt"
+      }
+    },
+    "system_events": {
+      "joined_count": {
+        "one": "gick med i rummet",
+        "other": "gick med i rummet"
+      },
+      "left_count": {
+        "one": "lämnade rummet",
+        "other": "lämnade rummet"
+      },
+      "archived": "arkiverade rummet",
+      "unarchived": "har tagit bort rummet från arkivet",
+      "call_started": "startade ett samtal i det här rummet",
+      "call_ended": "Det aktiva samtalet har avslutats",
+      "threading_mode_changed": "ändrade trådläget till {mode}",
+      "and": "och",
+      "other_people_count": {
+        "one": "annan",
+        "other": "andra"
+      },
+      "show_less": "visa mindre"
+    },
+    "attachment": {
+      "delete_title": "Ta bort bilaga",
+      "delete_prompt": "Är du säker på att du vill ta bort den här bilagan? Detta kan inte ångras.",
+      "delete_label": "Ta bort bilaga",
+      "delete_failed": "Det gick inte att ta bort bilagan",
+      "view_label": "Visa {filename}",
+      "download_label": "Ladda ner {filename}",
+      "image_refresh_failed": "Det gick inte att uppdatera bildlänken",
+      "download_refresh_failed": "Det gick inte att uppdatera nedladdningslänken"
+    },
+    "link_preview": {
+      "delete_title": "Ta bort länkförhandsgranskning",
+      "delete_prompt": "Är du säker på att du vill ta bort den här länkförhandsgranskningen? Detta kan inte ångras.",
+      "delete_failed": "Det gick inte att ta bort länkförhandsgranskningen"
+    },
+    "sidebar": {
+      "extras": "Extra rum",
+      "resize": "Ändra storlek på rummets extrafönster",
+      "hide": "Dölj extrafunktioner i rummet",
+      "maximize_call": "Maximera samtalet",
+      "minimize_call": "Minimera samtalet",
+      "members": "Medlemmar",
+      "members_title": "Medlemmar ({count})",
+      "search_members": "Sök rumsmedlemmar",
+      "search_members_placeholder": "Sök medlemmar",
+      "clear_member_search": "Rensa medlemssökning",
+      "no_members": "Inga medlemmar hittades.",
+      "online": "Online ({count})",
+      "offline": "Offline ({count})",
+      "no_files": "Inga filer i det här rummet ännu.",
+      "files": "Filer",
+      "pins": "Fästa meddelanden",
+      "call": "Ring",
+      "jump_to_file": "Hoppa till {filename}",
+      "loading_files": "Laddar filer...",
+      "calls_unavailable": "Samtal är inte tillgängliga på den här servern.",
+      "view_profile": "Visa profil för {name}",
+      "in_voice_call": "I ett röstsamtal",
+      "in_video_call": "I ett videosamtal",
+      "ban_failed": "Det gick inte att blockera medlem från rummet",
+      "ban_success": "Utestängd {name} från rummet"
+    },
+    "pins": {
+      "show": "Visa fästa meddelanden",
+      "unseen": "Nya fästa meddelanden",
+      "hide": "Dölj fästa meddelanden",
+      "pin": "Fäst meddelande",
+      "unpin": "Lossa meddelande",
+      "unpin_prompt": "Vill du verkligen ta bort den här fästningen?",
+      "loading": "Läser in fästa meddelanden...",
+      "empty_title": "Inga fästa meddelanden",
+      "empty_description": "Rumsansvariga kan fästa viktiga meddelanden här.",
+      "error_title": "Fästa meddelanden är inte tillgängliga",
+      "error_description": "Det gick inte att läsa in fästa meddelanden. Försök igen om en stund.",
+      "update_failed": "Det gick inte att uppdatera det fästa meddelandet"
+    },
+    "title": {
+      "direct_message": "Direktmeddelande"
+    },
+    "thread": {
+      "title": "Tråd i #{room}",
+      "back_to_room": "Tillbaka till rummet",
+      "follow": "Följ tråden",
+      "unfollow": "Sluta följa tråden",
+      "close": "Stäng tråden",
+      "not_found": "Tråden hittades inte",
+      "reply_placeholder": "Svara i tråden..."
+    },
+    "jump_to_present": "Hoppa till Present",
+    "jump_failed": "Det gick inte att hoppa till det meddelandet.",
+    "unread_separator": "Nya meddelanden",
+    "close_extras": "Stäng extra rum"
+  }
+}

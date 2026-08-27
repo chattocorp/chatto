@@ -1,0 +1,9 @@
+{
+  "message_preview": {
+    "attachments_count": { "other": "Pièces jointes {count}" },
+    "attachment_image": "Image",
+    "attachment_video": "Vidéo",
+    "attachment_audio": "Audio",
+    "attachment_file": "Fichier"
+  }
+}

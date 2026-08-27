@@ -8,11 +8,14 @@
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
-import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
 import { isAuthenticationRequiredError } from './errors';
+import { saveReturnUrl } from './returnNavigation';
 import { isExplicitSignOutRedirectInProgress } from './signOut';
+import { revokeLegacyOriginBearerSession } from './originBearerMigration';
+import { migrateLegacyOriginCookieSession } from './legacyCookieMigration';
 
 export type { CurrentUser };
 
@@ -41,12 +44,16 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const baseUrl = serverConnectionManager.originConnectBaseUrl;
+  let legacyCookieMigrationAttempted = false;
+  let transientRetryUsed = false;
+
+  while (true) {
     try {
-      cachedUser = await getCurrentUserViaConnect({
-        baseUrl: serverConnectionManager.originClient.connectBaseUrl,
-        bearerToken: serverConnectionManager.originClient.bearerToken
-      });
+      cachedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
+      await revokeLegacyOriginBearerSession();
+      serverRegistry.authenticateOriginCookie(cachedUser);
+      serverConnectionManager.originClient.maintainBrowserSession();
       const originId = serverRegistry.originServer?.id;
       if (originId) {
         serverRegistry.clearAuthenticationRequired(originId);
@@ -59,6 +66,24 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
           serverRegistry.clearOriginAuthentication();
           return null;
         }
+        if (!legacyCookieMigrationAttempted) {
+          legacyCookieMigrationAttempted = true;
+          try {
+            if (await migrateLegacyOriginCookieSession()) {
+              continue;
+            }
+          } catch {
+            // A temporary migration failure must not erase cached or portable
+            // authority. Retry once, then let a later route load try again.
+            if (!transientRetryUsed) {
+              transientRetryUsed = true;
+              legacyCookieMigrationAttempted = false;
+              await new Promise((resolveRetry) => setTimeout(resolveRetry, 200));
+              continue;
+            }
+            return cachedUser;
+          }
+        }
         const cached = cachedUser;
         if (cached) {
           const originId = serverRegistry.originServer?.id;
@@ -68,18 +93,24 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
           return cached;
         }
         cachedUser = null;
+        try {
+          await revokeLegacyOriginBearerSession();
+        } catch {
+          // Keep portable authority in local state until a later load can prove
+          // that the server revoked it. The cookie-only client never uses it.
+          return null;
+        }
         serverRegistry.clearOriginAuthentication();
         return null;
       }
-      if (attempt === 0) {
+      if (!transientRetryUsed) {
+        transientRetryUsed = true;
         await new Promise((r) => setTimeout(r, 200));
         continue;
       }
       return cachedUser;
     }
   }
-
-  return cachedUser;
 }
 
 /**
@@ -128,7 +159,7 @@ export async function requireAuth(returnUrl?: string): Promise<CurrentUser> {
 export function requireUser(user: CurrentUser | null, returnUrl?: string): CurrentUser {
   if (!user) {
     if (returnUrl && browser) {
-      sessionStorage.setItem('returnUrl', returnUrl);
+      saveReturnUrl(returnUrl);
     }
     redirect(302, resolve('/'));
   }

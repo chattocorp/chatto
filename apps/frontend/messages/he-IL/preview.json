@@ -1,0 +1,15 @@
+{
+  "preview": {
+    "dismiss": "סגור תצוגה מקדימה",
+    "delete": "מחק תצוגה מקדימה",
+    "open_link": "פתח קישור",
+    "copy_url": "העתק כתובת URL",
+    "show_content": "הצג תוכן",
+    "hide_content": "הסתרת תוכן",
+    "youtube_title": "סרטון YouTube",
+    "youtube_dismiss": "סגור סרטון",
+    "youtube_delete": "מחק סרטון",
+    "youtube_open": "פתוח ב-YouTube",
+    "youtube_delete_embed": "מחק הטמעה"
+  }
+}

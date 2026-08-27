@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-06-18
+**Last reviewed:** 2026-08-22
 
 ## Overview
 
@@ -9,10 +9,12 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Behavior
 
-- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
-- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer and preserving sidebar links.
+- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded. A viewer with effective group `room.manage` also sees a settings action on that group header, including when no rooms in the group are otherwise visible.
+- Configured room groups, the alphabetical fallback used before a layout exists, and the Direct Messages section share the same sidebar heading, spacing, and collapse/expand interaction. This presentation does not make Direct Messages an operator-managed room group.
+- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
-- Server admins can create, rename, reorder, and delete groups via the admin UI.
+- Every visible sidebar room row exposes a context menu with a final “Copy Room ID” action that writes the room's stable ID to the clipboard. Successful copies are confirmed; clipboard failures report an error. Joined rooms offer unread and leave actions where applicable; non-member rooms offer Join, disabled when the viewer lacks `room.join`. Effective room `room.manage` holders also receive a settings action for channel rooms.
+- Server-wide room managers can create and reorder groups from the room-layout overview. Its edit action opens the room group's resource page in the shared management area. Effective group `room.manage` holders can edit or delete that group, while either they or server-wide `role.manage` holders can configure its role permission matrix.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
 - Sidebar links belong to exactly one group, carry a label and either an absolute `http`/`https` URL or a server-local path starting with `/`, and are visible to authenticated users who can see the server sidebar.
@@ -21,6 +23,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - Moving a room between groups requires `room.manage` in both the source and the target group (the room's effective ACL changes overnight).
 - Creating, editing, moving, deleting, or reordering sidebar links requires `room.manage` for the affected group. Moving a sidebar link between groups requires `room.manage` in both the source and target groups, matching room moves.
 - Room-scope permissions (`message.post`, `room.join`, `message.react`, etc.) can be configured per group, with per-room overrides on top.
+- Management-authorized group metadata reads are distinct from the user-facing room directory: `room.manage` and `role.manage` holders can load the selected group's settings even when they do not otherwise have room visibility. This read omits the group's ordered room/link entries so role permission managers do not gain private-room visibility through the settings page.
 
 ## Design Decisions
 
@@ -32,13 +35,13 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 2. Per-room overrides are sparse, not full configurations
 
-**Decision:** A room's permission config stores only the (role, permission) pairs that differ from its group. The rest are inherited.
+**Decision:** A room's permission config stores only the (subject, permission) pairs that differ from its group. For that same subject, a room decision replaces the group and server value; everything else inherits independently.
 **Why:** Storing a full copy per room would multiply KV entries and make group-level tweaks awkward (every room would need to be touched). Sparse overrides keep the model both compact and operator-friendly.
-**Tradeoff:** The permission resolver has to walk the inheritance chain (room → group → server) for every check. Acceptable; the chain is short and cached.
+**Tradeoff:** The permission resolver has to walk the inheritance chain (room → group → server) once per direct user or named role. Acceptable; the chain is short and cached.
 
 ### 3. Server scope cascades as a global default
 
-**Decision:** When a permission isn't decided at group or room scope, the resolver falls back to the server-scope grant. This gives operators a single "global default" to adjust once.
+**Decision:** When a subject's permission isn't decided at group or room scope, the resolver falls back to that subject's server decision. `everyone` supplies the scoped baseline: a named allow overrides an `everyone` deny only at the same or a nearer scope. This gives operators a single global default while letting a room/group baseline contain less-specific grants.
 **Why:** Without server-scope cascade, every group would need a full set of grants from scratch — a worse onboarding experience and a worse story for DMs (which aren't in any group). The cascade restores a sensible default tier. See ADR-031.
 **Tradeoff:** The ADR's headline "groups are the permission container" is slightly softer than it sounded — server scope still matters as a backstop. In practice operators rarely need to think about server scope unless they want a global default different from the seed.
 
@@ -50,9 +53,9 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 5. Moves require authorization in both ends
 
-**Decision:** Moving a room or sidebar link from group A to group B requires `room.manage` in *both* A and B. The UI previews affected users before confirming room moves.
+**Decision:** Moving a room or sidebar link from group A to group B requires `room.manage` in _both_ A and B. The UI previews affected users before confirming room moves.
 **Why:** Moving across groups changes the effective permission set for everyone using the room. An admin authorized only in A shouldn't be able to dump rooms into B and grant a different audience access. Requiring both ends makes the privilege boundary symmetric.
-**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential. The write path uses a room-group projection snapshot plus `evt.group.>` OCC so concurrent moves retry from the current source group before appending the remove/add batch.
+**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential. The write path uses a room-group projection snapshot plus `evt.group.>` OCC so concurrent moves retry from the current source group before appending the remove/add batch. User-authorized group/layout mutations also share the narrow authorization fence with RBAC changes, so a concurrent permission revocation forces the complete authorization check to rerun.
 
 ### 6. Sidebar links extend the existing group aggregate
 
@@ -64,7 +67,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 **Decision:** DM rooms don't belong to any group. Reading is governed by DM room membership; sending and starting DMs use message permissions; the hardcoded `dmBoundaryDeniedPermissions` list still prevents channel-style moderation inside DMs. Group concepts don't apply.
 **Why:** DMs don't fit a "category of rooms" model — every DM is its own conversation. Trying to retrofit groups onto DMs would either need a synthetic "DMs" group (privilege concentration risk) or per-DM groups (meaningless). See ADR-031 and ADR-037.
-**Tradeoff:** DMs keep a small policy branch outside the room-group model. That branch is about DM privacy and creation, not about read visibility.
+**Tradeoff:** DMs keep a small policy branch outside the room-group model. The sidebar presents them like the other collapsible navigation sections for consistency, but that visual treatment must not imply group settings or group-scoped permissions.
 
 ### 8. Sidebar visibility follows room.list, not membership
 
@@ -81,12 +84,14 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 ## Permissions
 
 - `room.create` — configured per group (or at server scope as a default).
-- `room.manage` — required in both source and target groups when moving a room.
+- Server-scope `room.manage` — create and globally reorder room groups.
+- Effective group `room.manage` — edit or delete a group and manage its sidebar entries; required in both source and target groups when moving a room or link.
+- `role.manage` — configure role permission decisions at group scope without granting authority to change the group's general settings.
 - `room.list` — controls whether a channel room appears in the sidebar and room directory for non-members.
 - `room.join` — controls whether a non-member can join a visible channel room directly.
 - All channel-room-scope permissions (`message.post`, `room.join`, etc.) are configurable per group with per-room overrides.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

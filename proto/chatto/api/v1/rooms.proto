@@ -9,6 +9,8 @@ import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
+import "chatto/api/v1/message_types.proto";
+import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
 // Kind of room represented by the public API.
@@ -38,6 +40,12 @@ message Room {
   string group_id = 6;
   // True when a channel grants effective membership to eligible server members.
   bool universal = 7;
+  // Minimum number of seconds a non-exempt member must wait between message
+  // posts. Channel rooms only; zero means slow mode is disabled.
+  uint32 slow_mode_seconds = 8;
+  // Threading policy for this channel room. Direct-message rooms report
+  // UNSPECIFIED because they do not support threads.
+  RoomThreadingMode threading_mode = 9;
 }
 
 // Lightweight room reference for cross-resource rows.
@@ -53,7 +61,9 @@ message RoomSummary {
 
 // Request to create a channel room.
 message CreateRoomRequest {
-  // Required. Name of the new channel room.
+  // Required. Visible 1–30-code-point Unicode name of the new channel room.
+  // The server trims and stores it in NFC form. Control characters and Unicode
+  // line or paragraph separators are rejected.
   string name = 1 [(buf.validate.field).string = {
     min_len: 1
     max_len: 30
@@ -65,6 +75,8 @@ message CreateRoomRequest {
   // Whether the new channel should grant effective membership to eligible
   // server members.
   bool universal = 4;
+  // Threading policy for the new channel. UNSPECIFIED selects ENABLED.
+  RoomThreadingMode threading_mode = 5;
 }
 
 // Result of creating a room.
@@ -77,7 +89,9 @@ message CreateRoomResponse {
 message UpdateRoomRequest {
   // Required. Room to update.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New room name, when changing it.
+  // New visible 1–30-code-point Unicode room name, when changing it. The server
+  // trims and stores it in NFC form. Control characters and Unicode line or
+  // paragraph separators are rejected.
   optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 30
@@ -87,6 +101,13 @@ message UpdateRoomRequest {
   // New universal membership state, when changing it. Direct-message rooms
   // cannot be universal.
   optional bool universal = 4;
+  // New per-user posting interval in seconds. Zero disables slow mode. The
+  // maximum supported interval is six hours. Direct-message rooms cannot use
+  // slow mode.
+  optional uint32 slow_mode_seconds = 5 [(buf.validate.field).uint32.lte = 21600];
+  // New threading policy. Direct-message rooms cannot set this field, and an
+  // explicitly supplied UNSPECIFIED or unknown value is rejected.
+  optional RoomThreadingMode threading_mode = 6;
 }
 
 // Result of updating a room.
@@ -143,7 +164,9 @@ message JoinRoomGroupResponse {
   repeated string joined_room_ids = 1;
 }
 
-// Request to start or fetch a direct-message room.
+// Request to start or fetch a direct-message room for a human caller. A valid
+// request from a bot receives PERMISSION_DENIED, including when the room
+// already exists.
 message StartDMRequest {
   // Other participants to include in the direct-message room. The current user
   // is always included by the server. An empty list creates or fetches the
@@ -306,6 +329,60 @@ message ListRoomAttachmentsResponse {
   PageInfo page = 4;
 }
 
+// One current pinned message in a channel room.
+message PinnedMessage {
+  // Current renderable message. Retracted messages are omitted from pin lists.
+  Message message = 1;
+}
+
+// Request to list a channel room's current pinned messages.
+message ListPinnedMessagesRequest {
+  // Required channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Page request. Defaults are applied when absent or limit is zero.
+  PageRequest page = 2;
+}
+
+// Current pinned messages in one channel room.
+message ListPinnedMessagesResponse {
+  // Pinned messages in newest-pin-first order.
+  repeated PinnedMessage pinned_messages = 1;
+  // Page metadata.
+  PageInfo page = 2;
+  // Opaque marker for the latest pin fact observed for this room. The value
+  // remains stable when pins are removed so clients can detect new pins
+  // without comparing wall-clock timestamps. Clients must not interpret it.
+  string latest_pin_marker = 3;
+}
+
+// Request to pin a message in a channel room.
+message CreatePinnedMessageRequest {
+  // Required channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required canonical message event ID. Thread replies are supported.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of pinning a message.
+message CreatePinnedMessageResponse {
+  // Current pinned-message resource. Repeating an existing pin returns it.
+  PinnedMessage pinned_message = 1;
+}
+
+// Request to unpin a message from a channel room.
+message DeletePinnedMessageRequest {
+  // Required channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required canonical message event ID.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of unpinning a message.
+message DeletePinnedMessageResponse {
+  // True when the message is not pinned after this call.
+  bool deleted = 1;
+}
+
 // Request to refresh the current user's live-only typing indicator.
 message UpdateTypingIndicatorRequest {
   // Required. Room where the current user is typing.
@@ -345,19 +422,24 @@ service RoomService {
   // Joins every unarchived room in a group that the current user can join.
   // Already-joined and non-joinable rooms are skipped.
   rpc JoinRoomGroup(JoinRoomGroupRequest) returns (JoinRoomGroupResponse);
-  // Starts or fetches a direct-message room for the current user and the
-  // requested participant set. The caller must be allowed to start DMs.
+  // Starts or fetches a direct-message room for the current human user and the
+  // requested participant set. The caller must have message.post. A valid
+  // request from a bot receives PERMISSION_DENIED and cannot use this RPC to
+  // fetch an existing DM.
   rpc StartDM(StartDMRequest) returns (StartDMResponse);
   // Leaves the room as the current user. Direct-message and universal rooms
   // cannot be left.
   rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
-  // Lists explicit members of a room. The caller must be a member of the room.
+  // Lists effective room members. Existing members and room.manage holders may
+  // list a channel room; other nonmembers need both room.list and room.join.
   rpc ListMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
-  // Gets one explicit member of a room. The caller must be a member of the
-  // room. Returns NOT_FOUND when the target is unknown or not a room member.
+  // Gets one explicit member of a room. Existing members and room.manage
+  // holders may read channel-room members; DMs remain membership-only. Returns
+  // NOT_FOUND when the target is unknown or not a room member.
   rpc GetMember(GetRoomMemberRequest) returns (GetRoomMemberResponse);
-  // Gets explicit room member rows for multiple users. The caller must be a
-  // member of the room.
+  // Gets explicit room member rows for multiple users. Existing members and
+  // room.manage holders may read channel-room members; DMs remain
+  // membership-only.
   rpc BatchGetMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
   // Adds a user as an explicit member of a channel room. The caller must be
   // allowed to manage the room. Direct-message and universal rooms cannot be
@@ -371,22 +453,45 @@ service RoomService {
   // membership bans.
   rpc ListBans(ListBansRequest) returns (ListBansResponse);
   // Lists current message-owned room attachments. Authentication and room
-  // membership are required. Returns PERMISSION_DENIED when the room is
+  // membership are required. Channel-room attachments also require message.read
+  // or a matching thread relationship with message.read.interactions. DM
+  // membership authorizes DM attachments. The server omits attachments from
+  // inaccessible threads. Returns PERMISSION_DENIED when the room is
   // inaccessible to the caller.
   rpc ListRoomAttachments(ListRoomAttachmentsRequest) returns (ListRoomAttachmentsResponse);
+  // Lists current pinned messages in a channel room. Room membership plus
+  // message.read or message.read.interactions are required. The server omits
+  // pins from threads that the caller cannot read. Direct-message rooms do not
+  // support pins.
+  rpc ListPinnedMessages(ListPinnedMessagesRequest) returns (ListPinnedMessagesResponse);
+  // Pins a current message. The caller must have room.manage and must be able
+  // to read the message. Repeating an existing pin is idempotent. Direct-message
+  // rooms are rejected.
+  rpc CreatePinnedMessage(CreatePinnedMessageRequest) returns (CreatePinnedMessageResponse);
+  // Removes a current pin. The caller must have room.manage. Removing a
+  // missing pin is idempotent. Direct-message rooms are rejected.
+  rpc DeletePinnedMessage(DeletePinnedMessageRequest) returns (DeletePinnedMessageResponse);
   // Refreshes the current user's live-only typing indicator for a room or
   // thread. Room membership is required; message posting permission is not.
   rpc UpdateTypingIndicator(UpdateTypingIndicatorRequest) returns (UpdateTypingIndicatorResponse);
-  // Returns one page of room timeline events, including related user data needed
-  // to render the page.
+  // Returns one page of room timeline events, including related user data
+  // needed to render the page. Room membership is required. Channel-room reads
+  // also require message.read or message.read.interactions. The server returns
+  // only related thread roots for an interaction-scoped caller. DM membership
+  // authorizes DM reads.
   rpc GetRoomEvents(GetRoomEventsRequest) returns (GetRoomEventsResponse);
   // Returns a room timeline window centered around a specific event. Use this to
   // open a permalink, search result, or notification target in context. Returns
   // NOT_FOUND when the anchor event is missing or not visible in the room
-  // timeline and PERMISSION_DENIED when the room is inaccessible.
+  // timeline. Returns PERMISSION_DENIED when room membership or both read modes
+  // are missing, or when the anchor is in an unrelated thread. DM membership
+  // authorizes DM reads.
   rpc GetRoomEventsAround(GetRoomEventsAroundRequest) returns (GetRoomEventsAroundResponse);
-  // Marks a room timeline as read through the supplied event. If no event is
-  // supplied, the server marks through the room's latest root event. Clients
+  // Marks a room timeline as read through the supplied event. Room membership
+  // is required. Channel-room reads also require message.read or
+  // message.read.interactions. DM membership authorizes DM reads. If no event
+  // is supplied, the server marks through the latest root event that the caller
+  // can read. Clients
   // usually call this after the user has viewed the latest visible event in the
   // room.
   rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);

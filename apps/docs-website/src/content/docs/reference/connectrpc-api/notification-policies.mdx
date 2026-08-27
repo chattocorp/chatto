@@ -1,0 +1,122 @@
+---
+title: NotificationPolicyService
+description: Server, room-group, and room notification delivery policy RPCs for the authenticated viewer.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-NotificationPolicyService"></a>
+
+## NotificationPolicyService
+
+Reads and updates the authenticated viewer's server, room-group, and room
+notification delivery policies.
+
+<a id="chatto-api-v1-NotificationPolicyService-GetNotificationPolicy"></a>
+
+### GetNotificationPolicy
+
+Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+for a missing room group or room, and PERMISSION_DENIED when the viewer is
+not a current member of a requested room.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/GetNotificationPolicy
+```
+
+<a id="chatto-api-v1-NotificationPolicyServiceGetNotificationPolicyRequest"></a>
+
+#### Input: NotificationPolicyServiceGetNotificationPolicyRequest
+
+Request one notification policy for the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`NotificationPolicyScope`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyScope) | Required policy scope. |
+
+
+<a id="chatto-api-v1-NotificationPolicyServiceGetNotificationPolicyResponse"></a>
+
+#### Result: NotificationPolicyServiceGetNotificationPolicyResponse
+
+One resolved notification policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policy` | [`ScopedNotificationPolicy`](/reference/connectrpc-api/types/#chatto-api-v1-ScopedNotificationPolicy) | Requested policy and its explicit scope. |
+
+
+<a id="chatto-api-v1-NotificationPolicyService-BatchGetNotificationPolicies"></a>
+
+### BatchGetNotificationPolicies
+
+Gets an explicit bounded set of policies. Missing and inaccessible scopes
+are omitted, and duplicate scopes are de-duplicated in first-seen order.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/BatchGetNotificationPolicies
+```
+
+<a id="chatto-api-v1-BatchGetNotificationPoliciesRequest"></a>
+
+#### Input: BatchGetNotificationPoliciesRequest
+
+Request an explicit bounded set of notification policies.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scopes` | repeated [`NotificationPolicyScope`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyScope) | Required scopes. Missing or inaccessible scopes are omitted. Repeated scopes are de-duplicated in first-seen request order. |
+
+
+<a id="chatto-api-v1-BatchGetNotificationPoliciesResponse"></a>
+
+#### Result: BatchGetNotificationPoliciesResponse
+
+Resolved notification policies requested by scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policies` | repeated [`ScopedNotificationPolicy`](/reference/connectrpc-api/types/#chatto-api-v1-ScopedNotificationPolicy) | Found policies in first-seen request order. |
+
+
+<a id="chatto-api-v1-NotificationPolicyService-UpdateNotificationPolicy"></a>
+
+### UpdateNotificationPolicy
+
+Atomically sets or clears selected overrides at one explicit scope.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/UpdateNotificationPolicy
+```
+
+<a id="chatto-api-v1-NotificationPolicyServiceUpdateNotificationPolicyRequest"></a>
+
+#### Input: NotificationPolicyServiceUpdateNotificationPolicyRequest
+
+Sparsely update notification policy overrides at one explicit scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`NotificationPolicyScope`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyScope) | Required policy scope. |
+| `overrides` | [`NotificationDeliveryModes`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationDeliveryModes) | Sparse override values. Fields selected by update_mask but absent here are cleared to Inherit. |
+| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. The mask must contain at least one supported delivery-mode field. |
+
+
+<a id="chatto-api-v1-NotificationPolicyServiceUpdateNotificationPolicyResponse"></a>
+
+#### Result: NotificationPolicyServiceUpdateNotificationPolicyResponse
+
+Complete supported notification policy after a scoped sparse update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policy` | [`ScopedNotificationPolicy`](/reference/connectrpc-api/types/#chatto-api-v1-ScopedNotificationPolicy) | Updated policy and its explicit scope. |

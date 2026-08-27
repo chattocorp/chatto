@@ -31,6 +31,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - POST /auth/test/verify-email - Directly verify a user's email
 //   - POST /auth/test/create-user - Directly create a user without registration flow
 //   - POST /auth/test/create-user-session - Create, verify, join defaults, and log in a test user
+//   - POST /auth/test/seed-performance - Create a large encrypted performance fixture
 //   - POST /auth/test/create-registration-code - Create a registration code without email delivery
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
 //   - POST /auth/test/external-identity-flow - Create a pending external identity confirmation flow
@@ -42,6 +43,8 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 
 	log.Warn("TEST EMAIL ENDPOINTS ENABLED - These endpoints bypass email verification and OAuth. " +
 		"Ensure this build is not used in production!")
+
+	registerPerformanceFixtureEndpoint(auth, s)
 
 	auth.GET("test/last-email", func(c *gin.Context) {
 		msg := s.mockMailer.LastMessage()
@@ -386,6 +389,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	auth.POST("test/oauth-authorize", func(c *gin.Context) {
 		var req struct {
 			UserID              string `json:"userId" binding:"required"`
+			ClientID            string `json:"clientId" binding:"required"`
 			RedirectURI         string `json:"redirectUri" binding:"required"`
 			CodeChallenge       string `json:"codeChallenge" binding:"required"`
 			CodeChallengeMethod string `json:"codeChallengeMethod" binding:"required"`
@@ -400,8 +404,9 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "code_challenge_method must be S256"})
 			return
 		}
-		if !s.isAllowedOAuthRedirectURI(req.RedirectURI) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri: must use an allowed HTTPS origin or localhost"})
+		client, err := s.resolveOAuthClient(c.Request.Context(), req.ClientID)
+		if err != nil || !client.allowsRedirectURI(req.RedirectURI) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid client_id or redirect_uri"})
 			return
 		}
 
@@ -411,7 +416,12 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			return
 		}
 
-		code, err := s.core.CreateAuthCode(ctx, req.UserID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod)
+		authGeneration, err := s.core.CurrentAuthGeneration(ctx, req.UserID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read auth generation: " + err.Error()})
+			return
+		}
+		code, err := s.core.CreateAuthCodeForClientGeneration(ctx, req.UserID, req.ClientID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod, authGeneration)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create auth code: " + err.Error()})
 			return
@@ -442,12 +452,8 @@ func registerTestWebhookEndpoints(webhooks *gin.RouterGroup, s *HTTPServer) {
 	// Simulate a participant joining a call
 	webhooks.POST("/test/call-join", func(c *gin.Context) {
 		var req struct {
-			SpaceID     string `json:"spaceId" binding:"required"`
-			RoomID      string `json:"roomId" binding:"required"`
-			UserID      string `json:"userId" binding:"required"`
-			DisplayName string `json:"displayName"`
-			Login       string `json:"login"`
-			AvatarURL   string `json:"avatarUrl"`
+			RoomID string `json:"roomId" binding:"required"`
+			UserID string `json:"userId" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -456,9 +462,7 @@ func registerTestWebhookEndpoints(webhooks *gin.RouterGroup, s *HTTPServer) {
 
 		if err := s.core.HandleCallParticipantJoined(
 			c.Request.Context(),
-			req.SpaceID, req.RoomID,
-			req.UserID, req.DisplayName,
-			req.Login, req.AvatarURL,
+			req.RoomID, req.UserID,
 		); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -469,9 +473,8 @@ func registerTestWebhookEndpoints(webhooks *gin.RouterGroup, s *HTTPServer) {
 	// Simulate a participant leaving a call
 	webhooks.POST("/test/call-leave", func(c *gin.Context) {
 		var req struct {
-			SpaceID string `json:"spaceId" binding:"required"`
-			RoomID  string `json:"roomId" binding:"required"`
-			UserID  string `json:"userId" binding:"required"`
+			RoomID string `json:"roomId" binding:"required"`
+			UserID string `json:"userId" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -480,8 +483,7 @@ func registerTestWebhookEndpoints(webhooks *gin.RouterGroup, s *HTTPServer) {
 
 		if err := s.core.HandleCallParticipantLeft(
 			c.Request.Context(),
-			req.SpaceID, req.RoomID,
-			req.UserID,
+			req.RoomID, req.UserID,
 		); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

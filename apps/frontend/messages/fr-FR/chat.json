@@ -1,0 +1,71 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Voici les nouveautés",
+      "clear_all": "Tout effacer",
+      "empty_title": "Aucune notification",
+      "empty_body": "Vous êtes tous rattrapés !",
+      "time_now": "Tout à l'heure",
+      "time_minutes": "Il y a {count}m",
+      "time_hours": "Il y a {count}h",
+      "time_days": "Il y a {count}d",
+      "unread": "Non lu",
+      "activity": "Nouvelle activité",
+      "summary": {
+        "direct_message": "{actor} vous a envoyé un message direct.",
+        "reaction": "{actor} a réagi avec « {emoji} » à votre message dans {channel}.",
+        "reaction_group": "{actor} et d’autres personnes ont réagi avec « {emoji} » à votre message dans {channel}.",
+        "reply": "{actor} a répondu à votre message.",
+        "mention": "{actor} vous a mentionné.",
+        "followed_thread": "{actor} a répondu dans un fil que vous suivez.",
+        "new_message": "{actor} a publié un nouveau message.",
+        "activity": "{actor} vous a envoyé une notification."
+      }
+    },
+    "sign_out": {
+      "title": "Se déconnecter",
+      "current_server": "Serveur actuel",
+      "all_servers": "Tous les serveurs",
+      "description": "Déconnectez-vous uniquement du serveur sélectionné ou déconnectez tous les serveurs de ce client."
+    },
+    "overview": {
+      "title": "Présentation"
+    },
+    "server_nav": {
+      "back_to_server": "Retour au serveur",
+      "server_fallback": "Serveur",
+      "administration": "Administration du serveur"
+    },
+    "user_menu": {
+      "profile": "Profil utilisateur",
+      "send_message": "Envoyer un message",
+      "copy_user_id": "Copier l’identifiant de l’utilisateur"
+    },
+    "server_gutter": {
+      "add_server": "Ajouter un serveur",
+      "version": "Version {version}",
+      "version_unknown": "Version inconnue",
+      "unreachable": "Serveur inaccessible",
+      "compatibility_server_too_old": "Ce serveur doit être mis à niveau vers Chatto 0.5 ou une version plus récente avant que cette application puisse se connecter.",
+      "compatibility_unknown": "Cette application ne peut pas déterminer la compatibilité à partir de la version du serveur."
+    },
+    "threads": {
+      "title": "Mes discussions",
+      "subtitle": "Sujets que vous suivez",
+      "filter_label": "Filtrer les fils de discussion",
+      "filter_all": "Tous",
+      "filter_unread": "Non lu",
+      "empty_title": "Aucun fil de discussion suivi",
+      "empty_body": "Les discussions que vous suivez apparaîtront ici. Vous suivez automatiquement les discussions auxquelles vous participez.",
+      "no_unread_loaded": "Aucun fil de discussion non lu chargé",
+      "all_caught_up": "Tous rattrapés",
+      "loaded_summary": "{loaded} de {total} a suivi les threads chargés.",
+      "load_more": "Charger plus",
+      "no_unread": "Aucun fil de discussion non lu pour le moment.",
+      "message_missing": "Le message n'est plus disponible",
+      "in_room": "dans",
+      "in_room_capitalized": "Dans"
+    }
+  }
+}

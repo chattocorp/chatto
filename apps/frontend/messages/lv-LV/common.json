@@ -1,0 +1,53 @@
+{
+  "common": {
+    "cancel": "Atcelt",
+    "close_sidebar": "Aizvērt sānjoslu",
+    "or": "vai",
+    "loading": "Notiek ielāde...",
+    "continue": "Turpināt",
+    "submit": "Iesniegt",
+    "retry": "Mēģiniet vēlreiz",
+    "dismiss": "Atlaist",
+    "sign_in": "Pierakstīties",
+    "create_account": "Izveidot kontu",
+    "email": "E-pasts",
+    "password": "Parole",
+    "username": "Lietotājvārds",
+    "you": "Tu",
+    "current_call": "Pašreizējais zvans",
+    "confirm_password": "Apstipriniet paroli",
+    "new_password": "Jauna parole",
+    "password_placeholder": "Jūsu parole",
+    "email_placeholder": "tu@example.com",
+    "username_placeholder": "your_username",
+    "password_min_placeholder": "Vismaz 8 rakstzīmes",
+    "password_confirm_placeholder": "Ievadiet paroli vēlreiz",
+    "validation": {
+      "email": "Lūdzu, ievadiet derīgu e-pasta adresi",
+      "password_min": "Jābūt vismaz 8 rakstzīmēm",
+      "username_min": "Jābūt vismaz 2 rakstzīmēm",
+      "username_max": "Jābūt ne vairāk kā 32 rakstzīmēm",
+      "username_charset": "Tikai burti, cipari, punkti, domuzīmes, pasvītras",
+      "username_end_alphanumeric": "Jābeidzas ar burtu vai ciparu",
+      "username_no_consecutive_periods": "Nav atļauti secīgi periodi",
+      "passwords_match": "Paroles nesakrīt",
+      "fix_errors": "Lūdzu, izlabojiet iepriekš minētās kļūdas"
+    },
+    "error": {
+      "network": "Tīkla kļūda. Lūdzu, mēģiniet vēlreiz.",
+      "generic": "Kaut kas nogāja greizi"
+    },
+    "delete": "Dzēst",
+    "save": "Saglabāt",
+    "confirm": "Apstiprināt",
+    "back": "Atpakaļ",
+    "clear": "Skaidrs",
+    "unknown": "Nezināms",
+    "deleted_user": "[dzēsts lietotājs]",
+    "got_it": "Sapratu",
+    "saved": "Saglabāts!",
+    "rooms": "Istabas",
+    "copy_to_clipboard": "Kopēt starpliktuvē",
+    "copied_to_clipboard": "Kopēts starpliktuvē"
+  }
+}

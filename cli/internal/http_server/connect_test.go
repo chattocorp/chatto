@@ -32,6 +32,8 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
+	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
@@ -282,7 +284,7 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 	t.Run("returns public server metadata", func(t *testing.T) {
 		_, ts := setupConnectTestServer(t, config.AuthConfig{
 			Providers: []config.AuthProviderConfig{
-				{ID: "hub", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub"},
+				{ID: "hub", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", IssuerURL: "https://id.example"},
 			},
 		})
 
@@ -302,6 +304,9 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		if !msg.GetLogin().GetDirectRegistrationEnabled() {
 			t.Fatal("DirectRegistrationEnabled = false, want true")
 		}
+		if msg.GetLogin().GetAccountCreationPolicy() != apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN {
+			t.Fatalf("AccountCreationPolicy = %v, want OPEN", msg.GetLogin().GetAccountCreationPolicy())
+		}
 		if msg.GetLogin().GetAuthorizeUrl() != "/oauth/authorize" {
 			t.Fatalf("AuthorizeUrl = %q, want /oauth/authorize", msg.GetLogin().GetAuthorizeUrl())
 		}
@@ -311,6 +316,9 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		provider := msg.GetLogin().GetProviders()[0]
 		if provider.Id != "hub" || provider.Type != config.AuthProviderTypeOpenIDConnect || provider.Label != "Chatto Hub" || provider.LoginUrl != "/auth/providers/hub" {
 			t.Fatalf("AuthProviders[0] = %+v", provider)
+		}
+		if provider.GetIssuerUrl() != "https://id.example" {
+			t.Fatalf("AuthProviders[0].IssuerUrl = %q, want https://id.example", provider.GetIssuerUrl())
 		}
 	})
 
@@ -541,6 +549,7 @@ func TestConnectReflection(t *testing.T) {
 		protoreflect.FullName(discoveryv1connect.ServerDiscoveryServiceName),
 		protoreflect.FullName(apiv1connect.RoomServiceName),
 		protoreflect.FullName(adminv1connect.AdminDiagnosticsServiceName),
+		protoreflect.FullName(adminv1connect.AdminInviteLinkServiceName),
 	} {
 		if !nameSet[want] {
 			t.Fatalf("reflection services = %v, missing %s", names, want)
@@ -636,6 +645,45 @@ func TestConnectServerServiceProfileAndRuntimeConfigRequireAuth(t *testing.T) {
 	_, err = client.GetRuntimeConfig(context.Background(), connect.NewRequest(&apiv1.GetRuntimeConfigRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("GetRuntimeConfig code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+}
+
+func TestConnectPushSubscriptionCapabilityCleanupIsPublic(t *testing.T) {
+	s, ts := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "push-cleanup", "Push Cleanup", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	const (
+		endpoint = "https://push.example.test/capability-cleanup"
+		auth     = "capability-auth"
+		token    = "0123456789abcdef0123456789abcdef"
+	)
+	if _, err := s.core.SavePushSubscriptionWithCleanupToken(ctx, user.GetId(), endpoint, "p256dh-key", auth, "test-agent", token); err != nil {
+		t.Fatalf("SavePushSubscriptionWithCleanupToken: %v", err)
+	}
+
+	cleanupClient := authv1connect.NewPushSubscriptionCleanupServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	cleanup, err := cleanupClient.DeleteSubscription(ctx, connect.NewRequest(&authv1.DeleteSubscriptionRequest{
+		Endpoint:     endpoint,
+		Auth:         auth,
+		CleanupToken: token,
+	}))
+	if err != nil {
+		t.Fatalf("unauthenticated DeleteSubscription: %v", err)
+	}
+	if !cleanup.Msg.GetCompleted() {
+		t.Fatal("DeleteSubscription completed = false, want true")
+	}
+	if owned, err := s.core.PushSubscriptionOwnedByUser(ctx, user.GetId(), endpoint); err != nil || owned {
+		t.Fatalf("subscription ownership after cleanup = %t, err = %v", owned, err)
+	}
+
+	pushClient := apiv1connect.NewPushNotificationServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	_, err = pushClient.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated Subscribe code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 }
 
@@ -861,6 +909,103 @@ func TestBearerPresentedCredentialPreservesStorageFailure(t *testing.T) {
 	}
 }
 
+func TestBearerPresentedCredentialAuthenticatesBotAPIKeys(t *testing.T) {
+	s, _ := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "bot-http-owner", "Bot HTTP Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := s.core.CreateBot(ctx, owner.GetId(), "http_bot", "HTTP Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	credential, ok, err := s.bearerPresentedCredential(ctx, bot.APIKey)
+	if err != nil || !ok {
+		t.Fatalf("bearerPresentedCredential = %+v, %v, %v", credential, ok, err)
+	}
+	if credential.user.GetId() != bot.User.GetId() || credential.auth.Kind != authctx.RuntimeCredentialKindBotAPIKey {
+		t.Fatalf("bot credential = %+v", credential)
+	}
+	if credential.auth.Handle != bot.User.GetId() {
+		t.Fatalf("expected non-secret bot credential handle, got %q", credential.auth.Handle)
+	}
+
+	rotated, err := s.core.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	if _, ok, err := s.bearerPresentedCredential(ctx, bot.APIKey); err != nil || ok {
+		t.Fatalf("old bot key authenticated after rotation: ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := s.bearerPresentedCredential(ctx, rotated.APIKey); err != nil || !ok {
+		t.Fatalf("rotated bot key did not authenticate: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestConnectBotAPIKeyAuthenticatesPublicAPIRequests(t *testing.T) {
+	s, ts := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "bot-api-owner", "Bot API Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	ownerToken, err := s.core.CreateAuthToken(ctx, owner.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken owner: %v", err)
+	}
+
+	botClient := apiv1connect.NewBotServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	createReq := connect.NewRequest(&apiv1.CreateBotRequest{
+		Login:       "api_request_bot",
+		DisplayName: "API Request Bot",
+	})
+	createReq.Header().Set("Authorization", "Bearer "+ownerToken)
+	created, err := botClient.CreateBot(ctx, createReq)
+	if err != nil {
+		t.Fatalf("CreateBot over Connect: %v", err)
+	}
+	bot := created.Msg.GetBot().GetUser()
+	apiKey := created.Msg.GetApiKey()
+	if bot.GetId() == "" || !bot.GetIsBot() || apiKey == "" {
+		t.Fatalf("created bot response = %+v", created.Msg)
+	}
+
+	viewerClient := apiv1connect.NewViewerServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	getViewer := func(key string) (*connect.Response[apiv1.GetViewerResponse], error) {
+		req := connect.NewRequest(&apiv1.GetViewerRequest{})
+		req.Header().Set("Authorization", "Bearer "+key)
+		return viewerClient.GetViewer(ctx, req)
+	}
+	viewer, err := getViewer(apiKey)
+	if err != nil {
+		t.Fatalf("GetViewer with bot API key: %v", err)
+	}
+	if got := viewer.Msg.GetUser().GetProfile(); got.GetId() != bot.GetId() || !got.GetIsBot() {
+		t.Fatalf("bot API viewer profile = %+v, want bot %q", got, bot.GetId())
+	}
+
+	listReq := connect.NewRequest(&apiv1.ListBotsRequest{})
+	listReq.Header().Set("Authorization", "Bearer "+apiKey)
+	if _, err := botClient.ListBots(ctx, listReq); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("ListBots with bot API key code = %v, want failed precondition", connect.CodeOf(err))
+	}
+
+	rotateReq := connect.NewRequest(&apiv1.RotateBotApiKeyRequest{BotUserId: bot.GetId()})
+	rotateReq.Header().Set("Authorization", "Bearer "+ownerToken)
+	rotated, err := botClient.RotateBotApiKey(ctx, rotateReq)
+	if err != nil {
+		t.Fatalf("RotateBotApiKey over Connect: %v", err)
+	}
+	if _, err := getViewer(apiKey); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("GetViewer with rotated bot API key code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+	if _, err := getViewer(rotated.Msg.GetApiKey()); err != nil {
+		t.Fatalf("GetViewer with new bot API key: %v", err)
+	}
+}
+
 func TestConnectRequestBaseURLTrustModel(t *testing.T) {
 	t.Run("uses configured public URL before request headers", func(t *testing.T) {
 		s := &HTTPServer{config: config.ChattoConfig{
@@ -871,6 +1016,34 @@ func TestConnectRequestBaseURLTrustModel(t *testing.T) {
 
 		if got, want := s.requestBaseURL(req), "https://configured.example.com"; got != want {
 			t.Fatalf("requestBaseURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("canonicalizes configured default port", func(t *testing.T) {
+		s := &HTTPServer{config: config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: "https://configured.example.com:443/path"},
+		}}
+		req := httptest.NewRequest(http.MethodGet, "http://request.example.com/api/connect", nil)
+
+		if got, want := s.requestBaseURL(req), "https://configured.example.com"; got != want {
+			t.Fatalf("requestBaseURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("matches browser serialization for configured origins", func(t *testing.T) {
+		tests := map[string]string{
+			"https://configured.example.com:0443": "https://configured.example.com",
+			"https://[2001:0db8::1]:443":          "https://[2001:db8::1]",
+			"https://münchen.example":             "https://xn--mnchen-3ya.example",
+		}
+		for configured, want := range tests {
+			s := &HTTPServer{config: config.ChattoConfig{
+				Webserver: config.WebserverConfig{URL: configured},
+			}}
+			req := httptest.NewRequest(http.MethodGet, "http://request.example.com/api/connect", nil)
+			if got := s.requestBaseURL(req); got != want {
+				t.Errorf("requestBaseURL for %q = %q, want %q", configured, got, want)
+			}
 		}
 	})
 
@@ -890,197 +1063,6 @@ func TestConnectRequestBaseURLTrustModel(t *testing.T) {
 
 		if got, want := s.requestBaseURL(req), "http://direct.example.com"; got != want {
 			t.Fatalf("requestBaseURL = %q, want %q", got, want)
-		}
-	})
-}
-
-func TestConnectNotificationPreferencesService(t *testing.T) {
-	t.Run("requires authentication", func(t *testing.T) {
-		s, ts := setupConnectTestServer(t, config.AuthConfig{})
-		ctx := context.Background()
-		member, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-member", "Connect Member", "password")
-		if err != nil {
-			t.Fatalf("CreateUser: %v", err)
-		}
-		room, err := s.core.CreateRoom(ctx, member.Id, core.KindChannel, "", "connect-room", "")
-		if err != nil {
-			t.Fatalf("CreateRoom: %v", err)
-		}
-		if _, err := s.core.JoinRoom(ctx, member.Id, core.KindChannel, member.Id, room.Id); err != nil {
-			t.Fatalf("JoinRoom: %v", err)
-		}
-
-		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		_, err = client.UpdateRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
-			RoomId: room.Id,
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
-		}))
-		if connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Fatalf("UpdateRoomNotificationPreference err = %v, want unauthenticated", err)
-		}
-
-		_, err = client.GetRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
-			RoomId: room.Id,
-		}))
-		if connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Fatalf("GetRoomNotificationPreference err = %v, want unauthenticated", err)
-		}
-	})
-
-	t.Run("requires room membership", func(t *testing.T) {
-		s, ts := setupConnectTestServer(t, config.AuthConfig{})
-		ctx := context.Background()
-		member, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-member", "Connect Member", "password")
-		if err != nil {
-			t.Fatalf("CreateUser(member): %v", err)
-		}
-		other, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-other", "Connect Other", "password")
-		if err != nil {
-			t.Fatalf("CreateUser(other): %v", err)
-		}
-		room, err := s.core.CreateRoom(ctx, member.Id, core.KindChannel, "", "connect-room", "")
-		if err != nil {
-			t.Fatalf("CreateRoom: %v", err)
-		}
-		if _, err := s.core.JoinRoom(ctx, member.Id, core.KindChannel, member.Id, room.Id); err != nil {
-			t.Fatalf("JoinRoom: %v", err)
-		}
-		token, err := s.core.CreateAuthToken(ctx, other.Id)
-		if err != nil {
-			t.Fatalf("CreateAuthToken: %v", err)
-		}
-
-		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
-			RoomId: room.Id,
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
-		})
-		req.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.UpdateRoomNotificationPreference(ctx, req)
-		if connect.CodeOf(err) != connect.CodePermissionDenied {
-			t.Fatalf("UpdateRoomNotificationPreference err = %v, want permission denied", err)
-		}
-
-		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
-			RoomId: room.Id,
-		})
-		getReq.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.GetRoomNotificationPreference(ctx, getReq)
-		if connect.CodeOf(err) != connect.CodePermissionDenied {
-			t.Fatalf("GetRoomNotificationPreference err = %v, want permission denied", err)
-		}
-	})
-
-	t.Run("rejects invalid room notification requests", func(t *testing.T) {
-		s, ts := setupConnectTestServer(t, config.AuthConfig{})
-		ctx := context.Background()
-		member, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-member", "Connect Member", "password")
-		if err != nil {
-			t.Fatalf("CreateUser: %v", err)
-		}
-		token, err := s.core.CreateAuthToken(ctx, member.Id)
-		if err != nil {
-			t.Fatalf("CreateAuthToken: %v", err)
-		}
-
-		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
-			RoomId: "",
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
-		})
-		req.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.UpdateRoomNotificationPreference(ctx, req)
-		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("UpdateRoomNotificationPreference empty room err = %v, want invalid argument", err)
-		}
-
-		req = connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
-			RoomId: "missing-room",
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
-		})
-		req.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.UpdateRoomNotificationPreference(ctx, req)
-		if connect.CodeOf(err) != connect.CodeNotFound {
-			t.Fatalf("UpdateRoomNotificationPreference missing room err = %v, want not found", err)
-		}
-
-		req = connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
-			RoomId: "missing-room",
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
-		})
-		req.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.UpdateRoomNotificationPreference(ctx, req)
-		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("UpdateRoomNotificationPreference unspecified level err = %v, want invalid argument", err)
-		}
-
-		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
-			RoomId: "",
-		})
-		getReq.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.GetRoomNotificationPreference(ctx, getReq)
-		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("GetRoomNotificationPreference empty room err = %v, want invalid argument", err)
-		}
-	})
-
-	t.Run("sets a room notification level for a member", func(t *testing.T) {
-		s, ts := setupConnectTestServer(t, config.AuthConfig{})
-		ctx := context.Background()
-		member, err := s.core.CreateUser(ctx, core.SystemActorID, "connect-member", "Connect Member", "password")
-		if err != nil {
-			t.Fatalf("CreateUser: %v", err)
-		}
-		room, err := s.core.CreateRoom(ctx, member.Id, core.KindChannel, "", "connect-room", "")
-		if err != nil {
-			t.Fatalf("CreateRoom: %v", err)
-		}
-		if _, err := s.core.JoinRoom(ctx, member.Id, core.KindChannel, member.Id, room.Id); err != nil {
-			t.Fatalf("JoinRoom: %v", err)
-		}
-		token, err := s.core.CreateAuthToken(ctx, member.Id)
-		if err != nil {
-			t.Fatalf("CreateAuthToken: %v", err)
-		}
-
-		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
-			RoomId: room.Id,
-			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
-		})
-		req.Header().Set("Authorization", "Bearer "+token)
-		resp, err := client.UpdateRoomNotificationPreference(ctx, req)
-		if err != nil {
-			t.Fatalf("UpdateRoomNotificationPreference: %v", err)
-		}
-		if resp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Level = %v, want muted", resp.Msg.GetPreference().GetLevel())
-		}
-		if resp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("EffectiveLevel = %v, want muted", resp.Msg.GetPreference().GetEffectiveLevel())
-		}
-
-		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
-			RoomId: room.Id,
-		})
-		getReq.Header().Set("Authorization", "Bearer "+token)
-		getResp, err := client.GetRoomNotificationPreference(ctx, getReq)
-		if err != nil {
-			t.Fatalf("GetRoomNotificationPreference: %v", err)
-		}
-		if getResp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Get level = %v, want muted", getResp.Msg.GetPreference().GetLevel())
-		}
-		if getResp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Get effective level = %v, want muted", getResp.Msg.GetPreference().GetEffectiveLevel())
-		}
-
-		got, err := s.core.GetRoomNotificationLevel(ctx, member.Id, room.Id)
-		if err != nil {
-			t.Fatalf("GetRoomNotificationLevel: %v", err)
-		}
-		if got != corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("stored level = %v, want muted", got)
 		}
 	})
 }

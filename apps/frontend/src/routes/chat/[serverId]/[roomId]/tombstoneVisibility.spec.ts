@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RoomEventKind } from '$lib/render/eventKinds';
-import type { RoomEventView } from '$lib/render/types';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
+import type { TimeFormatSettings } from '$lib/utils/formatTime';
 import { computeEventMetadata } from './messageGrouping';
 import { buildVirtualItems } from './virtualItems';
 import {
@@ -17,22 +16,18 @@ import {
 const deletedAt = '2026-07-10T10:00:00.000Z';
 const deletedAtMs = Date.parse(deletedAt);
 const utcSettings = {
-  get effectiveTimezone() {
-    return 'UTC';
-  },
-  get effectiveHour12() {
-    return undefined;
-  }
-} as unknown as UserSettingsState;
+  effectiveTimezone: 'UTC',
+  effectiveHour12: undefined
+} satisfies TimeFormatSettings;
 
-function message(overrides: Record<string, unknown> = {}): RoomEventView {
+function message(overrides: Record<string, unknown> = {}): TimelineEventView {
   return {
     id: String(overrides.id ?? 'message-1'),
     createdAt: String(overrides.createdAt ?? '2026-07-10T09:00:00.000Z'),
     actorId: 'user-1',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: null,
       attachments: [],
@@ -51,7 +46,7 @@ function message(overrides: Record<string, unknown> = {}): RoomEventView {
       viewerIsFollowingThread: null,
       ...overrides
     }
-  } as RoomEventView;
+  } as TimelineEventView;
 }
 
 describe('tombstone visibility', () => {
@@ -68,6 +63,18 @@ describe('tombstone visibility', () => {
   it('conservatively keeps unavailable messages without tombstone metadata', () => {
     expect(tombstoneExpiry(message({ deletedAt: null }))).toBeNull();
     expect(tombstoneExpiry(message({ deletedAt: 'invalid' }))).toBeNull();
+  });
+
+  it('expires an attachment-only message from the time its final attachment was removed', () => {
+    const updatedAt = '2026-07-10T10:30:00.000Z';
+    const event = message({ body: '', deletedAt: null, updatedAt });
+    expect(tombstoneExpiry(event)).toBe(Date.parse(updatedAt) + MESSAGE_TOMBSTONE_GRACE_MS);
+  });
+
+  it('does not infer deletion from an edited message whose body is unavailable', () => {
+    expect(
+      tombstoneExpiry(message({ body: null, deletedAt: null, updatedAt: deletedAt }))
+    ).toBeNull();
   });
 
   it.each([
@@ -185,7 +192,7 @@ describe('tombstone visibility', () => {
     const visible = visibleTombstoneEvents(timeline, deletedAtMs + MESSAGE_TOMBSTONE_GRACE_MS);
     const unreadId = visibleUnreadMarkerEventId(timeline, visible, expired.id);
     const items = buildVirtualItems(
-      computeEventMetadata(visible, utcSettings, 'en'),
+      computeEventMetadata(visible, utcSettings, 'en-GB'),
       unreadId,
       false
     );
@@ -198,8 +205,8 @@ describe('tombstone visibility', () => {
 
   it('removes separators when the last event expires', () => {
     const visible = visibleTombstoneEvents([message()], deletedAtMs + MESSAGE_TOMBSTONE_GRACE_MS);
-    expect(buildVirtualItems(computeEventMetadata(visible, utcSettings, 'en'), null, true)).toEqual(
-      []
-    );
+    expect(
+      buildVirtualItems(computeEventMetadata(visible, utcSettings, 'en-GB'), null, true)
+    ).toEqual([]);
   });
 });

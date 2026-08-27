@@ -16,9 +16,9 @@ export const RoomDirectoryService = {
   methods: {
     /**
      * Lists rooms visible to the current user. Channel rooms are non-archived
-     * rooms visible through membership or room.list. DM rooms are membership-only
-     * and empty DM conversations are omitted. Results are returned as a finite
-     * navigation snapshot.
+     * rooms visible through membership or room.list. DM membership authorizes DM
+     * reads. Empty DMs are omitted. Results are returned as a finite navigation
+     * snapshot.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.ListRooms
      */

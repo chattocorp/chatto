@@ -1,0 +1,70 @@
+{
+  "composer": {
+    "attach_file": "Anexar ficheiro",
+    "send": "Enviar mensagem",
+    "send_label": "Enviar",
+    "also_send_to_channel": "Enviar também para o canal",
+    "post_as_thread": "Publicar como tópico",
+    "thread_label": "Tópico",
+    "echo_label": "Eco",
+    "replying_to": "Respondendo a",
+    "esc_to_cancel": "para cancelar",
+    "editing": "A editar mensagem",
+    "send_anyway": "Enviar na mesma",
+    "role_mention_confirm_title": "Enviar menção?",
+    "role_mention_confirm_body": "Esta mensagem contém uma menção que pode notificar várias pessoas.",
+    "link_url": "Link URL",
+    "open_link": "Abrir link",
+    "remove_link": "Remover ligação",
+    "code_language": "Linguagem de código",
+    "placeholder": "Introduza uma mensagem...",
+    "editing_placeholder": "A editar mensagem...",
+    "drop_files_title": "Solte os ficheiros aqui",
+    "drop_files_subtitle": "As imagens e vídeos serão adicionados à sua mensagem",
+    "send_failed": "Falha ao enviar mensagem",
+    "slow_mode_ready": "Modo lento: uma mensagem a cada {interval}.",
+    "slow_mode_waiting": "Modo lento: envie novamente dentro de {countdown}.",
+    "slow_mode_bypassed": "Modo lento: {interval} (está isento).",
+    "slow_mode_rejected": "O modo lento está ativo. Aguarde antes de enviar outra mensagem.",
+    "threads_encouraged": "A utilização de tópicos é recomendada nesta sala.",
+    "recent_thread_confirm_title": "Continuar no tópico anterior?",
+    "recent_thread_confirm_body": "A sua mensagem anterior já tem um tópico. Onde pretende publicar esta mensagem?",
+    "post_as_new_message": "Publicar como nova mensagem",
+    "continue_in_thread": "Continuar no tópico",
+    "edit_failed": "Falha ao editar mensagem",
+    "upload": {
+      "preparing": "A preparar…",
+      "uploading": "{percentage}% carregado",
+      "uploaded": "Carregado",
+      "failed": "Falha no carregamento",
+      "remove": "Remover {filename}"
+    },
+    "format": {
+      "bold": "Negrito",
+      "italic": "Itálico",
+      "inline_code": "Código em linha",
+      "heading": "Cabeçalho",
+      "bullet_list": "Lista com marcas",
+      "ordered_list": "Lista numerada",
+      "blockquote": "Citação",
+      "code_block": "Bloco de código",
+      "outdent": "Diminuir avanço",
+      "indent": "Aumentar avanço"
+    },
+    "timestamp": {
+      "title": "Inserir carimbo de data/hora",
+      "insert_label": "Inserir carimbo de data/hora",
+      "date_time": "Data e hora",
+      "timezone": "Fuso horário",
+      "insert": "Inserir",
+      "error_required": "Escolha uma data e hora.",
+      "error_timezone": "Escolha um fuso horário IANA válido.",
+      "error_invalid": "Escolha uma data e hora válidas para este fuso horário."
+    },
+    "mention": {
+      "all_room_members": "Todos os elementos da sala",
+      "members_here": "Membros atualmente aqui",
+      "role": "Função"
+    }
+  }
+}

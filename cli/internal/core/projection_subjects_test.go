@@ -4,7 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestProjectionSubjectPolicy(t *testing.T) {
@@ -16,84 +17,121 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 		{
 			name: "room directory uses room aggregate namespace",
 			got:  NewRoomDirectoryProjection().Subjects(),
-			want: []string{events.RoomSubjectFilter()},
+			want: []string{evtstream.RoomSubjectFilter()},
+		},
+		{
+			name: "notification visibility uses focused authorization state facts",
+			got:  NewNotificationDecisionProjection().Subjects(),
+			want: notificationDecisionProjectionSubjects(),
 		},
 		{
 			name: "room membership uses room aggregate namespace",
 			got:  NewRoomMembershipProjection().Subjects(),
-			want: []string{events.RoomSubjectFilter()},
+			want: []string{evtstream.RoomSubjectFilter()},
 		},
 		{
 			name: "room catalog uses room aggregate namespace",
 			got:  NewRoomCatalogProjection().Subjects(),
-			want: []string{events.RoomSubjectFilter()},
+			want: []string{evtstream.RoomSubjectFilter()},
 		},
 		{
 			name: "call state uses room aggregate namespace",
 			got:  NewCallStateProjection().Subjects(),
-			want: []string{events.RoomSubjectFilter()},
+			want: []string{evtstream.RoomSubjectFilter()},
 		},
 		{
 			name: "room group layout uses group namespace plus layout namespace",
 			got:  NewRoomGroupLayoutProjection().Subjects(),
-			want: []string{events.GroupSubjectFilter(), events.LayoutSubjectFilter()},
+			want: []string{evtstream.GroupSubjectFilter(), evtstream.LayoutSubjectFilter()},
 		},
 		{
 			name: "room groups use group aggregate namespace",
 			got:  NewRoomGroupProjection().Subjects(),
-			want: []string{events.GroupSubjectFilter()},
+			want: []string{evtstream.GroupSubjectFilter()},
 		},
 		{
 			name: "config uses config aggregate namespace plus user extras",
 			got:  NewConfigProjection().Subjects(),
 			want: []string{
-				events.ConfigSubjectFilter(),
-				events.UserEventTypeFilter(events.EventUserServerPreferencesChanged),
-				events.UserEventTypeFilter(events.EventUserAccountDeleted),
+				evtstream.ConfigSubjectFilter(),
+				evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
+				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 			},
 		},
 		{
 			name: "reactions use room aggregate namespace",
 			got:  NewReactionProjection().Subjects(),
-			want: []string{events.RoomSubjectFilter()},
+			want: []string{evtstream.RoomSubjectFilter()},
+		},
+		{
+			name: "room timeline uses room aggregate namespace plus key shredding",
+			got:  NewRoomTimelineProjection().Subjects(),
+			want: []string{
+				evtstream.RoomSubjectFilter(),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+			},
 		},
 		{
 			name: "threads use focused room event families plus key shredding",
 			got:  NewThreadProjection().Subjects(),
 			want: []string{
-				events.RoomEventTypeFilter(events.EventThreadCreated),
-				events.RoomEventTypeFilter(events.EventThreadFollowed),
-				events.RoomEventTypeFilter(events.EventThreadUnfollowed),
-				events.RoomEventTypeFilter(events.EventMessagePosted),
-				events.RoomEventTypeFilter(events.EventMessageEdited),
-				events.RoomEventTypeFilter(events.EventMessageRetracted),
-				events.UserEventTypeFilter(events.EventUserKeyShredded),
+				evtstream.RoomEventTypeFilter(evtstream.EventRoomCreated),
+				evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+				evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated),
+				evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed),
+				evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed),
+				evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
+				evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited),
+				evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 			},
 		},
 		{
-			name: "assets use canonical asset namespace plus legacy beta room asset lanes",
+			name: "assets use lifecycle lanes plus message bodies that claim assets",
 			got:  NewAssetProjection().Subjects(),
 			want: []string{
-				events.AssetSubjectFilter(),
-				events.RoomEventTypeFilter(events.EventAssetCreated),
-				events.RoomEventTypeFilter(events.EventAssetProcessingStarted),
-				events.RoomEventTypeFilter(events.EventAssetProcessingSucceeded),
-				events.RoomEventTypeFilter(events.EventAssetProcessingFailed),
-				events.RoomEventTypeFilter(events.EventAssetDeleted),
+				evtstream.AssetSubjectFilter(),
+				evtstream.RoomEventTypeFilter(evtstream.EventAssetCreated),
+				evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted),
+				evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingSucceeded),
+				evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingFailed),
+				evtstream.RoomEventTypeFilter(evtstream.EventAssetDeleted),
+				evtstream.RoomEventTypeFilter(evtstream.EventMessageBody),
 			},
 		},
 		{
 			name: "content keys remain focused",
 			got:  NewContentKeyProjection().Subjects(),
 			want: []string{
-				events.UserEventTypeFilter(events.EventUserDEKGenerated),
-				events.UserEventTypeFilter(events.EventUserKeyShredded),
+				evtstream.UserEventTypeFilter(evtstream.EventUserDEKGenerated),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+			},
+		},
+		{
+			name: "user auth remains focused",
+			got:  newUserAuthProjection().Subjects(),
+			want: []string{
+				evtstream.UserEventTypeFilter(evtstream.EventUserAccountCreated),
+				evtstream.UserEventTypeFilter(evtstream.EventUserPasswordHashChanged),
+				evtstream.UserEventTypeFilter(evtstream.EventUserOIDCSubjectLinked),
+				evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked),
+				evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityUnlinked),
+				evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
+				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyCreated),
+				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
+				evtstream.UserEventTypeFilter(evtstream.EventBotOwnerReassigned),
 			},
 		},
 		{
 			name: "mentionables uses stream-wide namespace",
 			got:  NewMentionablesProjection(nil, nil).Subjects(),
-			want: []string{events.EventSubjectFilter()},
+			want: []string{evtstream.EventSubjectFilter()},
 		},
 	}
 
@@ -110,9 +148,10 @@ func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
 	for name, subjects := range map[string][]string{
 		"content keys": NewContentKeyProjection().Subjects(),
 		"threads":      NewThreadProjection().Subjects(),
+		"user auth":    newUserAuthProjection().Subjects(),
 	} {
 		t.Run(name, func(t *testing.T) {
-			for _, broad := range []string{events.RoomSubjectFilter(), events.UserSubjectFilter(), events.ConfigSubjectFilter()} {
+			for _, broad := range []string{evtstream.RoomSubjectFilter(), evtstream.UserSubjectFilter(), evtstream.ConfigSubjectFilter()} {
 				if slices.Contains(subjects, broad) {
 					t.Fatalf("Subjects() = %v, should not include broad filter %q", subjects, broad)
 				}
@@ -121,10 +160,18 @@ func TestFocusedProjectionsDoNotUseAggregateNamespaceFilters(t *testing.T) {
 	}
 }
 
-func TestThreadProjectionReplaySubjectsUseSharedRoomReplay(t *testing.T) {
-	got := NewThreadProjection().ReplaySubjects()
-	want := []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
-	if !slices.Equal(got, want) {
-		t.Fatalf("ReplaySubjects() = %v, want %v", got, want)
+func TestMultiLaneProjectionsUseSinglePhysicalReplayFilter(t *testing.T) {
+	for name, projection := range map[string]events.ReplaySubjectProjection{
+		"room timeline": NewRoomTimelineProjection(),
+		"threads":       NewThreadProjection(),
+		"assets":        NewAssetProjection(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := projection.ReplaySubjects()
+			want := []string{evtstream.EventSubjectFilter()}
+			if !slices.Equal(got, want) {
+				t.Fatalf("ReplaySubjects() = %v, want %v", got, want)
+			}
+		})
 	}
 }

@@ -39,7 +39,7 @@ hostname.
 
    Create DNS records for `chat.example.com` and
    `livekit.chat.example.com`. Allow inbound TCP 80, 443, and 7881 plus UDP
-   3478 and 50000-50200 in your host and cloud firewalls.
+   3478 and 7882 in your host and cloud firewalls.
 
 3. **Generate the configuration**
 
@@ -62,6 +62,9 @@ hostname.
    ```bash
    docker compose up -d
    ```
+
+   All services use the `unless-stopped` restart policy, so Docker restarts
+   them after a failure or host reboot unless you stopped them manually.
 
    Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to create your first account with the email address from `CHATTO_OWNERS_EMAILS`.
 
@@ -210,7 +213,7 @@ to the host:
 | TCP 443 | Caddy | HTTPS and secure WebSocket traffic for both domains |
 | TCP 7881 | LiveKit 7881 | WebRTC media fallback when UDP is unavailable |
 | UDP 3478 | LiveKit 3478 | Embedded TURN/STUN relay |
-| UDP 50000-50200 | Same LiveKit ports | Direct WebRTC media |
+| UDP 7882 | LiveKit 7882 | Direct WebRTC media |
 
 The standard Caddy image does not include the optional Caddy L4 plugin, and this
 single-host setup does not need it. Open the matching host and cloud firewall
@@ -226,7 +229,7 @@ for private STUN and fixed-IP alternatives.
 
 The setup above enables direct email/password registration, which requires SMTP because Chatto sends registration codes by email. SMTP is also used for email verification and password reset.
 
-If you do not want public email/password registration after the first owner exists, set `CHATTO_AUTH_DIRECT_REGISTRATION=false`. Users can still sign in through configured SSO providers.
+If you do not want public email/password registration after the first owner exists, set `CHATTO_AUTH_DIRECT_REGISTRATION=false`. Existing users can still sign in with passwords or configured SSO providers. For an SSO-only deployment, configure and test a provider first, then also set `CHATTO_AUTH_DIRECT_LOGIN=false` on every replica.
 
 ### Push Notifications
 
@@ -241,14 +244,15 @@ CHATTO_PUSH_VAPID_SUBJECT=admin@example.com
 
 ### Video Processing
 
-The official Chatto Docker image includes `ffmpeg`. To enable video transcoding, add to `.env`:
+The official Chatto Docker image includes `ffmpeg`. To allow video uploads and run the built-in asset-processing worker, add to `.env`:
 
 ```bash
 CHATTO_VIDEO_ENABLED=true
+CHATTO_ASSET_PROCESSING_ENABLED=true
 # Optional tuning
-# CHATTO_VIDEO_MAX_CONCURRENT=2
+# CHATTO_ASSET_PROCESSING_MAX_CONCURRENT_JOBS=2
 # CHATTO_VIDEO_MAX_UPLOAD_SIZE=100MB
-# CHATTO_VIDEO_TEMP_DIR=/tmp
+# CHATTO_ASSET_PROCESSING_TEMP_DIR=/tmp
 ```
 
 <LinkCard
@@ -261,7 +265,7 @@ CHATTO_VIDEO_ENABLED=true
 
 If you don't need voice and video calls, simplify the stack by:
 
-1. Removing the `livekit` service and its `depends_on` references from `compose.yml`
+1. Removing the `livekit` service from `compose.yml`
 2. Deleting the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`)
 3. Removing the `livekit.*` block from the `Caddyfile`
 4. Removing the `CHATTO_LIVEKIT_*` variables from `.env`
@@ -270,11 +274,11 @@ You won't need the `livekit.*` subdomain, TCP 7881, or the LiveKit UDP ports.
 
 ## TURN Server for Restrictive Networks
 
-The default setup exposes LiveKit's direct UDP media range and its embedded TURN/UDP relay:
+The default setup exposes LiveKit's muxed direct UDP media port and its embedded TURN/UDP relay:
 
 ```yaml
 ports:
-  - "50000-50200:50000-50200/udp"
+  - "7882:7882/udp"
   - "7881:7881/tcp"
   - "3478:3478/udp"
 ```
@@ -285,6 +289,7 @@ and relay:
 ```yaml
 rtc:
   tcp_port: 7881
+  udp_port: 7882
 
 turn:
   enabled: true
@@ -316,9 +321,7 @@ See [Voice & Video Calls](/guides/infrastructure/voice-calls/#turn-for-restricti
 
 **Caddy not getting certificates** — Verify DNS records point to your server and ports 80/443 are open. Check `docker compose logs caddy` for ACME errors.
 
-**Container startup order** — `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts. If health checks fail, check the individual service logs.
-
-**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 50000-50200 are open in your firewall. For a LAN-only host without an external IP address, set `rtc.use_external_ip: false` in `livekit.generated.yaml` before starting or restarting LiveKit.
+**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 7882 are open in your firewall. For a LAN-only host without an external IP address, set `rtc.use_external_ip: false` in `livekit.generated.yaml` before starting or restarting LiveKit.
 
 **LiveKit reports `could not resolve external IP`** — Allow DNS and outbound UDP from the LiveKit container to every endpoint in `rtc.stun_servers`. If public STUN is not acceptable, configure private STUN servers or set a stable public `rtc.node_ip` with `rtc.use_external_ip: false`.
 

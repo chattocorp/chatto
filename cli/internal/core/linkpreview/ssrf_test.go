@@ -1,11 +1,22 @@
 package linkpreview
 
 import (
+	"context"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+type staticIPResolver struct {
+	ips []net.IP
+}
+
+func (r staticIPResolver) LookupIP(context.Context, string, string) ([]net.IP, error) {
+	return r.ips, nil
+}
 
 func TestIsPrivateIP(t *testing.T) {
 	// Ensure allowLocalhost is false for this test (may be true under test_endpoints tag)
@@ -74,4 +85,54 @@ func TestAllowLocalhost(t *testing.T) {
 
 	// Other private IPs remain blocked regardless
 	assert.True(t, isPrivateIP(private), "RFC1918 should still be blocked with allowLocalhost")
+}
+
+func TestSSRFSafeDialFallsBackAcrossValidatedAddresses(t *testing.T) {
+	orig := allowLocalhost
+	allowLocalhost = true
+	defer func() { allowLocalhost = orig }()
+
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr == nil {
+			_ = conn.Close()
+		}
+	}()
+
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	require.NoError(t, err)
+	dial := ssrfSafeDialContextWithResolver(time.Second, staticIPResolver{ips: []net.IP{
+		net.ParseIP("::1"),
+		net.ParseIP("127.0.0.1"),
+	}})
+
+	conn, err := dial(context.Background(), "tcp", net.JoinHostPort("preview.example", port))
+	require.NoError(t, err)
+	if conn != nil {
+		_ = conn.Close()
+	}
+}
+
+func TestSSRFSafeDialRejectsAllResultsWhenAnyAddressIsPrivate(t *testing.T) {
+	orig := allowLocalhost
+	allowLocalhost = false
+	defer func() { allowLocalhost = orig }()
+
+	dial := ssrfSafeDialContextWithResolver(time.Second, staticIPResolver{ips: []net.IP{
+		net.ParseIP("93.184.216.34"),
+		net.ParseIP("127.0.0.1"),
+	}})
+
+	_, err := dial(context.Background(), "tcp", "preview.example:443")
+	assert.ErrorContains(t, err, "resolves to private IP")
+}
+
+func TestSSRFSafeDialRejectsEmptyDNSResults(t *testing.T) {
+	dial := ssrfSafeDialContextWithResolver(time.Second, staticIPResolver{})
+
+	_, err := dial(context.Background(), "tcp", "preview.example:443")
+	assert.ErrorContains(t, err, "resolved to no addresses")
 }

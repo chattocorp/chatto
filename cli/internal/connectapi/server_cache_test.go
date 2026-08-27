@@ -42,10 +42,10 @@ func TestPublicRPCIdempotencyLevels(t *testing.T) {
 			want:    descriptorpb.MethodOptions_IDEMPOTENT,
 		},
 		{
-			name:    "dismiss notification is idempotent",
+			name:    "update notification occurrence is idempotent",
 			file:    apiv1.File_chatto_api_v1_notifications_proto,
 			service: "NotificationService",
-			method:  "DismissNotification",
+			method:  "MarkNotificationRead",
 			want:    descriptorpb.MethodOptions_IDEMPOTENT,
 		},
 		{

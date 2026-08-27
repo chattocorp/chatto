@@ -1,10 +1,17 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
-import { PresenceStatus } from '$lib/api-client/renderTypes';
+import { RoomThreadingMode } from '$lib/roomThreading';
+
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
+import {
+  normalizeRoomName,
+  roomNameCharacterCount,
+  roomNameValidationError
+} from '$lib/utils/roomName';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -23,6 +30,61 @@ const mocks = vi.hoisted(() => ({
   banMember: vi.fn(),
   unbanMember: vi.fn()
 }));
+
+describe('room name helpers', () => {
+  it('normalizes Unicode names and counts code points', () => {
+    expect(normalizeRoomName('  Ku\u0308che  ')).toBe('Küche');
+    expect(normalizeRoomName('は\u3099')).toBe('ば');
+    expect(normalizeRoomName('Pho\u0300ng')).toBe('Phòng');
+    expect(roomNameCharacterCount('繁體中文')).toBe(4);
+    expect(roomNameCharacterCount('𐐀'.repeat(30))).toBe(30);
+    expect(roomNameCharacterCount('𐐀'.repeat(31))).toBe(31);
+  });
+
+  it.each([
+    ['Arabic with Arabic-Indic digits', 'غرفة_١٢٣'],
+    ['Armenian', 'սենյակ'],
+    ['Traditional Chinese (zh-TW)', '繁體中文聊天室'],
+    ['Cyrillic', 'Комната'],
+    ['Deseret supplementary-plane letters', '𐐀𐐨'],
+    ['Ethiopic', 'ክፍል'],
+    ['Georgian', 'ოთახი'],
+    ['Greek', 'Δωμάτιο'],
+    ['Hebrew', 'חדר'],
+    ['Japanese hiragana', 'ひらがな'],
+    ['Japanese kanji', '会議室'],
+    ['Japanese katakana', 'カタカナ'],
+    ['Korean Hangul', '회의실'],
+    ['Latin with Vietnamese diacritics', 'Phòng'],
+    ['Turkish dotted capital I', 'İstanbul'],
+    ['Devanagari decimal digits', 'room_१२३'],
+    ['fullwidth decimal digits', '部屋１２３'],
+    ['mixed scripts with separators', 'Küche / 聊天室-١٢٣'],
+    ['combining mark that remains after NFC', 'room\u0338'],
+    ['Devanagari vowel mark', 'कमरा'],
+    ['emoji sequence', 'room👩‍💻'],
+    ['left-to-right formatting mark', 'room\u200ename'],
+    ['non-decimal superscript number', 'room²'],
+    ['Thai combining mark', 'ห้อง'],
+    ['zero-width joiner', 'room\u200dname'],
+    ['spaces, punctuation, and emoji', 'Team chat 💬!']
+  ])('accepts %s', (_description, name) => {
+    expect(roomNameValidationError(name)).toBeUndefined();
+  });
+
+  it.each([
+    ['empty input', '', 'empty'],
+    ['whitespace-only input', ' \t ', 'empty'],
+    ['format-only input', '\u200d\u2060', 'empty'],
+    ['control character', 'room\u0000name', 'invalid'],
+    ['line break', 'room\nname', 'invalid'],
+    ['line separator', 'room\u2028name', 'invalid'],
+    ['paragraph separator', 'room\u2029name', 'invalid'],
+    ['31 code points', '𐐀'.repeat(31), 'too_long']
+  ] as const)('rejects %s', (_description, name, error) => {
+    expect(roomNameValidationError(name)).toBe(error);
+  });
+});
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@connectrpc/connect')>();
@@ -80,7 +142,9 @@ describe('createRoomCommandAPI', () => {
         description: 'General chat',
         archived: false,
         groupId: 'group-1',
-        universal: true
+        universal: true,
+        slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.REQUIRED
       }
     });
 
@@ -93,7 +157,8 @@ describe('createRoomCommandAPI', () => {
       name: 'general',
       description: 'General chat',
       groupId: 'group-1',
-      universal: true
+      universal: true,
+      threadingMode: RoomThreadingMode.REQUIRED
     });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
@@ -105,7 +170,8 @@ describe('createRoomCommandAPI', () => {
         name: 'general',
         description: 'General chat',
         groupId: 'group-1',
-        universal: true
+        universal: true,
+        threadingMode: RoomThreadingMode.REQUIRED
       },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
@@ -115,7 +181,9 @@ describe('createRoomCommandAPI', () => {
       description: 'General chat',
       archived: false,
       groupId: 'group-1',
-      universal: true
+      universal: true,
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.REQUIRED
     });
   });
 
@@ -127,7 +195,9 @@ describe('createRoomCommandAPI', () => {
         description: 'Updated',
         archived: false,
         groupId: 'group-1',
-        universal: true
+        universal: true,
+        slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.ENCOURAGED
       }
     });
 
@@ -141,7 +211,8 @@ describe('createRoomCommandAPI', () => {
         roomId: 'room-1',
         name: 'renamed',
         description: 'Updated',
-        universal: true
+        universal: true,
+        threadingMode: RoomThreadingMode.ENCOURAGED
       })
     ).resolves.toEqual({
       id: 'room-1',
@@ -149,7 +220,9 @@ describe('createRoomCommandAPI', () => {
       description: 'Updated',
       archived: false,
       groupId: 'group-1',
-      universal: true
+      universal: true,
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.ENCOURAGED
     });
 
     expect(mocks.updateRoom).toHaveBeenCalledWith(
@@ -157,7 +230,8 @@ describe('createRoomCommandAPI', () => {
         roomId: 'room-1',
         name: 'renamed',
         description: 'Updated',
-        universal: true
+        universal: true,
+        threadingMode: RoomThreadingMode.ENCOURAGED
       },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
@@ -206,7 +280,7 @@ describe('createRoomCommandAPI', () => {
       id: 'user-1',
       login: 'alice',
       displayName: 'Alice',
-      presenceStatus: PresenceStatus.Online
+      presenceStatus: PresenceStatus.ONLINE
     });
     await expect(api.removeMember({ roomId: 'room-1', userId: 'user-1' })).resolves.toBe(true);
     await expect(api.joinGroup('group-1')).resolves.toEqual(['room-1', 'room-2']);
@@ -295,7 +369,8 @@ describe('createRoomCommandAPI', () => {
             description: 'General chat',
             archived: false,
             groupId: 'group-1',
-            universal: false
+            universal: false,
+            slowModeSeconds: undefined
           },
           userId: 'user-1',
           user: {
@@ -333,8 +408,11 @@ describe('createRoomCommandAPI', () => {
       baseUrl: 'https://remote.example.test/api/connect',
       bearerToken: 'remote-token'
     });
+    const controller = new AbortController();
 
-    await expect(api.listBans({ roomId: 'room-1' })).resolves.toEqual({
+    await expect(
+      api.listBans({ roomId: 'room-1' }, { signal: controller.signal })
+    ).resolves.toEqual({
       bans: [
         {
           id: 'ban-1',
@@ -345,7 +423,9 @@ describe('createRoomCommandAPI', () => {
             description: 'General chat',
             archived: false,
             groupId: 'group-1',
-            universal: false
+            universal: false,
+            slowModeSeconds: 0,
+            threadingMode: RoomThreadingMode.ENABLED
           },
           userId: 'user-1',
           user: {
@@ -354,8 +434,9 @@ describe('createRoomCommandAPI', () => {
             displayName: 'Alice',
             deleted: false,
             avatarUrl: 'https://cdn/avatar.webp',
-            presenceStatus: PresenceStatus.Away,
+            presenceStatus: PresenceStatus.AWAY,
             customStatus: null,
+            isBot: false,
             roles: [],
             createdAt: '2026-01-01T09:00:00.000Z'
           },
@@ -366,8 +447,9 @@ describe('createRoomCommandAPI', () => {
             displayName: 'Moderator',
             deleted: false,
             avatarUrl: null,
-            presenceStatus: PresenceStatus.Offline,
+            presenceStatus: PresenceStatus.OFFLINE,
             customStatus: null,
+            isBot: false,
             roles: [],
             createdAt: null
           },
@@ -382,7 +464,7 @@ describe('createRoomCommandAPI', () => {
 
     expect(mocks.listBans).toHaveBeenCalledWith(
       { roomId: 'room-1', page: { limit: 100, offset: 0 } },
-      { headers: { Authorization: 'Bearer remote-token' } }
+      { headers: { Authorization: 'Bearer remote-token' }, signal: controller.signal }
     );
   });
 
@@ -412,7 +494,7 @@ describe('createRoomCommandAPI', () => {
 
     await expect(
       api.createRoom({
-        name: 'a'.repeat(31),
+        name: '𐐀'.repeat(31),
         description: null,
         groupId: 'group-1'
       })

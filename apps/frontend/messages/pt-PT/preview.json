@@ -1,0 +1,15 @@
+{
+  "preview": {
+    "dismiss": "Ignorar visualização",
+    "delete": "Apagar visualização",
+    "open_link": "Abrir link",
+    "copy_url": "Copiar URL",
+    "show_content": "Mostrar conteúdo",
+    "hide_content": "Ocultar conteúdo",
+    "youtube_title": "Vídeo YouTube",
+    "youtube_dismiss": "Dispensar vídeo",
+    "youtube_delete": "Apagar vídeo",
+    "youtube_open": "Abrir em YouTube",
+    "youtube_delete_embed": "Apagar incorporação"
+  }
+}

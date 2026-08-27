@@ -1,0 +1,71 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "subtitle": "Das ist neu",
+      "clear_all": "Alle löschen",
+      "empty_title": "Keine Benachrichtigungen",
+      "empty_body": "Du bist auf dem neuesten Stand!",
+      "time_now": "Gerade eben",
+      "time_minutes": "vor {count} Min.",
+      "time_hours": "vor {count} Std.",
+      "time_days": "vor {count} Tg.",
+      "unread": "Ungelesen",
+      "activity": "Neue Aktivität",
+      "summary": {
+        "direct_message": "{actor} hat dir eine Direktnachricht gesendet.",
+        "reaction": "{actor} hat mit „{emoji}“ auf deine Nachricht in {channel} reagiert.",
+        "reaction_group": "{actor} und andere haben mit „{emoji}“ auf deine Nachricht in {channel} reagiert.",
+        "reply": "{actor} hat auf deine Nachricht geantwortet.",
+        "mention": "{actor} hat dich erwähnt.",
+        "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst.",
+        "new_message": "{actor} hat eine neue Nachricht gepostet.",
+        "activity": "{actor} hat dir eine Benachrichtigung gesendet."
+      }
+    },
+    "sign_out": {
+      "title": "Abmelden",
+      "current_server": "Aktueller Server",
+      "all_servers": "Alle Server",
+      "description": "Melde dich nur vom ausgewählten Server ab oder trenne alle Server von diesem Client."
+    },
+    "overview": {
+      "title": "Übersicht"
+    },
+    "server_nav": {
+      "back_to_server": "Zurück zum Server",
+      "server_fallback": "Server",
+      "administration": "Serveradministration"
+    },
+    "user_menu": {
+      "profile": "Benutzerprofil",
+      "send_message": "Nachricht senden",
+      "copy_user_id": "Benutzer-ID kopieren"
+    },
+    "server_gutter": {
+      "add_server": "Server hinzufügen",
+      "version": "Version {version}",
+      "version_unknown": "Version unbekannt",
+      "unreachable": "Server nicht erreichbar",
+      "compatibility_server_too_old": "Dieser Server muss auf Chatto 0.5 oder neuer aktualisiert werden, bevor sich diese App verbinden kann.",
+      "compatibility_unknown": "Diese App kann die Kompatibilität anhand der Serverversion nicht bestimmen."
+    },
+    "threads": {
+      "title": "Meine Threads",
+      "subtitle": "Threads, denen du folgst",
+      "filter_label": "Threads filtern",
+      "filter_all": "Alle",
+      "filter_unread": "Ungelesen",
+      "empty_title": "Keine gefolgten Threads",
+      "empty_body": "Threads, denen du folgst, erscheinen hier. Du folgst automatisch Threads, an denen du teilnimmst.",
+      "no_unread_loaded": "Keine ungelesenen Threads geladen",
+      "all_caught_up": "Alles erledigt",
+      "loaded_summary": "{loaded} von {total} gefolgten Threads geladen.",
+      "load_more": "Mehr laden",
+      "no_unread": "Derzeit keine ungelesenen Threads.",
+      "message_missing": "Nachricht nicht mehr verfügbar",
+      "in_room": "in",
+      "in_room_capitalized": "In"
+    }
+  }
+}
