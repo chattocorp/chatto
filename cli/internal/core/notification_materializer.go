@@ -102,18 +102,13 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		return fmt.Errorf("wait for notification projection before worker: %w", err)
 	}
 
-	worker, err := events.NewDurableWorker(
-		m.consumer,
-		m.processDelivery,
-		events.DurableWorkerOptions{
-			MaxConcurrent:     notificationWorkerMaxPending,
-			FetchMaxWait:      time.Second,
-			RetryDelay:        notificationWorkerRetryDelay,
-			AckTimeout:        notificationWorkerAckTimeout,
-			HeartbeatInterval: notificationWorkerHeartbeat,
-			Logger:            m.core.logger.WithPrefix("NotificationWorker"),
-		},
-	)
+	worker, err := evtstream.NewEffectWorker(m.consumer, m.processDelivery, evtstream.EffectWorkerOptions{
+		MaxConcurrent:     notificationWorkerMaxPending,
+		RetryDelay:        notificationWorkerRetryDelay,
+		AckTimeout:        notificationWorkerAckTimeout,
+		HeartbeatInterval: notificationWorkerHeartbeat,
+		Logger:            m.core.logger.WithPrefix("NotificationWorker"),
+	})
 	if err != nil {
 		return fmt.Errorf("configure notification worker: %w", err)
 	}
@@ -338,21 +333,16 @@ func (m *NotificationMaterializer) createConsumer(ctx context.Context) (jetstrea
 	} else if !errors.Is(err, jetstream.ErrConsumerNotFound) {
 		return nil, fmt.Errorf("read notification materializer consumer: %w", err)
 	}
-	consumer, err := m.core.storage.serverEvtStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:        notificationWorkerConsumerName,
-		Durable:     notificationWorkerConsumerName,
-		Description: "Shared durable worker for Chatto notification materialization",
-		// Notification derivation starts with Notifications 2.0. Beginning at
-		// the consumer's creation boundary avoids manufacturing occurrences for
-		// the server's pre-upgrade message history on first rollout.
-		DeliverPolicy:   jetstream.DeliverNewPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         notificationWorkerAckWait,
-		MaxDeliver:      -1,
-		FilterSubjects:  filterSubjects,
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   notificationWorkerMaxPending,
-		MaxRequestBatch: notificationWorkerMaxPending,
+	// Notification derivation starts with Notifications 2.0. DeliverNew
+	// begins at the consumer's creation boundary and avoids manufacturing
+	// occurrences for the server's pre-upgrade message history on rollout.
+	consumer, err := evtstream.CreateEffectConsumer(ctx, m.core.storage.serverEvtStream, evtstream.EffectConsumerConfig{
+		Name:           notificationWorkerConsumerName,
+		Description:    "Shared durable worker for Chatto notification materialization",
+		FilterSubjects: filterSubjects,
+		AckWait:        notificationWorkerAckWait,
+		MaxAckPending:  notificationWorkerMaxPending,
+		DeliverPolicy:  jetstream.DeliverNewPolicy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create notification materializer consumer: %w", err)

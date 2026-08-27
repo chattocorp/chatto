@@ -44,18 +44,13 @@ type UserKeyShreddingModel struct {
 }
 
 func newUserKeyShreddingModel(ctx context.Context, core *ChattoCore, logger *log.Logger) (*UserKeyShreddingModel, error) {
-	consumer, err := core.storage.serverEvtStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            userKeyShreddingConsumerName,
-		Durable:         userKeyShreddingConsumerName,
-		Description:     "Shared durable queue for Chatto user-key shredding",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         userKeyShreddingConsumerAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   userKeyShreddingMaxPending,
-		MaxRequestBatch: userKeyShreddingMaxPending,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, core.storage.serverEvtStream, evtstream.EffectConsumerConfig{
+		Name:           userKeyShreddingConsumerName,
+		Description:    "Shared durable queue for Chatto user-key shredding",
+		FilterSubjects: []string{evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested)},
+		AckWait:        userKeyShreddingConsumerAckWait,
+		MaxAckPending:  userKeyShreddingMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create user-key shredding consumer: %w", err)
@@ -67,9 +62,8 @@ func newUserKeyShreddingModel(ctx context.Context, core *ChattoCore, logger *log
 		shredWrappingKeyFn: core.encryption.keyWrapper.ShredKey,
 	}
 	m.appendOnceFn = m.appendOnce
-	m.worker, err = events.NewDurableWorker(consumer, m.processDelivery, events.DurableWorkerOptions{
+	m.worker, err = evtstream.NewEffectWorker(consumer, m.processDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent:     userKeyShreddingMaxPending,
-		FetchMaxWait:      time.Second,
 		RetryDelay:        userKeyShreddingRetryDelay,
 		AckTimeout:        userKeyShreddingAcknowledgeTimeout,
 		HeartbeatInterval: userKeyShreddingDeliveryHeartbeat,

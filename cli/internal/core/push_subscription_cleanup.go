@@ -54,18 +54,13 @@ func newPushSubscriptionCleanupModel(
 	reconcileLease *lease.Lease,
 	logger *log.Logger,
 ) (*pushSubscriptionCleanupModel, error) {
-	consumer, err := core.storage.serverEvtStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            pushSubscriptionCleanupConsumerName,
-		Durable:         pushSubscriptionCleanupConsumerName,
-		Description:     "Shared durable worker for Chatto user push-subscription cleanup",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         pushSubscriptionCleanupConsumerAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   pushSubscriptionCleanupMaxPending,
-		MaxRequestBatch: pushSubscriptionCleanupMaxPending,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, core.storage.serverEvtStream, evtstream.EffectConsumerConfig{
+		Name:           pushSubscriptionCleanupConsumerName,
+		Description:    "Shared durable worker for Chatto user push-subscription cleanup",
+		FilterSubjects: []string{evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted)},
+		AckWait:        pushSubscriptionCleanupConsumerAckWait,
+		MaxAckPending:  pushSubscriptionCleanupMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create user push-subscription cleanup consumer: %w", err)
@@ -76,9 +71,8 @@ func newPushSubscriptionCleanupModel(
 		logger:         logger,
 		deleteAllFn:    core.DeleteAllUserPushSubscriptions,
 	}
-	model.worker, err = events.NewDurableWorker(consumer, model.processDelivery, events.DurableWorkerOptions{
+	model.worker, err = evtstream.NewEffectWorker(consumer, model.processDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent:     pushSubscriptionCleanupMaxPending,
-		FetchMaxWait:      time.Second,
 		RetryDelay:        pushSubscriptionCleanupRetryDelay,
 		AckTimeout:        pushSubscriptionCleanupAcknowledgeTimeout,
 		HeartbeatInterval: pushSubscriptionCleanupDeliveryHeartbeat,
