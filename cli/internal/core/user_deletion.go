@@ -156,7 +156,10 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
 	}})
 	for {
-		_, err := c.appendUserEvent(ctx, userID, deletedEvent, evtstream.EventSubjectFilter(), func() error {
+		// Owned-bot checks depend on all user aggregates, but not on unrelated
+		// EVT facts. The authorization fence still serializes this deletion
+		// against bot-owner reassignment and other authorization changes.
+		_, err := c.appendUserEvent(ctx, userID, deletedEvent, evtstream.UserSubjectFilter(), func() error {
 			if !user.GetIsBot() && len(c.userModel.botIDsOwnedBy(userID)) > 0 {
 				return errOwnedBotsRemain
 			}
