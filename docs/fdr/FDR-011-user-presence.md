@@ -10,8 +10,8 @@ Every user has a presence status visible to others as a colored dot on their ava
 ## Behavior
 
 - Current clients refresh their own presence through `MyAccountService.UpdatePresence` on the ConnectRPC API.
-- Every status is an explicit user choice. The default mode is Online; users choose Online, Away, Do Not Disturb, or "Look offline" themselves.
-- The client never transitions between statuses on its own. There is no idle detection and no automatic away; a removed earlier version flipped users to Away after inactivity, but that implicit behavior was withdrawn because it misreported availability without user consent.
+- The client starts in Online mode unless the user previously chose another mode. Users can choose Online, Away, Do Not Disturb, or "Look offline".
+- The client does not use input activity or tab visibility to change the selected mode. It does not set Away automatically.
 - Users can set Do Not Disturb for their current live server presence. While DND is active, new notifications are still recorded for that user, but notification sounds and web push are suppressed (see FDR-012). Presence state is not persisted as server-side user/account state.
 - Explicit Away and Do Not Disturb are marked as manually selected in the live presence record. Updates that are not manually selected do not overwrite that manual state; an explicit Online selection clears it.
 - Users can choose "Look offline" locally. The client does not report an Offline status; it stops reporting presence so the existing presence record expires normally while messages and other realtime updates continue working.
@@ -37,12 +37,14 @@ Every user has a presence status visible to others as a colored dot on their ava
 ### 3. User-level live status with heartbeat-driven deduplication
 
 **Decision:** Presence is stored in `MEMORY_CACHE` as `presence.{userId}`. A per-process PresenceHub watches these keys and emits live events only when the user-level status changes. Current clients write `ONLINE`, `AWAY`, or `DO_NOT_DISTURB` through `MyAccountService.UpdatePresence`; `OFFLINE` is not an accepted update value. The live record carries whether the status was manually selected so reports that are not manually selected cannot clear explicit Away/DND.
-**Why:** Presence is a current-state hint, not durable account history, but explicit availability choices should not be defeated by another writer. Closing a tab does not actively write Offline, so another open tab can keep presence alive after the manual TTL expires.
+**Why:** Presence is a current-state hint, not durable account history, but a non-manual report must not replace an explicit availability choice. Closing a tab does not actively write Offline, so another open tab can keep presence alive after the manual TTL expires.
 **Tradeoff:** "Look offline" remains client-local: another active browser/device can still keep the user visible because the invisible client deliberately does not tell the server about that privacy choice.
 
-### 4. All statuses are explicit; there is no automatic away
+### 4. Presence mode changes require a user choice
 
-**Decision:** The client does not change presence modes on its own. An earlier version ran two automatic triggers (5 minutes of input inactivity, OR 10 seconds of tab hidden) that switched users to Away and back. That implicit behavior is removed: Away, Do Not Disturb, Online, and "Look offline" are all deliberate user choices, and the client only refreshes the chosen status so server-side TTLs do not expire.
+**Decision:** The client does not change the selected presence mode because of input inactivity or tab visibility. Online, Away, Do Not Disturb, and "Look offline" are selectable modes. Offline remains an inferred server state.
+**Why:** Input activity and tab visibility are not reliable measures of availability. They can expose whether a user interacts with or views Chatto, and they can show a status that the user did not choose. Explicit mode changes keep this information under the user's control.
+**Tradeoff:** A client can continue to show Online while its user is away. The status changes only when the user selects another mode or all clients stop refreshing presence and the live record expires.
 
 ### 5. DND is live user state
 
