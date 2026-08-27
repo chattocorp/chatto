@@ -112,7 +112,11 @@ user did not interactively prove to the issuing server.
 This closes the remote-server step-up gap: without issuance-time freshness,
 no account-security operation (account deletion, password or sign-in method
 changes) was ever possible over a multi-server connection, because re-login
-produced another non-fresh credential. The added exposure is bounded: a stolen
+produced another non-fresh credential. The transferred state reflects the
+authorizing session exactly: silent re-consent with a remembered approval over
+a stale ambient cookie mints a token without any user interaction, and that
+token is therefore not fresh — only authorizations completed while the
+server-side session itself sat inside its own fresh-auth window transfer it. The added exposure is bounded: a stolen
 OAuth access token can present fresh status only within the same standard
 fresh-auth window after the legitimate interactive login, access tokens stay
 short-lived, and password changes still revoke every session of the account.
