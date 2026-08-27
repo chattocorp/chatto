@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -50,8 +51,21 @@ describe('ShowOnceCredentialDialog', () => {
     expect(attemptNavigation()).toHaveBeenCalledOnce();
   });
 
-  it('permits navigation when no credential can be lost', () => {
-    render(ShowOnceCredentialDialog, requiredProps);
+  it('permits navigation after the credential is acknowledged', () => {
+    const { container } = render(ShowOnceCredentialDialog, {
+      ...requiredProps,
+      visible: true,
+      value: 'show-once-secret'
+    });
+
+    const acknowledge = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Got it'
+    );
+    if (!(acknowledge instanceof HTMLButtonElement)) {
+      throw new Error('Acknowledgement button was not found');
+    }
+    acknowledge.click();
+    flushSync();
 
     expect(attemptNavigation()).not.toHaveBeenCalled();
   });

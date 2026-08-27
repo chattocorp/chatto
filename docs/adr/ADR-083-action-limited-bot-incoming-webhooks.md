@@ -31,10 +31,11 @@ a new named credential before the manager moves a caller and revokes the old
 credential. Revocation invalidates only the selected credential. Bot deletion
 and owner deletion invalidate all credentials for the bot.
 
-The bundled frontend blocks navigation while it requests a show-once
-credential and while it shows the returned value. The manager must acknowledge
-the credential before navigation can continue. This rule also applies to bot
-API-key creation and rotation.
+The bundled frontend stops in-app navigation while it requests a show-once
+credential and while it shows the returned value. It requests the browser's
+native confirmation before a page unload. The manager must acknowledge the
+credential before in-app navigation can continue. This rule also applies to
+bot API-key creation and rotation.
 
 The request uses a Slack-compatible plain-text JSON subset. `text` and `channel`
 are the Slack field names. `body` and `room_id` are Chatto aliases. The optional

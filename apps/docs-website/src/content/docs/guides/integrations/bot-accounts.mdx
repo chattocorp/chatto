@@ -22,7 +22,8 @@ login forms.
 1. Open **Server Admin → Bots** and choose **Create Bot**.
 2. Enter a username ending in `_bot` and a display name.
 3. Copy the API key before closing the dialog. Chatto cannot show this raw key
-   again. Chatto blocks navigation until you acknowledge the key.
+   again. Chatto stops in-app navigation until you acknowledge the key. Your
+   browser asks for confirmation if you try to unload the page.
 4. Open the bot's detail page and enable the server, room-group, or room
    permissions the integration needs.
 
@@ -62,8 +63,9 @@ decision.
 
 Open the bot's detail page and choose **Create Webhook**. Give the webhook a
 name that identifies its caller. Copy the complete URL before you close the
-dialog. Chatto cannot show the credential again. Chatto blocks navigation
-while it creates or shows the credential. A bot can have at most 20 active
+dialog. Chatto cannot show the credential again. Chatto stops in-app
+navigation while it creates or shows the credential. Your browser asks for
+confirmation if you try to unload the page. A bot can have at most 20 active
 webhooks.
 
 Create a separate webhook for each external integration. To replace a webhook,
