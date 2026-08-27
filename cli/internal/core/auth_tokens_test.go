@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -116,7 +117,7 @@ func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 	}
 }
 
-func TestChattoCore_OAuthAccessTokenCannotBecomeFresh(t *testing.T) {
+func TestChattoCore_OAuthExchangeSessionStartsFreshButCannotReacquire(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -131,15 +132,57 @@ func TestChattoCore_OAuthAccessTokenCannotBecomeFresh(t *testing.T) {
 	if data := readAuthTokenData(t, core, token); data.Kind != AuthTokenKindOAuthAccessToken || data.Presentation != AuthTokenPresentationBearer {
 		t.Fatalf("auth token kind/presentation = %q/%q, want %q/%q", data.Kind, data.Presentation, AuthTokenKindOAuthAccessToken, AuthTokenPresentationBearer)
 	}
+	// The authorization-code exchange is an interactive authentication, so the
+	// new session starts inside the fresh-auth window (remote-server support).
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
+		t.Fatalf("new oauth exchange session should be fresh: %v", err)
+	}
+
+	// Age the session past the fresh-auth window.
+	if err := staleOAuthFreshAuth(ctx, core, token); err != nil {
+		t.Fatalf("age oauth session past window: %v", err)
+	}
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("stale oauth exchange session err = %v, want ErrFreshAuthRequired", err)
+	}
+
+	// Unlike first-party sessions, the OAuth-kind credential can never
+	// re-acquire freshness through a current-password proof; a new
+	// authorization is required instead.
 	if err := core.MarkBearerTokenFresh(ctx, token, "password", "current_password"); !errors.Is(err, ErrFreshAuthRequired) {
 		t.Fatalf("MarkBearerTokenFresh err = %v, want ErrFreshAuthRequired", err)
 	}
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
 		t.Fatalf("RequireFreshAuthForBearerToken err = %v, want ErrFreshAuthRequired", err)
 	}
-	if data := readAuthTokenData(t, core, token); !data.FreshAuthAt.IsZero() || data.FreshAuthMethod != "" || data.FreshAuthSource != "" {
-		t.Fatalf("OAuth access token was marked fresh: %+v", data)
+	if data := readAuthTokenData(t, core, token); data.FreshAuthMethod == "password" {
+		t.Fatalf("OAuth access token acquired password freshness: %+v", data)
 	}
+}
+
+// staleOAuthFreshAuth rewrites the renewable session behind an OAuth access
+// token so its FreshAuthAt lies outside the window, simulating window expiry.
+func staleOAuthFreshAuth(ctx context.Context, core *ChattoCore, token string) error {
+	data, _, err := core.authTokenData(ctx, token)
+	if err != nil {
+		return err
+	}
+	sessionKey := core.renewableSessionKey(data.RenewableSessionID)
+	sessionEntry, err := core.storage.runtimeStateKV.Get(ctx, sessionKey)
+	if err != nil {
+		return err
+	}
+	var session RenewableSession
+	if err := json.Unmarshal(sessionEntry.Value(), &session); err != nil {
+		return err
+	}
+	session.FreshAuthAt = time.Now().Add(-FreshAuthWindow - time.Minute)
+	value, err := json.Marshal(session)
+	if err != nil {
+		return err
+	}
+	_, err = core.updateRuntimeStateUntil(ctx, sessionKey, value, sessionEntry.Revision(), session.ExpiresAt, time.Now())
+	return err
 }
 
 func TestChattoCore_LegacyUntypedBearerTokenCannotBecomeFresh(t *testing.T) {

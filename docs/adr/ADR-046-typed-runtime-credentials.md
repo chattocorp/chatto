@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-30
 
-**Updated:** 2026-08-26
+**Updated:** 2026-08-27
 
 **Partially superseded by:** [ADR-079](ADR-079-renewable-bearer-sessions.md)
 for bearer renewal and
@@ -50,9 +50,12 @@ The credential types are:
   may be presented either as an opaque bearer token or through a same-origin
   HTTP-only cookie carrying an opaque credential handle.
 - `oauth_access_token`: a delegated access token issued by Chatto's OAuth
-  authorization-code exchange for a trusted client origin. These credentials may
-  authenticate normal API and realtime requests, but they are not first-party
-  sessions and cannot satisfy or acquire fresh-auth status.
+  authorization-code exchange for a trusted client origin. These credentials
+  may authenticate normal API and realtime requests and start inside the
+  fresh-auth window, because the exchange completes an interactive user
+  authentication on the server's own authorization UI. They cannot re-acquire
+  freshness through a current-password check; once their window expires, a new
+  authorization is required.
 
 Fresh-auth metadata, auth generation, source, request metadata, explicit
 expiry, validation, and revocation eligibility belong to the typed runtime
@@ -62,10 +65,11 @@ normalize to the same validated runtime-credential result before user context,
 logout, audit, realtime subscription, CSRF binding, or session-termination
 behavior is applied. Request context carries the presentation kind plus the
 single opaque handle; it does not duplicate bearer-token and cookie-session
-fields. Fresh credential checks must explicitly require a first-party runtime
-credential. OAuth access tokens remain useful for multi-server clients, but they
-must not authorize account-security operations such as adding a password or
-linking/disconnecting sign-in methods.
+fields. Fresh credential checks reason from the typed credential and its
+fresh-auth metadata. First-party credentials may re-acquire freshness through a
+current-password proof. OAuth access tokens keep the issuance-time freshness of
+their interactive authorization exchange but cannot re-acquire it, so expired
+remote sessions run a new authorization for account-security operations.
 
 The multi-server frontend keeps bearer credentials for remote servers. Each
 remote server has its own opaque credential, scoped by the client to that
@@ -95,10 +99,23 @@ The migration completed at the 0.5 compatibility boundary:
 
 ## Consequences
 
-Fresh-auth and account-security code gets a single security invariant:
-freshness is a property of first-party runtime credentials only. Delegated OAuth
-access tokens can authenticate ordinary API calls without becoming equivalent to
-the user's own browser session.
+Fresh-auth and account-security code gets one security invariant with two
+halves. Freshness is earned only through interactive authentication: either a
+first-party sign-in flow or a completed OAuth authorization-code exchange on
+the server's own authorization UI. First-party credentials keep that freshness
+and may re-acquire it through an explicit current-password proof; OAuth-kind
+credentials hold only what their issuance granted them and cannot re-acquire.
+Delegated tokens still never become equivalent to the user's own browser
+session: they gain no persistence beyond their grant window and no rights the
+user did not interactively prove to the issuing server.
+
+This closes the remote-server step-up gap: without issuance-time freshness,
+no account-security operation (account deletion, password or sign-in method
+changes) was ever possible over a multi-server connection, because re-login
+produced another non-fresh credential. The added exposure is bounded: a stolen
+OAuth access token can present fresh status only within the same standard
+fresh-auth window after the legitimate interactive login, access tokens stay
+short-lived, and password changes still revoke every session of the account.
 
 Runtime credential revocation becomes easier to reason about because password
 changes, password resets, external-identity disconnects, and account deletion can

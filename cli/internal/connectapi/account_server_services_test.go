@@ -194,13 +194,19 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("UpdatePassword without fresh credential code = %v, want failed_precondition", connect.CodeOf(err))
 	}
+	// The OAuth authorization-code exchange is an interactive authentication,
+	// so its session is born fresh and may set the initial password directly.
 	if _, err := env.account.UpdatePassword(oauthCtx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "newpassword456",
-	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("UpdatePassword with OAuth token code = %v, want failed_precondition", connect.CodeOf(err))
+	})); err != nil {
+		t.Fatalf("UpdatePassword over born-fresh OAuth session: %v", err)
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "newpassword456"); err != nil {
+		t.Fatalf("VerifyPassword after OAuth UpdatePassword: %v", err)
 	}
 	if _, err := env.account.UpdatePassword(freshCtx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
-		Password: "newpassword456",
+		Password:        "newpassword456",
+		CurrentPassword: "newpassword456",
 	})); err != nil {
 		t.Fatalf("UpdatePassword: %v", err)
 	}
@@ -548,6 +554,42 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}))
 	if err != nil {
 		t.Fatalf("DeleteUser: %v", err)
+	}
+	if !deleteResp.Msg.GetDeleted() {
+		t.Fatal("Deleted = false, want true")
+	}
+	if _, err := env.core.GetUser(env.ctx, target.Id); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("GetUser after DeleteUser err = %v, want not found", err)
+	}
+}
+
+func TestAdminUserServiceDeleteUserWorksWithOAuthExchangeSession(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "remote-delete-target", "Remote Delete Target", "password")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "remote-delete-admin", "Remote Delete Admin", "password")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := env.core.AssignAdminRole(env.ctx, admin.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	// Simulates a remote-server connection: a bearer credential born from an
+	// interactive authorization-code exchange.
+	oauthToken, err := env.core.CreateAuthTokenWithSource(env.ctx, admin.Id, "oauth_code_exchange")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource oauth admin: %v", err)
+	}
+	oauthCtx := withBearerCredential(env.ctx, admin, oauthToken)
+
+	deleteResp, err := env.adminUsers.DeleteUser(oauthCtx, connect.NewRequest(&adminv1.DeleteUserRequest{
+		UserId: target.Id,
+	}))
+	if err != nil {
+		t.Fatalf("DeleteUser over oauth exchange credential: %v", err)
 	}
 	if !deleteResp.Msg.GetDeleted() {
 		t.Fatal("Deleted = false, want true")

@@ -31,11 +31,20 @@ func freshAuthMethodForSource(source string) string {
 	}
 }
 
+// sourceGrantsInitialFreshAuth reports whether the authentication source just
+// completed an interactive proof of the user's identity, so the new session
+// may start inside the fresh-auth window. The OAuth authorization-code
+// exchange qualifies: Chatto only issues such a session after its own
+// authorization UI authenticated the user interactively (password, passkey,
+// or external provider). The window expires as usual, and unlike first-party
+// sessions an OAuth-kind credential cannot later re-acquire freshness through
+// a current-password check — a new authorization is required instead.
 func sourceGrantsInitialFreshAuth(source string) bool {
-	if source == "oauth_code_exchange" || source == "unknown" {
+	if source == "unknown" {
 		return false
 	}
 	return source == "external_identity_create" ||
+		source == "oauth_code_exchange" ||
 		source == "registration" ||
 		source == "registration_complete" ||
 		strings.HasSuffix(source, "_login")
@@ -59,6 +68,10 @@ func (c *ChattoCore) RequireFreshAuthForBearerToken(ctx context.Context, token s
 	return ErrFreshAuthRequired
 }
 
+// MarkBearerTokenFresh re-acquires freshness through an explicit proof such as
+// a verified current password. Only first-party sessions may re-acquire:
+// OAuth-kind credentials keep the freshness they were issued with from the
+// interactive authorization and must run a new authorization once it expires.
 func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, source string) error {
 	data, _, err := c.authTokenData(ctx, token)
 	if err != nil {
@@ -76,7 +89,10 @@ func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, so
 
 func (d AuthTokenData) canSatisfyFreshAuth() bool {
 	if d.Kind != "" {
-		return d.Kind == AuthTokenKindFirstPartySession
+		// Both renewable session kinds may present existing freshness: the
+		// OAuth kind earns it through the interactive authorization-code flow
+		// at issuance time (see sourceGrantsInitialFreshAuth).
+		return d.Kind == AuthTokenKindFirstPartySession || d.Kind == AuthTokenKindOAuthAccessToken
 	}
 	return d.FreshAuthSource != "" && d.FreshAuthSource != "oauth_code_exchange"
 }

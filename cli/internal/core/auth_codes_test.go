@@ -143,8 +143,10 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	if data := readAuthTokenData(t, core, token); data.Kind != AuthTokenKindOAuthAccessToken {
 		t.Fatalf("exchanged auth token kind = %q, want %q", data.Kind, AuthTokenKindOAuthAccessToken)
 	}
-	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
-		t.Fatalf("exchanged token fresh auth err = %v, want ErrFreshAuthRequired", err)
+	// The exchange completes an interactive authorization, so the exchanged
+	// token starts inside the fresh-auth window (remote-server support).
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
+		t.Fatalf("exchanged token fresh auth err = %v, want fresh", err)
 	}
 }
 
