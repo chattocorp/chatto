@@ -97,7 +97,7 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("mismatched target webhook = %d %q", response.Code, response.Body.String())
 	}
-	response = post("/webhooks/incoming/invalid", `{"text":"nope","channel":"`+room.GetId()+`"}`)
+	response = post("/webhooks/incoming/invalid", `not-json`)
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("invalid credential webhook = %d %q", response.Code, response.Body.String())
 	}
