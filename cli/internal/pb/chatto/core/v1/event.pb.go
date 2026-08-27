@@ -138,9 +138,9 @@ type Event struct {
 	//	*Event_BotApiKeyCreated
 	//	*Event_BotApiKeyRotated
 	//	*Event_BotOwnerReassigned
-	//	*Event_BotIncomingWebhookEnabled
+	//	*Event_BotIncomingWebhookCreated
 	//	*Event_BotIncomingWebhookRotated
-	//	*Event_BotIncomingWebhookDisabled
+	//	*Event_BotIncomingWebhookRevoked
 	//	*Event_RbacRoleCreated
 	//	*Event_RbacRoleDisplayNameChanged
 	//	*Event_RbacRoleDescriptionChanged
@@ -984,10 +984,10 @@ func (x *Event) GetBotOwnerReassigned() *BotOwnerReassignedEvent {
 	return nil
 }
 
-func (x *Event) GetBotIncomingWebhookEnabled() *BotIncomingWebhookEnabledEvent {
+func (x *Event) GetBotIncomingWebhookCreated() *BotIncomingWebhookCreatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_BotIncomingWebhookEnabled); ok {
-			return x.BotIncomingWebhookEnabled
+		if x, ok := x.Event.(*Event_BotIncomingWebhookCreated); ok {
+			return x.BotIncomingWebhookCreated
 		}
 	}
 	return nil
@@ -1002,10 +1002,10 @@ func (x *Event) GetBotIncomingWebhookRotated() *BotIncomingWebhookRotatedEvent {
 	return nil
 }
 
-func (x *Event) GetBotIncomingWebhookDisabled() *BotIncomingWebhookDisabledEvent {
+func (x *Event) GetBotIncomingWebhookRevoked() *BotIncomingWebhookRevokedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_BotIncomingWebhookDisabled); ok {
-			return x.BotIncomingWebhookDisabled
+		if x, ok := x.Event.(*Event_BotIncomingWebhookRevoked); ok {
+			return x.BotIncomingWebhookRevoked
 		}
 	}
 	return nil
@@ -1724,16 +1724,16 @@ type Event_BotOwnerReassigned struct {
 	BotOwnerReassigned *BotOwnerReassignedEvent `protobuf:"bytes,721,opt,name=bot_owner_reassigned,json=botOwnerReassigned,proto3,oneof"`
 }
 
-type Event_BotIncomingWebhookEnabled struct {
-	BotIncomingWebhookEnabled *BotIncomingWebhookEnabledEvent `protobuf:"bytes,722,opt,name=bot_incoming_webhook_enabled,json=botIncomingWebhookEnabled,proto3,oneof"`
+type Event_BotIncomingWebhookCreated struct {
+	BotIncomingWebhookCreated *BotIncomingWebhookCreatedEvent `protobuf:"bytes,722,opt,name=bot_incoming_webhook_created,json=botIncomingWebhookCreated,proto3,oneof"`
 }
 
 type Event_BotIncomingWebhookRotated struct {
 	BotIncomingWebhookRotated *BotIncomingWebhookRotatedEvent `protobuf:"bytes,723,opt,name=bot_incoming_webhook_rotated,json=botIncomingWebhookRotated,proto3,oneof"`
 }
 
-type Event_BotIncomingWebhookDisabled struct {
-	BotIncomingWebhookDisabled *BotIncomingWebhookDisabledEvent `protobuf:"bytes,724,opt,name=bot_incoming_webhook_disabled,json=botIncomingWebhookDisabled,proto3,oneof"`
+type Event_BotIncomingWebhookRevoked struct {
+	BotIncomingWebhookRevoked *BotIncomingWebhookRevokedEvent `protobuf:"bytes,724,opt,name=bot_incoming_webhook_revoked,json=botIncomingWebhookRevoked,proto3,oneof"`
 }
 
 type Event_RbacRoleCreated struct {
@@ -2064,11 +2064,11 @@ func (*Event_BotApiKeyRotated) isEvent_Event() {}
 
 func (*Event_BotOwnerReassigned) isEvent_Event() {}
 
-func (*Event_BotIncomingWebhookEnabled) isEvent_Event() {}
+func (*Event_BotIncomingWebhookCreated) isEvent_Event() {}
 
 func (*Event_BotIncomingWebhookRotated) isEvent_Event() {}
 
-func (*Event_BotIncomingWebhookDisabled) isEvent_Event() {}
+func (*Event_BotIncomingWebhookRevoked) isEvent_Event() {}
 
 func (*Event_RbacRoleCreated) isEvent_Event() {}
 
@@ -2150,7 +2150,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a)chatto/core/v1/authorization_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a&chatto/core/v1/moderation_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\x1a&chatto/core/v1/invitation_events.proto\x1a(chatto/core/v1/oauth_client_events.proto\"\xf7e\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a)chatto/core/v1/authorization_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a&chatto/core/v1/moderation_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\x1a&chatto/core/v1/invitation_events.proto\x1a(chatto/core/v1/oauth_client_events.proto\"\xf4e\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2238,9 +2238,9 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x13bot_api_key_created\x18\xcf\x05 \x01(\v2%.chatto.core.v1.BotApiKeyCreatedEventH\x00R\x10botApiKeyCreated\x12W\n" +
 	"\x13bot_api_key_rotated\x18\xd0\x05 \x01(\v2%.chatto.core.v1.BotApiKeyRotatedEventH\x00R\x10botApiKeyRotated\x12\\\n" +
 	"\x14bot_owner_reassigned\x18\xd1\x05 \x01(\v2'.chatto.core.v1.BotOwnerReassignedEventH\x00R\x12botOwnerReassigned\x12r\n" +
-	"\x1cbot_incoming_webhook_enabled\x18\xd2\x05 \x01(\v2..chatto.core.v1.BotIncomingWebhookEnabledEventH\x00R\x19botIncomingWebhookEnabled\x12r\n" +
-	"\x1cbot_incoming_webhook_rotated\x18\xd3\x05 \x01(\v2..chatto.core.v1.BotIncomingWebhookRotatedEventH\x00R\x19botIncomingWebhookRotated\x12u\n" +
-	"\x1dbot_incoming_webhook_disabled\x18\xd4\x05 \x01(\v2/.chatto.core.v1.BotIncomingWebhookDisabledEventH\x00R\x1abotIncomingWebhookDisabled\x12S\n" +
+	"\x1cbot_incoming_webhook_created\x18\xd2\x05 \x01(\v2..chatto.core.v1.BotIncomingWebhookCreatedEventH\x00R\x19botIncomingWebhookCreated\x12r\n" +
+	"\x1cbot_incoming_webhook_rotated\x18\xd3\x05 \x01(\v2..chatto.core.v1.BotIncomingWebhookRotatedEventH\x00R\x19botIncomingWebhookRotated\x12r\n" +
+	"\x1cbot_incoming_webhook_revoked\x18\xd4\x05 \x01(\v2..chatto.core.v1.BotIncomingWebhookRevokedEventH\x00R\x19botIncomingWebhookRevoked\x12S\n" +
 	"\x11rbac_role_created\x18\xa0\x06 \x01(\v2$.chatto.core.v1.RbacRoleCreatedEventH\x00R\x0frbacRoleCreated\x12v\n" +
 	"\x1erbac_role_display_name_changed\x18\xa1\x06 \x01(\v2/.chatto.core.v1.RbacRoleDisplayNameChangedEventH\x00R\x1arbacRoleDisplayNameChanged\x12u\n" +
 	"\x1drbac_role_description_changed\x18\xa2\x06 \x01(\v2/.chatto.core.v1.RbacRoleDescriptionChangedEventH\x00R\x1arbacRoleDescriptionChanged\x12S\n" +
@@ -2381,9 +2381,9 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*BotApiKeyCreatedEvent)(nil),                       // 81: chatto.core.v1.BotApiKeyCreatedEvent
 	(*BotApiKeyRotatedEvent)(nil),                       // 82: chatto.core.v1.BotApiKeyRotatedEvent
 	(*BotOwnerReassignedEvent)(nil),                     // 83: chatto.core.v1.BotOwnerReassignedEvent
-	(*BotIncomingWebhookEnabledEvent)(nil),              // 84: chatto.core.v1.BotIncomingWebhookEnabledEvent
+	(*BotIncomingWebhookCreatedEvent)(nil),              // 84: chatto.core.v1.BotIncomingWebhookCreatedEvent
 	(*BotIncomingWebhookRotatedEvent)(nil),              // 85: chatto.core.v1.BotIncomingWebhookRotatedEvent
-	(*BotIncomingWebhookDisabledEvent)(nil),             // 86: chatto.core.v1.BotIncomingWebhookDisabledEvent
+	(*BotIncomingWebhookRevokedEvent)(nil),              // 86: chatto.core.v1.BotIncomingWebhookRevokedEvent
 	(*RbacRoleCreatedEvent)(nil),                        // 87: chatto.core.v1.RbacRoleCreatedEvent
 	(*RbacRoleDisplayNameChangedEvent)(nil),             // 88: chatto.core.v1.RbacRoleDisplayNameChangedEvent
 	(*RbacRoleDescriptionChangedEvent)(nil),             // 89: chatto.core.v1.RbacRoleDescriptionChangedEvent
@@ -2507,9 +2507,9 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	81,  // 80: chatto.core.v1.Event.bot_api_key_created:type_name -> chatto.core.v1.BotApiKeyCreatedEvent
 	82,  // 81: chatto.core.v1.Event.bot_api_key_rotated:type_name -> chatto.core.v1.BotApiKeyRotatedEvent
 	83,  // 82: chatto.core.v1.Event.bot_owner_reassigned:type_name -> chatto.core.v1.BotOwnerReassignedEvent
-	84,  // 83: chatto.core.v1.Event.bot_incoming_webhook_enabled:type_name -> chatto.core.v1.BotIncomingWebhookEnabledEvent
+	84,  // 83: chatto.core.v1.Event.bot_incoming_webhook_created:type_name -> chatto.core.v1.BotIncomingWebhookCreatedEvent
 	85,  // 84: chatto.core.v1.Event.bot_incoming_webhook_rotated:type_name -> chatto.core.v1.BotIncomingWebhookRotatedEvent
-	86,  // 85: chatto.core.v1.Event.bot_incoming_webhook_disabled:type_name -> chatto.core.v1.BotIncomingWebhookDisabledEvent
+	86,  // 85: chatto.core.v1.Event.bot_incoming_webhook_revoked:type_name -> chatto.core.v1.BotIncomingWebhookRevokedEvent
 	87,  // 86: chatto.core.v1.Event.rbac_role_created:type_name -> chatto.core.v1.RbacRoleCreatedEvent
 	88,  // 87: chatto.core.v1.Event.rbac_role_display_name_changed:type_name -> chatto.core.v1.RbacRoleDisplayNameChangedEvent
 	89,  // 88: chatto.core.v1.Event.rbac_role_description_changed:type_name -> chatto.core.v1.RbacRoleDescriptionChangedEvent
@@ -2657,9 +2657,9 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_BotApiKeyCreated)(nil),
 		(*Event_BotApiKeyRotated)(nil),
 		(*Event_BotOwnerReassigned)(nil),
-		(*Event_BotIncomingWebhookEnabled)(nil),
+		(*Event_BotIncomingWebhookCreated)(nil),
 		(*Event_BotIncomingWebhookRotated)(nil),
-		(*Event_BotIncomingWebhookDisabled)(nil),
+		(*Event_BotIncomingWebhookRevoked)(nil),
 		(*Event_RbacRoleCreated)(nil),
 		(*Event_RbacRoleDisplayNameChanged)(nil),
 		(*Event_RbacRoleDescriptionChanged)(nil),

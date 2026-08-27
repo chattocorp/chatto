@@ -178,8 +178,12 @@ func (m *UserModel) botAPIKeyCredential(userID string) (BotAPIKeyCredential, boo
 	return m.auth.Projection().BotAPIKeyCredential(userID)
 }
 
-func (m *UserModel) botIncomingWebhookCredential(userID string) (BotIncomingWebhookCredential, bool) {
-	return m.auth.Projection().BotIncomingWebhookCredential(userID)
+func (m *UserModel) botIncomingWebhookCredential(userID, webhookID string) (BotIncomingWebhookCredential, bool) {
+	return m.auth.Projection().BotIncomingWebhookCredential(userID, webhookID)
+}
+
+func (m *UserModel) botIncomingWebhookCredentials(userID string) []BotIncomingWebhookCredential {
+	return m.auth.Projection().BotIncomingWebhookCredentials(userID)
 }
 
 func (m *UserModel) avatar(userID string) (*corev1.AssetRecord, bool) {

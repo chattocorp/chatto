@@ -155,7 +155,25 @@ func NewBotAPIKey(botUserID string) (string, error) {
 // NewBotIncomingWebhookCredential creates the show-once action credential for
 // a bot's incoming webhook. The credential authorizes only that HTTP endpoint.
 func NewBotIncomingWebhookCredential(botUserID string) (string, error) {
-	return newBotCredential("cht_IW_", botUserID, "bot incoming webhook credential")
+	return NewBotIncomingWebhookCredentialForID(botUserID, NewBotIncomingWebhookID())
+}
+
+// NewBotIncomingWebhookID generates a stable opaque webhook credential ID.
+func NewBotIncomingWebhookID() string {
+	return newID("W")
+}
+
+// NewBotIncomingWebhookCredentialForID creates a show-once action credential
+// that identifies one bot and one of its incoming webhooks.
+func NewBotIncomingWebhookCredentialForID(botUserID, webhookID string) (string, error) {
+	if !isCanonicalUserID(botUserID) || !isCanonicalBotIncomingWebhookID(webhookID) {
+		return "", fmt.Errorf("generate bot incoming webhook credential: invalid credential ID")
+	}
+	secret := make([]byte, botAPIKeySecretBytes)
+	if _, err := rand.Read(secret); err != nil {
+		return "", fmt.Errorf("generate bot incoming webhook credential: %w", err)
+	}
+	return "cht_IW_" + botUserID + "." + webhookID + "." + base64.RawURLEncoding.EncodeToString(secret), nil
 }
 
 func newBotCredential(prefix, botUserID, description string) (string, error) {

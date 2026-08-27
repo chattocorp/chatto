@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Preferenze dell'app",
       "subtitle": "Scelte di questa app applicate a tutti i server registrati",
-      "appearance": { "title": "Aspetto" },
-      "composer": { "title": "Composizione" }
+      "appearance": {
+        "title": "Aspetto"
+      },
+      "composer": {
+        "title": "Composizione"
+      }
     },
     "profile": {
       "title": "Profilo",
@@ -437,13 +441,9 @@
       "rotate_warning": "La chiave corrente smetterà di funzionare immediatamente. Qualsiasi integrazione che lo utilizza deve essere aggiornata.",
       "key_rotated": "Chiave API ruotata",
       "rotate_failed": "Impossibile ruotare la chiave API",
-      "webhook_title": "Webhook in ingresso",
+      "webhook_title": "Webhook in entrata",
       "webhook_description": "Pubblica messaggi come questo bot da strumenti esterni.",
-      "webhook_disabled_description": "Il webhook in ingresso è disattivato.",
-      "webhook_created": "Webhook attivato",
-      "webhook_enable": "Attiva webhook",
-      "webhook_enabled": "Webhook in ingresso attivato",
-      "webhook_enable_failed": "Impossibile attivare il webhook in ingresso",
+      "webhook_created": "Webhook in entrata creato",
       "webhook_url_title": "Salva questo URL del webhook",
       "webhook_url_warning": "Questo URL viene mostrato una sola volta e contiene una credenziale. Salvalo in un luogo sicuro prima di chiudere questa finestra.",
       "webhook_url_copied": "URL del webhook copiato",
@@ -452,11 +452,6 @@
       "webhook_rotate_warning": "L’URL attuale del webhook smetterà immediatamente di funzionare. Aggiorna tutte le integrazioni che lo usano.",
       "webhook_rotated": "Webhook in ingresso ruotato",
       "webhook_rotate_failed": "Impossibile ruotare il webhook in ingresso",
-      "webhook_disable": "Disattiva webhook",
-      "webhook_disable_title": "Disattiva webhook in ingresso",
-      "webhook_disable_warning": "L’URL attuale del webhook smetterà immediatamente di funzionare.",
-      "webhook_disabled": "Webhook in ingresso disattivato",
-      "webhook_disable_failed": "Impossibile disattivare il webhook in ingresso",
       "delete_title": "Elimina bot",
       "delete_warning": "Eliminare {name}? La sua chiave API smetterà di funzionare immediatamente e l'account non potrà essere recuperato.",
       "deleted": "Bot eliminato",
@@ -464,7 +459,20 @@
       "permissions": {
         "owner_ceiling": "Scegli cosa può fare questo bot. Puoi assegnargli solo le autorizzazioni che possiedi. Se perdi un'autorizzazione, anche il bot non potrà più usarla.",
         "save_failed": "Impossibile aggiornare l'autorizzazione del bot"
-      }
+      },
+      "webhook_empty_description": "Non è stato ancora creato alcun webhook in entrata.",
+      "webhook_create": "Crea webhook",
+      "webhook_name": "Nome",
+      "webhook_created_at": "Creato",
+      "webhook_create_failed": "Impossibile creare il webhook in entrata",
+      "webhook_revoke": "Revoca webhook",
+      "webhook_revoke_warning": "L’URL corrente del webhook smetterà subito di funzionare.",
+      "webhook_revoked": "Webhook in entrata revocato",
+      "webhook_revoke_failed": "Impossibile revocare il webhook in entrata",
+      "webhook_last_used": "Ultimo utilizzo",
+      "webhook_never_used": "Mai utilizzato",
+      "webhook_last_used_unavailable": "Temporaneamente non disponibile",
+      "webhook_limit_reached": "Hai raggiunto il limite di 20 webhook in entrata."
     }
   }
 }

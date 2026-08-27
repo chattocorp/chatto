@@ -35,25 +35,29 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 		t.Fatalf("GetBot = %+v, %v", got, err)
 	}
 	webhookCtx := WithRequestBaseURL(ctx, "https://chat.example")
-	webhook, err := service.EnableBotIncomingWebhook(webhookCtx, connect.NewRequest(&apiv1.EnableBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId()}))
-	if err != nil || webhook.Msg.GetBot().GetIncomingWebhook() == nil || webhook.Msg.GetWebhookUrl() == "" {
-		t.Fatalf("EnableBotIncomingWebhook = %+v, %v", webhook, err)
+	webhook, err := service.CreateBotIncomingWebhook(webhookCtx, connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "CI"}))
+	if err != nil || len(webhook.Msg.GetBot().GetIncomingWebhooks()) != 1 || webhook.Msg.GetWebhookUrl() == "" {
+		t.Fatalf("CreateBotIncomingWebhook = %+v, %v", webhook, err)
+	}
+	webhookID := webhook.Msg.GetBot().GetIncomingWebhooks()[0].GetId()
+	if got := webhook.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); got != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NEVER_USED {
+		t.Fatalf("new webhook last-used state = %v", got)
 	}
 	if wantPrefix := "https://chat.example/webhooks/incoming/cht_IW_"; len(webhook.Msg.GetWebhookUrl()) < len(wantPrefix) || webhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
 		t.Fatalf("webhook URL = %q, want prefix %q", webhook.Msg.GetWebhookUrl(), wantPrefix)
 	}
 	env.api.config.Webserver.URL = "https://configured.example"
 	spoofedRequestCtx := WithRequestBaseURL(ctx, "https://spoofed.example")
-	rotatedWebhook, err := service.RotateBotIncomingWebhook(spoofedRequestCtx, connect.NewRequest(&apiv1.RotateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId()}))
-	if err != nil || rotatedWebhook.Msg.GetWebhookUrl() == webhook.Msg.GetWebhookUrl() || rotatedWebhook.Msg.GetBot().GetIncomingWebhook().GetRotatedAt() == nil {
+	rotatedWebhook, err := service.RotateBotIncomingWebhook(spoofedRequestCtx, connect.NewRequest(&apiv1.RotateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), WebhookId: webhookID}))
+	if err != nil || rotatedWebhook.Msg.GetWebhookUrl() == webhook.Msg.GetWebhookUrl() || rotatedWebhook.Msg.GetBot().GetIncomingWebhooks()[0].GetRotatedAt() == nil {
 		t.Fatalf("RotateBotIncomingWebhook = %+v, %v", rotatedWebhook, err)
 	}
 	if wantPrefix := "https://configured.example/webhooks/incoming/cht_IW_"; len(rotatedWebhook.Msg.GetWebhookUrl()) < len(wantPrefix) || rotatedWebhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
 		t.Fatalf("rotated webhook URL = %q, want prefix %q", rotatedWebhook.Msg.GetWebhookUrl(), wantPrefix)
 	}
-	disabledWebhook, err := service.DisableBotIncomingWebhook(ctx, connect.NewRequest(&apiv1.DisableBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId()}))
-	if err != nil || disabledWebhook.Msg.GetBot().GetIncomingWebhook() != nil {
-		t.Fatalf("DisableBotIncomingWebhook = %+v, %v", disabledWebhook, err)
+	revokedWebhook, err := service.RevokeBotIncomingWebhook(ctx, connect.NewRequest(&apiv1.RevokeBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), WebhookId: webhookID}))
+	if err != nil || len(revokedWebhook.Msg.GetBot().GetIncomingWebhooks()) != 0 {
+		t.Fatalf("RevokeBotIncomingWebhook = %+v, %v", revokedWebhook, err)
 	}
 	recipient, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-recipient", "Connect Recipient", "password123")
 	if err != nil {
@@ -125,8 +129,8 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("bot caller ListBots code = %v, want failed precondition", connect.CodeOf(err))
 	}
-	if _, err := service.EnableBotIncomingWebhook(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.EnableBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId()})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("bot caller EnableBotIncomingWebhook code = %v, want failed precondition", connect.CodeOf(err))
+	if _, err := service.CreateBotIncomingWebhook(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "Denied"})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("bot caller CreateBotIncomingWebhook code = %v, want failed precondition", connect.CodeOf(err))
 	}
 
 	deleted, err := service.DeleteBot(ctx, connect.NewRequest(&apiv1.DeleteBotRequest{BotUserId: bot.GetUser().GetId()}))

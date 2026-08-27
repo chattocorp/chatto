@@ -20,14 +20,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import {
-    ConfirmDialog,
-    FormDialog,
-    Hint,
-    PageTitle,
-    PaneContent,
-    PaneHeader
-  } from '$lib/ui';
+  import { ConfirmDialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -100,11 +93,15 @@
   let rotateLoading = $state(false);
   let webhookURLVisible = $state(false);
   let webhookURL = $state('');
-  let enableWebhookLoading = $state(false);
+  let createWebhookVisible = $state(false);
+  let createWebhookName = $state('');
+  let createWebhookLoading = $state(false);
   let rotateWebhookVisible = $state(false);
+  let rotateWebhookId = $state('');
   let rotateWebhookLoading = $state(false);
-  let disableWebhookVisible = $state(false);
-  let disableWebhookLoading = $state(false);
+  let revokeWebhookVisible = $state(false);
+  let revokeWebhookId = $state('');
+  let revokeWebhookLoading = $state(false);
   let deleteVisible = $state(false);
   let deleteLoading = $state(false);
   let reassignVisible = $state(false);
@@ -133,6 +130,7 @@
     normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
   );
   const visibleEditError = $derived(editError?.targetKey === targetKey ? editError.message : null);
+  const normalizedWebhookName = $derived(createWebhookName.trim());
   const timeSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
@@ -222,34 +220,45 @@
     }
   }
 
-  async function enableWebhook() {
-    if (!bot) return;
+  function openCreateWebhook() {
+    createWebhookName = '';
+    createWebhookVisible = true;
+  }
+
+  async function createWebhook() {
+    if (!bot || !normalizedWebhookName) return;
     const mutationTarget = targetKey;
-    enableWebhookLoading = true;
+    createWebhookLoading = true;
     try {
-      const enabled = await botAPI().enableBotIncomingWebhook(bot.id);
+      const created = await botAPI().createBotIncomingWebhook(bot.id, normalizedWebhookName);
       if (!isCurrentTarget(mutationTarget)) return;
-      cacheBot(enabled.bot);
-      webhookURL = enabled.webhookUrl;
+      cacheBot(created.bot);
+      createWebhookVisible = false;
+      webhookURL = created.webhookUrl;
       webhookURLVisible = true;
-      toast.success(m('settings.bots.webhook_enabled'));
+      toast.success(m('settings.bots.webhook_created'));
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
         toast.error(
-          error instanceof Error ? error.message : m('settings.bots.webhook_enable_failed')
+          error instanceof Error ? error.message : m('settings.bots.webhook_create_failed')
         );
       }
     } finally {
-      if (isCurrentTarget(mutationTarget)) enableWebhookLoading = false;
+      if (isCurrentTarget(mutationTarget)) createWebhookLoading = false;
     }
   }
 
+  function openRotateWebhook(webhookId: string) {
+    rotateWebhookId = webhookId;
+    rotateWebhookVisible = true;
+  }
+
   async function rotateWebhook() {
-    if (!bot) return;
+    if (!bot || !rotateWebhookId) return;
     const mutationTarget = targetKey;
     rotateWebhookLoading = true;
     try {
-      const rotated = await botAPI().rotateBotIncomingWebhook(bot.id);
+      const rotated = await botAPI().rotateBotIncomingWebhook(bot.id, rotateWebhookId);
       if (!isCurrentTarget(mutationTarget)) return;
       cacheBot(rotated.bot);
       rotateWebhookVisible = false;
@@ -267,24 +276,29 @@
     }
   }
 
-  async function disableWebhook() {
-    if (!bot) return;
+  function openRevokeWebhook(webhookId: string) {
+    revokeWebhookId = webhookId;
+    revokeWebhookVisible = true;
+  }
+
+  async function revokeWebhook() {
+    if (!bot || !revokeWebhookId) return;
     const mutationTarget = targetKey;
-    disableWebhookLoading = true;
+    revokeWebhookLoading = true;
     try {
-      const updated = await botAPI().disableBotIncomingWebhook(bot.id);
+      const updated = await botAPI().revokeBotIncomingWebhook(bot.id, revokeWebhookId);
       if (!isCurrentTarget(mutationTarget)) return;
       cacheBot(updated);
-      disableWebhookVisible = false;
-      toast.success(m('settings.bots.webhook_disabled'));
+      revokeWebhookVisible = false;
+      toast.success(m('settings.bots.webhook_revoked'));
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
         toast.error(
-          error instanceof Error ? error.message : m('settings.bots.webhook_disable_failed')
+          error instanceof Error ? error.message : m('settings.bots.webhook_revoke_failed')
         );
       }
     } finally {
-      if (isCurrentTarget(mutationTarget)) disableWebhookLoading = false;
+      if (isCurrentTarget(mutationTarget)) revokeWebhookLoading = false;
     }
   }
 
@@ -354,6 +368,16 @@
 
   function formatDate(value: Date | null): string {
     return value ? formatDateTime(value, timeSettings, activeLocale) : '—';
+  }
+
+  function formatWebhookLastUsed(webhook: Bot['incomingWebhooks'][number]): string {
+    if (webhook.lastUsedState === 'unavailable') {
+      return m('settings.bots.webhook_last_used_unavailable');
+    }
+    if (webhook.lastUsedState === 'never' || !webhook.lastUsedAt) {
+      return m('settings.bots.webhook_never_used');
+    }
+    return formatDate(webhook.lastUsedAt);
   }
 </script>
 
@@ -430,41 +454,71 @@
         <Panel
           title={m('settings.bots.webhook_title')}
           subtitle={m('settings.bots.webhook_description')}
+          noPadding
         >
           {#snippet actions()}
-            {#if bot.incomingWebhook}
-              <Button size="sm" variant="warning" onclick={() => (rotateWebhookVisible = true)}>
-                <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
-                {m('settings.bots.webhook_rotate')}
-              </Button>
-              <Button
-                size="sm"
-                variant="danger-secondary"
-                onclick={() => (disableWebhookVisible = true)}
-              >
-                <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
-                {m('settings.bots.webhook_disable')}
-              </Button>
-            {:else}
-              <Button size="sm" loading={enableWebhookLoading} onclick={enableWebhook}>
-                <span class="iconify icon-[uil--link-add]" aria-hidden="true"></span>
-                {m('settings.bots.webhook_enable')}
-              </Button>
-            {/if}
+            <Button
+              size="sm"
+              disabled={bot.incomingWebhooks.length >= 20}
+              onclick={openCreateWebhook}
+            >
+              <span class="iconify icon-[uil--link-add]" aria-hidden="true"></span>
+              {m('settings.bots.webhook_create')}
+            </Button>
           {/snippet}
-          {#if bot.incomingWebhook}
-            <dl class="grid gap-4 text-sm sm:grid-cols-2">
-              <div>
-                <dt class="text-muted">{m('settings.bots.webhook_created')}</dt>
-                <dd class="mt-1">{formatDate(bot.incomingWebhook.createdAt)}</dd>
-              </div>
-              <div>
-                <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
-                <dd class="mt-1">{formatDate(bot.incomingWebhook.rotatedAt)}</dd>
-              </div>
-            </dl>
+          {#if bot.incomingWebhooks.length > 0}
+            <div class="selectable-list" data-testid="bot-incoming-webhooks">
+              {#each bot.incomingWebhooks as webhook (webhook.id)}
+                <div
+                  class="flex flex-col gap-4 selectable-list-item px-5 py-4 sm:flex-row sm:items-center"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="font-medium text-text-top">
+                      <bdi>{webhook.name || m('settings.bots.webhook_title')}</bdi>
+                    </div>
+                    <dl class="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+                      <div>
+                        <dt class="text-muted">{m('settings.bots.webhook_created_at')}</dt>
+                        <dd>{formatDate(webhook.createdAt)}</dd>
+                      </div>
+                      <div>
+                        <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
+                        <dd>{formatDate(webhook.rotatedAt)}</dd>
+                      </div>
+                      <div>
+                        <dt class="text-muted">{m('settings.bots.webhook_last_used')}</dt>
+                        <dd>{formatWebhookLastUsed(webhook)}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <div class="flex shrink-0 justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="warning"
+                      onclick={() => openRotateWebhook(webhook.id)}
+                    >
+                      <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
+                      {m('settings.bots.webhook_rotate')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger-secondary"
+                      onclick={() => openRevokeWebhook(webhook.id)}
+                    >
+                      <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
+                      {m('settings.bots.webhook_revoke')}
+                    </Button>
+                  </div>
+                </div>
+              {/each}
+            </div>
           {:else}
-            <p class="text-muted">{m('settings.bots.webhook_disabled_description')}</p>
+            <div class="p-5 text-muted">{m('settings.bots.webhook_empty_description')}</div>
+          {/if}
+          {#if bot.incomingWebhooks.length >= 20}
+            <div class="border-t border-border px-5 py-3 text-muted">
+              {m('settings.bots.webhook_limit_reached')}
+            </div>
           {/if}
         </Panel>
       {/if}
@@ -528,6 +582,24 @@
   />
 </FormDialog>
 
+<FormDialog
+  bind:visible={createWebhookVisible}
+  title={m('settings.bots.webhook_create')}
+  submitLabel={m('settings.bots.webhook_create')}
+  loading={createWebhookLoading}
+  disabled={!normalizedWebhookName}
+  onsubmit={createWebhook}
+  onclose={() => (createWebhookVisible = false)}
+>
+  <TextInput
+    id="create-bot-webhook-name"
+    label={m('settings.bots.webhook_name')}
+    maxlength={64}
+    required
+    bind:value={createWebhookName}
+  />
+</FormDialog>
+
 <ShowOnceCredentialDialog
   bind:visible={apiKeyVisible}
   bind:value={apiKey}
@@ -571,14 +643,14 @@
 </ConfirmDialog>
 
 <ConfirmDialog
-  bind:visible={disableWebhookVisible}
-  title={m('settings.bots.webhook_disable_title')}
-  actionLabel={m('settings.bots.webhook_disable')}
-  loading={disableWebhookLoading}
-  onconfirm={disableWebhook}
-  onclose={() => (disableWebhookVisible = false)}
+  bind:visible={revokeWebhookVisible}
+  title={m('settings.bots.webhook_revoke')}
+  actionLabel={m('settings.bots.webhook_revoke')}
+  loading={revokeWebhookLoading}
+  onconfirm={revokeWebhook}
+  onclose={() => (revokeWebhookVisible = false)}
 >
-  {m('settings.bots.webhook_disable_warning')}
+  {m('settings.bots.webhook_revoke_warning')}
 </ConfirmDialog>
 
 <ConfirmDialog

@@ -1,6 +1,6 @@
 import { authHeaders, createChattoClient } from './connect.js';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
-import { type Bot as APIBot } from '@chatto/api-types/api/v1/bots_pb';
+import { CredentialLastUsedState, type Bot as APIBot } from '@chatto/api-types/api/v1/bots_pb';
 
 export type BotAPIConfig = {
   baseUrl: string;
@@ -17,10 +17,14 @@ export type Bot = {
   createdAt: Date | null;
   apiKeyCreatedAt: Date | null;
   apiKeyRotatedAt: Date | null;
-  incomingWebhook: {
+  incomingWebhooks: {
+    id: string;
+    name: string;
     createdAt: Date | null;
     rotatedAt: Date | null;
-  } | null;
+    lastUsedState: 'never' | 'recorded' | 'unavailable';
+    lastUsedAt: Date | null;
+  }[];
 };
 
 export type BotPage = {
@@ -79,17 +83,29 @@ export function createBotAPI(config: BotAPIConfig) {
       const response = await client.rotateBotApiKey({ botUserId }, { headers: headers() });
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
     },
-    async enableBotIncomingWebhook(botUserId: string): Promise<{ bot: Bot; webhookUrl: string }> {
-      const response = await client.enableBotIncomingWebhook({ botUserId }, { headers: headers() });
+    async createBotIncomingWebhook(
+      botUserId: string,
+      name: string
+    ): Promise<{ bot: Bot; webhookUrl: string }> {
+      const response = await client.createBotIncomingWebhook(
+        { botUserId, name },
+        { headers: headers() }
+      );
       return { bot: botFromAPI(requiredBot(response.bot)), webhookUrl: response.webhookUrl };
     },
-    async rotateBotIncomingWebhook(botUserId: string): Promise<{ bot: Bot; webhookUrl: string }> {
-      const response = await client.rotateBotIncomingWebhook({ botUserId }, { headers: headers() });
+    async rotateBotIncomingWebhook(
+      botUserId: string,
+      webhookId: string
+    ): Promise<{ bot: Bot; webhookUrl: string }> {
+      const response = await client.rotateBotIncomingWebhook(
+        { botUserId, webhookId },
+        { headers: headers() }
+      );
       return { bot: botFromAPI(requiredBot(response.bot)), webhookUrl: response.webhookUrl };
     },
-    async disableBotIncomingWebhook(botUserId: string): Promise<Bot> {
-      const response = await client.disableBotIncomingWebhook(
-        { botUserId },
+    async revokeBotIncomingWebhook(botUserId: string, webhookId: string): Promise<Bot> {
+      const response = await client.revokeBotIncomingWebhook(
+        { botUserId, webhookId },
         { headers: headers() }
       );
       return botFromAPI(requiredBot(response.bot));
@@ -123,11 +139,19 @@ function botFromAPI(bot: APIBot): Bot {
     createdAt: bot.createdAt?.toDate() ?? null,
     apiKeyCreatedAt: bot.apiKeyCreatedAt?.toDate() ?? null,
     apiKeyRotatedAt: bot.apiKeyRotatedAt?.toDate() ?? null,
-    incomingWebhook: bot.incomingWebhook
-      ? {
-          createdAt: bot.incomingWebhook.createdAt?.toDate() ?? null,
-          rotatedAt: bot.incomingWebhook.rotatedAt?.toDate() ?? null
-        }
-      : null
+    incomingWebhooks: (bot.incomingWebhooks ?? []).map((webhook) => ({
+      id: webhook.id,
+      name: webhook.name,
+      createdAt: webhook.createdAt?.toDate() ?? null,
+      rotatedAt: webhook.rotatedAt?.toDate() ?? null,
+      lastUsedState:
+        webhook.lastUsedState === CredentialLastUsedState.RECORDED
+          ? 'recorded'
+          : webhook.lastUsedState === CredentialLastUsedState.UNAVAILABLE ||
+              webhook.lastUsedState === CredentialLastUsedState.UNSPECIFIED
+            ? 'unavailable'
+            : 'never',
+      lastUsedAt: webhook.lastUsedAt?.toDate() ?? null
+    }))
   };
 }

@@ -613,31 +613,33 @@ func (x *BotOwnerReassignedEvent) GetOwnerUserId() string {
 	return ""
 }
 
-// BotIncomingWebhookEnabledEvent records the verifier for a bot's optional
-// incoming webhook credential. The raw credential is returned once and is
-// never persisted.
-type BotIncomingWebhookEnabledEvent struct {
+// BotIncomingWebhookCreatedEvent records the verifier and safe metadata for
+// one bot incoming webhook. The raw credential is returned once and is never
+// persisted. webhook_id and name are empty only in legacy singular events.
+type BotIncomingWebhookCreatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Verifier      []byte                 `protobuf:"bytes,2,opt,name=verifier,proto3" json:"verifier,omitempty"`
+	WebhookId     string                 `protobuf:"bytes,3,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BotIncomingWebhookEnabledEvent) Reset() {
-	*x = BotIncomingWebhookEnabledEvent{}
+func (x *BotIncomingWebhookCreatedEvent) Reset() {
+	*x = BotIncomingWebhookCreatedEvent{}
 	mi := &file_chatto_core_v1_user_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BotIncomingWebhookEnabledEvent) String() string {
+func (x *BotIncomingWebhookCreatedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BotIncomingWebhookEnabledEvent) ProtoMessage() {}
+func (*BotIncomingWebhookCreatedEvent) ProtoMessage() {}
 
-func (x *BotIncomingWebhookEnabledEvent) ProtoReflect() protoreflect.Message {
+func (x *BotIncomingWebhookCreatedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_user_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -649,31 +651,46 @@ func (x *BotIncomingWebhookEnabledEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BotIncomingWebhookEnabledEvent.ProtoReflect.Descriptor instead.
-func (*BotIncomingWebhookEnabledEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use BotIncomingWebhookCreatedEvent.ProtoReflect.Descriptor instead.
+func (*BotIncomingWebhookCreatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_user_events_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *BotIncomingWebhookEnabledEvent) GetUserId() string {
+func (x *BotIncomingWebhookCreatedEvent) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *BotIncomingWebhookEnabledEvent) GetVerifier() []byte {
+func (x *BotIncomingWebhookCreatedEvent) GetVerifier() []byte {
 	if x != nil {
 		return x.Verifier
 	}
 	return nil
 }
 
-// BotIncomingWebhookRotatedEvent replaces the verifier for a bot's active
-// incoming webhook credential.
+func (x *BotIncomingWebhookCreatedEvent) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+func (x *BotIncomingWebhookCreatedEvent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+// BotIncomingWebhookRotatedEvent replaces one incoming webhook verifier.
+// webhook_id is empty only in a legacy singular event.
 type BotIncomingWebhookRotatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Verifier      []byte                 `protobuf:"bytes,2,opt,name=verifier,proto3" json:"verifier,omitempty"`
+	WebhookId     string                 `protobuf:"bytes,3,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -722,29 +739,37 @@ func (x *BotIncomingWebhookRotatedEvent) GetVerifier() []byte {
 	return nil
 }
 
-// BotIncomingWebhookDisabledEvent invalidates the bot's incoming webhook
-// credential.
-type BotIncomingWebhookDisabledEvent struct {
+func (x *BotIncomingWebhookRotatedEvent) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+// BotIncomingWebhookRevokedEvent invalidates one incoming webhook credential.
+// webhook_id is empty only in a legacy singular event.
+type BotIncomingWebhookRevokedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WebhookId     string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BotIncomingWebhookDisabledEvent) Reset() {
-	*x = BotIncomingWebhookDisabledEvent{}
+func (x *BotIncomingWebhookRevokedEvent) Reset() {
+	*x = BotIncomingWebhookRevokedEvent{}
 	mi := &file_chatto_core_v1_user_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BotIncomingWebhookDisabledEvent) String() string {
+func (x *BotIncomingWebhookRevokedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BotIncomingWebhookDisabledEvent) ProtoMessage() {}
+func (*BotIncomingWebhookRevokedEvent) ProtoMessage() {}
 
-func (x *BotIncomingWebhookDisabledEvent) ProtoReflect() protoreflect.Message {
+func (x *BotIncomingWebhookRevokedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_user_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -756,14 +781,21 @@ func (x *BotIncomingWebhookDisabledEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BotIncomingWebhookDisabledEvent.ProtoReflect.Descriptor instead.
-func (*BotIncomingWebhookDisabledEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use BotIncomingWebhookRevokedEvent.ProtoReflect.Descriptor instead.
+func (*BotIncomingWebhookRevokedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_user_events_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *BotIncomingWebhookDisabledEvent) GetUserId() string {
+func (x *BotIncomingWebhookRevokedEvent) GetUserId() string {
 	if x != nil {
 		return x.UserId
+	}
+	return ""
+}
+
+func (x *BotIncomingWebhookRevokedEvent) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
 	}
 	return ""
 }
@@ -1816,15 +1848,22 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x17BotOwnerReassignedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x123\n" +
 	"\x16previous_owner_user_id\x18\x02 \x01(\tR\x13previousOwnerUserId\x12\"\n" +
-	"\rowner_user_id\x18\x03 \x01(\tR\vownerUserId\"U\n" +
-	"\x1eBotIncomingWebhookEnabledEvent\x12\x17\n" +
+	"\rowner_user_id\x18\x03 \x01(\tR\vownerUserId\"\x88\x01\n" +
+	"\x1eBotIncomingWebhookCreatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
-	"\bverifier\x18\x02 \x01(\fR\bverifier\"U\n" +
+	"\bverifier\x18\x02 \x01(\fR\bverifier\x12\x1d\n" +
+	"\n" +
+	"webhook_id\x18\x03 \x01(\tR\twebhookId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"t\n" +
 	"\x1eBotIncomingWebhookRotatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
-	"\bverifier\x18\x02 \x01(\fR\bverifier\":\n" +
-	"\x1fBotIncomingWebhookDisabledEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"~\n" +
+	"\bverifier\x18\x02 \x01(\fR\bverifier\x12\x1d\n" +
+	"\n" +
+	"webhook_id\x18\x03 \x01(\tR\twebhookId\"X\n" +
+	"\x1eBotIncomingWebhookRevokedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tR\twebhookId\"~\n" +
 	"\x15UserLoginChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
@@ -1919,9 +1958,9 @@ var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(*BotApiKeyCreatedEvent)(nil),             // 7: chatto.core.v1.BotApiKeyCreatedEvent
 	(*BotApiKeyRotatedEvent)(nil),             // 8: chatto.core.v1.BotApiKeyRotatedEvent
 	(*BotOwnerReassignedEvent)(nil),           // 9: chatto.core.v1.BotOwnerReassignedEvent
-	(*BotIncomingWebhookEnabledEvent)(nil),    // 10: chatto.core.v1.BotIncomingWebhookEnabledEvent
+	(*BotIncomingWebhookCreatedEvent)(nil),    // 10: chatto.core.v1.BotIncomingWebhookCreatedEvent
 	(*BotIncomingWebhookRotatedEvent)(nil),    // 11: chatto.core.v1.BotIncomingWebhookRotatedEvent
-	(*BotIncomingWebhookDisabledEvent)(nil),   // 12: chatto.core.v1.BotIncomingWebhookDisabledEvent
+	(*BotIncomingWebhookRevokedEvent)(nil),    // 12: chatto.core.v1.BotIncomingWebhookRevokedEvent
 	(*UserLoginChangedEvent)(nil),             // 13: chatto.core.v1.UserLoginChangedEvent
 	(*UserDisplayNameChangedEvent)(nil),       // 14: chatto.core.v1.UserDisplayNameChangedEvent
 	(*UserAvatarSetEvent)(nil),                // 15: chatto.core.v1.UserAvatarSetEvent

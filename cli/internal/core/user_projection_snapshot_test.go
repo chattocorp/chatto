@@ -278,10 +278,10 @@ func TestUserAuthProjectionReplaysBotIncomingWebhookLifecycle(t *testing.T) {
 	require.NoError(t, p.Apply(userEvent("W1", createdAt, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
 		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "U-bot", IsBot: true, BotOwnerUserId: "U-owner"},
 	}}), 1))
-	require.NoError(t, p.Apply(userEvent("W2", createdAt.Add(time.Minute), &corev1.Event{Event: &corev1.Event_BotIncomingWebhookEnabled{
-		BotIncomingWebhookEnabled: &corev1.BotIncomingWebhookEnabledEvent{UserId: "U-bot", Verifier: []byte("first")},
+	require.NoError(t, p.Apply(userEvent("W2", createdAt.Add(time.Minute), &corev1.Event{Event: &corev1.Event_BotIncomingWebhookCreated{
+		BotIncomingWebhookCreated: &corev1.BotIncomingWebhookCreatedEvent{UserId: "U-bot", Verifier: []byte("first")},
 	}}), 2))
-	credential, ok := p.BotIncomingWebhookCredential("U-bot")
+	credential, ok := p.BotIncomingWebhookCredential("U-bot", legacyBotIncomingWebhookID)
 	require.True(t, ok)
 	require.Equal(t, []byte("first"), credential.Verifier)
 	require.Equal(t, createdAt.Add(time.Minute), credential.CreatedAt)
@@ -289,15 +289,15 @@ func TestUserAuthProjectionReplaysBotIncomingWebhookLifecycle(t *testing.T) {
 	require.NoError(t, p.Apply(userEvent("W3", createdAt.Add(2*time.Minute), &corev1.Event{Event: &corev1.Event_BotIncomingWebhookRotated{
 		BotIncomingWebhookRotated: &corev1.BotIncomingWebhookRotatedEvent{UserId: "U-bot", Verifier: []byte("second")},
 	}}), 3))
-	credential, ok = p.BotIncomingWebhookCredential("U-bot")
+	credential, ok = p.BotIncomingWebhookCredential("U-bot", legacyBotIncomingWebhookID)
 	require.True(t, ok)
 	require.Equal(t, []byte("second"), credential.Verifier)
 	require.Equal(t, createdAt.Add(2*time.Minute), credential.RotatedAt)
 
-	require.NoError(t, p.Apply(userEvent("W4", createdAt.Add(3*time.Minute), &corev1.Event{Event: &corev1.Event_BotIncomingWebhookDisabled{
-		BotIncomingWebhookDisabled: &corev1.BotIncomingWebhookDisabledEvent{UserId: "U-bot"},
+	require.NoError(t, p.Apply(userEvent("W4", createdAt.Add(3*time.Minute), &corev1.Event{Event: &corev1.Event_BotIncomingWebhookRevoked{
+		BotIncomingWebhookRevoked: &corev1.BotIncomingWebhookRevokedEvent{UserId: "U-bot"},
 	}}), 4))
-	_, ok = p.BotIncomingWebhookCredential("U-bot")
+	_, ok = p.BotIncomingWebhookCredential("U-bot", legacyBotIncomingWebhookID)
 	require.False(t, ok)
 }
 

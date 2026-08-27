@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -22,6 +23,9 @@ const (
 	botIncomingWebhookPrefix          = "cht_IW_"
 	botAPIKeyVerifierPurpose          = "bot_api_key"
 	botIncomingWebhookVerifierPurpose = "bot_incoming_webhook"
+	maxBotIncomingWebhooks            = 20
+	maxBotIncomingWebhookNameLength   = 64
+	legacyBotIncomingWebhookID        = "legacy"
 )
 
 // legacyBotAPIKeySecretBytes keeps API keys issued before the shorter format
@@ -31,22 +35,51 @@ const legacyBotAPIKeySecretBytes = 32
 // Bot is the management view of a bot account. Raw credentials are populated
 // only by the command that issues them and must never be logged or persisted.
 type Bot struct {
-	User                               *corev1.User
-	OwnerUserID                        string
-	APIKey                             string
-	APIKeyCreatedAt                    time.Time
-	APIKeyRotatedAt                    time.Time
-	IncomingWebhookCredential          string
-	IncomingWebhookCredentialCreatedAt time.Time
-	IncomingWebhookCredentialRotatedAt time.Time
+	User             *corev1.User
+	OwnerUserID      string
+	APIKey           string
+	APIKeyCreatedAt  time.Time
+	APIKeyRotatedAt  time.Time
+	IncomingWebhooks []BotIncomingWebhook
+}
+
+// BotIncomingWebhook is safe management metadata for one active credential.
+type BotIncomingWebhook struct {
+	ID                string
+	Name              string
+	CreatedAt         time.Time
+	RotatedAt         time.Time
+	LastUsedAt        time.Time
+	LastUsedAvailable bool
+}
+
+// BotIncomingWebhookIssue contains the show-once secret returned by a create
+// or rotate command. Credential must never be logged or persisted.
+type BotIncomingWebhookIssue struct {
+	Bot        *Bot
+	WebhookID  string
+	Credential string
 }
 
 func parseBotAPIKey(token string) (string, bool) {
 	return parseBotCredential(token, botAPIKeyPrefix, true)
 }
 
-func parseBotIncomingWebhookCredential(token string) (string, bool) {
-	return parseBotCredential(token, botIncomingWebhookPrefix, false)
+func parseBotIncomingWebhookCredential(token string) (botID, webhookID string, ok bool) {
+	if !strings.HasPrefix(token, botIncomingWebhookPrefix) {
+		return "", "", false
+	}
+	parts := strings.Split(strings.TrimPrefix(token, botIncomingWebhookPrefix), ".")
+	if len(parts) == 2 {
+		if !isCanonicalUserID(parts[0]) || !isCanonicalBotCredentialSecret(parts[1], false) {
+			return "", "", false
+		}
+		return parts[0], legacyBotIncomingWebhookID, true
+	}
+	if len(parts) != 3 || !isCanonicalUserID(parts[0]) || !isCanonicalBotIncomingWebhookID(parts[1]) || !isCanonicalBotCredentialSecret(parts[2], false) {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 func parseBotCredential(token, prefix string, allowLegacyLength bool) (string, bool) {
@@ -58,12 +91,38 @@ func parseBotCredential(token, prefix string, allowLegacyLength bool) (string, b
 	if !ok || !isCanonicalUserID(botID) || encodedSecret == "" || strings.Contains(encodedSecret, ".") {
 		return "", false
 	}
-	secret, err := base64.RawURLEncoding.DecodeString(encodedSecret)
-	validLength := len(secret) == botAPIKeySecretBytes || allowLegacyLength && len(secret) == legacyBotAPIKeySecretBytes
-	if err != nil || !validLength || base64.RawURLEncoding.EncodeToString(secret) != encodedSecret {
+	if !isCanonicalBotCredentialSecret(encodedSecret, allowLegacyLength) {
 		return "", false
 	}
 	return botID, true
+}
+
+func isCanonicalBotCredentialSecret(encodedSecret string, allowLegacyLength bool) bool {
+	secret, err := base64.RawURLEncoding.DecodeString(encodedSecret)
+	validLength := len(secret) == botAPIKeySecretBytes || allowLegacyLength && len(secret) == legacyBotAPIKeySecretBytes
+	return err == nil && validLength && base64.RawURLEncoding.EncodeToString(secret) == encodedSecret
+}
+
+func isCanonicalBotIncomingWebhookID(id string) bool {
+	if id == legacyBotIncomingWebhookID {
+		return true
+	}
+	if len(id) != idLength+1 || id[0] != 'W' {
+		return false
+	}
+	for i := 1; i < len(id); i++ {
+		if !strings.ContainsRune(idAlphabet, rune(id[i])) {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizedIncomingWebhookID(id string) string {
+	if id == "" {
+		return legacyBotIncomingWebhookID
+	}
+	return id
 }
 
 func (c *ChattoCore) botAPIKeyVerifier(token string) []byte {
@@ -85,7 +144,7 @@ func (c *ChattoCore) botCredentialVerifier(purpose, token string) []byte {
 // ValidateBotIncomingWebhookCredential authenticates an action-limited
 // incoming webhook credential against the latest verifier replayed from EVT.
 func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, token string) (*corev1.User, error) {
-	botID, ok := parseBotIncomingWebhookCredential(token)
+	botID, webhookID, ok := parseBotIncomingWebhookCredential(token)
 	if !ok {
 		return nil, ErrAuthTokenNotFound
 	}
@@ -93,7 +152,7 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 	if err := c.userModel.waitForUsersCurrent(ctx, "bot incoming webhook authentication", agg.AllEventsFilter()); err != nil {
 		return nil, err
 	}
-	credential, ok := c.userModel.botIncomingWebhookCredential(botID)
+	credential, ok := c.userModel.botIncomingWebhookCredential(botID, webhookID)
 	if !ok || subtle.ConstantTimeCompare(c.botIncomingWebhookVerifier(token), credential.Verifier) != 1 {
 		return nil, ErrAuthTokenNotFound
 	}
@@ -105,6 +164,7 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 	if err != nil || owner.GetIsBot() {
 		return nil, ErrAuthTokenNotFound
 	}
+	c.credentialUsage.Record(botID, incomingWebhookUsageKey(webhookID), time.Now())
 	return bot, nil
 }
 
@@ -205,7 +265,7 @@ func (c *ChattoCore) requireBotReassignmentManager(ctx context.Context, actorID 
 	return nil
 }
 
-func (c *ChattoCore) botFromUser(user *corev1.User) (*Bot, error) {
+func (c *ChattoCore) botFromUser(ctx context.Context, user *corev1.User) (*Bot, error) {
 	if user == nil || !user.GetIsBot() {
 		return nil, ErrNotFound
 	}
@@ -217,9 +277,12 @@ func (c *ChattoCore) botFromUser(user *corev1.User) (*Bot, error) {
 		User: user, OwnerUserID: user.GetBotOwnerUserId(),
 		APIKeyCreatedAt: credential.CreatedAt, APIKeyRotatedAt: credential.RotatedAt,
 	}
-	if webhook, enabled := c.userModel.botIncomingWebhookCredential(user.GetId()); enabled {
-		bot.IncomingWebhookCredentialCreatedAt = webhook.CreatedAt
-		bot.IncomingWebhookCredentialRotatedAt = webhook.RotatedAt
+	lastUsed, lastUsedAvailable := c.credentialUsage.LastUsed(ctx, user.GetId())
+	for _, webhook := range c.userModel.botIncomingWebhookCredentials(user.GetId()) {
+		bot.IncomingWebhooks = append(bot.IncomingWebhooks, BotIncomingWebhook{
+			ID: webhook.ID, Name: webhook.Name, CreatedAt: webhook.CreatedAt, RotatedAt: webhook.RotatedAt,
+			LastUsedAt: lastUsed[incomingWebhookUsageKey(webhook.ID)], LastUsedAvailable: lastUsedAvailable,
+		})
 	}
 	return bot, nil
 }
@@ -252,7 +315,7 @@ func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName 
 	if err != nil {
 		return nil, err
 	}
-	bot, err := c.botFromUser(user)
+	bot, err := c.botFromUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +329,7 @@ func (c *ChattoCore) GetBot(ctx context.Context, actorID, botID string) (*Bot, e
 	if err != nil {
 		return nil, err
 	}
-	return c.botFromUser(user)
+	return c.botFromUser(ctx, user)
 }
 
 // ListBots returns owned bots, or every bot for callers with bot.manage.
@@ -288,7 +351,7 @@ func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, erro
 		if err != nil {
 			continue
 		}
-		bot, err := c.botFromUser(user)
+		bot, err := c.botFromUser(ctx, user)
 		if err == nil {
 			result = append(result, bot)
 		}
@@ -316,7 +379,7 @@ func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, login
 	if err != nil {
 		return nil, err
 	}
-	return c.botFromUser(user)
+	return c.botFromUser(ctx, user)
 }
 
 // RotateBotAPIKey replaces the sole verifier. There is deliberately no retry:
@@ -369,7 +432,7 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	if err != nil {
 		return nil, err
 	}
-	bot, err := c.botFromUser(user)
+	bot, err := c.botFromUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -380,34 +443,48 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 type botIncomingWebhookMutation int
 
 const (
-	botIncomingWebhookEnable botIncomingWebhookMutation = iota
+	botIncomingWebhookCreate botIncomingWebhookMutation = iota
 	botIncomingWebhookRotate
-	botIncomingWebhookDisable
+	botIncomingWebhookRevoke
 )
 
-// EnableBotIncomingWebhook creates a bot's optional incoming webhook
-// credential. The raw credential is returned once and is never persisted.
-func (c *ChattoCore) EnableBotIncomingWebhook(ctx context.Context, actorID, botID string) (*Bot, error) {
-	return c.mutateBotIncomingWebhook(ctx, actorID, botID, botIncomingWebhookEnable)
+// CreateBotIncomingWebhook creates one named action-limited credential. The
+// raw credential is returned once and is never persisted.
+func (c *ChattoCore) CreateBotIncomingWebhook(ctx context.Context, actorID, botID, name string) (*BotIncomingWebhookIssue, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || utf8.RuneCountInString(name) > maxBotIncomingWebhookNameLength {
+		return nil, invalidArgument("incoming webhook name must contain 1 to 64 characters")
+	}
+	return c.mutateBotIncomingWebhook(ctx, actorID, botID, "", name, botIncomingWebhookCreate)
 }
 
-// RotateBotIncomingWebhook replaces the active incoming webhook credential.
-// Concurrent mutations conflict so two callers cannot receive active secrets.
-func (c *ChattoCore) RotateBotIncomingWebhook(ctx context.Context, actorID, botID string) (*Bot, error) {
-	return c.mutateBotIncomingWebhook(ctx, actorID, botID, botIncomingWebhookRotate)
+// RotateBotIncomingWebhook replaces one verifier. Concurrent rotations of the
+// same bot conflict so two callers cannot both receive an apparently active
+// secret from one aggregate generation.
+func (c *ChattoCore) RotateBotIncomingWebhook(ctx context.Context, actorID, botID, webhookID string) (*BotIncomingWebhookIssue, error) {
+	return c.mutateBotIncomingWebhook(ctx, actorID, botID, webhookID, "", botIncomingWebhookRotate)
 }
 
-// DisableBotIncomingWebhook invalidates the active incoming webhook
-// credential. Repeated calls are idempotent.
-func (c *ChattoCore) DisableBotIncomingWebhook(ctx context.Context, actorID, botID string) (*Bot, error) {
-	return c.mutateBotIncomingWebhook(ctx, actorID, botID, botIncomingWebhookDisable)
+// RevokeBotIncomingWebhook irreversibly invalidates one credential. Repeated
+// calls for the same well-formed ID are idempotent.
+func (c *ChattoCore) RevokeBotIncomingWebhook(ctx context.Context, actorID, botID, webhookID string) (*Bot, error) {
+	result, err := c.mutateBotIncomingWebhook(ctx, actorID, botID, webhookID, "", botIncomingWebhookRevoke)
+	if err != nil {
+		return nil, err
+	}
+	return result.Bot, nil
 }
 
-func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botID string, mutation botIncomingWebhookMutation) (*Bot, error) {
+func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botID, webhookID, name string, mutation botIncomingWebhookMutation) (*BotIncomingWebhookIssue, error) {
+	if mutation == botIncomingWebhookCreate {
+		webhookID = NewBotIncomingWebhookID()
+	} else if !isCanonicalBotIncomingWebhookID(webhookID) {
+		return nil, invalidArgument("invalid incoming webhook ID")
+	}
 	credential := ""
 	var err error
-	if mutation != botIncomingWebhookDisable {
-		credential, err = NewBotIncomingWebhookCredential(botID)
+	if mutation != botIncomingWebhookRevoke {
+		credential, err = NewBotIncomingWebhookCredentialForID(botID, webhookID)
 		if err != nil {
 			return nil, err
 		}
@@ -439,30 +516,36 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	if err != nil {
 		return nil, err
 	}
-	_, enabled := c.userModel.botIncomingWebhookCredential(botID)
-	if mutation == botIncomingWebhookEnable && enabled {
-		return nil, invalidArgument("incoming webhook is already enabled")
+	webhooks := c.userModel.botIncomingWebhookCredentials(botID)
+	_, exists := c.userModel.botIncomingWebhookCredential(botID, webhookID)
+	if mutation == botIncomingWebhookCreate && len(webhooks) >= maxBotIncomingWebhooks {
+		return nil, invalidArgument("a bot can have at most 20 active incoming webhooks")
 	}
-	if mutation == botIncomingWebhookRotate && !enabled {
-		return nil, invalidArgument("incoming webhook is not enabled")
+	if mutation == botIncomingWebhookRotate && !exists {
+		return nil, ErrNotFound
 	}
-	if mutation == botIncomingWebhookDisable && !enabled {
-		return c.botFromUser(user)
+	if mutation == botIncomingWebhookRevoke && !exists {
+		bot, err := c.botFromUser(ctx, user)
+		return &BotIncomingWebhookIssue{Bot: bot, WebhookID: webhookID}, err
 	}
 
 	var event *corev1.Event
 	switch mutation {
-	case botIncomingWebhookEnable:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookEnabled{
-			BotIncomingWebhookEnabled: &corev1.BotIncomingWebhookEnabledEvent{UserId: botID, Verifier: c.botIncomingWebhookVerifier(credential)},
+	case botIncomingWebhookCreate:
+		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookCreated{
+			BotIncomingWebhookCreated: &corev1.BotIncomingWebhookCreatedEvent{
+				UserId: botID, WebhookId: webhookID, Name: name, Verifier: c.botIncomingWebhookVerifier(credential),
+			},
 		}})
 	case botIncomingWebhookRotate:
 		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookRotated{
-			BotIncomingWebhookRotated: &corev1.BotIncomingWebhookRotatedEvent{UserId: botID, Verifier: c.botIncomingWebhookVerifier(credential)},
+			BotIncomingWebhookRotated: &corev1.BotIncomingWebhookRotatedEvent{
+				UserId: botID, WebhookId: webhookID, Verifier: c.botIncomingWebhookVerifier(credential),
+			},
 		}})
-	case botIncomingWebhookDisable:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookDisabled{
-			BotIncomingWebhookDisabled: &corev1.BotIncomingWebhookDisabledEvent{UserId: botID},
+	case botIncomingWebhookRevoke:
+		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookRevoked{
+			BotIncomingWebhookRevoked: &corev1.BotIncomingWebhookRevokedEvent{UserId: botID, WebhookId: webhookID},
 		}})
 	default:
 		return nil, fmt.Errorf("%w: unsupported incoming webhook mutation", ErrInvalidArgument)
@@ -481,12 +564,14 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	if err != nil {
 		return nil, err
 	}
-	bot, err := c.botFromUser(user)
+	bot, err := c.botFromUser(ctx, user)
 	if err != nil {
 		return nil, err
 	}
-	bot.IncomingWebhookCredential = credential
-	return bot, nil
+	if mutation == botIncomingWebhookRevoke {
+		c.credentialUsage.Forget(ctx, botID, incomingWebhookUsageKey(webhookID))
+	}
+	return &BotIncomingWebhookIssue{Bot: bot, WebhookID: webhookID, Credential: credential}, nil
 }
 
 // ReassignBotOwner changes the human account responsible for a bot without
@@ -549,7 +634,7 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 			return nil, ErrHumanAccountRequired
 		}
 		if bot.GetBotOwnerUserId() == ownerUserID {
-			return c.botFromUser(bot)
+			return c.botFromUser(ctx, bot)
 		}
 
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotOwnerReassigned{
@@ -575,7 +660,7 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 			if err != nil {
 				return nil, err
 			}
-			return c.botFromUser(updated)
+			return c.botFromUser(ctx, updated)
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return nil, err

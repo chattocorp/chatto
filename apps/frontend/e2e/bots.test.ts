@@ -35,8 +35,10 @@ interface CreatedUserResponse {
 
 const BOT_KEY_PATTERN = /^cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const BOT_KEY_IN_TEXT_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
-const WEBHOOK_CREDENTIAL_PATTERN = /^cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
-const WEBHOOK_CREDENTIAL_IN_TEXT_PATTERN = /cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
+const WEBHOOK_CREDENTIAL_PATTERN =
+  /^cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const WEBHOOK_CREDENTIAL_IN_TEXT_PATTERN =
+  /cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
 
 // This test handles show-once bearer credentials in the DOM. Keep them out of
 // Playwright artifacts even when the test fails or retries. Playwright 1.62's
@@ -264,13 +266,34 @@ test.describe('Bot account lifecycle', () => {
       })
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Enable Webhook', exact: true }).click();
+    await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
+    const createWebhookDialog = page.getByRole('dialog', { name: 'Create Webhook' });
+    await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Production');
+    await createWebhookDialog
+      .getByRole('button', { name: 'Create Webhook', exact: true })
+      .click();
     const originalWebhookURL = await captureShowOnceWebhookURL(page);
+
+    await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
+    await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Backup');
+    await createWebhookDialog
+      .getByRole('button', { name: 'Create Webhook', exact: true })
+      .click();
+    const backupWebhookURL = await captureShowOnceWebhookURL(page);
     await expect(
       postIncomingWebhook(originalWebhookURL, webhookRoomId, 'First incoming webhook message')
     ).resolves.toEqual({ status: 200, body: 'ok' });
+    await page.reload();
+    const webhookList = page.getByTestId('bot-incoming-webhooks');
+    const productionWebhook = webhookList.locator('.selectable-list-item').filter({
+      hasText: 'Production'
+    });
+    const backupWebhook = webhookList.locator('.selectable-list-item').filter({ hasText: 'Backup' });
+    await expect(productionWebhook).toContainText('Last used');
+    await expect(productionWebhook).not.toContainText('Never used');
+    await expect(backupWebhook).toContainText('Never used');
 
-    await page.getByRole('button', { name: 'Rotate Webhook', exact: true }).click();
+    await productionWebhook.getByRole('button', { name: 'Rotate Webhook', exact: true }).click();
     const rotateWebhookDialog = page.getByRole('dialog', { name: 'Rotate Incoming Webhook' });
     await rotateWebhookDialog.getByRole('button', { name: 'Rotate Webhook', exact: true }).click();
     const rotatedWebhookURL = await captureShowOnceWebhookURL(page);
@@ -283,16 +306,20 @@ test.describe('Bot account lifecycle', () => {
     await expect(
       postIncomingWebhook(rotatedWebhookURL, webhookRoomId, 'Rotated incoming webhook message')
     ).resolves.toEqual({ status: 200, body: 'ok' });
-
-    await page.getByRole('button', { name: 'Disable Webhook', exact: true }).click();
-    const disableWebhookDialog = page.getByRole('dialog', { name: 'Disable Incoming Webhook' });
-    await disableWebhookDialog
-      .getByRole('button', { name: 'Disable Webhook', exact: true })
-      .click();
-    await expect(disableWebhookDialog).toBeHidden();
     await expect(
-      postIncomingWebhook(rotatedWebhookURL, webhookRoomId, 'Rejected disabled webhook message')
+      postIncomingWebhook(backupWebhookURL, webhookRoomId, 'Independent backup webhook message')
+    ).resolves.toEqual({ status: 200, body: 'ok' });
+
+    await productionWebhook.getByRole('button', { name: 'Revoke Webhook', exact: true }).click();
+    const revokeWebhookDialog = page.getByRole('dialog', { name: 'Revoke Webhook' });
+    await revokeWebhookDialog.getByRole('button', { name: 'Revoke Webhook', exact: true }).click();
+    await expect(revokeWebhookDialog).toBeHidden();
+    await expect(
+      postIncomingWebhook(rotatedWebhookURL, webhookRoomId, 'Rejected revoked webhook message')
     ).resolves.toEqual({ status: 401, body: 'invalid_token' });
+    await expect(
+      postIncomingWebhook(backupWebhookURL, webhookRoomId, 'Backup webhook after revocation')
+    ).resolves.toEqual({ status: 200, body: 'ok' });
 
     const startedDM = await connectPost<StartDMResponse>(
       page,

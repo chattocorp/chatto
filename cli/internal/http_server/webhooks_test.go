@@ -32,9 +32,9 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	webhook, err := s.core.EnableBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId())
+	webhook, err := s.core.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "HTTP test")
 	if err != nil {
-		t.Fatalf("EnableBotIncomingWebhook: %v", err)
+		t.Fatalf("CreateBotIncomingWebhook: %v", err)
 	}
 	room, err := s.core.CreateRoom(ctx, owner.GetId(), core.KindChannel, "", "incoming-room", "")
 	if err != nil {
@@ -43,7 +43,7 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	if _, err := s.core.AddMember(ctx, owner.GetId(), core.KindChannel, room.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("AddMember bot: %v", err)
 	}
-	path := "/webhooks/incoming/" + webhook.IncomingWebhookCredential
+	path := "/webhooks/incoming/" + webhook.Credential
 	denied := httptest.NewRecorder()
 	deniedRequest := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"text":"denied","channel":"`+room.GetId()+`"}`))
 	s.router.ServeHTTP(denied, deniedRequest)
@@ -100,6 +100,38 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	response = post("/webhooks/incoming/invalid", `not-json`)
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("invalid credential webhook = %d %q", response.Code, response.Body.String())
+	}
+}
+
+func TestIncomingWebhookRecordsUseAfterAuthenticationBeforePayloadValidation(t *testing.T) {
+	ctx := testContext(t)
+	s := setupHTTPServerTestServer(t, config.AuthConfig{})
+	s.setupWebhookRoutes()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "usage-http-owner", "Usage HTTP Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := s.core.CreateBot(ctx, owner.GetId(), "usage_http_bot", "Usage HTTP Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	webhook, err := s.core.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Invalid payload test")
+	if err != nil {
+		t.Fatalf("CreateBotIncomingWebhook: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/webhooks/incoming/"+webhook.Credential, strings.NewReader(`not-json`))
+	s.router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest || recorder.Body.String() != "invalid_payload" {
+		t.Fatalf("invalid payload response = %d %q", recorder.Code, recorder.Body.String())
+	}
+	managed, err := s.core.GetBot(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("GetBot: %v", err)
+	}
+	if len(managed.IncomingWebhooks) != 1 || !managed.IncomingWebhooks[0].LastUsedAvailable || managed.IncomingWebhooks[0].LastUsedAt.IsZero() {
+		t.Fatalf("last-used metadata = %+v", managed.IncomingWebhooks)
 	}
 }
 

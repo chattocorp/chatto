@@ -1,6 +1,7 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBotAPI } from '$lib/api-client/bots';
+import { CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -9,9 +10,9 @@ const mocks = vi.hoisted(() => ({
   getBot: vi.fn(),
   createBot: vi.fn(),
   rotateBotApiKey: vi.fn(),
-  enableBotIncomingWebhook: vi.fn(),
+  createBotIncomingWebhook: vi.fn(),
   rotateBotIncomingWebhook: vi.fn(),
-  disableBotIncomingWebhook: vi.fn(),
+  revokeBotIncomingWebhook: vi.fn(),
   reassignBotOwner: vi.fn()
 }));
 
@@ -33,9 +34,9 @@ describe('createBotAPI', () => {
       getBot: mocks.getBot,
       createBot: mocks.createBot,
       rotateBotApiKey: mocks.rotateBotApiKey,
-      enableBotIncomingWebhook: mocks.enableBotIncomingWebhook,
+      createBotIncomingWebhook: mocks.createBotIncomingWebhook,
       rotateBotIncomingWebhook: mocks.rotateBotIncomingWebhook,
-      disableBotIncomingWebhook: mocks.disableBotIncomingWebhook,
+      revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
       reassignBotOwner: mocks.reassignBotOwner
     });
   });
@@ -73,7 +74,7 @@ describe('createBotAPI', () => {
           createdAt,
           apiKeyCreatedAt: createdAt,
           apiKeyRotatedAt: null,
-          incomingWebhook: null
+          incomingWebhooks: []
         }
       ],
       totalCount: 1,
@@ -85,29 +86,52 @@ describe('createBotAPI', () => {
     );
   });
 
-  it('manages an incoming webhook and maps its safe metadata', async () => {
+  it('manages named incoming webhooks and maps safe usage metadata', async () => {
     const createdAt = new Date('2026-08-27T10:00:00Z');
     const apiBot = {
       user: { id: 'one', login: 'one_bot', displayName: 'One' },
       ownerUserId: 'U-owner',
-      incomingWebhook: { createdAt: Timestamp.fromDate(createdAt) }
+      incomingWebhooks: [
+        {
+          id: 'W-one',
+          name: 'Production',
+          createdAt: Timestamp.fromDate(createdAt),
+          lastUsedState: CredentialLastUsedState.NEVER_USED
+        }
+      ]
     };
-    mocks.enableBotIncomingWebhook.mockResolvedValue({
+    mocks.createBotIncomingWebhook.mockResolvedValue({
       bot: apiBot,
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
     });
-    mocks.disableBotIncomingWebhook.mockResolvedValue({
-      bot: { ...apiBot, incomingWebhook: undefined }
+    mocks.revokeBotIncomingWebhook.mockResolvedValue({
+      bot: { ...apiBot, incomingWebhooks: [] }
     });
     const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
 
-    await expect(api.enableBotIncomingWebhook('one')).resolves.toMatchObject({
-      bot: { id: 'one', incomingWebhook: { createdAt, rotatedAt: null } },
+    await expect(api.createBotIncomingWebhook('one', 'Production')).resolves.toMatchObject({
+      bot: {
+        id: 'one',
+        incomingWebhooks: [
+          {
+            id: 'W-one',
+            name: 'Production',
+            createdAt,
+            rotatedAt: null,
+            lastUsedState: 'never',
+            lastUsedAt: null
+          }
+        ]
+      },
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
     });
-    await expect(api.disableBotIncomingWebhook('one')).resolves.toMatchObject({
+    expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith(
+      { botUserId: 'one', name: 'Production' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    await expect(api.revokeBotIncomingWebhook('one', 'W-one')).resolves.toMatchObject({
       id: 'one',
-      incomingWebhook: null
+      incomingWebhooks: []
     });
   });
 

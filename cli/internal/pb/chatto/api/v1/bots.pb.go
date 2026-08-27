@@ -24,6 +24,63 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Availability of best-effort credential last-use telemetry.
+type CredentialLastUsedState int32
+
+const (
+	// The server did not return a last-use state.
+	CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED CredentialLastUsedState = 0
+	// The credential has not authenticated a request.
+	CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NEVER_USED CredentialLastUsedState = 1
+	// last_used_at contains the most recent recorded authentication time.
+	CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_RECORDED CredentialLastUsedState = 2
+	// Last-use telemetry is temporarily unavailable.
+	CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNAVAILABLE CredentialLastUsedState = 3
+)
+
+// Enum value maps for CredentialLastUsedState.
+var (
+	CredentialLastUsedState_name = map[int32]string{
+		0: "CREDENTIAL_LAST_USED_STATE_UNSPECIFIED",
+		1: "CREDENTIAL_LAST_USED_STATE_NEVER_USED",
+		2: "CREDENTIAL_LAST_USED_STATE_RECORDED",
+		3: "CREDENTIAL_LAST_USED_STATE_UNAVAILABLE",
+	}
+	CredentialLastUsedState_value = map[string]int32{
+		"CREDENTIAL_LAST_USED_STATE_UNSPECIFIED": 0,
+		"CREDENTIAL_LAST_USED_STATE_NEVER_USED":  1,
+		"CREDENTIAL_LAST_USED_STATE_RECORDED":    2,
+		"CREDENTIAL_LAST_USED_STATE_UNAVAILABLE": 3,
+	}
+)
+
+func (x CredentialLastUsedState) Enum() *CredentialLastUsedState {
+	p := new(CredentialLastUsedState)
+	*p = x
+	return p
+}
+
+func (x CredentialLastUsedState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CredentialLastUsedState) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_bots_proto_enumTypes[0].Descriptor()
+}
+
+func (CredentialLastUsedState) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_bots_proto_enumTypes[0]
+}
+
+func (x CredentialLastUsedState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CredentialLastUsedState.Descriptor instead.
+func (CredentialLastUsedState) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{0}
+}
+
 // A managed bot account. The API key itself is returned only by creation and
 // rotation responses.
 type Bot struct {
@@ -38,10 +95,10 @@ type Bot struct {
 	ApiKeyCreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=api_key_created_at,json=apiKeyCreatedAt,proto3" json:"api_key_created_at,omitempty"`
 	// Most recent API-key rotation time, when it has been rotated.
 	ApiKeyRotatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=api_key_rotated_at,json=apiKeyRotatedAt,proto3,oneof" json:"api_key_rotated_at,omitempty"`
-	// Incoming webhook credential metadata. Absent when the webhook is disabled.
-	IncomingWebhook *BotIncomingWebhook `protobuf:"bytes,6,opt,name=incoming_webhook,json=incomingWebhook,proto3" json:"incoming_webhook,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Active incoming webhook credentials, ordered by creation time.
+	IncomingWebhooks []*BotIncomingWebhook `protobuf:"bytes,6,rep,name=incoming_webhooks,json=incomingWebhooks,proto3" json:"incoming_webhooks,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Bot) Reset() {
@@ -109,21 +166,29 @@ func (x *Bot) GetApiKeyRotatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Bot) GetIncomingWebhook() *BotIncomingWebhook {
+func (x *Bot) GetIncomingWebhooks() []*BotIncomingWebhook {
 	if x != nil {
-		return x.IncomingWebhook
+		return x.IncomingWebhooks
 	}
 	return nil
 }
 
-// Safe metadata for a bot's optional incoming webhook credential. The webhook
-// URL is returned only when the credential is enabled or rotated.
+// Safe metadata for one active bot incoming webhook. The webhook URL is
+// returned only when the credential is created or rotated.
 type BotIncomingWebhook struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Time the incoming webhook credential was enabled.
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Stable webhook credential ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Manager-defined name for the credential.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Time the incoming webhook credential was created.
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Most recent credential rotation time, when it has been rotated.
-	RotatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=rotated_at,json=rotatedAt,proto3,oneof" json:"rotated_at,omitempty"`
+	RotatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=rotated_at,json=rotatedAt,proto3,oneof" json:"rotated_at,omitempty"`
+	// Availability of best-effort last-use telemetry.
+	LastUsedState CredentialLastUsedState `protobuf:"varint,5,opt,name=last_used_state,json=lastUsedState,proto3,enum=chatto.api.v1.CredentialLastUsedState" json:"last_used_state,omitempty"`
+	// Most recent recorded successful authentication time.
+	LastUsedAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_used_at,json=lastUsedAt,proto3,oneof" json:"last_used_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -158,6 +223,20 @@ func (*BotIncomingWebhook) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{1}
 }
 
+func (x *BotIncomingWebhook) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BotIncomingWebhook) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 func (x *BotIncomingWebhook) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
@@ -168,6 +247,20 @@ func (x *BotIncomingWebhook) GetCreatedAt() *timestamppb.Timestamp {
 func (x *BotIncomingWebhook) GetRotatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.RotatedAt
+	}
+	return nil
+}
+
+func (x *BotIncomingWebhook) GetLastUsedState() CredentialLastUsedState {
+	if x != nil {
+		return x.LastUsedState
+	}
+	return CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED
+}
+
+func (x *BotIncomingWebhook) GetLastUsedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastUsedAt
 	}
 	return nil
 }
@@ -881,29 +974,31 @@ func (x *RotateBotApiKeyResponse) GetApiKey() string {
 	return ""
 }
 
-// Request enablement of the bot's incoming webhook.
-type EnableBotIncomingWebhookRequest struct {
+// Request creation of one named incoming webhook for a bot.
+type CreateBotIncomingWebhookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required bot user ID.
-	BotUserId     string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	// Required manager-defined name. Names do not need to be unique.
+	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *EnableBotIncomingWebhookRequest) Reset() {
-	*x = EnableBotIncomingWebhookRequest{}
+func (x *CreateBotIncomingWebhookRequest) Reset() {
+	*x = CreateBotIncomingWebhookRequest{}
 	mi := &file_chatto_api_v1_bots_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *EnableBotIncomingWebhookRequest) String() string {
+func (x *CreateBotIncomingWebhookRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*EnableBotIncomingWebhookRequest) ProtoMessage() {}
+func (*CreateBotIncomingWebhookRequest) ProtoMessage() {}
 
-func (x *EnableBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
+func (x *CreateBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_bots_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -915,21 +1010,28 @@ func (x *EnableBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use EnableBotIncomingWebhookRequest.ProtoReflect.Descriptor instead.
-func (*EnableBotIncomingWebhookRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateBotIncomingWebhookRequest.ProtoReflect.Descriptor instead.
+func (*CreateBotIncomingWebhookRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *EnableBotIncomingWebhookRequest) GetBotUserId() string {
+func (x *CreateBotIncomingWebhookRequest) GetBotUserId() string {
 	if x != nil {
 		return x.BotUserId
 	}
 	return ""
 }
 
-// Result of enabling an incoming webhook. webhook_url is shown once and
+func (x *CreateBotIncomingWebhookRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+// Result of creating an incoming webhook. webhook_url is shown once and
 // cannot be retrieved later.
-type EnableBotIncomingWebhookResponse struct {
+type CreateBotIncomingWebhookResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated bot metadata.
 	Bot *Bot `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
@@ -939,20 +1041,20 @@ type EnableBotIncomingWebhookResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *EnableBotIncomingWebhookResponse) Reset() {
-	*x = EnableBotIncomingWebhookResponse{}
+func (x *CreateBotIncomingWebhookResponse) Reset() {
+	*x = CreateBotIncomingWebhookResponse{}
 	mi := &file_chatto_api_v1_bots_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *EnableBotIncomingWebhookResponse) String() string {
+func (x *CreateBotIncomingWebhookResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*EnableBotIncomingWebhookResponse) ProtoMessage() {}
+func (*CreateBotIncomingWebhookResponse) ProtoMessage() {}
 
-func (x *EnableBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
+func (x *CreateBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_bots_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -964,30 +1066,32 @@ func (x *EnableBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use EnableBotIncomingWebhookResponse.ProtoReflect.Descriptor instead.
-func (*EnableBotIncomingWebhookResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateBotIncomingWebhookResponse.ProtoReflect.Descriptor instead.
+func (*CreateBotIncomingWebhookResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *EnableBotIncomingWebhookResponse) GetBot() *Bot {
+func (x *CreateBotIncomingWebhookResponse) GetBot() *Bot {
 	if x != nil {
 		return x.Bot
 	}
 	return nil
 }
 
-func (x *EnableBotIncomingWebhookResponse) GetWebhookUrl() string {
+func (x *CreateBotIncomingWebhookResponse) GetWebhookUrl() string {
 	if x != nil {
 		return x.WebhookUrl
 	}
 	return ""
 }
 
-// Request rotation of the bot's active incoming webhook credential.
+// Request rotation of one active incoming webhook credential.
 type RotateBotIncomingWebhookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required bot user ID.
-	BotUserId     string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	// Required webhook credential ID.
+	WebhookId     string `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1025,6 +1129,13 @@ func (*RotateBotIncomingWebhookRequest) Descriptor() ([]byte, []int) {
 func (x *RotateBotIncomingWebhookRequest) GetBotUserId() string {
 	if x != nil {
 		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *RotateBotIncomingWebhookRequest) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
 	}
 	return ""
 }
@@ -1085,29 +1196,31 @@ func (x *RotateBotIncomingWebhookResponse) GetWebhookUrl() string {
 	return ""
 }
 
-// Request disablement of the bot's active incoming webhook.
-type DisableBotIncomingWebhookRequest struct {
+// Request irreversible revocation of one incoming webhook credential.
+type RevokeBotIncomingWebhookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required bot user ID.
-	BotUserId     string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	// Required webhook credential ID.
+	WebhookId     string `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DisableBotIncomingWebhookRequest) Reset() {
-	*x = DisableBotIncomingWebhookRequest{}
+func (x *RevokeBotIncomingWebhookRequest) Reset() {
+	*x = RevokeBotIncomingWebhookRequest{}
 	mi := &file_chatto_api_v1_bots_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DisableBotIncomingWebhookRequest) String() string {
+func (x *RevokeBotIncomingWebhookRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DisableBotIncomingWebhookRequest) ProtoMessage() {}
+func (*RevokeBotIncomingWebhookRequest) ProtoMessage() {}
 
-func (x *DisableBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
+func (x *RevokeBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_bots_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1119,20 +1232,27 @@ func (x *DisableBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DisableBotIncomingWebhookRequest.ProtoReflect.Descriptor instead.
-func (*DisableBotIncomingWebhookRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RevokeBotIncomingWebhookRequest.ProtoReflect.Descriptor instead.
+func (*RevokeBotIncomingWebhookRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *DisableBotIncomingWebhookRequest) GetBotUserId() string {
+func (x *RevokeBotIncomingWebhookRequest) GetBotUserId() string {
 	if x != nil {
 		return x.BotUserId
 	}
 	return ""
 }
 
-// Result of disabling an incoming webhook.
-type DisableBotIncomingWebhookResponse struct {
+func (x *RevokeBotIncomingWebhookRequest) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+// Result of revoking an incoming webhook.
+type RevokeBotIncomingWebhookResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated bot metadata.
 	Bot           *Bot `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
@@ -1140,20 +1260,20 @@ type DisableBotIncomingWebhookResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DisableBotIncomingWebhookResponse) Reset() {
-	*x = DisableBotIncomingWebhookResponse{}
+func (x *RevokeBotIncomingWebhookResponse) Reset() {
+	*x = RevokeBotIncomingWebhookResponse{}
 	mi := &file_chatto_api_v1_bots_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DisableBotIncomingWebhookResponse) String() string {
+func (x *RevokeBotIncomingWebhookResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DisableBotIncomingWebhookResponse) ProtoMessage() {}
+func (*RevokeBotIncomingWebhookResponse) ProtoMessage() {}
 
-func (x *DisableBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
+func (x *RevokeBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_bots_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1165,12 +1285,12 @@ func (x *DisableBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message 
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DisableBotIncomingWebhookResponse.ProtoReflect.Descriptor instead.
-func (*DisableBotIncomingWebhookResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use RevokeBotIncomingWebhookResponse.ProtoReflect.Descriptor instead.
+func (*RevokeBotIncomingWebhookResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *DisableBotIncomingWebhookResponse) GetBot() *Bot {
+func (x *RevokeBotIncomingWebhookResponse) GetBot() *Bot {
 	if x != nil {
 		return x.Bot
 	}
@@ -1283,22 +1403,28 @@ var File_chatto_api_v1_bots_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\n" +
-	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x89\x03\n" +
+	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8b\x03\n" +
 	"\x03Bot\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12\"\n" +
 	"\rowner_user_id\x18\x02 \x01(\tR\vownerUserId\x129\n" +
 	"\n" +
 	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12G\n" +
 	"\x12api_key_created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0fapiKeyCreatedAt\x12L\n" +
-	"\x12api_key_rotated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\x0fapiKeyRotatedAt\x88\x01\x01\x12L\n" +
-	"\x10incoming_webhook\x18\x06 \x01(\v2!.chatto.api.v1.BotIncomingWebhookR\x0fincomingWebhookB\x15\n" +
-	"\x13_api_key_rotated_at\"\x9e\x01\n" +
-	"\x12BotIncomingWebhook\x129\n" +
+	"\x12api_key_rotated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\x0fapiKeyRotatedAt\x88\x01\x01\x12N\n" +
+	"\x11incoming_webhooks\x18\x06 \x03(\v2!.chatto.api.v1.BotIncomingWebhookR\x10incomingWebhooksB\x15\n" +
+	"\x13_api_key_rotated_at\"\xe6\x02\n" +
+	"\x12BotIncomingWebhook\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
 	"\n" +
-	"created_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
-	"rotated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\trotatedAt\x88\x01\x01B\r\n" +
-	"\v_rotated_at\"b\n" +
+	"rotated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\trotatedAt\x88\x01\x01\x12N\n" +
+	"\x0flast_used_state\x18\x05 \x01(\x0e2&.chatto.api.v1.CredentialLastUsedStateR\rlastUsedState\x12A\n" +
+	"\flast_used_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\n" +
+	"lastUsedAt\x88\x01\x01B\r\n" +
+	"\v_rotated_atB\x0f\n" +
+	"\r_last_used_at\"b\n" +
 	"\x0fListBotsRequest\x12\x1f\n" +
 	"\x06search\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18dR\x06search\x12.\n" +
 	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"g\n" +
@@ -1337,28 +1463,38 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\"X\n" +
 	"\x17RotateBotApiKeyResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\x12\x17\n" +
-	"\aapi_key\x18\x02 \x01(\tR\x06apiKey\"J\n" +
-	"\x1fEnableBotIncomingWebhookRequest\x12'\n" +
-	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\"i\n" +
-	" EnableBotIncomingWebhookResponse\x12$\n" +
+	"\aapi_key\x18\x02 \x01(\tR\x06apiKey\"i\n" +
+	"\x1fCreateBotIncomingWebhookRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12\x1d\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\"i\n" +
+	" CreateBotIncomingWebhookResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\x12\x1f\n" +
 	"\vwebhook_url\x18\x02 \x01(\tR\n" +
-	"webhookUrl\"J\n" +
+	"webhookUrl\"r\n" +
 	"\x1fRotateBotIncomingWebhookRequest\x12'\n" +
-	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\"i\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12&\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\twebhookId\"i\n" +
 	" RotateBotIncomingWebhookResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\x12\x1f\n" +
 	"\vwebhook_url\x18\x02 \x01(\tR\n" +
-	"webhookUrl\"K\n" +
-	" DisableBotIncomingWebhookRequest\x12'\n" +
-	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\"I\n" +
-	"!DisableBotIncomingWebhookResponse\x12$\n" +
+	"webhookUrl\"r\n" +
+	"\x1fRevokeBotIncomingWebhookRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12&\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\twebhookId\"H\n" +
+	" RevokeBotIncomingWebhookResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\"o\n" +
 	"\x17ReassignBotOwnerRequest\x12'\n" +
 	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12+\n" +
 	"\rowner_user_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vownerUserId\"@\n" +
 	"\x18ReassignBotOwnerResponse\x12$\n" +
-	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot2\xba\b\n" +
+	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot*\xc5\x01\n" +
+	"\x17CredentialLastUsedState\x12*\n" +
+	"&CREDENTIAL_LAST_USED_STATE_UNSPECIFIED\x10\x00\x12)\n" +
+	"%CREDENTIAL_LAST_USED_STATE_NEVER_USED\x10\x01\x12'\n" +
+	"#CREDENTIAL_LAST_USED_STATE_RECORDED\x10\x02\x12*\n" +
+	"&CREDENTIAL_LAST_USED_STATE_UNAVAILABLE\x10\x032\xb7\b\n" +
 	"\n" +
 	"BotService\x12K\n" +
 	"\bListBots\x12\x1e.chatto.api.v1.ListBotsRequest\x1a\x1f.chatto.api.v1.ListBotsResponse\x12E\n" +
@@ -1368,9 +1504,9 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\tUpdateBot\x12\x1f.chatto.api.v1.UpdateBotRequest\x1a .chatto.api.v1.UpdateBotResponse\x12S\n" +
 	"\tDeleteBot\x12\x1f.chatto.api.v1.DeleteBotRequest\x1a .chatto.api.v1.DeleteBotResponse\"\x03\x90\x02\x02\x12`\n" +
 	"\x0fRotateBotApiKey\x12%.chatto.api.v1.RotateBotApiKeyRequest\x1a&.chatto.api.v1.RotateBotApiKeyResponse\x12{\n" +
-	"\x18EnableBotIncomingWebhook\x12..chatto.api.v1.EnableBotIncomingWebhookRequest\x1a/.chatto.api.v1.EnableBotIncomingWebhookResponse\x12{\n" +
-	"\x18RotateBotIncomingWebhook\x12..chatto.api.v1.RotateBotIncomingWebhookRequest\x1a/.chatto.api.v1.RotateBotIncomingWebhookResponse\x12\x83\x01\n" +
-	"\x19DisableBotIncomingWebhook\x12/.chatto.api.v1.DisableBotIncomingWebhookRequest\x1a0.chatto.api.v1.DisableBotIncomingWebhookResponse\"\x03\x90\x02\x02\x12h\n" +
+	"\x18CreateBotIncomingWebhook\x12..chatto.api.v1.CreateBotIncomingWebhookRequest\x1a/.chatto.api.v1.CreateBotIncomingWebhookResponse\x12{\n" +
+	"\x18RotateBotIncomingWebhook\x12..chatto.api.v1.RotateBotIncomingWebhookRequest\x1a/.chatto.api.v1.RotateBotIncomingWebhookResponse\x12\x80\x01\n" +
+	"\x18RevokeBotIncomingWebhook\x12..chatto.api.v1.RevokeBotIncomingWebhookRequest\x1a/.chatto.api.v1.RevokeBotIncomingWebhookResponse\"\x03\x90\x02\x02\x12h\n" +
 	"\x10ReassignBotOwner\x12&.chatto.api.v1.ReassignBotOwnerRequest\x1a'.chatto.api.v1.ReassignBotOwnerResponse\"\x03\x90\x02\x02B\xa5\x01\n" +
 	"\x11com.chatto.api.v1B\tBotsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -1386,84 +1522,88 @@ func file_chatto_api_v1_bots_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_bots_proto_rawDescData
 }
 
+var file_chatto_api_v1_bots_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_api_v1_bots_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_chatto_api_v1_bots_proto_goTypes = []any{
-	(*Bot)(nil),                               // 0: chatto.api.v1.Bot
-	(*BotIncomingWebhook)(nil),                // 1: chatto.api.v1.BotIncomingWebhook
-	(*ListBotsRequest)(nil),                   // 2: chatto.api.v1.ListBotsRequest
-	(*ListBotsResponse)(nil),                  // 3: chatto.api.v1.ListBotsResponse
-	(*GetBotRequest)(nil),                     // 4: chatto.api.v1.GetBotRequest
-	(*GetBotResponse)(nil),                    // 5: chatto.api.v1.GetBotResponse
-	(*BatchGetBotsRequest)(nil),               // 6: chatto.api.v1.BatchGetBotsRequest
-	(*BatchGetBotsResponse)(nil),              // 7: chatto.api.v1.BatchGetBotsResponse
-	(*CreateBotRequest)(nil),                  // 8: chatto.api.v1.CreateBotRequest
-	(*CreateBotResponse)(nil),                 // 9: chatto.api.v1.CreateBotResponse
-	(*UpdateBotRequest)(nil),                  // 10: chatto.api.v1.UpdateBotRequest
-	(*UpdateBotResponse)(nil),                 // 11: chatto.api.v1.UpdateBotResponse
-	(*DeleteBotRequest)(nil),                  // 12: chatto.api.v1.DeleteBotRequest
-	(*DeleteBotResponse)(nil),                 // 13: chatto.api.v1.DeleteBotResponse
-	(*RotateBotApiKeyRequest)(nil),            // 14: chatto.api.v1.RotateBotApiKeyRequest
-	(*RotateBotApiKeyResponse)(nil),           // 15: chatto.api.v1.RotateBotApiKeyResponse
-	(*EnableBotIncomingWebhookRequest)(nil),   // 16: chatto.api.v1.EnableBotIncomingWebhookRequest
-	(*EnableBotIncomingWebhookResponse)(nil),  // 17: chatto.api.v1.EnableBotIncomingWebhookResponse
-	(*RotateBotIncomingWebhookRequest)(nil),   // 18: chatto.api.v1.RotateBotIncomingWebhookRequest
-	(*RotateBotIncomingWebhookResponse)(nil),  // 19: chatto.api.v1.RotateBotIncomingWebhookResponse
-	(*DisableBotIncomingWebhookRequest)(nil),  // 20: chatto.api.v1.DisableBotIncomingWebhookRequest
-	(*DisableBotIncomingWebhookResponse)(nil), // 21: chatto.api.v1.DisableBotIncomingWebhookResponse
-	(*ReassignBotOwnerRequest)(nil),           // 22: chatto.api.v1.ReassignBotOwnerRequest
-	(*ReassignBotOwnerResponse)(nil),          // 23: chatto.api.v1.ReassignBotOwnerResponse
-	(*User)(nil),                              // 24: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),             // 25: google.protobuf.Timestamp
-	(*PageRequest)(nil),                       // 26: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                          // 27: chatto.api.v1.PageInfo
+	(CredentialLastUsedState)(0),             // 0: chatto.api.v1.CredentialLastUsedState
+	(*Bot)(nil),                              // 1: chatto.api.v1.Bot
+	(*BotIncomingWebhook)(nil),               // 2: chatto.api.v1.BotIncomingWebhook
+	(*ListBotsRequest)(nil),                  // 3: chatto.api.v1.ListBotsRequest
+	(*ListBotsResponse)(nil),                 // 4: chatto.api.v1.ListBotsResponse
+	(*GetBotRequest)(nil),                    // 5: chatto.api.v1.GetBotRequest
+	(*GetBotResponse)(nil),                   // 6: chatto.api.v1.GetBotResponse
+	(*BatchGetBotsRequest)(nil),              // 7: chatto.api.v1.BatchGetBotsRequest
+	(*BatchGetBotsResponse)(nil),             // 8: chatto.api.v1.BatchGetBotsResponse
+	(*CreateBotRequest)(nil),                 // 9: chatto.api.v1.CreateBotRequest
+	(*CreateBotResponse)(nil),                // 10: chatto.api.v1.CreateBotResponse
+	(*UpdateBotRequest)(nil),                 // 11: chatto.api.v1.UpdateBotRequest
+	(*UpdateBotResponse)(nil),                // 12: chatto.api.v1.UpdateBotResponse
+	(*DeleteBotRequest)(nil),                 // 13: chatto.api.v1.DeleteBotRequest
+	(*DeleteBotResponse)(nil),                // 14: chatto.api.v1.DeleteBotResponse
+	(*RotateBotApiKeyRequest)(nil),           // 15: chatto.api.v1.RotateBotApiKeyRequest
+	(*RotateBotApiKeyResponse)(nil),          // 16: chatto.api.v1.RotateBotApiKeyResponse
+	(*CreateBotIncomingWebhookRequest)(nil),  // 17: chatto.api.v1.CreateBotIncomingWebhookRequest
+	(*CreateBotIncomingWebhookResponse)(nil), // 18: chatto.api.v1.CreateBotIncomingWebhookResponse
+	(*RotateBotIncomingWebhookRequest)(nil),  // 19: chatto.api.v1.RotateBotIncomingWebhookRequest
+	(*RotateBotIncomingWebhookResponse)(nil), // 20: chatto.api.v1.RotateBotIncomingWebhookResponse
+	(*RevokeBotIncomingWebhookRequest)(nil),  // 21: chatto.api.v1.RevokeBotIncomingWebhookRequest
+	(*RevokeBotIncomingWebhookResponse)(nil), // 22: chatto.api.v1.RevokeBotIncomingWebhookResponse
+	(*ReassignBotOwnerRequest)(nil),          // 23: chatto.api.v1.ReassignBotOwnerRequest
+	(*ReassignBotOwnerResponse)(nil),         // 24: chatto.api.v1.ReassignBotOwnerResponse
+	(*User)(nil),                             // 25: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),            // 26: google.protobuf.Timestamp
+	(*PageRequest)(nil),                      // 27: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                         // 28: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_bots_proto_depIdxs = []int32{
-	24, // 0: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
-	25, // 1: chatto.api.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
-	25, // 2: chatto.api.v1.Bot.api_key_created_at:type_name -> google.protobuf.Timestamp
-	25, // 3: chatto.api.v1.Bot.api_key_rotated_at:type_name -> google.protobuf.Timestamp
-	1,  // 4: chatto.api.v1.Bot.incoming_webhook:type_name -> chatto.api.v1.BotIncomingWebhook
-	25, // 5: chatto.api.v1.BotIncomingWebhook.created_at:type_name -> google.protobuf.Timestamp
-	25, // 6: chatto.api.v1.BotIncomingWebhook.rotated_at:type_name -> google.protobuf.Timestamp
-	26, // 7: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
-	0,  // 8: chatto.api.v1.ListBotsResponse.bots:type_name -> chatto.api.v1.Bot
-	27, // 9: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
-	0,  // 10: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 11: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
-	0,  // 12: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 13: chatto.api.v1.UpdateBotResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 14: chatto.api.v1.RotateBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 15: chatto.api.v1.EnableBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 16: chatto.api.v1.RotateBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 17: chatto.api.v1.DisableBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 18: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
-	2,  // 19: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
-	4,  // 20: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
-	6,  // 21: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
-	8,  // 22: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
-	10, // 23: chatto.api.v1.BotService.UpdateBot:input_type -> chatto.api.v1.UpdateBotRequest
-	12, // 24: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
-	14, // 25: chatto.api.v1.BotService.RotateBotApiKey:input_type -> chatto.api.v1.RotateBotApiKeyRequest
-	16, // 26: chatto.api.v1.BotService.EnableBotIncomingWebhook:input_type -> chatto.api.v1.EnableBotIncomingWebhookRequest
-	18, // 27: chatto.api.v1.BotService.RotateBotIncomingWebhook:input_type -> chatto.api.v1.RotateBotIncomingWebhookRequest
-	20, // 28: chatto.api.v1.BotService.DisableBotIncomingWebhook:input_type -> chatto.api.v1.DisableBotIncomingWebhookRequest
-	22, // 29: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
-	3,  // 30: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
-	5,  // 31: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
-	7,  // 32: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
-	9,  // 33: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
-	11, // 34: chatto.api.v1.BotService.UpdateBot:output_type -> chatto.api.v1.UpdateBotResponse
-	13, // 35: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
-	15, // 36: chatto.api.v1.BotService.RotateBotApiKey:output_type -> chatto.api.v1.RotateBotApiKeyResponse
-	17, // 37: chatto.api.v1.BotService.EnableBotIncomingWebhook:output_type -> chatto.api.v1.EnableBotIncomingWebhookResponse
-	19, // 38: chatto.api.v1.BotService.RotateBotIncomingWebhook:output_type -> chatto.api.v1.RotateBotIncomingWebhookResponse
-	21, // 39: chatto.api.v1.BotService.DisableBotIncomingWebhook:output_type -> chatto.api.v1.DisableBotIncomingWebhookResponse
-	23, // 40: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
-	30, // [30:41] is the sub-list for method output_type
-	19, // [19:30] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	25, // 0: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
+	26, // 1: chatto.api.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
+	26, // 2: chatto.api.v1.Bot.api_key_created_at:type_name -> google.protobuf.Timestamp
+	26, // 3: chatto.api.v1.Bot.api_key_rotated_at:type_name -> google.protobuf.Timestamp
+	2,  // 4: chatto.api.v1.Bot.incoming_webhooks:type_name -> chatto.api.v1.BotIncomingWebhook
+	26, // 5: chatto.api.v1.BotIncomingWebhook.created_at:type_name -> google.protobuf.Timestamp
+	26, // 6: chatto.api.v1.BotIncomingWebhook.rotated_at:type_name -> google.protobuf.Timestamp
+	0,  // 7: chatto.api.v1.BotIncomingWebhook.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
+	26, // 8: chatto.api.v1.BotIncomingWebhook.last_used_at:type_name -> google.protobuf.Timestamp
+	27, // 9: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
+	1,  // 10: chatto.api.v1.ListBotsResponse.bots:type_name -> chatto.api.v1.Bot
+	28, // 11: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
+	1,  // 12: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 13: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
+	1,  // 14: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 15: chatto.api.v1.UpdateBotResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 16: chatto.api.v1.RotateBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 17: chatto.api.v1.CreateBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 18: chatto.api.v1.RotateBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 19: chatto.api.v1.RevokeBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 20: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
+	3,  // 21: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
+	5,  // 22: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
+	7,  // 23: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
+	9,  // 24: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
+	11, // 25: chatto.api.v1.BotService.UpdateBot:input_type -> chatto.api.v1.UpdateBotRequest
+	13, // 26: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
+	15, // 27: chatto.api.v1.BotService.RotateBotApiKey:input_type -> chatto.api.v1.RotateBotApiKeyRequest
+	17, // 28: chatto.api.v1.BotService.CreateBotIncomingWebhook:input_type -> chatto.api.v1.CreateBotIncomingWebhookRequest
+	19, // 29: chatto.api.v1.BotService.RotateBotIncomingWebhook:input_type -> chatto.api.v1.RotateBotIncomingWebhookRequest
+	21, // 30: chatto.api.v1.BotService.RevokeBotIncomingWebhook:input_type -> chatto.api.v1.RevokeBotIncomingWebhookRequest
+	23, // 31: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
+	4,  // 32: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
+	6,  // 33: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
+	8,  // 34: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
+	10, // 35: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
+	12, // 36: chatto.api.v1.BotService.UpdateBot:output_type -> chatto.api.v1.UpdateBotResponse
+	14, // 37: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
+	16, // 38: chatto.api.v1.BotService.RotateBotApiKey:output_type -> chatto.api.v1.RotateBotApiKeyResponse
+	18, // 39: chatto.api.v1.BotService.CreateBotIncomingWebhook:output_type -> chatto.api.v1.CreateBotIncomingWebhookResponse
+	20, // 40: chatto.api.v1.BotService.RotateBotIncomingWebhook:output_type -> chatto.api.v1.RotateBotIncomingWebhookResponse
+	22, // 41: chatto.api.v1.BotService.RevokeBotIncomingWebhook:output_type -> chatto.api.v1.RevokeBotIncomingWebhookResponse
+	24, // 42: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
+	32, // [32:43] is the sub-list for method output_type
+	21, // [21:32] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_bots_proto_init() }
@@ -1481,13 +1621,14 @@ func file_chatto_api_v1_bots_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_bots_proto_rawDesc), len(file_chatto_api_v1_bots_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_chatto_api_v1_bots_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_bots_proto_depIdxs,
+		EnumInfos:         file_chatto_api_v1_bots_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_bots_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_bots_proto = out.File

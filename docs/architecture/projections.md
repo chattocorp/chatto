@@ -325,8 +325,10 @@ Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the current owner-to-bot index used for
 management, reassignment, and cascade deletion. `UserAuthProjection` replays
 the latest bot API-key verifier and creation/rotation timestamps from EVT. It
-also replays the active incoming webhook verifier and its creation/rotation
-timestamps. Disablement clears this projected webhook state. It closes
+also replays the active incoming webhook IDs, names, verifiers, and lifecycle
+timestamps. Rotation replaces only the selected verifier, and revocation
+removes only the selected webhook. A webhook fact from the first unreleased
+implementation has no ID and projects to the synthetic `legacy` ID. It closes
 process-local realtime watchers whose non-secret API-key verifier generation
 is superseded, so every replica terminates stale bot connections when it
 observes the durable rotation.

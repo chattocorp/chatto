@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, DisableBotIncomingWebhookRequest, DisableBotIncomingWebhookResponse, EnableBotIncomingWebhookRequest, EnableBotIncomingWebhookResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, RotateBotIncomingWebhookRequest, RotateBotIncomingWebhookResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, RotateBotIncomingWebhookRequest, RotateBotIncomingWebhookResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -95,19 +95,20 @@ export const BotService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Enables the bot's sole incoming webhook credential.
+     * Creates a named incoming webhook. A bot can have at most 20 active
+     * incoming webhooks.
      *
-     * @generated from rpc chatto.api.v1.BotService.EnableBotIncomingWebhook
+     * @generated from rpc chatto.api.v1.BotService.CreateBotIncomingWebhook
      */
-    enableBotIncomingWebhook: {
-      name: "EnableBotIncomingWebhook",
-      I: EnableBotIncomingWebhookRequest,
-      O: EnableBotIncomingWebhookResponse,
+    createBotIncomingWebhook: {
+      name: "CreateBotIncomingWebhook",
+      I: CreateBotIncomingWebhookRequest,
+      O: CreateBotIncomingWebhookResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Rotates the active incoming webhook credential and immediately invalidates
-     * the old credential.
+     * Rotates one incoming webhook credential and immediately invalidates its
+     * old URL without changing other webhooks.
      *
      * @generated from rpc chatto.api.v1.BotService.RotateBotIncomingWebhook
      */
@@ -118,14 +119,14 @@ export const BotService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Disables the incoming webhook and immediately invalidates its credential.
+     * Revokes one incoming webhook without changing other webhooks.
      *
-     * @generated from rpc chatto.api.v1.BotService.DisableBotIncomingWebhook
+     * @generated from rpc chatto.api.v1.BotService.RevokeBotIncomingWebhook
      */
-    disableBotIncomingWebhook: {
-      name: "DisableBotIncomingWebhook",
-      I: DisableBotIncomingWebhookRequest,
-      O: DisableBotIncomingWebhookResponse,
+    revokeBotIncomingWebhook: {
+      name: "RevokeBotIncomingWebhook",
+      I: RevokeBotIncomingWebhookRequest,
+      O: RevokeBotIncomingWebhookResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },

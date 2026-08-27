@@ -48,15 +48,15 @@ const (
 	// BotServiceRotateBotApiKeyProcedure is the fully-qualified name of the BotService's
 	// RotateBotApiKey RPC.
 	BotServiceRotateBotApiKeyProcedure = "/chatto.api.v1.BotService/RotateBotApiKey"
-	// BotServiceEnableBotIncomingWebhookProcedure is the fully-qualified name of the BotService's
-	// EnableBotIncomingWebhook RPC.
-	BotServiceEnableBotIncomingWebhookProcedure = "/chatto.api.v1.BotService/EnableBotIncomingWebhook"
+	// BotServiceCreateBotIncomingWebhookProcedure is the fully-qualified name of the BotService's
+	// CreateBotIncomingWebhook RPC.
+	BotServiceCreateBotIncomingWebhookProcedure = "/chatto.api.v1.BotService/CreateBotIncomingWebhook"
 	// BotServiceRotateBotIncomingWebhookProcedure is the fully-qualified name of the BotService's
 	// RotateBotIncomingWebhook RPC.
 	BotServiceRotateBotIncomingWebhookProcedure = "/chatto.api.v1.BotService/RotateBotIncomingWebhook"
-	// BotServiceDisableBotIncomingWebhookProcedure is the fully-qualified name of the BotService's
-	// DisableBotIncomingWebhook RPC.
-	BotServiceDisableBotIncomingWebhookProcedure = "/chatto.api.v1.BotService/DisableBotIncomingWebhook"
+	// BotServiceRevokeBotIncomingWebhookProcedure is the fully-qualified name of the BotService's
+	// RevokeBotIncomingWebhook RPC.
+	BotServiceRevokeBotIncomingWebhookProcedure = "/chatto.api.v1.BotService/RevokeBotIncomingWebhook"
 	// BotServiceReassignBotOwnerProcedure is the fully-qualified name of the BotService's
 	// ReassignBotOwner RPC.
 	BotServiceReassignBotOwnerProcedure = "/chatto.api.v1.BotService/ReassignBotOwner"
@@ -79,13 +79,14 @@ type BotServiceClient interface {
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
 	// Rotates the bot's sole API key and immediately invalidates the old key.
 	RotateBotApiKey(context.Context, *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error)
-	// Enables the bot's sole incoming webhook credential.
-	EnableBotIncomingWebhook(context.Context, *connect.Request[v1.EnableBotIncomingWebhookRequest]) (*connect.Response[v1.EnableBotIncomingWebhookResponse], error)
-	// Rotates the active incoming webhook credential and immediately invalidates
-	// the old credential.
+	// Creates a named incoming webhook. A bot can have at most 20 active
+	// incoming webhooks.
+	CreateBotIncomingWebhook(context.Context, *connect.Request[v1.CreateBotIncomingWebhookRequest]) (*connect.Response[v1.CreateBotIncomingWebhookResponse], error)
+	// Rotates one incoming webhook credential and immediately invalidates its
+	// old URL without changing other webhooks.
 	RotateBotIncomingWebhook(context.Context, *connect.Request[v1.RotateBotIncomingWebhookRequest]) (*connect.Response[v1.RotateBotIncomingWebhookResponse], error)
-	// Disables the incoming webhook and immediately invalidates its credential.
-	DisableBotIncomingWebhook(context.Context, *connect.Request[v1.DisableBotIncomingWebhookRequest]) (*connect.Response[v1.DisableBotIncomingWebhookResponse], error)
+	// Revokes one incoming webhook without changing other webhooks.
+	RevokeBotIncomingWebhook(context.Context, *connect.Request[v1.RevokeBotIncomingWebhookRequest]) (*connect.Response[v1.RevokeBotIncomingWebhookResponse], error)
 	// Reassigns a bot to another active human owner. Requires bot.manage. The
 	// current API key and configured permission allowlist remain unchanged,
 	// while effective permissions immediately use the new owner's ceiling.
@@ -146,10 +147,10 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(botServiceMethods.ByName("RotateBotApiKey")),
 			connect.WithClientOptions(opts...),
 		),
-		enableBotIncomingWebhook: connect.NewClient[v1.EnableBotIncomingWebhookRequest, v1.EnableBotIncomingWebhookResponse](
+		createBotIncomingWebhook: connect.NewClient[v1.CreateBotIncomingWebhookRequest, v1.CreateBotIncomingWebhookResponse](
 			httpClient,
-			baseURL+BotServiceEnableBotIncomingWebhookProcedure,
-			connect.WithSchema(botServiceMethods.ByName("EnableBotIncomingWebhook")),
+			baseURL+BotServiceCreateBotIncomingWebhookProcedure,
+			connect.WithSchema(botServiceMethods.ByName("CreateBotIncomingWebhook")),
 			connect.WithClientOptions(opts...),
 		),
 		rotateBotIncomingWebhook: connect.NewClient[v1.RotateBotIncomingWebhookRequest, v1.RotateBotIncomingWebhookResponse](
@@ -158,10 +159,10 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(botServiceMethods.ByName("RotateBotIncomingWebhook")),
 			connect.WithClientOptions(opts...),
 		),
-		disableBotIncomingWebhook: connect.NewClient[v1.DisableBotIncomingWebhookRequest, v1.DisableBotIncomingWebhookResponse](
+		revokeBotIncomingWebhook: connect.NewClient[v1.RevokeBotIncomingWebhookRequest, v1.RevokeBotIncomingWebhookResponse](
 			httpClient,
-			baseURL+BotServiceDisableBotIncomingWebhookProcedure,
-			connect.WithSchema(botServiceMethods.ByName("DisableBotIncomingWebhook")),
+			baseURL+BotServiceRevokeBotIncomingWebhookProcedure,
+			connect.WithSchema(botServiceMethods.ByName("RevokeBotIncomingWebhook")),
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
@@ -177,17 +178,17 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 
 // botServiceClient implements BotServiceClient.
 type botServiceClient struct {
-	listBots                  *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
-	getBot                    *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
-	batchGetBots              *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
-	createBot                 *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
-	updateBot                 *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
-	deleteBot                 *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
-	rotateBotApiKey           *connect.Client[v1.RotateBotApiKeyRequest, v1.RotateBotApiKeyResponse]
-	enableBotIncomingWebhook  *connect.Client[v1.EnableBotIncomingWebhookRequest, v1.EnableBotIncomingWebhookResponse]
-	rotateBotIncomingWebhook  *connect.Client[v1.RotateBotIncomingWebhookRequest, v1.RotateBotIncomingWebhookResponse]
-	disableBotIncomingWebhook *connect.Client[v1.DisableBotIncomingWebhookRequest, v1.DisableBotIncomingWebhookResponse]
-	reassignBotOwner          *connect.Client[v1.ReassignBotOwnerRequest, v1.ReassignBotOwnerResponse]
+	listBots                 *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
+	getBot                   *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
+	batchGetBots             *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
+	createBot                *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
+	updateBot                *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
+	deleteBot                *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
+	rotateBotApiKey          *connect.Client[v1.RotateBotApiKeyRequest, v1.RotateBotApiKeyResponse]
+	createBotIncomingWebhook *connect.Client[v1.CreateBotIncomingWebhookRequest, v1.CreateBotIncomingWebhookResponse]
+	rotateBotIncomingWebhook *connect.Client[v1.RotateBotIncomingWebhookRequest, v1.RotateBotIncomingWebhookResponse]
+	revokeBotIncomingWebhook *connect.Client[v1.RevokeBotIncomingWebhookRequest, v1.RevokeBotIncomingWebhookResponse]
+	reassignBotOwner         *connect.Client[v1.ReassignBotOwnerRequest, v1.ReassignBotOwnerResponse]
 }
 
 // ListBots calls chatto.api.v1.BotService.ListBots.
@@ -225,9 +226,9 @@ func (c *botServiceClient) RotateBotApiKey(ctx context.Context, req *connect.Req
 	return c.rotateBotApiKey.CallUnary(ctx, req)
 }
 
-// EnableBotIncomingWebhook calls chatto.api.v1.BotService.EnableBotIncomingWebhook.
-func (c *botServiceClient) EnableBotIncomingWebhook(ctx context.Context, req *connect.Request[v1.EnableBotIncomingWebhookRequest]) (*connect.Response[v1.EnableBotIncomingWebhookResponse], error) {
-	return c.enableBotIncomingWebhook.CallUnary(ctx, req)
+// CreateBotIncomingWebhook calls chatto.api.v1.BotService.CreateBotIncomingWebhook.
+func (c *botServiceClient) CreateBotIncomingWebhook(ctx context.Context, req *connect.Request[v1.CreateBotIncomingWebhookRequest]) (*connect.Response[v1.CreateBotIncomingWebhookResponse], error) {
+	return c.createBotIncomingWebhook.CallUnary(ctx, req)
 }
 
 // RotateBotIncomingWebhook calls chatto.api.v1.BotService.RotateBotIncomingWebhook.
@@ -235,9 +236,9 @@ func (c *botServiceClient) RotateBotIncomingWebhook(ctx context.Context, req *co
 	return c.rotateBotIncomingWebhook.CallUnary(ctx, req)
 }
 
-// DisableBotIncomingWebhook calls chatto.api.v1.BotService.DisableBotIncomingWebhook.
-func (c *botServiceClient) DisableBotIncomingWebhook(ctx context.Context, req *connect.Request[v1.DisableBotIncomingWebhookRequest]) (*connect.Response[v1.DisableBotIncomingWebhookResponse], error) {
-	return c.disableBotIncomingWebhook.CallUnary(ctx, req)
+// RevokeBotIncomingWebhook calls chatto.api.v1.BotService.RevokeBotIncomingWebhook.
+func (c *botServiceClient) RevokeBotIncomingWebhook(ctx context.Context, req *connect.Request[v1.RevokeBotIncomingWebhookRequest]) (*connect.Response[v1.RevokeBotIncomingWebhookResponse], error) {
+	return c.revokeBotIncomingWebhook.CallUnary(ctx, req)
 }
 
 // ReassignBotOwner calls chatto.api.v1.BotService.ReassignBotOwner.
@@ -262,13 +263,14 @@ type BotServiceHandler interface {
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
 	// Rotates the bot's sole API key and immediately invalidates the old key.
 	RotateBotApiKey(context.Context, *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error)
-	// Enables the bot's sole incoming webhook credential.
-	EnableBotIncomingWebhook(context.Context, *connect.Request[v1.EnableBotIncomingWebhookRequest]) (*connect.Response[v1.EnableBotIncomingWebhookResponse], error)
-	// Rotates the active incoming webhook credential and immediately invalidates
-	// the old credential.
+	// Creates a named incoming webhook. A bot can have at most 20 active
+	// incoming webhooks.
+	CreateBotIncomingWebhook(context.Context, *connect.Request[v1.CreateBotIncomingWebhookRequest]) (*connect.Response[v1.CreateBotIncomingWebhookResponse], error)
+	// Rotates one incoming webhook credential and immediately invalidates its
+	// old URL without changing other webhooks.
 	RotateBotIncomingWebhook(context.Context, *connect.Request[v1.RotateBotIncomingWebhookRequest]) (*connect.Response[v1.RotateBotIncomingWebhookResponse], error)
-	// Disables the incoming webhook and immediately invalidates its credential.
-	DisableBotIncomingWebhook(context.Context, *connect.Request[v1.DisableBotIncomingWebhookRequest]) (*connect.Response[v1.DisableBotIncomingWebhookResponse], error)
+	// Revokes one incoming webhook without changing other webhooks.
+	RevokeBotIncomingWebhook(context.Context, *connect.Request[v1.RevokeBotIncomingWebhookRequest]) (*connect.Response[v1.RevokeBotIncomingWebhookResponse], error)
 	// Reassigns a bot to another active human owner. Requires bot.manage. The
 	// current API key and configured permission allowlist remain unchanged,
 	// while effective permissions immediately use the new owner's ceiling.
@@ -325,10 +327,10 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(botServiceMethods.ByName("RotateBotApiKey")),
 		connect.WithHandlerOptions(opts...),
 	)
-	botServiceEnableBotIncomingWebhookHandler := connect.NewUnaryHandler(
-		BotServiceEnableBotIncomingWebhookProcedure,
-		svc.EnableBotIncomingWebhook,
-		connect.WithSchema(botServiceMethods.ByName("EnableBotIncomingWebhook")),
+	botServiceCreateBotIncomingWebhookHandler := connect.NewUnaryHandler(
+		BotServiceCreateBotIncomingWebhookProcedure,
+		svc.CreateBotIncomingWebhook,
+		connect.WithSchema(botServiceMethods.ByName("CreateBotIncomingWebhook")),
 		connect.WithHandlerOptions(opts...),
 	)
 	botServiceRotateBotIncomingWebhookHandler := connect.NewUnaryHandler(
@@ -337,10 +339,10 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(botServiceMethods.ByName("RotateBotIncomingWebhook")),
 		connect.WithHandlerOptions(opts...),
 	)
-	botServiceDisableBotIncomingWebhookHandler := connect.NewUnaryHandler(
-		BotServiceDisableBotIncomingWebhookProcedure,
-		svc.DisableBotIncomingWebhook,
-		connect.WithSchema(botServiceMethods.ByName("DisableBotIncomingWebhook")),
+	botServiceRevokeBotIncomingWebhookHandler := connect.NewUnaryHandler(
+		BotServiceRevokeBotIncomingWebhookProcedure,
+		svc.RevokeBotIncomingWebhook,
+		connect.WithSchema(botServiceMethods.ByName("RevokeBotIncomingWebhook")),
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -367,12 +369,12 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 			botServiceDeleteBotHandler.ServeHTTP(w, r)
 		case BotServiceRotateBotApiKeyProcedure:
 			botServiceRotateBotApiKeyHandler.ServeHTTP(w, r)
-		case BotServiceEnableBotIncomingWebhookProcedure:
-			botServiceEnableBotIncomingWebhookHandler.ServeHTTP(w, r)
+		case BotServiceCreateBotIncomingWebhookProcedure:
+			botServiceCreateBotIncomingWebhookHandler.ServeHTTP(w, r)
 		case BotServiceRotateBotIncomingWebhookProcedure:
 			botServiceRotateBotIncomingWebhookHandler.ServeHTTP(w, r)
-		case BotServiceDisableBotIncomingWebhookProcedure:
-			botServiceDisableBotIncomingWebhookHandler.ServeHTTP(w, r)
+		case BotServiceRevokeBotIncomingWebhookProcedure:
+			botServiceRevokeBotIncomingWebhookHandler.ServeHTTP(w, r)
 		case BotServiceReassignBotOwnerProcedure:
 			botServiceReassignBotOwnerHandler.ServeHTTP(w, r)
 		default:
@@ -412,16 +414,16 @@ func (UnimplementedBotServiceHandler) RotateBotApiKey(context.Context, *connect.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RotateBotApiKey is not implemented"))
 }
 
-func (UnimplementedBotServiceHandler) EnableBotIncomingWebhook(context.Context, *connect.Request[v1.EnableBotIncomingWebhookRequest]) (*connect.Response[v1.EnableBotIncomingWebhookResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.EnableBotIncomingWebhook is not implemented"))
+func (UnimplementedBotServiceHandler) CreateBotIncomingWebhook(context.Context, *connect.Request[v1.CreateBotIncomingWebhookRequest]) (*connect.Response[v1.CreateBotIncomingWebhookResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.CreateBotIncomingWebhook is not implemented"))
 }
 
 func (UnimplementedBotServiceHandler) RotateBotIncomingWebhook(context.Context, *connect.Request[v1.RotateBotIncomingWebhookRequest]) (*connect.Response[v1.RotateBotIncomingWebhookResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RotateBotIncomingWebhook is not implemented"))
 }
 
-func (UnimplementedBotServiceHandler) DisableBotIncomingWebhook(context.Context, *connect.Request[v1.DisableBotIncomingWebhookRequest]) (*connect.Response[v1.DisableBotIncomingWebhookResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.DisableBotIncomingWebhook is not implemented"))
+func (UnimplementedBotServiceHandler) RevokeBotIncomingWebhook(context.Context, *connect.Request[v1.RevokeBotIncomingWebhookRequest]) (*connect.Response[v1.RevokeBotIncomingWebhookResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RevokeBotIncomingWebhook is not implemented"))
 }
 
 func (UnimplementedBotServiceHandler) ReassignBotOwner(context.Context, *connect.Request[v1.ReassignBotOwnerRequest]) (*connect.Response[v1.ReassignBotOwnerResponse], error) {

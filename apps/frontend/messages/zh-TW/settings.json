@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "應用程式偏好設定",
       "subtitle": "此應用程式中適用於所有已註冊伺服器的選項",
-      "appearance": { "title": "外觀" },
-      "composer": { "title": "訊息編輯" }
+      "appearance": {
+        "title": "外觀"
+      },
+      "composer": {
+        "title": "訊息編輯"
+      }
     },
     "profile": {
       "title": "個人檔案",
@@ -439,11 +443,7 @@
       "rotate_failed": "輪換 API 金鑰失敗",
       "webhook_title": "傳入 Webhook",
       "webhook_description": "透過外部工具以此機器人身分發佈訊息。",
-      "webhook_disabled_description": "傳入 Webhook 已停用。",
-      "webhook_created": "Webhook 已啟用",
-      "webhook_enable": "啟用 Webhook",
-      "webhook_enabled": "傳入 Webhook 已啟用",
-      "webhook_enable_failed": "無法啟用傳入 Webhook",
+      "webhook_created": "已建立傳入 Webhook",
       "webhook_url_title": "儲存此 Webhook URL",
       "webhook_url_warning": "此 URL 僅顯示一次，且包含憑證。請在關閉此視窗前將其儲存至安全位置。",
       "webhook_url_copied": "Webhook URL 已複製",
@@ -452,11 +452,6 @@
       "webhook_rotate_warning": "目前的 Webhook URL 將立即停止運作。請更新所有使用此 URL 的整合。",
       "webhook_rotated": "傳入 Webhook 已輪替",
       "webhook_rotate_failed": "無法輪替傳入 Webhook",
-      "webhook_disable": "停用 Webhook",
-      "webhook_disable_title": "停用傳入 Webhook",
-      "webhook_disable_warning": "目前的 Webhook URL 將立即停止運作。",
-      "webhook_disabled": "傳入 Webhook 已停用",
-      "webhook_disable_failed": "無法停用傳入 Webhook",
       "delete_title": "刪除機器人",
       "delete_warning": "刪除{name}？其 API 金鑰將立即停止運作，且該帳戶無法復原。",
       "deleted": "機器人已刪除",
@@ -464,7 +459,20 @@
       "permissions": {
         "owner_ceiling": "選擇這個機器人可以執行的操作。你只能授予自己擁有的權限。如果你失去某項權限，機器人也將無法再使用該權限。",
         "save_failed": "無法更新機器人權限"
-      }
+      },
+      "webhook_empty_description": "尚未建立任何傳入 Webhook。",
+      "webhook_create": "建立 Webhook",
+      "webhook_name": "名稱",
+      "webhook_created_at": "建立時間",
+      "webhook_create_failed": "無法建立傳入 Webhook",
+      "webhook_revoke": "撤銷 Webhook",
+      "webhook_revoke_warning": "目前的 Webhook URL 將立即停止運作。",
+      "webhook_revoked": "已撤銷傳入 Webhook",
+      "webhook_revoke_failed": "無法撤銷傳入 Webhook",
+      "webhook_last_used": "上次使用時間",
+      "webhook_never_used": "從未使用",
+      "webhook_last_used_unavailable": "暫時無法使用",
+      "webhook_limit_reached": "已達到 20 個傳入 Webhook 的上限。"
     }
   }
 }

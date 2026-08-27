@@ -255,32 +255,34 @@ retrieved later.
 | `api_key` | `string` | Newly issued API key. |
 
 
-<a id="chatto-api-v1-BotService-EnableBotIncomingWebhook"></a>
+<a id="chatto-api-v1-BotService-CreateBotIncomingWebhook"></a>
 
-### EnableBotIncomingWebhook
+### CreateBotIncomingWebhook
 
-Enables the bot's sole incoming webhook credential.
+Creates a named incoming webhook. A bot can have at most 20 active
+incoming webhooks.
 
 ```http
-POST /api/connect/chatto.api.v1.BotService/EnableBotIncomingWebhook
+POST /api/connect/chatto.api.v1.BotService/CreateBotIncomingWebhook
 ```
 
-<a id="chatto-api-v1-EnableBotIncomingWebhookRequest"></a>
+<a id="chatto-api-v1-CreateBotIncomingWebhookRequest"></a>
 
-#### Input: EnableBotIncomingWebhookRequest
+#### Input: CreateBotIncomingWebhookRequest
 
-Request enablement of the bot's incoming webhook.
+Request creation of one named incoming webhook for a bot.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required bot user ID. |
+| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
 
 
-<a id="chatto-api-v1-EnableBotIncomingWebhookResponse"></a>
+<a id="chatto-api-v1-CreateBotIncomingWebhookResponse"></a>
 
-#### Result: EnableBotIncomingWebhookResponse
+#### Result: CreateBotIncomingWebhookResponse
 
-Result of enabling an incoming webhook. webhook_url is shown once and
+Result of creating an incoming webhook. webhook_url is shown once and
 cannot be retrieved later.
 
 | Field | Type | Description |
@@ -293,8 +295,8 @@ cannot be retrieved later.
 
 ### RotateBotIncomingWebhook
 
-Rotates the active incoming webhook credential and immediately invalidates
-the old credential.
+Rotates one incoming webhook credential and immediately invalidates its
+old URL without changing other webhooks.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/RotateBotIncomingWebhook
@@ -304,11 +306,12 @@ POST /api/connect/chatto.api.v1.BotService/RotateBotIncomingWebhook
 
 #### Input: RotateBotIncomingWebhookRequest
 
-Request rotation of the bot's active incoming webhook credential.
+Request rotation of one active incoming webhook credential.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required bot user ID. |
+| `webhook_id` | `string` | Required webhook credential ID. |
 
 
 <a id="chatto-api-v1-RotateBotIncomingWebhookResponse"></a>
@@ -324,32 +327,33 @@ cannot be retrieved later.
 | `webhook_url` | `string` | Newly issued incoming webhook URL. |
 
 
-<a id="chatto-api-v1-BotService-DisableBotIncomingWebhook"></a>
+<a id="chatto-api-v1-BotService-RevokeBotIncomingWebhook"></a>
 
-### DisableBotIncomingWebhook
+### RevokeBotIncomingWebhook
 
-Disables the incoming webhook and immediately invalidates its credential.
+Revokes one incoming webhook without changing other webhooks.
 
 ```http
-POST /api/connect/chatto.api.v1.BotService/DisableBotIncomingWebhook
+POST /api/connect/chatto.api.v1.BotService/RevokeBotIncomingWebhook
 ```
 
-<a id="chatto-api-v1-DisableBotIncomingWebhookRequest"></a>
+<a id="chatto-api-v1-RevokeBotIncomingWebhookRequest"></a>
 
-#### Input: DisableBotIncomingWebhookRequest
+#### Input: RevokeBotIncomingWebhookRequest
 
-Request disablement of the bot's active incoming webhook.
+Request irreversible revocation of one incoming webhook credential.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required bot user ID. |
+| `webhook_id` | `string` | Required webhook credential ID. |
 
 
-<a id="chatto-api-v1-DisableBotIncomingWebhookResponse"></a>
+<a id="chatto-api-v1-RevokeBotIncomingWebhookResponse"></a>
 
-#### Result: DisableBotIncomingWebhookResponse
+#### Result: RevokeBotIncomingWebhookResponse
 
-Result of disabling an incoming webhook.
+Result of revoking an incoming webhook.
 
 | Field | Type | Description |
 | --- | --- | --- |

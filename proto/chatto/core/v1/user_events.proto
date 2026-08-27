@@ -97,25 +97,29 @@ message BotOwnerReassignedEvent {
   string owner_user_id = 3;
 }
 
-// BotIncomingWebhookEnabledEvent records the verifier for a bot's optional
-// incoming webhook credential. The raw credential is returned once and is
-// never persisted.
-message BotIncomingWebhookEnabledEvent {
+// BotIncomingWebhookCreatedEvent records the verifier and safe metadata for
+// one bot incoming webhook. The raw credential is returned once and is never
+// persisted. webhook_id and name are empty only in legacy singular events.
+message BotIncomingWebhookCreatedEvent {
   string user_id = 1;
   bytes verifier = 2;
+  string webhook_id = 3;
+  string name = 4;
 }
 
-// BotIncomingWebhookRotatedEvent replaces the verifier for a bot's active
-// incoming webhook credential.
+// BotIncomingWebhookRotatedEvent replaces one incoming webhook verifier.
+// webhook_id is empty only in a legacy singular event.
 message BotIncomingWebhookRotatedEvent {
   string user_id = 1;
   bytes verifier = 2;
+  string webhook_id = 3;
 }
 
-// BotIncomingWebhookDisabledEvent invalidates the bot's incoming webhook
-// credential.
-message BotIncomingWebhookDisabledEvent {
+// BotIncomingWebhookRevokedEvent invalidates one incoming webhook credential.
+// webhook_id is empty only in a legacy singular event.
+message BotIncomingWebhookRevokedEvent {
   string user_id = 1;
+  string webhook_id = 2;
 }
 
 message UserLoginChangedEvent {

@@ -149,21 +149,21 @@ func (s *botService) RotateBotApiKey(ctx context.Context, req *connect.Request[a
 	return connect.NewResponse(&apiv1.RotateBotApiKeyResponse{Bot: mapped, ApiKey: bot.APIKey}), nil
 }
 
-func (s *botService) EnableBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.EnableBotIncomingWebhookRequest]) (*connect.Response[apiv1.EnableBotIncomingWebhookResponse], error) {
+func (s *botService) CreateBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.CreateBotIncomingWebhookRequest]) (*connect.Response[apiv1.CreateBotIncomingWebhookResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	bot, err := s.api.core.EnableBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId())
+	issued, err := s.api.core.CreateBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetName())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	mapped, err := apiBot(ctx, s.api, bot)
+	mapped, err := apiBot(ctx, s.api, issued.Bot)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.EnableBotIncomingWebhookResponse{
-		Bot: mapped, WebhookUrl: s.incomingWebhookURL(ctx, bot.IncomingWebhookCredential),
+	return connect.NewResponse(&apiv1.CreateBotIncomingWebhookResponse{
+		Bot: mapped, WebhookUrl: s.incomingWebhookURL(ctx, issued.Credential),
 	}), nil
 }
 
@@ -172,25 +172,25 @@ func (s *botService) RotateBotIncomingWebhook(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, err
 	}
-	bot, err := s.api.core.RotateBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId())
+	issued, err := s.api.core.RotateBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	mapped, err := apiBot(ctx, s.api, bot)
+	mapped, err := apiBot(ctx, s.api, issued.Bot)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RotateBotIncomingWebhookResponse{
-		Bot: mapped, WebhookUrl: s.incomingWebhookURL(ctx, bot.IncomingWebhookCredential),
+		Bot: mapped, WebhookUrl: s.incomingWebhookURL(ctx, issued.Credential),
 	}), nil
 }
 
-func (s *botService) DisableBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.DisableBotIncomingWebhookRequest]) (*connect.Response[apiv1.DisableBotIncomingWebhookResponse], error) {
+func (s *botService) RevokeBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.RevokeBotIncomingWebhookRequest]) (*connect.Response[apiv1.RevokeBotIncomingWebhookResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	bot, err := s.api.core.DisableBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId())
+	bot, err := s.api.core.RevokeBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -198,7 +198,7 @@ func (s *botService) DisableBotIncomingWebhook(ctx context.Context, req *connect
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.DisableBotIncomingWebhookResponse{Bot: mapped}), nil
+	return connect.NewResponse(&apiv1.RevokeBotIncomingWebhookResponse{Bot: mapped}), nil
 }
 
 func (s *botService) incomingWebhookURL(ctx context.Context, credential string) string {
@@ -230,13 +230,22 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 	if !bot.APIKeyRotatedAt.IsZero() {
 		out.ApiKeyRotatedAt = timestamppb.New(bot.APIKeyRotatedAt)
 	}
-	if !bot.IncomingWebhookCredentialCreatedAt.IsZero() {
-		out.IncomingWebhook = &apiv1.BotIncomingWebhook{
-			CreatedAt: timestamppb.New(bot.IncomingWebhookCredentialCreatedAt),
+	for _, webhook := range bot.IncomingWebhooks {
+		mapped := &apiv1.BotIncomingWebhook{
+			Id: webhook.ID, Name: webhook.Name, CreatedAt: timestamppb.New(webhook.CreatedAt),
 		}
-		if !bot.IncomingWebhookCredentialRotatedAt.IsZero() {
-			out.IncomingWebhook.RotatedAt = timestamppb.New(bot.IncomingWebhookCredentialRotatedAt)
+		if !webhook.LastUsedAvailable {
+			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNAVAILABLE
+		} else if webhook.LastUsedAt.IsZero() {
+			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NEVER_USED
+		} else {
+			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_RECORDED
+			mapped.LastUsedAt = timestamppb.New(webhook.LastUsedAt)
 		}
+		if !webhook.RotatedAt.IsZero() {
+			mapped.RotatedAt = timestamppb.New(webhook.RotatedAt)
+		}
+		out.IncomingWebhooks = append(out.IncomingWebhooks, mapped)
 	}
 	return out, nil
 }

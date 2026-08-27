@@ -66,6 +66,7 @@ type ChattoCore struct {
 	linkPreviewCache          *linkpreview.Cache   // Cache for link preview metadata
 	linkPreviewFetcher        *linkpreview.Fetcher // Fetcher for link preview metadata
 	projectionSnapshotWorker  *projectionSnapshotWorker
+	credentialUsage           *credentialUsageRecorder
 	natsRecoveryState         atomic.Int32
 	natsRecoveryStartedAt     atomic.Int64
 	natsRecoveredReconnects   atomic.Uint64
@@ -205,6 +206,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	g.Go(func() error { return c.keyShredding.Run(gctx) })
+	g.Go(func() error { return c.credentialUsage.Run(gctx) })
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
 			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)

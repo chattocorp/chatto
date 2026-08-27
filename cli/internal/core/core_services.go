@@ -102,6 +102,10 @@ func initializeCoreServices(
 		return fmt.Errorf("failed to initialize asset cleanup: %w", err)
 	}
 	core.assetUploadModel = &AssetUploadModel{core: core}
+	core.credentialUsage = newCredentialUsageRecorder(
+		infra.storage.runtimeStateKV,
+		logger.WithPrefix("core.CredentialUsage"),
+	)
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
 	core.messageModel = &MessageModel{core: core}

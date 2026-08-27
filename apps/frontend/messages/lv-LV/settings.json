@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Lietotnes preferences",
       "subtitle": "Šīs lietotnes izvēles, kas attiecas uz visiem jūsu reģistrētajiem serveriem",
-      "appearance": { "title": "Izskats" },
-      "composer": { "title": "Ziņojumu rakstīšana" }
+      "appearance": {
+        "title": "Izskats"
+      },
+      "composer": {
+        "title": "Ziņojumu rakstīšana"
+      }
     },
     "profile": {
       "title": "Profils",
@@ -437,13 +441,9 @@
       "rotate_warning": "Pašreizējā atslēga nekavējoties pārtrauks darboties. Jebkura integrācija, kas to izmanto, ir jāatjaunina.",
       "key_rotated": "API atslēga ir pagriezta",
       "rotate_failed": "Neizdevās pagriezt API atslēgu",
-      "webhook_title": "Ienākošais tīmekļa aizķeris",
+      "webhook_title": "Ienākošie tīmekļa aizķeres punkti",
       "webhook_description": "Publicējiet ziņojumus šī bota vārdā no ārējiem rīkiem.",
-      "webhook_disabled_description": "Ienākošais tīmekļa aizķeris ir atspējots.",
-      "webhook_created": "Tīmekļa aizķeris iespējots",
-      "webhook_enable": "Iespējot tīmekļa aizķeri",
-      "webhook_enabled": "Ienākošais tīmekļa aizķeris iespējots",
-      "webhook_enable_failed": "Neizdevās iespējot ienākošo tīmekļa aizķeri",
+      "webhook_created": "Ienākošais tīmekļa aizķeres punkts izveidots",
       "webhook_url_title": "Saglabājiet šo tīmekļa aizķera URL",
       "webhook_url_warning": "Šis URL tiek parādīts tikai vienu reizi un satur piekļuves datus. Pirms šī loga aizvēršanas glabājiet to drošā vietā.",
       "webhook_url_copied": "Tīmekļa aizķera URL nokopēts",
@@ -452,11 +452,6 @@
       "webhook_rotate_warning": "Pašreizējais tīmekļa aizķera URL nekavējoties pārstās darboties. Atjauniniet visas integrācijas, kas to izmanto.",
       "webhook_rotated": "Ienākošais tīmekļa aizķeris mainīts",
       "webhook_rotate_failed": "Neizdevās mainīt ienākošo tīmekļa aizķeri",
-      "webhook_disable": "Atspējot tīmekļa aizķeri",
-      "webhook_disable_title": "Atspējot ienākošo tīmekļa aizķeri",
-      "webhook_disable_warning": "Pašreizējais tīmekļa aizķera URL nekavējoties pārstās darboties.",
-      "webhook_disabled": "Ienākošais tīmekļa aizķeris atspējots",
-      "webhook_disable_failed": "Neizdevās atspējot ienākošo tīmekļa aizķeri",
       "delete_title": "Dzēst robotu",
       "delete_warning": "Vai dzēst {name}? Tā API atslēga nekavējoties pārtrauks darboties, un kontu nevarēs atkopt.",
       "deleted": "Bots ir izdzēsts",
@@ -464,7 +459,20 @@
       "permissions": {
         "owner_ceiling": "Izvēlieties, ko šis bots drīkst darīt. Varat tam piešķirt tikai tās atļaujas, kas ir jums pašam. Ja zaudēsiet kādu atļauju, arī bots to vairs nevarēs izmantot.",
         "save_failed": "Neizdevās atjaunināt robota atļauju"
-      }
+      },
+      "webhook_empty_description": "Vēl nav izveidots neviens ienākošais tīmekļa aizķeres punkts.",
+      "webhook_create": "Izveidot tīmekļa aizķeres punktu",
+      "webhook_name": "Nosaukums",
+      "webhook_created_at": "Izveidots",
+      "webhook_create_failed": "Neizdevās izveidot ienākošo tīmekļa aizķeres punktu",
+      "webhook_revoke": "Atsaukt tīmekļa aizķeres punktu",
+      "webhook_revoke_warning": "Pašreizējais tīmekļa aizķeres punkta URL nekavējoties pārstās darboties.",
+      "webhook_revoked": "Ienākošais tīmekļa aizķeres punkts atsaukts",
+      "webhook_revoke_failed": "Neizdevās atsaukt ienākošo tīmekļa aizķeres punktu",
+      "webhook_last_used": "Pēdējo reizi izmantots",
+      "webhook_never_used": "Nekad nav izmantots",
+      "webhook_last_used_unavailable": "Īslaicīgi nav pieejams",
+      "webhook_limit_reached": "Ir sasniegts 20 ienākošo tīmekļa aizķeres punktu ierobežojums."
     }
   }
 }

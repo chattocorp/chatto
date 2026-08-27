@@ -85,7 +85,7 @@ describe('Bot administration page', () => {
           createdAt: null,
           apiKeyCreatedAt: null,
           apiKeyRotatedAt: null,
-          incomingWebhook: null
+          incomingWebhooks: []
         }
       ],
       totalCount: 1,

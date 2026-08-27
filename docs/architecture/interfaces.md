@@ -66,8 +66,8 @@ copy it again; raw bearer tokens are not stored in `EVT`. Opening
 ID in the signed browser session, and immediately redirects to registration.
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
-show-once API-key rotation, and enable, rotate, and disable operations for the
-bot's optional incoming webhook. Bot
+show-once API-key rotation, and create, rotate, and revoke operations for as
+many as 20 named incoming webhooks for each bot. Bot
 permission reads and writes use `AdminPermissionService`'s canonical user
 permission operations with the bot's user ID as the target. Human owners can
 manage their own bots; `bot.manage` allows global management. Matrix room
@@ -79,8 +79,10 @@ operations. Reassignment requires `bot.manage`, preserves the active key and
 configured allowlist, and immediately changes the owner permission ceiling.
 Rotation closes established realtime connections authenticated by the
 superseded verifier generation.
-Incoming webhook enablement and rotation return the complete URL once. The
-separate credential cannot authenticate ConnectRPC or realtime requests.
+Incoming webhook creation and rotation return the complete URL once. Each
+webhook can be rotated or revoked without a change to other webhooks. Safe
+metadata includes lifecycle times and best-effort last-use telemetry. The
+separate credentials cannot authenticate ConnectRPC or realtime requests.
 
 `NotificationPolicyService` provides explicit server, room-group, and room
 policy scopes. Its batch read accepts at most 100 scopes, removes duplicates in

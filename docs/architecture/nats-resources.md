@@ -20,7 +20,7 @@ inventories.
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
 | Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded event log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
-| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, fixed-expiry bearer access verifiers, mutable cookie and renewable-session authorities with explicit expiry and per-message TTL, workflow credentials, notification read/visibility boundaries, wrapped app DEKs, and encrypted snapshot pointers |
+| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, fixed-expiry bearer access verifiers, mutable cookie and renewable-session authorities with explicit expiry and per-message TTL, workflow credentials, credential-usage telemetry, notification read/visibility boundaries, wrapped app DEKs, and encrypted snapshot pointers |
 | KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats; recreated automatically after a full NATS restart |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |
