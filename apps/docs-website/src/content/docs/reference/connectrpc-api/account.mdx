@@ -26,7 +26,7 @@ authenticated user.
 
 ### UpdateProfile
 
-Updates the authenticated user's login and/or display name.
+Updates the authenticated user's login, display name, and/or bio.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
@@ -36,9 +36,8 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
 
 #### Input: UpdateProfileRequest
 
-Profile patch used to update a user identity. At least one field must be
-present. MyAccountService applies it to the authenticated user; BotService
-can apply the same patch to a caller-managed bot.
+Request to update the authenticated user's profile. Human and bot accounts
+use this same self-service operation. At least one field must be present.
 
 | Field | Type | Description |
 | --- | --- | --- |

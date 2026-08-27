@@ -5,25 +5,25 @@
 
 ## Overview
 
-A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. The profile does not contain App Preferences, such as appearance, language, editor, and send-key behavior. The app applies these choices to its registered servers. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
+A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Human accounts support the complete profile. Bot accounts support self-service login, display-name, and bio changes (FDR-038). The login is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate human-account needs. The profile does not contain App Preferences, such as appearance, language, editor, and send-key behavior. The app applies these choices to its registered servers.
 
 ## Behavior
 
-- **Display name** — freely editable by a human user. Shown in messages, member lists, mention autocomplete, etc.
-- **Login (username)** — editable by a human user with a 30-day cooldown between changes. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
+- **Display name** — freely editable by a human or bot account. Shown in messages, member lists, mention autocomplete, etc.
+- **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Bot logins must end in `_bot`. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
 - **Avatar** — human users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
 - **User Preferences** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). The server stores these choices and syncs them across devices. If a choice is not set, the frontend uses the browser timezone and locale time-format default. The web client reports the device timezone to the server once when no explicit timezone is set; an explicitly chosen zone is never overwritten by a later device report. The unified Settings sidebar puts these personal choices in the Your account group. Permission-gated Server configuration remains separate.
-- **Bio** — human users (and, through `BotService`, bots) can set a self-authored Markdown bio of up to 1,000 characters. The bio is shown on the profile card and the user's profile page. The client disables source HTML and sanitizes rendered output.
+- **Bio** — human and bot accounts can set a self-authored Markdown bio of up to 1,000 characters through `MyAccountService.UpdateProfile`. The bio is shown on the profile card and the user's profile page. The client disables source HTML and sanitizes rendered output.
 - **Public time zone** — a user's stored timezone doubles as the shareable zone on their public profile: user reads hydrate `User.timezone` from the user's User Preferences, and clients render current local time in that zone on profile surfaces. Users who never set a zone simply have no public timezone.
 - **Profile page** — each user (human or bot) has a full profile page at `/chat/{serverId}/users/{userId}` showing the avatar, display name, login, custom status, bio, bot marker, and local time; it is reachable from "View profile" in the profile card. The popup card shows the identity, bio snippet, live local time in the user's shared zone, message/moderation actions, and "Copy User ID".
 - **App Preferences** — users can select System, Light, or Dark appearance, a language, a message editor, and send-key behavior. System appearance follows the browser or OS colour-scheme preference. The app applies these choices to every registered server. The Application Header gear opens Appearance for the active authenticated server. The unified Settings sidebar puts Appearance, Language, and Composer in an App preferences group. If no authenticated server is available, the same pages use a separate App Preferences sidebar. App Preferences do not sync to another browser or device.
 - **Profile menu** — opening a user's profile popup or touch sheet shows their public identity and any available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
 - **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
-- **Bot identity management** — a bot owner or human user with `bot.manage` can update a bot's login, display name, and bio through `BotService`. Bot API keys cannot edit identity. Bot avatar, custom-status, and personal-settings management are not supported in this slice.
+- **Bot identity management** — an API-key-authenticated bot updates its own login, display name, and bio through `MyAccountService.UpdateProfile`. Human owners manage bot lifecycle, ownership, permissions, and API keys, but do not edit the bot's self-authored profile. Bot avatar, custom-status, and personal-settings management are not supported in this slice.
 
 ## Design Decisions
 
@@ -65,9 +65,9 @@ A human user's profile carries the public identity they present to the rest of t
 
 ### 7. Cross-user edits gated by `user.manage-accounts`
 
-**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human self-edits bypass that permission because they're privilege-neutral identity edits. Bot profile changes instead follow BotService ownership or `bot.manage` authorization and remain bounded to the public profile fields. `UpdateBotRequest` identifies the target bot and contains the same `UpdateProfileRequest` patch that the self-service API uses.
+**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human and bot self-edits use `MyAccountService.UpdateProfile` and bypass that permission because they are privilege-neutral identity edits. Bot lifecycle and credential management remain separate owner-authorized operations in `BotService`.
 **Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
-**Tradeoff:** A user with `user.manage-accounts` can edit any target human user's profile, while bot identity management has a separate, deliberately narrower authority path.
+**Tradeoff:** A human owner cannot edit a bot's profile without using the bot's API key. This keeps profile authorship bound to the authenticated identity and keeps delegated bot management out of the general profile API.
 
 ### 8. Custom status is durable profile metadata, not presence
 

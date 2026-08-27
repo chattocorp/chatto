@@ -80,9 +80,6 @@ var ErrCustomStatusExpiryInPast = fmt.Errorf("custom status expiry must be in th
 // UpdateUserDisplayName updates a user's display name.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return nil, err
-	}
 	return c.updateUserDisplayNameAs(ctx, userID, userID, displayName)
 }
 
@@ -157,9 +154,6 @@ func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, 
 // write (unchanged bio) appends no EVT event.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserBio(ctx context.Context, userID, bio string) (*corev1.User, error) {
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return nil, err
-	}
 	return c.updateUserProfileAs(ctx, userID, userID, nil, nil, &bio, true)
 }
 
@@ -376,9 +370,6 @@ func userLoginChangedAtKey(userID string) string {
 // UpdateUserLogin changes a user's login/username with 30-day cooldown enforcement.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return nil, err
-	}
 	return c.applyLoginChange(ctx, userID, userID, newLogin, true)
 }
 

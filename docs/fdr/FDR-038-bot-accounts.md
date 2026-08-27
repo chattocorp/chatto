@@ -108,8 +108,9 @@ exercise more authority than its human owner currently possesses.
   bot-management permission appears in their stored allowlist.
 - Bots cannot have passwords, verified emails, external identities, browser
   sessions, OAuth access tokens, password-reset flows, or other human sign-in
-  methods. A bot API key cannot change the bot's identity, ownership,
-  permissions, or API key.
+  methods. A bot API key can update its own public profile through
+  `MyAccountService.UpdateProfile`, but cannot change ownership, permissions,
+  or API keys.
 - Bots cannot request their own deletion. Only their owner or a human user with
   `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding
@@ -141,9 +142,8 @@ APIs as people without requiring parallel bot-only resource models. Separating
 authentication keeps an API credential from becoming an interactive login.
 **Tradeoff:** Account-security and credential-enrolment operations must enforce
 the account-kind boundary rather than treating every passwordless account as
-eligible for a password or external identity. Bot profile management also
-needs a deliberately narrower surface than the human self-profile and
-cross-user administration APIs.
+eligible for a password or external identity. Self-profile operations can stay
+shared because they always target the authenticated identity.
 
 ### 3. Explicit allowlist instead of normal role inheritance
 

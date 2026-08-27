@@ -124,8 +124,9 @@ requires an explicit effective `message.post` allow and normal room access.
 The canonical `User.is_bot` field identifies bot authors to API clients;
 the bundled client also shows a robot marker on their avatars.
 
-A bot API key cannot create or manage bots, rotate itself, edit the bot's
-identity, or enrol a password, browser session, OAuth token, verified email, or
+A bot API key can update its own login, display name, and bio through
+`MyAccountService.UpdateProfile`. It cannot create or manage bots, rotate
+itself, or enrol a password, browser session, OAuth token, verified email, or
 external login identity.
 
 ## Rotate or revoke a key
@@ -142,8 +143,9 @@ account.
 
 ## API reference
 
-`BotService` exposes bot lifecycle, owner reassignment, and key rotation. The
-raw key appears only in `CreateBot` and `RotateBotApiKey` responses. Bot
+`BotService` exposes bot lifecycle, owner reassignment, and key rotation. Use
+`MyAccountService.UpdateProfile` with the bot API key for self-profile changes.
+The raw key appears only in `CreateBot` and `RotateBotApiKey` responses. Bot
 permissions use the same `AdminPermissionService` user-permission RPCs as human
 accounts, with the bot's user ID as the target. See the
 [BotService reference](/reference/connectrpc-api/bots/) and

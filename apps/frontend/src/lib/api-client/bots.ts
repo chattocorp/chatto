@@ -62,16 +62,6 @@ export function createBotAPI(config: BotAPIConfig) {
       const response = await client.createBot(input, { headers: headers() });
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
     },
-    async updateBot(input: {
-      botUserId: string;
-      login?: string;
-      displayName?: string;
-      bio?: string;
-    }): Promise<Bot> {
-      const { botUserId, ...profile } = input;
-      const response = await client.updateBot({ botUserId, profile }, { headers: headers() });
-      return botFromAPI(requiredBot(response.bot));
-    },
     async deleteBot(botUserId: string): Promise<boolean> {
       return (await client.deleteBot({ botUserId }, { headers: headers() })).deleted;
     },

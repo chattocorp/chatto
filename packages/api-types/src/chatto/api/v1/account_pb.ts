@@ -10,9 +10,8 @@ import { ImageUpload } from "./common_pb.js";
 import { TimeFormat, UserSettings } from "./viewer_pb.js";
 
 /**
- * Profile patch used to update a user identity. At least one field must be
- * present. MyAccountService applies it to the authenticated user; BotService
- * can apply the same patch to a caller-managed bot.
+ * Request to update the authenticated user's profile. Human and bot accounts
+ * use this same self-service operation. At least one field must be present.
  *
  * @generated from message chatto.api.v1.UpdateProfileRequest
  */

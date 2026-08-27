@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -58,17 +58,6 @@ export const BotService = {
       name: "CreateBot",
       I: CreateBotRequest,
       O: CreateBotResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Updates a bot's public identity.
-     *
-     * @generated from rpc chatto.api.v1.BotService.UpdateBot
-     */
-    updateBot: {
-      name: "UpdateBot",
-      I: UpdateBotRequest,
-      O: UpdateBotResponse,
       kind: MethodKind.Unary,
     },
     /**

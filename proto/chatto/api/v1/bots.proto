@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/account.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/descriptor.proto";
@@ -85,23 +84,6 @@ message CreateBotResponse {
   string api_key = 2;
 }
 
-// Patch request for a bot's public identity.
-message UpdateBotRequest {
-  reserved 2 to 4;
-  reserved "login", "display_name", "bio";
-
-  // Required bot user ID.
-  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Profile fields to update. A bot login must end in `_bot`.
-  UpdateProfileRequest profile = 5 [(buf.validate.field).required = true];
-}
-
-// Result of updating a bot.
-message UpdateBotResponse {
-  // Updated bot.
-  Bot bot = 1;
-}
-
 // Request deletion of a bot account.
 message DeleteBotRequest {
   // Required bot user ID.
@@ -156,8 +138,6 @@ service BotService {
   rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
   // Creates a bot owned by the authenticated human caller. Requires bot.create.
   rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
-  // Updates a bot's public identity.
-  rpc UpdateBot(UpdateBotRequest) returns (UpdateBotResponse);
   // Deletes a bot and invalidates its API key.
   rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse) {
     option idempotency_level = IDEMPOTENT;

@@ -7,7 +7,6 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
-import { UpdateProfileRequest } from "./account_pb.js";
 
 /**
  * A managed bot account. The API key itself is returned only by creation and
@@ -441,96 +440,6 @@ export class CreateBotResponse extends Message<CreateBotResponse> {
 
   static equals(a: CreateBotResponse | PlainMessage<CreateBotResponse> | undefined, b: CreateBotResponse | PlainMessage<CreateBotResponse> | undefined): boolean {
     return proto3.util.equals(CreateBotResponse, a, b);
-  }
-}
-
-/**
- * Patch request for a bot's public identity.
- *
- * @generated from message chatto.api.v1.UpdateBotRequest
- */
-export class UpdateBotRequest extends Message<UpdateBotRequest> {
-  /**
-   * Required bot user ID.
-   *
-   * @generated from field: string bot_user_id = 1;
-   */
-  botUserId = "";
-
-  /**
-   * Profile fields to update. A bot login must end in `_bot`.
-   *
-   * @generated from field: chatto.api.v1.UpdateProfileRequest profile = 5;
-   */
-  profile?: UpdateProfileRequest;
-
-  constructor(data?: PartialMessage<UpdateBotRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdateBotRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "bot_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "profile", kind: "message", T: UpdateProfileRequest },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBotRequest {
-    return new UpdateBotRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateBotRequest {
-    return new UpdateBotRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateBotRequest {
-    return new UpdateBotRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UpdateBotRequest | PlainMessage<UpdateBotRequest> | undefined, b: UpdateBotRequest | PlainMessage<UpdateBotRequest> | undefined): boolean {
-    return proto3.util.equals(UpdateBotRequest, a, b);
-  }
-}
-
-/**
- * Result of updating a bot.
- *
- * @generated from message chatto.api.v1.UpdateBotResponse
- */
-export class UpdateBotResponse extends Message<UpdateBotResponse> {
-  /**
-   * Updated bot.
-   *
-   * @generated from field: chatto.api.v1.Bot bot = 1;
-   */
-  bot?: Bot;
-
-  constructor(data?: PartialMessage<UpdateBotResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdateBotResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "bot", kind: "message", T: Bot },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBotResponse {
-    return new UpdateBotResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateBotResponse {
-    return new UpdateBotResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateBotResponse {
-    return new UpdateBotResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UpdateBotResponse | PlainMessage<UpdateBotResponse> | undefined, b: UpdateBotResponse | PlainMessage<UpdateBotResponse> | undefined): boolean {
-    return proto3.util.equals(UpdateBotResponse, a, b);
   }
 }
 

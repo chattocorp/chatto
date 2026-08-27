@@ -223,9 +223,6 @@ const categories = [
 ];
 
 const servicePages = categories.flatMap((category) => category.services);
-const serviceOwnedTypePages = new Map([
-  ['chatto-api-v1-UpdateProfileRequest', 'account']
-]);
 
 function frontmatter(title, description) {
   return `---\ntitle: ${title}\ndescription: ${description}\neditUrl: false\n---\n\n`;
@@ -254,18 +251,12 @@ function rewriteServiceTypeLinks(section) {
   return section
     .replace(
       /\]\(#(chatto-(?:auth|discovery|api|admin)-v1-[^)]+)\)/g,
-      (_match, anchor) => {
-        const page = serviceOwnedTypePages.get(anchor) ?? 'types';
-        return `](/reference/connectrpc-api/${page}/#${anchor})`;
-      }
+      '](/reference/connectrpc-api/types/#$1)'
     )
     .replace(
       /`chatto\.(auth|discovery|api|admin)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
-      (_match, pkg, typeName) => {
-        const anchor = `chatto-${pkg}-v1-${typeName}`;
-        const page = serviceOwnedTypePages.get(anchor) ?? 'types';
-        return `[\`chatto.${pkg}.v1.${typeName}\`](/reference/connectrpc-api/${page}/#${anchor})`;
-      }
+      (_match, pkg, typeName) =>
+        `[\`chatto.${pkg}.v1.${typeName}\`](/reference/connectrpc-api/types/#chatto-${pkg}-v1-${typeName})`
     );
 }
 
