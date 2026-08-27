@@ -8,6 +8,9 @@ patchedDependencies:
   '@tiptap/core@3.30.2':
     hash: 3c8a163cf29a215149bef4b869845cbb8bec079ccae38d35f90cc09286c7542f
     path: patches/@tiptap__core@3.30.2.patch
+  vidstack@1.15.6:
+    hash: 493fd5d5123e1d9b96047734ee88367dd5447fb7e3e5bbf5c8d8789ff622ff96
+    path: patches/vidstack@1.15.6.patch
 
 importers:
 
@@ -96,7 +99,7 @@ importers:
         version: 1.261.0
       vidstack:
         specifier: ^1.15.6
-        version: 1.15.6
+        version: 1.15.6(patch_hash=493fd5d5123e1d9b96047734ee88367dd5447fb7e3e5bbf5c8d8789ff622ff96)
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.13.0
@@ -10834,7 +10837,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vidstack@1.15.6:
+  vidstack@1.15.6(patch_hash=493fd5d5123e1d9b96047734ee88367dd5447fb7e3e5bbf5c8d8789ff622ff96):
     dependencies:
       '@floating-ui/dom': 1.8.0
       fscreen: 1.2.0

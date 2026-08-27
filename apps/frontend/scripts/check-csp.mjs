@@ -40,6 +40,7 @@ requireValues('trusted-types', [
   'svelte-trusted-html',
   'sveltekit-trusted-url',
   'lit-html',
+  'vidstack-html',
   'tiptap-html',
   'chatto-service-worker-url',
   'ProseMirrorClipboard'

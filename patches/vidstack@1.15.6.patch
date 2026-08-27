@@ -1,0 +1,154 @@
+diff --git a/dev/chunks/vidstack-C7VnVlv2.js b/dev/chunks/vidstack-C7VnVlv2.js
+index 58ee28742cad655136fd0061ea5735fceca5eaa0..54166fc8a8bb040ea8af5cd93ab3a4dc0d77c483 100644
+--- a/dev/chunks/vidstack-C7VnVlv2.js
++++ b/dev/chunks/vidstack-C7VnVlv2.js
+@@ -3,7 +3,7 @@ import { isTrackCaptionKind } from "./vidstack-BpQc-xfw.js";
+ import { isCueActive, watchActiveTextTrack } from "./vidstack-DPxkpJG-.js";
+ import { useMediaContext } from "./vidstack-B6lBWEKu.js";
+ import { round } from "./vidstack-CZQo98ic.js";
+-import { $ariaBool, autoPlacement, isTouchPinchEvent, requestScopedAnimationFrame, setARIALabel, setAttributeIfEmpty } from "./vidstack-CToJFZVs.js";
++import { $ariaBool, autoPlacement, createTrustedHTML, isTouchPinchEvent, requestScopedAnimationFrame, setARIALabel, setAttributeIfEmpty } from "./vidstack-CToJFZVs.js";
+ import { Popper, RadioGroupController, Slider, SliderController, TimeSlider, ToggleButtonController, __decorate, formatSpokenTime, formatTime, menuContext, sliderState, sliderValueFormatContext, sortVideoQualities } from "./vidstack-C-fvFLVV.js";
+ import { $keyboard, FocusVisibleController } from "./vidstack-Vd5FstxL.js";
+ //#region src/components/aria/announcer.ts
+@@ -1499,7 +1499,7 @@ var Captions = class Captions extends Component {
+ 		const { realCurrentTime, textTrack } = this.#media.$state, { renderVTTCueString } = Captions.lib(), time = peek(realCurrentTime), activeCues = peek(textTrack).activeCues;
+ 		for (const cue of activeCues) {
+ 			const displayEl = this.#createCueDisplayElement(), cueEl = this.#createCueElement();
+-			cueEl.innerHTML = renderVTTCueString(cue, time);
++			cueEl.innerHTML = createTrustedHTML(renderVTTCueString(cue, time));
+ 			displayEl.append(cueEl);
+ 			this.el.append(cueEl);
+ 		}
+diff --git a/dev/chunks/vidstack-CToJFZVs.js b/dev/chunks/vidstack-CToJFZVs.js
+index c39901e0b6b6379e2dbe9deae3e041370eb8b2a7..03b56e83ae6859406add2cbc588da892e35432f1 100644
+--- a/dev/chunks/vidstack-CToJFZVs.js
++++ b/dev/chunks/vidstack-CToJFZVs.js
+@@ -74,7 +74,7 @@ function requestScopedAnimationFrame(callback) {
+ function cloneTemplate(template, length, onCreate) {
+ 	let current, prev = template, parent = template.parentElement, content = template.content.firstElementChild, elements = [];
+ 	if (!content && template.firstElementChild) {
+-		template.innerHTML = template.firstElementChild.outerHTML;
++		template.innerHTML = createTrustedHTML(template.firstElementChild.outerHTML);
+ 		template.firstElementChild.remove();
+ 		content = template.content.firstElementChild;
+ 	}
+@@ -91,9 +91,17 @@ function cloneTemplate(template, length, onCreate) {
+ 	});
+ 	return elements;
+ }
++// These helpers receive only Vidstack's templates and sanitized caption markup.
++function createTrustedHTML(content) {
++	if (!globalThis.trustedTypes) return content;
++	globalThis.__chattoVidstackTrustedTypesPolicy ??= globalThis.trustedTypes.createPolicy("vidstack-html", {
++		createHTML: (html) => html
++	});
++	return globalThis.__chattoVidstackTrustedTypesPolicy.createHTML(content);
++}
+ function createTemplate(content) {
+ 	const template = document.createElement("template");
+-	template.innerHTML = content;
++	template.innerHTML = createTrustedHTML(content);
+ 	return template.content;
+ }
+ function cloneTemplateContent(content) {
+@@ -232,4 +240,4 @@ function prefersReducedMotion() {
+ 	return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+ }
+ //#endregion
+-export { $ariaBool, autoPlacement, cloneTemplate, cloneTemplateContent, createSlot, createTemplate, hasAnimation, isElementParent, isElementVisible, isEventInside, isHTMLElement, isTouchPinchEvent, observeVisibility, onPress, prefersReducedMotion, requestScopedAnimationFrame, setARIALabel, setAttributeIfEmpty, useActive, useResizeObserver, useTransitionActive, watchColorScheme };
++export { $ariaBool, autoPlacement, cloneTemplate, cloneTemplateContent, createSlot, createTemplate, createTrustedHTML, hasAnimation, isElementParent, isElementVisible, isEventInside, isHTMLElement, isTouchPinchEvent, observeVisibility, onPress, prefersReducedMotion, requestScopedAnimationFrame, setARIALabel, setAttributeIfEmpty, useActive, useResizeObserver, useTransitionActive, watchColorScheme };
+diff --git a/dev/chunks/vidstack-DNcStHRr2.js b/dev/chunks/vidstack-DNcStHRr2.js
+index df2db25a813adee5893265851770c4e6411f1fd3..b35baee1631acce89a2a53598b877edc1feee4fe 100644
+--- a/dev/chunks/vidstack-DNcStHRr2.js
++++ b/dev/chunks/vidstack-DNcStHRr2.js
+@@ -1,10 +1,10 @@
+ import { Icon$24, effect } from "./vidstack-BwClSYSC.js";
+-import { cloneTemplateContent, createTemplate } from "./vidstack-CToJFZVs.js";
++import { cloneTemplateContent, createTemplate, createTrustedHTML } from "./vidstack-CToJFZVs.js";
+ //#region src/elements/define/provider-cast-display.ts
+ const svgTemplate = /* @__PURE__ */ createTemplate(`<svg viewBox="0 0 32 32" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"></svg>`);
+ function insertContent(container, $state) {
+ 	const icon = cloneTemplateContent(svgTemplate);
+-	icon.innerHTML = Icon$24;
++	icon.innerHTML = createTrustedHTML(Icon$24);
+ 	container.append(icon);
+ 	const text = document.createElement("span");
+ 	text.classList.add("vds-google-cast-info");
+diff --git a/prod/chunks/vidstack-CCGISNeA.js b/prod/chunks/vidstack-CCGISNeA.js
+index 4adfc909d7b5291619dda930319009c5b7562694..7d106d047fc2283759414eb2325304efd644bd8d 100644
+--- a/prod/chunks/vidstack-CCGISNeA.js
++++ b/prod/chunks/vidstack-CCGISNeA.js
+@@ -3,7 +3,7 @@ import { isTrackCaptionKind } from "./vidstack-DYPyTdYw.js";
+ import { isCueActive, watchActiveTextTrack } from "./vidstack-B1Z6f96t.js";
+ import { useMediaContext } from "./vidstack-CYE89tBD.js";
+ import { round } from "./vidstack-CZQo98ic.js";
+-import { $ariaBool, autoPlacement, isTouchPinchEvent, requestScopedAnimationFrame, setARIALabel, setAttributeIfEmpty } from "./vidstack-CgfrU1hS.js";
++import { $ariaBool, autoPlacement, createTrustedHTML, isTouchPinchEvent, requestScopedAnimationFrame, setARIALabel, setAttributeIfEmpty } from "./vidstack-CgfrU1hS.js";
+ import { Popper, RadioGroupController, Slider, SliderController, TimeSlider, ToggleButtonController, __decorate, formatSpokenTime, formatTime, menuContext, sliderState, sliderValueFormatContext, sortVideoQualities } from "./vidstack-D0Mmfcu7.js";
+ import { $keyboard, FocusVisibleController } from "./vidstack-3f0FVrSp.js";
+ //#region src/components/aria/announcer.ts
+@@ -1499,7 +1499,7 @@ var Captions = class Captions extends Component {
+ 		const { realCurrentTime, textTrack } = this.#media.$state, { renderVTTCueString } = Captions.lib(), time = peek(realCurrentTime), activeCues = peek(textTrack).activeCues;
+ 		for (const cue of activeCues) {
+ 			const displayEl = this.#createCueDisplayElement(), cueEl = this.#createCueElement();
+-			cueEl.innerHTML = renderVTTCueString(cue, time);
++			cueEl.innerHTML = createTrustedHTML(renderVTTCueString(cue, time));
+ 			displayEl.append(cueEl);
+ 			this.el.append(cueEl);
+ 		}
+diff --git a/prod/chunks/vidstack-CXo4cwSP2.js b/prod/chunks/vidstack-CXo4cwSP2.js
+index 3d81d6f295cff3714f1649328fc7a261f44653d6..92fb7c8ea2b8dcd1601f1205d1ccfb5fc0576f1f 100644
+--- a/prod/chunks/vidstack-CXo4cwSP2.js
++++ b/prod/chunks/vidstack-CXo4cwSP2.js
+@@ -1,10 +1,10 @@
+ import { Icon$24, effect } from "./vidstack-D9mvYVIz.js";
+-import { cloneTemplateContent, createTemplate } from "./vidstack-CgfrU1hS.js";
++import { cloneTemplateContent, createTemplate, createTrustedHTML } from "./vidstack-CgfrU1hS.js";
+ //#region src/elements/define/provider-cast-display.ts
+ const svgTemplate = /* @__PURE__ */ createTemplate(`<svg viewBox="0 0 32 32" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"></svg>`);
+ function insertContent(container, $state) {
+ 	const icon = cloneTemplateContent(svgTemplate);
+-	icon.innerHTML = Icon$24;
++	icon.innerHTML = createTrustedHTML(Icon$24);
+ 	container.append(icon);
+ 	const text = document.createElement("span");
+ 	text.classList.add("vds-google-cast-info");
+diff --git a/prod/chunks/vidstack-CgfrU1hS.js b/prod/chunks/vidstack-CgfrU1hS.js
+index fbe1d4619c04a5e5cb65b1d6d16f63c8b1509a45..f51176b013089acd88dc77bfc5d6ae2c08bca44b 100644
+--- a/prod/chunks/vidstack-CgfrU1hS.js
++++ b/prod/chunks/vidstack-CgfrU1hS.js
+@@ -72,7 +72,7 @@ function requestScopedAnimationFrame(callback) {
+ function cloneTemplate(template, length, onCreate) {
+ 	let current, prev = template, parent = template.parentElement, content = template.content.firstElementChild, elements = [];
+ 	if (!content && template.firstElementChild) {
+-		template.innerHTML = template.firstElementChild.outerHTML;
++		template.innerHTML = createTrustedHTML(template.firstElementChild.outerHTML);
+ 		template.firstElementChild.remove();
+ 		content = template.content.firstElementChild;
+ 	}
+@@ -88,9 +88,17 @@ function cloneTemplate(template, length, onCreate) {
+ 	});
+ 	return elements;
+ }
++// These helpers receive only Vidstack's templates and sanitized caption markup.
++function createTrustedHTML(content) {
++	if (!globalThis.trustedTypes) return content;
++	globalThis.__chattoVidstackTrustedTypesPolicy ??= globalThis.trustedTypes.createPolicy("vidstack-html", {
++		createHTML: (html) => html
++	});
++	return globalThis.__chattoVidstackTrustedTypesPolicy.createHTML(content);
++}
+ function createTemplate(content) {
+ 	const template = document.createElement("template");
+-	template.innerHTML = content;
++	template.innerHTML = createTrustedHTML(content);
+ 	return template.content;
+ }
+ function cloneTemplateContent(content) {
+@@ -229,4 +237,4 @@ function prefersReducedMotion() {
+ 	return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+ }
+ //#endregion
+-export { $ariaBool, autoPlacement, cloneTemplate, cloneTemplateContent, createSlot, createTemplate, hasAnimation, isElementParent, isElementVisible, isEventInside, isHTMLElement, isTouchPinchEvent, observeVisibility, onPress, prefersReducedMotion, requestScopedAnimationFrame, setARIALabel, setAttributeIfEmpty, useActive, useResizeObserver, useTransitionActive, watchColorScheme };
++export { $ariaBool, autoPlacement, cloneTemplate, cloneTemplateContent, createSlot, createTemplate, createTrustedHTML, hasAnimation, isElementParent, isElementVisible, isEventInside, isHTMLElement, isTouchPinchEvent, observeVisibility, onPress, prefersReducedMotion, requestScopedAnimationFrame, setARIALabel, setAttributeIfEmpty, useActive, useResizeObserver, useTransitionActive, watchColorScheme };

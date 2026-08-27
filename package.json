@@ -32,7 +32,8 @@
       "@tailwindcss/oxide"
     ],
     "patchedDependencies": {
-      "@tiptap/core@3.30.2": "patches/@tiptap__core@3.30.2.patch"
+      "@tiptap/core@3.30.2": "patches/@tiptap__core@3.30.2.patch",
+      "vidstack@1.15.6": "patches/vidstack@1.15.6.patch"
     }
   },
   "devDependencies": {
