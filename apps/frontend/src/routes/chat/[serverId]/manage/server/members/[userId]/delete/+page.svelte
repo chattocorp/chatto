@@ -9,7 +9,10 @@
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
+  import {
+    registerAdminUserRemovalListener,
+    registerQueryCacheRemovalListener
+  } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, PaneContent, PageTitle } from '$lib/ui';
@@ -36,7 +39,19 @@
     });
     removedMember = { serverId, userId: removedUserId };
   });
-  onDestroy(() => removeRemovalListener());
+  // Authentication or visibility changes purge all admin queries for a
+  // session; fence in-flight reads against that generation the same way the
+  // member detail page does.
+  let privacyGeneration = $state(0);
+  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId === activeServerId) privacyGeneration += 1;
+  });
+  onDestroy(() => {
+    // Discard in-flight mutation results bound to this component instance.
+    privacyGeneration += 1;
+    removeRemovalListener();
+    removeCacheRemovalListener();
+  });
 
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/members/[userId]', {
@@ -90,6 +105,9 @@
   async function handleDelete(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (!canConfirm || !member) return;
+    // Bind the request to the current privacy generation so a purge (for
+    // example from an authentication change mid-flight) discards its result.
+    const generation = privacyGeneration;
     deleting = true;
     error = '';
 
@@ -98,6 +116,7 @@
         userId,
         ...(password ? { currentPassword: password } : {})
       });
+      if (generation !== privacyGeneration) return;
       toast.success(m('admin.member_delete.success'));
       // The realtime ServerMemberDeletedEvent purge
       // (removeRegisteredAdminUserQueries) fences other admin caches that embed
