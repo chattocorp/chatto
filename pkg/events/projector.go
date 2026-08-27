@@ -852,7 +852,7 @@ func splitSubjectTokens(subject string) []string {
 // matches reports whether one exact subject matches the compiled wildcard
 // filter ('*' spans exactly one token; '>' is a terminal, nonempty-tail
 // wildcard). It runs per delivered message and allocates nothing:
-// subjectToken scans subject in place with no copies.
+// the token scan works on subject in place with no copies.
 func (f compiledSubjectFilter) matches(subject string) bool {
 	if f.raw == "" || subject == "" {
 		return false

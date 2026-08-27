@@ -32,6 +32,7 @@ func TestSubjectMatchesFilter(t *testing.T) {
 		{"a.b.>", "a.b", false},
 		{"a.b.>", "a.b.", false},
 		// Empty tokens never match: dots delimit strictly.
+		{".a", ".a", false},
 		{"a..b", "a..b", false},
 		{"a.b", "a.b.", false},
 		// A literal '*' token in a subject matches only a literal '*'.
