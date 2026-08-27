@@ -137,23 +137,18 @@ func NewCallModel(
 }
 
 func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.Stream) error {
-	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            callKeyCleanupConsumerName,
-		Durable:         callKeyCleanupConsumerName,
-		Description:     "Shared durable queue for ended Chatto call-key deletion",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         callKeyCleanupAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   evtstream.RoomEventTypeFilter(evtstream.EventCallEnded),
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   callKeyCleanupMaxPending,
-		MaxRequestBatch: callKeyCleanupMaxPending,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, stream, evtstream.EffectConsumerConfig{
+		Name:           callKeyCleanupConsumerName,
+		Description:    "Shared durable queue for ended Chatto call-key deletion",
+		FilterSubjects: []string{evtstream.RoomEventTypeFilter(evtstream.EventCallEnded)},
+		AckWait:        callKeyCleanupAckWait,
+		MaxAckPending:  callKeyCleanupMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return fmt.Errorf("create call-key cleanup consumer: %w", err)
 	}
-	worker, err := events.NewDurableWorker(consumer, s.processKeyCleanupDelivery, events.DurableWorkerOptions{
+	worker, err := evtstream.NewEffectWorker(consumer, s.processKeyCleanupDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent:     callKeyCleanupMaxPending,
 		RetryDelay:        callKeyCleanupRetryDelay,
 		AckTimeout:        callKeyCleanupAckTimeout,

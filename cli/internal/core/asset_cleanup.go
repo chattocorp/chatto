@@ -12,23 +12,18 @@ import (
 )
 
 func (s *AssetModel) configureCleanup(ctx context.Context, stream jetstream.Stream) error {
-	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            assetCleanupConsumerName,
-		Durable:         assetCleanupConsumerName,
-		Description:     "Shared durable queue for Chatto asset deletion",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         assetCleanupAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted),
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   assetCleanupMaxPending,
-		MaxRequestBatch: assetCleanupMaxPending,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, stream, evtstream.EffectConsumerConfig{
+		Name:           assetCleanupConsumerName,
+		Description:    "Shared durable queue for Chatto asset deletion",
+		FilterSubjects: []string{evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted)},
+		AckWait:        assetCleanupAckWait,
+		MaxAckPending:  assetCleanupMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return fmt.Errorf("create asset cleanup consumer: %w", err)
 	}
-	worker, err := events.NewDurableWorker(consumer, s.processCleanupDelivery, events.DurableWorkerOptions{
+	worker, err := evtstream.NewEffectWorker(consumer, s.processCleanupDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent:     assetCleanupMaxPending,
 		RetryDelay:        assetCleanupRetryDelay,
 		AckTimeout:        assetCleanupAckTimeout,

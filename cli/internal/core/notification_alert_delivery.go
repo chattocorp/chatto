@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/notificationstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
@@ -56,18 +57,13 @@ func (c *ChattoCore) SetNotificationAlertHandler(handler func(context.Context, *
 }
 
 func (d *notificationAlertDelivery) initialize(ctx context.Context) error {
-	consumer, err := d.core.storage.notificationStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            notificationAlertConsumerName,
-		Durable:         notificationAlertConsumerName,
-		Description:     "Shared durable worker for Chatto notification alerts",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         notificationAlertAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   notificationstream.SignalledSubject,
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   notificationAlertMaxPending,
-		MaxRequestBatch: notificationAlertMaxPending,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, d.core.storage.notificationStream, evtstream.EffectConsumerConfig{
+		Name:           notificationAlertConsumerName,
+		Description:    "Shared durable worker for Chatto notification alerts",
+		FilterSubjects: []string{notificationstream.SignalledSubject},
+		AckWait:        notificationAlertAckWait,
+		MaxAckPending:  notificationAlertMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return fmt.Errorf("create notification alert consumer: %w", err)
@@ -80,9 +76,8 @@ func (d *notificationAlertDelivery) run(ctx context.Context) error {
 	if err := d.core.notificationOccurrences.WaitReady(ctx); err != nil {
 		return fmt.Errorf("wait for notification projection before alert delivery: %w", err)
 	}
-	worker, err := events.NewDurableWorker(d.consumer, d.processDelivery, events.DurableWorkerOptions{
+	worker, err := evtstream.NewEffectWorker(d.consumer, d.processDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent:     notificationAlertMaxPending,
-		FetchMaxWait:      time.Second,
 		RetryDelay:        notificationAlertRetryDelay,
 		AckTimeout:        notificationAlertAckTimeout,
 		HeartbeatInterval: notificationAlertHeartbeat,
