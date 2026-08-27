@@ -66,7 +66,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 	}{
 		{assetSnapshotContractID, "v3", &corev1.AssetProjectionSnapshot{}},
 		{callStateSnapshotContractID, "v1", &corev1.CallStateProjectionSnapshot{}},
-		{configSnapshotContractID, "v1", &corev1.ConfigProjectionSnapshot{}},
+		{configSnapshotContractID, "v2", &corev1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
 		{mentionablesSnapshotContractID, "v2", &corev1.MentionablesProjectionSnapshot{}},
 		{notificationDecisionSnapshotContractID, "v1", &corev1.NotificationDecisionProjectionSnapshot{}},
@@ -77,7 +77,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{roomGroupLayoutSnapshotContractID, "v1", &corev1.RoomGroupLayoutProjectionSnapshot{}},
 		{roomTimelineSnapshotContractID, "v7", &corev1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v2", &corev1.ThreadProjectionSnapshot{}},
-		{userSnapshotContractID, "v4", &corev1.UserProfileProjectionSnapshot{}},
+		{userSnapshotContractID, "v5", &corev1.UserProfileProjectionSnapshot{}},
 	}
 	for _, tt := range tests {
 		require.Equal(t, snapshotContractID(tt.semantics, tt.message), tt.contract)
@@ -340,10 +340,10 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	}
 
 	expectedContractPrefix := map[string]string{
-		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
+		"room_directory": "v1-", "server_config": "v2-", "room_group_layout": "v1-",
 		"notification_decisions": "v1-", "notifications": "v2-",
 		"room_timeline": "v7-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
-		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v4-",
+		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v5-",
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
