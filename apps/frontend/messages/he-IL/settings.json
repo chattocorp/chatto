@@ -465,7 +465,7 @@
       "webhook_revoked": "ה-Webהוק הנכנס בוטל",
       "webhook_revoke_failed": "ביטול ה-Webהוק הנכנס נכשל",
       "webhook_last_used": "שימוש אחרון",
-      "webhook_never_used": "מעולם לא היה בשימוש",
+      "webhook_no_use_recorded": "לא תועד שימוש",
       "webhook_last_used_unavailable": "לא זמין זמנית",
       "webhook_limit_reached": "הגעת למגבלה של 20 Webהוקים נכנסים."
     }

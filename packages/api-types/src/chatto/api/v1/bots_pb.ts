@@ -22,11 +22,11 @@ export enum CredentialLastUsedState {
   UNSPECIFIED = 0,
 
   /**
-   * The credential has not authenticated a request.
+   * The server has no recorded use for the credential.
    *
-   * @generated from enum value: CREDENTIAL_LAST_USED_STATE_NEVER_USED = 1;
+   * @generated from enum value: CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED = 1;
    */
-  NEVER_USED = 1,
+  NO_USE_RECORDED = 1,
 
   /**
    * last_used_at contains the most recent recorded authentication time.
@@ -45,7 +45,7 @@ export enum CredentialLastUsedState {
 // Retrieve enum metadata with: proto3.getEnumType(CredentialLastUsedState)
 proto3.util.setEnumType(CredentialLastUsedState, "chatto.api.v1.CredentialLastUsedState", [
   { no: 0, name: "CREDENTIAL_LAST_USED_STATE_UNSPECIFIED" },
-  { no: 1, name: "CREDENTIAL_LAST_USED_STATE_NEVER_USED" },
+  { no: 1, name: "CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED" },
   { no: 2, name: "CREDENTIAL_LAST_USED_STATE_RECORDED" },
   { no: 3, name: "CREDENTIAL_LAST_USED_STATE_UNAVAILABLE" },
 ]);

@@ -465,7 +465,7 @@
       "webhook_revoked": "受信 Webhook を取り消しました",
       "webhook_revoke_failed": "受信 Webhook を取り消せませんでした",
       "webhook_last_used": "最終使用日時",
-      "webhook_never_used": "未使用",
+      "webhook_no_use_recorded": "使用記録なし",
       "webhook_last_used_unavailable": "一時的に利用できません",
       "webhook_limit_reached": "受信 Webhook の上限 20 件に達しました。"
     }

@@ -343,8 +343,8 @@
     if (webhook.lastUsedState === 'unavailable') {
       return m('settings.bots.webhook_last_used_unavailable');
     }
-    if (webhook.lastUsedState === 'never' || !webhook.lastUsedAt) {
-      return m('settings.bots.webhook_never_used');
+    if (webhook.lastUsedState === 'no_use_recorded' || !webhook.lastUsedAt) {
+      return m('settings.bots.webhook_no_use_recorded');
     }
     return formatDate(webhook.lastUsedAt);
   }

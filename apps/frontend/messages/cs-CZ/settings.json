@@ -465,7 +465,7 @@
       "webhook_revoked": "Příchozí webhook byl odvolán",
       "webhook_revoke_failed": "Příchozí webhook se nepodařilo odvolat",
       "webhook_last_used": "Naposledy použito",
-      "webhook_never_used": "Nikdy nepoužito",
+      "webhook_no_use_recorded": "Není zaznamenáno žádné použití",
       "webhook_last_used_unavailable": "Dočasně nedostupné",
       "webhook_limit_reached": "Byl dosažen limit 20 příchozích webhooků."
     }

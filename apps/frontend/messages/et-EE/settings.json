@@ -465,7 +465,7 @@
       "webhook_revoked": "Sissetulev veebihaak tühistati",
       "webhook_revoke_failed": "Sissetuleva veebihaagi tühistamine nurjus",
       "webhook_last_used": "Viimati kasutatud",
-      "webhook_never_used": "Pole kunagi kasutatud",
+      "webhook_no_use_recorded": "Kasutust pole registreeritud",
       "webhook_last_used_unavailable": "Ajutiselt pole saadaval",
       "webhook_limit_reached": "20 sissetuleva veebihaagi piirang on saavutatud."
     }

@@ -290,8 +290,8 @@ test.describe('Bot account lifecycle', () => {
     });
     const backupWebhook = webhookList.locator('.selectable-list-item').filter({ hasText: 'Backup' });
     await expect(productionWebhook).toContainText('Last used');
-    await expect(productionWebhook).not.toContainText('Never used');
-    await expect(backupWebhook).toContainText('Never used');
+    await expect(productionWebhook).not.toContainText('No use recorded');
+    await expect(backupWebhook).toContainText('No use recorded');
 
     await expect(
       webhookList.getByRole('button', { name: 'Rotate Webhook', exact: true })

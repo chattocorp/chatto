@@ -465,7 +465,7 @@
       "webhook_revoked": "Envena rethoko revokita",
       "webhook_revoke_failed": "Ne eblis revoki la envenan rethokon",
       "webhook_last_used": "Laste uzita",
-      "webhook_never_used": "Neniam uzita",
+      "webhook_no_use_recorded": "Neniu uzo registrita",
       "webhook_last_used_unavailable": "Provizore nedisponebla",
       "webhook_limit_reached": "La limo de 20 envenaj rethokoj estas atingita."
     }

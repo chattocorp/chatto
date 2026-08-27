@@ -465,7 +465,7 @@
       "webhook_revoked": "已撤銷傳入 Webhook",
       "webhook_revoke_failed": "無法撤銷傳入 Webhook",
       "webhook_last_used": "上次使用時間",
-      "webhook_never_used": "從未使用",
+      "webhook_no_use_recorded": "未記錄使用情況",
       "webhook_last_used_unavailable": "暫時無法使用",
       "webhook_limit_reached": "已達到 20 個傳入 Webhook 的上限。"
     }

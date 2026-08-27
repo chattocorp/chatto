@@ -465,7 +465,7 @@
       "webhook_revoked": "Ienākošais tīmekļa aizķeres punkts atsaukts",
       "webhook_revoke_failed": "Neizdevās atsaukt ienākošo tīmekļa aizķeres punktu",
       "webhook_last_used": "Pēdējo reizi izmantots",
-      "webhook_never_used": "Nekad nav izmantots",
+      "webhook_no_use_recorded": "Nav reģistrēts lietojums",
       "webhook_last_used_unavailable": "Īslaicīgi nav pieejams",
       "webhook_limit_reached": "Ir sasniegts 20 ienākošo tīmekļa aizķeres punktu ierobežojums."
     }

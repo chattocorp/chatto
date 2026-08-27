@@ -465,7 +465,7 @@
       "webhook_revoked": "Innkommende webhook tilbakekalt",
       "webhook_revoke_failed": "Kunne ikke tilbakekalle innkommende webhook",
       "webhook_last_used": "Sist brukt",
-      "webhook_never_used": "Aldri brukt",
+      "webhook_no_use_recorded": "Ingen bruk registrert",
       "webhook_last_used_unavailable": "Midlertidig utilgjengelig",
       "webhook_limit_reached": "Grensen på 20 innkommende webhooks er nådd."
     }

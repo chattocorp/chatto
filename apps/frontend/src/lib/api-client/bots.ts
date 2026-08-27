@@ -21,7 +21,7 @@ export type Bot = {
     id: string;
     name: string;
     createdAt: Date | null;
-    lastUsedState: 'never' | 'recorded' | 'unavailable';
+    lastUsedState: 'no_use_recorded' | 'recorded' | 'unavailable';
     lastUsedAt: Date | null;
   }[];
 };
@@ -135,10 +135,9 @@ function botFromAPI(bot: APIBot): Bot {
       lastUsedState:
         webhook.lastUsedState === CredentialLastUsedState.RECORDED
           ? 'recorded'
-          : webhook.lastUsedState === CredentialLastUsedState.UNAVAILABLE ||
-              webhook.lastUsedState === CredentialLastUsedState.UNSPECIFIED
-            ? 'unavailable'
-            : 'never',
+          : webhook.lastUsedState === CredentialLastUsedState.NO_USE_RECORDED
+            ? 'no_use_recorded'
+            : 'unavailable',
       lastUsedAt: webhook.lastUsedAt?.toDate() ?? null
     }))
   };

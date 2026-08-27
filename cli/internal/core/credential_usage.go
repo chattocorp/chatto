@@ -120,8 +120,8 @@ func (r *credentialUsageRecorder) ForgetAll(ctx context.Context, botID string) {
 }
 
 // LastUsed reads one per-bot record and merges observations that this process
-// has not flushed yet. available is false when persisted telemetry cannot be
-// read or decoded; callers must not present that state as Never used.
+// has not flushed yet. A missing record means that no use was recorded.
+// available is false when persisted telemetry cannot be read or decoded.
 func (r *credentialUsageRecorder) LastUsed(ctx context.Context, botID string) (lastUsed map[string]time.Time, available bool) {
 	if r == nil || r.kv == nil {
 		return nil, false

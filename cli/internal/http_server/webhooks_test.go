@@ -130,6 +130,7 @@ func TestIncomingWebhookRecordsUseAfterAuthenticationBeforePayloadValidation(t *
 	if err != nil {
 		t.Fatalf("GetBot: %v", err)
 	}
+	s.core.HydrateBotCredentialUsage(ctx, managed)
 	if len(managed.IncomingWebhooks) != 1 || !managed.IncomingWebhooks[0].LastUsedAvailable || managed.IncomingWebhooks[0].LastUsedAt.IsZero() {
 		t.Fatalf("last-used metadata = %+v", managed.IncomingWebhooks)
 	}

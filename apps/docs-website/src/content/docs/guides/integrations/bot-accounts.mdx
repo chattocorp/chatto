@@ -68,9 +68,10 @@ active webhooks.
 Create a separate webhook for each external integration. To replace a webhook,
 create a new one, move the caller to it, and then revoke the old webhook. You
 can revoke one webhook without a change to the other webhooks. The detail page
-shows when each webhook was created and approximately when Chatto last
-authenticated it. Last-use telemetry is optional. Chatto shows **Temporarily
-unavailable** instead of **Never used** if it cannot read the telemetry.
+shows when each webhook was created and approximately when Chatto recorded its
+last use. Last-use telemetry is optional. **No use recorded** does not prove
+that the webhook was not used. Chatto shows **Temporarily unavailable** if it
+cannot read the telemetry.
 
 Send a JSON request with Slack-compatible `text` and `channel` fields:
 

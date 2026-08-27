@@ -30,8 +30,8 @@ type CredentialLastUsedState int32
 const (
 	// The server did not return a last-use state.
 	CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED CredentialLastUsedState = 0
-	// The credential has not authenticated a request.
-	CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NEVER_USED CredentialLastUsedState = 1
+	// The server has no recorded use for the credential.
+	CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED CredentialLastUsedState = 1
 	// last_used_at contains the most recent recorded authentication time.
 	CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_RECORDED CredentialLastUsedState = 2
 	// Last-use telemetry is temporarily unavailable.
@@ -42,15 +42,15 @@ const (
 var (
 	CredentialLastUsedState_name = map[int32]string{
 		0: "CREDENTIAL_LAST_USED_STATE_UNSPECIFIED",
-		1: "CREDENTIAL_LAST_USED_STATE_NEVER_USED",
+		1: "CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED",
 		2: "CREDENTIAL_LAST_USED_STATE_RECORDED",
 		3: "CREDENTIAL_LAST_USED_STATE_UNAVAILABLE",
 	}
 	CredentialLastUsedState_value = map[string]int32{
-		"CREDENTIAL_LAST_USED_STATE_UNSPECIFIED": 0,
-		"CREDENTIAL_LAST_USED_STATE_NEVER_USED":  1,
-		"CREDENTIAL_LAST_USED_STATE_RECORDED":    2,
-		"CREDENTIAL_LAST_USED_STATE_UNAVAILABLE": 3,
+		"CREDENTIAL_LAST_USED_STATE_UNSPECIFIED":     0,
+		"CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED": 1,
+		"CREDENTIAL_LAST_USED_STATE_RECORDED":        2,
+		"CREDENTIAL_LAST_USED_STATE_UNAVAILABLE":     3,
 	}
 )
 
@@ -1359,10 +1359,10 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12+\n" +
 	"\rowner_user_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vownerUserId\"@\n" +
 	"\x18ReassignBotOwnerResponse\x12$\n" +
-	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot*\xc5\x01\n" +
+	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot*\xca\x01\n" +
 	"\x17CredentialLastUsedState\x12*\n" +
-	"&CREDENTIAL_LAST_USED_STATE_UNSPECIFIED\x10\x00\x12)\n" +
-	"%CREDENTIAL_LAST_USED_STATE_NEVER_USED\x10\x01\x12'\n" +
+	"&CREDENTIAL_LAST_USED_STATE_UNSPECIFIED\x10\x00\x12.\n" +
+	"*CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED\x10\x01\x12'\n" +
 	"#CREDENTIAL_LAST_USED_STATE_RECORDED\x10\x02\x12*\n" +
 	"&CREDENTIAL_LAST_USED_STATE_UNAVAILABLE\x10\x032\xba\a\n" +
 	"\n" +

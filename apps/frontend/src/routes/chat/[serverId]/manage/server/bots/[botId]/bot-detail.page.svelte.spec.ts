@@ -122,7 +122,7 @@ describe('Bot detail page', () => {
             id: 'webhook-id',
             name: 'Production',
             createdAt: new Date(),
-            lastUsedState: 'never' as const,
+            lastUsedState: 'no_use_recorded' as const,
             lastUsedAt: null
           }
         ]
@@ -163,7 +163,7 @@ describe('Bot detail page', () => {
           id: 'first',
           name: 'Production',
           createdAt: new Date('2026-08-27T10:00:00Z'),
-          lastUsedState: 'never',
+          lastUsedState: 'no_use_recorded',
           lastUsedAt: null
         },
         {
@@ -187,7 +187,7 @@ describe('Bot detail page', () => {
 
     expect(container.textContent).toContain('Production');
     expect(container.textContent).toContain('Monitoring');
-    expect(container.textContent).toContain('Never used');
+    expect(container.textContent).toContain('No use recorded');
     expect(container.textContent).toContain('Temporarily unavailable');
     expect(container.textContent).toContain(
       formatDateTime(recordedAt, timeFormatSettingsFor(null), 'en-GB')

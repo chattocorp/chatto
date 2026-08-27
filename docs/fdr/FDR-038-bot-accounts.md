@@ -41,10 +41,11 @@ exercise more authority than its human owner currently possesses.
   webhook shows its complete URL once. A manager can create a replacement
   before the manager revokes an old webhook.
 - The bot detail page shows when each incoming webhook was created and
-  approximately when it was last used. A successful
-  credential authentication counts as use, even if the request subsequently
-  fails. If Chatto cannot read this optional telemetry, the page shows that it
-  is temporarily unavailable instead of showing "never used."
+  approximately when Chatto recorded its last use. Chatto attempts to record a
+  successful credential authentication even if the request subsequently
+  fails. If Chatto has no observation, the page shows "No use recorded." This
+  state does not prove that the credential was not used. If Chatto cannot read
+  this optional telemetry, the page shows that it is temporarily unavailable.
 - An incoming webhook can post plain-text messages as the bot. It accepts
   Slack-compatible `text` and `channel` fields, Chatto `body` and `room_id`
   aliases, an optional `room_id` query parameter, and the Chatto
@@ -294,8 +295,9 @@ across the rooms that the bot can already access.
 **Tradeoff:** The credential is in the webhook URL and needs the same secret
 handling as an API key. The first version has no idempotency key. A retry after
 a lost response can create a duplicate message. Last-use telemetry is
-best-effort and can be delayed or unavailable. Rich Slack payloads and replies
-to existing threads are deferred.
+best-effort and can be delayed, unavailable, or missing after a process or
+storage failure. Rich Slack payloads and replies to existing threads are
+deferred.
 
 ## Permissions
 

@@ -465,7 +465,7 @@
       "webhook_revoked": "تم إلغاء خطاف الويب الوارد",
       "webhook_revoke_failed": "تعذر إلغاء خطاف الويب الوارد",
       "webhook_last_used": "آخر استخدام",
-      "webhook_never_used": "لم يُستخدم مطلقًا",
+      "webhook_no_use_recorded": "لا يوجد استخدام مسجّل",
       "webhook_last_used_unavailable": "غير متاح مؤقتًا",
       "webhook_limit_reached": "لقد وصلت إلى الحد الأقصى وهو 20 خطاف ويب واردًا."
     }

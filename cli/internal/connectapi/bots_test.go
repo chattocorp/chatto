@@ -41,8 +41,15 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 		t.Fatalf("CreateBotIncomingWebhook = %+v, %v", webhook, err)
 	}
 	webhookID := webhook.Msg.GetBot().GetIncomingWebhooks()[0].GetId()
-	if got := webhook.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); got != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NEVER_USED {
+	if got := webhook.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); got != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED {
 		t.Fatalf("new webhook last-used state = %v", got)
+	}
+	got, err = service.GetBot(ctx, connect.NewRequest(&apiv1.GetBotRequest{BotUserId: bot.GetUser().GetId()}))
+	if err != nil {
+		t.Fatalf("GetBot after webhook creation: %v", err)
+	}
+	if state := got.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); state != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED {
+		t.Fatalf("missing webhook usage record state = %v", state)
 	}
 	if wantPrefix := "https://configured.example/webhooks/incoming/cht_IW_"; len(webhook.Msg.GetWebhookUrl()) < len(wantPrefix) || webhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
 		t.Fatalf("webhook URL = %q, want prefix %q", webhook.Msg.GetWebhookUrl(), wantPrefix)

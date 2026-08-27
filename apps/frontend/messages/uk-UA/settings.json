@@ -465,7 +465,7 @@
       "webhook_revoked": "Вхідний вебхук відкликано",
       "webhook_revoke_failed": "Не вдалося відкликати вхідний вебхук",
       "webhook_last_used": "Останнє використання",
-      "webhook_never_used": "Ніколи не використовувався",
+      "webhook_no_use_recorded": "Використання не зафіксовано",
       "webhook_last_used_unavailable": "Тимчасово недоступно",
       "webhook_limit_reached": "Досягнуто обмеження у 20 вхідних вебхуків."
     }

@@ -94,7 +94,7 @@ describe('createBotAPI', () => {
           id: 'W-one',
           name: 'Production',
           createdAt: Timestamp.fromDate(createdAt),
-          lastUsedState: CredentialLastUsedState.NEVER_USED
+          lastUsedState: CredentialLastUsedState.NO_USE_RECORDED
         }
       ]
     };
@@ -115,7 +115,7 @@ describe('createBotAPI', () => {
             id: 'W-one',
             name: 'Production',
             createdAt,
-            lastUsedState: 'never',
+            lastUsedState: 'no_use_recorded',
             lastUsedAt: null
           }
         ]
@@ -167,6 +167,27 @@ describe('createBotAPI', () => {
 
     await expect(api.getBot('one', { signal })).resolves.toMatchObject({ id: 'one' });
     expect(mocks.getBot).toHaveBeenCalledWith({ botUserId: 'one' }, { headers: undefined, signal });
+  });
+
+  it('treats unknown credential last-use states as unavailable', async () => {
+    mocks.getBot.mockResolvedValue({
+      bot: {
+        user: { id: 'one', login: 'one_bot', displayName: 'One' },
+        ownerUserId: 'U-owner',
+        incomingWebhooks: [
+          {
+            id: 'W-one',
+            name: 'Future state',
+            lastUsedState: 99 as CredentialLastUsedState
+          }
+        ]
+      }
+    });
+    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.getBot('one')).resolves.toMatchObject({
+      incomingWebhooks: [{ id: 'W-one', lastUsedState: 'unavailable', lastUsedAt: null }]
+    });
   });
 
   it('reassigns a bot owner and returns the updated bot', async () => {

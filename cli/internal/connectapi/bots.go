@@ -34,13 +34,9 @@ func (s *botService) ListBots(ctx context.Context, req *connect.Request[apiv1.Li
 	}
 	limit, offset := apiPagination(req.Msg.GetPage(), 20, 100)
 	page, total, more := apiSlicePage(bots, limit, offset)
-	result := make([]*apiv1.Bot, 0, len(page))
-	for _, bot := range page {
-		mapped, err := apiBot(ctx, s.api, bot)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, mapped)
+	result, err := newBotAssembler(s.api).assemble(ctx, page)
+	if err != nil {
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ListBotsResponse{Bots: result, Page: apiPageInfo(total, more)}), nil
 }
@@ -54,7 +50,7 @@ func (s *botService) GetBot(ctx context.Context, req *connect.Request[apiv1.GetB
 	if err != nil {
 		return nil, connectError(err)
 	}
-	mapped, err := apiBot(ctx, s.api, bot)
+	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +63,7 @@ func (s *botService) BatchGetBots(ctx context.Context, req *connect.Request[apiv
 		return nil, err
 	}
 	seen := make(map[string]struct{})
-	result := make([]*apiv1.Bot, 0, len(req.Msg.GetBotUserIds()))
+	bots := make([]*core.Bot, 0, len(req.Msg.GetBotUserIds()))
 	for _, id := range req.Msg.GetBotUserIds() {
 		if _, ok := seen[id]; ok {
 			continue
@@ -80,11 +76,11 @@ func (s *botService) BatchGetBots(ctx context.Context, req *connect.Request[apiv
 			}
 			return nil, connectError(err)
 		}
-		mapped, err := apiBot(ctx, s.api, bot)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, mapped)
+		bots = append(bots, bot)
+	}
+	result, err := newBotAssembler(s.api).assemble(ctx, bots)
+	if err != nil {
+		return nil, err
 	}
 	return connect.NewResponse(&apiv1.BatchGetBotsResponse{Bots: result}), nil
 }
@@ -114,7 +110,7 @@ func (s *botService) UpdateBot(ctx context.Context, req *connect.Request[apiv1.U
 	if err != nil {
 		return nil, connectError(err)
 	}
-	mapped, err := apiBot(ctx, s.api, bot)
+	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +172,7 @@ func (s *botService) RevokeBotIncomingWebhook(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	mapped, err := apiBot(ctx, s.api, bot)
+	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +192,7 @@ func (s *botService) ReassignBotOwner(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connectError(err)
 	}
-	mapped, err := apiBot(ctx, s.api, bot)
+	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +215,7 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 		if !webhook.LastUsedAvailable {
 			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNAVAILABLE
 		} else if webhook.LastUsedAt.IsZero() {
-			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NEVER_USED
+			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED
 		} else {
 			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_RECORDED
 			mapped.LastUsedAt = timestamppb.New(webhook.LastUsedAt)

@@ -465,7 +465,7 @@
       "webhook_revoked": "Webhook in entrata revocato",
       "webhook_revoke_failed": "Impossibile revocare il webhook in entrata",
       "webhook_last_used": "Ultimo utilizzo",
-      "webhook_never_used": "Mai utilizzato",
+      "webhook_no_use_recorded": "Nessun utilizzo registrato",
       "webhook_last_used_unavailable": "Temporaneamente non disponibile",
       "webhook_limit_reached": "Hai raggiunto il limite di 20 webhook in entrata."
     }

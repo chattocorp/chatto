@@ -53,7 +53,7 @@ type BotIncomingWebhook struct {
 }
 
 // BotIncomingWebhookIssue contains the show-once secret returned by a create
-// or rotate command. Credential must never be logged or persisted.
+// command. Credential must never be logged or persisted.
 type BotIncomingWebhookIssue struct {
 	Bot        *Bot
 	WebhookID  string
@@ -264,7 +264,7 @@ func (c *ChattoCore) requireBotReassignmentManager(ctx context.Context, actorID 
 	return nil
 }
 
-func (c *ChattoCore) botFromUser(ctx context.Context, user *corev1.User) (*Bot, error) {
+func (c *ChattoCore) botFromUser(user *corev1.User) (*Bot, error) {
 	if user == nil || !user.GetIsBot() {
 		return nil, ErrNotFound
 	}
@@ -276,14 +276,27 @@ func (c *ChattoCore) botFromUser(ctx context.Context, user *corev1.User) (*Bot, 
 		User: user, OwnerUserID: user.GetBotOwnerUserId(),
 		APIKeyCreatedAt: credential.CreatedAt, APIKeyRotatedAt: credential.RotatedAt,
 	}
-	lastUsed, lastUsedAvailable := c.credentialUsage.LastUsed(ctx, user.GetId())
 	for _, webhook := range c.userModel.botIncomingWebhookCredentials(user.GetId()) {
 		bot.IncomingWebhooks = append(bot.IncomingWebhooks, BotIncomingWebhook{
 			ID: webhook.ID, Name: webhook.Name, CreatedAt: webhook.CreatedAt,
-			LastUsedAt: lastUsed[incomingWebhookUsageKey(webhook.ID)], LastUsedAvailable: lastUsedAvailable,
 		})
 	}
 	return bot, nil
+}
+
+// HydrateBotCredentialUsage adds optional last-use telemetry to request-local
+// bot metadata. Callers must defer this read until after filtering and
+// pagination, and credential-issuing paths must not call it.
+func (c *ChattoCore) HydrateBotCredentialUsage(ctx context.Context, bot *Bot) {
+	if bot == nil || bot.User == nil || len(bot.IncomingWebhooks) == 0 {
+		return
+	}
+	lastUsed, available := c.credentialUsage.LastUsed(ctx, bot.User.GetId())
+	for i := range bot.IncomingWebhooks {
+		webhook := &bot.IncomingWebhooks[i]
+		webhook.LastUsedAt = lastUsed[incomingWebhookUsageKey(webhook.ID)]
+		webhook.LastUsedAvailable = available
+	}
 }
 
 // CreateBot creates a passwordless bot owned by actorID and returns its raw key once.
@@ -314,7 +327,7 @@ func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName 
 	if err != nil {
 		return nil, err
 	}
-	bot, err := c.botFromUser(ctx, user)
+	bot, err := c.botFromUser(user)
 	if err != nil {
 		return nil, err
 	}
@@ -322,16 +335,19 @@ func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName 
 	return bot, nil
 }
 
-// GetBot returns one bot visible to the human caller.
+// GetBot returns one bot visible to the human caller without optional
+// credential-use telemetry. Response assembly can hydrate that state later.
 func (c *ChattoCore) GetBot(ctx context.Context, actorID, botID string) (*Bot, error) {
 	user, err := c.requireBotManager(ctx, actorID, botID)
 	if err != nil {
 		return nil, err
 	}
-	return c.botFromUser(ctx, user)
+	return c.botFromUser(user)
 }
 
-// ListBots returns owned bots, or every bot for callers with bot.manage.
+// ListBots returns owned bots, or every bot for callers with bot.manage. It
+// leaves optional credential-use telemetry unhydrated so callers can filter
+// and paginate before they read RUNTIME_STATE.
 func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, error) {
 	if err := c.requireHumanUser(ctx, actorID); err != nil {
 		return nil, err
@@ -350,7 +366,7 @@ func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, erro
 		if err != nil {
 			continue
 		}
-		bot, err := c.botFromUser(ctx, user)
+		bot, err := c.botFromUser(user)
 		if err == nil {
 			result = append(result, bot)
 		}
@@ -378,7 +394,7 @@ func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, login
 	if err != nil {
 		return nil, err
 	}
-	return c.botFromUser(ctx, user)
+	return c.botFromUser(user)
 }
 
 // RotateBotAPIKey replaces the sole verifier. There is deliberately no retry:
@@ -431,7 +447,7 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	if err != nil {
 		return nil, err
 	}
-	bot, err := c.botFromUser(ctx, user)
+	bot, err := c.botFromUser(user)
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +529,7 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 		return nil, invalidArgument("a bot can have at most 20 active incoming webhooks")
 	}
 	if mutation == botIncomingWebhookRevoke && !exists {
-		bot, err := c.botFromUser(ctx, user)
+		bot, err := c.botFromUser(user)
 		return &BotIncomingWebhookIssue{Bot: bot, WebhookID: webhookID}, err
 	}
 
@@ -546,11 +562,21 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	if err != nil {
 		return nil, err
 	}
-	bot, err := c.botFromUser(ctx, user)
+	bot, err := c.botFromUser(user)
 	if err != nil {
 		return nil, err
 	}
-	if mutation == botIncomingWebhookRevoke {
+	if mutation == botIncomingWebhookCreate {
+		for i := range bot.IncomingWebhooks {
+			if bot.IncomingWebhooks[i].ID == webhookID {
+				// The credential cannot authenticate before its show-once secret
+				// leaves this command, so no recorded use is known without a
+				// telemetry read.
+				bot.IncomingWebhooks[i].LastUsedAvailable = true
+				break
+			}
+		}
+	} else {
 		c.credentialUsage.Forget(ctx, botID, incomingWebhookUsageKey(webhookID))
 	}
 	return &BotIncomingWebhookIssue{Bot: bot, WebhookID: webhookID, Credential: credential}, nil
@@ -616,7 +642,7 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 			return nil, ErrHumanAccountRequired
 		}
 		if bot.GetBotOwnerUserId() == ownerUserID {
-			return c.botFromUser(ctx, bot)
+			return c.botFromUser(bot)
 		}
 
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotOwnerReassigned{
@@ -642,7 +668,7 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 			if err != nil {
 				return nil, err
 			}
-			return c.botFromUser(ctx, updated)
+			return c.botFromUser(updated)
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return nil, err

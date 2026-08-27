@@ -465,7 +465,7 @@
       "webhook_revoked": "Incoming webhook revoked",
       "webhook_revoke_failed": "Failed to revoke incoming webhook",
       "webhook_last_used": "Last used",
-      "webhook_never_used": "Never used",
+      "webhook_no_use_recorded": "No use recorded",
       "webhook_last_used_unavailable": "Temporarily unavailable",
       "webhook_limit_reached": "You have reached the limit of 20 incoming webhooks."
     }

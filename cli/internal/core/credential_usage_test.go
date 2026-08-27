@@ -81,7 +81,7 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 	}
 }
 
-func TestBotManagementReportsUnavailableCredentialUsageWithoutFailing(t *testing.T) {
+func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "usage-owner", "Usage Owner", "password123")
@@ -98,7 +98,11 @@ func TestBotManagementReportsUnavailableCredentialUsageWithoutFailing(t *testing
 	if err != nil {
 		t.Fatalf("CreateBotIncomingWebhook: %v", err)
 	}
-	if len(issued.Bot.IncomingWebhooks) != 1 || issued.Bot.IncomingWebhooks[0].LastUsedAvailable {
+	if len(issued.Bot.IncomingWebhooks) != 1 || !issued.Bot.IncomingWebhooks[0].LastUsedAvailable {
+		t.Fatalf("new incoming webhook usage = %+v", issued.Bot.IncomingWebhooks)
+	}
+	c.HydrateBotCredentialUsage(ctx, issued.Bot)
+	if issued.Bot.IncomingWebhooks[0].LastUsedAvailable {
 		t.Fatalf("incoming webhook usage = %+v", issued.Bot.IncomingWebhooks)
 	}
 	if authenticated, err := c.ValidateBotIncomingWebhookCredential(ctx, issued.Credential); err != nil || authenticated.GetId() != bot.User.GetId() {
@@ -106,9 +110,72 @@ func TestBotManagementReportsUnavailableCredentialUsageWithoutFailing(t *testing
 	}
 }
 
+func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "deferred-usage-owner", "Deferred Usage Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	usageKV := &countingCredentialUsageKV{KeyValue: c.storage.runtimeStateKV}
+	c.credentialUsage.kv = usageKV
+
+	bot, err := c.CreateBot(ctx, owner.GetId(), "deferred_usage_bot", "Deferred Usage Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	issued, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Production")
+	if err != nil {
+		t.Fatalf("CreateBotIncomingWebhook: %v", err)
+	}
+	if !issued.Bot.IncomingWebhooks[0].LastUsedAvailable || !issued.Bot.IncomingWebhooks[0].LastUsedAt.IsZero() {
+		t.Fatalf("new webhook usage = %+v, want available with no recorded use", issued.Bot.IncomingWebhooks[0])
+	}
+	if _, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	if _, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("GetBot: %v", err)
+	}
+	bots, err := c.ListBots(ctx, owner.GetId())
+	if err != nil {
+		t.Fatalf("ListBots: %v", err)
+	}
+	if got := usageKV.GetCount(); got != 0 {
+		t.Fatalf("usage KV reads before hydration = %d, want 0", got)
+	}
+
+	c.HydrateBotCredentialUsage(ctx, bots[0])
+	if got := usageKV.GetCount(); got != 1 {
+		t.Fatalf("usage KV reads after one hydration = %d, want 1", got)
+	}
+	if got := bots[0].IncomingWebhooks[0]; !got.LastUsedAvailable || !got.LastUsedAt.IsZero() {
+		t.Fatalf("missing usage record = %+v, want available with no recorded use", got)
+	}
+}
+
 type failingCredentialUsageKV struct {
 	jetstream.KeyValue
 	err error
+}
+
+type countingCredentialUsageKV struct {
+	jetstream.KeyValue
+	mu       sync.Mutex
+	getCount int
+}
+
+func (kv *countingCredentialUsageKV) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+	kv.mu.Lock()
+	kv.getCount++
+	kv.mu.Unlock()
+	return kv.KeyValue.Get(ctx, key)
+}
+
+func (kv *countingCredentialUsageKV) GetCount() int {
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+	return kv.getCount
 }
 
 func (kv failingCredentialUsageKV) Get(context.Context, string) (jetstream.KeyValueEntry, error) {

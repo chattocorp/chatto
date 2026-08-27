@@ -465,7 +465,7 @@
       "webhook_revoked": "Inkomende webhook ingetrokken",
       "webhook_revoke_failed": "Inkomende webhook kon niet worden ingetrokken",
       "webhook_last_used": "Laatst gebruikt",
-      "webhook_never_used": "Nooit gebruikt",
+      "webhook_no_use_recorded": "Geen gebruik geregistreerd",
       "webhook_last_used_unavailable": "Tijdelijk niet beschikbaar",
       "webhook_limit_reached": "De limiet van 20 inkomende webhooks is bereikt."
     }

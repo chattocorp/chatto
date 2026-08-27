@@ -48,10 +48,10 @@ The first version has no idempotency key. If a caller retries after it loses a
 response, Chatto can create a duplicate message. A successful request returns
 HTTP 200 with the plain-text body `ok`.
 
-Chatto records the approximate time at which each credential was last used.
-Successful credential authentication counts as use, even if request validation
-or message posting subsequently fails. This rule helps a manager find active
-callers without making optional telemetry part of authorization.
+Chatto attempts to record the time at which each credential was last used.
+Successful credential authentication creates an observation, even if request
+validation or message posting subsequently fails. This rule helps a manager
+find active callers without making optional telemetry part of authorization.
 
 Last-use telemetry is mutable operational state in `RUNTIME_STATE`, not a
 durable domain fact in `EVT`. One record for each bot contains the latest
@@ -60,8 +60,15 @@ in memory without blocking the request and writes updates with KV optimistic
 concurrency control. Chatto writes the first observation promptly and
 coalesces subsequent writes for the same credential to at most one each
 minute. A failed telemetry write does not make authentication or message
-posting fail. The management API reports telemetry as unavailable if it
-cannot read the record. It does not report an unknown value as "never used."
+posting fail. A missing record or credential entry means that Chatto has no
+recorded use. This state does not prove that the credential was not used. The
+management API reports telemetry as unavailable if it cannot read or decode
+the record.
+
+Bot construction does not read this optional state. Management responses read
+it only for resources selected after filtering and pagination. These reads use
+bounded concurrency. A response that returns a show-once credential does not
+read last-use telemetry after the credential lifecycle fact commits.
 
 The lifecycle event field numbers and the EVT subject tokens from the first
 unreleased implementation remain stable. A credential from that implementation
@@ -81,8 +88,8 @@ a binary that understands the new lifecycle fields after these writes occur.
 - Separate credentials let managers replace or revoke one integration without
   an outage for other integrations.
 - Credential lifecycle facts remain durable without persisting the raw secret.
-- Last-use telemetry can be temporarily unavailable or slightly delayed. Its
-  failure cannot stop webhook requests.
+- Last-use telemetry can be temporarily unavailable, delayed, or missing after
+  a process or storage failure. Its failure cannot stop webhook requests.
 - The internal credential-usage recorder can also support multiple bot API
   keys later. This decision does not change bot API keys.
 - URL credentials can appear in reverse-proxy logs. Operators must redact the

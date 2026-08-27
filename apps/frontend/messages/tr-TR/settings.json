@@ -465,7 +465,7 @@
       "webhook_revoked": "Gelen webhook iptal edildi",
       "webhook_revoke_failed": "Gelen webhook iptal edilemedi",
       "webhook_last_used": "Son kullanım",
-      "webhook_never_used": "Hiç kullanılmadı",
+      "webhook_no_use_recorded": "Kullanım kaydedilmedi",
       "webhook_last_used_unavailable": "Geçici olarak kullanılamıyor",
       "webhook_limit_reached": "20 gelen webhook sınırına ulaştınız."
     }
