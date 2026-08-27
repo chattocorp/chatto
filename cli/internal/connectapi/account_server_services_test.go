@@ -618,6 +618,35 @@ func TestAdminUserServiceDeleteUserWorksWithOAuthExchangeSession(t *testing.T) {
 	}
 }
 
+func TestAdminUserServiceDeleteUserRejectsWrongPasswordWhenStepUpRequired(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "stale-delete-target", "Stale Delete Target", "password")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	staleToken, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "unknown")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+	}
+
+	_, err = env.adminUsers.DeleteUser(
+		withBearerCredential(env.ctx, env.viewer, staleToken),
+		connect.NewRequest(&adminv1.DeleteUserRequest{
+			UserId:          target.Id,
+			CurrentPassword: "anything",
+		}),
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("DeleteUser code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := env.core.GetUser(env.ctx, target.Id); err != nil {
+		t.Fatalf("target was deleted after wrong password: %v", err)
+	}
+}
+
 func TestAdminUserServiceDeleteUserPreservesSelfTargetContract(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	token, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "password_login")

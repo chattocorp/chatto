@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type {
@@ -23,7 +24,9 @@ const mocks = vi.hoisted(() => ({
   getMember: vi.fn(),
   deleteUser: vi.fn(),
   toastSuccess: vi.fn(),
-  goto: vi.fn()
+  goto: vi.fn(),
+  bearerToken: null as string | null,
+  hasPassword: true
 }));
 
 vi.mock('$app/state', () => ({ page: memberDetailTestPage }));
@@ -41,6 +44,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     get connection() {
       return {
         queryScope: memberDetailPageTestState.sessionId,
+        bearerToken: mocks.bearerToken,
         getAPI: () =>
           ({
             getMember: mocks.getMember,
@@ -50,7 +54,13 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     },
     get store() {
       return {
-        currentUser: { user: { id: memberDetailPageTestState.viewerId, settings: null } },
+        currentUser: {
+          user: {
+            id: memberDetailPageTestState.viewerId,
+            settings: null,
+            hasPassword: mocks.hasPassword
+          }
+        },
         permissions: {
           canAdminViewUsers: true,
           canAdminManageAccounts: true
@@ -121,6 +131,8 @@ describe('server member delete page', () => {
       Promise.resolve(details(member(userId)))
     );
     mocks.deleteUser.mockResolvedValue(true);
+    mocks.bearerToken = null;
+    mocks.hasPassword = true;
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
@@ -251,7 +263,7 @@ describe('server member delete page', () => {
     expect(submit.disabled).toBe(false);
   });
 
-  it('deletes the member and returns to the members list', async () => {
+  it('deletes a member with fresh auth without asking for a password', async () => {
     const rendered = renderPage();
     await settle();
 
@@ -261,13 +273,9 @@ describe('server member delete page', () => {
     const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
     input.value = 'alice';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-
-    const password = rendered.container.querySelector(
-      '#member-delete-password'
-    ) as HTMLInputElement;
-    password.value = 'hunter2';
-    password.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
+
+    expect(rendered.container.querySelector('#member-delete-password')).toBeNull();
 
     const submit = [...rendered.container.querySelectorAll('button')].find(
       (candidate) => candidate.getAttribute('type') === 'submit'
@@ -275,13 +283,18 @@ describe('server member delete page', () => {
     submit.click();
     await settle();
 
-    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice', currentPassword: 'hunter2' });
+    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
     expect(mocks.toastSuccess).toHaveBeenCalledOnce();
     expect(queryClient.getQueryData(membersKey)).toBeUndefined();
     expect(mocks.goto).toHaveBeenCalledOnce();
   });
 
-  it('omits the password field when left empty', async () => {
+  it('asks for a password only after the server requires fresh authentication', async () => {
+    mocks.deleteUser
+      .mockRejectedValueOnce(
+        new ConnectError('fresh authentication is required', Code.FailedPrecondition)
+      )
+      .mockResolvedValueOnce(true);
     const rendered = renderPage();
     await settle();
 
@@ -294,9 +307,125 @@ describe('server member delete page', () => {
       (candidate) => candidate.getAttribute('type') === 'submit'
     ) as HTMLButtonElement;
     submit.click();
+    await vi.waitFor(() =>
+      expect(rendered.container.querySelector('#member-delete-password')).not.toBeNull()
+    );
+
+    expect(mocks.deleteUser).toHaveBeenNthCalledWith(1, { userId: 'alice' });
+    expect(submit.disabled).toBe(true);
+
+    const password = rendered.container.querySelector(
+      '#member-delete-password'
+    ) as HTMLInputElement;
+    password.value = 'actual-password';
+    password.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(submit.disabled).toBe(false);
+
+    submit.click();
     await settle();
 
+    expect(mocks.deleteUser).toHaveBeenNthCalledWith(2, {
+      userId: 'alice',
+      currentPassword: 'actual-password'
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+    expect(mocks.goto).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the account when the server rejects the step-up password', async () => {
+    mocks.deleteUser
+      .mockRejectedValueOnce(
+        new ConnectError('fresh authentication is required', Code.FailedPrecondition)
+      )
+      .mockRejectedValueOnce(new ConnectError('current password is invalid', Code.InvalidArgument));
+    const rendered = renderPage();
+    await settle();
+
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    submit.click();
+    await vi.waitFor(() =>
+      expect(rendered.container.querySelector('#member-delete-password')).not.toBeNull()
+    );
+
+    const password = rendered.container.querySelector(
+      '#member-delete-password'
+    ) as HTMLInputElement;
+    password.value = 'anything';
+    password.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    submit.click();
+
+    await vi.waitFor(() =>
+      expect(rendered.container.textContent).toContain('current password is invalid')
+    );
+    expect(mocks.deleteUser).toHaveBeenNthCalledWith(2, {
+      userId: 'alice',
+      currentPassword: 'anything'
+    });
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('does not offer password step-up to a delegated remote session', async () => {
+    mocks.bearerToken = 'oauth-access-token';
+    mocks.deleteUser.mockRejectedValueOnce(
+      new ConnectError('fresh authentication is required', Code.FailedPrecondition)
+    );
+    const rendered = renderPage();
+    await settle();
+
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    submit.click();
+
+    await vi.waitFor(() =>
+      expect(rendered.container.textContent).toContain('fresh authentication is required')
+    );
+
+    expect(rendered.container.querySelector('#member-delete-password')).toBeNull();
     expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('does not offer password step-up to a passwordless account', async () => {
+    mocks.hasPassword = false;
+    mocks.deleteUser.mockRejectedValueOnce(
+      new ConnectError('fresh authentication is required', Code.FailedPrecondition)
+    );
+    const rendered = renderPage();
+    await settle();
+
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    submit.click();
+
+    await vi.waitFor(() =>
+      expect(rendered.container.textContent).toContain('fresh authentication is required')
+    );
+
+    expect(rendered.container.querySelector('#member-delete-password')).toBeNull();
+    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 
   it('shows a failure without navigating away', async () => {

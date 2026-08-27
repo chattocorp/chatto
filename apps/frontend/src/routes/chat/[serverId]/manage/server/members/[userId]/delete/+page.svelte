@@ -167,7 +167,13 @@
         <Hint tone="danger">{m('admin.member_delete.not_allowed')}</Hint>
       {:else}
         {#key memberTargetKey}
-          <MemberDeleteForm {member} cancelHref={backHref} deleteMember={handleDelete} />
+          <MemberDeleteForm
+            {member}
+            cancelHref={backHref}
+            canPasswordStepUp={serverScope.connection.bearerToken === null &&
+              currentUser.user?.hasPassword === true}
+            deleteMember={handleDelete}
+          />
         {/key}
       {/if}
     </div>

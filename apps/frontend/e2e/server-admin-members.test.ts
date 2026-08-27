@@ -306,6 +306,7 @@ test.describe('Server Admin Members', () => {
       // Confirmation is gated on typing the target's login.
       const confirmInput = page.locator('#member-delete-confirm');
       await expect(confirmInput).toBeVisible();
+      await expect(page.locator('#member-delete-password')).toHaveCount(0);
       const submit = page.getByRole('button', { name: 'Permanently Delete Account' });
       await expect(submit).toBeDisabled();
 
