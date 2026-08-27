@@ -659,6 +659,44 @@ func TestBotDirectMentionActivatesInteractionThread(t *testing.T) {
 	}
 }
 
+func TestBotReplyToAuthoredMessageActivatesBot(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "reply-activation-owner", "Reply Activation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "reply_activation_bot", "Reply Activation Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, owner.GetId(), KindChannel, "", "reply-activation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := c.AddMember(ctx, owner.GetId(), KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	for _, permission := range []Permission{PermMessagePost, PermMessageRead} {
+		if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, permission, PermissionStateAllow); err != nil {
+			t.Fatalf("grant bot %s: %v", permission, err)
+		}
+	}
+
+	root, err := c.PostMessage(ctx, KindChannel, room.GetId(), bot.User.GetId(), "Bot-authored request", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage bot root: %v", err)
+	}
+	reply, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "Human response", nil, "", root.GetId(), nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	occurrences := testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != reply.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalReply) {
+		t.Fatalf("bot reply occurrences = %+v, want the reply to its message", occurrences)
+	}
+}
+
 func TestBotDisabledDirectMentionDoesNotActivateOrFollow(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
