@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import FormField from './FormField.svelte';
 
   const textEncoder = new TextEncoder();
@@ -38,7 +38,7 @@
   const effectiveDescription = $derived(
     maxBytes === undefined
       ? description
-      : [description, m['ui.form.max_bytes']({ max: maxBytes })].filter(Boolean).join(' ')
+      : [description, m('ui.form.max_bytes', { max: maxBytes })].filter(Boolean).join(' ')
   );
   const effectiveMaxlength = $derived(maxlength ?? maxBytes);
   let acceptedValue = value;

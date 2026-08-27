@@ -102,6 +102,9 @@ message PermissionMatrixCell {
   PermissionDecision override = 3;
   // Effective decision at this scope.
   PermissionDecision effective = 4;
+  // Whether an explicit allow may currently be stored for this target. Absent
+  // when no additional delegation ceiling applies.
+  optional bool allow_permitted = 5;
 }
 
 // Permission matrix for one role across all scopes.
@@ -209,7 +212,7 @@ enum PermissionDecisionLevel {
 message PermissionTraceEntry {
   // Level at which this decision was observed.
   PermissionDecisionLevel level = 1;
-  // Role name or policy marker that produced the decision.
+  // Role name, user ID, or policy marker that produced the decision.
   string role_name = 2;
   // Decision observed at this trace step.
   PermissionDecision decision = 3;
@@ -221,14 +224,17 @@ message PermissionTraceEntry {
 message PermissionExplanation {
   // Permission identifier.
   string permission = 1;
-  // Overall decision after applying deny-wins resolution.
+  // Overall decision after resolving named subjects and the everyone baseline.
   PermissionDecision state = 2;
   // Level of the winning decision, when state is not NONE.
   PermissionDecisionLevel decided_at = 3;
-  // Role name or policy marker that produced the winning decision.
+  // Role name, user ID, or policy marker that produced the winning decision.
   string decided_by_role = 4;
   // Ordered decision trace. The first entry is the winning decision.
   repeated PermissionTraceEntry trace = 5;
+  // Permission whose effective allow includes this permission. Empty when the
+  // permission was resolved directly.
+  string included_by_permission = 6;
 }
 
 // Request permission explanations for a user at server or room scope.
@@ -301,9 +307,9 @@ message SetUserPermissionResponse {
 
 // Provides permission matrix reads and admin permission writes.
 service AdminPermissionService {
-  // Gets the role-permission matrix for a single tier. Requires role.manage
-  // for server/group scope; room scope requires role.manage or room.manage in
-  // that room.
+  // Gets the role-permission matrix for a single tier. Server scope requires
+  // role.manage; group and room scopes require role.manage or effective
+  // room.manage at the requested resource.
   rpc GetRolePermissionTierMatrix(GetRolePermissionTierMatrixRequest) returns (GetRolePermissionTierMatrixResponse);
   // Gets one role's full permission matrix. Requires role.manage. Returns
   // NOT_FOUND when the role does not exist.
@@ -311,16 +317,21 @@ service AdminPermissionService {
   // Lists one role's permission decisions as resource-oriented rows. Requires
   // role.manage. Returns NOT_FOUND when the role does not exist.
   rpc ListRolePermissionDecisions(ListRolePermissionDecisionsRequest) returns (ListRolePermissionDecisionsResponse);
-  // Gets one user's full permission matrix. Requires user.manage-permissions.
+  // Gets one user's full permission matrix. Human targets require
+  // user.manage-permissions; bot targets require ownership or bot.manage.
   // Returns NOT_FOUND when the user does not exist.
   rpc GetUserPermissionMatrix(GetUserPermissionMatrixRequest) returns (GetUserPermissionMatrixResponse);
-  // Lists one user's permission decisions as resource-oriented rows. Requires
-  // user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+  // Lists one user's permission decisions as resource-oriented rows. Human
+  // targets require user.manage-permissions; bot targets require ownership or
+  // bot.manage. Returns NOT_FOUND when the user does not exist.
   rpc ListUserPermissionDecisions(ListUserPermissionDecisionsRequest) returns (ListUserPermissionDecisionsResponse);
   // Explains permission resolution for another user. Requires role.manage.
   rpc ExplainPermissions(ExplainPermissionsRequest) returns (ExplainPermissionsResponse);
-  // Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+  // Sets one role permission decision. Server scope requires role.manage;
+  // group and room scopes also accept effective room.manage at that resource.
   rpc SetRolePermission(SetRolePermissionRequest) returns (SetRolePermissionResponse);
-  // Sets one user permission decision. Requires user.manage-permissions.
+  // Sets one user permission decision. Human targets require
+  // user.manage-permissions; bot targets require ownership or bot.manage and
+  // accept only allow or clear within the bot owner's current authority.
   rpc SetUserPermission(SetUserPermissionRequest) returns (SetUserPermissionResponse);
 }

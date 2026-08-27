@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Quelque chose s'est mal passé",
     "description": "Cette vue n'a pas pu être ouverte. Vous pouvez revenir à Chatto et réessayer à partir de là.",

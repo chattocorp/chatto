@@ -1,10 +1,11 @@
 <script lang="ts">
-  import type { RoomEventView } from '$lib/render/types';
+  import type { TimelineEventView } from '$lib/render/timelineEvents';
   import type { MessagesStore } from '$lib/state/room';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     event,
@@ -12,14 +13,20 @@
     roomId,
     permalinkThreadRootEventId = null,
     messageStore = null,
-    onOpenThread
+    onOpenThread,
+    activeCallId = null,
+    onOpenCall,
+    threadingMode = RoomThreadingMode.ENABLED
   }: {
-    event: RoomEventView;
+    event: TimelineEventView;
     compact?: boolean;
     roomId: string;
     permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
+    activeCallId?: string | null;
+    onOpenCall?: () => void;
+    threadingMode?: RoomThreadingMode;
   } = $props();
 
   // Join/leave events are confusing in DM 1:1 conversations. Post-PR(b) we
@@ -40,7 +47,8 @@
     {permalinkThreadRootEventId}
     {messageStore}
     {onOpenThread}
+    {threadingMode}
   />
 {:else}
-  <SystemEvent {event} />
+  <SystemEvent {event} {activeCallId} {onOpenCall} />
 {/if}

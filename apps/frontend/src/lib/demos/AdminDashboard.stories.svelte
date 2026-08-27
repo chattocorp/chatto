@@ -36,22 +36,22 @@
         <p class="text-sm text-muted">chat.example.com — running v0.0.145</p>
       </div>
       <Button variant="secondary">
-        <span class="iconify uil--refresh"></span>
+        <span class="iconify icon-[uil--refresh]"></span>
         Refresh
       </Button>
     </header>
 
     <section class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-      <StatCard color="action" icon="iconify uil--users-alt" value={713} label="Users" subtitle="+12 this week" />
-      <StatCard color="success" icon="iconify uil--building" value={5} label="Spaces" />
-      <StatCard color="warning" icon="iconify uil--message" value="48,221" label="Messages" subtitle="all-time" />
-      <StatCard color="danger" icon="iconify uil--exclamation-triangle" value={3} label="Failed jobs" subtitle="last 24h" />
+      <StatCard color="action" icon="iconify icon-[uil--users-alt]" value={713} label="Users" subtitle="+12 this week" />
+      <StatCard color="success" icon="iconify icon-[uil--building]" value={5} label="Spaces" />
+      <StatCard color="warning" icon="iconify icon-[uil--message]" value="48,221" label="Messages" subtitle="all-time" />
+      <StatCard color="danger" icon="iconify icon-[uil--exclamation-triangle]" value={3} label="Failed jobs" subtitle="last 24h" />
     </section>
 
-    <Panel title="Spaces" subtitle="All spaces hosted on this instance" icon="iconify uil--building" count={spaces.length}>
+    <Panel title="Spaces" subtitle="All spaces hosted on this instance" icon="iconify icon-[uil--building]" count={spaces.length}>
       {#snippet actions()}
         <Button size="sm" variant="secondary">
-          <span class="iconify uil--filter"></span>
+          <span class="iconify icon-[uil--filter]"></span>
           Filter
         </Button>
       {/snippet}
@@ -68,11 +68,11 @@
 </Story>
 
 {#snippet tableHeader()}
-  <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-muted">Name</th>
-  <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-muted">ID</th>
-  <th class="px-4 py-2 text-right text-xs font-semibold uppercase text-muted">Members</th>
-  <th class="px-4 py-2 text-right text-xs font-semibold uppercase text-muted">Rooms</th>
-  <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-muted">Visibility</th>
+  <th class="table-header-cell text-left text-xs font-semibold text-muted uppercase">Name</th>
+  <th class="table-header-cell text-left text-xs font-semibold text-muted uppercase">ID</th>
+  <th class="table-header-cell text-right text-xs font-semibold text-muted uppercase">Members</th>
+  <th class="table-header-cell text-right text-xs font-semibold text-muted uppercase">Rooms</th>
+  <th class="table-header-cell text-left text-xs font-semibold text-muted uppercase">Visibility</th>
 {/snippet}
 
 {#snippet tableRow(row: { id: string; name: string; members: number; rooms: number; status: 'public' | 'invite' | 'private' })}

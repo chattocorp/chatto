@@ -846,14 +846,14 @@ Line 7: Sunt in culpa qui officia deserunt mollit anim id est laborum.
 Line 8: This is the last line of this long message.`;
 
     await roomPage.messageInput.fill(longMessage);
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
 
     // Wait for the message to appear
-    await expect(page.getByText('Line 8: This is the last line of this long message.')).toBeVisible(
-      {
-        timeout: TIMEOUTS.UI_STANDARD
-      }
-    );
+    await expect(
+      page
+        .getByTestId('messages-container')
+        .getByText('Line 8: This is the last line of this long message.')
+    ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Verify we're at the bottom
     const messagesContainer = page.getByTestId('messages-container');

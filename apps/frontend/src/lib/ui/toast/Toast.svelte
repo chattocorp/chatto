@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { ToastAction, ToastTone } from './toastState.svelte';
 
   let {
@@ -15,10 +15,10 @@
   } = $props();
 
   const icons: Record<ToastTone, string> = {
-    error: 'uil--times-circle',
-    success: 'uil--check-circle',
-    info: 'uil--info-circle',
-    warning: 'uil--exclamation-triangle'
+    error: 'icon-[uil--times-circle]',
+    success: 'icon-[uil--check-circle]',
+    info: 'icon-[uil--info-circle]',
+    warning: 'icon-[uil--exclamation-triangle]'
   };
 
   const iconColors: Record<ToastTone, string> = {
@@ -34,7 +34,7 @@
   }
 </script>
 
-<div class="w-full max-w-96 min-w-0 menu text-left sm:w-auto">
+<div class="w-full max-w-96 min-w-0 menu text-start sm:w-auto">
   <div class="flex min-h-10 items-center gap-3 menu-section px-3 py-2">
     <span class={['iconify size-5 shrink-0', icons[tone], iconColors[tone]]} aria-hidden="true"
     ></span>
@@ -48,9 +48,9 @@
       type="button"
       class="btn-ghost btn-xs shrink-0"
       onclick={onDismiss}
-      aria-label={m['ui.toast.dismiss']()}
+      aria-label={m('ui.toast.dismiss')}
     >
-      <span class="iconify size-4 uil--times" aria-hidden="true"></span>
+      <span class="iconify icon-[uil--times] size-4" aria-hidden="true"></span>
     </button>
   </div>
 </div>

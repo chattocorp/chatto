@@ -1,5 +1,5 @@
-import { createPresenceAPI, APIPresenceStatus, type PresenceAPIConfig } from '$lib/api-client/presence';
-import { PresenceStatus } from '$lib/render/types';
+import { APIPresenceStatus, type PresenceAPI } from '$lib/api-client/presence';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
@@ -10,12 +10,7 @@ const PRESENCE_MODE_STORAGE_KEY = 'chatto.presence.mode';
 
 type ActivityState = 'active' | 'idle' | 'hidden';
 
-export type PresenceReporterConfig = PresenceAPIConfig;
-
-export type PresenceTrackingOptions = {
-	onPauseLiveEvents?: () => void;
-	onResumeLiveEvents?: () => void;
-};
+export type PresenceReporter = Pick<PresenceAPI, 'updatePresence'>;
 
 let initialized = false;
 let applyModeFromUI: ((mode: PresenceMode) => void) | null = null;
@@ -23,19 +18,19 @@ let applyModeFromUI: ((mode: PresenceMode) => void) | null = null;
 function apiStatusToPresenceStatus(status: APIPresenceStatus): PresenceStatus {
 	switch (status) {
 		case APIPresenceStatus.AWAY:
-			return PresenceStatus.Away;
+			return PresenceStatus.AWAY;
 		case APIPresenceStatus.DO_NOT_DISTURB:
-			return PresenceStatus.DoNotDisturb;
+			return PresenceStatus.DO_NOT_DISTURB;
 		default:
-			return PresenceStatus.Online;
+			return PresenceStatus.ONLINE;
 	}
 }
 
 function presenceStatusToAPIStatus(status: PresenceStatus): APIPresenceStatus {
 	switch (status) {
-		case PresenceStatus.Away:
+		case PresenceStatus.AWAY:
 			return APIPresenceStatus.AWAY;
-		case PresenceStatus.DoNotDisturb:
+		case PresenceStatus.DO_NOT_DISTURB:
 			return APIPresenceStatus.DO_NOT_DISTURB;
 		default:
 			return APIPresenceStatus.ONLINE;
@@ -45,11 +40,11 @@ function presenceStatusToAPIStatus(status: PresenceStatus): APIPresenceStatus {
 function modeToExplicitStatus(mode: PresenceMode): PresenceStatus | null {
 	switch (mode) {
 		case 'away':
-			return PresenceStatus.Away;
+			return PresenceStatus.AWAY;
 		case 'doNotDisturb':
-			return PresenceStatus.DoNotDisturb;
+			return PresenceStatus.DO_NOT_DISTURB;
 		case 'invisible':
-			return PresenceStatus.Offline;
+			return PresenceStatus.OFFLINE;
 		default:
 			return null;
 	}
@@ -69,10 +64,6 @@ function readStoredMode(): PresenceMode {
 	return 'auto';
 }
 
-export function shouldPauseLiveEventsForStoredPresence(): boolean {
-	return readStoredMode() === 'invisible';
-}
-
 function storeMode(mode: PresenceMode) {
 	if (typeof localStorage === 'undefined') return;
 	localStorage.setItem(PRESENCE_MODE_STORAGE_KEY, mode);
@@ -85,9 +76,8 @@ export function setPresenceMode(mode: PresenceMode) {
 }
 
 export function initPresenceTracking(
-	getReporters: () => PresenceReporterConfig[],
-	onStatusChange?: (status: PresenceStatus) => void,
-	options: PresenceTrackingOptions = {}
+	getReporters: () => PresenceReporter[],
+	onStatusChange?: (status: PresenceStatus) => void
 ): () => void {
 	if (initialized) return () => {};
 	initialized = true;
@@ -118,8 +108,8 @@ export function initPresenceTracking(
 	}
 
 	function sendPresenceReport(status: PresenceStatus, userSelected: boolean, revision: number) {
-		for (const config of getReporters()) {
-			createPresenceAPI(config)
+		for (const reporter of getReporters()) {
+			reporter
 				.updatePresence(presenceStatusToAPIStatus(status), userSelected)
 				.then((accepted) => applyAcceptedStatus(accepted, revision))
 				.catch(() => {});
@@ -156,7 +146,7 @@ export function initPresenceTracking(
 	}
 
 	function statusForAutoState(state: ActivityState): PresenceStatus {
-		return state === 'active' ? PresenceStatus.Online : PresenceStatus.Away;
+		return state === 'active' ? PresenceStatus.ONLINE : PresenceStatus.AWAY;
 	}
 
 	function applyMode(mode: PresenceMode, persist = false, syncedFromStorage = false) {
@@ -168,17 +158,15 @@ export function initPresenceTracking(
 			clearRefreshTimer();
 			reportRevision++;
 			currentVisibleStatus = null;
-			emitLocalStatus(PresenceStatus.Offline);
-			options.onPauseLiveEvents?.();
+			emitLocalStatus(PresenceStatus.OFFLINE);
 			return;
 		}
 
-		options.onResumeLiveEvents?.();
 		if (mode === 'auto') {
 			currentState = document.visibilityState === 'hidden' ? 'hidden' : 'active';
 			const userSelected = persist || syncedFromStorage;
 			reportStatus(
-				userSelected ? PresenceStatus.Online : statusForAutoState(currentState),
+				userSelected ? PresenceStatus.ONLINE : statusForAutoState(currentState),
 				userSelected
 			);
 			ensureRefreshTimer();

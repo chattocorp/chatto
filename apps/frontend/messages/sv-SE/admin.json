@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
     "nav": {
       "general": "Allmänt",
@@ -10,7 +9,8 @@
       "security": "Säkerhet",
       "event_log": "Händelselogg",
       "system": "System",
-      "back_to_server": "Återgå till servern"
+      "back_to_server": "Återgå till servern",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | Admin",
@@ -122,6 +122,7 @@
       "create_role_title": "Skapa roll",
       "create_role_subtitle": "Skapa en ny roll för den här servern",
       "create_role_action": "Skapa roll",
+      "new_role_action": "+ Ny roll",
       "creating_role": "Skapar...",
       "create_after_hint": "Efter att ha skapat rollen kan du tilldela behörigheter till den på redigeringssidan.",
       "back_to_permissions": "Tillbaka till behörigheter",
@@ -142,7 +143,7 @@
       "no_users_with_role": "Inga användare har den här rollen",
       "server_tier_intro": "Den här sidan är för rollbehörigheter på servernivå: breda standardinställningar som gäller före rumsspecifika åsidosättningar.",
       "server_tier_rooms_hint": "Använd rum för åsidosättningar per grupp och per rum.",
-      "server_tier_denies_hint": "Använd nekar medvetet: att neka alla i ett rum blockerar allt ärvt tillåter på den nivån."
+      "resolution_hint": "För varje användare eller namngiven roll gäller det närmaste rums-, grupp- eller servervärdet. Nekanden vinner mellan dem. Ett tillstånd åsidosätter ett everyone-nekande endast på samma eller en mer specifik nivå."
     },
     "rooms_admin": {
       "title": "Rum",
@@ -160,6 +161,7 @@
       "empty_groups_body": "Skapa en uppsättning för att börja organisera rum.",
       "drag_hint": "Dra rum mellan grupper för att organisera dem. Dra grupprubriker för att ändra ordning på grupper. Arkiverade rum stannar i sin uppsättning men är dolda för medlemmarna.",
       "drag_group": "Dra för att ändra ordning på gruppen",
+      "drag_room": "Dra för att ändra ordning på rummet",
       "new_room": "Nytt rum",
       "new_link": "Ny länk",
       "new_group": "Ny grupp",
@@ -174,9 +176,23 @@
       "edit_room": "Redigera rum",
       "edit_room_action": "Redigera rum",
       "room_description_placeholder": "Valfri beskrivning för detta rum",
+      "slow_mode": "Långsamt läge",
+      "slow_mode_description": "Ange hur länge medlemmar måste vänta mellan meddelanden i det här rummet.",
+      "slow_mode_off": "Av",
+      "slow_mode_custom": "{interval} (aktuellt värde)",
+      "threading_mode": "Trådläge",
+      "threading_mode_description": "Krävs använder alltid trådar; Uppmuntras gör trådsvar till huvudåtgärden; Aktiverat lämnar valet öppet; Inaktiverat blockerar ny trådaktivitet.",
+      "threading_mode_required": "Krävs",
+      "threading_mode_required_description": "Varje meddelande startar en tråd.",
+      "threading_mode_encouraged": "Rekommenderat",
+      "threading_mode_encouraged_description": "Trådar uppmuntras, men är inte obligatoriska.",
+      "threading_mode_enabled": "Aktiverat",
+      "threading_mode_enabled_description": "Trådar är tillgängliga, men valfria.",
+      "threading_mode_disabled": "Inaktiverat",
+      "threading_mode_disabled_description": "Trådar är inte tillgängliga.",
       "room_name_empty": "Rumsnamnet får inte vara tomt",
       "room_name_trim": "Rumsnamnet kan inte ha inledande eller efterföljande blanksteg",
-      "room_name_charset": "Rumsnamn får bara innehålla bokstäver, siffror, bindestreck och understreck",
+      "room_name_invalid": "Rumsnamnet får inte innehålla radbrytningar eller kontrolltecken",
       "room_name_too_long": "Rumsnamnet får inte överstiga 30 tecken",
       "create_group": "Skapa grupp",
       "group_name": "Gruppnamn",
@@ -215,14 +231,40 @@
       "archive_room_failed": "Det gick inte att arkivera rum: {error}",
       "unarchive_room_failed": "Det gick inte att ta bort rum: {error}",
       "save_link_failed": "Det gick inte att spara länken: {error}",
-      "delete_link_failed": "Det gick inte att ta bort länken: {error}"
+      "delete_link_failed": "Det gick inte att ta bort länken: {error}",
+      "universal_members_description": "Medlemskap är automatiskt i universella rum. Alla som har behörighet att komma åt rummet ingår.",
+      "archived_members_description": "Medlemskapet kan inte ändras medan rummet är arkiverat.",
+      "add_member": "Lägg till medlem",
+      "adding_member": "Lägger till medlem...",
+      "load_members_failed": "Det gick inte att läsa in rummets medlemmar: {error}",
+      "remove_member": "Ta bort medlem",
+      "remove_member_prompt": "Ta bort {name} från {room}? Personen kommer inte längre att vara uttrycklig medlem i rummet.",
+      "member_added": "{name} lades till i rummet",
+      "add_member_failed": "Det gick inte att lägga till medlemmen: {error}",
+      "member_removed": "{name} togs bort från rummet",
+      "remove_member_failed": "Det gick inte att ta bort medlemmen: {error}"
     },
     "security": {
       "title": "Säkerhet",
       "subtitle": "Registreringsbegränsningar och kontoskydd",
       "blocked_usernames": "Blockerade användarnamn",
       "blocked_usernames_description": "En per rad. Användare kan inte registrera sig med dessa namn.",
-      "settings_saved": "Inställningar sparade"
+      "settings_saved": "Inställningar sparade",
+      "oauth_clients": {
+        "title": "OAuth-klienter",
+        "description": "Appar visas här efter att en medlem har godkänt dem. Tillit är endast en administrativ etikett och hoppar aldrig över individuellt samtycke; blockering förhindrar ny åtkomst och återkallar befintliga åtkomsttoken.",
+        "empty": "Inga OAuth-klienter har godkänts",
+        "application": "App",
+        "origins": "Callback-ursprung",
+        "users": "Auktoriserade användare",
+        "last_authorization": "Senaste auktorisering",
+        "policy": "Policy",
+        "policy_for": "Policy för {client}",
+        "policy_default": "Standard",
+        "policy_trusted": "Betrodd",
+        "policy_blocked": "Blockerad",
+        "policy_saved": "OAuth-klientens policy har sparats"
+      }
     },
     "system": {
       "title": "System",
@@ -235,6 +277,7 @@
       "unlimited": "obegränsat",
       "all_subjects": "alla ämnen",
       "pending_state": "Väntar",
+      "worker_unconfirmed": "Obekräftad",
       "rtt": "RTT",
       "max_payload": "Max nyttolast",
       "server_id": "Server-ID",
@@ -374,6 +417,39 @@
       "email": "E-post",
       "id": "ID",
       "total": "{count} användare totalt"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

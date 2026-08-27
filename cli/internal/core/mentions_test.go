@@ -547,27 +547,19 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	notifications, err := core.GetNotifications(ctx, mentioned.Id)
-	if err != nil {
-		t.Fatalf("GetNotifications: %v", err)
-	}
-	if len(notifications) != 1 || notifications[0].GetMention() == nil {
+	notifications := testNotificationOccurrences(t, core, mentioned.Id)
+	if len(notifications) != 1 || !testOccurrenceHasKind(notifications[0], notificationTestSignalDirectMention) {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
 
 	if err := core.SetPresence(ctx, mentioned.Id, PresenceStatusDoNotDisturb); err != nil {
 		t.Fatalf("SetPresence DND: %v", err)
 	}
-	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "notification_created"))
+	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "notification_v2"))
 	if err != nil {
-		t.Fatalf("SubscribeSync notification_created: %v", err)
+		t.Fatalf("SubscribeSync notification_v2: %v", err)
 	}
 	defer sub.Unsubscribe()
-	mentionSub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "mentioned"))
-	if err != nil {
-		t.Fatalf("SubscribeSync mentioned: %v", err)
-	}
-	defer mentionSub.Unsubscribe()
 	if err := nc.Flush(); err != nil {
 		t.Fatalf("Flush subscription: %v", err)
 	}
@@ -577,26 +569,23 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 	msg, err := sub.NextMsg(2 * time.Second)
 	if err != nil {
-		t.Fatalf("waiting for DND notification_created live event: %v", err)
+		t.Fatalf("waiting for DND notification occurrence change: %v", err)
 	}
 	var live corev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal live event: %v", err)
 	}
-	event := live.GetNotificationCreated()
+	event := live.GetNotificationOccurrencesInvalidated()
 	if event == nil {
-		t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+		t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", live.Event)
 	}
-	if !event.Silent {
-		t.Fatal("NotificationCreatedEvent.Silent = false, want true")
+	if event.GetAlertCandidateNotificationId() != "" {
+		t.Fatal("NotificationOccurrencesInvalidatedEvent has an alert candidate during DND")
 	}
-	if _, err := mentionSub.NextMsg(200 * time.Millisecond); err == nil {
-		t.Fatal("expected no legacy live mention notification while DND")
+	if event.GetSoundCandidateNotificationId() != "" {
+		t.Fatal("NotificationOccurrencesInvalidatedEvent has a sound candidate during DND")
 	}
-	notifications, err = core.GetNotifications(ctx, mentioned.Id)
-	if err != nil {
-		t.Fatalf("GetNotifications after DND: %v", err)
-	}
+	notifications = testNotificationOccurrences(t, core, mentioned.Id)
 	if len(notifications) != 2 {
 		t.Fatalf("notifications after DND mention = %d, want 2", len(notifications))
 	}
@@ -635,10 +624,7 @@ func TestChattoCore_MentionInsideMarkdownCodeDoesNotNotify(t *testing.T) {
 				t.Fatalf("mentioned_user_ids = %v, want none", got)
 			}
 
-			notifications, err := core.GetNotifications(ctx, mentioned.Id)
-			if err != nil {
-				t.Fatalf("GetNotifications: %v", err)
-			}
+			notifications := testNotificationOccurrences(t, core, mentioned.Id)
 			if len(notifications) != 0 {
 				t.Fatalf("expected no mention notification, got %#v", notifications)
 			}
@@ -675,11 +661,8 @@ func TestChattoCore_MentionImmediatelyAfterMarkdownCodeNotifies(t *testing.T) {
 	}
 	requireUserIDs(t, event.GetMessagePosted().GetMentionedUserIds(), mentioned.Id)
 
-	notifications, err := core.GetNotifications(ctx, mentioned.Id)
-	if err != nil {
-		t.Fatalf("GetNotifications: %v", err)
-	}
-	if len(notifications) != 1 || notifications[0].GetMention() == nil {
+	notifications := testNotificationOccurrences(t, core, mentioned.Id)
+	if len(notifications) != 1 || !testOccurrenceHasKind(notifications[0], notificationTestSignalDirectMention) {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
 }
@@ -719,10 +702,7 @@ func TestChattoCore_MentionSplitByMarkdownFormattingDoesNotNotify(t *testing.T) 
 				}
 			}
 
-			notifications, err := core.GetNotifications(ctx, alice.Id)
-			if err != nil {
-				t.Fatalf("GetNotifications: %v", err)
-			}
+			notifications := testNotificationOccurrences(t, core, alice.Id)
 			if len(notifications) != 0 {
 				t.Fatalf("expected no mention notification, got %#v", notifications)
 			}

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
     "nav": {
       "general": "Geral",
@@ -10,7 +9,8 @@
       "security": "Segurança",
       "event_log": "Registo de eventos",
       "system": "Sistema",
-      "back_to_server": "Regressar ao servidor"
+      "back_to_server": "Regressar ao servidor",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | Administrador",
@@ -122,6 +122,7 @@
       "create_role_title": "Criar função",
       "create_role_subtitle": "Crie uma nova função para este servidor",
       "create_role_action": "Criar função",
+      "new_role_action": "+ Nova função",
       "creating_role": "Criar...",
       "create_after_hint": "Após criar a função, pode atribuir-lhe permissões na página de edição.",
       "back_to_permissions": "Voltar às permissões",
@@ -142,7 +143,7 @@
       "no_users_with_role": "Nenhum utilizador tem esta função",
       "server_tier_intro": "Esta página é para permissões de funções na camada de servidor: padrões amplos que se aplicam antes de substituições específicas de salas.",
       "server_tier_rooms_hint": "Utilize Salas para substituições por grupo e por sala.",
-      "server_tier_denies_hint": "Use negações deliberadamente: negar a todos numa sala bloqueia todas as permissões herdadas nesse nível."
+      "resolution_hint": "Para cada utilizador ou função nomeada, aplica-se o valor mais próximo de sala, grupo ou servidor. As negações prevalecem entre eles. Uma permissão só substitui uma negação de everyone no mesmo âmbito ou num mais específico."
     },
     "rooms_admin": {
       "title": "Quartos",
@@ -160,6 +161,7 @@
       "empty_groups_body": "Crie um conjunto para começar a organizar as salas.",
       "drag_hint": "Arraste as salas entre grupos para os organizar. Arraste os cabeçalhos dos grupos para reordenar os grupos. As salas arquivadas permanecem no seu conjunto, mas estão ocultas dos membros.",
       "drag_group": "Arraste para reordenar o grupo",
+      "drag_room": "Arraste para reordenar a sala",
       "new_room": "Nova Sala",
       "new_link": "Novo link",
       "new_group": "Novo grupo",
@@ -174,9 +176,23 @@
       "edit_room": "Editar sala",
       "edit_room_action": "Editar sala",
       "room_description_placeholder": "Descrição opcional para este quarto",
+      "slow_mode": "Modo lento",
+      "slow_mode_description": "Defina quanto tempo os membros devem esperar entre mensagens nesta sala.",
+      "slow_mode_off": "Desativado",
+      "slow_mode_custom": "{interval} (valor atual)",
+      "threading_mode": "Modo de tópicos",
+      "threading_mode_description": "Obrigatório usa sempre tópicos; Recomendado torna a resposta no tópico a ação principal; Ativado deixa a escolha em aberto; Desativado bloqueia nova atividade em tópicos.",
+      "threading_mode_required": "Obrigatório",
+      "threading_mode_required_description": "Cada mensagem inicia um tópico.",
+      "threading_mode_encouraged": "Recomendado",
+      "threading_mode_encouraged_description": "A utilização de tópicos é incentivada, mas não obrigatória.",
+      "threading_mode_enabled": "Ativado",
+      "threading_mode_enabled_description": "Os tópicos estão disponíveis, mas são opcionais.",
+      "threading_mode_disabled": "Desativado",
+      "threading_mode_disabled_description": "Os tópicos não estão disponíveis.",
       "room_name_empty": "O nome da sala não pode estar vazio",
       "room_name_trim": "O nome da sala não pode ter espaços em branco no início ou no fim",
-      "room_name_charset": "O nome da sala só pode conter letras, números, hífens e sublinhados",
+      "room_name_invalid": "O nome da sala não pode conter quebras de linha nem caracteres de controlo",
       "room_name_too_long": "O nome da sala não pode ter mais de 30 caracteres",
       "create_group": "Criar grupo",
       "group_name": "Nome do grupo",
@@ -215,14 +231,40 @@
       "archive_room_failed": "Falha ao arquivar a sala: {error}",
       "unarchive_room_failed": "Falha ao desarquivar a sala: {error}",
       "save_link_failed": "Falha ao guardar link: {error}",
-      "delete_link_failed": "Falha ao eliminar ligação: {error}"
+      "delete_link_failed": "Falha ao eliminar ligação: {error}",
+      "universal_members_description": "A participação é automática em salas universais. Todas as pessoas com permissão para aceder a esta sala são incluídas.",
+      "archived_members_description": "A participação não pode ser alterada enquanto esta sala estiver arquivada.",
+      "add_member": "Adicionar membro",
+      "adding_member": "A adicionar membro...",
+      "load_members_failed": "Falha ao carregar membros da sala: {error}",
+      "remove_member": "Remover membro",
+      "remove_member_prompt": "Remover {name} de {room}? Esta pessoa deixará de ser membro explícito desta sala.",
+      "member_added": "{name} foi adicionado à sala",
+      "add_member_failed": "Falha ao adicionar membro: {error}",
+      "member_removed": "{name} foi removido da sala",
+      "remove_member_failed": "Falha ao remover membro: {error}"
     },
     "security": {
       "title": "Segurança",
       "subtitle": "Restrições de registo e proteção de conta",
       "blocked_usernames": "Nomes de utilizador bloqueados",
       "blocked_usernames_description": "Um por linha. Os utilizadores não podem registar-se com esses nomes.",
-      "settings_saved": "Definições guardadas"
+      "settings_saved": "Definições guardadas",
+      "oauth_clients": {
+        "title": "Clientes OAuth",
+        "description": "As aplicações aparecem aqui depois de um membro as autorizar. A confiança é apenas uma etiqueta administrativa e nunca ignora o consentimento individual; o bloqueio impede novos acessos e revoga os tokens existentes.",
+        "empty": "Nenhum cliente OAuth foi autorizado",
+        "application": "Aplicação",
+        "origins": "Origens de retorno",
+        "users": "Utilizadores autorizados",
+        "last_authorization": "Última autorização",
+        "policy": "Política",
+        "policy_for": "Política para {client}",
+        "policy_default": "Predefinida",
+        "policy_trusted": "Fiável",
+        "policy_blocked": "Bloqueado",
+        "policy_saved": "Política do cliente OAuth guardada"
+      }
     },
     "system": {
       "title": "Sistema",
@@ -235,6 +277,7 @@
       "unlimited": "ilimitado",
       "all_subjects": "todos os assuntos",
       "pending_state": "Pendente",
+      "worker_unconfirmed": "Não confirmado",
       "rtt": "RTT",
       "max_payload": "Carga útil máxima",
       "server_id": "ID do servidor",
@@ -374,6 +417,39 @@
       "email": "E-mail",
       "id": "ID",
       "total": "Total de utilizadores {count}"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

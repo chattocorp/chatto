@@ -29,6 +29,7 @@ const (
 	CategoryRole    PermissionCategory = "role"
 	CategoryAdmin   PermissionCategory = "admin"
 	CategoryUser    PermissionCategory = "user"
+	CategoryBot     PermissionCategory = "bot"
 )
 
 // Permission represents a permission in the permission model.
@@ -65,6 +66,17 @@ const (
 	PermRoomMemberBan Permission = "room.ban-member"
 
 	// ===== Message Permissions =====
+
+	// PermMessageRead allows reading message content in channel rooms. Room
+	// membership remains a separate requirement. DM membership authorizes DM
+	// reads without this permission.
+	PermMessageRead Permission = "message.read"
+
+	// PermMessageReadInteractions allows reading channel-room threads that the
+	// account authored or where another account directly mentioned it. Room
+	// membership remains a separate requirement. PermMessageRead explicitly
+	// includes this permission.
+	PermMessageReadInteractions Permission = "message.read.interactions"
 
 	// PermMessagePost allows posting new root messages in rooms. Server-scope
 	// decisions act as global defaults/overrides; room or group denies can narrow
@@ -123,6 +135,9 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
+	// PermUserInvite allows listing, creating, copying, and revoking invite links.
+	PermUserInvite Permission = "user.invite"
+
 	// PermUserManageAccounts allows account lifecycle and recovery operations
 	// for other users, such as creating accounts, admin profile edits, password
 	// resets, verified-email attachment, and login-cooldown resets.
@@ -131,6 +146,14 @@ const (
 	// PermUserManagePermissions allows editing direct per-user permission
 	// overrides.
 	PermUserManagePermissions Permission = "user.manage-permissions"
+
+	// ===== Bot Account Permissions =====
+
+	// PermBotCreate allows a human user to create bot accounts they own.
+	PermBotCreate Permission = "bot.create"
+
+	// PermBotManage allows a human user to manage every bot on the server.
+	PermBotManage Permission = "bot.manage"
 )
 
 // PermissionMetadata provides display information and scope constraints for a permission.
@@ -155,6 +178,8 @@ var allPermissions = []PermissionMetadata{
 	{PermRoomMemberBan, "Ban Room Members", "Ban members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
+	{PermMessageRead, "Read Messages", "Read message content in channel rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessageReadInteractions, "Read Interactions", "Read threads you started or where another user mentioned you", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageAttach, "Attach Files", "Attach files to messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -163,7 +188,7 @@ var allPermissions = []PermissionMetadata{
 	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Role management
-	{PermRoleManage, "Manage Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
+	{PermRoleManage, "Configure Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
 	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
 
 	// Admin
@@ -173,8 +198,13 @@ var allPermissions = []PermissionMetadata{
 	// User management
 	{PermUserDeleteAny, "Delete Any User", "Delete any user's account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
+	{PermUserInvite, "Invite Users", "List, create, copy, and revoke invite links", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManageAccounts, "Manage User Accounts", "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
+
+	// Bot accounts
+	{PermBotCreate, "Create Bots", "Create bot accounts owned by your account", CategoryBot, []PermissionScope{ScopeServer}},
+	{PermBotManage, "Manage Bots", "View and manage every bot account", CategoryBot, []PermissionScope{ScopeServer}},
 }
 
 // permissionIndex provides fast lookup of permission metadata by permission value.
@@ -221,6 +251,18 @@ func PermissionAppliesAtScope(perm Permission, scope PermissionScope) bool {
 	return slices.Contains(meta.Scopes, scope)
 }
 
+// directlyIncludingPermissions returns permissions whose effective allow also
+// allows the requested permission. Permission inclusion is explicit: dotted
+// name components do not create an automatic hierarchy.
+func directlyIncludingPermissions(perm Permission) []Permission {
+	switch perm {
+	case PermMessageReadInteractions:
+		return []Permission{PermMessageRead}
+	default:
+		return nil
+	}
+}
+
 // PermissionsForScope returns all permissions that can be configured at a given scope.
 func PermissionsForScope(scope PermissionScope) []PermissionMetadata {
 	var result []PermissionMetadata
@@ -256,19 +298,14 @@ func DefaultEveryonePermissions() []Permission {
 		PermUserDeleteSelf,
 		PermRoomList,
 		PermRoomJoin,
+		PermMessageRead,
 		PermMessagePost,
 		PermMessagePostInThread,
+		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
+		PermBotCreate,
 	}
-}
-
-// DefaultSeedEveryonePermissions returns permissions granted to everyone when
-// RBAC is freshly seeded or explicitly reset. Keep permissions here out of
-// the legacy EnsureDefaultRolePermissions helper when adding them would
-// silently change existing deployments if that helper is invoked explicitly.
-func DefaultSeedEveryonePermissions() []Permission {
-	return append(DefaultEveryonePermissions(), PermMessageAttach)
 }
 
 // DefaultModeratorPermissions returns the permissions granted to moderators
@@ -286,19 +323,25 @@ func DefaultModeratorPermissions() []Permission {
 // this list contains only admin-specific capabilities plus global room
 // administration defaults.
 func DefaultAdminPermissions() []Permission {
-	seen := map[Permission]bool{}
-	var result []Permission
-	for _, meta := range PermissionsForScope(ScopeServer) {
-		if seen[meta.Permission] {
-			continue
-		}
-		if meta.Category == CategoryMessage && meta.Permission != PermMessageManage {
-			continue
-		}
-		seen[meta.Permission] = true
-		result = append(result, meta.Permission)
+	return []Permission{
+		PermServerManage,
+		PermUserInvite,
+		PermRoomCreate,
+		PermRoomJoin,
+		PermRoomList,
+		PermRoomManage,
+		PermRoomMemberBan,
+		PermMessageManage,
+		PermRoleManage,
+		PermRoleAssign,
+		PermAdminUsersView,
+		PermAdminAuditView,
+		PermUserDeleteAny,
+		PermUserDeleteSelf,
+		PermUserManageAccounts,
+		PermUserManagePermissions,
+		PermBotManage,
 	}
-	return result
 }
 
 // DefaultOwnerPermissions returns the persisted permissions granted to owners
@@ -308,64 +351,40 @@ func DefaultOwnerPermissions() []Permission {
 	return nil
 }
 
-// DefaultRoomEveryonePermissions returns the default room-scope permissions
-// for normal channel rooms. Normal member behavior comes from server-scope
-// everyone grants; this intentionally starts empty so the room tier shows only
-// local exceptions.
-func DefaultRoomEveryonePermissions() []Permission {
-	return nil
-}
-
-// DefaultAnnouncementsEveryonePermissions returns the default room-scope
-// permissions for the built-in announcements room. Normal room behavior comes
-// from server defaults, so announcements only materialize local denials.
-func DefaultAnnouncementsEveryonePermissions() []Permission {
-	return nil
-}
+// AnnouncementsRoomName is the canonical name for the seeded announcement-only
+// room whose creation-time permission facts differ from ordinary rooms.
+const AnnouncementsRoomName = "announcements"
 
 // DefaultAnnouncementsEveryoneDenials returns the room-scope denials for the
-// built-in announcements room. Under deny-wins, this blocks root posts for all
-// non-owner users because every authenticated user carries the everyone role.
+// built-in announcements room. This blocks root posts unless a named role or
+// direct user has a room-local allow. Effective owners bypass the decision.
 func DefaultAnnouncementsEveryoneDenials() []Permission {
 	return []Permission{PermMessagePost}
 }
 
-// DefaultAnnouncementsPosterPermissions returns room-scope staff poster grants
-// for announcements. Deny-wins means the everyone denial still blocks
-// non-owner staff, so there are no default staff poster grants.
-func DefaultAnnouncementsPosterPermissions() []Permission {
-	return nil
-}
-
-// DefaultRoomModeratorPermissions returns room-scope moderator defaults.
-// Moderator moderation defaults now live at server tier, so this intentionally
-// starts empty.
-func DefaultRoomModeratorPermissions() []Permission {
-	return nil
-}
-
-// DefaultRoomAdminPermissions returns room-scope room-management permissions
-// seeded for admins on every channel room. Admin room defaults now live at
-// server tier, so this intentionally starts empty.
-func DefaultRoomAdminPermissions() []Permission {
-	return nil
+// DefaultAnnouncementsAdminPermissions returns the room-scope grants that let
+// admins publish announcements. Other ordinary content capabilities continue
+// to come from the everyone baseline, and moderators receive no announcement-
+// specific grant.
+func DefaultAnnouncementsAdminPermissions() []Permission {
+	return []Permission{PermMessagePost}
 }
 
 // ============================================================================
 // Permission Key Parts (for KV key generation)
 // ============================================================================
 
-// PermissionKeyParts holds the verb and objectType components for KV key generation.
-// Permission strings follow the format "{objectType}.{verb}" (e.g., "room.create",
-// "message.post-in-thread", "admin.view-users"), so key parts are derived directly from
-// the permission string — no separate mapping needed.
+// PermissionKeyParts holds the first identifier component and the remaining
+// action path. Permission strings contain at least two dot-separated
+// components. For example, message.read.interactions has object type
+// "message" and verb "read.interactions".
 type PermissionKeyParts struct {
-	Verb       string // The action: "create", "join", "post-in-thread", "view-users", etc.
+	Verb       string // The action path: "create", "post-in-thread", "read.interactions", etc.
 	ObjectType string // The target type: "server", "room", "message", "admin", etc.
 }
 
-// parseKeyParts splits a permission string into its objectType and verb components.
-// All permissions follow the "{objectType}.{verb}" convention.
+// parseKeyParts splits a permission string into its first component and the
+// remaining action path.
 func parseKeyParts(perm string) PermissionKeyParts {
 	objectType, verb, ok := strings.Cut(perm, ".")
 	if !ok {
@@ -375,14 +394,12 @@ func parseKeyParts(perm string) PermissionKeyParts {
 }
 
 func init() {
-	// Validate that all permission strings follow the "{objectType}.{verb}" format.
+	// Validate that all permission strings contain at least two non-empty
+	// dot-separated components.
 	for _, p := range allPermissions {
-		parts := parseKeyParts(string(p.Permission))
-		if parts.Verb == "" || parts.ObjectType == "" {
-			panic(fmt.Sprintf("permission %q does not follow {objectType}.{verb} format", p.Permission))
-		}
-		if strings.Contains(parts.Verb, ".") {
-			panic(fmt.Sprintf("permission %q has nested dots — verb %q must use dashes instead", p.Permission, parts.Verb))
+		components := strings.Split(string(p.Permission), ".")
+		if len(components) < 2 || slices.Contains(components, "") {
+			panic(fmt.Sprintf("permission %q must contain at least two non-empty dot-separated components", p.Permission))
 		}
 	}
 }

@@ -1,14 +1,28 @@
 package cmd
 
 import (
+	"context"
+	"errors"
+	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/testutil"
 )
+
+type failingRuntimeUnit struct {
+	runs atomic.Int32
+}
+
+func (*failingRuntimeUnit) Name() string { return "failing" }
+func (u *failingRuntimeUnit) Run(context.Context, runtimeunit.Env) error {
+	u.runs.Add(1)
+	return errors.New("unit failed")
+}
 
 func TestEffectiveLogFormat(t *testing.T) {
 	tests := []struct {
@@ -48,56 +62,49 @@ func TestShouldPrintBannerOnlyForTextLogs(t *testing.T) {
 	}
 }
 
-func TestPushNotificationUsesCountBadgeOnlyForDMs(t *testing.T) {
-	tests := []struct {
-		name         string
-		notification *corev1.Notification
-		want         bool
-	}{
-		{
-			name: "direct message",
-			notification: &corev1.Notification{
-				Notification: &corev1.Notification_DmMessage{
-					DmMessage: &corev1.DMMessageNotification{RoomId: "dm-room", EventId: "event-1"},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "mention",
-			notification: &corev1.Notification{
-				Notification: &corev1.Notification_Mention{
-					Mention: &corev1.MentionNotification{RoomId: "room-1", EventId: "event-1"},
-				},
-			},
-		},
-		{
-			name: "reply",
-			notification: &corev1.Notification{
-				Notification: &corev1.Notification_Reply{
-					Reply: &corev1.ReplyNotification{RoomId: "room-1", EventId: "event-1"},
-				},
-			},
-		},
-		{
-			name: "room message",
-			notification: &corev1.Notification{
-				Notification: &corev1.Notification_RoomMessage{
-					RoomMessage: &corev1.RoomMessageNotification{
-						RoomId:  "room-1",
-						EventId: "event-1",
-					},
-				},
-			},
-		},
-	}
+func TestOptionalRuntimeUnitFailureRestartsWithoutStoppingServer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	unit := &failingRuntimeUnit{}
+	done := make(chan error, 1)
+	go func() {
+		done <- superviseOptionalRuntimeUnit(ctx, runtimeunit.Env{
+			Logger: log.New(io.Discard),
+		}, unit, func(int) time.Duration { return time.Millisecond })
+	}()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := pushNotificationUsesCountBadge(tt.notification); got != tt.want {
-				t.Fatalf("pushNotificationUsesCountBadge() = %v, want %v", got, tt.want)
-			}
-		})
+	deadline := time.Now().Add(time.Second)
+	for unit.runs.Load() < 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if unit.runs.Load() < 2 {
+		t.Fatal("optional runtime unit was not restarted")
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("superviseOptionalRuntimeUnit() = %v, want nil", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("optional runtime unit supervisor did not stop after cancellation")
+	}
+}
+
+func TestOptionalRuntimeUnitRetryDelayIsCapped(t *testing.T) {
+	tests := []struct {
+		attempt int
+		want    time.Duration
+	}{
+		{attempt: 1, want: time.Second},
+		{attempt: 2, want: 2 * time.Second},
+		{attempt: 5, want: 16 * time.Second},
+		{attempt: 6, want: 30 * time.Second},
+		{attempt: 20, want: 30 * time.Second},
+	}
+	for _, test := range tests {
+		if got := optionalRuntimeUnitRetryDelay(test.attempt); got != test.want {
+			t.Errorf("optionalRuntimeUnitRetryDelay(%d) = %s, want %s", test.attempt, got, test.want)
+		}
 	}
 }
 

@@ -89,10 +89,7 @@ function scheduleExpiry(
     }
     expiryCleanups.delete(userId);
   });
-  expiryCleanups.set(
-    userId,
-    cleanup
-  );
+  expiryCleanups.set(userId, cleanup);
 }
 
 function mergeProfileUpdate(
@@ -132,6 +129,18 @@ export function createUserProfileCache() {
     },
     updateStatus: (userId: string, customStatus: CustomUserStatus | null) => {
       mergeProfileUpdate(state.current, userId, { customStatus });
+    },
+    remove: (userId: string) => {
+      expiryCleanups.get(userId)?.();
+      expiryCleanups.delete(userId);
+      state.current.delete(userId);
+    },
+    clear: () => {
+      for (const userId of state.current.keys()) {
+        expiryCleanups.get(userId)?.();
+        expiryCleanups.delete(userId);
+      }
+      state.current.clear();
     }
   };
 }

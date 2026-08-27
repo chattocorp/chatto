@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -61,6 +61,41 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 	require.False(t, restored.HasOAuthConsent("U1", "https://private-client.example"), "OAuth consent must not be restored from a profile snapshot")
 }
 
+func TestUserProjectionSnapshotPreservesBotIdentityAndOwnerIndex(t *testing.T) {
+	original, contentKey := newEncryptedUserProjection(t, "owner")
+	createdAt := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "owner", "owner", "Owner")), 2))
+	require.NoError(t, original.Apply(&corev1.Event{
+		Id: "K2",
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId: "bot", Epoch: 1, Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test",
+		}},
+	}, 3))
+	botCreated := accountCreated(t, contentKey, "E2", "bot", "helper_bot", "Helper Bot")
+	botCreated.GetUserAccountCreated().IsBot = true
+	botCreated.GetUserAccountCreated().BotOwnerUserId = "owner"
+	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), botCreated), 4))
+	require.NoError(t, original.Apply(&corev1.Event{
+		Id: "E3",
+		Event: &corev1.Event_BotOwnerReassigned{BotOwnerReassigned: &corev1.BotOwnerReassignedEvent{
+			UserId: "bot", PreviousOwnerUserId: "owner", OwnerUserId: "new-owner",
+		}},
+	}, 5))
+
+	payload, err := original.Snapshot()
+	require.NoError(t, err)
+	restored := NewUserProjection(staticProjectionKeyWrapper{key: contentKey.key}, staticProjectionDEKStore{})
+	require.NoError(t, restored.Restore(payload))
+
+	bot, ok := restored.Get("bot")
+	require.True(t, ok)
+	require.True(t, bot.GetIsBot())
+	require.Equal(t, "new-owner", bot.GetBotOwnerUserId())
+	require.Equal(t, []string{"bot"}, restored.BotIDs())
+	require.Empty(t, restored.BotIDsOwnedBy("owner"))
+	require.Equal(t, []string{"bot"}, restored.BotIDsOwnedBy("new-owner"))
+}
+
 func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *testing.T) {
 	original, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
@@ -97,7 +132,7 @@ func TestUserProjectionSnapshotPreservesCanonicalOwnersForDuplicateDigests(t *te
 	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), accountCreated(t, contentKey, "E2", "U2", "Alice", "Alice Two")), 4))
 	for seq, userID := range []string{"U1", "U2"} {
 		eventID := fmt.Sprintf("M%d", seq+1)
-		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserVerifiedEmailAdded, "email", "alice@example.com")
+		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserVerifiedEmailAdded, "email", "alice@example.com")
 		require.NoError(t, err)
 		require.NoError(t, original.Apply(&corev1.Event{
 			Id: eventID,
@@ -134,7 +169,7 @@ func TestUserProjectionSnapshotPreservesUnclaimedDuplicateDigests(t *testing.T) 
 	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), accountCreated(t, contentKey, "E2", "U2", "Alice", "Alice Two")), 4))
 	for seq, userID := range []string{"U1", "U2"} {
 		eventID := fmt.Sprintf("M%d", seq+1)
-		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserVerifiedEmailAdded, "email", "alice@example.com")
+		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserVerifiedEmailAdded, "email", "alice@example.com")
 		require.NoError(t, err)
 		require.NoError(t, original.Apply(&corev1.Event{
 			Id: eventID,
@@ -195,7 +230,7 @@ func TestUserProjectionRestoreRejectsPlaintextUserFields(t *testing.T) {
 func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 	pii := func(purpose string) *corev1.ProjectedEncryptedUserStringSnapshot {
 		return &corev1.ProjectedEncryptedUserStringSnapshot{
-			EventId: "E1", EventType: events.EventUserAccountCreated, Purpose: purpose,
+			EventId: "E1", EventType: evtstream.EventUserAccountCreated, Purpose: purpose,
 			Encrypted: &corev1.EncryptedUserString{EncryptedValue: []byte("ciphertext"), Nonce: []byte("nonce"), ContentKeyEpoch: 1},
 		}
 	}
@@ -233,8 +268,8 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 	p := newUserAuthProjection()
-	require.NotContains(t, p.Subjects(), events.UserSubjectFilter())
-	require.Len(t, p.Subjects(), 8)
+	require.NotContains(t, p.Subjects(), evtstream.UserSubjectFilter())
+	require.Len(t, p.Subjects(), 12)
 }
 
 func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {
@@ -266,6 +301,24 @@ func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {
 	require.False(t, ok)
 	require.False(t, p.HasOAuthConsent("U1", "https://client.example"))
 	_, ok = p.AuthGeneration("U1")
+	require.False(t, ok)
+}
+
+func TestUserAuthProjectionShreddingRequestIsTerminal(t *testing.T) {
+	p := newUserAuthProjection()
+	require.NoError(t, p.Apply(&corev1.Event{Id: "A1", Event: &corev1.Event_UserAccountCreated{
+		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "U1"},
+	}}, 1))
+	require.NoError(t, p.Apply(&corev1.Event{Id: "A2", Event: &corev1.Event_UserPasswordHashChanged{
+		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{UserId: "U1", PasswordHash: []byte("before")},
+	}}, 2))
+	require.NoError(t, p.Apply(&corev1.Event{Id: "A3", Event: &corev1.Event_UserKeyShreddingRequested{
+		UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
+	}}, 3))
+	require.NoError(t, p.Apply(&corev1.Event{Id: "A4", Event: &corev1.Event_UserPasswordHashChanged{
+		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{UserId: "U1", PasswordHash: []byte("late")},
+	}}, 4))
+	_, _, ok := p.PasswordHashWithSetAt("U1")
 	require.False(t, ok)
 }
 

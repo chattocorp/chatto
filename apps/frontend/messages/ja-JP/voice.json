@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "接続中...",
     "joining": "参加中...",
@@ -11,6 +10,15 @@
     "leave": "通話を終了します",
     "share_screen": "画面共有",
     "stop_share_screen": "画面共有を停止します",
+    "applications": "アプリケーション",
+    "entire_screen": "画面全体",
+    "share_source": "共有元",
+    "main_display": "メインディスプレイ",
+    "display_number": "ディスプレイ {number}",
+    "video_only": "映像のみ",
+    "share_sources_failed": "共有可能なソースを読み込めませんでした。",
+    "no_share_windows": "共有可能なアプリケーションウィンドウが見つかりません。",
+    "no_share_displays": "ディスプレイが見つかりません。",
     "user_settings": "ユーザー設定",
     "speaking": "スピーキング",
     "muted": "ミュートされました",
@@ -54,6 +62,13 @@
     "screen_share_failed": "画面共有を開始できませんでした。",
     "speaker_switch_failed": "スピーカーを切り替えられませんでした。このブラウザまたはデバイスはスピーカーの選択をサポートしていない可能性があります。",
     "device_switch_failed": "そのデバイスに切り替えることができませんでした。",
-    "media_device_failed": "メディアデバイスにアクセスできませんでした。"
+    "media_device_failed": "メディアデバイスにアクセスできませんでした。",
+    "stream_game": "ゲームを配信",
+    "stream_game_description": "通話中の全員と共有するゲームウィンドウを選択してください。",
+    "game_windows": "ゲームウィンドウ",
+    "no_game_windows": "共有できるウィンドウが見つかりません。ゲームをウィンドウまたはボーダーレスモードで開いて、もう一度お試しください。",
+    "game_windows_failed": "共有できるウィンドウを読み込めませんでした。",
+    "untitled_window": "タイトルなしのウィンドウ",
+    "game_window_selected": "{name}を選択しました"
   }
 }

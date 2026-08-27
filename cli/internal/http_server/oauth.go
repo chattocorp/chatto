@@ -1,24 +1,28 @@
 package http_server
 
 import (
+	"context"
 	"errors"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/idna"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// Session keys for the OAuth authorize flow.
-const (
-	sessionKeyOAuthRedirectURI   = "oauth_redirect_uri"
-	sessionKeyOAuthCodeChallenge = "oauth_code_challenge"
-	sessionKeyOAuthCodeMethod    = "oauth_code_method"
-	sessionKeyOAuthState         = "oauth_state"
-)
+// The signed browser session carries only an opaque handle. Validated request
+// details live in shared RUNTIME_STATE so large CIMD URLs cannot overflow the
+// browser cookie and every replica can continue the flow.
+const sessionKeyOAuthPendingAuthorize = "oauth_pending_authorize"
 
 var errNoPendingOAuthAuthorize = errors.New("no pending OAuth authorization request")
 
@@ -63,6 +67,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		codeChallenge := c.Query("code_challenge")
 		codeChallengeMethod := c.Query("code_challenge_method")
 		state := c.Query("state")
+		providerID := c.Query("provider_id")
+		clientID := c.Query("client_id")
 
 		if responseType != "code" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -76,6 +82,13 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_request",
 				"error_description": "redirect_uri is required",
+			})
+			return
+		}
+		if clientID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_request",
+				"error_description": "client_id is required",
 			})
 			return
 		}
@@ -96,20 +109,54 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 
-		if !s.isAllowedOAuthRedirectURI(redirectURI) {
+		client, err := s.resolveOAuthClient(c.Request.Context(), clientID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "The OAuth client metadata could not be verified",
+			})
+			return
+		}
+		if err := s.core.RequireOAuthClientAllowed(c.Request.Context(), client.ClientID); err != nil {
+			if errors.Is(err, core.ErrOAuthClientBlocked) {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":             "invalid_client",
+					"error_description": "The OAuth client is blocked by this server",
+				})
+				return
+			}
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":             "server_error",
+				"error_description": "Failed to check OAuth client policy",
+			})
+			return
+		}
+		if !client.allowsRedirectURI(redirectURI) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_request",
-				"error_description": "Invalid redirect_uri: must use an allowed HTTPS origin or localhost",
+				"error_description": "redirect_uri is not registered for this client",
 			})
 			return
 		}
 
-		// Store authorize params in session so they survive the login flow
-		session.Set(sessionKeyOAuthRedirectURI, redirectURI)
-		session.Set(sessionKeyOAuthCodeChallenge, codeChallenge)
-		session.Set(sessionKeyOAuthCodeMethod, codeChallengeMethod)
-		session.Set(sessionKeyOAuthState, state)
-		session.Save()
+		// Store validated request details behind a small opaque session handle so
+		// the flow survives login, restarts, and routing to another replica.
+		if err := s.storePendingOAuthAuthorize(c.Request.Context(), session, pendingOAuthAuthorize{
+			RedirectURI:         redirectURI,
+			CodeChallenge:       codeChallenge,
+			CodeChallengeMethod: codeChallengeMethod,
+			State:               state,
+			ClientID:            client.ClientID,
+			ClientName:          client.ClientName,
+			ClientURI:           client.ClientURI,
+		}); err != nil {
+			log.Error("Failed to store pending OAuth authorization request", "error", err)
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":             "server_error",
+				"error_description": "Failed to store authorization request",
+			})
+			return
+		}
 
 		// If user is already authenticated, generate code immediately
 		credential, ok, err := s.oauthCookieCredential(c)
@@ -119,6 +166,16 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		}
 		if ok {
 			s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
+			return
+		}
+
+		// A client can hint at one of this server's configured providers.
+		// The server validates the ID and starts only its own provider route. This
+		// lets a client with an existing IdP session skip the redundant server
+		// login screen without letting the client supply an issuer or endpoint.
+		if providerID != "" && s.hasPublicAuthProvider(providerID) {
+			providerPath := "/auth/providers/" + url.PathEscape(providerID)
+			c.Redirect(http.StatusTemporaryRedirect, providerPath+"?redirect="+url.QueryEscape("/oauth/authorize"))
 			return
 		}
 
@@ -136,7 +193,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 
 	// POST /oauth/token — OAuth 2.0 Token endpoint.
-	// Exchanges an authorization code + PKCE verifier for a bearer token.
+	// Exchanges an authorization code or rotates a renewable bearer session.
 	// This endpoint has wildcard CORS since it's called cross-origin by clients.
 	oauth.OPTIONS("token", func(c *gin.Context) {
 		setOAuthTokenCORS(c)
@@ -145,6 +202,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 
 	oauth.POST("token", func(c *gin.Context) {
 		setOAuthTokenCORS(c)
+		c.Header("Cache-Control", "no-store")
+		c.Header("Pragma", "no-cache")
 
 		// Accept both JSON and form-encoded (per OAuth 2.0 spec, form-encoded is standard)
 		var req oauthTokenRequest
@@ -153,6 +212,9 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			req.Code = c.PostForm("code")
 			req.CodeVerifier = c.PostForm("code_verifier")
 			req.RedirectURI = c.PostForm("redirect_uri")
+			req.ClientID = c.PostForm("client_id")
+			req.RefreshToken = c.PostForm("refresh_token")
+			req.RefreshRequestID = c.PostForm("refresh_request_id")
 		} else {
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{
@@ -163,65 +225,53 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			}
 		}
 
-		if req.GrantType != "authorization_code" {
+		ctx := c.Request.Context()
+		switch req.GrantType {
+		case "authorization_code":
+			if req.Code == "" || req.CodeVerifier == "" || req.RedirectURI == "" || req.ClientID == "" {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":             "invalid_request",
+					"error_description": "code, code_verifier, redirect_uri, and client_id are required",
+				})
+				return
+			}
+
+			credentials, userID, err := s.core.ExchangeAuthCodeForClientSession(ctx, req.Code, req.CodeVerifier, req.RedirectURI, req.ClientID)
+			if err != nil {
+				writeOAuthCodeExchangeError(c, err)
+				return
+			}
+			response := oauthBearerSessionResponse(credentials)
+			if user, err := s.core.GetUser(ctx, userID); err == nil {
+				response["user"] = gin.H{
+					"id":          user.Id,
+					"login":       user.Login,
+					"displayName": user.DisplayName,
+				}
+			}
+			c.JSON(http.StatusOK, response)
+
+		case "refresh_token":
+			if req.RefreshToken == "" || req.RefreshRequestID == "" {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":             "invalid_request",
+					"error_description": "refresh_token and refresh_request_id are required",
+				})
+				return
+			}
+			credentials, err := s.core.RefreshBearerSession(ctx, req.RefreshToken, req.RefreshRequestID, req.ClientID)
+			if err != nil {
+				writeOAuthRefreshError(c, err)
+				return
+			}
+			c.JSON(http.StatusOK, oauthBearerSessionResponse(credentials))
+
+		default:
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "unsupported_grant_type",
-				"error_description": "Only grant_type=authorization_code is supported",
+				"error_description": "Only authorization_code and refresh_token grants are supported",
 			})
-			return
 		}
-
-		if req.Code == "" || req.CodeVerifier == "" || req.RedirectURI == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":             "invalid_request",
-				"error_description": "code, code_verifier, and redirect_uri are required",
-			})
-			return
-		}
-
-		ctx := c.Request.Context()
-
-		token, userID, err := s.core.ExchangeAuthCode(ctx, req.Code, req.CodeVerifier, req.RedirectURI)
-		if err != nil {
-			status := http.StatusBadRequest
-			oauthErr := "invalid_grant"
-			desc := err.Error()
-
-			switch err {
-			case core.ErrAuthCodeNotFound:
-				desc = "Authorization code is invalid or has expired"
-			case core.ErrAuthCodeInvalidVerifier:
-				desc = "PKCE code_verifier does not match code_challenge"
-			case core.ErrAuthCodeRedirectMismatch:
-				desc = "redirect_uri does not match the authorization request"
-			default:
-				status = http.StatusInternalServerError
-				oauthErr = "server_error"
-				log.Error("OAuth token exchange failed", "error", err)
-			}
-
-			c.JSON(status, gin.H{
-				"error":             oauthErr,
-				"error_description": desc,
-			})
-			return
-		}
-
-		// Fetch user info to include in the response
-		response := gin.H{
-			"access_token": token,
-			"token_type":   "Bearer",
-		}
-
-		if user, err := s.core.GetUser(ctx, userID); err == nil {
-			response["user"] = gin.H{
-				"id":          user.Id,
-				"login":       user.Login,
-				"displayName": user.DisplayName,
-			}
-		}
-
-		c.JSON(http.StatusOK, response)
 	})
 
 	oauth.GET("consent/request", func(c *gin.Context) {
@@ -235,12 +285,12 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 
-		params, err := readPendingOAuthAuthorize(sessions.Default(c))
+		params, err := s.readPendingOAuthAuthorize(c.Request.Context(), sessions.Default(c))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "No pending authorization request"})
 			return
 		}
-		redirectOrigin, ok := s.allowedOAuthRedirectOrigin(params.RedirectURI)
+		redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)
 		if !ok {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
@@ -249,6 +299,9 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		c.JSON(http.StatusOK, gin.H{
 			"redirectUri":    params.RedirectURI,
 			"redirectOrigin": redirectOrigin,
+			"clientId":       params.ClientID,
+			"clientName":     params.ClientName,
+			"clientUri":      params.ClientURI,
 		})
 	})
 
@@ -263,25 +316,23 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 
-		params, err := readPendingOAuthAuthorize(sessions.Default(c))
+		params, err := s.consumePendingOAuthAuthorize(c.Request.Context(), sessions.Default(c))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "No pending authorization request"})
 			return
 		}
-		redirectOrigin, ok := s.allowedOAuthRedirectOrigin(params.RedirectURI)
+		redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)
 		if !ok {
-			clearPendingOAuthAuthorize(sessions.Default(c))
-			_ = sessions.Default(c).Save()
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
 		}
-		if err := s.core.GrantOAuthConsent(c.Request.Context(), credential.auth.UserID, redirectOrigin); err != nil {
+		if err := s.core.GrantOAuthClientConsent(c.Request.Context(), credential.auth.UserID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin); err != nil {
 			log.Error("Failed to record OAuth consent grant", "error", err, "userId", credential.auth.UserID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record consent"})
 			return
 		}
 
-		redirectURL, ok := s.completeOAuthAuthorizeURL(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
+		redirectURL, ok := s.completeOAuthAuthorizeParamsURL(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration(), params)
 		if !ok {
 			return
 		}
@@ -300,21 +351,17 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		}
 
 		session := sessions.Default(c)
-		params, err := readPendingOAuthAuthorize(session)
+		params, err := s.consumePendingOAuthAuthorize(c.Request.Context(), session)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "No pending authorization request"})
 			return
 		}
-		redirectOrigin, ok := s.allowedOAuthRedirectOrigin(params.RedirectURI)
-		clearPendingOAuthAuthorize(session)
-		if saveErr := session.Save(); saveErr != nil {
-			log.Warn("Failed to clear denied OAuth authorize session", "error", saveErr)
-		}
+		redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)
 		if !ok {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
 		}
-		if err := s.core.RecordOAuthConsentDenied(c.Request.Context(), credential.auth.UserID, redirectOrigin); err != nil {
+		if err := s.core.RecordOAuthClientConsentDenied(c.Request.Context(), credential.auth.UserID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin); err != nil {
 			log.Error("Failed to record OAuth consent denial", "error", err, "userId", credential.auth.UserID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record consent denial"})
 			return
@@ -329,6 +376,15 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 }
 
+func (s *HTTPServer) hasPublicAuthProvider(providerID string) bool {
+	for _, provider := range s.config.Auth.Providers {
+		if provider.ID == providerID {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCredential, bool, error) {
 	credential, ok, err := s.cookiePresentedCredential(c)
 	if err != nil {
@@ -337,49 +393,128 @@ func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCred
 	if !ok {
 		return presentedRuntimeCredential{}, false, nil
 	}
-	s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
 	return credential, true, nil
 }
 
 type oauthTokenRequest struct {
-	GrantType    string `json:"grant_type"`
-	Code         string `json:"code"`
-	CodeVerifier string `json:"code_verifier"`
-	RedirectURI  string `json:"redirect_uri"`
+	GrantType        string `json:"grant_type"`
+	Code             string `json:"code"`
+	CodeVerifier     string `json:"code_verifier"`
+	RedirectURI      string `json:"redirect_uri"`
+	ClientID         string `json:"client_id"`
+	RefreshToken     string `json:"refresh_token"`
+	RefreshRequestID string `json:"refresh_request_id"`
 }
 
-type pendingOAuthAuthorize struct {
-	RedirectURI         string
-	CodeChallenge       string
-	CodeChallengeMethod string
-	State               string
+func oauthBearerSessionResponse(credentials core.BearerSessionCredentials) gin.H {
+	return gin.H{
+		"access_token":             credentials.AccessToken,
+		"token_type":               "Bearer",
+		"expires_in":               bearerSessionLifetimeSeconds(credentials.AccessTokenExpiresAt),
+		"refresh_token":            credentials.RefreshToken,
+		"refresh_token_expires_in": bearerSessionLifetimeSeconds(credentials.SessionExpiresAt),
+	}
 }
 
-func readPendingOAuthAuthorize(session sessions.Session) (pendingOAuthAuthorize, error) {
-	redirectURI, _ := session.Get(sessionKeyOAuthRedirectURI).(string)
-	codeChallenge, _ := session.Get(sessionKeyOAuthCodeChallenge).(string)
-	codeChallengeMethod, _ := session.Get(sessionKeyOAuthCodeMethod).(string)
-	state, _ := session.Get(sessionKeyOAuthState).(string)
-	if redirectURI == "" || codeChallenge == "" {
+func writeOAuthCodeExchangeError(c *gin.Context, err error) {
+	status := http.StatusBadRequest
+	oauthErr := "invalid_grant"
+	desc := "Authorization code is invalid or has expired"
+	switch {
+	case errors.Is(err, core.ErrAuthCodeNotFound):
+	case errors.Is(err, core.ErrAuthCodeInvalidVerifier):
+		desc = "PKCE code_verifier does not match code_challenge"
+	case errors.Is(err, core.ErrAuthCodeRedirectMismatch):
+		desc = "redirect_uri does not match the authorization request"
+	case errors.Is(err, core.ErrAuthCodeClientMismatch):
+		desc = "client_id does not match the authorization request"
+	case errors.Is(err, core.ErrOAuthClientBlocked):
+		oauthErr = "invalid_client"
+		desc = "The OAuth client is blocked by this server"
+	default:
+		status = http.StatusInternalServerError
+		oauthErr = "server_error"
+		desc = "Failed to exchange authorization code"
+		log.Error("OAuth token exchange failed", "error", err)
+	}
+	c.JSON(status, gin.H{"error": oauthErr, "error_description": desc})
+}
+
+func writeOAuthRefreshError(c *gin.Context, err error) {
+	if errors.Is(err, core.ErrRefreshRequestIDInvalid) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":             "invalid_request",
+			"error_description": "refresh_request_id is invalid",
+		})
+		return
+	}
+	if errors.Is(err, core.ErrRefreshTokenNotFound) ||
+		errors.Is(err, core.ErrRefreshTokenReused) ||
+		errors.Is(err, core.ErrRefreshTokenClientMismatch) ||
+		errors.Is(err, core.ErrOAuthClientBlocked) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":             "invalid_grant",
+			"error_description": "Refresh token is invalid, expired, or revoked",
+		})
+		return
+	}
+	log.Error("OAuth token refresh failed", "error", err)
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error":             "server_error",
+		"error_description": "Failed to refresh bearer session",
+	})
+}
+
+type pendingOAuthAuthorize = core.PendingOAuthAuthorize
+
+func pendingOAuthAuthorizeToken(session sessions.Session) string {
+	token, _ := session.Get(sessionKeyOAuthPendingAuthorize).(string)
+	return token
+}
+
+func (s *HTTPServer) storePendingOAuthAuthorize(ctx context.Context, session sessions.Session, pending pendingOAuthAuthorize) error {
+	previousToken := pendingOAuthAuthorizeToken(session)
+	token, err := s.core.CreatePendingOAuthAuthorize(ctx, pending)
+	if err != nil {
+		return err
+	}
+	session.Set(sessionKeyOAuthPendingAuthorize, token)
+	if err := session.Save(); err != nil {
+		_ = s.core.DiscardPendingOAuthAuthorize(ctx, token)
+		return err
+	}
+	if previousToken != "" && previousToken != token {
+		_ = s.core.DiscardPendingOAuthAuthorize(ctx, previousToken)
+	}
+	return nil
+}
+
+func (s *HTTPServer) readPendingOAuthAuthorize(ctx context.Context, session sessions.Session) (pendingOAuthAuthorize, error) {
+	pending, err := s.core.GetPendingOAuthAuthorize(ctx, pendingOAuthAuthorizeToken(session))
+	if errors.Is(err, core.ErrPendingOAuthAuthorizeNotFound) {
 		return pendingOAuthAuthorize{}, errNoPendingOAuthAuthorize
 	}
-	return pendingOAuthAuthorize{
-		RedirectURI:         redirectURI,
-		CodeChallenge:       codeChallenge,
-		CodeChallengeMethod: codeChallengeMethod,
-		State:               state,
-	}, nil
+	return pending, err
 }
 
-func clearPendingOAuthAuthorize(session sessions.Session) {
-	session.Delete(sessionKeyOAuthRedirectURI)
-	session.Delete(sessionKeyOAuthCodeChallenge)
-	session.Delete(sessionKeyOAuthCodeMethod)
-	session.Delete(sessionKeyOAuthState)
+func (s *HTTPServer) consumePendingOAuthAuthorize(ctx context.Context, session sessions.Session) (pendingOAuthAuthorize, error) {
+	token := pendingOAuthAuthorizeToken(session)
+	pending, err := s.core.ConsumePendingOAuthAuthorize(ctx, token)
+	if errors.Is(err, core.ErrPendingOAuthAuthorizeNotFound) {
+		return pendingOAuthAuthorize{}, errNoPendingOAuthAuthorize
+	}
+	if err != nil {
+		return pendingOAuthAuthorize{}, err
+	}
+	session.Delete(sessionKeyOAuthPendingAuthorize)
+	if err := session.Save(); err != nil {
+		return pendingOAuthAuthorize{}, err
+	}
+	return pending, nil
 }
 
 func (s *HTTPServer) continueOAuthAuthorize(c *gin.Context, userID string, authGeneration uint64) {
-	params, err := readPendingOAuthAuthorize(sessions.Default(c))
+	params, err := s.readPendingOAuthAuthorize(c.Request.Context(), sessions.Default(c))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":             "invalid_request",
@@ -387,7 +522,7 @@ func (s *HTTPServer) continueOAuthAuthorize(c *gin.Context, userID string, authG
 		})
 		return
 	}
-	redirectOrigin, ok := s.allowedOAuthRedirectOrigin(params.RedirectURI)
+	redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":             "invalid_request",
@@ -395,7 +530,7 @@ func (s *HTTPServer) continueOAuthAuthorize(c *gin.Context, userID string, authG
 		})
 		return
 	}
-	consented, err := s.core.HasOAuthConsent(c.Request.Context(), userID, redirectOrigin)
+	consented, err := s.core.HasOAuthClientConsent(c.Request.Context(), userID, params.ClientID, redirectOrigin)
 	if err != nil {
 		log.Error("Failed to check OAuth consent", "error", err, "userId", userID)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -423,34 +558,58 @@ func (s *HTTPServer) completeOAuthAuthorize(c *gin.Context, userID string, authG
 }
 
 func (s *HTTPServer) completeOAuthAuthorizeURL(c *gin.Context, userID string, authGeneration uint64) (string, bool) {
-	session := sessions.Default(c)
-
-	params, err := readPendingOAuthAuthorize(session)
-
-	// Clear the OAuth session data
-	clearPendingOAuthAuthorize(session)
-	session.Save()
-
+	params, err := s.consumePendingOAuthAuthorize(c.Request.Context(), sessions.Default(c))
 	if err != nil {
+		if errors.Is(err, errNoPendingOAuthAuthorize) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_request",
+				"error_description": "No pending authorization request",
+			})
+		} else {
+			log.Error("Failed to consume pending OAuth authorization request", "error", err)
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":             "server_error",
+				"error_description": "Failed to continue authorization request",
+			})
+		}
+		return "", false
+	}
+	return s.completeOAuthAuthorizeParamsURL(c, userID, authGeneration, params)
+}
+
+func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID string, authGeneration uint64, params pendingOAuthAuthorize) (string, bool) {
+	ctx := c.Request.Context()
+	if err := s.core.RequireOAuthClientAllowed(ctx, params.ClientID); err != nil {
+		if errors.Is(err, core.ErrOAuthClientBlocked) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "The OAuth client is blocked by this server",
+			})
+			return "", false
+		}
+		log.Error("Failed to check OAuth client policy", "error", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":             "server_error",
+			"error_description": "Failed to check OAuth client policy",
+		})
+		return "", false
+	}
+	source := corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD
+	if params.ClientID == config.ChattoDesktopOrigin {
+		source = corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN
+	}
+	redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":             "invalid_request",
-			"error_description": "No pending authorization request",
+			"error_description": "Invalid redirect_uri",
 		})
 		return "", false
 	}
 
-	ctx := c.Request.Context()
-	code, err := s.core.CreateAuthCodeForGeneration(ctx, userID, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
-	if err != nil {
-		log.Error("Failed to create authorization code", "error", err, "userId", userID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":             "server_error",
-			"error_description": "Failed to generate authorization code",
-		})
-		return "", false
-	}
-
-	// Build redirect URL with code and state
+	// Parse the already-validated redirect before creating any durable or
+	// runtime authorization state so a malformed value cannot leave a phantom
+	// completed authorization.
 	u, err := url.Parse(params.RedirectURI)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -459,7 +618,31 @@ func (s *HTTPServer) completeOAuthAuthorizeURL(c *gin.Context, userID string, au
 		})
 		return "", false
 	}
+	code, err := s.core.CreateOAuthClientAuthorizationCode(ctx, core.OAuthClientAuthorization{
+		UserID:         userID,
+		ClientID:       params.ClientID,
+		ClientName:     params.ClientName,
+		ClientOrigin:   params.ClientURI,
+		RedirectOrigin: redirectOrigin,
+		Source:         source,
+	}, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
+	if err != nil {
+		if errors.Is(err, core.ErrOAuthClientBlocked) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "The OAuth client is blocked by this server",
+			})
+			return "", false
+		}
+		log.Error("Failed to complete OAuth authorization", "error", err, "userId", userID)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":             "server_error",
+			"error_description": "Failed to complete authorization",
+		})
+		return "", false
+	}
 
+	// Build redirect URL with code and state
 	q := u.Query()
 	q.Set("code", code)
 	if params.State != "" {
@@ -472,101 +655,43 @@ func (s *HTTPServer) completeOAuthAuthorizeURL(c *gin.Context, userID string, au
 
 // hasPendingOAuthAuthorize checks if the session has a pending OAuth authorize flow.
 func hasPendingOAuthAuthorize(session sessions.Session) bool {
-	redirectURI, _ := session.Get(sessionKeyOAuthRedirectURI).(string)
-	return redirectURI != ""
+	return pendingOAuthAuthorizeToken(session) != ""
 }
 
-func (s *HTTPServer) allowedOAuthRedirectOrigin(uri string) (string, bool) {
-	if !s.isAllowedOAuthRedirectURI(uri) {
+func (s *HTTPServer) pendingOAuthRedirectOrigin(params pendingOAuthAuthorize) (string, bool) {
+	u, err := url.Parse(params.RedirectURI)
+	if err != nil || u.Scheme == "" {
 		return "", false
 	}
-	u, err := url.Parse(uri)
-	if err != nil {
-		return "", false
-	}
-	return canonicalOrigin(u), true
-}
-
-// isAllowedOAuthRedirectURI validates a redirect URI for the OAuth authorize
-// flow. In addition to requiring HTTPS (except loopback development URLs), it
-// only accepts origins this server explicitly trusts: its own public
-// webserver.url origin, exact webserver.allowed_origins entries,
-// webserver.oauth_redirect_origins entries, and localhost.
-func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
-	u, err := url.Parse(uri)
-	if err != nil {
-		return false
-	}
-
-	// Must have a scheme and host
-	if u.Scheme == "" || u.Host == "" || u.User != nil || u.Fragment != "" {
-		return false
-	}
-
-	if isLoopbackOAuthRedirectHost(u.Hostname()) {
-		return u.Scheme == "http" || u.Scheme == "https"
-	}
-
-	if u.Scheme != "https" {
-		return false
-	}
-
-	redirectOrigin := canonicalOrigin(u)
-	for _, allowed := range s.allowedOAuthRedirectOrigins() {
-		if allowed == "*" {
-			return true
-		}
-		if redirectOrigin == allowed {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (s *HTTPServer) allowedOAuthRedirectOrigins() []string {
-	origins := make([]string, 0, len(s.config.Webserver.AllowedOrigins)+len(s.config.Webserver.OAuthRedirectOrigins)+1)
-	if origin, ok := parseConfiguredOAuthOrigin(s.config.Webserver.URL); ok {
-		origins = append(origins, origin)
-	}
-	for _, raw := range s.config.Webserver.AllowedOrigins {
-		if strings.TrimSpace(raw) == "*" {
-			continue
-		}
-		if origin, ok := parseConfiguredOAuthOrigin(raw); ok {
-			origins = append(origins, origin)
-		}
-	}
-	for _, raw := range s.config.Webserver.OAuthRedirectOrigins {
-		if strings.TrimSpace(raw) == "*" {
-			origins = append(origins, "*")
-			continue
-		}
-		if origin, ok := parseConfiguredOAuthOrigin(raw); ok {
-			origins = append(origins, origin)
-		}
-	}
-	return origins
-}
-
-func parseConfiguredOAuthOrigin(raw string) (string, bool) {
-	raw = strings.TrimSpace(raw)
-	u, err := url.Parse(raw)
-	if err != nil || u.Scheme == "" || u.Host == "" || u.User != nil {
-		return "", false
-	}
-	if isLoopbackOAuthRedirectHost(u.Hostname()) {
-		if u.Scheme != "http" && u.Scheme != "https" {
-			return "", false
-		}
-	} else if u.Scheme != "https" {
-		return "", false
+	if u.Host == "" {
+		return strings.ToLower(u.Scheme) + ":", true
 	}
 	return canonicalOrigin(u), true
 }
 
 func canonicalOrigin(u *url.URL) string {
-	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Host)
+	scheme := strings.ToLower(u.Scheme)
+	hostname := strings.ToLower(u.Hostname())
+	if ascii, err := idna.Lookup.ToASCII(hostname); err == nil {
+		hostname = ascii
+	}
+	if address, err := netip.ParseAddr(hostname); err == nil {
+		hostname = address.String()
+	}
+	port := u.Port()
+	if numericPort, err := strconv.ParseUint(port, 10, 16); err == nil {
+		port = strconv.FormatUint(numericPort, 10)
+		if (scheme == "http" && port == "80") || (scheme == "https" && port == "443") {
+			port = ""
+		}
+	}
+	host := hostname
+	if port != "" {
+		host = net.JoinHostPort(hostname, port)
+	} else if strings.Contains(hostname, ":") {
+		host = "[" + hostname + "]"
+	}
+	return scheme + "://" + host
 }
 
 func isLoopbackOAuthRedirectHost(host string) bool {

@@ -2,11 +2,12 @@ package core
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -47,7 +48,51 @@ func TestChattoCore_CreateRoom(t *testing.T) {
 	}
 }
 
-func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultDenialWithCreation(t *testing.T) {
+func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "", WithAnnouncementsRoomDefaults())
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionDeny)
+	}
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionAllow {
+		t.Fatalf("admin message.post decision on return = %s, want %s", got, DecisionAllow)
+	}
+
+	created, createdSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomCreated),
+	)
+	if err != nil {
+		t.Fatalf("read RoomCreated event: %v", err)
+	}
+	denied, deniedSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.RBACScopedAggregate(room.Id).Subject(evtstream.EventRBACPermissionDenied),
+	)
+	if err != nil {
+		t.Fatalf("read room default denial: %v", err)
+	}
+	granted, grantedSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.RBACScopedAggregate(room.Id).Subject(evtstream.EventRBACPermissionGranted),
+	)
+	if err != nil {
+		t.Fatalf("read room default grant: %v", err)
+	}
+	if len(created) != 1 || len(denied) != 1 || len(granted) != 1 {
+		t.Fatalf("created events = %d, denied events = %d, granted events = %d; want 1 each", len(created), len(denied), len(granted))
+	}
+	if grantedSeq != createdSeq+1 || deniedSeq != grantedSeq+1 {
+		t.Fatalf("room default sequences = created %d, denied %d, granted %d; want one contiguous batch", createdSeq, deniedSeq, grantedSeq)
+	}
+}
+
+func TestChattoCore_CreateRoom_NameDoesNotApplyAnnouncementsDefaults(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -55,29 +100,11 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultDenialWithCreation(t *t
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
-		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionDeny)
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionNone {
+		t.Fatalf("message.post decision = %s, want %s", got, DecisionNone)
 	}
-
-	created, createdSeq, err := core.EventPublisher.SubjectEvents(
-		ctx,
-		events.RoomAggregate(room.Id).Subject(events.EventRoomCreated),
-	)
-	if err != nil {
-		t.Fatalf("read RoomCreated event: %v", err)
-	}
-	denied, deniedSeq, err := core.EventPublisher.SubjectEvents(
-		ctx,
-		events.RBACScopedAggregate(room.Id).Subject(events.EventRBACPermissionDenied),
-	)
-	if err != nil {
-		t.Fatalf("read room default denial: %v", err)
-	}
-	if len(created) != 1 || len(denied) != 1 {
-		t.Fatalf("created events = %d, denied events = %d; want 1 each", len(created), len(denied))
-	}
-	if deniedSeq != createdSeq+1 {
-		t.Fatalf("room default seq = %d, want contiguous seq %d after RoomCreated", deniedSeq, createdSeq+1)
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionNone {
+		t.Fatalf("admin message.post decision = %s, want %s", got, DecisionNone)
 	}
 }
 
@@ -149,6 +176,31 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 		}
 	})
 
+	t.Run("valid Unicode name at max length", func(t *testing.T) {
+		maxName := strings.Repeat("室", RoomNameMaxLength)
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", maxName, "Description")
+		if err != nil {
+			t.Errorf("Expected success for Unicode room name at max length, got: %v", err)
+		}
+		if room == nil {
+			t.Error("Expected room to be created")
+		}
+	})
+
+	t.Run("Unicode name over max length", func(t *testing.T) {
+		_, err := core.CreateRoom(
+			ctx,
+			"test-user",
+			KindChannel,
+			"",
+			strings.Repeat("室", RoomNameMaxLength+1),
+			"Description",
+		)
+		if err == nil || err.Error() != "room name must be 30 characters or less" {
+			t.Errorf("Expected Unicode room name length error, got: %v", err)
+		}
+	})
+
 	t.Run("valid description at max length", func(t *testing.T) {
 		maxDesc := string(make([]byte, 500)) // exactly 500 characters
 		for i := range maxDesc {
@@ -172,6 +224,16 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 			t.Errorf("Expected name to be trimmed, got: %s", room.Name)
 		}
 	})
+
+	t.Run("name is NFC-normalized", func(t *testing.T) {
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Ku\u0308che", "Description")
+		if err != nil {
+			t.Errorf("Expected success, got: %v", err)
+		}
+		if room.Name != "Küche" {
+			t.Errorf("Expected NFC-normalized name, got: %q", room.Name)
+		}
+	})
 }
 
 func TestValidateRoomName(t *testing.T) {
@@ -188,14 +250,24 @@ func TestValidateRoomName(t *testing.T) {
 		{"valid name with underscore", "general_discussion", ""},
 		{"valid mixed case", "GeneralDiscussion", ""},
 		{"valid with numbers", "room123", ""},
+		{"valid Traditional Chinese (zh-TW)", "繁體中文", ""},
+		{"valid German umlauts", "Küche_Über", ""},
+		{"valid decomposed umlaut after normalization", "Ku\u0308che", ""},
 		{"valid single char", "A", ""},
 		{"valid 30 chars", string(make([]byte, 30)), ""}, // will be replaced below
 		{"too long 31 chars", string(make([]byte, 31)), "room name must be 30 characters or less"},
-		{"invalid with spaces", "General Discussion", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
-		{"invalid with slash", "general/discussion", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
-		{"invalid with dot", "general.discussion", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
-		{"invalid with special chars", "general@discussion", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
-		{"invalid with emoji", "general💬", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
+		{"valid with spaces", "General Discussion", ""},
+		{"valid with slash", "general/discussion", ""},
+		{"valid with dot", "general.discussion", ""},
+		{"valid with punctuation", "general@discussion!", ""},
+		{"valid with emoji", "general 💬", ""},
+		{"valid emoji sequence", "Developers 👩‍💻", ""},
+		{"valid embedded formatting mark", "room\u200ename", ""},
+		{"invalid control", "general\x00discussion", "room name must not contain control characters or line breaks"},
+		{"invalid embedded newline", "General\nDiscussion", "room name must not contain control characters or line breaks"},
+		{"invalid line separator", "General\u2028Discussion", "room name must not contain control characters or line breaks"},
+		{"invalid paragraph separator", "General\u2029Discussion", "room name must not contain control characters or line breaks"},
+		{"format-only", "\u200e\u200f", "room name must contain at least one visible character"},
 	}
 
 	// Fix the 30-char test case
@@ -229,6 +301,80 @@ func TestValidateRoomName(t *testing.T) {
 				} else if err.Error() != tt.wantError {
 					t.Errorf("ValidateRoomName(%q) = %q, want %q", tt.input, err.Error(), tt.wantError)
 				}
+			}
+		})
+	}
+}
+
+func TestValidateRoomNameInternationalScripts(t *testing.T) {
+	validNames := map[string]string{
+		"Arabic with Arabic-Indic digits":       "غرفة_١٢٣",
+		"Armenian":                              "սենյակ",
+		"Traditional Chinese (zh-TW)":           "繁體中文聊天室",
+		"Cyrillic":                              "Комната",
+		"Deseret supplementary-plane letters":   "𐐀𐐨",
+		"Ethiopic":                              "ክፍል",
+		"Georgian":                              "ოთახი",
+		"Greek":                                 "Δωμάτιο",
+		"Hebrew":                                "חדר",
+		"Japanese hiragana":                     "ひらがな",
+		"Japanese kanji":                        "会議室",
+		"Japanese katakana":                     "カタカナ",
+		"Korean Hangul":                         "회의실",
+		"Latin with Vietnamese diacritics":      "Phòng",
+		"Turkish dotted capital I":              "İstanbul",
+		"Devanagari decimal digits":             "room_१२३",
+		"fullwidth decimal digits":              "部屋１２３",
+		"30 supplementary-plane code points":    strings.Repeat("𐐀", RoomNameMaxLength),
+		"mixed scripts with allowed separators": "Küche_聊天室-١٢٣",
+	}
+	for name, input := range validNames {
+		t.Run("accepts "+name, func(t *testing.T) {
+			if err := ValidateRoomName(input); err != nil {
+				t.Errorf("ValidateRoomName(%q) = %v, want nil", input, err)
+			}
+		})
+	}
+
+	flexibleNames := map[string]string{
+		"combining mark that remains after NFC": "room\u0338",
+		"Devanagari vowel mark":                 "कमरा",
+		"emoji sequence":                        "room👩‍💻",
+		"left-to-right formatting mark":         "room\u200ename",
+		"non-decimal superscript number":        "room²",
+		"Thai combining mark":                   "ห้อง",
+		"zero-width joiner":                     "room\u200dname",
+	}
+	for name, input := range flexibleNames {
+		t.Run("accepts "+name, func(t *testing.T) {
+			if err := ValidateRoomName(input); err != nil {
+				t.Errorf("ValidateRoomName(%q) = %v, want nil", input, err)
+			}
+		})
+	}
+
+	t.Run("rejects 31 supplementary-plane code points", func(t *testing.T) {
+		input := strings.Repeat("𐐀", RoomNameMaxLength+1)
+		err := ValidateRoomName(input)
+		if err == nil || err.Error() != "room name must be 30 characters or less" {
+			t.Errorf("ValidateRoomName(%q) = %v, want length error", input, err)
+		}
+	})
+}
+
+func TestNormalizeRoomNameInternationalComposition(t *testing.T) {
+	tests := map[string]struct {
+		input string
+		want  string
+	}{
+		"German umlaut":      {input: "Ku\u0308che", want: "Küche"},
+		"Japanese dakuten":   {input: "は\u3099", want: "ば"},
+		"Vietnamese accents": {input: "Pho\u0300ng", want: "Phòng"},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := normalizeRoomName(tt.input); got != tt.want {
+				t.Errorf("normalizeRoomName(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -387,6 +533,74 @@ func TestChattoCore_CreateRoom_DuplicateName_CaseInsensitive(t *testing.T) {
 	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "GENERAL", "General discussion allcaps")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists for all caps, got: %v", err)
+	}
+}
+
+func TestChattoCore_CreateRoom_DuplicateUnicodeName(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Küche", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	for _, duplicate := range []string{"KÜCHE", "Ku\u0308che"} {
+		_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", duplicate, "")
+		if !errors.Is(err, ErrRoomNameExists) {
+			t.Errorf("CreateRoom(%q) error = %v, want ErrRoomNameExists", duplicate, err)
+		}
+	}
+}
+
+func TestCanonicalRoomNameUsesCompatibilityNormalizationAndCaseFolding(t *testing.T) {
+	t.Run("normalizes composed and decomposed umlauts", func(t *testing.T) {
+		if canonicalRoomName("KÜCHE") != canonicalRoomName("Ku\u0308che") {
+			t.Fatal("canonicalRoomName should normalize and lowercase equivalent umlauts")
+		}
+	})
+
+	t.Run("applies full case-fold expansions", func(t *testing.T) {
+		if canonicalRoomName("Straße") != canonicalRoomName("STRASSE") {
+			t.Fatal("canonicalRoomName should fold sharp s to ss")
+		}
+	})
+
+	t.Run("collapses compatibility variants", func(t *testing.T) {
+		for _, equivalent := range []string{"ｇｅｎｅｒａｌ", "ℊℯ𝓃ℯ𝓇𝒶𝓁"} {
+			if canonicalRoomName("general") != canonicalRoomName(equivalent) {
+				t.Fatalf("canonicalRoomName(%q) should match general", equivalent)
+			}
+		}
+	})
+
+	t.Run("keeps cross-script homoglyphs distinct", func(t *testing.T) {
+		if canonicalRoomName("a") == canonicalRoomName("а") {
+			t.Fatal("Latin a and Cyrillic a must remain distinct")
+		}
+	})
+}
+
+func TestChattoCore_CreateRoom_DuplicateCompatibilityName(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		first     string
+		duplicate string
+	}{
+		{name: "case fold expansion", first: "Straße", duplicate: "STRASSE"},
+		{name: "fullwidth", first: "general", duplicate: "ｇｅｎｅｒａｌ"},
+		{name: "styled letters", first: "general", duplicate: "ℊℯ𝓃ℯ𝓇𝒶𝓁"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			core, _ := setupTestCore(t)
+			ctx := testContext(t)
+			if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", tt.first, ""); err != nil {
+				t.Fatalf("CreateRoom(%q): %v", tt.first, err)
+			}
+			if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", tt.duplicate, ""); !errors.Is(err, ErrRoomNameExists) {
+				t.Fatalf("CreateRoom(%q) error = %v, want ErrRoomNameExists", tt.duplicate, err)
+			}
+		})
 	}
 }
 

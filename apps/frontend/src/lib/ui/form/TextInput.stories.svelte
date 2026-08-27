@@ -131,7 +131,7 @@
       label="Search"
       bind:value={search}
       placeholder="Search rooms…"
-      leadingIcon="uil--search"
+      leadingIcon="icon-[uil--search]"
     />
     <TextInput
       id="email-icon"
@@ -139,14 +139,14 @@
       bind:value={email}
       type="email"
       placeholder="you@example.com"
-      leadingIcon="uil--envelope"
+      leadingIcon="icon-[uil--envelope]"
     />
     <TextInput
       id="pw-icon"
       label="Password"
       bind:value={pw}
       type="password"
-      leadingIcon="uil--lock"
+      leadingIcon="icon-[uil--lock]"
     />
   </div>
 </Story>
@@ -190,7 +190,7 @@
         id="panel-search"
         label="Search members"
         bind:value={search}
-        leadingIcon="uil--search"
+        leadingIcon="icon-[uil--search]"
         placeholder="Search…"
       />
     </div>

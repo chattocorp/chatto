@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Connexion...",
     "joining": "Rejoindre...",
@@ -11,6 +10,15 @@
     "leave": "Quitter l'appel",
     "share_screen": "Partager l'écran",
     "stop_share_screen": "Arrêter le partage d'écran",
+    "applications": "Applications",
+    "entire_screen": "Écran entier",
+    "share_source": "Source du partage",
+    "main_display": "Écran principal",
+    "display_number": "Écran {number}",
+    "video_only": "Vidéo uniquement",
+    "share_sources_failed": "Impossible de charger les sources partageables.",
+    "no_share_windows": "Aucune fenêtre d’application partageable trouvée.",
+    "no_share_displays": "Aucun écran trouvé.",
     "user_settings": "Paramètres utilisateur",
     "speaking": "Parler",
     "muted": "Muet",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Impossible de démarrer le partage d'écran.",
     "speaker_switch_failed": "Impossible de changer de haut-parleur. Ce navigateur ou cet appareil peut ne pas prendre en charge la sélection des haut-parleurs.",
     "device_switch_failed": "Impossible de basculer vers cet appareil.",
-    "media_device_failed": "Impossible d'accéder à un périphérique multimédia."
+    "media_device_failed": "Impossible d'accéder à un périphérique multimédia.",
+    "stream_game": "Diffuser un jeu",
+    "stream_game_description": "Choisissez la fenêtre de jeu à partager avec tous les participants à l’appel.",
+    "game_windows": "Fenêtres de jeu",
+    "no_game_windows": "Aucune fenêtre partageable trouvée. Ouvrez un jeu en mode fenêtré ou sans bordure et réessayez.",
+    "game_windows_failed": "Impossible de charger les fenêtres partageables.",
+    "untitled_window": "Fenêtre sans titre",
+    "game_window_selected": "{name} sélectionné"
   }
 }

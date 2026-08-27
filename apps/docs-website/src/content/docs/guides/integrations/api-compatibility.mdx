@@ -28,30 +28,105 @@ Release notes can call out important API changes, but they are not a complete
 compatibility report. When an integration matters in production, test its main
 workflows against the exact upgrade candidate.
 
-## Inspect advertised protocols
+## Inspect the server version
 
-Call `chatto.discovery.v1.ServerDiscoveryService.GetServer` to inspect the
-server before authentication. The response may include
-`compatibility.protocolCapabilities`, with values such as:
+Call `chatto.discovery.v1.ServerDiscoveryService.GetServer` before
+authentication to read the server's public profile and software version.
+Decide explicitly which Chatto releases your integration supports, and test
+against each supported release rather than inferring method-level compatibility
+from discovery metadata.
 
-- `chatto.discovery.v1`
-- `chatto.auth.v1`
-- `chatto.api.v1`
-- `chatto.admin.v1`
-- `chatto.realtime.v1`
+The bundled 0.5 web client requires a 0.5 server. It does not fall back to the
+0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4 servers as
+unsupported and asks the operator to upgrade them. A 0.5 server accepts only
+realtime protocol 2; older clients must migrate to the server-scoped projection
+stream.
 
-These values tell you which broad protocol surfaces the server advertises. They
-do not negotiate an API version, guarantee a particular method or field, or say
-that the signed-in user has permission to use a feature.
+The 0.5 authentication boundary also replaces sliding human bearer tokens with
+short-lived access tokens and rotating refresh credentials. A 0.5 server
+rejects bearer records issued before that change, so affected users sign in
+once after upgrade. Older clients can read the initial access token from a 0.5
+login or OAuth response but cannot renew it and become unauthenticated when it
+expires. A remote 0.5 client connection requires the refresh credential and
+expiry fields from its OAuth response. The bundled same-origin client uses only
+its HttpOnly cookie. Its dedicated login and registration routes do not create
+or return bearer credentials. A separately hosted browser client must use
+Chatto OAuth. Upgrade serving replicas and bundled clients together; mixed replicas
+or rollback after new credentials have been issued can incorrectly extend
+fixed-expiry access records.
 
-Ignore capability values you do not recognise. If a capability you need is
-absent, treat that protocol as unavailable. Older servers may omit compatibility
-metadata entirely, so decide explicitly whether to reject those servers or
-support a known range of releases through your own tests.
+The new fields on
+`chatto.auth.v1.CreateExternalIdentityAccountResponse` are additive at the
+protobuf wire level. Programmatic clients can use the complete renewable pair.
+The bundled same-origin client completes this flow with its HttpOnly cookie.
 
-`compatibility.minimumWebClientVersion`, when present, applies only to Chatto's
-bundled web client. Third-party clients must not use it as their compatibility
-range.
+The 0.5 notification matrix uses the additive
+`chatto.api.v1.NotificationPolicyService`. An older server returns
+`Unimplemented` for this service. It cannot misapply a room-group update as a
+server update because the new service uses an explicit scope oneof. The
+existing `NotificationService` server and room policy methods remain available
+for integrations. A rollback makes new room-group overrides temporarily
+inactive; it does not convert them to server overrides. The group map changes
+the affected projection snapshot contract IDs, so an older binary cannot
+replace a newer snapshot with data that omits the group overrides.
+
+The delivery-mode enum keeps numeric values 1, 2, and 3. The names
+`IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are additive aliases for values 2
+and 3. The previous `SILENT` and `ALERT` names remain as deprecated aliases.
+Existing protobuf JSON responses continue to use the previous names so older
+JSON clients can decode them. A JSON client that sends a new alias requires a
+server that includes the new schema.
+
+Chatto 0.5 also requires `message.read` for channel-room message-content APIs
+and realtime message delivery. Fresh servers grant it to `everyone`. Existing
+servers do not receive an automatic grant because startup never changes
+operator-owned RBAC state. Operators must update RBAC and replace every old
+replica before they rely on the channel-room permission boundary. DM membership
+continues to authorize DM reads. New clients treat a missing `message.read`
+room-permission row from an older server as unsupported and keep the former
+membership-based channel-room navigation behavior.
+
+Chatto 0.5 adds `message.read.interactions` for relationship-scoped channel
+reads. An effective `message.read` allow includes this permission, so fresh
+servers store only the broad `everyone` grant. Existing servers do not receive
+an automatic grant. A direct mention or an authored root establishes access to
+the complete thread while room membership and the permission remain active.
+Clients supply known thread roots to the existing thread API. Chatto does not
+provide a relationship-list API. Older replicas do not know the narrow
+permission and deny this mode when `message.read` is absent. Complete the
+replica rollout before you depend on narrow-read availability.
+
+Chatto 0.5 also denies `RoomService.StartDM` to bot callers. This rule applies
+when the requested DM already exists. A human must start the DM, after which
+the bot can interact through its normal permissions. A bot integration that
+used `StartDM` must stop that call and use its room state or realtime events.
+During a mixed-replica rollout, an older replica can still accept the call.
+Upgrade all replicas before you depend on this boundary.
+
+This breaking realtime migration does not retire the `chatto.api.v1`
+ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
+API. Do not replace explicit resource reads, pagination, mutation responses, or
+read-your-writes handling with assumptions about projection internals.
+
+Protocol 2 resume cursors are opaque, viewer-bound, and valid for up to 24
+hours. Retain a cursor only with the projection state produced before it, and
+replace it after each `caught_up` frame. A missing, expired, or unusable cursor
+does not fail convergence: the server sends a compacted `reset` and current
+projection state through the same operation stream. An integration that is
+offline for more than 24 hours recovers current state but cannot request every
+historical transition from that interval.
+
+### Migrating from 0.5 development snapshots
+
+An unreleased 0.5 development version of server discovery exposed
+`compatibility.protocolCapabilities`. The final 0.5 contract removes that
+field and the containing `compatibility` message: capabilities such as
+individual RPCs or frontend implementation details are not a stable,
+user-facing compatibility model. Replace checks against that list with an
+explicit minimum supported server release in your client.
+
+Regenerate protobuf clients from the final 0.5 schema. Do not mix generated
+clients and servers from opposite sides of that development-only change.
 
 ## Before upgrading
 

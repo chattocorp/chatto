@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "Joindre un fichier",
     "send": "Envoyer un message",
-    "send_enter": "Envoyer un message (Entrée)",
-    "send_ctrl_enter": "Envoyer un message (Ctrl/Cmd+Entrée)",
+    "send_label": "Envoyer",
     "also_send_to_channel": "Envoyer également au canal",
+    "post_as_thread": "Publier comme fil de discussion",
+    "thread_label": "Sujet",
+    "echo_label": "Écho",
     "replying_to": "Répondre à",
     "esc_to_cancel": "pour annuler",
     "editing": "Modification du message",
@@ -21,7 +22,23 @@
     "drop_files_title": "Déposez les fichiers ici",
     "drop_files_subtitle": "Des images et des vidéos seront ajoutées à votre message",
     "send_failed": "Échec de l'envoi du message",
+    "slow_mode_ready": "Mode lent : un message toutes les {interval}.",
+    "slow_mode_waiting": "Mode lent : nouvel envoi dans {countdown}.",
+    "slow_mode_bypassed": "Mode lent : {interval} (vous êtes exempté).",
+    "slow_mode_rejected": "Le mode lent est activé. Attendez avant d’envoyer un autre message.",
+    "threads_encouraged": "L’utilisation des fils de discussion est encouragée dans ce salon.",
+    "recent_thread_confirm_title": "Continuer dans votre fil précédent ?",
+    "recent_thread_confirm_body": "Votre message précédent possède déjà un fil. Où souhaitez-vous publier ce message ?",
+    "post_as_new_message": "Publier comme nouveau message",
+    "continue_in_thread": "Continuer dans le fil",
     "edit_failed": "Échec de la modification du message",
+    "upload": {
+      "preparing": "Préparation…",
+      "uploading": "{percentage} % téléversé",
+      "uploaded": "Téléversé",
+      "failed": "Échec du téléversement",
+      "remove": "Supprimer {filename}"
+    },
     "format": {
       "bold": "Gras",
       "italic": "Italique",
@@ -30,7 +47,9 @@
       "bullet_list": "Liste à puces",
       "ordered_list": "Liste numérotée",
       "blockquote": "Citation",
-      "code_block": "Bloc de code"
+      "code_block": "Bloc de code",
+      "outdent": "Diminuer le retrait",
+      "indent": "Augmenter le retrait"
     },
     "timestamp": {
       "title": "Insérer un horodatage",

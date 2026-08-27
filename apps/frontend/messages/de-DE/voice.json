@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Verbindung wird hergestellt...",
     "joining": "Beitritt läuft...",
@@ -11,6 +10,15 @@
     "leave": "Anruf verlassen",
     "share_screen": "Bildschirm teilen",
     "stop_share_screen": "Bildschirmfreigabe beenden",
+    "applications": "Anwendungen",
+    "entire_screen": "Gesamter Bildschirm",
+    "share_source": "Freigabequelle",
+    "main_display": "Hauptbildschirm",
+    "display_number": "Bildschirm {number}",
+    "video_only": "Nur Video",
+    "share_sources_failed": "Freigabequellen konnten nicht geladen werden.",
+    "no_share_windows": "Keine teilbaren Anwendungsfenster gefunden.",
+    "no_share_displays": "Keine Bildschirme gefunden.",
     "user_settings": "Benutzereinstellungen",
     "speaking": "Spricht",
     "muted": "Stummgeschaltet",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Die Bildschirmfreigabe konnte nicht gestartet werden.",
     "speaker_switch_failed": "Der Lautsprecher konnte nicht gewechselt werden. Dieser Browser oder dieses Gerät unterstützt die Lautsprecherauswahl möglicherweise nicht.",
     "device_switch_failed": "Zu diesem Gerät konnte nicht gewechselt werden.",
-    "media_device_failed": "Auf ein Mediengerät konnte nicht zugegriffen werden."
+    "media_device_failed": "Auf ein Mediengerät konnte nicht zugegriffen werden.",
+    "stream_game": "Spiel streamen",
+    "stream_game_description": "Wähle das Spielfenster, das du mit allen im Anruf teilen möchtest.",
+    "game_windows": "Spielfenster",
+    "no_game_windows": "Keine teilbaren Fenster gefunden. Öffne ein Spiel im Fenster- oder randlosen Modus und versuche es erneut.",
+    "game_windows_failed": "Die teilbaren Fenster konnten nicht geladen werden.",
+    "untitled_window": "Fenster ohne Titel",
+    "game_window_selected": "{name} ausgewählt"
   }
 }

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
     "nav": {
       "general": "Algemeen",
@@ -10,7 +9,8 @@
       "security": "Beveiliging",
       "event_log": "Gebeurtenislogboek",
       "system": "Systeem",
-      "back_to_server": "Terug naar de server"
+      "back_to_server": "Terug naar de server",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | Beheerder",
@@ -122,6 +122,7 @@
       "create_role_title": "Rol maken",
       "create_role_subtitle": "Maak een nieuwe rol voor deze server",
       "create_role_action": "Rol maken",
+      "new_role_action": "+ Nieuwe rol",
       "creating_role": "Aanmaken...",
       "create_after_hint": "Nadat u de rol heeft aangemaakt, kunt u er machtigingen aan toewijzen op de bewerkingspagina.",
       "back_to_permissions": "Terug naar rechten",
@@ -142,7 +143,7 @@
       "no_users_with_role": "Er zijn geen gebruikers met deze rol",
       "server_tier_intro": "Deze pagina is bedoeld voor rolmachtigingen op serverniveau: brede standaardwaarden die van toepassing zijn vóór kamerspecifieke overschrijvingen.",
       "server_tier_rooms_hint": "Gebruik kamers voor overschrijvingen per groep en per kamer.",
-      "server_tier_denies_hint": "Gebruik opzettelijk weigeren: iedereen in een kamer weigeren blokkeert alle geërfde toestemmingen op dat niveau."
+      "resolution_hint": "Voor elke gebruiker of benoemde rol geldt de dichtstbijzijnde kamer-, groeps- of serverwaarde. Weigeringen winnen onderling. Een toestemming overschrijft een weigering van everyone alleen op hetzelfde of een specifieker niveau."
     },
     "rooms_admin": {
       "title": "Kamers",
@@ -160,6 +161,7 @@
       "empty_groups_body": "Maak een set om kamers te organiseren.",
       "drag_hint": "Sleep kamers tussen groepen om ze te ordenen. Versleep groepskoppen om de volgorde van groepen te wijzigen. Gearchiveerde kamers blijven in hun set, maar zijn verborgen voor leden.",
       "drag_group": "Sleep om de groep opnieuw te ordenen",
+      "drag_room": "Sleep om de ruimte opnieuw te ordenen",
       "new_room": "Nieuwe kamer",
       "new_link": "Nieuwe link",
       "new_group": "Nieuwe groep",
@@ -174,9 +176,23 @@
       "edit_room": "Kamer bewerken",
       "edit_room_action": "Kamer bewerken",
       "room_description_placeholder": "Optionele beschrijving voor deze kamer",
+      "slow_mode": "Langzame modus",
+      "slow_mode_description": "Stel in hoelang leden tussen berichten in deze ruimte moeten wachten.",
+      "slow_mode_off": "Uit",
+      "slow_mode_custom": "{interval} (huidige waarde)",
+      "threading_mode": "Threadmodus",
+      "threading_mode_description": "Vereist dwingt threads af; Aangemoedigd maakt antwoorden in een thread de hoofdactie; Ingeschakeld laat de keuze vrij; Uitgeschakeld blokkeert nieuwe threadactiviteit.",
+      "threading_mode_required": "Verplicht",
+      "threading_mode_required_description": "Elk bericht start een thread.",
+      "threading_mode_encouraged": "Aangemoedigd",
+      "threading_mode_encouraged_description": "Threads worden aangemoedigd, maar zijn niet verplicht.",
+      "threading_mode_enabled": "Ingeschakeld",
+      "threading_mode_enabled_description": "Threads zijn beschikbaar, maar optioneel.",
+      "threading_mode_disabled": "Uitgeschakeld",
+      "threading_mode_disabled_description": "Threads zijn niet beschikbaar.",
       "room_name_empty": "Kamernaam mag niet leeg zijn",
       "room_name_trim": "De naam van de ruimte mag geen witruimte vooraan of achteraan bevatten",
-      "room_name_charset": "De naam van de ruimte mag alleen letters, cijfers, koppeltekens en onderstrepingstekens bevatten",
+      "room_name_invalid": "De naam van de ruimte mag geen regeleinden of besturingstekens bevatten",
       "room_name_too_long": "De naam van de ruimte mag niet langer zijn dan 30 tekens",
       "create_group": "Groep maken",
       "group_name": "Groepsnaam",
@@ -215,14 +231,40 @@
       "archive_room_failed": "Kan ruimte niet archiveren: {error}",
       "unarchive_room_failed": "Kan kamer niet uit het archief halen: {error}",
       "save_link_failed": "Kan link niet opslaan: {error}",
-      "delete_link_failed": "Kan link niet verwijderen: {error}"
+      "delete_link_failed": "Kan link niet verwijderen: {error}",
+      "universal_members_description": "Lidmaatschap is automatisch in universele ruimtes. Iedereen met toegang tot deze ruimte wordt opgenomen.",
+      "archived_members_description": "Het lidmaatschap kan niet worden gewijzigd zolang deze ruimte is gearchiveerd.",
+      "add_member": "Lid toevoegen",
+      "adding_member": "Lid wordt toegevoegd...",
+      "load_members_failed": "Kan ruimteleden niet laden: {error}",
+      "remove_member": "Lid verwijderen",
+      "remove_member_prompt": "{name} uit {room} verwijderen? Deze persoon is dan niet langer expliciet lid van deze ruimte.",
+      "member_added": "{name} is aan de ruimte toegevoegd",
+      "add_member_failed": "Kan lid niet toevoegen: {error}",
+      "member_removed": "{name} is uit de ruimte verwijderd",
+      "remove_member_failed": "Kan lid niet verwijderen: {error}"
     },
     "security": {
       "title": "Beveiliging",
       "subtitle": "Aanmeldingsbeperkingen en accountbescherming",
       "blocked_usernames": "Geblokkeerde gebruikersnamen",
       "blocked_usernames_description": "Eén per regel. Gebruikers kunnen zich niet registreren met deze namen.",
-      "settings_saved": "Instellingen opgeslagen"
+      "settings_saved": "Instellingen opgeslagen",
+      "oauth_clients": {
+        "title": "OAuth-clients",
+        "description": "Applicaties verschijnen hier nadat een lid ze heeft geautoriseerd. Vertrouwen is enkel een beheerderslabel en slaat individuele toestemming nooit over; blokkeren voorkomt nieuwe toegang en trekt bestaande toegangstokens in.",
+        "empty": "Er zijn geen OAuth-clients geautoriseerd",
+        "application": "Applicatie",
+        "origins": "Callback-origins",
+        "users": "Geautoriseerde gebruikers",
+        "last_authorization": "Laatste autorisatie",
+        "policy": "Beleid",
+        "policy_for": "Beleid voor {client}",
+        "policy_default": "Standaard",
+        "policy_trusted": "Vertrouwd",
+        "policy_blocked": "Geblokkeerd",
+        "policy_saved": "OAuth-clientbeleid opgeslagen"
+      }
     },
     "system": {
       "title": "Systeem",
@@ -235,6 +277,7 @@
       "unlimited": "onbeperkt",
       "all_subjects": "alle onderwerpen",
       "pending_state": "In behandeling",
+      "worker_unconfirmed": "Onbevestigd",
       "rtt": "RTT",
       "max_payload": "Maximale lading",
       "server_id": "Server-ID",
@@ -374,6 +417,39 @@
       "email": "E-mail",
       "id": "Identiteitskaart",
       "total": "{count} gebruiker(s) totaal"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

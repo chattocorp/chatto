@@ -1,0 +1,16 @@
+{
+  "message_preview": {
+    "attachments_count": {
+      "zero": "{count} مرفقات",
+      "one": "{count} مرفق",
+      "two": "{count} مرفقان",
+      "few": "{count} مرفقات",
+      "many": "{count} مرفقًا",
+      "other": "{count} مرفق"
+    },
+    "attachment_image": "صورة",
+    "attachment_video": "فيديو",
+    "attachment_audio": "صوت",
+    "attachment_file": "ملف"
+  }
+}

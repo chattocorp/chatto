@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "Legg ved fil",
     "send": "Send melding",
-    "send_enter": "Send melding (Enter)",
-    "send_ctrl_enter": "Send melding (Ctrl/Cmd+Enter)",
+    "send_label": "Send",
     "also_send_to_channel": "Send også til kanalen",
+    "post_as_thread": "Publiser som tråd",
+    "thread_label": "Tråd",
+    "echo_label": "Ekko",
     "replying_to": "Svarer på",
     "esc_to_cancel": "for å avbryte",
     "editing": "Redigerer melding",
@@ -21,7 +22,23 @@
     "drop_files_title": "Slipp filer her",
     "drop_files_subtitle": "Bilder og videoer vil bli lagt til meldingen din",
     "send_failed": "Kunne ikke sende melding",
+    "slow_mode_ready": "Sakte modus: én melding hvert {interval}.",
+    "slow_mode_waiting": "Sakte modus: send igjen om {countdown}.",
+    "slow_mode_bypassed": "Sakte modus: {interval} (du er unntatt).",
+    "slow_mode_rejected": "Sakte modus er aktiv. Vent før du sender en ny melding.",
+    "threads_encouraged": "Tråder anbefales i dette rommet.",
+    "recent_thread_confirm_title": "Fortsette i den forrige tråden?",
+    "recent_thread_confirm_body": "Den forrige meldingen din har allerede en tråd. Hvor skal denne meldingen publiseres?",
+    "post_as_new_message": "Publiser som ny melding",
+    "continue_in_thread": "Fortsett i tråden",
     "edit_failed": "Kunne ikke redigere meldingen",
+    "upload": {
+      "preparing": "Klargjør…",
+      "uploading": "{percentage} % lastet opp",
+      "uploaded": "Lastet opp",
+      "failed": "Opplasting mislyktes",
+      "remove": "Fjern {filename}"
+    },
     "format": {
       "bold": "Fet",
       "italic": "Kursiv",
@@ -30,7 +47,9 @@
       "bullet_list": "Punktliste",
       "ordered_list": "Nummerert liste",
       "blockquote": "Sitat",
-      "code_block": "Kodeblokk"
+      "code_block": "Kodeblokk",
+      "outdent": "Reduser innrykk",
+      "indent": "Øk innrykk"
     },
     "timestamp": {
       "title": "Sett inn tidsstempel",

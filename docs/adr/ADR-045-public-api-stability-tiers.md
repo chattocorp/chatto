@@ -71,14 +71,13 @@ plan, generated-client updates, public documentation updates, and release-note
 guidance. Persisted `chatto.core.v1` messages remain subject to the stronger
 non-breaking storage contract regardless of this public API posture.
 
-Clients discover protocol support through `ServerDiscoveryService.GetServer`.
-Protocol capability keys are distinct from server feature configuration and
-authenticated viewer permissions. The bundled web client evaluates advertised
-capabilities first and uses the server software version only as a fallback for
-servers that predate compatibility metadata. A missing optional capability
-should disable or degrade the affected feature, not make the whole server
-unusable. New required client behaviour must be negotiated or accompanied by
-an explicit minimum bundled-client version.
+`ServerDiscoveryService.GetServer` reports the server software version. The
+bundled web client maintains explicit minimum server versions for features that
+vary across Chatto releases; the server does not declare minimum client
+versions. These version-skew checks remain distinct from server feature
+configuration and authenticated viewer permissions. New required realtime
+behavior must be negotiated in the protocol or accompanied by a clear
+client/server version boundary.
 
 Within each tier, public API design follows the resource-completeness and
 operation-vocabulary rules in ADR-044. The auth, discovery, integration,
@@ -113,11 +112,13 @@ ergonomics but must still tolerate reasonable bundled client/server skew. It
 uses additive protobuf evolution where feasible, preserves auth and error
 semantics for deployed clients, and documents any intentional skew boundary.
 
-The realtime protocol is versioned by protocol behavior, not by ConnectRPC
-method shape. Version 1 is live-only and does not provide replay cursors or
-acknowledgements. Future frame additions must be additive where possible, and
-new required client behavior must be negotiated through hello/capability fields
-or a new protocol version.
+The realtime protocol is versioned by protocol behavior, not by its protobuf
+package suffix. The `chatto.realtime.v1` namespace currently accepts only
+protocol version 2 and provides compacted projection bootstrap plus bounded
+resume. Public cursors are encrypted, authenticated capabilities and never
+expose NATS/JetStream coordinates. Future frame additions must be additive where
+possible, and new required client behavior must be negotiated through
+hello/capability fields or a new protocol version.
 
 Generated API reference documentation is split by domain instead of presented
 as one large mixed page. ConnectRPC service pages, shared ConnectRPC types, and
@@ -131,8 +132,10 @@ pre-1.0 public API breaking changes can still be accepted when the PR carries
 the `api-breaking-change` label and states the compatibility plan. That label
 only suppresses public API breaking checks for `chatto/auth/v1`,
 `chatto/api/v1`, `chatto/admin/v1`, `chatto/discovery/v1`, and
-`chatto/realtime/v1`; storage and internal protobuf checks, including
-`chatto/core/v1`, still run. The local root-equivalent `chatto.operator.v1`
+`chatto/realtime/v1`, plus the explicitly transient
+`chatto/core/v1/live_events.proto` wire envelope. Storage and other internal
+protobuf checks, including persisted `chatto/core/v1` contracts, still run.
+The local root-equivalent `chatto.operator.v1`
 surface is reviewed separately and is not part of the public network API
 posture.
 

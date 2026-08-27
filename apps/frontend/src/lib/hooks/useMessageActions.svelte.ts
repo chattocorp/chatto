@@ -1,11 +1,13 @@
-import { useConnection } from '$lib/state/server/connection.svelte';
+import { useServerScope } from '$lib/state/server/scope.svelte';
 import { toast } from '$lib/ui/toast';
 import { pushState } from '$app/navigation';
-import { getComposerContext, type MessagesStore } from '$lib/state/room';
+import { getComposerContext } from '$lib/state/room/composerContext.svelte';
+import type { MessagesStore } from '$lib/state/room/messages.svelte';
 import { emojiToName } from '$lib/emoji';
 import { copyMessageLinkToClipboard } from '$lib/messageLinks';
 import { createReactionAPI } from '$lib/api-client/reactions';
-import * as m from '$lib/i18n/messages';
+import { Code, isConnectCode } from '$lib/api-client/connect';
+import { m } from '$lib/i18n/messages';
 
 export type MessageActionParams = {
   serverId: string;
@@ -26,15 +28,15 @@ export type MessageActionParams = {
 export async function copyMessageTextToClipboard(messageBody: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(messageBody);
-    toast.success(m['common.copied_to_clipboard']());
+    toast.success(m('common.copied_to_clipboard'));
   } catch {
-    toast.error(m['room.message.actions.copy_text_failed']());
+    toast.error(m('room.message.actions.copy_text_failed'));
   }
 }
 
 /** Shared reaction mutation handlers for all message reaction controls. */
 export function useReactionActions() {
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   function reactionName(emojiOrName: string): string | null {
     return emojiToName(emojiOrName) ?? emojiOrName;
@@ -50,20 +52,21 @@ export function useReactionActions() {
     });
 
     try {
-      const conn = connection();
-      const result = await createReactionAPI({
-        serverId: conn.serverId ?? params.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).addReaction({
+      const result = await serverScope.connection.getAPI(createReactionAPI).addReaction({
         roomId: params.roomId,
         messageEventId: params.messageEventId,
         emoji: name
       });
+      if (!serverScope.isCurrent()) return;
       optimistic?.applyServerReaction(result.reaction);
-    } catch {
+    } catch (error) {
       optimistic?.rollback();
-      toast.error(m['room.message.reaction_failed']());
+      if (!serverScope.isCurrent()) return;
+      toast.error(
+        isConnectCode(error, Code.ResourceExhausted)
+          ? m('room.message.reaction_limit_reached')
+          : m('room.message.reaction_failed')
+      );
     }
   }
 
@@ -77,20 +80,17 @@ export function useReactionActions() {
     });
 
     try {
-      const conn = connection();
-      const result = await createReactionAPI({
-        serverId: conn.serverId ?? params.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).removeReaction({
+      const result = await serverScope.connection.getAPI(createReactionAPI).removeReaction({
         roomId: params.roomId,
         messageEventId: params.messageEventId,
         emoji: name
       });
+      if (!serverScope.isCurrent()) return;
       optimistic?.applyServerReaction(result.reaction);
     } catch {
       optimistic?.rollback();
-      toast.error(m['room.message.reaction_failed']());
+      if (!serverScope.isCurrent()) return;
+      toast.error(m('room.message.reaction_failed'));
     }
   }
 
@@ -129,6 +129,7 @@ export function useMessageActions() {
     pushState('', {
       modal: {
         type: 'deleteMessage',
+        serverId: params.serverId,
         roomId: params.roomId,
         eventId: params.deleteEventId ?? params.eventId
       }
@@ -156,3 +157,5 @@ export function useMessageActions() {
     copyMessageLink
   };
 }
+
+export type MessageActions = ReturnType<typeof useMessageActions>;

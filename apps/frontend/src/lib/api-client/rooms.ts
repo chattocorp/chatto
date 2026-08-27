@@ -8,8 +8,17 @@ import {
 } from './connect.js';
 import { Timestamp } from '@bufbuild/protobuf';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import type { Room, RoomBan as APIRoomBan } from '@chatto/api-types/api/v1/rooms_pb';
+import type {
+  Room,
+  RoomBan as APIRoomBan
+} from '@chatto/api-types/api/v1/rooms_pb';
 import { mapDirectoryMember, type DirectoryMember } from './memberDirectory.js';
+import {
+  normalizeRoomName,
+  ROOM_NAME_MAX_LENGTH,
+  roomNameCharacterCount
+} from '$lib/utils/roomName';
+import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
 
 export type { ConnectAPIConfig } from './connect.js';
 
@@ -20,6 +29,8 @@ export type PublicRoom = {
   archived: boolean;
   groupId: string;
   universal: boolean;
+  slowModeSeconds: number;
+  threadingMode: RoomThreadingMode;
 };
 
 export type RoomBanSummary = {
@@ -43,7 +54,6 @@ export type RoomBanList = {
 
 export type RoomCommandAPI = ReturnType<typeof createRoomCommandAPI>;
 
-const ROOM_NAME_MAX_LENGTH = 30;
 const ROOM_DESCRIPTION_MAX_LENGTH = 500;
 
 function publicRoom(room: Room | undefined): PublicRoom | null {
@@ -54,7 +64,9 @@ function publicRoom(room: Room | undefined): PublicRoom | null {
     description: room.description,
     archived: room.archived,
     groupId: room.groupId,
-    universal: room.universal
+    universal: room.universal,
+    slowModeSeconds: room.slowModeSeconds ?? 0,
+    threadingMode: normalizeRoomThreadingMode(room.kind, room.threadingMode)
   };
 }
 
@@ -76,7 +88,10 @@ function roomBan(ban: APIRoomBan): RoomBanSummary {
 function roomValidationError(err: unknown, input: { name?: string; description?: string | null }) {
   if (!(err instanceof ConnectError) || err.code !== Code.InvalidArgument) return err;
 
-  if (input.name !== undefined && input.name.length > ROOM_NAME_MAX_LENGTH) {
+  if (
+    input.name !== undefined &&
+    roomNameCharacterCount(normalizeRoomName(input.name)) > ROOM_NAME_MAX_LENGTH
+  ) {
     return new Error(`room name must be ${ROOM_NAME_MAX_LENGTH} characters or less`);
   }
   if ((input.description ?? '').length > ROOM_DESCRIPTION_MAX_LENGTH) {
@@ -96,6 +111,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       description?: string | null;
       groupId: string;
       universal?: boolean;
+      threadingMode?: RoomThreadingMode;
     }): Promise<PublicRoom | null> {
       try {
         const response = await rooms.createRoom(
@@ -103,7 +119,8 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
             name: input.name,
             description: input.description ?? '',
             groupId: input.groupId,
-            universal: input.universal ?? false
+            universal: input.universal ?? false,
+            threadingMode: input.threadingMode
           },
           { headers: headers() }
         );
@@ -118,6 +135,8 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       name?: string;
       description?: string | null;
       universal?: boolean;
+      slowModeSeconds?: number;
+      threadingMode?: RoomThreadingMode;
     }): Promise<PublicRoom | null> {
       try {
         const response = await rooms.updateRoom(
@@ -125,7 +144,9 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
             roomId: input.roomId,
             name: input.name,
             description: input.description === undefined ? undefined : (input.description ?? ''),
-            universal: input.universal
+            universal: input.universal,
+            slowModeSeconds: input.slowModeSeconds,
+            threadingMode: input.threadingMode
           },
           { headers: headers() }
         );
@@ -203,7 +224,8 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
     },
 
     async listBans(
-      input: { roomId?: string; limit?: number; offset?: number } = {}
+      input: { roomId?: string; limit?: number; offset?: number } = {},
+      options: { signal?: AbortSignal } = {}
     ): Promise<RoomBanList> {
       try {
         const response = await rooms.listBans(
@@ -211,7 +233,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
             roomId: input.roomId ?? '',
             page: { limit: input.limit ?? 100, offset: input.offset ?? 0 }
           },
-          { headers: headers() }
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
         );
         return {
           bans: response.bans.map(roomBan),

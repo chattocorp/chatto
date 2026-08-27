@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "Anexar ficheiro",
     "send": "Enviar mensagem",
-    "send_enter": "Enviar mensagem (Enter)",
-    "send_ctrl_enter": "Enviar mensagem (Ctrl/Cmd+Enter)",
+    "send_label": "Enviar",
     "also_send_to_channel": "Enviar também para o canal",
+    "post_as_thread": "Publicar como tópico",
+    "thread_label": "Tópico",
+    "echo_label": "Eco",
     "replying_to": "Respondendo a",
     "esc_to_cancel": "para cancelar",
     "editing": "A editar mensagem",
@@ -21,7 +22,23 @@
     "drop_files_title": "Solte os ficheiros aqui",
     "drop_files_subtitle": "As imagens e vídeos serão adicionados à sua mensagem",
     "send_failed": "Falha ao enviar mensagem",
+    "slow_mode_ready": "Modo lento: uma mensagem a cada {interval}.",
+    "slow_mode_waiting": "Modo lento: envie novamente dentro de {countdown}.",
+    "slow_mode_bypassed": "Modo lento: {interval} (está isento).",
+    "slow_mode_rejected": "O modo lento está ativo. Aguarde antes de enviar outra mensagem.",
+    "threads_encouraged": "A utilização de tópicos é recomendada nesta sala.",
+    "recent_thread_confirm_title": "Continuar no tópico anterior?",
+    "recent_thread_confirm_body": "A sua mensagem anterior já tem um tópico. Onde pretende publicar esta mensagem?",
+    "post_as_new_message": "Publicar como nova mensagem",
+    "continue_in_thread": "Continuar no tópico",
     "edit_failed": "Falha ao editar mensagem",
+    "upload": {
+      "preparing": "A preparar…",
+      "uploading": "{percentage}% carregado",
+      "uploaded": "Carregado",
+      "failed": "Falha no carregamento",
+      "remove": "Remover {filename}"
+    },
     "format": {
       "bold": "Negrito",
       "italic": "Itálico",
@@ -30,7 +47,9 @@
       "bullet_list": "Lista com marcas",
       "ordered_list": "Lista numerada",
       "blockquote": "Citação",
-      "code_block": "Bloco de código"
+      "code_block": "Bloco de código",
+      "outdent": "Diminuir avanço",
+      "indent": "Aumentar avanço"
     },
     "timestamp": {
       "title": "Inserir carimbo de data/hora",

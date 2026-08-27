@@ -29,8 +29,9 @@ type CreateMessageRequest struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Message body text. Required unless attachment_asset_ids is non-empty.
 	Body string `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
-	// Existing room-scoped attachment asset IDs to include with the message.
-	// At most 10 IDs may be supplied.
+	// Completed room-scoped asset IDs uploaded by the caller and not yet attached
+	// to a message. The server attaches them exclusively and atomically to this
+	// message. At most 10 IDs may be supplied.
 	AttachmentAssetIds []string `protobuf:"bytes,3,rep,name=attachment_asset_ids,json=attachmentAssetIds,proto3" json:"attachment_asset_ids,omitempty"`
 	// Event ID of the thread root message when posting a thread reply.
 	ThreadRootEventId string `protobuf:"bytes,4,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
@@ -41,8 +42,12 @@ type CreateMessageRequest struct {
 	// Short-lived token returned by FetchLinkPreview for the selected URL. The
 	// server resolves the token to cached, server-fetched metadata during post.
 	LinkPreviewToken string `protobuf:"bytes,10,opt,name=link_preview_token,json=linkPreviewToken,proto3" json:"link_preview_token,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// True to establish the new root message as a thread immediately. Requires
+	// both message.post and message.post-in-thread. Channel rooms only; cannot
+	// be combined with thread_root_event_id.
+	CreateThread  bool `protobuf:"varint,11,opt,name=create_thread,json=createThread,proto3" json:"create_thread,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateMessageRequest) Reset() {
@@ -122,6 +127,13 @@ func (x *CreateMessageRequest) GetLinkPreviewToken() string {
 		return x.LinkPreviewToken
 	}
 	return ""
+}
+
+func (x *CreateMessageRequest) GetCreateThread() bool {
+	if x != nil {
+		return x.CreateThread
+	}
+	return false
 }
 
 // Result of creating a message.
@@ -818,7 +830,7 @@ var File_chatto_api_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1dchatto/api/v1/reactions.proto\"\x89\x03\n" +
+	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1dchatto/api/v1/reactions.proto\"\xae\x03\n" +
 	"\x14CreateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12B\n" +
@@ -829,7 +841,8 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\vin_reply_to\x18\x05 \x01(\tR\tinReplyTo\x12/\n" +
 	"\x14also_send_to_channel\x18\x06 \x01(\bR\x11alsoSendToChannel\x12,\n" +
 	"\x12link_preview_token\x18\n" +
-	" \x01(\tR\x10linkPreviewTokenJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	" \x01(\tR\x10linkPreviewToken\x12#\n" +
+	"\rcreate_thread\x18\v \x01(\bR\fcreateThreadJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"J\x04\b\a\x10\bR\flink_previewR\vattachmentsR\x1amention_confirmation_token\"u\n" +
 	"\x15CreateMessageResponse\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x14mention_confirmationR\bincludes\"\xd7\x01\n" +

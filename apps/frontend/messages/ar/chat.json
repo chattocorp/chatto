@@ -1,0 +1,71 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "الإشعارات",
+      "subtitle": "إليك ما هو جديد",
+      "clear_all": "مسح الكل",
+      "empty_title": "لا توجد إخطارات",
+      "empty_body": "أنتم جميعًا محاصرون!",
+      "time_now": "الآن",
+      "time_minutes": "{count}m منذ",
+      "time_hours": "{count}h منذ",
+      "time_days": "{count}d منذ",
+      "unread": "غير مقروء",
+      "activity": "نشاط جديد",
+      "summary": {
+        "direct_message": "أرسل إليك {actor} رسالة مباشرة.",
+        "reaction": "تفاعل {actor} باستخدام «{emoji}» مع رسالتك في {channel}.",
+        "reaction_group": "تفاعل {actor} وآخرون باستخدام «{emoji}» مع رسالتك في {channel}.",
+        "reply": "ردّ {actor} على رسالتك.",
+        "mention": "أشار إليك {actor}.",
+        "followed_thread": "ردّ {actor} في سلسلة تتابعها.",
+        "new_message": "نشر {actor} رسالة جديدة.",
+        "activity": "أرسل إليك {actor} إشعارًا."
+      }
+    },
+    "sign_out": {
+      "title": "تسجيل الخروج",
+      "current_server": "الخادم الحالي",
+      "all_servers": "كافة الخوادم",
+      "description": "سجّل الخروج من الخادم المحدد فقط، أو افصل جميع الخوادم عن هذا العميل."
+    },
+    "overview": {
+      "title": "نظرة عامة"
+    },
+    "server_nav": {
+      "back_to_server": "العودة إلى الخادم",
+      "server_fallback": "الخادم",
+      "administration": "إدارة الخادم"
+    },
+    "user_menu": {
+      "profile": "الملف الشخصي للمستخدم",
+      "send_message": "أرسل رسالة",
+      "copy_user_id": "نسخ معرّف المستخدم"
+    },
+    "server_gutter": {
+      "add_server": "إضافة خادم",
+      "version": "الإصدار {version}",
+      "version_unknown": "الإصدار غير معروف",
+      "unreachable": "تعذر الوصول إلى الخادم",
+      "compatibility_server_too_old": "يجب ترقية هذا الخادم إلى Chatto 0.5 أو أحدث قبل أن يتمكن هذا التطبيق من الاتصال.",
+      "compatibility_unknown": "لا يمكن لهذا التطبيق تحديد التوافق من إصدار الخادم."
+    },
+    "threads": {
+      "title": "مواضيعي",
+      "subtitle": "المواضيع التي تتابعها",
+      "filter_label": "تصفية المواضيع",
+      "filter_all": "الكل",
+      "filter_unread": "غير مقروءة",
+      "empty_title": "لا توجد مواضيع متبعة",
+      "empty_body": "ستظهر هنا المواضيع التي تتابعها. تقوم تلقائيًا بمتابعة المواضيع التي تشارك فيها.",
+      "no_unread_loaded": "لم يتم تحميل أي مواضيع غير مقروءة",
+      "all_caught_up": "تم استيعاب الجميع",
+      "loaded_summary": "{loaded} من {total} تم متابعة المواضيع التي تم تحميلها.",
+      "load_more": "قم بتحميل المزيد",
+      "no_unread": "لا توجد سلاسل غير مقروءة الآن.",
+      "message_missing": "لم تعد الرسالة متاحة",
+      "in_room": "في",
+      "in_room_capitalized": "في"
+    }
+  }
+}

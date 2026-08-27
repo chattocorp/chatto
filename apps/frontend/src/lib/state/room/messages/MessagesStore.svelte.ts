@@ -1,14 +1,28 @@
 import { tick } from 'svelte';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { RoomEventView } from '$lib/render/types';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
-import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
-import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
+import {
+  TimelineEventKind,
+  timelineEventKind,
+  type MessagePostedPayload,
+  type TimelineEventPayload,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
+import {
+  createRoomTimelineAPI,
+  roomTimelineEventToView,
+  roomTimelinePageToEventConnectionPage,
+  type RoomTimelineAPI
+} from '$lib/api-client/roomTimeline';
+import type {
+  RoomTimelineEvent,
+  RoomTimelineIncludes,
+  RoomTimelinePage
+} from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
-import { isRootRoomEvent, isThreadEvent } from './filters';
-import { type EventConnectionPage, type RawEvent, getActorId, unmask } from './helpers';
+import { getActorId, unmask } from './helpers';
+import { MessageTimelineSource } from './MessageTimelineSource';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
 import {
   beginOptimisticReaction as beginOptimisticReactionPatch,
@@ -29,22 +43,10 @@ export type {
 } from './optimisticReactions';
 export type { OptimisticThreadFollowHandle } from './optimisticThreadFollow';
 
-type MessageScope = 'room' | 'thread';
-type RoomEventPayload = NonNullable<RoomEventView['event']>;
-type MessagePostedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.MessagePosted }>;
-type MessageEditedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.MessageEdited }>;
-type MessageRetractedPayload = Extract<
-  RoomEventPayload,
-  { kind: typeof RoomEventKind.MessageRetracted }
+type RoomDeletedPayload = Extract<
+  TimelineEventPayload,
+  { kind: typeof TimelineEventKind.RoomDeleted }
 >;
-type ReactionMutationPayload =
-  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.ReactionAdded }>
-  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.ReactionRemoved }>;
-type AssetProcessingPayload =
-  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingStarted }>
-  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingSucceeded }>
-  | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingFailed }>;
-type RoomDeletedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.RoomDeleted }>;
 
 export type RefreshCurrentWindowResult = {
   hasOlder: boolean;
@@ -57,37 +59,11 @@ function eventCacheKey(roomId: string, eventId: string): string {
   return `${roomId}\u0000${eventId}`;
 }
 
-function compareEventCreatedAt(a: RoomEventView, b: RoomEventView): number {
-  return Date.parse(a.createdAt) - Date.parse(b.createdAt);
-}
-
-function sortRoomEventList(events: RoomEventView[]): RoomEventView[] {
-  return events
-    .map((event, index) => ({ event, index }))
-    .sort((a, b) => compareEventCreatedAt(a.event, b.event) || a.index - b.index)
-    .map(({ event }) => event);
-}
-
-function sortThreadEventList(events: RoomEventView[], threadRootEventId: string): RoomEventView[] {
-  return events
-    .map((event, index) => ({ event, index }))
-    .sort((a, b) => {
-      const aIsRoot = a.event.id === threadRootEventId;
-      const bIsRoot = b.event.id === threadRootEventId;
-      if (aIsRoot && !bIsRoot) return -1;
-      if (!aIsRoot && bIsRoot) return 1;
-
-      const byCreatedAt = compareEventCreatedAt(a.event, b.event);
-      return byCreatedAt || a.index - b.index;
-    })
-    .map(({ event }) => event);
-}
-
-function eventFingerprint(event: RoomEventView): string {
+function eventFingerprint(event: TimelineEventView): string {
   return JSON.stringify(event);
 }
 
-function sameEventList(a: readonly RoomEventView[], b: readonly RoomEventView[]): boolean {
+function sameEventList(a: readonly TimelineEventView[], b: readonly TimelineEventView[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].id !== b[i].id) return false;
@@ -96,12 +72,10 @@ function sameEventList(a: readonly RoomEventView[], b: readonly RoomEventView[])
   return true;
 }
 
-function isContinuityEvent(
-  event: RoomEventView,
-  scope: MessageScope | null,
-  threadRootEventId: string
-): boolean {
-  return scope !== 'thread' || event.id !== threadRootEventId;
+function snapshotEventFingerprints(
+  events: readonly TimelineEventView[]
+): SvelteMap<string, string> {
+  return new SvelteMap(events.map((event) => [event.id, eventFingerprint(event)]));
 }
 
 function skippedRefreshResult(): RefreshCurrentWindowResult {
@@ -109,76 +83,70 @@ function skippedRefreshResult(): RefreshCurrentWindowResult {
 }
 
 function isMessagePostedPayload(
-  event: RoomEventView['event'] | EventEnvelope['event'] | null | undefined
+  event: TimelineEventView['event'] | null | undefined
 ): event is MessagePostedPayload {
-  return roomEventKind(event) === RoomEventKind.MessagePosted;
+  return timelineEventKind(event) === TimelineEventKind.MessagePosted;
 }
 
-function isRoomDeletedPayload(event: RoomEventView['event']): event is RoomDeletedPayload {
-  return roomEventKind(event) === RoomEventKind.RoomDeleted;
-}
+function scrubUserFromEvent(event: TimelineEventView, userId: string): TimelineEventView {
+  const scrubActor = event.actor?.id === userId;
+  const payload = event.event;
+  if (!isMessagePostedPayload(payload)) {
+    return scrubActor ? { ...event, actor: null } : event;
+  }
 
-function isMessageRetractedPayload(
-  event: RoomEventView['event']
-): event is MessageRetractedPayload {
-  return roomEventKind(event) === RoomEventKind.MessageRetracted;
-}
-
-function isMessageEditedPayload(event: RoomEventView['event']): event is MessageEditedPayload {
-  return roomEventKind(event) === RoomEventKind.MessageEdited;
-}
-
-function isReactionMutationPayload(
-  event: RoomEventView['event']
-): event is ReactionMutationPayload {
-  const kind = roomEventKind(event);
-  return kind === RoomEventKind.ReactionAdded || kind === RoomEventKind.ReactionRemoved;
-}
-
-function isAssetProcessingPayload(event: RoomEventView['event']): event is AssetProcessingPayload {
-  const kind = roomEventKind(event);
-  return (
-    kind === RoomEventKind.AssetProcessingStarted ||
-    kind === RoomEventKind.AssetProcessingSucceeded ||
-    kind === RoomEventKind.AssetProcessingFailed
+  const threadParticipants = payload.threadParticipants.filter(
+    (participant) => participant.id !== userId
   );
+  let reactionsChanged = false;
+  const reactions = payload.reactions.map((reaction) => {
+    const users = reaction.users.filter((user) => user.id !== userId);
+    if (users.length === reaction.users.length) return reaction;
+    reactionsChanged = true;
+    return { ...reaction, users };
+  });
+  const participantsChanged = threadParticipants.length !== payload.threadParticipants.length;
+  if (!scrubActor && !participantsChanged && !reactionsChanged) return event;
+
+  return {
+    ...event,
+    actor: scrubActor ? null : event.actor,
+    event: {
+      ...payload,
+      threadParticipants,
+      reactions
+    }
+  };
+}
+
+function isRoomDeletedPayload(event: TimelineEventView['event']): event is RoomDeletedPayload {
+  return timelineEventKind(event) === TimelineEventKind.RoomDeleted;
 }
 
 function roomTimelineFromServerConnection(serverConnection: ServerConnection): RoomTimelineAPI {
-  const candidate = serverConnection as {
-    serverId?: string;
-    connectBaseUrl?: string;
-    bearerToken?: string | null;
-  };
-  if (!candidate.connectBaseUrl) {
-    throw new Error('MessagesStore requires the ConnectRPC timeline API');
-  }
-  return createRoomTimelineAPI({
-    serverId: candidate.serverId,
-    baseUrl: candidate.connectBaseUrl,
-    bearerToken: candidate.bearerToken ?? null
-  });
+  return serverConnection.getAPI(createRoomTimelineAPI);
 }
 
 /**
  * Message store for both the main room timeline and a single thread pane.
  * Room history uses the protobuf ConnectRPC timeline API when available;
  * thread history requires that path. Lifecycle, pagination, refetch, and
- * realtime ingestion behavior stays shared across both scopes.
+ * authoritative projection ingestion behavior stays shared across both scopes.
  */
 export class MessagesStore {
-  events = $state<RoomEventView[]>([]);
+  events = $state<TimelineEventView[]>([]);
   isInitialLoading = $state(true);
   isLoadingMore = $state(false);
   hasReachedStart = $state(false);
 
   private readonly roomTimeline: RoomTimelineAPI;
-  private scope: MessageScope | null = null;
-  private threadRootEventId = '';
+  private source: MessageTimelineSource | null = null;
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
-  private previewEvents = new SvelteMap<string, RoomEventView | null>();
+  private previewEvents = new SvelteMap<string, TimelineEventView | null>();
   private pendingPreviewFetches = new SvelteMap<string, Promise<void>>();
-  private roomId = '';
+  private scrubbedUserIds = new SvelteSet<string>();
+  private messageTombstones = new SvelteMap<string, string>();
+  private removedMessageEventIds = new SvelteSet<string>();
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
   private optimisticReactions = new OptimisticMutationRegistry();
@@ -191,6 +159,8 @@ export class MessagesStore {
   #windowId = 0;
   #pendingAuthoritativeLoadId: number | null = null;
   #pendingJumpId: number | null = null;
+  #projectionAccessRevoked = false;
+  #previewGeneration = 0;
 
   constructor(
     serverConnection: ServerConnection,
@@ -200,24 +170,47 @@ export class MessagesStore {
     this.roomTimeline = roomTimeline ?? roomTimelineFromServerConnection(serverConnection);
   }
 
+  private get scope() {
+    return this.source?.scope ?? null;
+  }
+
+  private get roomId() {
+    return this.source?.roomId ?? '';
+  }
+
+  private get threadRootEventId() {
+    return this.source?.threadRootEventId ?? '';
+  }
+
+  private selectRoom(roomId: string): MessageTimelineSource {
+    if (!this.source?.matches('room', roomId)) {
+      this.source = MessageTimelineSource.room(this.roomTimeline, roomId);
+    }
+    return this.source;
+  }
+
   /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
-    // The message store has no owned subscriptions. Server-event replay is
-    // managed by the singleton event bus.
+    // Invalidate every outstanding async read before its owner drops the
+    // store. Server-event replay itself is managed by the singleton event bus.
+    this.startLoad();
+    this.invalidatePendingPreviewFetches();
   }
 
   /** Root-level events only (excludes thread replies). */
-  get rootEvents(): RoomEventView[] {
-    return this.events.filter(isRootRoomEvent);
+  get rootEvents(): TimelineEventView[] {
+    const events = this.events;
+    return this.source?.rootEventsFrom(events) ?? [];
   }
 
   /** Events that belong to this thread (root + replies). */
-  get threadEvents(): RoomEventView[] {
-    return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
+  get threadEvents(): TimelineEventView[] {
+    const events = this.events;
+    return this.source?.threadEventsFrom(events) ?? [];
   }
 
   /** Look up an event already known to this room, including off-window preview targets. */
-  getEventById(eventId: string): RoomEventView | null | undefined {
+  getEventById(eventId: string): TimelineEventView | null | undefined {
     return (
       this.events.find((e) => e.id === eventId) ?? this.previewEvents.get(this.previewKey(eventId))
     );
@@ -331,6 +324,7 @@ export class MessagesStore {
   /** Fetch an off-window event for previews. Transient errors are not cached. */
   ensureEvent(eventId: string): Promise<void> | undefined {
     if (!this.roomId) return undefined;
+    if (this.#projectionAccessRevoked) return undefined;
     if (this.events.some((e) => e.id === eventId)) return undefined;
 
     const key = this.previewKey(eventId);
@@ -339,8 +333,11 @@ export class MessagesStore {
     const existing = this.pendingPreviewFetches.get(key);
     if (existing) return existing;
 
+    const previewGeneration = this.#previewGeneration;
+    const roomId = this.roomId;
     const promise = this.fetchEventById(eventId)
       .then((event) => {
+        if (this.#previewGeneration !== previewGeneration || this.roomId !== roomId) return;
         if (event) this.clearOptimisticVersionForEvent(event.id);
         this.previewEvents.set(key, event);
       })
@@ -348,7 +345,9 @@ export class MessagesStore {
         console.error('MessagesStore: ensureEvent failed:', error);
       })
       .finally(() => {
-        this.pendingPreviewFetches.delete(key);
+        if (this.pendingPreviewFetches.get(key) === promise) {
+          this.pendingPreviewFetches.delete(key);
+        }
       });
 
     this.pendingPreviewFetches.set(key, promise);
@@ -379,66 +378,218 @@ export class MessagesStore {
   }
 
   setRoom(roomId: string): void {
-    if (this.scope === 'room' && this.roomId === roomId) return;
+    if (this.source?.matches('room', roomId)) return;
 
-    this.scope = 'room';
+    this.selectRoom(roomId);
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
-    this.roomId = roomId;
-    this.threadRootEventId = '';
     void this.resetAndFetchLatest();
   }
 
-  setThread(roomId: string, threadRootEventId: string): void {
-    if (
-      this.scope === 'thread' &&
-      this.roomId === roomId &&
-      this.threadRootEventId === threadRootEventId
-    ) {
-      return;
-    }
+  /** Select a room without issuing a read while its projection prefix is in flight. */
+  awaitRoomProjection(roomId: string): void {
+    if (this.source?.matches('room', roomId)) return;
+    this.startLoad();
+    this.selectRoom(roomId);
+    this.#pendingAuthoritativeLoadId = null;
+    this.resetState();
+    this.isInitialLoading = true;
+  }
 
-    this.scope = 'thread';
+  /** Replace this room's recent retained window from the realtime projection stream. */
+  replaceRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
+    // A message deep-link may start its around-window read while the lazy
+    // latest-page hydration is still in flight. Install the useful fallback
+    // page, but do not let its late delivery cancel the newer navigation intent.
+    const preservePendingJump = !!(
+      this.#pendingJumpId !== null && this.source?.matches('room', roomId)
+    );
+    this.startLoad();
+    if (!preservePendingJump) {
+      this.#jumpId++;
+      this.#pendingJumpId = null;
+    }
+    this.selectRoom(roomId);
+    this.#pendingAuthoritativeLoadId = null;
+    const connection = roomTimelinePageToEventConnectionPage(page);
+    // Reset already purged the pre-prefix state. Preserve writes ingested
+    // after that reset: the compacted page was captured before those writes
+    // and its later arrival must not erase read-your-writes.
+    this.replaceWithFetchedAndUpdateCursors(connection);
+    this.hasReachedStart = !connection.hasOlder;
+    this.isInitialLoading = preservePendingJump;
+  }
+
+  /** Supersede a historical jump when this room crosses a route boundary. */
+  cancelPendingHistoricalJump(): void {
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
-    this.roomId = roomId;
-    this.threadRootEventId = threadRootEventId;
+  }
+
+  /** Restore this retained room's canonical latest projection at a route boundary. */
+  restoreRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
+    this.cancelPendingHistoricalJump();
+    this.startLoad();
+    const source = this.selectRoom(roomId);
+    this.#pendingAuthoritativeLoadId = null;
+    const connection = roomTimelinePageToEventConnectionPage(page);
+    const projected = this.unmaskEvents(connection.events);
+    for (const event of projected) this.clearOptimisticVersionForEvent(event.id);
+    this.events = source.sort(projected);
+    this.seenIds = new SvelteSet(projected.map((event) => event.id));
+    this.oldestCursor = connection.startCursor ?? undefined;
+    this.newestCursor = connection.endCursor ?? undefined;
+    this.hasReachedStart = !connection.hasOlder;
+    this.isInitialLoading = false;
+  }
+
+  /** Purge retained rows without changing this store's identity for mounted consumers. */
+  resetProjectionState(): void {
+    const thisLoad = this.startLoad();
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+    this.#pendingAuthoritativeLoadId = null;
+    this.resetState();
+    this.isInitialLoading = true;
+
+    // Thread detail is intentionally lazy and is not part of the compacted
+    // server prefix. Reload an open thread through its existing read model.
+    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
+      void this.fetchCurrent(thisLoad);
+    }
+  }
+
+  /**
+   * Purge plaintext after projected room access is revoked.
+   *
+   * Unlike a transport reset, this must not issue a replacement read. The
+   * incremented load generation also prevents an older room/thread response
+   * from reinstalling data after the authorization transition.
+   */
+  clearForAccessRevocation(): void {
+    this.startLoad();
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+    this.#pendingAuthoritativeLoadId = null;
+    this.#projectionAccessRevoked = true;
+    this.resetState();
+    this.isInitialLoading = false;
+  }
+
+  /** Reload an open thread only when it was previously scrubbed for access loss. */
+  restoreAfterAccessGrant(): void {
+    if (!this.#projectionAccessRevoked) return;
+    this.#projectionAccessRevoked = false;
+    this.isInitialLoading = true;
+    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
+      void this.fetchCurrent(this.startLoad());
+    }
+  }
+
+  /**
+   * Remove copied render data for a deleted account while preserving stable
+   * actor and participant IDs on historical facts.
+   */
+  scrubUserReferences(userId: string): void {
+    this.invalidatePendingPreviewFetches();
+    this.optimisticReactions.clearAll();
+    this.scrubbedUserIds.add(userId);
+    const events = this.events.map((event) => this.scrubKnownUserReferences(event));
+    if (events.some((event, index) => event !== this.events[index])) this.events = events;
+
+    for (const [key, event] of this.previewEvents) {
+      if (!event) continue;
+      const scrubbed = this.scrubKnownUserReferences(event);
+      if (scrubbed !== event) this.previewEvents.set(key, scrubbed);
+    }
+  }
+
+  /** Apply one authoritative current timeline row from the projection stream. */
+  upsertRoomProjectionEvent(
+    roomId: string,
+    event: RoomTimelineEvent,
+    includes: RoomTimelineIncludes | undefined,
+    retainDeletedRow = false,
+    insertIfMissing = true
+  ): void {
+    if (this.roomId !== roomId) return;
+    this.isInitialLoading = false;
+    const projectedMessage =
+      event.event.case === 'messagePosted' ? event.event.value.message : null;
+    if (projectedMessage?.deletedAt) {
+      const deletedAt = projectedMessage.deletedAt.toDate().toISOString();
+      if (retainDeletedRow) this.applyRetainedDeletion(event.id, deletedAt);
+      else this.applyDeletion(event.id, deletedAt);
+      return;
+    }
+    const view = roomTimelineEventToView(event, includes?.users ?? {});
+    if (!view) return;
+    const projected = this.unmaskEvents([view])[0];
+    if (!projected) return;
+
+    const existingIndex = this.events.findIndex((candidate) => candidate.id === projected.id);
+    if (existingIndex === -1) {
+      if (!insertIfMissing) return;
+      this.ingestEvent(projected);
+      return;
+    }
+    this.clearOptimisticVersionForEvent(projected.id);
+    this.events[existingIndex] = projected;
+    this.sortEvents();
+  }
+
+  private applyRetainedDeletion(messageEventId: string, deletedAt: string): void {
+    this.invalidatePendingPreviewFetches();
+    this.messageTombstones.set(messageEventId, deletedAt);
+    const index = this.events.findIndex((event) => event.id === messageEventId);
+    if (index !== -1) {
+      const event = this.applyPrivacyBoundaries(this.events[index]);
+      if (event) this.events[index] = event;
+    }
+    this.applyPrivacyBoundariesToPreviews();
+  }
+
+  /** Remove one projection-only row, such as a disabled channel echo. */
+  removeRoomProjectionEvent(roomId: string, eventId: string): void {
+    if (this.roomId !== roomId) return;
+    this.invalidatePendingPreviewFetches();
+    this.removedMessageEventIds.add(eventId);
+    this.clearChannelEchoLink(eventId);
+    this.previewEvents.delete(this.previewKey(eventId));
+    const index = this.events.findIndex((event) => event.id === eventId);
+    if (index === -1) return;
+    this.events.splice(index, 1);
+    this.seenIds.delete(eventId);
+  }
+
+  setThread(roomId: string, threadRootEventId: string): void {
+    if (this.source?.matches('thread', roomId, threadRootEventId)) return;
+
+    this.source = MessageTimelineSource.thread(this.roomTimeline, roomId, threadRootEventId);
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
 
     const thisLoad = this.startLoad();
     this.resetState();
     this.isInitialLoading = true;
-    this.fetchThread(thisLoad);
+    void this.fetchCurrent(thisLoad);
   }
 
   /**
-   * Route a space event into the store. Handles common message-list
-   * mutations inline and delegates room/thread-specific MessagePostedEvent
-   * handling to the current scope.
+   * Route an already-renderable event into the store. Used for historical
+   * pages and read-your-writes after mutations that return the posted event.
    */
-  ingestServerEvent(serverEvent: EventEnvelope): void {
-    // Subscription and historical-query payloads share the same Event
-    // envelope. Cast once at the room boundary so downstream code can keep
-    // using the RoomEventView shape it renders with.
-    const spaceEvent = serverEvent as unknown as RoomEventView;
-    this.ingestEvent(spaceEvent);
-  }
-
-  /**
-   * Route an already-renderable event into the store. Used for read-your-writes
-   * after mutations that return the posted event; live subscription delivery
-   * still follows {@link ingestServerEvent} and is deduped by event ID.
-   */
-  ingestEvent(spaceEvent: RoomEventView): void {
+  ingestEvent(spaceEvent: TimelineEventView): void {
+    const sanitisedEvent = this.applyPrivacyBoundaries(spaceEvent);
+    if (!sanitisedEvent) return;
+    spaceEvent = sanitisedEvent;
     const eventData = spaceEvent.event;
-    if (!eventData) return;
-    const kind = roomEventKind(eventData);
-
-    if (kind === RoomEventKind.ServerMemberDeleted) {
-      this.refetchAll();
-      return;
-    }
+    const kind = timelineEventKind(eventData);
 
     if (isRoomDeletedPayload(eventData)) {
       if (eventData.roomId === this.roomId) this.resetState();
@@ -446,81 +597,54 @@ export class MessagesStore {
     }
 
     // From here on, only events scoped to this room are interesting.
-    const eventRoomId =
-      'roomId' in eventData
-        ? eventData.roomId
-        : 'processingRoomId' in eventData
-          ? eventData.processingRoomId
-          : null;
-    if (eventRoomId != null && eventRoomId !== this.roomId) return;
-
-    if (isMessageRetractedPayload(eventData)) {
-      this.applyDeletion(eventData.messageEventId, spaceEvent.createdAt);
-      return;
-    }
-
-    if (isMessageEditedPayload(eventData)) {
-      if (!('body' in eventData)) {
-        void this.refetchByMessageEventId(eventData.messageEventId);
-        return;
-      }
-      this.applyEdit(eventData.messageEventId, eventData);
-      return;
-    }
-
-    if (isReactionMutationPayload(eventData)) {
-      this.refetchByMessageEventId(eventData.messageEventId);
-      return;
-    }
-
-    if (isAssetProcessingPayload(eventData)) {
-      if (!eventData.processingMessageEventId) return;
-      this.refetchByMessageEventId(eventData.processingMessageEventId);
-      return;
-    }
+    if (eventData.roomId !== this.roomId) return;
 
     if (isMessagePostedPayload(eventData)) {
-      if (!('body' in eventData)) {
-        const messageEventId =
-          'messageEventId' in eventData && typeof eventData.messageEventId === 'string'
-            ? eventData.messageEventId
-            : spaceEvent.id;
-        void this.fetchAndIngestMessagePostedSignal(
-          messageEventId,
-          eventData.threadRootEventId ?? null
-        );
-        return;
-      }
       this.onMessagePosted(spaceEvent, eventData);
       return;
     }
 
     if (
-      kind === RoomEventKind.UserJoinedRoom ||
-      kind === RoomEventKind.UserLeftRoom ||
-      kind === RoomEventKind.RoomUpdated ||
-      kind === RoomEventKind.RoomArchived ||
-      kind === RoomEventKind.RoomUnarchived
+      kind === TimelineEventKind.UserJoinedRoom ||
+      kind === TimelineEventKind.UserLeftRoom ||
+      kind === TimelineEventKind.RoomUpdated ||
+      kind === TimelineEventKind.RoomArchived ||
+      kind === TimelineEventKind.RoomUnarchived ||
+      kind === TimelineEventKind.RoomCreated ||
+      kind === TimelineEventKind.RoomThreadingModeChanged ||
+      kind === TimelineEventKind.CallStarted ||
+      kind === TimelineEventKind.CallEnded
     ) {
-      if (!spaceEvent.actor && this.roomTimeline) {
-        void this.fetchAndIngestSystemEvent(spaceEvent.id);
-        return;
-      }
       this.onSystemEvent(spaceEvent);
     }
   }
 
   async loadMore(): Promise<void> {
-    if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
+    const source = this.source;
+    if (
+      !source ||
+      this.#projectionAccessRevoked ||
+      this.isLoadingMore ||
+      this.hasReachedStart ||
+      !this.oldestCursor
+    )
+      return;
 
     const before = this.oldestCursor;
+    const loadId = this.#loadId;
     this.isLoadingMore = true;
 
     try {
-      const page = await this.fetchOlderPage(before);
-      if (!page) return;
+      const page = await source.fetchPage({ limit: PAGE_SIZE, before });
 
-      const olderEvents = unmask(page.events);
+      // A reset, access revocation, route/scope change, or owner disposal may
+      // have happened while this page was in flight. Never let an older
+      // authorization context reinstall plaintext or overwrite new cursors.
+      if (this.isStale(loadId) || this.#projectionAccessRevoked || this.source !== source) {
+        return;
+      }
+
+      const olderEvents = this.unmaskEvents(page.events);
       if (olderEvents.length === 0) {
         if (page.startCursor) {
           this.oldestCursor = page.startCursor;
@@ -533,7 +657,7 @@ export class MessagesStore {
           this.oldestCursor = page.startCursor;
         }
         const added = this.prependEvents(olderEvents);
-        this.afterOlderPagePrepended();
+        if (source.scope === 'thread') this.events = source.sort(this.events);
         if (added === 0 && (!page.hasOlder || !page.startCursor || page.startCursor === before)) {
           this.hasReachedStart = true;
         }
@@ -546,37 +670,16 @@ export class MessagesStore {
       // Yield a frame so the virtualizer can settle before another loadMore.
       await tick();
       await new Promise((r) => requestAnimationFrame(r));
-      this.isLoadingMore = false;
+      if (!this.isStale(loadId) && this.source === source) {
+        this.isLoadingMore = false;
+      }
     }
   }
 
   async refetchAll(): Promise<void> {
-    const snapshot = this.scope === 'thread' ? [...this.threadEvents] : [...this.rootEvents];
+    const snapshot = [...(this.source?.eventsFrom(this.events) ?? [])];
     for (const event of snapshot) {
       await this.refetchOne(event.id);
-    }
-  }
-
-  private async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
-    if (this.scope === 'thread') {
-      return this.roomTimeline.getThreadEvents({
-        roomId: this.roomId,
-        threadRootEventId: this.threadRootEventId,
-        limit: PAGE_SIZE,
-        before
-      });
-    }
-
-    return this.roomTimeline.getRoomEvents({
-      roomId: this.roomId,
-      limit: PAGE_SIZE,
-      before
-    });
-  }
-
-  private afterOlderPagePrepended(): void {
-    if (this.scope === 'thread') {
-      this.sortThreadEvents();
     }
   }
 
@@ -597,31 +700,25 @@ export class MessagesStore {
   }
 
   async loadNewer(jumpState: JumpToMessageState): Promise<void> {
-    if (this.scope !== 'room') return;
+    const source = this.source;
+    if (source?.scope !== 'room') return;
     if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
     if (!this.newestCursor) return;
 
-    const roomId = this.roomId;
     const windowId = this.#windowId;
     jumpState.isLoadingNewer = true;
     try {
-      const page = await this.roomTimeline.getRoomEvents({
-        roomId,
+      const page = await source.fetchPage({
         limit: PAGE_SIZE,
         after: this.newestCursor
       });
 
       // User left jumped mode while in flight — abandon the result.
-      if (
-        !jumpState.isJumpedMode ||
-        this.scope !== 'room' ||
-        this.roomId !== roomId ||
-        this.#windowId !== windowId
-      ) {
+      if (!jumpState.isJumpedMode || this.source !== source || this.#windowId !== windowId) {
         return;
       }
 
-      const newer = unmask(page.events);
+      const newer = this.unmaskEvents(page.events);
       if (newer.length === 0) {
         jumpState.hasReachedEnd = true;
       } else {
@@ -635,16 +732,16 @@ export class MessagesStore {
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
     } finally {
-      if (this.roomId === roomId && this.#windowId === windowId) {
+      if (this.source === source && this.#windowId === windowId) {
         jumpState.isLoadingNewer = false;
       }
     }
   }
 
   async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
-    if (this.scope !== 'room') return false;
+    const source = this.source;
+    if (source?.scope !== 'room') return false;
     const jumpId = ++this.#jumpId;
-    const roomId = this.roomId;
     if (this.events.some((e) => e.id === eventId)) {
       if (this.#pendingJumpId !== null) {
         this.#pendingJumpId = null;
@@ -659,17 +756,17 @@ export class MessagesStore {
     jumpState.isLoadingNewer = false;
     this.isInitialLoading = true;
     try {
-      const around = await this.roomTimeline.getRoomEventsAround({
-        roomId,
-        eventId,
-        limit: PAGE_SIZE
-      });
+      const around = await source.fetchAround(eventId, PAGE_SIZE);
 
-      if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
+      if (this.#jumpId !== jumpId || this.source !== source) return false;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
-      const parsed = unmask(rawEvents);
+      const parsed = this.unmaskEvents(rawEvents);
       if (!parsed.some((event) => event.id === eventId)) {
+        if (this.events.some((event) => event.id === eventId)) {
+          jumpState.scrollToEventId = eventId;
+          return true;
+        }
         jumpState.scrollToEventId = null;
         jumpState.isJumpedMode = false;
         jumpState.hasReachedEnd = false;
@@ -695,7 +792,11 @@ export class MessagesStore {
       jumpState.scrollToEventId = eventId;
       return true;
     } catch (error) {
-      if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
+      if (this.#jumpId !== jumpId || this.source !== source) return false;
+      if (this.events.some((event) => event.id === eventId)) {
+        jumpState.scrollToEventId = eventId;
+        return true;
+      }
       console.error('MessagesStore: jumpToMessage failed:', error);
       jumpState.scrollToEventId = null;
       jumpState.isJumpedMode = false;
@@ -703,7 +804,7 @@ export class MessagesStore {
       jumpState.hasOlderMessages = false;
       return false;
     } finally {
-      if (this.#jumpId === jumpId && this.scope === 'room' && this.roomId === roomId) {
+      if (this.#jumpId === jumpId && this.source === source) {
         this.#pendingJumpId = null;
         this.isInitialLoading = this.#pendingAuthoritativeLoadId !== null;
       }
@@ -725,63 +826,47 @@ export class MessagesStore {
    * have missed subscription events.
    */
   async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
-    if (!this.scope || !this.roomId) return skippedRefreshResult();
+    const source = this.source;
+    if (!source) return skippedRefreshResult();
 
     const thisLoad = this.startLoad();
-    const existingBeforeFetch = new SvelteSet(this.events.map((e) => e.id));
+    const existingBeforeFetch = snapshotEventFingerprints(this.events);
+    const anchor = anchorEventId ?? null;
+    const mode = anchor
+      ? source.scope === 'thread'
+        ? 'thread-around'
+        : 'around'
+      : source.scope === 'thread'
+        ? 'thread-latest'
+        : 'latest';
     console.debug('[room-refresh] store refresh started', {
-      roomId: this.roomId,
-      scope: this.scope,
-      anchorEventId: anchorEventId ?? null,
+      roomId: source.roomId,
+      scope: source.scope,
+      anchorEventId: anchor,
       existingCount: this.events.length
     });
 
     try {
-      if (this.scope === 'thread') {
-        const result = await this.refreshThreadWindow(
-          thisLoad,
-          existingBeforeFetch,
-          anchorEventId ?? null
-        );
-        console.debug('[room-refresh] store refresh finished', {
-          roomId: this.roomId,
-          scope: this.scope,
-          mode: anchorEventId ? 'thread-around' : 'thread-latest',
-          anchorEventId: anchorEventId ?? null,
-          result,
-          eventCount: this.events.length
-        });
-        return result;
-      }
-
-      if (anchorEventId) {
-        const refreshedAroundAnchor = await this.refreshRoomAround(
-          thisLoad,
-          anchorEventId,
-          existingBeforeFetch
-        );
-        if (refreshedAroundAnchor) {
-          console.debug('[room-refresh] store refresh finished', {
-            roomId: this.roomId,
-            scope: this.scope,
-            mode: 'around',
-            anchorEventId,
-            result: refreshedAroundAnchor,
-            eventCount: this.events.length
-          });
-          return refreshedAroundAnchor;
-        }
-        console.debug('[room-refresh] anchor refresh unavailable, falling back to latest', {
-          roomId: this.roomId,
-          anchorEventId
-        });
-      }
-
-      const result = await this.refreshRoomLatest(thisLoad, existingBeforeFetch);
+      const page = anchor
+        ? await source.fetchAround(anchor, PAGE_SIZE)
+        : await source.fetchPage({ limit: PAGE_SIZE });
+      if (this.isStale(thisLoad) || this.source !== source) return skippedRefreshResult();
+      const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+        preserveExistingWindow:
+          source.scope === 'room' || anchor === null || anchor !== source.threadRootEventId,
+        latestSnapshot: anchor === null
+      });
+      const result = {
+        hasOlder: page.hasOlder,
+        hasNewer: page.hasNewer,
+        refreshed: true,
+        changed
+      };
       console.debug('[room-refresh] store refresh finished', {
-        roomId: this.roomId,
-        scope: this.scope,
-        mode: 'latest',
+        roomId: source.roomId,
+        scope: source.scope,
+        mode,
+        anchorEventId: anchor,
         result,
         eventCount: this.events.length
       });
@@ -793,10 +878,7 @@ export class MessagesStore {
     }
   }
 
-  private onMessagePosted(
-    spaceEvent: RoomEventView,
-    eventData: Extract<RoomEventView['event'], { kind: typeof RoomEventKind.MessagePosted }>
-  ): void {
+  private onMessagePosted(spaceEvent: TimelineEventView, eventData: MessagePostedPayload): void {
     if (this.scope === 'thread') {
       if (
         eventData.echoOfEventId &&
@@ -808,7 +890,7 @@ export class MessagesStore {
 
       if (eventData.threadRootEventId === this.threadRootEventId) {
         this.addEvent(spaceEvent, { sortRoom: false });
-        this.sortThreadEvents();
+        this.sortEvents();
       }
       return;
     }
@@ -825,51 +907,19 @@ export class MessagesStore {
     this.addEvent(spaceEvent);
   }
 
-  private onSystemEvent(spaceEvent: RoomEventView): void {
+  private onSystemEvent(spaceEvent: TimelineEventView): void {
     if (this.scope === 'room') {
       this.addEvent(spaceEvent);
-    }
-  }
-
-  private async fetchAndIngestSystemEvent(eventId: string): Promise<void> {
-    const fetched = await this.fetchEventById(eventId);
-    if (fetched) {
-      this.ingestEvent(fetched);
-    }
-  }
-
-  private async fetchAndIngestMessagePostedSignal(
-    messageEventId: string,
-    threadRootEventId: string | null
-  ): Promise<void> {
-    const fetched = await this.fetchEventById(messageEventId, threadRootEventId);
-    if (fetched) {
-      this.ingestEvent(fetched);
-      return;
-    }
-
-    if (this.scope === 'room' && threadRootEventId) {
-      await this.refetchOne(threadRootEventId);
     }
   }
 
   private async fetchEventById(
     eventId: string,
     threadRootEventId?: string | null
-  ): Promise<RoomEventView | null> {
-    const page = threadRootEventId
-      ? await this.roomTimeline.getThreadEventsAround({
-          roomId: this.roomId,
-          threadRootEventId,
-          eventId,
-          limit: 1
-        })
-      : await this.roomTimeline.getRoomEventsAround({
-          roomId: this.roomId,
-          eventId,
-          limit: 1
-        });
-    return unmask(page.events).find((event) => event.id === eventId) ?? null;
+  ): Promise<TimelineEventView | null> {
+    const page = await this.source?.fetchAround(eventId, 1, threadRootEventId ?? null);
+    if (!page) return null;
+    return this.unmaskEvents(page.events).find((event) => event.id === eventId) ?? null;
   }
 
   private async refetchOne(eventId: string): Promise<void> {
@@ -883,19 +933,6 @@ export class MessagesStore {
     if (idx !== -1) this.events[idx] = updated;
   }
 
-  private async refetchByMessageEventId(messageEventId: string): Promise<void> {
-    // Match either the direct event id or an echo whose original points here.
-    for (const e of this.events) {
-      const evt = e.event;
-      if (
-        e.id === messageEventId ||
-        (isMessagePostedPayload(evt) && evt.echoOfEventId === messageEventId)
-      ) {
-        await this.refetchOne(e.id);
-      }
-    }
-  }
-
   /**
    * Apply a deletion locally. Direct echo retractions hide only the echo
    * artifact; original-message retractions tombstone the original and any
@@ -904,16 +941,21 @@ export class MessagesStore {
    * its existing engagement visible alongside the placeholder.
    */
   private applyDeletion(messageEventId: string, deletedAt: string): void {
+    this.invalidatePendingPreviewFetches();
     this.clearChannelEchoLink(messageEventId);
 
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
     const target = targetIndex === -1 ? null : this.events[targetIndex];
     const targetPayload = target?.event;
     if (isMessagePostedPayload(targetPayload) && targetPayload.echoOfEventId) {
+      this.removedMessageEventIds.add(messageEventId);
       this.events.splice(targetIndex, 1);
       this.seenIds.delete(messageEventId);
+      this.previewEvents.delete(this.previewKey(messageEventId));
       return;
     }
+
+    this.messageTombstones.set(messageEventId, deletedAt);
 
     for (let i = 0; i < this.events.length; i++) {
       const e = this.events[i];
@@ -927,20 +969,7 @@ export class MessagesStore {
       };
     }
 
-    const previewKey = this.previewKey(messageEventId);
-    const preview = this.previewEvents.get(previewKey);
-    if (isMessagePostedPayload(preview?.event)) {
-      this.previewEvents.set(previewKey, {
-        ...preview,
-        event: {
-          ...preview.event,
-          body: null,
-          attachments: [],
-          linkPreview: null,
-          deletedAt
-        }
-      });
-    }
+    this.applyPrivacyBoundariesToPreviews();
   }
 
   private applyChannelEchoLink(originalEventId: string, echoEventId: string): void {
@@ -986,64 +1015,24 @@ export class MessagesStore {
     }
   }
 
-  /**
-   * Apply an edit payload directly to the matching MessagePostedEvent. The
-   * backend emits one canonical edit event per linked post/echo, so we only
-   * patch the direct event ID here; the linked event will arrive separately.
-   */
-  private applyEdit(messageEventId: string, edit: MessageEditedPayload): void {
-    for (let i = 0; i < this.events.length; i++) {
-      const e = this.events[i];
-      const evt = e.event;
-      if (!isMessagePostedPayload(evt)) continue;
-      if (e.id !== messageEventId) continue;
-
-      this.events[i] = {
-        ...e,
-        event: {
-          ...evt,
-          body: edit.body,
-          attachments: edit.attachments,
-          linkPreview: edit.linkPreview,
-          updatedAt: edit.updatedAt
-        }
-      };
-    }
-
-    const previewKey = this.previewKey(messageEventId);
-    const preview = this.previewEvents.get(previewKey);
-    if (isMessagePostedPayload(preview?.event)) {
-      this.previewEvents.set(previewKey, {
-        ...preview,
-        event: {
-          ...preview.event,
-          body: edit.body,
-          attachments: edit.attachments,
-          linkPreview: edit.linkPreview,
-          updatedAt: edit.updatedAt
-        }
-      });
-    }
-  }
-
-  private addEvent(event: RoomEventView, options: { sortRoom?: boolean } = {}): boolean {
+  private addEvent(event: TimelineEventView, options: { sortRoom?: boolean } = {}): boolean {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
-    if ((options.sortRoom ?? true) && this.scope === 'room') this.sortRoomEvents();
+    if ((options.sortRoom ?? true) && this.scope === 'room') this.sortEvents();
     return true;
   }
 
-  private appendMany(events: RoomEventView[]): void {
+  private appendMany(events: TimelineEventView[]): void {
     let added = false;
     for (const e of events) {
       this.clearOptimisticVersionForEvent(e.id);
       added = this.addEvent(e, { sortRoom: false }) || added;
     }
-    if (added && this.scope === 'room') this.sortRoomEvents();
+    if (added && this.scope === 'room') this.sortEvents();
   }
 
-  private prependEvents(olderEvents: RoomEventView[]): number {
+  private prependEvents(olderEvents: TimelineEventView[]): number {
     const newOnes = olderEvents.filter((e) => !this.seenIds.has(e.id));
     for (const e of newOnes) this.clearOptimisticVersionForEvent(e.id);
     for (const e of newOnes) this.seenIds.add(e.id);
@@ -1055,15 +1044,15 @@ export class MessagesStore {
    * Replace the buffer with fetched events but preserve any subscription
    * events that arrived during the in-flight query. Always the right
    * choice when a paginated query result replaces the timeline: the
-   * eventBus subscription has been live since layout mount, so any
-   * MessagePostedEvent for this room that lands while the query is in
-   * flight has already been added to {@link events} via
-   * {@link ingestServerEvent} and must not be wiped by the result.
+   * projection subscription has been live since layout mount, so any
+   * timeline event for this room that lands while the query is in flight
+   * has already been added to {@link events} via {@link ingestEvent} and
+   * must not be wiped by the result.
    */
-  private replaceMergingExisting(rawEvents: readonly RawEvent[]): void {
-    const fetched = unmask(rawEvents);
+  private replaceMergingExisting(events: readonly TimelineEventView[]): void {
+    const fetched = this.unmaskEvents(events);
     const newSeen = new SvelteSet<string>();
-    const merged: RoomEventView[] = [];
+    const merged: TimelineEventView[] = [];
     for (const e of fetched) {
       if (newSeen.has(e.id)) continue;
       this.clearOptimisticVersionForEvent(e.id);
@@ -1076,7 +1065,7 @@ export class MessagesStore {
       merged.push(e);
     }
     this.events = merged;
-    if (this.scope === 'room') this.sortRoomEvents();
+    if (this.scope === 'room') this.sortEvents();
     this.seenIds = newSeen;
   }
 
@@ -1084,7 +1073,7 @@ export class MessagesStore {
     this.events = [];
     this.seenIds = new SvelteSet();
     this.previewEvents.clear();
-    this.pendingPreviewFetches.clear();
+    this.invalidatePendingPreviewFetches();
     this.optimisticReactions.clearAll();
     this.optimisticThreadFollows.clearAll();
     this.oldestCursor = undefined;
@@ -1093,8 +1082,54 @@ export class MessagesStore {
     this.isLoadingMore = false;
   }
 
+  /** Discard preview responses captured before a plaintext-clearing boundary. */
+  private invalidatePendingPreviewFetches(): void {
+    this.#previewGeneration++;
+    this.pendingPreviewFetches.clear();
+  }
+
+  /** Remove render-only data for every account deleted during this store's lifetime. */
+  private scrubKnownUserReferences(event: TimelineEventView): TimelineEventView {
+    for (const userId of this.scrubbedUserIds) event = scrubUserFromEvent(event, userId);
+    return event;
+  }
+
+  /** Apply persistent deletion and account-removal fences to a timeline row. */
+  private applyPrivacyBoundaries(event: TimelineEventView): TimelineEventView | null {
+    if (this.#projectionAccessRevoked) return null;
+    if (this.removedMessageEventIds.has(event.id)) return null;
+    event = this.scrubKnownUserReferences(event);
+    const payload = event.event;
+    if (!isMessagePostedPayload(payload)) return event;
+
+    const deletedAt =
+      this.messageTombstones.get(event.id) ??
+      (payload.echoOfEventId ? this.messageTombstones.get(payload.echoOfEventId) : undefined);
+    if (!deletedAt) return event;
+    return {
+      ...event,
+      event: { ...payload, body: null, attachments: [], linkPreview: null, deletedAt }
+    };
+  }
+
+  private applyPrivacyBoundariesToPreviews(): void {
+    for (const [key, event] of this.previewEvents) {
+      if (!event) continue;
+      const sanitised = this.applyPrivacyBoundaries(event);
+      if (sanitised) this.previewEvents.set(key, sanitised);
+      else this.previewEvents.delete(key);
+    }
+  }
+
+  private unmaskEvents(events: readonly TimelineEventView[]): TimelineEventView[] {
+    return unmask(events).flatMap((event) => {
+      const sanitised = this.applyPrivacyBoundaries(event);
+      return sanitised ? [sanitised] : [];
+    });
+  }
+
   private replaceWithFetchedAndUpdateCursors(connection: {
-    events: readonly RawEvent[];
+    events: readonly TimelineEventView[];
     startCursor?: string | null;
     endCursor?: string | null;
   }): void {
@@ -1106,29 +1141,26 @@ export class MessagesStore {
 
   private replaceWithSnapshotAndUpdateCursors(
     connection: {
-      events: readonly RawEvent[];
+      events: readonly TimelineEventView[];
       startCursor?: string | null;
       endCursor?: string | null;
       hasOlder?: boolean;
     },
-    existingBeforeFetch: ReadonlySet<string>,
+    existingBeforeFetch: ReadonlyMap<string, string>,
     options: { preserveExistingWindow?: boolean; latestSnapshot?: boolean } = {}
   ): boolean {
-    const fetched = unmask(connection.events);
+    const fetched = this.unmaskEvents(connection.events);
     const newSeen = new SvelteSet<string>();
-    const merged: RoomEventView[] = [];
+    const merged: TimelineEventView[] = [];
+    const mergedIndexByID = new SvelteMap<string, number>();
     const previousOldestCursor = this.oldestCursor;
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;
     const hasExistingContinuityEvents = this.events.some(
-      (event) =>
-        existingBeforeFetch.has(event.id) &&
-        isContinuityEvent(event, this.scope, this.threadRootEventId)
+      (event) => existingBeforeFetch.has(event.id) && !!this.source?.isContinuityEvent(event)
     );
     const hasFetchedOverlap = fetched.some(
-      (event) =>
-        existingBeforeFetch.has(event.id) &&
-        isContinuityEvent(event, this.scope, this.threadRootEventId)
+      (event) => existingBeforeFetch.has(event.id) && !!this.source?.isContinuityEvent(event)
     );
     const discontinuousLatestSnapshot =
       !!options.preserveExistingWindow &&
@@ -1141,6 +1173,7 @@ export class MessagesStore {
       if (newSeen.has(e.id)) continue;
       this.clearOptimisticVersionForEvent(e.id);
       newSeen.add(e.id);
+      mergedIndexByID.set(e.id, merged.length);
       merged.push(e);
     }
 
@@ -1149,6 +1182,17 @@ export class MessagesStore {
     // fetched window so returning from another tab does not visually collapse a
     // long scrolled buffer.
     for (const e of this.events) {
+      const priorFingerprint = existingBeforeFetch.get(e.id);
+      const changedDuringFetch =
+        priorFingerprint === undefined || priorFingerprint !== eventFingerprint(e);
+      const fetchedIndex = mergedIndexByID.get(e.id);
+      if (changedDuringFetch && fetchedIndex !== undefined) {
+        // A projection upsert can refresh an existing row while the snapshot
+        // query is in flight (for example, thread follow state on the root).
+        // The later local version is authoritative over the older query row.
+        merged[fetchedIndex] = e;
+        continue;
+      }
       if (
         (!options.preserveExistingWindow || discontinuousLatestSnapshot) &&
         existingBeforeFetch.has(e.id)
@@ -1157,15 +1201,11 @@ export class MessagesStore {
       }
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
+      mergedIndexByID.set(e.id, merged.length);
       merged.push(e);
     }
 
-    const nextEvents =
-      this.scope === 'room'
-        ? sortRoomEventList(merged)
-        : this.scope === 'thread'
-          ? sortThreadEventList(merged, this.threadRootEventId)
-          : merged;
+    const nextEvents = this.source?.sort(merged) ?? merged;
     const changed = !sameEventList(this.events, nextEvents);
 
     if (changed) {
@@ -1196,134 +1236,52 @@ export class MessagesStore {
     return changed;
   }
 
-  private async refreshRoomLatest(
-    thisLoad: number,
-    existingBeforeFetch: ReadonlySet<string>
-  ): Promise<RefreshCurrentWindowResult> {
-    const page = await this.roomTimeline.getRoomEvents({
-      roomId: this.roomId,
-      limit: PAGE_SIZE
-    });
-
-    if (this.isStale(thisLoad)) return skippedRefreshResult();
-    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: true,
-      latestSnapshot: true
-    });
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
-  }
-
-  private async refreshRoomAround(
-    thisLoad: number,
-    anchorEventId: string,
-    existingBeforeFetch: ReadonlySet<string>
-  ): Promise<RefreshCurrentWindowResult | null> {
-    const page = await this.roomTimeline.getRoomEventsAround({
-      roomId: this.roomId,
-      eventId: anchorEventId,
-      limit: PAGE_SIZE
-    });
-
-    if (this.isStale(thisLoad)) return skippedRefreshResult();
-    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: true
-    });
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
-  }
-
-  private async refreshThreadWindow(
-    thisLoad: number,
-    existingBeforeFetch: ReadonlySet<string>,
-    anchorEventId: string | null
-  ): Promise<RefreshCurrentWindowResult> {
-    const page = anchorEventId
-      ? await this.roomTimeline.getThreadEventsAround({
-          roomId: this.roomId,
-          threadRootEventId: this.threadRootEventId,
-          eventId: anchorEventId,
-          limit: PAGE_SIZE
-        })
-      : await this.roomTimeline.getThreadEvents({
-          roomId: this.roomId,
-          threadRootEventId: this.threadRootEventId,
-          limit: PAGE_SIZE
-        });
-    if (this.isStale(thisLoad)) return skippedRefreshResult();
-    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: anchorEventId === null || anchorEventId !== this.threadRootEventId,
-      latestSnapshot: anchorEventId === null
-    });
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
-  }
-
   private resetAndFetchLatest(): Promise<boolean> {
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
-    return this.fetchLatest(thisLoad);
+    return this.fetchCurrent(thisLoad);
   }
 
-  private fetchLatest(thisLoad: number): Promise<boolean> {
-    const promise = this.roomTimeline.getRoomEvents({
-      roomId: this.roomId,
-      limit: PAGE_SIZE
-    });
-
-    return promise
-      .then(async (page) => {
-        if (this.isStale(thisLoad)) return false;
-        if (page) {
-          this.replaceWithFetchedAndUpdateCursors(page);
-          this.hasReachedStart = !page.hasOlder;
-          await this.backfillInitialRoomWindow(thisLoad);
-        }
-        if (this.isStale(thisLoad)) return false;
-        this.#pendingAuthoritativeLoadId = null;
-        this.isInitialLoading = false;
-        return true;
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return false;
-        console.error('MessagesStore: fetchLatest failed:', error);
-        this.#pendingAuthoritativeLoadId = null;
-        this.isInitialLoading = false;
-        return false;
-      });
-  }
-
-  private fetchThread(thisLoad: number): void {
-    const promise = this.roomTimeline.getThreadEvents({
-      roomId: this.roomId,
-      threadRootEventId: this.threadRootEventId,
-      limit: PAGE_SIZE
-    });
-
-    promise
-      .then((page) => {
-        if (this.isStale(thisLoad)) return;
+  private async fetchCurrent(thisLoad: number): Promise<boolean> {
+    const source = this.source;
+    if (!source) return false;
+    const existingBeforeFetch = snapshotEventFingerprints(this.events);
+    try {
+      const page = await source.fetchPage({ limit: PAGE_SIZE });
+      if (this.isStale(thisLoad) || this.source !== source) return false;
+      if (source.scope === 'room') {
+        this.replaceWithFetchedAndUpdateCursors(page);
+        this.hasReachedStart = !page.hasOlder;
+        await this.backfillInitialRoomWindow(thisLoad);
+      } else {
         // Merge with any subscription events that arrived during the
         // in-flight query (e.g. the user's own reply or a fast cross-user
         // reply). Overwriting would drop them.
-        this.replaceMergingExisting(page.events);
-        this.sortThreadEvents();
-        this.oldestCursor = page.startCursor ?? undefined;
-        this.newestCursor = page.endCursor ?? undefined;
-        this.hasReachedStart = !page.hasOlder;
-        this.isInitialLoading = false;
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
-        console.error('MessagesStore: fetchThread failed:', error);
-        this.isInitialLoading = false;
-      });
+        this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+      }
+      if (this.isStale(thisLoad) || this.source !== source) return false;
+      this.#pendingAuthoritativeLoadId = null;
+      this.isInitialLoading = false;
+      return true;
+    } catch (error: unknown) {
+      if (this.isStale(thisLoad) || this.source !== source) return false;
+      console.error('MessagesStore: fetchCurrent failed:', error);
+      this.#pendingAuthoritativeLoadId = null;
+      this.isInitialLoading = false;
+      return false;
+    }
   }
 
   /**
    * Mirror the backend's auto-follow behavior on the root message when a
    * thread reply arrives, so the UI updates instantly without refetching.
    */
-  private applyThreadReplyToRoot(spaceEvent: RoomEventView, eventData: MessagePostedPayload): void {
+  private applyThreadReplyToRoot(
+    spaceEvent: TimelineEventView,
+    eventData: MessagePostedPayload
+  ): void {
     const rootIdx = this.events.findIndex((e) => e.id === eventData.threadRootEventId);
     if (rootIdx === -1) return;
 
@@ -1359,11 +1317,7 @@ export class MessagesStore {
     };
   }
 
-  private sortThreadEvents(): void {
-    this.events = sortThreadEventList(this.events, this.threadRootEventId);
-  }
-
-  private sortRoomEvents(): void {
-    this.events = sortRoomEventList(this.events);
+  private sortEvents(): void {
+    if (this.source) this.events = this.source.sort(this.events);
   }
 }

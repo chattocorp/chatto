@@ -30,7 +30,8 @@ const (
 	// PublicServerAssetObjectPrefix is the explicit SERVER_ASSETS namespace for
 	// newly written unauthenticated public assets. Historical public objects use
 	// flat asset-ID keys and remain available through the legacy classifier.
-	PublicServerAssetObjectPrefix = "public/"
+	PublicServerAssetObjectPrefix      = "public/"
+	attachmentWriteCompensationTimeout = 5 * time.Second
 )
 
 // PublicServerAssetObjectKey returns the NATS object key for a new public
@@ -76,9 +77,9 @@ func (c *MediaModel) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // the rendered Attachment view for the caller.
 //
 // `actorID` is the uploader; it's stamped on the AssetCreatedEvent as the
-// asset's user_id, distinct from any future message_event_id that might
-// claim the asset. The returned Attachment has `MessageBodyId` empty — the
-// asset is not (yet) bound to a message; PostMessage references it by id.
+// asset's user_id, distinct from any future message_event_id that attaches the
+// asset. The returned Attachment has `MessageBodyId` empty — the asset is not
+// yet bound to a message; PostMessage references it by ID.
 func (c *MediaModel) UploadAttachment(
 	ctx context.Context,
 	actorID string,
@@ -94,7 +95,7 @@ func (c *MediaModel) UploadAttachment(
 	if err != nil {
 		return nil, err
 	}
-	if err := c.assetLifecycle().RecordUploadedAsset(ctx, actorID, roomID, attachment); err != nil {
+	if err := c.assetModel.RecordUploadedAsset(ctx, actorID, roomID, attachment); err != nil {
 		return nil, err
 	}
 
@@ -244,7 +245,16 @@ func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
 		attachment.Width = width
 		attachment.Height = height
 	}
-	if err := c.assetLifecycle().RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
+	if err := c.assetModel.RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
+		if errors.Is(err, ErrAssetCommitUnknown) {
+			// Preserve the storage handle so the worker can attempt prompt cleanup.
+			return attachment, err
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), attachmentWriteCompensationTimeout)
+		defer cancel()
+		if cleanupErr := c.DeleteAttachmentFromStorage(cleanupCtx, attachment); cleanupErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("delete unrecorded derivative binary: %w", cleanupErr))
+		}
 		return nil, err
 	}
 	return attachment, nil
@@ -535,7 +545,7 @@ func (c *MediaModel) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.
 		if id == "" {
 			continue
 		}
-		declared, ok := c.assetLifecycle().AssetCreation(id)
+		declared, ok := c.assetModel.AssetCreation(id)
 		if !ok {
 			continue
 		}
@@ -705,6 +715,10 @@ const ServerAssetSignResource = "server"
 // copied URLs into indefinite bearer links.
 const AssetAccessTicketTTL = 24 * time.Hour
 
+// Keep repeated reads stable without extending ticket validity beyond the
+// configured TTL. URLs issued within one bucket share an expiry and signature.
+const assetAccessTicketIssueBucket = time.Hour
+
 // S3AssetRedirectTTL bounds direct object-store redirects for heavy original
 // asset responses. Chatto authorizes the request first, then hands browsers a
 // short-lived S3 URL only for cases where proxying the bytes would be costly.
@@ -724,11 +738,33 @@ func (c *MediaModel) GetStableAttachmentAssetURL(assetID, userID string) StableA
 	if assetID == "" || userID == "" {
 		return StableAssetURL{}
 	}
-	expiresAt := time.Now().Add(AssetAccessTicketTTL).UTC().Truncate(time.Second)
+	expiresAt := c.assetAccessTicketExpiry()
 	return StableAssetURL{
 		URL:       c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, "", nil, expiresAt)),
 		ExpiresAt: expiresAt,
 	}
+}
+
+// GetStableHLSMasterPlaylistAssetURL returns the authorised entry point for
+// one processed video's HLS generation.
+func (c *MediaModel) GetStableHLSMasterPlaylistAssetURL(assetID, userID string) StableAssetURL {
+	if assetID == "" || userID == "" {
+		return StableAssetURL{}
+	}
+	expiresAt := c.assetAccessTicketExpiry()
+	ticket, err := signedurl.SignedHLSAccessTicket(c.config.Assets.SigningSecret, signedurl.HLSAccessTicket{
+		AssetID:   assetID,
+		UserID:    userID,
+		ExpiresAt: expiresAt.Unix(),
+	})
+	if err != nil {
+		c.logger.Warn("Failed to sign HLS access ticket", "error", err, "asset_id", assetID, "user_id", userID)
+		return StableAssetURL{}
+	}
+	values := url.Values{}
+	values.Set("access", ticket)
+	path := fmt.Sprintf("/assets/hls/%s/master.m3u8?%s", url.PathEscape(assetID), values.Encode())
+	return StableAssetURL{URL: c.assetURL(path), ExpiresAt: expiresAt}
 }
 
 // GetStableTransformedAttachmentURL returns the canonical URL for a derived
@@ -752,7 +788,7 @@ func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID stri
 		height,
 		url.PathEscape(fit),
 	)
-	expiresAt := time.Now().Add(AssetAccessTicketTTL).UTC().Truncate(time.Second)
+	expiresAt := c.assetAccessTicketExpiry()
 	return StableAssetURL{
 		URL: c.assetURL(c.stableAttachmentPathWithAccess(assetID, userID, transformPath, &signedurl.TransformParams{
 			Width:  width,
@@ -761,6 +797,14 @@ func (c *MediaModel) GetStableTransformedAttachmentAssetURL(assetID, userID stri
 		}, expiresAt)),
 		ExpiresAt: expiresAt,
 	}
+}
+
+func (c *MediaModel) assetAccessTicketExpiry() time.Time {
+	now := time.Now
+	if c.now != nil {
+		now = c.now
+	}
+	return now().UTC().Truncate(assetAccessTicketIssueBucket).Add(AssetAccessTicketTTL)
 }
 
 func (c *MediaModel) stableAttachmentPathWithAccess(assetID, userID, path string, params *signedurl.TransformParams, expiresAt time.Time) string {

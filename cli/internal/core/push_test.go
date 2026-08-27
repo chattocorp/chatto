@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -179,16 +181,102 @@ func TestSavePushSubscription(t *testing.T) {
 	})
 }
 
+func TestSavePushSubscriptionForClient(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	clientHost := "app.example.com:8443"
+
+	sub, err := core.SavePushSubscriptionForClient(
+		ctx,
+		"push-user-client-host",
+		"https://push.example.com/client-host",
+		"key",
+		"auth",
+		"browser",
+		clientHost,
+	)
+	if err != nil {
+		t.Fatalf("SavePushSubscriptionForClient error: %v", err)
+	}
+	if sub.ClientHost != clientHost {
+		t.Fatalf("ClientHost = %q, want %q", sub.ClientHost, clientHost)
+	}
+	if sub.Endpoint != "https://push.example.com/client-host" {
+		t.Fatalf("Endpoint = %q, want provider endpoint", sub.Endpoint)
+	}
+}
+
+func TestSavePushSubscriptionForClient_ValidatesClientHosts(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	maxClientHost := strings.Join([]string{
+		strings.Repeat("a", 63),
+		strings.Repeat("b", 63),
+		strings.Repeat("c", 63),
+		strings.Repeat("d", 61),
+	}, ".") + ":1"
+
+	invalid := []string{
+		"https://app.example.com",
+		"user:password@app.example.com",
+		"app.example.com/chat/remote.example.com",
+		"app.example.com?source=push",
+		"app.example.com#fragment",
+		"app.example.com:",
+		"app.example.com:0",
+		"app.example.com:65536",
+		"app.example.com:not-a-port",
+		strings.Repeat("x", MaxPushClientHostLength+1),
+	}
+	for index, clientHost := range invalid {
+		_, err := core.SavePushSubscriptionForClient(
+			ctx,
+			fmt.Sprintf("push-user-invalid-client-host-%d", index),
+			fmt.Sprintf("https://push.example.com/invalid-client-host-%d", index),
+			"key",
+			"auth",
+			"browser",
+			clientHost,
+		)
+		if !errors.Is(err, ErrInvalidArgument) {
+			t.Errorf("client host %q: error = %v, want ErrInvalidArgument", clientHost, err)
+		}
+	}
+
+	for _, clientHost := range []string{
+		"app.example.com",
+		"app.example.com:8443",
+		"localhost:5173",
+		"127.0.0.1:5173",
+		"[::1]:5173",
+		maxClientHost,
+	} {
+		_, err := core.SavePushSubscriptionForClient(
+			ctx,
+			"push-user-valid-client-host",
+			"https://push.example.com/valid-client-host-"+hashEndpoint(clientHost),
+			"key",
+			"auth",
+			"browser",
+			clientHost,
+		)
+		if err != nil {
+			t.Errorf("client host %q: %v", clientHost, err)
+		}
+	}
+}
+
 func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-user-limits"
 
 	t.Run("accepts values at max length", func(t *testing.T) {
+		endpointPrefix := "https://push.example.com/"
 		_, err := core.SavePushSubscription(
 			ctx,
 			userID,
-			strings.Repeat("e", MaxPushEndpointLength),
+			endpointPrefix+strings.Repeat("e", MaxPushEndpointLength-len(endpointPrefix)),
 			strings.Repeat("p", MaxPushKeyLength),
 			strings.Repeat("a", MaxPushAuthLength),
 			strings.Repeat("u", MaxPushUserAgentLength),
@@ -247,6 +335,57 @@ func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
 			_, err := core.SavePushSubscription(ctx, userID, tt.endpoint, tt.p256dh, tt.auth, tt.userAgent)
 			assertStringLengthError(t, err, tt.field, tt.max)
 		})
+	}
+}
+
+func TestSavePushSubscription_RejectsInvalidEndpointURLs(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+
+	for _, endpoint := range []string{
+		"http://push.example.com/send",
+		"https://user:password@push.example.com/send",
+		"https://push.example.com/send#fragment",
+		"/relative/push-endpoint",
+	} {
+		t.Run(endpoint, func(t *testing.T) {
+			_, err := core.SavePushSubscription(ctx, "push-user-invalid-endpoint", endpoint, "key", "auth", "browser")
+			if !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("SavePushSubscription error = %v, want ErrInvalidArgument", err)
+			}
+		})
+	}
+}
+
+func TestSavePushSubscription_LimitsActiveEndpointsPerUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-user-endpoint-limit"
+
+	for i := range MaxPushSubscriptionsPerUser {
+		endpoint := fmt.Sprintf("https://push.example.com/device-%d", i)
+		if _, err := core.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser"); err != nil {
+			t.Fatalf("SavePushSubscription endpoint %d: %v", i, err)
+		}
+	}
+	if _, err := core.SavePushSubscription(ctx, userID, "https://push.example.com/over-limit", "key", "auth", "browser"); !errors.Is(err, ErrPushSubscriptionLimitReached) {
+		t.Fatalf("over-limit SavePushSubscription error = %v, want ErrPushSubscriptionLimitReached", err)
+	}
+	if _, err := core.SavePushSubscription(ctx, userID, "https://push.example.com/device-0", "new-key", "new-auth", "browser"); err != nil {
+		t.Fatalf("refreshing existing endpoint at limit: %v", err)
+	}
+}
+
+func TestAdmitPushTestNotificationRateLimitsAcrossCalls(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-test-rate-limit-user"
+
+	if err := core.AdmitPushTestNotification(ctx, userID); err != nil {
+		t.Fatalf("first AdmitPushTestNotification: %v", err)
+	}
+	if err := core.AdmitPushTestNotification(ctx, userID); !errors.Is(err, ErrPushTestNotificationRateLimited) {
+		t.Fatalf("second AdmitPushTestNotification error = %v, want ErrPushTestNotificationRateLimited", err)
 	}
 }
 
@@ -316,6 +455,19 @@ func TestGetUserPushSubscriptions(t *testing.T) {
 			t.Errorf("Expected 3 subscriptions, got %d", len(subs))
 		}
 	})
+}
+
+func TestGetUserPushSubscriptionsPropagatesCorruptRecord(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := "U-corrupt-push-record"
+	key := pushSubscriptionKey(userID, "https://push.example.test/corrupt")
+	if _, err := core.storage.runtimeStateKV.Create(ctx, key, []byte("not protobuf")); err != nil {
+		t.Fatalf("create corrupt push record: %v", err)
+	}
+	if _, err := core.GetUserPushSubscriptions(ctx, userID); err == nil {
+		t.Fatal("GetUserPushSubscriptions accepted a corrupt record")
+	}
 }
 
 func TestPushSubscriptionEndpointOwnershipTransfer(t *testing.T) {
@@ -407,6 +559,53 @@ func TestPushSubscriptionCurrentForUserRejectsRotatedCredentials(t *testing.T) {
 	current, err = core.PushSubscriptionCurrentForUser(ctx, userID, fresh[0])
 	if err != nil || !current {
 		t.Fatalf("fresh push credentials should be current: current=%t err=%v", current, err)
+	}
+}
+
+func TestDeletePushSubscriptionByCapabilityPreservesReplacementOwner(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	endpoint := "https://push.example.com/capability-cleanup"
+	userA := "push-capability-user-a"
+	userB := "push-capability-user-b"
+	auth := "shared-browser-auth"
+	tokenA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	tokenB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	if _, err := core.SavePushSubscriptionWithCleanupToken(ctx, userA, endpoint, "key-a", auth, "browser-a", tokenA); err != nil {
+		t.Fatalf("SavePushSubscription user A: %v", err)
+	}
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, "wrong-auth", tokenA); err != nil {
+		t.Fatalf("DeletePushSubscriptionByCapability wrong auth: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userA, endpoint); err != nil || !owned {
+		t.Fatalf("wrong capability changed A ownership: owned=%t err=%v", owned, err)
+	}
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, auth, "cccccccccccccccccccccccccccccccc"); err != nil {
+		t.Fatalf("DeletePushSubscriptionByCapability wrong token: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userA, endpoint); err != nil || !owned {
+		t.Fatalf("wrong cleanup token changed A ownership: owned=%t err=%v", owned, err)
+	}
+
+	if _, err := core.SavePushSubscriptionWithCleanupToken(ctx, userB, endpoint, "key-b", auth, "browser-b", tokenB); err != nil {
+		t.Fatalf("SavePushSubscription user B: %v", err)
+	}
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, auth, tokenA); err != nil {
+		t.Fatalf("DeletePushSubscriptionByCapability stale auth: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userB, endpoint); err != nil || !owned {
+		t.Fatalf("stale capability changed B ownership: owned=%t err=%v", owned, err)
+	}
+	if subscriptions, err := core.GetUserPushSubscriptions(ctx, userB); err != nil || len(subscriptions) != 1 {
+		t.Fatalf("stale capability removed B subscription: count=%d err=%v", len(subscriptions), err)
+	}
+
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, auth, tokenB); err != nil {
+		t.Fatalf("DeletePushSubscriptionByCapability current auth: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userB, endpoint); err != nil || owned {
+		t.Fatalf("current capability left B ownership: owned=%t err=%v", owned, err)
 	}
 }
 
@@ -644,6 +843,79 @@ func TestDeleteAllUserPushSubscriptions(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseFails(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-user-owner-retry"
+	endpoint := "https://push.example.com/owner-retry"
+
+	if _, err := core.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser"); err != nil {
+		t.Fatalf("SavePushSubscription: %v", err)
+	}
+	ownerKey := pushEndpointOwnerKey(endpoint)
+	if _, err := core.storage.runtimeStateKV.Put(ctx, ownerKey, []byte("{")); err != nil {
+		t.Fatalf("corrupt endpoint owner: %v", err)
+	}
+
+	deleted, err := core.DeleteAllUserPushSubscriptions(ctx, userID)
+	if err == nil {
+		t.Fatal("DeleteAllUserPushSubscriptions unexpectedly succeeded with an undecodable endpoint owner")
+	}
+	if deleted != 0 {
+		t.Fatalf("deleted = %d, want 0 while endpoint ownership cannot be released", deleted)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
+		t.Fatalf("subscription was not retained for retry: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); err != nil {
+		t.Fatalf("undecodable endpoint owner was unexpectedly removed: %v", err)
+	}
+	if err := core.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
+		t.Fatalf("reconcile malformed owner: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isPushRuntimeStateKeyAbsent(err) {
+		t.Fatalf("undecodable endpoint owner was not repaired: %v", err)
+	}
+
+	deleted, err = core.DeleteAllUserPushSubscriptions(ctx, userID)
+	if err != nil {
+		t.Fatalf("DeleteAllUserPushSubscriptions retry: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("retry deleted = %d, want 1", deleted)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !isPushRuntimeStateKeyAbsent(err) {
+		t.Fatalf("subscription remains after retry: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isPushRuntimeStateKeyAbsent(err) {
+		t.Fatalf("endpoint owner remains after retry: %v", err)
+	}
+}
+
+func TestPushSubscriptionCleanupRepairsLegacyOrphanOwner(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-user-orphan-owner"
+	endpoint := "https://push.example.com/orphan-owner"
+
+	if _, err := core.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser"); err != nil {
+		t.Fatalf("SavePushSubscription: %v", err)
+	}
+	if err := core.storage.runtimeStateKV.Delete(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
+		t.Fatalf("create legacy orphan owner fixture: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userID, endpoint); err != nil || !owned {
+		t.Fatalf("legacy owner fixture owned = %v, err = %v", owned, err)
+	}
+
+	if err := core.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
+		t.Fatalf("reconcile orphan owner: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userID, endpoint); err != nil || owned {
+		t.Fatalf("orphan owner after repair = %v, err = %v", owned, err)
+	}
 }
 
 func TestPushSubscriptionIsolation(t *testing.T) {

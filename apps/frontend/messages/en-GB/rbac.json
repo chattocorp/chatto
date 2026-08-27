@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "rbac": {
     "delete_role": {
       "title": "Delete Role",
@@ -45,10 +44,22 @@
       "allow": "allow",
       "deny": "deny",
       "winning_decision": "(winning decision)",
+      "included_by": "Included by {permission}",
       "level_server": "Server",
       "level_group": "Group",
       "level_room": "Room",
       "empty_category": "No permissions in this category",
+      "filter_label": "Filter permissions",
+      "filter_placeholder": "Filter permissions...",
+      "no_filter_matches": "No permissions match this filter.",
+      "binary": {
+        "aria": "{permission} is {state} for {subject} at {scope}",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "inherited": "Inherited from a broader scope",
+        "unavailable": "Currently unavailable",
+        "owner_ceiling": "You can't grant {permission} at {scope} because the bot's owner doesn't currently have it."
+      },
       "categories": {
         "space": {
           "title": "Server Permissions",
@@ -80,7 +91,7 @@
         },
         "user": {
           "title": "User Permissions",
-          "description": "Control user account and per-user permission operations. Any non-owner deny cancels grants"
+          "description": "Control user account and per-user permission operations"
         }
       }
     },
@@ -91,6 +102,8 @@
       "room_list": "See rooms in the directory. A user can be allowed to see a room (e.g. to request access) without being allowed to join it.",
       "room_manage": "Edit a room's settings and permissions, and delete rooms",
       "room_ban_member": "Ban members from rooms",
+      "message_read": "Read messages in channel rooms",
+      "message_read_interactions": "Read complete threads that you authored or where another user directly mentioned you",
       "message_post": "Post root messages in rooms and start DMs",
       "message_post_in_thread": "Post replies inside a thread",
       "message_attach": "Attach files to messages",
@@ -104,6 +117,7 @@
       "admin_view_audit": "View the audit log in admin",
       "user_delete_any": "Delete another user's account",
       "user_delete_self": "Delete your own account",
+      "user_invite": "Create and manage invite links",
       "user_manage_accounts": "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns",
       "user_manage_permissions": "Edit direct per-user permission overrides"
     }

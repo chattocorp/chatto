@@ -23,7 +23,7 @@ resolution to request for sidebar-width tiles.
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import type { Track } from 'livekit-client';
-	import type { PresenceStatus } from '$lib/render/types';
+	import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let {

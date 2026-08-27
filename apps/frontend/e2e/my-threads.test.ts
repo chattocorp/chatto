@@ -383,7 +383,7 @@ test.describe('My Threads', () => {
     await roomPage.closeThread();
 
     const unreadRoot = `Unread thread ${Date.now()}`;
-    const unreadMsg = await roomPage.sendMessage(unreadRoot);
+    const unreadMsg = await roomPage.sendNewRootAfterThread(unreadRoot);
     await unreadMsg.openThread();
     await roomPage.expectThreadPaneVisible();
     await roomPage.postThreadReply(`Reply ${Date.now()}`);
@@ -430,10 +430,7 @@ test.describe('My Threads', () => {
 
     // Switch to "Unread" filter
     await page.getByRole('radio', { name: 'Unread' }).click();
-    await expect(page.getByRole('radio', { name: 'Unread' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
+    await expect(page.getByRole('radio', { name: 'Unread' })).toBeChecked();
 
     // Click the thread to navigate to it
     // (thread is read, so switch back to All first to see it)
@@ -446,7 +443,7 @@ test.describe('My Threads', () => {
     await page.waitForURL(routes.threads);
 
     // The "All" filter should still be selected (was last set before navigating)
-    await expect(page.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('radio', { name: 'All' })).toBeChecked();
   });
 
   test('navigating from My Threads thread to a different room does not crash', async ({
@@ -529,7 +526,7 @@ test.describe('My Threads', () => {
 
     // Create second thread (more recent activity)
     const root2 = `Second thread ${Date.now()}`;
-    const msg2 = await roomPage.sendMessage(root2);
+    const msg2 = await roomPage.sendNewRootAfterThread(root2);
     await msg2.openThread();
     await roomPage.expectThreadPaneVisible();
     await roomPage.postThreadReply(`Reply to second ${Date.now()}`);

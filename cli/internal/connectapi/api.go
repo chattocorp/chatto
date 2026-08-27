@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"context"
 	"math"
 	"net/http"
 
@@ -13,6 +14,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
+	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 )
 
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.
@@ -44,13 +46,36 @@ type Handler struct {
 // API owns Chatto's ConnectRPC service implementations. It deliberately has no
 // dependency on the Gin HTTP server so API methods stay transport-package local.
 type API struct {
-	core    *core.ChattoCore
-	config  config.ChattoConfig
-	version string
+	core           *core.ChattoCore
+	config         config.ChattoConfig
+	version        string
+	searchProvider MessageSearchProviderClient
 }
 
-func New(core *core.ChattoCore, config config.ChattoConfig, version string) *API {
-	return &API{core: core, config: config, version: version}
+// MessageSearchProviderClient calls the trusted provider contract used behind
+// the authorized public MessageSearchService.
+type MessageSearchProviderClient interface {
+	Query(context.Context, *searchv1.QueryRequest) (*searchv1.QueryResponse, error)
+	GetStatus(context.Context) (*searchv1.GetStatusResponse, error)
+}
+
+// APIOption supplies an optional transport dependency to the public API.
+type APIOption func(*API)
+
+// WithMessageSearchProviderClient connects the public MessageSearchService to
+// the trusted NATS provider boundary.
+func WithMessageSearchProviderClient(client MessageSearchProviderClient) APIOption {
+	return func(api *API) { api.searchProvider = client }
+}
+
+func New(core *core.ChattoCore, config config.ChattoConfig, version string, options ...APIOption) *API {
+	api := &API{core: core, config: config, version: version}
+	for _, option := range options {
+		if option != nil {
+			option(api)
+		}
+	}
+	return api
 }
 
 // HandlerOptions returns the common Connect handler options used for Chatto's
@@ -94,10 +119,13 @@ func (a *API) Handlers() []Handler {
 	}
 
 	accountPath, accountHandler := apiv1connect.NewMyAccountServiceHandler(&accountService{api: a}, uploadOptions...)
+	botPath, botHandler := apiv1connect.NewBotServiceHandler(&botService{api: a}, options...)
 	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(&assetService{api: a}, options...)
 	assetUploadPath, assetUploadHandler := apiv1connect.NewAssetUploadServiceHandler(&assetUploadService{api: a}, assetUploadOptions...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
+	adminInviteLinkPath, adminInviteLinkHandler := adminv1connect.NewAdminInviteLinkServiceHandler(&adminInviteLinkService{api: a}, options...)
+	adminOAuthClientPath, adminOAuthClientHandler := adminv1connect.NewAdminOAuthClientServiceHandler(&adminOAuthClientService{api: a}, options...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminUserServiceHandler(&adminUserManagementService{api: a}, options...)
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(&serverService{api: a}, uploadOptions...)
 	serverDiscoveryPath, serverDiscoveryHandler := discoveryv1connect.NewServerDiscoveryServiceHandler(&serverDiscoveryService{api: a}, options...)
@@ -105,10 +133,12 @@ func (a *API) Handlers() []Handler {
 	userPath, userHandler := apiv1connect.NewUserServiceHandler(&userService{api: a}, options...)
 	viewerPath, viewerHandler := apiv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
 	externalAuthPath, externalAuthHandler := authv1connect.NewExternalIdentityAuthServiceHandler(&externalIdentityAuthService{api: a}, options...)
+	pushCleanupPath, pushCleanupHandler := authv1connect.NewPushSubscriptionCleanupServiceHandler(&pushSubscriptionCleanupService{api: a}, options...)
 	permissionPath, permissionHandler := adminv1connect.NewAdminPermissionServiceHandler(&permissionService{api: a}, options...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
+	messageSearchPath, messageSearchHandler := apiv1connect.NewMessageSearchServiceHandler(&messageSearchService{api: a}, options...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(&notificationService{api: a}, options...)
-	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
+	notificationPolicyPath, notificationPolicyHandler := apiv1connect.NewNotificationPolicyServiceHandler(&notificationPolicyService{api: a}, options...)
 	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
 	adminRolePath, adminRoleHandler := adminv1connect.NewAdminRoleServiceHandler(&roleService{api: a}, options...)
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(&publicRoleService{api: a}, options...)
@@ -119,22 +149,27 @@ func (a *API) Handlers() []Handler {
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	handlers := []Handler{
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: botPath, Handler: botHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetUploadPath, Handler: assetUploadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminEventLogPath, Handler: adminEventLogHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: adminInviteLinkPath, Handler: adminInviteLinkHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: adminOAuthClientPath, Handler: adminOAuthClientHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminServerPath, Handler: adminServerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminRoomLayoutPath, Handler: adminRoomLayoutHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminMemberPath, Handler: adminMemberHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: externalAuthPath, Handler: externalAuthHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: pushCleanupPath, Handler: pushCleanupHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: messageSearchPath, Handler: messageSearchHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: notificationPath, Handler: notificationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: notificationPolicyPath, Handler: notificationPolicyHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: serverDiscoveryPath, Handler: serverDiscoveryHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: viewerPath, Handler: viewerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: permissionPath, Handler: permissionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: prefsPath, Handler: prefsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: pushPath, Handler: pushHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminRolePath, Handler: adminRoleHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: rolePath, Handler: roleHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

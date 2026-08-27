@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Skapa ett nytt rum",
@@ -14,7 +13,7 @@
       "missing_group": "Välj en rumsgrupp innan du skapar ett rum.",
       "failed": "Det gick inte att skapa rum",
       "creating": "Skapar...",
-      "submit": "Skapa rum"
+      "submit_and_configure": "Skapa och konfigurera rummet"
     },
     "join": {
       "title": "Gå med i rummet",
@@ -23,13 +22,10 @@
       "inline_prompt": "Gå med i det här rummet för att läsa och delta.",
       "group_label": "I {group}",
       "member_preview_label": "Rumsmedlemmar",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} medlem", "countPlural=other": "{count} medlemmar" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} medlem",
+        "other": "{count} medlemmar"
+      },
       "success": "Gick med i #{room}",
       "success_generic": "Anslöt sig till rummet",
       "failed": "Det gick inte att gå med i rummet",
@@ -74,7 +70,8 @@
       "remove_account_suffix": " för den här servern innan du tar bort den."
     },
     "timeline": {
-      "beginning": "Det här är början på den här konversationen."
+      "beginning": "Det här är början på den här konversationen.",
+      "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet."
     },
     "message": {
       "empty": "Inga meddelanden än",
@@ -82,6 +79,7 @@
       "delete_prompt": "Är du säker på att du vill ta bort det här meddelandet? Detta kan inte ångras.",
       "delete_failed": "Det gick inte att radera meddelandet",
       "reaction_failed": "Det gick inte att uppdatera reaktionen",
+      "reaction_limit_reached": "Du kan lägga till upp till 20 reaktioner på ett meddelande.",
       "deleted": "Meddelande raderat",
       "actions": {
         "toolbar": "Meddelandeåtgärder",
@@ -90,6 +88,7 @@
         "add_reaction": "Lägg till reaktion",
         "more_reactions": "Fler reaktioner",
         "reply": "Svara",
+        "reply_room": "Svara i rummet",
         "reply_thread": "Svara i tråden",
         "open_thread": "Öppna tråden",
         "edit": "Redigera meddelande",
@@ -100,7 +99,10 @@
         "copy_link": "Kopiera länk"
       },
       "meta": {
+        "pinned": "Fäst meddelande",
         "thread": "Tråd",
+        "edited": "Redigerat meddelande",
+        "echoed_to_channel": "Även skickat till kanalen",
         "reply_count_one": "1 svar",
         "reply_count_many": "{count} svarar",
         "follow_thread": "Följ tråden",
@@ -120,39 +122,24 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "gick med i rummet",
-            "countPlural=other": "gick med i rummet"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "lämnade rummet",
-            "countPlural=other": "lämnade rummet"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "gick med i rummet",
+        "other": "gick med i rummet"
+      },
+      "left_count": {
+        "one": "lämnade rummet",
+        "other": "lämnade rummet"
+      },
       "archived": "arkiverade rummet",
       "unarchived": "har tagit bort rummet från arkivet",
+      "call_started": "startade ett samtal i det här rummet",
+      "call_ended": "Det aktiva samtalet har avslutats",
+      "threading_mode_changed": "ändrade trådläget till {mode}",
       "and": "och",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "annan",
-            "countPlural=other": "andra"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "annan",
+        "other": "andra"
+      },
       "show_less": "visa mindre"
     },
     "attachment": {
@@ -186,6 +173,7 @@
       "offline": "Offline ({count})",
       "no_files": "Inga filer i det här rummet ännu.",
       "files": "Filer",
+      "pins": "Fästa meddelanden",
       "call": "Ring",
       "jump_to_file": "Hoppa till {filename}",
       "loading_files": "Laddar filer...",
@@ -195,6 +183,20 @@
       "in_video_call": "I ett videosamtal",
       "ban_failed": "Det gick inte att blockera medlem från rummet",
       "ban_success": "Utestängd {name} från rummet"
+    },
+    "pins": {
+      "show": "Visa fästa meddelanden",
+      "unseen": "Nya fästa meddelanden",
+      "hide": "Dölj fästa meddelanden",
+      "pin": "Fäst meddelande",
+      "unpin": "Lossa meddelande",
+      "unpin_prompt": "Vill du verkligen ta bort den här fästningen?",
+      "loading": "Läser in fästa meddelanden...",
+      "empty_title": "Inga fästa meddelanden",
+      "empty_description": "Rumsansvariga kan fästa viktiga meddelanden här.",
+      "error_title": "Fästa meddelanden är inte tillgängliga",
+      "error_description": "Det gick inte att läsa in fästa meddelanden. Försök igen om en stund.",
+      "update_failed": "Det gick inte att uppdatera det fästa meddelandet"
     },
     "title": {
       "direct_message": "Direktmeddelande"

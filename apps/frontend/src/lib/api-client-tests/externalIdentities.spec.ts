@@ -84,6 +84,35 @@ describe('createExternalIdentityFlowAPI', () => {
     });
     expect(mocks.getPendingExternalIdentity).toHaveBeenCalledWith({ token: 'token-1' });
   });
+
+  it('sends the editable username and display name when creating an account', async () => {
+    mocks.createExternalIdentityAccount.mockResolvedValue({
+      userId: 'user-1',
+      login: 'octo',
+      token: 'session-token',
+      refreshToken: 'refresh-token',
+      expiresIn: 900n,
+      refreshTokenExpiresIn: 7_776_000n
+    });
+    const api = createExternalIdentityFlowAPI();
+
+    await expect(
+      api.createAccount({ token: 'flow-token', login: 'octo', displayName: 'Octo Person' })
+    ).resolves.toEqual({
+      userId: 'user-1',
+      login: 'octo'
+    });
+    expect(mocks.createExternalIdentityAccount).toHaveBeenCalledWith(
+      {
+        token: 'flow-token',
+        login: 'octo',
+        displayName: 'Octo Person'
+      },
+      {
+        headers: { 'X-Chatto-Authentication-Mode': 'cookie' }
+      }
+    );
+  });
 });
 
 describe('createExternalIdentityAPI', () => {
@@ -161,6 +190,23 @@ describe('createExternalIdentityAPI', () => {
     );
   });
 
+  it('passes cancellation through when listing identities', async () => {
+    mocks.listExternalIdentities.mockResolvedValue({ providers: [], linkedIdentities: [] });
+    const signal = new AbortController().signal;
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await api.list({ signal });
+
+    expect(mocks.listExternalIdentities).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
+  });
+
   it('rejects provider rows without shared provider metadata', async () => {
     mocks.listExternalIdentities.mockResolvedValue({
       providers: [{ linkUrl: '/auth/providers/github-main?intent=link' }],
@@ -212,6 +258,22 @@ describe('createExternalIdentityAPI', () => {
       { providerId: 'github-main', redirectPath: '/chat/-/settings/account' },
       { headers: { Authorization: 'Bearer token' } }
     );
+  });
+
+  it('rejects an unsafe provider-link navigation URL from a remote server', async () => {
+    mocks.startExternalIdentityLink.mockResolvedValue({
+      startUrl: 'javascript:alert(document.domain)'
+    });
+
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(
+      api.startLink({ providerId: 'github-main', redirectPath: '/chat/-/settings/account' })
+    ).rejects.toThrow('External identity link returned an unsafe URL.');
   });
 
   it('disconnects a linked identity with bearer auth', async () => {

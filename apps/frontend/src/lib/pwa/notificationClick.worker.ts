@@ -1,5 +1,3 @@
-import { normalizeSameOriginUrl } from './serviceWorkerPolicy';
-
 export const NOTIFICATION_CLICK_ACK_TIMEOUT_MS = 750;
 export const NOTIFICATION_CLICK_MESSAGE_TYPE = 'notification-click';
 export const NOTIFICATION_CLICK_ACK_MESSAGE_TYPE = 'notification-click-ack';
@@ -43,6 +41,15 @@ export interface NotificationClickRouteOptions {
 
 function sameOriginURLForPath(origin: string, pathname: string, search = '', hash = ''): string {
   return new URL(`${pathname}${search}${hash}`, origin).href;
+}
+
+function normalizeSameOriginUrl(value: string | undefined, origin: string): string | null {
+  try {
+    const url = new URL(value ?? NOTIFICATION_CLICK_FALLBACK_PATH, origin);
+    return url.origin === origin ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 export function normalizeNotificationClickUrl(rawUrl: string | undefined, origin: string): string {

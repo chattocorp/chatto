@@ -1,0 +1,414 @@
+package web
+
+import (
+	"net/url"
+	"strconv"
+	"time"
+	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/authorizations"
+	"hmans.de/authling/internal/oidcprovider"
+	"hmans.de/authling/internal/sessions"
+)
+
+templ layout(title, signedInAs string) {
+	<!doctype html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="color-scheme" content="light dark"/>
+			<meta name="description" content="Authling is a self-hosted OpenID Connect identity provider."/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="/assets/app.css"/>
+		</head>
+		<body class="min-h-screen">
+			<header class="border-b border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/80">
+				<div class="mx-auto flex max-w-xl items-center justify-between gap-4 px-6 py-4">
+					<a class="flex items-center gap-3 font-semibold" href="/">
+						<span class="flex size-9 items-center justify-center rounded-xl bg-authling-500 text-white shadow-md shadow-authling-500/20"><span class="iconify uil--shield-check text-xl" aria-hidden="true"></span></span>
+						<span>Authling</span>
+					</a>
+					if signedInAs != "" {
+						<a class="flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 text-right text-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-authling-500 dark:hover:bg-slate-900" href="/account" aria-label={ "Signed in as " + signedInAs + ". View your account." }>
+							<span class="min-w-0">
+								<span class="block text-xs font-medium text-slate-500 dark:text-slate-400">Signed in as</span>
+								<span class="block max-w-64 truncate font-semibold" title={ signedInAs }>{ signedInAs }</span>
+							</span>
+							<span class="iconify uil--user-circle shrink-0 text-2xl text-slate-400" aria-hidden="true"></span>
+						</a>
+					}
+				</div>
+			</header>
+			<main class="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-xl items-center px-6 py-12 sm:py-16">
+				<section class="w-full rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-12 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
+					{ children... }
+				</section>
+			</main>
+		</body>
+	</html>
+}
+
+templ homePage() {
+	@layout("Authling", "") {
+		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Authling</p>
+		<h1 class="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">Identity, under your control.</h1>
+		<p class="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">Sign in with your verified email address, or create a new account.</p>
+		<div class="mt-8 flex flex-wrap gap-3">
+			<a class="button button-primary" href="/login">Sign in</a>
+			<a class="button button-secondary" href="/signup">Create account</a>
+		</div>
+	}
+}
+
+templ loginPage(message, oidcRequest string) {
+	@layout("Sign in to Authling", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Sign in</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Use the email address and password for your account.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/login">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<label class="block"><span class="font-medium">Email address</span><input class="form-control" type="email" name="email" autocomplete="email" autofocus required/></label>
+			<label class="block"><span class="font-medium">Password</span><input class="form-control" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
+			<button class="button button-primary w-full" type="submit">Sign in</button>
+		</form>
+		<p class="mt-4 text-sm"><a class="text-link" href={ passwordResetURL(oidcRequest) }>Forgot your password?</a></p>
+		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">No account yet? <a class="text-link" href="/signup">Create one</a>.</p>
+	}
+}
+
+func passwordResetURL(oidcRequest string) string {
+	if oidcRequest == "" {
+		return "/password-reset"
+	}
+	return "/password-reset?id=" + url.QueryEscape(oidcRequest)
+}
+
+templ passwordResetPage(message, oidcRequest string) {
+	@layout("Reset your password", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Reset your password</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">We’ll email you a six-digit password reset code.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/password-reset">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<label class="block"><span class="font-medium">Email address</span><input class="form-control" type="email" name="email" autocomplete="email" autofocus required/></label>
+			<button class="button button-primary w-full" type="submit">Email me a reset code</button>
+		</form>
+		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400"><a class="text-link" href="/login">Return to sign in</a>.</p>
+	}
+}
+
+templ passwordResetCodePage(flow, message, oidcRequest string) {
+	@layout("Enter your password reset code", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Check your email</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/password-reset/verify">
+			<input type="hidden" name="flow" value={ flow }/>
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<label class="block"><span class="font-medium">Password reset code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" data-1p-ignore="true" maxlength="6" autofocus required/></span></label>
+			<button class="button button-primary w-full" type="submit">Verify code</button>
+		</form>
+	}
+}
+
+templ newPasswordPage(flow, message string, passwordMinimumLength int, oidcRequest string) {
+	@layout("Choose a new password", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Choose a new password</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Changing your password signs out your other Authling browser sessions.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/password-reset/complete">
+			<input type="hidden" name="flow" value={ flow }/>
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<label class="block"><span class="font-medium">New password</span><input class="form-control" type="password" name="password" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" autofocus required/></label>
+			<button class="button button-primary w-full" type="submit">Reset password</button>
+		</form>
+	}
+}
+
+templ passwordResetCompletePage() {
+	@layout("Password reset", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Your password was reset</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Your new password is ready. Sign in to continue.</p>
+		<a class="button button-primary mt-8" href="/login">Sign in</a>
+	}
+}
+
+templ emailChangePage(message, signedInAs string) {
+	@layout("Change your email address", signedInAs) {
+		<h1 class="text-3xl font-semibold tracking-tight">Change your email address</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Enter your current password, then verify the new address. This signs out your other Authling browser sessions.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/account/email">
+			<label class="block"><span class="font-medium">New email address</span><input class="form-control" type="email" name="email" autocomplete="email" autofocus required/></label>
+			<label class="block"><span class="font-medium">Current password</span><input class="form-control" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
+			<button class="button button-primary w-full" type="submit">Email me a change code</button>
+		</form>
+	}
+}
+
+templ emailChangeCodePage(flow, message, signedInAs string) {
+	@layout("Verify your new email address", signedInAs) {
+		<h1 class="text-3xl font-semibold tracking-tight">Check your new email address</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">We sent a six-digit code. It expires in 15 minutes.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/account/email/verify">
+			<input type="hidden" name="flow" value={ flow }/>
+			<label class="block"><span class="font-medium">Email change code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" data-1p-ignore="true" maxlength="6" autofocus required/></span></label>
+			<button class="button button-primary w-full" type="submit">Verify code</button>
+		</form>
+	}
+}
+
+templ emailChangeConfirmPage(flow, message, signedInAs string) {
+	@layout("Confirm your email change", signedInAs) {
+		<h1 class="text-3xl font-semibold tracking-tight">Your new email address is verified</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Confirming will change your sign-in address and sign out your other Authling browser sessions.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8" method="post" action="/account/email/complete">
+			<input type="hidden" name="flow" value={ flow }/>
+			<button class="button button-primary w-full" type="submit">Change email address</button>
+		</form>
+	}
+}
+
+templ consentPage(request oidcprovider.ConsentRequest, signedInAs string) {
+	@layout("Authorize access", signedInAs) {
+		<h1 class="text-3xl font-semibold tracking-tight">Authorize { request.ClientName }?</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300"><strong>{ request.ClientHost }</strong> is asking for access to your account.</p>
+		<div class="mt-5 rounded-xl border border-slate-300 p-4 dark:border-slate-700">
+			<p class="font-medium">This application will be able to:</p>
+			<ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+				<li>Know your stable account identifier.</li>
+			</ul>
+		</div>
+		<form class="mt-8 grid gap-3" method="post" action="/oidc/consent">
+			<input type="hidden" name="id" value={ request.ID }/>
+			<button class="button button-primary w-full" type="submit" name="decision" value="allow">Authorize</button>
+			<button class="button button-secondary w-full" type="submit" name="decision" value="deny">Deny</button>
+		</form>
+	}
+}
+
+templ signupPage(message string) {
+	@layout("Create your Authling account", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Create your account</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">We’ll email you a six-digit verification code.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/signup">
+			<label class="block"><span class="font-medium">Email address</span><input class="form-control" type="email" name="email" autocomplete="email" required/></label>
+			<button class="button button-primary w-full" type="submit">Email me a code</button>
+		</form>
+	}
+}
+
+templ codePage(flow, message string) {
+	@layout("Verify your email", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Check your email</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/signup/verify">
+			<input type="hidden" name="flow" value={ flow }/>
+			<label class="block"><span class="font-medium">Verification code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" data-1p-ignore="true" maxlength="6" autofocus required/></span></label>
+			<button class="button button-primary w-full" type="submit">Verify email</button>
+		</form>
+	}
+}
+
+templ passwordPage(flow, message string, passwordMinimumLength int) {
+	@layout("Choose a password", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Choose a password</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Spaces and passphrases are welcome.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/signup/complete">
+			<input type="hidden" name="flow" value={ flow }/>
+			<label class="block"><span class="font-medium">Password</span><input class="form-control" type="password" name="password" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" required/></label>
+			<label class="block"><span class="font-medium">Confirm password</span><input class="form-control" type="password" name="password_confirmation" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" required/></label>
+			<button class="button button-primary w-full" type="submit">Create account</button>
+		</form>
+	}
+}
+
+templ accountCreatedPage(accountID string) {
+	@layout("Account created", "") {
+		<h1 class="text-3xl font-semibold tracking-tight">Your account is ready</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Your email was verified and your account was created.</p>
+		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
+		<a class="button button-primary mt-8" href="/login">Sign in</a>
+	}
+}
+
+templ accountPage(accountID, signedInAs string, browserSessions []sessions.BrowserSession, authorizationGrants []authorizations.Grant, passwordChanged, emailChanged, profileUpdated, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing, appRevoked, appMissing bool) {
+	@layout("Your Authling account", signedInAs) {
+		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Your browser has an active Authling session.</p>
+		if passwordChanged {
+			<p role="status" class="notice notice-success">Your password was changed. Your other Authling browser sessions were signed out.</p>
+		}
+		if emailChanged {
+			<p role="status" class="notice notice-success">Your email address was changed. Use your new email address the next time you sign in.</p>
+		}
+		if profileUpdated {
+			<p role="status" class="notice notice-success">Your profile was updated.</p>
+		}
+		if notificationFailed {
+			<p role="alert" class="notice notice-warning">We couldn’t send a security notice to your previous address. Your email address was still changed.</p>
+		}
+		if sessionRevoked {
+			<p role="status" class="notice notice-success">The other browser session was signed out.</p>
+		}
+		if otherSessionsRevoked {
+			<p role="status" class="notice notice-success">Your other browser sessions were signed out.</p>
+		}
+		if sessionMissing {
+			<p role="status" class="notice notice-neutral">That browser session is no longer active.</p>
+		}
+		if appRevoked {
+			<p role="status" class="notice notice-success">The app’s authorization was revoked. It must ask for access again in a future authorization flow.</p>
+		}
+		if appMissing {
+			<p role="status" class="notice notice-neutral">That app is no longer authorized.</p>
+		}
+		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
+		<a class="button button-secondary mt-8 w-full" href="/account/profile">Edit profile</a>
+		<a class="button button-secondary mt-3 w-full" href="/account/email">Change email address</a>
+		<a class="button button-secondary mt-3 w-full" href="/account/password">Change password</a>
+		<form class="mt-3" method="post" action="/logout">
+			<button class="button button-secondary w-full" type="submit">Sign out</button>
+		</form>
+		<div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
+			<h2 class="text-xl font-semibold tracking-tight">Authorized apps</h2>
+			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Apps you allowed to know your stable Authling account identifier. Revoking an app makes it ask again next time; existing app sessions and issued tokens are not ended here.</p>
+			if len(authorizationGrants) == 0 {
+				<p class="mt-5 rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">You haven’t authorized any apps yet.</p>
+			} else {
+				<div class="mt-5 space-y-3">
+					for _, grant := range authorizationGrants {
+						<div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+							<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+								<div class="min-w-0">
+									<p class="font-semibold">{ grant.ClientName }</p>
+									<p class="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{ grant.ClientHost }</p>
+									<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Authorized { formatSessionTime(grant.AuthorizedAt) }</p>
+								</div>
+								<form class="w-full sm:w-auto" method="post" action="/account/authorizations/revoke">
+									<input type="hidden" name="grant_id" value={ grant.ID }/>
+									<button class="button button-danger button-compact w-full whitespace-nowrap sm:w-auto" type="submit">Revoke access</button>
+								</form>
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</div>
+		<div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
+			<h2 class="text-xl font-semibold tracking-tight">Browser sessions</h2>
+			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Review where your account is signed in. Authling does not store browser names, IP addresses, or locations.</p>
+			<div class="mt-5 space-y-3">
+				for _, browserSession := range browserSessions {
+					<div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+						<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+							<div>
+								<div class="flex flex-wrap items-center gap-2">
+									<p class="font-semibold">Browser session</p>
+									if browserSession.Current {
+										<span class="rounded-full bg-authling-100 px-2.5 py-1 text-xs font-semibold text-authling-800 dark:bg-authling-950 dark:text-authling-100">This browser</span>
+									}
+								</div>
+								<dl class="mt-2 space-y-1 text-sm text-slate-500 dark:text-slate-400">
+									<div><dt class="inline">Started:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.CreatedAt) }</dd></div>
+									<div><dt class="inline">Last active:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.LastSeenAt) }</dd></div>
+									<div><dt class="inline">Expires:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.ExpiresAt) }</dd></div>
+								</dl>
+							</div>
+							if !browserSession.Current {
+								<form class="w-full sm:w-auto" method="post" action="/account/sessions/revoke">
+									<input type="hidden" name="session_id" value={ browserSession.ID }/>
+									<button class="button button-danger button-compact w-full whitespace-nowrap sm:w-auto" type="submit">Sign out</button>
+								</form>
+							}
+						</div>
+					</div>
+				}
+			</div>
+			if hasOtherBrowserSession(browserSessions) {
+				<form class="mt-4" method="post" action="/account/sessions/revoke-others">
+					<button class="button button-danger w-full" type="submit">Sign out all other browsers</button>
+				</form>
+			}
+		</div>
+	}
+}
+
+func hasOtherBrowserSession(browserSessions []sessions.BrowserSession) bool {
+	for _, browserSession := range browserSessions {
+		if !browserSession.Current {
+			return true
+		}
+	}
+	return false
+}
+
+func formatSessionTime(value time.Time) string {
+	return value.UTC().Format("2 Jan 2006, 15:04 UTC")
+}
+
+templ profilePage(profile accounts.Profile, message, signedInAs string) {
+	@layout("Edit your profile", signedInAs) {
+		<h1 class="text-3xl font-semibold tracking-tight">Edit your profile</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">These non-unique identity hints are shared with applications you authorize.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/account/profile">
+			<label class="block"><span class="font-medium">Preferred username</span><input class="form-control" type="text" name="preferred_username" autocomplete="username" minlength="2" maxlength="64" value={ profile.PreferredUsername } autofocus required/><span class="mt-2 block text-sm text-slate-500 dark:text-slate-400">This does not have to be unique.</span></label>
+			<label class="block"><span class="font-medium">Full name</span><input class="form-control" type="text" name="full_name" autocomplete="name" maxlength="128" value={ profile.FullName }/></label>
+			<button class="button button-primary w-full" type="submit">Save profile</button>
+		</form>
+		<p class="mt-6 text-sm"><a class="text-link" href="/account">Return to your account</a>.</p>
+	}
+}
+
+templ passwordChangePage(message string, passwordMinimumLength int, signedInAs string) {
+	@layout("Change your password", signedInAs) {
+		<h1 class="text-3xl font-semibold tracking-tight">Change your password</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Enter your current password and choose a new one. This signs out your other Authling browser sessions.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/account/password">
+			<label class="block"><span class="font-medium">Current password</span><input class="form-control" type="password" name="current_password" autocomplete="current-password" maxlength="1024" autofocus required/></label>
+			<label class="block"><span class="font-medium">New password</span><input class="form-control" type="password" name="new_password" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" required/></label>
+			<label class="block"><span class="font-medium">Confirm new password</span><input class="form-control" type="password" name="new_password_confirmation" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" required/></label>
+			<button class="button button-primary w-full" type="submit">Change password</button>
+		</form>
+		<p class="mt-6 text-sm"><a class="text-link" href="/account">Return to your account</a>.</p>
+	}
+}

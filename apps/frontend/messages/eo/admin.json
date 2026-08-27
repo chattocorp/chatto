@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
     "nav": {
       "general": "Generalo",
@@ -10,7 +9,8 @@
       "security": "Sekureco",
       "event_log": "Protokolo de Eventoj",
       "system": "Sistemo",
-      "back_to_server": "Reiru al Servilo"
+      "back_to_server": "Reiru al Servilo",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | Admin",
@@ -122,6 +122,7 @@
       "create_role_title": "Krei Rolon",
       "create_role_subtitle": "Kreu novan rolon por ĉi tiu servilo",
       "create_role_action": "Krei Rolon",
+      "new_role_action": "+ Nova Rolo",
       "creating_role": "Kreante...",
       "create_after_hint": "Post kreado de la rolo, vi povas asigni permesojn al ĝi sur la redakta paĝo.",
       "back_to_permissions": "Reen al permesoj",
@@ -142,7 +143,7 @@
       "no_users_with_role": "Neniuj uzantoj havas ĉi tiun rolon",
       "server_tier_intro": "Ĉi tiu paĝo estas por servil-nivelaj rolpermesoj: larĝaj defaŭltoj kiuj validas antaŭ ĉambrospecifaj anstataŭaĵoj.",
       "server_tier_rooms_hint": "Uzu Ĉambrojn por po-grupoj kaj po-ĉambraj anstataŭoj.",
-      "server_tier_denies_hint": "Uzu malkonfesojn intence: malkonfesi ĉiujn en ĉambroblokoj ĉiuj heredataj permesas ĉe tiu nivelo."
+      "resolution_hint": "Por ĉiu uzanto aŭ nomita rolo validas la plej proksima ĉambra, grupa aŭ servila valoro. Malpermesoj venkas inter ili. Permeso superregas malpermeson de everyone nur je la sama aŭ pli specifa nivelo."
     },
     "rooms_admin": {
       "title": "Ĉambroj",
@@ -160,6 +161,7 @@
       "empty_groups_body": "Kreu aron por komenci organizi ĉambrojn.",
       "drag_hint": "Trenu ĉambrojn inter grupoj por organizi ilin. Trenu grupkapojn por reordigi grupojn. Arkivitaj ĉambroj restas en sia aro sed estas kaŝitaj de membroj.",
       "drag_group": "Trenu por reordigi grupon",
+      "drag_room": "Trenu por reordigi ĉambron",
       "new_room": "Nova Ĉambro",
       "new_link": "Nova Ligo",
       "new_group": "Nova Grupo",
@@ -174,9 +176,23 @@
       "edit_room": "Redakti Ĉambron",
       "edit_room_action": "Redaktu ĉambron",
       "room_description_placeholder": "Laŭvola priskribo por ĉi tiu ĉambro",
+      "slow_mode": "Malrapida reĝimo",
+      "slow_mode_description": "Agordu kiom longe membroj devas atendi inter mesaĝoj en ĉi tiu ĉambro.",
+      "slow_mode_off": "Malŝaltita",
+      "slow_mode_custom": "{interval} (nuna valoro)",
+      "threading_mode": "Fadenreĝimo",
+      "threading_mode_description": "Deviga ĉiam uzas fadenojn; Rekomendita faras respondon en fadeno la ĉefa ago; Ŝaltita lasas la elekton libera; Malŝaltita blokas novan fadenan agadon.",
+      "threading_mode_required": "Deviga",
+      "threading_mode_required_description": "Ĉiu mesaĝo komencas fadenon.",
+      "threading_mode_encouraged": "Instigita",
+      "threading_mode_encouraged_description": "Fadenoj estas rekomendataj, sed ne devigaj.",
+      "threading_mode_enabled": "Ŝaltita",
+      "threading_mode_enabled_description": "Fadenoj estas disponeblaj, sed laŭvolaj.",
+      "threading_mode_disabled": "Malŝaltita",
+      "threading_mode_disabled_description": "Fadenoj ne estas disponeblaj.",
       "room_name_empty": "La nomo de la ĉambro ne povas esti malplena",
       "room_name_trim": "Ĉambronomo ne povas havi antaŭan aŭ postan blankspacon",
-      "room_name_charset": "Ĉambronomo povas enhavi nur literojn, ciferojn, streketojn kaj substrekojn.",
+      "room_name_invalid": "Ĉambronomo ne povas enhavi linisaltojn aŭ stirajn signojn",
       "room_name_too_long": "Ĉambronomo ne povas superi 30 signojn",
       "create_group": "Krei Grupon",
       "group_name": "Grupnomo",
@@ -215,14 +231,40 @@
       "archive_room_failed": "Malsukcesis arkivi ĉambron: {error}",
       "unarchive_room_failed": "Malsukcesis malarkivi ĉambron: {error}",
       "save_link_failed": "Malsukcesis konservi ligilon: {error}",
-      "delete_link_failed": "Malsukcesis forigi ligilon: {error}"
+      "delete_link_failed": "Malsukcesis forigi ligilon: {error}",
+      "universal_members_description": "Membreco estas aŭtomata en universalaj ĉambroj. Ĉiu kun permeso aliri ĉi tiun ĉambron estas inkluzivita.",
+      "archived_members_description": "Membreco ne povas esti ŝanĝita dum ĉi tiu ĉambro estas arkivita.",
+      "add_member": "Aldoni membron",
+      "adding_member": "Aldonante membron...",
+      "load_members_failed": "Malsukcesis ŝargi ĉambromembrojn: {error}",
+      "remove_member": "Forigi membron",
+      "remove_member_prompt": "Ĉu forigi {name} el {room}? Tiu persono ne plu estos eksplicita membro de ĉi tiu ĉambro.",
+      "member_added": "{name} estis aldonita al la ĉambro",
+      "add_member_failed": "Malsukcesis aldoni membron: {error}",
+      "member_removed": "{name} estis forigita el la ĉambro",
+      "remove_member_failed": "Malsukcesis forigi membron: {error}"
     },
     "security": {
       "title": "Sekureco",
       "subtitle": "Limigoj de registriĝo kaj protekto de konto",
       "blocked_usernames": "Forbaritaj Uzantnomoj",
       "blocked_usernames_description": "Unu po linio. Uzantoj ne povas registriĝi kun ĉi tiuj nomoj.",
-      "settings_saved": "Agordoj konservitaj"
+      "settings_saved": "Agordoj konservitaj",
+      "oauth_clients": {
+        "title": "OAuth-klientoj",
+        "description": "Aplikaĵoj aperas ĉi tie post kiam membro rajtigas ilin. Fido estas nur administra etikedo kaj neniam preterlasas individuan konsenton; blokado malhelpas novan aliron kaj nuligas ekzistantajn alirĵetonojn.",
+        "empty": "Neniu OAuth-kliento estas rajtigita",
+        "application": "Aplikaĵo",
+        "origins": "Revokaj originoj",
+        "users": "Rajtigitaj uzantoj",
+        "last_authorization": "Lasta rajtigo",
+        "policy": "Politiko",
+        "policy_for": "Politiko por {client}",
+        "policy_default": "Defaŭlta",
+        "policy_trusted": "Fidata",
+        "policy_blocked": "Blokita",
+        "policy_saved": "Politiko de OAuth-kliento konservita"
+      }
     },
     "system": {
       "title": "Sistemo",
@@ -235,6 +277,7 @@
       "unlimited": "senlima",
       "all_subjects": "ĉiuj temoj",
       "pending_state": "Pritraktata",
+      "worker_unconfirmed": "Nekonfirmita",
       "rtt": "RTT",
       "max_payload": "Maksimuma Utila Ŝarĝo",
       "server_id": "Servila ID",
@@ -374,6 +417,39 @@
       "email": "Retpoŝto",
       "id": "ID",
       "total": "{count} uzanto(j) entute"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import FieldFootnote from './FieldFootnote.svelte';
 
   let {
@@ -26,9 +26,9 @@
 <div class="flex flex-col gap-1.5">
   <label for={id} class={labelHidden ? 'sr-only' : 'text-sm font-medium text-text'}>
     {label}{#if required}<span
-        class="ml-1 iconify align-middle text-[0.7em] text-action uil--asterisk"
+        class="ms-1 iconify icon-[uil--asterisk] align-middle text-[0.7em] text-action"
         aria-hidden="true"
-        title={m['ui.form.required']()}
+        title={m('ui.form.required')}
       ></span>{/if}
   </label>
 

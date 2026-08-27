@@ -172,7 +172,10 @@ test.describe('Admin Access Control', () => {
 
     // Should see access denied message
     await adminPage.expectAccessDenied();
-    await adminPage.expectAdminGearNotVisible();
+    // The unified Settings shell remains available because every member can
+    // manage User Preferences even when this specific route is denied.
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
     await expect(page.getByText('You do not have permission to access this page.')).toBeVisible();
 
     // Should have a link to return to chat
@@ -242,7 +245,7 @@ test.describe('Admin Users Page', () => {
   });
 
   // The previous "admin can see verified emails for multiple OAuth users"
-  // test was retired when /admin/users folded into the server-admin Members
+  // test was retired when /admin/users folded into the manage/server Members
   // page. The Members page intentionally doesn't surface email addresses —
   // that level of identity is a deliberate scope reduction.
 });
@@ -268,19 +271,22 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
-  test('server header gear opens the first permitted admin page', async ({ page, adminPage }) => {
+  test('sidebar Settings entry opens the first permitted server settings page', async ({
+    page,
+    adminPage
+  }) => {
     await createAndLoginAdminUser(page);
 
     await page.goto(routes.space());
 
-    await adminPage.expectAdminGearVisible();
-    await adminPage.navigateToAdminViaGear();
+    await adminPage.expectSettingsLinkVisible();
+    await adminPage.navigateToSettings();
     await adminPage.expectGeneralPageVisible();
     await adminPage.expectBackToChatVisible();
     await adminPage.expectSidebarLinkActive('General');
   });
 
-  test('admin pages use the dedicated server-admin sidebar shell', async ({ page, adminPage }) => {
+  test('admin pages use the dedicated manage/server sidebar shell', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await adminPage.gotoUsers();
@@ -547,8 +553,8 @@ test.describe('Role Assignment', () => {
   // The "instance-admin" / instance-role assignment tests previously lived
   // here. They targeted the legacy /admin/users/[id] and /admin/roles/[name]
   // pages, which used a separate RBAC engine for instance-scoped roles.
-  // After the instance-admin → server-admin consolidation, instance roles
-  // are not surfaced in the unified server-admin role detail; merging the
+  // After the instance-admin → manage/server consolidation, instance roles
+  // are not surfaced in the unified manage/server role detail; merging the
   // two RBAC engines lands in the planned PR(c). Restore equivalent
   // coverage there once the role concepts unify.
 

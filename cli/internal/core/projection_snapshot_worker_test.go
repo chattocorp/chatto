@@ -12,10 +12,10 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 type fakeSnapshotWorkerLease struct {
@@ -281,6 +281,29 @@ func TestProjectionSnapshotRefreshDue(t *testing.T) {
 	status := events.ProjectorStatus{LastSeq: 11, LatestSnapshotSeq: 10, LatestSnapshotAt: now.Add(-time.Hour)}
 	if projectionSnapshotRefreshDue(status, now, false) {
 		t.Fatal("fresh live delta triggered maintenance publication")
+	}
+}
+
+func TestProjectionSnapshotWorkerDefersBeforeRepositoryWrite(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	guardCalls := 0
+	worker := &projectionSnapshotWorker{lease: &fakeSnapshotWorkerLease{}, logger: testCoreLogger()}
+	job := projectionSnapshotJob{
+		projector:     core.notificationMaterializer.decisions.Projector(),
+		projectionKey: projectionsnapshot.ProjectionNotificationDecisionsKey,
+		allowPublication: func(uint64) bool {
+			guardCalls++
+			return false
+		},
+		// A nil repository makes this a regression assertion that the guard is
+		// evaluated before any generation can be written or rotated.
+	}
+	if err := worker.generateJob(ctx, job, true); err != nil {
+		t.Fatalf("generateJob: %v", err)
+	}
+	if guardCalls != 1 {
+		t.Fatalf("publication guard calls = %d, want 1", guardCalls)
 	}
 }
 

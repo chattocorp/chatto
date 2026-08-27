@@ -147,12 +147,13 @@ describe('createRoleAPI', () => {
       viewerCanAssignRoles: false
     });
     const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const signal = new AbortController().signal;
 
-    const result = await api.listAdminRoles();
+    const result = await api.listAdminRoles({ signal });
 
     expect(mocks.listAdminRoles).toHaveBeenCalledWith(
       {},
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal }
     );
     expect(result).toEqual({
       roles: [
@@ -191,10 +192,14 @@ describe('createRoleAPI', () => {
       viewerCanAssignRoles: true
     });
     const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const signal = new AbortController().signal;
 
-    const result = await api.getRole('helpdesk');
+    const result = await api.getRole('helpdesk', { signal });
 
-    expect(mocks.getRole).toHaveBeenCalledWith({ name: 'helpdesk' }, { headers: undefined });
+    expect(mocks.getRole).toHaveBeenCalledWith(
+      { name: 'helpdesk' },
+      { headers: undefined, signal }
+    );
     expect(result).toEqual({
       roles: [],
       role: {

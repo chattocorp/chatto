@@ -1,0 +1,105 @@
+{
+  "ui": {
+    "toggle_sidebar": "تبديل الشريط الجانبي",
+    "notifications": "الإشعارات",
+    "open_quick_switcher": "افتح المحول السريع",
+    "quick_switcher_shortcut": "محول سريع (Cmd+K)",
+    "realtime_paused": "توقفت التحديثات في الوقت الحقيقي مؤقتًا. جارٍ إعادة الاتصال...",
+    "update_available": "يتوفر إصدار جديد",
+    "reload": "إعادة التحميل",
+    "sign_out": "تسجيل الخروج",
+    "close": "إغلاق",
+    "auth_status": {
+      "origin_title": "انتهت صلاحية الجلسة",
+      "origin_message": "يمكنك الاستمرار في قراءة ما تم تحميله بالفعل. قم بتسجيل الدخول مرة أخرى لإرسال الرسائل وتحديث البيانات.",
+      "origin_action": "تسجيل الدخول مجددًا",
+      "remote_title": "يتطلب {server} تسجيل الدخول",
+      "remote_message": "رفض هذا الخادم بيانات تسجيل الدخول المخزنة. أعد الاتصال به لاستئناف التحديثات والإجراءات المباشرة.",
+      "remote_action": "إعادة الاتصال",
+      "remote_failed": "فشل في بدء إعادة الاتصال",
+      "sidebar_reauth": "يتطلب {server} تسجيل الدخول"
+    },
+    "access_denied": {
+      "title": "تم رفض الوصول",
+      "message": "ليس لديك إذن للوصول إلى هذه الصفحة.",
+      "back": "العودة إلى الدردشة",
+      "back_to_server": "العودة إلى الخادم"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "مزيد من المعلومات",
+      "about": "حول {subject}"
+    },
+    "easter_egg": {
+      "fire": "أطلق ليزرًا جاهزًا على Chatto",
+      "points": "{count} نقاط",
+      "laser_guns_count": {
+        "zero": "{count} مسدسات ليزر",
+        "one": "{count} مسدس ليزر",
+        "two": "{count} مسدسا ليزر",
+        "few": "{count} مسدسات ليزر",
+        "many": "{count} مسدس ليزر",
+        "other": "{count} مسدس ليزر"
+      },
+      "laser_ready": "ليزر {number}، طاقة {power}، جاهز",
+      "laser_cooldown": "ليزر {number}، الطاقة {power}: {seconds} ثانية من فترة التهدئة المتبقية",
+      "upgrade_power": "ترقية الليزر {number} إلى مستوى الطاقة {level} لنقاط {cost}",
+      "buy_laser": "قم بشراء مسدس الليزر {number} مقابل نقاط {cost}",
+      "maximum_lasers": "تم الوصول إلى الحد الأقصى لمدافع الليزر {count}"
+    },
+    "pane_header": {
+      "back": "العودة"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "العودة إلى الدردشة"
+    },
+    "resize_handle": {
+      "resize": "تغيير الحجم",
+      "resize_sidebar": "تغيير حجم الشريط الجانبي"
+    },
+    "data_table": {
+      "empty": "لا توجد بيانات",
+      "loading_more": "جارٍ تحميل المزيد..."
+    },
+    "loading_page": {
+      "loading": "..."
+    },
+    "image_modal": {
+      "previous": "الصورة السابقة",
+      "next": "الصورة التالية",
+      "fallback_alt": "صورة"
+    },
+    "toast": {
+      "dismiss": "تجاهل الإشعار"
+    },
+    "combobox": {
+      "loading": "...",
+      "empty": "لا يوجد تطابقات",
+      "clear": "مسح"
+    },
+    "expiry": {
+      "label": "تنتهي الصلاحية",
+      "24h": "24 ساعة",
+      "7d": "7 أيام",
+      "30d": "30 يومًا",
+      "indefinite": "لا انتهاء الصلاحية",
+      "custom": "مخصص",
+      "custom_label": "انتهاء الصلاحية المخصص",
+      "error_required": "اختر تاريخ انتهاء الصلاحية.",
+      "error_invalid": "أدخل تاريخ انتهاء صالح.",
+      "error_future": "يجب أن يكون وقت انتهاء الصلاحية في المستقبل."
+    },
+    "form": {
+      "required": "مطلوب",
+      "max_bytes": "الحد الأقصى {max} بايت؛ تستخدم بعض الأحرف أكثر من بايت واحد."
+    },
+    "dates": {
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "this_week": "هذا الأسبوع",
+      "this_month": "هذا الشهر"
+    }
+  }
+}

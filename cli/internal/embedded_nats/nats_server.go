@@ -6,29 +6,20 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/pkg/natsruntime"
 )
 
 // StartServer creates and starts the embedded NATS server.
 // It blocks until the server is ready for connections, then returns.
 // The caller owns shutdown ordering and should stop the embedded server after
 // application services have exited and NATS client connections are closed.
-func StartServer(cfg *config.EmbeddedNATSConfig) (*server.Server, error) {
+func StartServer(cfg *config.EmbeddedNATSConfig) (*natsruntime.Server, error) {
 	logger := log.WithPrefix("server.NATS")
 
-	ns, err := createServer(cfg)
+	runtime, err := startServer(serverOptions(cfg))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create server: %w", err)
-	}
-
-	ns.Start()
-
-	// Wait for server to be ready for connections
-	if !ns.ReadyForConnections(4 * time.Second) {
-		ns.Shutdown()
-		ns.WaitForShutdown()
-		return nil, fmt.Errorf("server failed to start within timeout")
+		return nil, err
 	}
 
 	if cfg.Port == 0 {
@@ -39,53 +30,62 @@ func StartServer(cfg *config.EmbeddedNATSConfig) (*server.Server, error) {
 			"auth", cfg.AuthToken != "")
 	}
 
-	return ns, nil
+	return runtime, nil
 }
 
 // ShutdownServer stops an embedded NATS server and waits until it has exited.
-func ShutdownServer(ns *server.Server) {
-	if ns == nil {
+func ShutdownServer(runtime *natsruntime.Server) {
+	if runtime == nil {
 		return
 	}
 	logger := log.WithPrefix("server.NATS")
-	ns.Shutdown()
-	ns.WaitForShutdown()
+	runtime.Shutdown()
 	logger.Info("Embedded NATS server shut down")
 }
 
-// createServer creates an embedded NATS server configured from chatto.toml.
-// Use InProcessConnectOption for secure in-process connections.
+// StartPrivateServer starts a temporary in-process-only NATS server for
+// maintenance operations such as restore.
+func StartPrivateServer(dataDir string) (*natsruntime.Server, error) {
+	return startServer(server.Options{
+		JetStream:  true,
+		StoreDir:   dataDir,
+		DontListen: true,
+	})
+}
+
+func startServer(options server.Options) (*natsruntime.Server, error) {
+	runtime, err := natsruntime.Start(natsruntime.Config{
+		Options:      options,
+		ReadyTimeout: 4 * time.Second,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("start embedded NATS server: %w", err)
+	}
+	return runtime, nil
+}
+
+// serverOptions maps Chatto configuration to native NATS server options.
 // When Port > 0, a TCP listener is enabled with token authentication.
-func createServer(cfg *config.EmbeddedNATSConfig) (*server.Server, error) {
-	opts := &server.Options{
+func serverOptions(cfg *config.EmbeddedNATSConfig) server.Options {
+	options := server.Options{
 		JetStream: true,
 		StoreDir:  cfg.DataDir,
-		NoSigs:    true, // Let the app handle signals
 	}
 
-	// TCP client port configuration
 	if cfg.Port == 0 {
-		opts.DontListen = true
+		options.DontListen = true
 	} else {
-		opts.Port = cfg.Port
-		opts.Host = cfg.BindAddressOrDefault()
-		// Enable token auth when configured
+		options.Port = cfg.Port
+		options.Host = cfg.BindAddressOrDefault()
 		if cfg.AuthToken != "" {
-			opts.Authorization = cfg.AuthToken
+			options.Authorization = cfg.AuthToken
 		}
 	}
 
-	// HTTP monitoring port configuration
 	if cfg.HTTPPort > 0 {
-		opts.HTTPPort = cfg.HTTPPort
-		opts.HTTPHost = cfg.BindAddressOrDefault()
+		options.HTTPPort = cfg.HTTPPort
+		options.HTTPHost = cfg.BindAddressOrDefault()
 	}
 
-	return server.NewServer(opts)
-}
-
-// InProcessConnectOption returns a NATS connection option that connects
-// directly to the embedded server without going through TCP.
-func InProcessConnectOption(srv *server.Server) nats.Option {
-	return nats.InProcessServer(srv)
+	return options
 }

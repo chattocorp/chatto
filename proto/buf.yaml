@@ -5,6 +5,12 @@ lint:
   use:
     - STANDARD
   ignore_only:
+    ENUM_NO_ALLOW_ALIAS:
+      # These enums retain the public and persisted SILENT/ALERT spellings as
+      # deprecated aliases while exposing clearer names for the same wire
+      # values. Removing the aliases would break ProtoJSON compatibility.
+      - chatto/api/v1/notifications.proto
+      - chatto/core/v1/notification.proto
     ENUM_VALUE_PREFIX:
       # Legacy persisted core enum. Keep existing names for source/protojson
       # compatibility; public API enums still use prefixed values.

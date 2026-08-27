@@ -1,13 +1,21 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "settings": {
     "nav": {
       "title": "Agordoj",
       "back_to_server": "Reen al Servilo",
       "profile": "Profilo",
-      "display": "Montru",
+      "display": "Preferoj",
       "notifications": "Sciigoj",
-      "account": "Konto"
+      "account": "Konto",
+      "bots": "Botoj",
+      "user_preferences": "Uzantaj preferoj",
+      "server_configuration": "Servila agordo"
+    },
+    "app_preferences": {
+      "title": "Aplikaj preferoj",
+      "subtitle": "Elektoj de ĉi tiu aplikaĵo, kiuj validas por ĉiuj viaj registritaj serviloj",
+      "appearance": { "title": "Aspekto" },
+      "composer": { "title": "Mesaĝverkilo" }
     },
     "profile": {
       "title": "Profilo",
@@ -105,8 +113,9 @@
       "save_button": "Konservu Ŝanĝojn"
     },
     "preferences": {
-      "title": "Montru",
-      "subtitle": "Elektu kiel Chatto aperas",
+      "title": "Tempo kaj regiono",
+      "subtitle": "Elektu kiel ĉi tiu servilo montras datojn kaj horojn al vi",
+      "browser_scope": "Ĉi tiu elekto validas por ĉiuj Chatto-serviloj en ĉi tiu retumilo.",
       "theme": {
         "title": "Temo",
         "system": {
@@ -120,6 +129,28 @@
         "dark": {
           "label": "Mallumo",
           "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
+        }
+      },
+      "editor": {
+        "title": "Mesaĝredaktilo",
+        "visual": {
+          "label": "Vida",
+          "description": "Aranĝu mesaĝojn sen vidi Markdown-sintakson"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Redaktu Markdown-fonton kun sintaksa reliefigo"
+        }
+      },
+      "send_mode": {
+        "title": "Sendi mesaĝojn per",
+        "enter": {
+          "label": "Return",
+          "description": "Return sendas; Cmd/Ctrl+Return plenumas la normalan Return-agon de la redaktilo"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sendas; Return plenumas la normalan agon de la redaktilo"
         }
       },
       "language": {
@@ -153,9 +184,9 @@
           "description": "ekz., 14:30"
         }
       },
-      "save_button": "Konservu ekranajn agordojn",
-      "saved": "Vidigaj agordoj konservitaj",
-      "save_failed": "Malsukcesis konservi ekranajn agordojn"
+      "save_button": "Konservi horajn agordojn",
+      "saved": "Horaj agordoj konservitaj",
+      "save_failed": "Ne eblis konservi horajn agordojn"
     },
     "notifications": {
       "title": "Sciigoj",
@@ -180,9 +211,7 @@
         "enabling": "Ebligante...",
         "blocked_error": "Puŝaj sciigoj estas blokitaj en via retumilo aŭ OS-agordoj.",
         "enable_failed": "Malsukcesis ebligi puŝajn sciigojn. Bonvolu provi denove.",
-        "enable_error": "Okazis eraro dum ebligado de puŝaj sciigoj",
-        "remote_title": "Indiĝena puŝo ne disponeblas por foraj serviloj",
-        "remote_description": "Ĉi tiu instalita aplikaĵo povas nur registri retumilajn puŝajn sciigojn ĉe la servilo, kiu servis ĝin. Insignoj kaj sonoj pri sciigo en la aplikaĵo daŭre funkcias por ĉi tiu servilo dum Chatto estas malfermita."
+        "enable_error": "Okazis eraro dum ebligado de puŝaj sciigoj"
       },
       "push_prompt": {
         "title": "Ebligu puŝajn sciigojn",
@@ -195,35 +224,6 @@
         "enabling": "Ebligante...",
         "enable": "Ebligu",
         "dismiss": "Ne dankon"
-      },
-      "levels": {
-        "loading": "Ŝarĝante...",
-        "load_failed": "Malsukcesis ŝargi sciigajn preferojn",
-        "server_updated": "Servila sciiga nivelo ĝisdatigita",
-        "room_updated": "Ĉambra sciiga nivelo ĝisdatigita",
-        "update_failed": "Malsukcesis ĝisdatigi",
-        "server_title": "Servila Sciiga Nivelo",
-        "server_description": "Kontrolas kiel vi ricevas sciigojn por ĉiuj ĉambroj en ĉi tiu servilo. Individuaj ĉambroj povas anstataŭi ĉi tiun agordon.",
-        "room_title": "Ĉambro Anstataŭigoj",
-        "room_description": "Anstataŭigi la servilnivelan agordon por individuaj ĉambroj. Ĉambroj fiksitaj al \"Defaŭlta\" heredas la servilan agordon ({level}).",
-        "room_level_label": "Sciiga nivelo por #{room}",
-        "effective": "Efika: {level}",
-        "default": {
-          "label": "Defaŭlte",
-          "description": "Uzu la hereditan defaŭlton"
-        },
-        "muted": {
-          "label": "Silentita",
-          "description": "Neniuj sciigoj aŭ nelegitaj markiloj"
-        },
-        "normal": {
-          "label": "Normala",
-          "description": "Nelegitaj markiloj + mencioj, DM-oj kaj fadenaj respondoj"
-        },
-        "all_messages": {
-          "label": "Ĉiuj Mesaĝoj",
-          "description": "Normala + sciigo por ĉiu nova mesaĝo"
-        }
       },
       "sound": {
         "title": "Sciiga Sono",
@@ -273,6 +273,50 @@
           "siren": "Alerta Sireno",
           "dubstep": "Dubstep Drop",
           "circus": "Cirko"
+        }
+      },
+      "policy": {
+        "title": "Sciiga politiko",
+        "description": "Elektu kiel ĉiu aktiveco atentigu vin je servila, ĉambrogrupa kaj ĉambra nivelo. Ĉambroj heredas de sia grupo kaj poste de la servilo.",
+        "load_failed": "Ne eblis ŝargi la sciigan politikon",
+        "save_failed": "Ne eblis konservi la sciigan politikon",
+        "effective": "Efektiva: {mode}",
+        "filter_label": "Filtri sciigajn ampleksojn",
+        "filter_placeholder": "Filtri grupojn kaj ĉambrojn…",
+        "no_filter_matches": "Neniu sciiga amplekso kongruas kun ĉi tiu filtrilo.",
+        "legend": "Reĝimoj de livero de sciigoj",
+        "cell_aria": "{cause}, {scope}. Superrego: {override}. Efektiva: {effective}. Aktivigu por agordi {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Defaŭlto: {current}. Aktivigu por agordi {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Ne aplikebla.",
+        "delivery_mode": {
+          "inherit": "Heredi",
+          "off": "Malŝaltita",
+          "notification": "Sciigo",
+          "push_notification": "Puŝa sciigo"
+        },
+        "reason": {
+          "direct_message": "Rektaj mesaĝoj",
+          "direct_mention": "Rektaj mencioj",
+          "reply": "Respondoj al viaj mesaĝoj",
+          "role_mention": "Rolmencioj",
+          "here": "@here-mencioj",
+          "all": "@all-mencioj",
+          "followed_thread": "Sekvataj fadenoj",
+          "followed_room": "Sekvataj ĉambroj",
+          "reaction": "Reagoj al viaj mesaĝoj",
+          "activity": "Aktiveco",
+          "room_invitation": "Invitoj al ĉambroj"
+        },
+        "reason_hint": {
+          "direct_message": "Mesaĝoj, kiujn aliaj membroj sendas en rektmesaĝaj konversacioj.",
+          "direct_mention": "Mesaĝoj, kiuj rekte mencias vian uzantnomon.",
+          "reply": "Mesaĝoj, kiuj respondas al unu el viaj mesaĝoj.",
+          "role_mention": "Mesaĝoj, kiuj mencias rolon atribuitan al vi.",
+          "here": "Mesaĝoj, kiuj uzas @here kiam via ĉeesto ne estas eksterreta.",
+          "all": "Mesaĝoj, kiuj uzas @all en ĉambro, al kiu vi apartenas.",
+          "followed_thread": "Novaj respondoj en fadenoj, kiujn vi sekvas.",
+          "followed_room": "Ĉefnivelaj mesaĝoj en ĉambroj, kiujn vi sekvas.",
+          "reaction": "Reagoj, kiujn aliaj membroj aldonas al viaj mesaĝoj."
         }
       }
     },
@@ -350,6 +394,52 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Nuligi",
         "deleting": "Forigante..."
+      }
+    },
+    "bots": {
+      "title": "Botoj",
+      "subtitle": "Kreu API-kontojn kaj kontrolu precize kion ili povas fari",
+      "singular": "bot",
+      "unsupported": "Ĉi tiu servila versio ne subtenas botkontojn.",
+      "list_title": "Bot-Kontoj",
+      "loading": "Ŝarĝante robotojn...",
+      "empty_title": "Ankoraŭ neniuj bots",
+      "empty_body": "Krei roboton kiam integriĝo bezonas sian propran identecon kaj permesojn.",
+      "create_permission_required": "Vi povas administri ekzistantajn robotojn, sed vi ne havas permeson krei novan.",
+      "create": "Krei Bot",
+      "create_title": "Krei Bot-Konton",
+      "create_failed": "Malsukcesis krei bot",
+      "created": "Bot kreita",
+      "edit": "Redakti",
+      "edit_title": "Redakti Bot-Konton",
+      "updated": "Bot ĝisdatigita",
+      "update_failed": "Malsukcesis ĝisdatigi bot",
+      "update_conflict": "Iu alia ĝisdatigis ĉi tiun roboton. Reŝargu la paĝon kaj provu denove.",
+      "username": "Uzantnomo",
+      "username_hint": "Bot uzantnomoj devas finiĝi per _bot.",
+      "display_name": "Montra nomo",
+      "owner": "Posedanto",
+      "reassign_owner": "Reasigni posedanton",
+      "reassign_owner_warning": "La API-ŝlosilo kaj agorditaj permesoj de la roboto restos samaj. Efikaj permesoj tuj sekvos la novan posedanton.",
+      "owner_reassigned": "Robotposedanto reasignita",
+      "owner_reassign_failed": "Ne eblis reasigni robotposedanton",
+      "api_key_title": "Konservu Ĉi tiun API-Ŝlosilon",
+      "api_key_warning": "Ĉi tiu ŝlosilo montriĝas nur unufoje. Konservu ĝin ie sekure antaŭ ol fermi ĉi tiun fenestron.",
+      "key_created": "API-ŝlosilo kreita",
+      "key_rotated_at": "Laste turnita",
+      "key_copied": "API-ŝlosilo kopiita",
+      "rotate_key": "Rotaciu Ŝlosilon",
+      "rotate_title": "Rotacii API-Ŝlosilon",
+      "rotate_warning": "La nuna ŝlosilo tuj ĉesos funkcii. Ĉiu integriĝo uzanta ĝin devas esti ĝisdatigita.",
+      "key_rotated": "API-ŝlosilo turniĝis",
+      "rotate_failed": "Malsukcesis turni API-ŝlosilon",
+      "delete_title": "Forigi Bot",
+      "delete_warning": "Ĉu forigi {name}? Ĝia API-ŝlosilo tuj ĉesos funkcii kaj la konto ne povas esti reakirita.",
+      "deleted": "Bot forigita",
+      "delete_failed": "Malsukcesis forigi bot",
+      "permissions": {
+        "owner_ceiling": "Elektu, kion ĉi tiu roboto rajtas fari. Vi povas doni al ĝi nur permesojn, kiujn vi mem havas. Se vi perdas permeson, ankaŭ la roboto ne plu povos uzi ĝin.",
+        "save_failed": "Malsukcesis ĝisdatigi bot-permeson"
       }
     }
   }

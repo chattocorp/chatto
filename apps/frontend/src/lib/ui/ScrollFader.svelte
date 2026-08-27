@@ -16,6 +16,7 @@ scroll container; children render inside the scroll container.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import ScrollArea from './ScrollArea.svelte';
 
   type Props = {
     children: Snippet;
@@ -25,12 +26,22 @@ scroll container; children render inside the scroll container.
     bottom?: boolean;
     /** Tailwind class for fade height. Default `h-8`. */
     fadeHeight?: string;
+    /** Tailwind position class for the top fade. Default `top-0`. */
+    topFadeOffset?: string;
+    /** Let the inner viewport scroll horizontally as well as vertically. */
+    scrollX?: boolean;
+    /** Fill the remaining height of a flex parent. Disable for intrinsic-height viewports. */
+    fill?: boolean;
+    /** Tailwind classes for the opaque end of each fade. */
+    fadeColorClass?: string;
     /** Extra classes for the outer positioning wrapper. */
     class?: string;
     /** Extra classes for the inner scroll container. */
     scrollClass?: string;
     /** Bound to the inner scroll container so callers can reference it. */
     scrollEl?: HTMLDivElement;
+    /** Keep the scroll viewport in the tab order for keyboard scrolling. */
+    keyboardFocusable?: boolean;
     [key: string]: unknown;
   };
 
@@ -39,15 +50,19 @@ scroll container; children render inside the scroll container.
     top = false,
     bottom = false,
     fadeHeight = 'h-8',
+    topFadeOffset = 'top-0',
+    scrollX = false,
+    fill = true,
+    fadeColorClass = 'from-background',
     class: className = '',
     scrollClass = '',
     scrollEl = $bindable(),
+    keyboardFocusable = true,
     ...rest
   }: Props = $props();
 
   let scrolledFromTop = $state(false);
   let scrolledFromBottom = $state(false);
-  let scrollProps = $derived({ tabindex: 0, ...rest });
 
   function updateScrollEdges(el: HTMLElement) {
     const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
@@ -95,20 +110,14 @@ scroll container; children render inside the scroll container.
   }
 </script>
 
-<div class={['relative flex min-h-0 min-w-0 flex-1 flex-col', className]}>
-  <div
-    bind:this={scrollEl}
-    {@attach trackScrollEdges}
-    class={['flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto', scrollClass]}
-    {...scrollProps}
-  >
-    {@render children()}
-  </div>
+{#snippet fades()}
   {#if top}
     <div
       aria-hidden="true"
       class={[
-        'pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-background to-transparent transition-opacity',
+        'pointer-events-none absolute inset-x-0 z-30 bg-gradient-to-b to-transparent transition-opacity',
+        fadeColorClass,
+        topFadeOffset,
         fadeHeight,
         !scrolledFromTop && 'opacity-0'
       ]}
@@ -118,10 +127,25 @@ scroll container; children render inside the scroll container.
     <div
       aria-hidden="true"
       class={[
-        'pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent transition-opacity',
+        'pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t to-transparent transition-opacity',
+        fadeColorClass,
         fadeHeight,
         !scrolledFromBottom && 'opacity-0'
       ]}
     ></div>
   {/if}
-</div>
+{/snippet}
+
+<ScrollArea
+  {scrollX}
+  {fill}
+  class={className}
+  {scrollClass}
+  bind:scrollEl
+  {keyboardFocusable}
+  scrollAttachment={trackScrollEdges}
+  overlay={fades}
+  {...rest}
+>
+    {@render children()}
+</ScrollArea>

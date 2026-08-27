@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { RoomEventKind } from '$lib/render/eventKinds';
-import type { RoomEventView } from '$lib/render/types';
+import {
+  TimelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import { roomReplyTargetEventId } from './messageReplyTarget';
 
-function messageEvent(id: string, echoOfEventId: string | null = null): RoomEventView {
+function messageEvent(id: string, echoOfEventId: string | null = null): TimelineEventView {
   return {
     id,
     createdAt: '2026-06-28T12:00:00Z',
     actorId: 'user-1',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: 'hello',
       attachments: [],

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Łączę...",
     "joining": "Dołączam...",
@@ -11,6 +10,15 @@
     "leave": "Opuść połączenie",
     "share_screen": "Udostępnij ekran",
     "stop_share_screen": "Zatrzymaj udostępnianie ekranu",
+    "applications": "Aplikacje",
+    "entire_screen": "Cały ekran",
+    "share_source": "Źródło udostępniania",
+    "main_display": "Ekran główny",
+    "display_number": "Ekran {number}",
+    "video_only": "Tylko obraz",
+    "share_sources_failed": "Nie udało się wczytać źródeł do udostępnienia.",
+    "no_share_windows": "Nie znaleziono okien aplikacji do udostępnienia.",
+    "no_share_displays": "Nie znaleziono ekranów.",
     "user_settings": "Ustawienia użytkownika",
     "speaking": "Mówię",
     "muted": "Wyciszony",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Nie można rozpocząć udostępniania ekranu.",
     "speaker_switch_failed": "Nie można przełączyć głośników. Ta przeglądarka lub urządzenie może nie obsługiwać wyboru głośników.",
     "device_switch_failed": "Nie można przełączyć się na to urządzenie.",
-    "media_device_failed": "Nie można uzyskać dostępu do urządzenia multimedialnego."
+    "media_device_failed": "Nie można uzyskać dostępu do urządzenia multimedialnego.",
+    "stream_game": "Transmituj grę",
+    "stream_game_description": "Wybierz okno gry, które chcesz udostępnić wszystkim uczestnikom rozmowy.",
+    "game_windows": "Okna gier",
+    "no_game_windows": "Nie znaleziono okien do udostępnienia. Otwórz grę w trybie okienkowym lub bez ramek i spróbuj ponownie.",
+    "game_windows_failed": "Nie udało się wczytać okien do udostępnienia.",
+    "untitled_window": "Okno bez tytułu",
+    "game_window_selected": "Wybrano: {name}"
   }
 }

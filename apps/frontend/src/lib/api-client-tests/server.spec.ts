@@ -40,19 +40,18 @@ describe('getPublicServerInfo', () => {
       },
       login: {
         directRegistrationEnabled: true,
+        directLoginEnabled: false,
         authorizeUrl: '/oauth/authorize',
         providers: [
           {
             id: 'hub',
             type: 'oidc',
             label: 'Chatto Hub',
-            loginUrl: '/auth/providers/hub'
+            loginUrl: '/auth/providers/hub',
+            issuerUrl: 'https://id.example',
+            autoProvision: true
           }
         ]
-      },
-      compatibility: {
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
-        minimumWebClientVersion: '0.5.0-beta.2'
       }
     });
 
@@ -68,6 +67,8 @@ describe('getPublicServerInfo', () => {
       version: '9.8.7',
       authorizeUrl: '/oauth/authorize',
       directRegistrationEnabled: true,
+      directLoginEnabled: false,
+      accountCreationPolicy: 'open',
       welcomeMessage: 'welcome',
       description: 'description',
       iconUrl: 'https://cdn/logo.webp',
@@ -77,13 +78,11 @@ describe('getPublicServerInfo', () => {
           id: 'hub',
           type: 'oidc',
           label: 'Chatto Hub',
-          loginUrl: '/auth/providers/hub'
+          loginUrl: '/auth/providers/hub',
+          issuerUrl: 'https://id.example',
+          autoProvision: true
         }
-      ],
-      compatibility: {
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
-        minimumWebClientVersion: '0.5.0-beta.2'
-      }
+      ]
     });
   });
 
@@ -98,11 +97,11 @@ describe('getPublicServerInfo', () => {
 
     await expect(getPublicServerInfo('https://chat.example.test')).resolves.toMatchObject({
       name: 'Chatto',
+      directLoginEnabled: true,
       welcomeMessage: null,
       description: null,
       iconUrl: null,
-      bannerUrl: null,
-      compatibility: null
+      bannerUrl: null
     });
   });
 });

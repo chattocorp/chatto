@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
     "nav": {
       "general": "Загальне",
@@ -10,7 +9,8 @@
       "security": "Безпека",
       "event_log": "Журнал подій",
       "system": "Система",
-      "back_to_server": "Повернутися на сервер"
+      "back_to_server": "Повернутися на сервер",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | адмін",
@@ -122,6 +122,7 @@
       "create_role_title": "Створити роль",
       "create_role_subtitle": "Створіть нову роль для цього сервера",
       "create_role_action": "Створити роль",
+      "new_role_action": "+ Нова роль",
       "creating_role": "Створення...",
       "create_after_hint": "Після створення ролі ви можете призначити їй дозволи на сторінці редагування.",
       "back_to_permissions": "Назад до дозволів",
@@ -142,7 +143,7 @@
       "no_users_with_role": "Жоден користувач не має цієї ролі",
       "server_tier_intro": "Ця сторінка призначена для дозволів ролей на рівні сервера: широкі значення за умовчанням, які застосовуються перед замінами для окремих кімнат.",
       "server_tier_rooms_hint": "Використовуйте кімнати для перевизначення груп і кімнат.",
-      "server_tier_denies_hint": "Використовуйте заборони навмисно: заборона всім у кімнаті блокує всі успадковані дозволи на цьому рівні."
+      "resolution_hint": "Для кожного користувача або іменованої ролі застосовується найближче значення кімнати, групи чи сервера. Заборони мають перевагу між ними. Дозвіл перевизначає заборону everyone лише на тому самому або конкретнішому рівні."
     },
     "rooms_admin": {
       "title": "Кімнати",
@@ -160,6 +161,7 @@
       "empty_groups_body": "Створіть набір, щоб розпочати організацію кімнат.",
       "drag_hint": "Перетягуйте кімнати між групами, щоб упорядкувати їх. Перетягніть заголовки груп, щоб змінити порядок груп. Заархівовані кімнати залишаються у своєму наборі, але приховані від учасників.",
       "drag_group": "Перетягніть, щоб змінити порядок груп",
+      "drag_room": "Перетягніть, щоб змінити порядок кімнати",
       "new_room": "Нова кімната",
       "new_link": "Нове посилання",
       "new_group": "Нова група",
@@ -174,9 +176,23 @@
       "edit_room": "Редагувати кімнату",
       "edit_room_action": "Редагувати кімнату",
       "room_description_placeholder": "Додатковий опис для цієї кімнати",
+      "slow_mode": "Повільний режим",
+      "slow_mode_description": "Укажіть, скільки учасники мають чекати між повідомленнями в цій кімнаті.",
+      "slow_mode_off": "Вимкнено",
+      "slow_mode_custom": "{interval} (поточне значення)",
+      "threading_mode": "Режим гілок",
+      "threading_mode_description": "Обов’язковий режим завжди використовує гілки; Рекомендований робить відповідь у гілці основною дією; Увімкнений залишає вибір; Вимкнений блокує нову активність у гілках.",
+      "threading_mode_required": "Обов’язково",
+      "threading_mode_required_description": "Кожне повідомлення створює гілку.",
+      "threading_mode_encouraged": "Рекомендовано",
+      "threading_mode_encouraged_description": "Використання гілок заохочується, але не є обов’язковим.",
+      "threading_mode_enabled": "Увімкнено",
+      "threading_mode_enabled_description": "Гілки доступні, але необов’язкові.",
+      "threading_mode_disabled": "Вимкнено",
+      "threading_mode_disabled_description": "Гілки недоступні.",
       "room_name_empty": "Назва кімнати не може бути пустою",
       "room_name_trim": "Назва кімнати не може містити пробіли на початку чи в кінці",
-      "room_name_charset": "Назва кімнати може містити лише літери, цифри, дефіси та підкреслення",
+      "room_name_invalid": "Назва кімнати не може містити розриви рядків або керівні символи",
       "room_name_too_long": "Назва кімнати не може перевищувати 30 символів",
       "create_group": "Створити групу",
       "group_name": "Назва групи",
@@ -215,14 +231,40 @@
       "archive_room_failed": "Не вдалося заархівувати кімнату: {error}",
       "unarchive_room_failed": "Не вдалося розархівувати кімнату: {error}",
       "save_link_failed": "Не вдалося зберегти посилання: {error}",
-      "delete_link_failed": "Не вдалося видалити посилання: {error}"
+      "delete_link_failed": "Не вдалося видалити посилання: {error}",
+      "universal_members_description": "Участь в універсальних кімнатах надається автоматично. До них входять усі, хто має дозвіл на доступ до кімнати.",
+      "archived_members_description": "Не можна змінювати учасників, доки цю кімнату заархівовано.",
+      "add_member": "Додати учасника",
+      "adding_member": "Додавання учасника...",
+      "load_members_failed": "Не вдалося завантажити учасників кімнати: {error}",
+      "remove_member": "Видалити учасника",
+      "remove_member_prompt": "Видалити {name} з {room}? Ця особа більше не буде безпосереднім учасником кімнати.",
+      "member_added": "{name} додано до кімнати",
+      "add_member_failed": "Не вдалося додати учасника: {error}",
+      "member_removed": "{name} видалено з кімнати",
+      "remove_member_failed": "Не вдалося видалити учасника: {error}"
     },
     "security": {
       "title": "Безпека",
       "subtitle": "Обмеження реєстрації та захист облікового запису",
       "blocked_usernames": "Заблоковані імена користувачів",
       "blocked_usernames_description": "По одному на рядок. Користувачі не можуть зареєструватися з цими іменами.",
-      "settings_saved": "Налаштування збережено"
+      "settings_saved": "Налаштування збережено",
+      "oauth_clients": {
+        "title": "Клієнти OAuth",
+        "description": "Застосунки з’являються тут після авторизації учасником. Довіра — лише адміністративна мітка й ніколи не замінює індивідуальну згоду; блокування забороняє новий доступ і відкликає наявні токени.",
+        "empty": "Немає авторизованих клієнтів OAuth",
+        "application": "Застосунок",
+        "origins": "Джерела зворотного виклику",
+        "users": "Авторизовані користувачі",
+        "last_authorization": "Остання авторизація",
+        "policy": "Політика",
+        "policy_for": "Політика для {client}",
+        "policy_default": "Типова",
+        "policy_trusted": "Довірений",
+        "policy_blocked": "Заблокований",
+        "policy_saved": "Політику клієнта OAuth збережено"
+      }
     },
     "system": {
       "title": "Система",
@@ -235,6 +277,7 @@
       "unlimited": "без обмежень",
       "all_subjects": "усі теми",
       "pending_state": "Очікує на розгляд",
+      "worker_unconfirmed": "Не підтверджено",
       "rtt": "RTT",
       "max_payload": "Максимальне корисне навантаження",
       "server_id": "Ідентифікатор сервера",
@@ -374,6 +417,39 @@
       "email": "Електронна пошта",
       "id": "ID",
       "total": "Загальна кількість користувачів {count}"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

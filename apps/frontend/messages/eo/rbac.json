@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "rbac": {
     "delete_role": {
       "title": "Forigi Rolon",
@@ -45,10 +44,22 @@
       "allow": "permesi",
       "deny": "nei",
       "winning_decision": "(gajna decido)",
+      "included_by": "Included by {permission}",
       "level_server": "Servilo",
       "level_group": "Grupo",
       "level_room": "Ĉambro",
       "empty_category": "Neniuj permesoj en ĉi tiu kategorio",
+      "filter_label": "Filtri permesojn",
+      "filter_placeholder": "Filtri permesojn...",
+      "no_filter_matches": "Neniuj permesoj kongruas kun ĉi tiu filtrilo.",
+      "binary": {
+        "aria": "{permission} estas {state} por {subject} ĉe {scope}",
+        "enabled": "Ŝaltita",
+        "disabled": "Malŝaltita",
+        "inherited": "Heredita de pli vasta amplekso",
+        "unavailable": "Nuntempe nedisponebla",
+        "owner_ceiling": "Vi ne povas doni {permission} ĉe {scope}, ĉar la posedanto de la roboto nuntempe ne havas ĝin."
+      },
       "categories": {
         "space": {
           "title": "Servilaj Permesoj",
@@ -80,7 +91,7 @@
         },
         "user": {
           "title": "Permesoj de uzanto",
-          "description": "Kontrolu uzantkonton kaj per-uzantajn permesajn operaciojn. Ajna neposedanto neas nuligas subvenciojn"
+          "description": "Kontrolu uzantkonton kaj per-uzantajn permesajn operaciojn"
         }
       }
     },
@@ -91,6 +102,8 @@
       "room_list": "Vidu ĉambrojn en la dosierujo. Uzanto povas esti permesita vidi ĉambron (ekz. por peti aliron) sen esti permesita aliĝi al ĝi.",
       "room_manage": "Redaktu agordojn kaj permesojn de ĉambro, kaj forigu ĉambrojn",
       "room_ban_member": "Malpermesu membrojn de ĉambroj",
+      "message_read": "Legi mesaĝojn en kanalĉambroj",
+      "message_read_interactions": "Legi kompletajn fadenojn, kiujn vi verkis aŭ en kiuj alia uzanto rekte menciis vin",
       "message_post": "Afiŝu radikajn mesaĝojn en ĉambroj kaj komencu DM-ojn",
       "message_post_in_thread": "Afiŝu respondojn ene de fadeno",
       "message_attach": "Aligu dosierojn al mesaĝoj",
@@ -104,6 +117,7 @@
       "admin_view_audit": "Rigardu la revizian protokolon en administranto",
       "user_delete_any": "Forigu la konton de alia uzanto",
       "user_delete_self": "Forigu vian propran konton",
+      "user_invite": "Kreu kaj administru invitligilojn",
       "user_manage_accounts": "Kreu uzantojn, redaktu kontan identecon, restarigi pasvortojn, kunsendi kontrolitajn retpoŝtojn kaj malplenigi ensalutajn malfunkciojn",
       "user_manage_permissions": "Redakti rektajn per-uzantajn permesojn anstataŭigas"
     }

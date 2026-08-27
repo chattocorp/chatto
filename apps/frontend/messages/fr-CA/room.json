@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Créer une nouvelle salle",
@@ -14,7 +13,7 @@
       "missing_group": "Choisissez un groupe de pièces avant de créer une pièce.",
       "failed": "Échec de la création du salon",
       "creating": "Création...",
-      "submit": "Créer une salle"
+      "submit_and_configure": "Créer et configurer"
     },
     "join": {
       "title": "Se joindre à la salle",
@@ -23,13 +22,10 @@
       "inline_prompt": "Joignez-vous à cette salle pour lire et participer.",
       "group_label": "Dans {group}",
       "member_preview_label": "Membres de la salle",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} membre", "countPlural=other": "{count} membres" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} membre",
+        "other": "{count} membres"
+      },
       "success": "S'est joint à #{room}",
       "success_generic": "Le salon se joint",
       "failed": "Échec de la connexion au salon",
@@ -74,7 +70,8 @@
       "remove_account_suffix": " de ce serveur avant de le retirer."
     },
     "timeline": {
-      "beginning": "Voici le début de cette conversation."
+      "beginning": "Voici le début de cette conversation.",
+      "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon."
     },
     "message": {
       "empty": "Aucun message pour l'instant",
@@ -82,6 +79,7 @@
       "delete_prompt": "Êtes-vous certain de vouloir supprimer ce message ? Ça ne peut pas être annulé.",
       "delete_failed": "Échec de la suppression du message",
       "reaction_failed": "Échec de la mise à jour de la réaction",
+      "reaction_limit_reached": "Vous pouvez ajouter jusqu’à 20 réactions à un message.",
       "deleted": "Message supprimé",
       "actions": {
         "toolbar": "Actions des messages",
@@ -90,6 +88,7 @@
         "add_reaction": "Ajouter une réaction",
         "more_reactions": "Plus de réactions",
         "reply": "Répondre",
+        "reply_room": "Répondre dans le salon",
         "reply_thread": "Répondre dans le fil de discussion",
         "open_thread": "Ouvrir le fil de discussion",
         "edit": "Modifier le message",
@@ -100,7 +99,10 @@
         "copy_link": "Copier le lien"
       },
       "meta": {
+        "pinned": "Message épinglé",
         "thread": "Sujet",
+        "edited": "Message modifié",
+        "echoed_to_channel": "Également envoyé au canal",
         "reply_count_one": "1 réponse",
         "reply_count_many": "Réponses de {count}",
         "follow_thread": "Suivre le fil de discussion",
@@ -120,39 +122,24 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "s'est joint à la salle",
-            "countPlural=other": "s'est joint à la salle"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "a quitté la pièce",
-            "countPlural=other": "a quitté la pièce"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "s'est joint à la salle",
+        "other": "s'est joint à la salle"
+      },
+      "left_count": {
+        "one": "a quitté la pièce",
+        "other": "a quitté la pièce"
+      },
       "archived": "a archivé la pièce",
       "unarchived": "a désarchivé la salle",
+      "call_started": "a lancé un appel dans cette salle",
+      "call_ended": "L’appel en cours est terminé",
+      "threading_mode_changed": "a défini le mode des fils sur {mode}",
       "and": "et",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "autre",
-            "countPlural=other": "autres"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "autre",
+        "other": "autres"
+      },
       "show_less": "afficher moins"
     },
     "attachment": {
@@ -186,6 +173,7 @@
       "offline": "Hors ligne ({count})",
       "no_files": "Aucun fichier pour l'instant dans cette salle.",
       "files": "Fichiers",
+      "pins": "Messages épinglés",
       "call": "Appeler",
       "jump_to_file": "Aller à {filename}",
       "loading_files": "Chargement des fichiers...",
@@ -195,6 +183,20 @@
       "in_video_call": "Lors d'un appel vidéo",
       "ban_failed": "Échec de l'exclusion du membre de la salle",
       "ban_success": "{name} banni de la salle"
+    },
+    "pins": {
+      "show": "Afficher les messages épinglés",
+      "unseen": "Nouveaux messages épinglés",
+      "hide": "Masquer les messages épinglés",
+      "pin": "Épingler le message",
+      "unpin": "Désépingler le message",
+      "unpin_prompt": "Voulez-vous vraiment retirer cette épingle du message?",
+      "loading": "Chargement des messages épinglés...",
+      "empty_title": "Aucun message épinglé",
+      "empty_description": "Les gestionnaires du salon peuvent épingler ici les messages importants.",
+      "error_title": "Messages épinglés indisponibles",
+      "error_description": "Impossible de charger les messages épinglés. Réessayez dans un instant.",
+      "update_failed": "Impossible de mettre à jour le message épinglé"
     },
     "title": {
       "direct_message": "Message direct"

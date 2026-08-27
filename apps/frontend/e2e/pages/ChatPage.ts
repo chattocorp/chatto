@@ -22,6 +22,13 @@ export class ChatPage {
     return this.page.locator('.room-list');
   }
 
+  /** Return a sidebar room link without depending on its room-type icon. */
+  getRoomLink(roomName: string): Locator {
+    return this.roomList
+      .getByRole('link')
+      .filter({ has: this.page.getByText(roomName, { exact: true }) });
+  }
+
   /**
    * Navigate to the chat page.
    * Note: users may be redirected to the server root, their last room, or
@@ -29,8 +36,12 @@ export class ChatPage {
    */
   async goto(): Promise<void> {
     await this.page.goto('/chat');
-    // Wait for any /chat path - redirects happen based on user state
-    await this.page.waitForURL((url) => url.pathname.startsWith('/chat'));
+    // Exclude the transient /chat and /chat/- shells so callers cannot race
+    // either client-side redirect before reaching the last position or overview.
+    await this.page.waitForURL((url) => {
+      const pathname = url.pathname;
+      return pathname === routes.notifications || pathname.startsWith(`${routes.chat}/`);
+    });
   }
 
   /**
@@ -61,7 +72,7 @@ export class ChatPage {
    * Always waits for room UI to be ready before returning.
    */
   async enterRoom(roomName: string): Promise<RoomPage> {
-    const link = this.roomList.getByRole('link', { name: `# ${roomName}` });
+    const link = this.getRoomLink(roomName);
     await expect(link).toBeVisible();
 
     // Check if already in this room (aria-current="page" indicates active link)
@@ -123,14 +134,11 @@ export class ChatPage {
     return this.page.getByLabel('Room Name');
   }
 
-  /** The room description input field in the admin room creation modal */
-  get roomDescriptionInput(): Locator {
-    return this.page.getByLabel('Description (optional)');
-  }
-
-  /** The submit button in the room creation form */
+  /** The submit button in the room creation dialog footer. */
   get roomFormSubmitButton(): Locator {
-    return this.page.locator('form').getByRole('button', { name: 'Create Room' });
+    return this.page
+      .getByRole('dialog', { name: 'Create Room' })
+      .getByRole('button', { name: 'Create and configure' });
   }
 
   /** The room header (visible after navigating to a room) */
@@ -152,7 +160,7 @@ export class ChatPage {
     await logoutCurrentUser(this.page);
     await loginAsAdmin(this.page);
     await this.page.goto(routes.serverAdminRooms);
-    await expect(this.page).toHaveURL(/\/server-admin\/rooms/);
+    await expect(this.page).toHaveURL(/\/manage\/rooms/);
     await this.page.getByRole('button', { name: 'New Room' }).click();
     await expect(this.roomNameInput).toBeVisible();
   }

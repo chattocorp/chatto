@@ -14,9 +14,10 @@ import (
 
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // UserProjection derives current account/profile/auth lookup state from
@@ -27,6 +28,7 @@ type UserProjection struct {
 	loginIndex   map[string]string
 	emailIndex   map[string]string
 	avatarIndex  map[string]int
+	ownerBots    map[string]map[string]struct{}
 	replayGuard  projectionReplayGuard
 	dekResolver  *unwrappedDEKResolver
 	dekEvents    map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
@@ -74,6 +76,7 @@ func newUserProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver) *UserPr
 		loginIndex:  make(map[string]string),
 		emailIndex:  make(map[string]string),
 		avatarIndex: make(map[string]int),
+		ownerBots:   make(map[string]map[string]struct{}),
 		replayGuard: newProjectionReplayGuard(),
 		dekResolver: dekResolver,
 		dekEvents:   make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
@@ -91,7 +94,7 @@ func (p *UserProjection) AuthProjection() *UserAuthProjection {
 }
 
 func (p *UserProjection) Subjects() []string {
-	return []string{events.UserSubjectFilter()}
+	return []string{evtstream.UserSubjectFilter()}
 }
 
 func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
@@ -117,6 +120,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyDEKGenerated(e.UserDekGenerated)
 	case *corev1.Event_UserAccountCreated:
 		return p.applyAccountCreated(event.GetId(), e.UserAccountCreated, event.GetCreatedAt())
+	case *corev1.Event_BotOwnerReassigned:
+		p.applyBotOwnerReassigned(e.BotOwnerReassigned)
 	case *corev1.Event_UserLoginChanged:
 		return p.applyLoginChanged(event.GetId(), e.UserLoginChanged, event.GetCreatedAt())
 	case *corev1.Event_UserDisplayNameChanged:
@@ -143,8 +148,10 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyCustomStatusCleared(e.UserCustomStatusCleared)
 	case *corev1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted)
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.applyKeyShredded(e.UserKeyShreddingRequested.GetUserId())
 	case *corev1.Event_UserKeyShredded:
-		p.applyKeyShredded(e.UserKeyShredded)
+		p.applyKeyShredded(e.UserKeyShredded.GetUserId())
 	}
 	return nil
 }
@@ -171,6 +178,9 @@ func (p *UserProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
 	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
 		return
 	}
+	if u := p.users[e.GetUserId()]; u != nil && u.shredded {
+		return
+	}
 	purpose := e.GetPurpose()
 	byPurpose := p.dekEvents[e.GetUserId()]
 	if byPurpose == nil {
@@ -189,7 +199,7 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedLogin() == nil || e.GetEncryptedDisplayName() == nil {
 		return nil
 	}
-	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), evtstream.EventUserAccountCreated, "login", e.GetEncryptedLogin())
 	if err != nil {
 		return err
 	}
@@ -198,24 +208,49 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	}
 	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
+	isBot := e.GetIsBot()
 	u.user = &corev1.User{
-		Id:        e.GetUserId(),
-		CreatedAt: envelopeCreatedAt,
+		Id:             e.GetUserId(),
+		CreatedAt:      envelopeCreatedAt,
+		IsBot:          isBot,
+		BotOwnerUserId: e.GetBotOwnerUserId(),
 	}
-	u.login = newProjectedUserPII(eventID, events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	if isBot && e.GetBotOwnerUserId() != "" {
+		if p.ownerBots[e.GetBotOwnerUserId()] == nil {
+			p.ownerBots[e.GetBotOwnerUserId()] = make(map[string]struct{})
+		}
+		p.ownerBots[e.GetBotOwnerUserId()][e.GetUserId()] = struct{}{}
+	}
+	u.login = newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "login", e.GetEncryptedLogin())
 	u.loginHash = loginHash
-	u.displayName = newProjectedUserPII(eventID, events.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName())
+	u.displayName = newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName())
 	u.deleted = false
 	u.shredded = false
 	p.loginIndex[loginHash] = e.GetUserId()
 	return nil
 }
 
+func (p *UserProjection) applyBotOwnerReassigned(e *corev1.BotOwnerReassignedEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetOwnerUserId() == "" {
+		return
+	}
+	u := p.users[e.GetUserId()]
+	if u == nil || u.deleted || u.shredded || u.user == nil || !u.user.GetIsBot() {
+		return
+	}
+	p.removeBotOwnerIndexLocked(e.GetUserId(), u)
+	u.user.BotOwnerUserId = e.GetOwnerUserId()
+	if p.ownerBots[e.GetOwnerUserId()] == nil {
+		p.ownerBots[e.GetOwnerUserId()] = make(map[string]struct{})
+	}
+	p.ownerBots[e.GetOwnerUserId()][e.GetUserId()] = struct{}{}
+}
+
 func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginChangedEvent, envelopeCreatedAt *timestamppb.Timestamp) error {
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedLogin() == nil {
 		return nil
 	}
-	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), evtstream.EventUserLoginChanged, "login", e.GetEncryptedLogin())
 	if err != nil {
 		return err
 	}
@@ -230,7 +265,7 @@ func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginCh
 	if u.loginHash != "" && p.loginIndex[u.loginHash] == e.GetUserId() {
 		delete(p.loginIndex, u.loginHash)
 	}
-	u.login = newProjectedUserPII(eventID, events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	u.login = newProjectedUserPII(eventID, evtstream.EventUserLoginChanged, "login", e.GetEncryptedLogin())
 	u.loginHash = loginHash
 	p.loginIndex[loginHash] = e.GetUserId()
 	return nil
@@ -244,7 +279,7 @@ func (p *UserProjection) applyDisplayNameChanged(eventID string, e *corev1.UserD
 	if u.user == nil {
 		u.user = &corev1.User{Id: e.GetUserId()}
 	}
-	u.displayName = newProjectedUserPII(eventID, events.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
+	u.displayName = newProjectedUserPII(eventID, evtstream.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
 }
 
 func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {
@@ -289,7 +324,7 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserV
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedEmail() == nil {
 		return nil
 	}
-	email, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail())
+	email, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), evtstream.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail())
 	if err != nil {
 		return err
 	}
@@ -303,7 +338,7 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserV
 		verifiedAt = envelopeCreatedAt.AsTime()
 	}
 	u.verifiedEmail[hash] = projectedVerifiedEmail{
-		pii:        newProjectedUserPII(eventID, events.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail()),
+		pii:        newProjectedUserPII(eventID, evtstream.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail()),
 		verifiedAt: verifiedAt,
 	}
 	p.emailIndex[hash] = e.GetUserId()
@@ -364,6 +399,7 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent) 
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
+	p.removeBotOwnerIndexLocked(e.GetUserId(), u)
 	u.deleted = true
 	if u.loginHash != "" && p.loginIndex[u.loginHash] == e.GetUserId() {
 		delete(p.loginIndex, u.loginHash)
@@ -386,28 +422,87 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent) 
 	delete(p.dekEvents, e.GetUserId())
 }
 
-func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
-	if e == nil || e.GetUserId() == "" {
+func (p *UserProjection) applyKeyShredded(userID string) {
+	if userID == "" {
 		return
 	}
-	delete(p.dekEvents, e.GetUserId())
-	u := p.ensureUserLocked(e.GetUserId())
+	delete(p.dekEvents, userID)
+	u := p.ensureUserLocked(userID)
+	p.removeBotOwnerIndexLocked(userID, u)
 	u.shredded = true
-	if u.loginHash != "" && p.loginIndex[u.loginHash] == e.GetUserId() {
+	if u.loginHash != "" && p.loginIndex[u.loginHash] == userID {
 		delete(p.loginIndex, u.loginHash)
 	}
-	for hash, userID := range p.emailIndex {
-		if userID == e.GetUserId() {
+	for hash, ownerID := range p.emailIndex {
+		if ownerID == userID {
 			delete(p.emailIndex, hash)
 		}
 	}
-	u.user = &corev1.User{Id: e.GetUserId()}
+	u.user = &corev1.User{Id: userID}
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.loginChanged = time.Time{}
+}
+
+func (p *UserProjection) removeBotOwnerIndexLocked(userID string, u *projectedUser) {
+	if u == nil || u.user == nil || !u.user.GetIsBot() {
+		return
+	}
+	ownerID := u.user.GetBotOwnerUserId()
+	delete(p.ownerBots[ownerID], userID)
+	if len(p.ownerBots[ownerID]) == 0 {
+		delete(p.ownerBots, ownerID)
+	}
+}
+
+// BotIDsOwnedBy returns active bot IDs owned by one human user.
+func (p *UserProjection) BotIDsOwnedBy(ownerUserID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	ids := make([]string, 0, len(p.ownerBots[ownerUserID]))
+	for botID := range p.ownerBots[ownerUserID] {
+		if u := p.users[botID]; u != nil && !u.deleted && !u.shredded {
+			ids = append(ids, botID)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// BotIDs returns every active bot ID in stable order.
+func (p *UserProjection) BotIDs() []string {
+	p.RLock()
+	defer p.RUnlock()
+	ids := make([]string, 0)
+	for userID, u := range p.users {
+		if u != nil && !u.deleted && !u.shredded && u.user != nil && u.user.GetIsBot() {
+			ids = append(ids, userID)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// IsBotAndOwner returns bot status and ownership without hydrating the
+// encrypted user profile.
+func (p *UserProjection) IsBotAndOwner(userID string) (bool, string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted || u.shredded || u.user == nil {
+		return false, "", false
+	}
+	return u.user.GetIsBot(), u.user.GetBotOwnerUserId(), true
+}
+
+func (p *UserProjection) KeyShreddingRequested(userID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	return u != nil && u.shredded
 }
 
 func statusExpired(status *corev1.CustomUserStatus, now time.Time) bool {

@@ -12,24 +12,21 @@ unknown instance) the component renders nothing.
 - `showDismiss` — Whether to show the dismiss button (default: true).
 -->
 <script lang="ts">
+  import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { MessageLink } from '$lib/messageLinks';
-  import {
-    FitMode,
-    MessageAttachmentViewDocument,
-    type MessageAttachmentView,
-    type UserAvatarUserView
-  } from '$lib/render/types';
-  import { useRenderData } from '$lib/render/data';
+  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
   import { createAttachmentAPI } from '$lib/api-client/attachments';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import { unmask } from '$lib/state/room/messages/helpers';
   import {
     assetUrlNeedsRefresh,
@@ -39,8 +36,10 @@ unknown instance) the component renders nothing.
     type ExpiringAssetUrl
   } from '$lib/attachments/attachmentUrls';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
+  import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
+  import { ScrollFader } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';
-  import UserAvatar, { UserAvatarViewData } from './UserAvatar.svelte';
+  import UserAvatar from './UserAvatar.svelte';
   import DeletedUserLabel from './DeletedUserLabel.svelte';
 
   let {
@@ -80,17 +79,13 @@ unknown instance) the component renders nothing.
   const PREVIEW_THUMBNAIL_REFRESH = {
     width: 120,
     height: 120,
-    fit: FitMode.Cover
+    fit: ImageFitMode.COVER
   };
-
-  function connectBaseUrl(serverUrl: string): string {
-    return new URL('/api/connect', serverUrl).toString();
-  }
 
   function roomName(serverId: string, roomId: string): string | null {
     return (
-      serverRegistry.tryGetStore(serverId)?.rooms.rooms.find((room) => room.id === roomId)?.name ??
-      null
+      serverRegistry.tryGetStore(serverId)?.navigation.rooms.find((room) => room.id === roomId)
+        ?.name ?? null
     );
   }
 
@@ -127,15 +122,14 @@ unknown instance) the component renders nothing.
       try {
         const server = serverRegistry.getServer(serverId);
         if (!server) return;
-        const page = await createRoomTimelineAPI({
-          serverId,
-          baseUrl: connectBaseUrl(server.url),
-          bearerToken: server.token
-        }).getRoomEventsAround({
-          roomId,
-          eventId: messageId,
-          limit: 1
-        });
+        const page = await serverConnectionManager
+          .getClient(serverId)
+          .getAPI(createRoomTimelineAPI)
+          .getRoomEventsAround({
+            roomId,
+            eventId: messageId,
+            limit: 1
+          });
 
         if (cancelled) return;
 
@@ -145,9 +139,7 @@ unknown instance) the component renders nothing.
           return;
         }
 
-        const attachments = inner.attachments.map((attachment) =>
-          useRenderData(MessageAttachmentViewDocument, attachment)
-        );
+        const attachments = inner.attachments;
 
         // Need at least a body or attachments for a meaningful preview
         if (!inner.body && attachments.length === 0) {
@@ -178,7 +170,7 @@ unknown instance) the component renders nothing.
               thumbnailUrl: displayThumbnailAssetUrl?.url ?? null
             };
           }),
-          actor: ev.actor ? useRenderData(UserAvatarViewData, ev.actor) : null,
+          actor: ev.actor ?? null,
           spaceName: server.name ?? null,
           roomName: roomName(serverId, roomId)
         };
@@ -202,10 +194,10 @@ unknown instance) the component renders nothing.
   const hasBody = $derived(bodyMarkdown.trim().length > 0);
 
   function attachmentLabel(contentType: string): string {
-    if (contentType.startsWith('image/')) return m['message_preview.attachment_image']();
-    if (contentType.startsWith('video/')) return m['message_preview.attachment_video']();
-    if (contentType.startsWith('audio/')) return m['message_preview.attachment_audio']();
-    return m['message_preview.attachment_file']();
+    if (contentType.startsWith('image/')) return m('message_preview.attachment_image');
+    if (contentType.startsWith('video/')) return m('message_preview.attachment_video');
+    if (contentType.startsWith('audio/')) return m('message_preview.attachment_audio');
+    return m('message_preview.attachment_file');
   }
 
   const nextThumbnailRefreshAt = $derived.by(() =>
@@ -228,14 +220,9 @@ unknown instance) the component renders nothing.
     if (!preview || refreshPromise) return refreshPromise ?? undefined;
 
     const current = preview;
-    const server = serverRegistry.getServer(current.serverId);
-    if (!server) return undefined;
+    if (!serverRegistry.getServer(current.serverId)) return undefined;
     refreshPromise = refreshAttachmentUrlsForAssets(
-      createAttachmentAPI({
-        serverId: current.serverId,
-        baseUrl: connectBaseUrl(server.url),
-        bearerToken: server.token
-      }),
+      serverConnectionManager.getClient(current.serverId).getAPI(createAttachmentAPI),
       current.roomId,
       current.attachments.map((attachment) => attachment.id),
       PREVIEW_THUMBNAIL_REFRESH
@@ -299,18 +286,6 @@ unknown instance) the component renders nothing.
     });
   }
 
-  function refreshStalePreviewUrls() {
-    if (hasStaleThumbnailUrl()) {
-      refreshPreviewAttachmentUrls();
-    }
-  }
-
-  function handleVisibilityChange() {
-    if (document.visibilityState === 'visible') {
-      refreshStalePreviewUrls();
-    }
-  }
-
   function openPreview(event: MouseEvent) {
     if (!preview) return;
     if (event.defaultPrevented) return;
@@ -354,31 +329,11 @@ unknown instance) the component renders nothing.
     );
   }
 
-  $effect(() => {
-    if (nextThumbnailRefreshAt === null) return;
-
-    const timeout = window.setTimeout(
-      () => {
-        refreshPreviewAttachmentUrls();
-      },
-      Math.max(0, nextThumbnailRefreshAt - Date.now())
-    );
-
-    return () => window.clearTimeout(timeout);
-  });
-
-  $effect(() => {
-    refreshStalePreviewUrls();
-  });
-
-  $effect(() => {
-    window.addEventListener('focus', refreshStalePreviewUrls);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('focus', refreshStalePreviewUrls);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+  useExpiringAssetUrlRefresh({
+    getRefreshAt: () => nextThumbnailRefreshAt,
+    hasStaleUrl: hasStaleThumbnailUrl,
+    refresh: refreshPreviewAttachmentUrls,
+    errorMessage: 'Failed to refresh message preview attachment URLs'
   });
 </script>
 
@@ -400,15 +355,15 @@ unknown instance) the component renders nothing.
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           {#if preview.spaceName || preview.roomName}
             <span class="truncate text-xs tracking-wide text-muted">
-              {#if preview.spaceName}{preview.spaceName}{/if}
+              {#if preview.spaceName}<bdi>{preview.spaceName}</bdi>{/if}
               {#if preview.spaceName && preview.roomName}&nbsp;·&nbsp;{/if}
-              {#if preview.roomName}#{preview.roomName}{/if}
+              {#if preview.roomName}<bdi>#{preview.roomName}</bdi>{/if}
             </span>
           {/if}
           <div class="flex min-w-0 items-center gap-2">
             {#if preview.actor && !preview.actor.deleted}
               <UserAvatar user={preview.actor} size="xs" />
-              <span class="truncate text-sm font-medium">{displayName}</span>
+              <bdi class="truncate text-sm font-medium">{displayName}</bdi>
             {:else}
               <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
             {/if}
@@ -416,21 +371,22 @@ unknown instance) the component renders nothing.
         </div>
       </div>
       {#if hasBody}
-        <div class="relative">
-          <div
-            class="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-surface via-surface/80 to-transparent"
-            aria-hidden="true"
-          ></div>
-          <div
-            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-t from-surface via-surface/80 to-transparent"
-            aria-hidden="true"
-          ></div>
-          <div
-            class="max-h-52 overflow-y-auto overscroll-contain px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text"
-          >
-            <MessageContent body={bodyMarkdown} />
+        <ScrollFader
+          top
+          bottom
+          fill={false}
+          fadeHeight="h-5"
+          fadeColorClass="from-surface via-surface/80"
+          class="max-h-52"
+          scrollClass="overscroll-contain"
+        >
+          <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
+            <MessageContent
+              body={bodyMarkdown}
+              viewerLogin={serverRegistry.tryGetStore(preview.serverId)?.currentUser.user?.login}
+            />
           </div>
-        </div>
+        </ScrollFader>
       {/if}
       {#if preview.attachments.length > 0}
         <div
@@ -457,7 +413,7 @@ unknown instance) the component renders nothing.
                     aria-hidden="true"
                   >
                     <span
-                      class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm uil--play"
+                      class="iconify icon-[uil--play] flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm"
                     ></span>
                   </span>
                 {/if}
@@ -468,7 +424,7 @@ unknown instance) the component renders nothing.
               >
                 {#if attachment.contentType.startsWith('video/')}
                   <span
-                    class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm uil--play"
+                    class="iconify icon-[uil--play] flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm"
                     aria-hidden="true"
                   ></span>
                 {:else}
@@ -484,7 +440,7 @@ unknown instance) the component renders nothing.
             <span class="text-xs text-muted">
               {preview.attachments.length === 1
                 ? attachmentLabel(preview.attachments[0].contentType)
-                : m['message_preview.attachments_count']({
+                : m('message_preview.attachments_count', {
                     count: preview.attachments.length
                   })}
             </span>
@@ -501,9 +457,9 @@ unknown instance) the component renders nothing.
           onDismiss?.();
         }}
         class="embed-control-button md:group-hover/preview:opacity-100"
-        aria-label={m['preview.dismiss']()}
+        aria-label={m('preview.dismiss')}
       >
-        <span class="iconify text-sm uil--times"></span>
+        <span class="iconify icon-[uil--times] text-sm"></span>
       </button>
     {/if}
   </div>

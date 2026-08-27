@@ -11,9 +11,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 type projectionSnapshotSource struct {
@@ -64,7 +64,10 @@ func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, re
 	}
 	return events.ProjectionSnapshot{
 		GenerationID:   loaded.GenerationID,
+		ContractID:     request.ContractID,
+		StreamName:     request.StreamName,
 		CutoffSequence: loaded.CutoffSequence,
+		StreamIdentity: loaded.StreamIdentity,
 		CreatedAt:      loaded.CreatedAt,
 		Payload:        loaded.Payload,
 	}, nil

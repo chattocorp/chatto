@@ -1,7 +1,7 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -29,6 +29,10 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.RoomUnarchived.GetRoomId()
 	case *corev1.Event_RoomUniversalChanged:
 		return e.RoomUniversalChanged.GetRoomId()
+	case *corev1.Event_RoomSlowModeChanged:
+		return e.RoomSlowModeChanged.GetRoomId()
+	case *corev1.Event_RoomThreadingModeChanged:
+		return e.RoomThreadingModeChanged.GetRoomId()
 	case *corev1.Event_UserJoinedRoom:
 		return e.UserJoinedRoom.GetRoomId()
 	case *corev1.Event_UserLeftRoom:
@@ -49,6 +53,10 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.MessageRetracted.GetRoomId()
 	case *corev1.Event_MessageBody:
 		return e.MessageBody.GetRoomId()
+	case *corev1.Event_MessagePinned:
+		return e.MessagePinned.GetRoomId()
+	case *corev1.Event_MessageUnpinned:
+		return e.MessageUnpinned.GetRoomId()
 	case *corev1.Event_ThreadCreated:
 		return e.ThreadCreated.GetRoomId()
 	case *corev1.Event_ThreadFollowed:
@@ -71,6 +79,128 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.VoiceCallEnded.GetRoomId()
 	}
 	return ""
+}
+
+// RoomIDOfEvent returns the room aggregate ID carried by a durable event.
+func RoomIDOfEvent(event *corev1.Event) string {
+	return roomIDOfEvent(event)
+}
+
+// MessageReadProtectedEventRoomID identifies a durable fact whose public
+// delivery can expose message content or message-specific metadata.
+func (c *ChattoCore) MessageReadProtectedEventRoomID(event *corev1.Event) (string, bool) {
+	if event == nil {
+		return "", false
+	}
+	switch event.GetEvent().(type) {
+	case *corev1.Event_MessagePosted,
+		*corev1.Event_MessageEdited,
+		*corev1.Event_MessageRetracted,
+		*corev1.Event_MessageBody,
+		*corev1.Event_MessagePinned,
+		*corev1.Event_MessageUnpinned,
+		*corev1.Event_ThreadCreated,
+		*corev1.Event_ThreadFollowed,
+		*corev1.Event_ThreadUnfollowed,
+		*corev1.Event_ReactionAdded,
+		*corev1.Event_ReactionRemoved:
+		roomID := roomIDOfEvent(event)
+		return roomID, roomID != ""
+	case *corev1.Event_AssetCreated:
+		roomID := event.GetAssetCreated().GetRoomId()
+		return roomID, roomID != ""
+	case *corev1.Event_AssetAttached:
+		roomID := event.GetAssetAttached().GetRoomId()
+		return roomID, roomID != ""
+	case *corev1.Event_AssetProcessingStarted,
+		*corev1.Event_AssetProcessingSucceeded,
+		*corev1.Event_AssetProcessingFailed,
+		*corev1.Event_AssetDeleted:
+		roomID, _, ok := c.AssetEventTimelineTarget(event)
+		return roomID, ok
+	default:
+		return "", false
+	}
+}
+
+// MessageEventThreadRoot resolves the canonical channel-room thread affected
+// by one message-derived fact. The Threads and Assets projections must be
+// current through the fact before callers use this result for authorization.
+func (c *ChattoCore) MessageEventThreadRoot(roomID string, event *corev1.Event) (string, bool) {
+	if event == nil || roomID == "" {
+		return "", false
+	}
+	messageRoot := func(eventID string) (string, bool) {
+		if eventID == "" {
+			return "", false
+		}
+		if rootID, ok := c.roomModel.threadRootForMessage(roomID, eventID); ok {
+			return rootID, true
+		}
+		canonicalID, err := c.canonicalReactionMessageEventID(roomID, eventID)
+		if err != nil || canonicalID == "" || canonicalID == eventID {
+			return "", false
+		}
+		return c.roomModel.threadRootForMessage(roomID, canonicalID)
+	}
+
+	messageEventID, ok := c.MessageEventSourceMessageID(roomID, event)
+	if !ok {
+		return "", false
+	}
+	return messageRoot(messageEventID)
+}
+
+// MessageEventSourceMessageID returns the message that owns one protected
+// message-derived fact. Asset creation has no message owner until attachment
+// and therefore returns false.
+func (c *ChattoCore) MessageEventSourceMessageID(roomID string, event *corev1.Event) (string, bool) {
+	if event == nil || roomID == "" {
+		return "", false
+	}
+	protectedRoomID, protected := c.MessageReadProtectedEventRoomID(event)
+	if !protected || protectedRoomID != roomID {
+		return "", false
+	}
+	var messageEventID string
+	switch payload := event.GetEvent().(type) {
+	case *corev1.Event_MessagePosted:
+		messageEventID = event.GetId()
+	case *corev1.Event_MessageBody:
+		messageEventID = payload.MessageBody.GetEventId()
+	case *corev1.Event_MessageEdited:
+		messageEventID = payload.MessageEdited.GetEventId()
+	case *corev1.Event_MessageRetracted:
+		messageEventID = payload.MessageRetracted.GetEventId()
+	case *corev1.Event_MessagePinned:
+		messageEventID = payload.MessagePinned.GetMessageEventId()
+	case *corev1.Event_MessageUnpinned:
+		messageEventID = payload.MessageUnpinned.GetMessageEventId()
+	case *corev1.Event_ThreadCreated:
+		messageEventID = payload.ThreadCreated.GetThreadRootEventId()
+	case *corev1.Event_ThreadFollowed:
+		messageEventID = payload.ThreadFollowed.GetThreadRootEventId()
+	case *corev1.Event_ThreadUnfollowed:
+		messageEventID = payload.ThreadUnfollowed.GetThreadRootEventId()
+	case *corev1.Event_ReactionAdded:
+		messageEventID = payload.ReactionAdded.GetMessageEventId()
+	case *corev1.Event_ReactionRemoved:
+		messageEventID = payload.ReactionRemoved.GetMessageEventId()
+	case *corev1.Event_AssetAttached:
+		messageEventID = payload.AssetAttached.GetMessageEventId()
+	case *corev1.Event_AssetProcessingStarted,
+		*corev1.Event_AssetProcessingSucceeded,
+		*corev1.Event_AssetProcessingFailed,
+		*corev1.Event_AssetDeleted:
+		assetRoomID, targetEventID, ok := c.AssetEventTimelineTarget(event)
+		if !ok || assetRoomID != roomID {
+			return "", false
+		}
+		messageEventID = targetEventID
+	default:
+		return "", false
+	}
+	return messageEventID, messageEventID != ""
 }
 
 func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
@@ -98,6 +228,8 @@ func assetIDOfLifecycleEvent(event *corev1.Event) string {
 		return ev.AssetProcessingFailed.GetAssetId()
 	case *corev1.Event_AssetDeleted:
 		return ev.AssetDeleted.GetAssetId()
+	case *corev1.Event_AssetAttached:
+		return ev.AssetAttached.GetAssetId()
 	default:
 		return ""
 	}
@@ -109,7 +241,8 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded,
 		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted:
+		*corev1.Event_AssetDeleted,
+		*corev1.Event_AssetAttached:
 		return true
 	default:
 		return false
@@ -135,11 +268,12 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 //     RoomMemberAddedEvent / RoomMemberRemovedEvent — moderation audit facts,
 //     not displayed as chat timeline items.
 //
-//   - Voice call lifecycle and participant events — projected into call state
-//     and delivered live, but not displayed as chat timeline items.
+//   - Voice call participant events — projected into call state and delivered
+//     live, but not displayed as chat timeline items.
 //
 // Visible: root messages, room lifecycle (created/updated/archived/
-// unarchived/deleted), and memberships (user_joined / user_left).
+// unarchived/deleted), Threading Mode changes, memberships (user_joined /
+// user_left), and voice call lifecycle (started / ended).
 func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	if event == nil {
 		return false
@@ -152,20 +286,25 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_RoomDeleted,
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
+		*corev1.Event_RoomThreadingModeChanged,
 		*corev1.Event_UserJoinedRoom,
-		*corev1.Event_UserLeftRoom:
+		*corev1.Event_UserLeftRoom,
+		*corev1.Event_VoiceCallStarted,
+		*corev1.Event_VoiceCallEnded:
 		return true
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
+		*corev1.Event_MessagePinned, *corev1.Event_MessageUnpinned,
 		*corev1.Event_ThreadCreated,
 		*corev1.Event_RoomUniversalChanged,
+		*corev1.Event_RoomSlowModeChanged,
 		*corev1.Event_RoomMemberBanned, *corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_RoomMemberAdded, *corev1.Event_RoomMemberRemoved,
-		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted,
+		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted, *corev1.Event_AssetAttached,
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,
 		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved,
-		*corev1.Event_VoiceCallStarted, *corev1.Event_VoiceCallParticipantJoined,
-		*corev1.Event_VoiceCallParticipantLeft, *corev1.Event_VoiceCallEnded:
+		*corev1.Event_VoiceCallParticipantJoined,
+		*corev1.Event_VoiceCallParticipantLeft:
 		return false
 	}
 	return false
@@ -178,33 +317,40 @@ func IsVisibleRoomTimelineEntry(event *corev1.Event) bool {
 }
 
 func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
-	return isDeliverableLiveEVTRoomEventType(events.EventTypeOf(event))
+	return isDeliverableLiveEVTRoomEventType(evtstream.EventTypeOf(event))
 }
 
 func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 	switch eventType {
-	case events.EventRoomCreated,
-		events.EventRoomUpdated,
-		events.EventRoomDeleted,
-		events.EventRoomArchived,
-		events.EventRoomUnarchived,
-		events.EventRoomUniversalChanged,
-		events.EventUserJoinedRoom,
-		events.EventUserLeftRoom,
-		events.EventThreadCreated,
-		events.EventMessagePosted,
-		events.EventMessageEdited,
-		events.EventMessageRetracted,
-		events.EventReactionAdded,
-		events.EventReactionRemoved,
-		events.EventAssetProcessingStarted,
-		events.EventAssetProcessingSucceeded,
-		events.EventAssetProcessingFailed,
-		events.EventAssetDeleted,
-		events.EventCallStarted,
-		events.EventCallParticipantJoined,
-		events.EventCallParticipantLeft,
-		events.EventCallEnded:
+	case evtstream.EventRoomCreated,
+		evtstream.EventRoomUpdated,
+		evtstream.EventRoomDeleted,
+		evtstream.EventRoomArchived,
+		evtstream.EventRoomUnarchived,
+		evtstream.EventRoomUniversalChanged,
+		evtstream.EventRoomSlowModeChanged,
+		evtstream.EventRoomThreadingModeChanged,
+		evtstream.EventUserJoinedRoom,
+		evtstream.EventUserLeftRoom,
+		evtstream.EventRoomMemberAdded,
+		evtstream.EventRoomMemberRemoved,
+		evtstream.EventRoomMemberBanned,
+		evtstream.EventThreadCreated,
+		evtstream.EventMessagePosted,
+		evtstream.EventMessageEdited,
+		evtstream.EventMessageRetracted,
+		evtstream.EventMessagePinned,
+		evtstream.EventMessageUnpinned,
+		evtstream.EventReactionAdded,
+		evtstream.EventReactionRemoved,
+		evtstream.EventAssetProcessingStarted,
+		evtstream.EventAssetProcessingSucceeded,
+		evtstream.EventAssetProcessingFailed,
+		evtstream.EventAssetDeleted,
+		evtstream.EventCallStarted,
+		evtstream.EventCallParticipantJoined,
+		evtstream.EventCallParticipantLeft,
+		evtstream.EventCallEnded:
 		return true
 	default:
 		return false
@@ -212,15 +358,15 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 }
 
 func isDeliverableLiveEVTAssetEvent(event *corev1.Event) bool {
-	return isDeliverableLiveEVTAssetEventType(events.EventTypeOf(event))
+	return isDeliverableLiveEVTAssetEventType(evtstream.EventTypeOf(event))
 }
 
 func isDeliverableLiveEVTAssetEventType(eventType string) bool {
 	switch eventType {
-	case events.EventAssetProcessingStarted,
-		events.EventAssetProcessingSucceeded,
-		events.EventAssetProcessingFailed,
-		events.EventAssetDeleted:
+	case evtstream.EventAssetProcessingStarted,
+		evtstream.EventAssetProcessingSucceeded,
+		evtstream.EventAssetProcessingFailed,
+		evtstream.EventAssetDeleted:
 		return true
 	default:
 		return false
@@ -228,12 +374,46 @@ func isDeliverableLiveEVTAssetEventType(eventType string) bool {
 }
 
 func isDeliverableLiveEVTUserEvent(event *corev1.Event) bool {
-	return isDeliverableLiveEVTUserEventType(events.EventTypeOf(event))
+	return isDeliverableLiveEVTUserEventType(evtstream.EventTypeOf(event))
+}
+
+// IsRBACEvent reports whether event changes roles or permission resolution.
+// Realtime protocol v2 uses this to invalidate an authorization-dependent
+// client projection without exposing the internal RBAC payload.
+func IsRBACEvent(event *corev1.Event) bool {
+	if event == nil {
+		return false
+	}
+	switch event.GetEvent().(type) {
+	case *corev1.Event_RbacRoleCreated,
+		*corev1.Event_RbacRoleDisplayNameChanged,
+		*corev1.Event_RbacRoleDescriptionChanged,
+		*corev1.Event_RbacRolePingableChanged,
+		*corev1.Event_RbacRoleDeleted,
+		*corev1.Event_RbacRolesReordered,
+		*corev1.Event_RbacRoleAssigned,
+		*corev1.Event_RbacRoleRevoked,
+		*corev1.Event_RbacPermissionGranted,
+		*corev1.Event_RbacPermissionDenied,
+		*corev1.Event_RbacPermissionCleared:
+		return true
+	default:
+		return false
+	}
 }
 
 func isDeliverableLiveEVTUserEventType(eventType string) bool {
 	switch eventType {
-	case events.EventUserCustomStatusSet, events.EventUserCustomStatusCleared:
+	case evtstream.EventUserAccountCreated,
+		evtstream.EventUserLoginChanged,
+		evtstream.EventUserDisplayNameChanged,
+		evtstream.EventUserAvatarSet,
+		evtstream.EventUserAvatarCleared,
+		evtstream.EventUserAccountDeleted,
+		evtstream.EventUserKeyShreddingRequested,
+		evtstream.EventUserKeyShredded,
+		evtstream.EventUserCustomStatusSet,
+		evtstream.EventUserCustomStatusCleared:
 		return true
 	default:
 		return false
@@ -251,13 +431,14 @@ func eventNeedsReactionProjection(event *corev1.Event) bool {
 
 func eventNeedsThreadProjection(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
-	case *corev1.Event_ThreadCreated, *corev1.Event_ThreadFollowed, *corev1.Event_ThreadUnfollowed:
+	case *corev1.Event_RoomCreated, *corev1.Event_RoomDeleted,
+		*corev1.Event_ThreadCreated, *corev1.Event_ThreadFollowed, *corev1.Event_ThreadUnfollowed:
 		return true
 	case *corev1.Event_MessagePosted:
-		return event.GetMessagePosted().GetInThread() != ""
+		return true
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted:
 		return true
-	case *corev1.Event_UserKeyShredded:
+	case *corev1.Event_UserKeyShreddingRequested, *corev1.Event_UserKeyShredded:
 		return true
 	default:
 		return false
@@ -275,6 +456,8 @@ func eventNeedsRoomDirectoryProjection(event *corev1.Event) bool {
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomUniversalChanged,
+		*corev1.Event_RoomSlowModeChanged,
+		*corev1.Event_RoomThreadingModeChanged,
 		*corev1.Event_RoomDeleted:
 		return true
 	default:

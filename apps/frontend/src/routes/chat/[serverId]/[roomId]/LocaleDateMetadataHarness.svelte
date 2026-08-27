@@ -1,18 +1,17 @@
 <script lang="ts">
   import { getLocale } from '$lib/i18n/runtime';
-  import type { RoomEventView } from '$lib/render/types';
-  import { RoomEventKind } from '$lib/render/eventKinds';
-  import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import {
+    TimelineEventKind,
+    type TimelineEventView
+  } from '$lib/render/timelineEvents';
+  import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import { computeEventMetadata } from './messageGrouping';
 
   const settings = {
-    get effectiveTimezone(): string | undefined {
-      return 'UTC';
-    },
-    get effectiveHour12(): boolean | undefined {
-      return undefined;
-    }
-  } as unknown as UserSettingsState;
+    effectiveTimezone: 'UTC',
+    effectiveHour12: undefined
+  } satisfies TimeFormatSettings;
 
   const events = [
     {
@@ -24,11 +23,11 @@
         login: 'alice',
         displayName: 'Alice',
         deleted: false,
-        presenceStatus: 'ONLINE',
+        presenceStatus: PresenceStatus.ONLINE,
         avatarUrl: null
       },
       event: {
-        kind: RoomEventKind.MessagePosted,
+        kind: TimelineEventKind.MessagePosted,
         roomId: 'r_test',
         body: 'Hello',
         attachments: [],
@@ -43,7 +42,7 @@
         viewerIsFollowingThread: null
       }
     }
-  ] as unknown as RoomEventView[];
+  ] as unknown as TimelineEventView[];
 
   const activeLocale = $derived(getLocale());
   const metadata = $derived(computeEventMetadata(events, settings, activeLocale));

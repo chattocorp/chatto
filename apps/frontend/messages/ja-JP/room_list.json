@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room_list": {
     "active_call": "アクティブな通話",
     "call_participants": "{count} 人が通話に参加しています",
@@ -16,6 +15,10 @@
     "mark_as_read": "既読にする",
     "remove_server": "サーバーを削除",
     "leave_room": "ルームから退出",
+    "copy_room_id": "ルームIDをコピー",
+    "copy_server_hostname": "サーバーのホスト名をコピー",
+    "room_settings": "ルーム設定",
+    "group_settings": "{group}の設定",
     "server_actions": "{server}のアクション",
     "room_actions": "#{room}のアクション"
   }

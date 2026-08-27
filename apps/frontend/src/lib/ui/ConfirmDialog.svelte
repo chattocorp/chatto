@@ -16,7 +16,7 @@ Use the `tone` prop to communicate the weight of the action:
   title="Sign Out"
   tone="info"
   actionLabel="Sign Out"
-  actionIcon="iconify uil--signout"
+  actionIcon="iconify icon-[uil--signout]"
   onconfirm={signOut}
   onclose={close}
 >
@@ -26,7 +26,7 @@ Use the `tone` prop to communicate the weight of the action:
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import FormDialog from './FormDialog.svelte';
 
   type Tone = 'danger' | 'warning' | 'info';
@@ -36,7 +36,7 @@ Use the `tone` prop to communicate the weight of the action:
     visible = $bindable(true),
     title,
     tone = 'danger',
-    actionLabel = m['common.confirm'](),
+    actionLabel = m('common.confirm'),
     actionIcon,
     loading = false,
     onconfirm,
@@ -56,9 +56,9 @@ Use the `tone` prop to communicate the weight of the action:
   } = $props();
 
   const defaultIcons: Record<Tone, string> = {
-    danger: 'iconify uil--exclamation-triangle',
-    warning: 'iconify uil--exclamation-triangle',
-    info: 'iconify uil--check'
+    danger: 'iconify icon-[uil--exclamation-triangle]',
+    warning: 'iconify icon-[uil--exclamation-triangle]',
+    info: 'iconify icon-[uil--check]'
   };
 
   const resolvedIcon = $derived(actionIcon ?? defaultIcons[tone]);
@@ -71,7 +71,7 @@ Use the `tone` prop to communicate the weight of the action:
   submitLabel={actionLabel}
   submitTone={tone === 'info' ? 'action' : tone}
   submitIcon={resolvedIcon}
-  submitLoadingText={m['ui.dialog.submit_loading']({ label: actionLabel })}
+  submitLoadingText={m('ui.dialog.submit_loading', { label: actionLabel })}
   {loading}
   onsubmit={() => onconfirm()}
   {onclose}

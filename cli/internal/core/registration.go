@@ -57,16 +57,18 @@ var verificationCodePattern = regexp.MustCompile(`^\d{6}$`)
 
 // RegistrationCode represents a pending email-first registration OTP.
 type RegistrationCode struct {
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
+	Email        string    `json:"email"`
+	CreatedAt    time.Time `json:"created_at"`
+	InvitationID string    `json:"invitation_id,omitempty"`
 }
 
 // RegistrationToken represents a token used to complete email-first registration
 // after the email code has already been verified. Unlike password reset tokens,
 // this has no UserID — the user doesn't exist yet.
 type RegistrationToken struct {
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
+	Email        string    `json:"email"`
+	CreatedAt    time.Time `json:"created_at"`
+	InvitationID string    `json:"invitation_id,omitempty"`
 }
 
 // ============================================================================
@@ -108,6 +110,16 @@ func (c *ChattoCore) registrationCodeTTL() time.Duration {
 // It returns the raw six-digit code so the caller can send it by email. The code
 // itself is never stored; only an HMAC-derived lookup key is kept in RUNTIME_STATE.
 func (c *ChattoCore) CreateRegistrationCode(ctx context.Context, email string) (string, error) {
+	return c.createRegistrationCode(ctx, email, "")
+}
+
+// CreateRegistrationCodeForInvitation binds the email-verification flow to a
+// previously validated invitation without storing the raw capability.
+func (c *ChattoCore) CreateRegistrationCodeForInvitation(ctx context.Context, email, invitationID string) (string, error) {
+	return c.createRegistrationCode(ctx, email, invitationID)
+}
+
+func (c *ChattoCore) createRegistrationCode(ctx context.Context, email, invitationID string) (string, error) {
 	email = normalizeRegistrationEmail(email)
 	if email == "" {
 		return "", fmt.Errorf("email is required")
@@ -116,8 +128,9 @@ func (c *ChattoCore) CreateRegistrationCode(ctx context.Context, email string) (
 	ttl := c.registrationCodeTTL()
 	code, err := c.createEmailOTP(ctx, registrationOTPScope, email, ttl, func(createdAt time.Time) ([]byte, error) {
 		return json.Marshal(RegistrationCode{
-			Email:     email,
-			CreatedAt: createdAt,
+			Email:        email,
+			CreatedAt:    createdAt,
+			InvitationID: invitationID,
 		})
 	}, func(createdAt time.Time) error {
 		return c.recordRegistrationCodeIssued(ctx, email, createdAt)
@@ -176,7 +189,7 @@ func (c *ChattoCore) VerifyRegistrationCode(ctx context.Context, email, code str
 		return "", err
 	}
 
-	token, err := c.CreateRegistrationCompletionToken(ctx, email)
+	token, err := c.createRegistrationCompletionToken(ctx, email, codeData.InvitationID)
 	if err != nil {
 		return "", err
 	}
@@ -205,6 +218,10 @@ func isRuntimeStateKeyAbsent(err error) bool {
 // code has been verified. This token is used by /auth/register/complete and is
 // not sent by email.
 func (c *ChattoCore) CreateRegistrationCompletionToken(ctx context.Context, email string) (string, error) {
+	return c.createRegistrationCompletionToken(ctx, email, "")
+}
+
+func (c *ChattoCore) createRegistrationCompletionToken(ctx context.Context, email, invitationID string) (string, error) {
 	email = normalizeRegistrationEmail(email)
 	if email == "" {
 		return "", fmt.Errorf("email is required")
@@ -213,8 +230,9 @@ func (c *ChattoCore) CreateRegistrationCompletionToken(ctx context.Context, emai
 	token := NewRegistrationToken()
 	createdAt := time.Now()
 	tokenData := RegistrationToken{
-		Email:     email,
-		CreatedAt: createdAt,
+		Email:        email,
+		CreatedAt:    createdAt,
+		InvitationID: invitationID,
 	}
 
 	data, err := json.Marshal(tokenData)

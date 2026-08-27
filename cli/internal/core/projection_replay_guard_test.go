@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 var (

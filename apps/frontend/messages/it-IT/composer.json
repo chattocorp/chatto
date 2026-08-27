@@ -1,0 +1,70 @@
+{
+  "composer": {
+    "attach_file": "Allega file",
+    "send": "Invia messaggio",
+    "send_label": "Invia",
+    "also_send_to_channel": "Invia anche al canale",
+    "post_as_thread": "Pubblica come thread",
+    "thread_label": "Filo",
+    "echo_label": "Eco",
+    "replying_to": "Rispondere a",
+    "esc_to_cancel": "per annullare",
+    "editing": "Modifica del messaggio",
+    "send_anyway": "Invia comunque",
+    "role_mention_confirm_title": "Inviare menzione?",
+    "role_mention_confirm_body": "Questo messaggio contiene una menzione che potrebbe avvisare più persone.",
+    "link_url": "URL di collegamento",
+    "open_link": "Apri collegamento",
+    "remove_link": "Rimuovi collegamento",
+    "code_language": "Linguaggio del codice",
+    "placeholder": "Digita un messaggio...",
+    "editing_placeholder": "Modifica messaggio...",
+    "drop_files_title": "Rilascia i file qui",
+    "drop_files_subtitle": "Immagini e video verranno aggiunti al tuo messaggio",
+    "send_failed": "Impossibile inviare il messaggio",
+    "slow_mode_ready": "Modalità lenta: un messaggio ogni {interval}.",
+    "slow_mode_waiting": "Modalità lenta: puoi inviare di nuovo tra {countdown}.",
+    "slow_mode_bypassed": "Modalità lenta: {interval} (sei esente).",
+    "slow_mode_rejected": "La modalità lenta è attiva. Attendi prima di inviare un altro messaggio.",
+    "threads_encouraged": "In questa stanza è consigliato usare i thread.",
+    "recent_thread_confirm_title": "Continuare nel thread precedente?",
+    "recent_thread_confirm_body": "Il tuo messaggio precedente ha già un thread. Dove vuoi pubblicare questo messaggio?",
+    "post_as_new_message": "Pubblica come nuovo messaggio",
+    "continue_in_thread": "Continua nel thread",
+    "edit_failed": "Impossibile modificare il messaggio",
+    "upload": {
+      "preparing": "Preparazione…",
+      "uploading": "{percentage}% caricato",
+      "uploaded": "Caricato",
+      "failed": "Caricamento non riuscito",
+      "remove": "Rimuovi {filename}"
+    },
+    "format": {
+      "bold": "Grassetto",
+      "italic": "Corsivo",
+      "inline_code": "Codice in linea",
+      "heading": "Intestazione",
+      "bullet_list": "Elenco puntato",
+      "ordered_list": "Elenco numerato",
+      "blockquote": "Citazione",
+      "code_block": "Blocco di codice",
+      "outdent": "Riduci rientro",
+      "indent": "Aumenta rientro"
+    },
+    "timestamp": {
+      "title": "Inserisci il timestamp",
+      "insert_label": "Inserisci il timestamp",
+      "date_time": "Data e ora",
+      "timezone": "Fuso orario",
+      "insert": "Inserisci",
+      "error_required": "Scegli una data e un'ora.",
+      "error_timezone": "Scegli un fuso orario IANA valido.",
+      "error_invalid": "Scegli una data e un'ora valide per questo fuso orario."
+    },
+    "mention": {
+      "all_room_members": "Tutti i membri della stanza",
+      "members_here": "Membri attualmente qui",
+      "role": "Ruolo"
+    }
+  }
+}

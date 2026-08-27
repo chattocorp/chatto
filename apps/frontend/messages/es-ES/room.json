@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Crear una Nueva Sala",
@@ -14,7 +13,7 @@
       "missing_group": "Elige un grupo de sala antes de crear una sala.",
       "failed": "No se pudo crear la sala",
       "creating": "Creando...",
-      "submit": "Crear Sala"
+      "submit_and_configure": "Crear y configurar"
     },
     "join": {
       "title": "Unirse a la sala",
@@ -23,13 +22,10 @@
       "inline_prompt": "Únase a esta sala para leer y participar.",
       "group_label": "En {group}",
       "member_preview_label": "Miembros de la sala",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} miembro", "countPlural=other": "{count} miembros" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} miembro",
+        "other": "{count} miembros"
+      },
       "success": "Se unió a #{room}",
       "success_generic": "Sala unida",
       "failed": "No se pudo unir a la sala",
@@ -74,7 +70,8 @@
       "remove_account_suffix": " de este servidor antes de eliminarlo."
     },
     "timeline": {
-      "beginning": "Este es el comienzo de esta conversación."
+      "beginning": "Este es el comienzo de esta conversación.",
+      "read_denied": "No tienes permiso para leer mensajes en esta sala."
     },
     "message": {
       "empty": "Aún no hay mensajes",
@@ -82,6 +79,7 @@
       "delete_prompt": "¿Estás seguro de que deseas eliminar este mensaje? Esto no se puede deshacer.",
       "delete_failed": "No se pudo eliminar el mensaje",
       "reaction_failed": "No se pudo actualizar la reacción",
+      "reaction_limit_reached": "Puedes añadir hasta 20 reacciones a un mensaje.",
       "deleted": "Mensaje eliminado",
       "actions": {
         "toolbar": "Acciones de mensajes",
@@ -90,6 +88,7 @@
         "add_reaction": "Agregar reacción",
         "more_reactions": "Más reacciones",
         "reply": "Responder",
+        "reply_room": "Responder en la sala",
         "reply_thread": "Responder en hilo",
         "open_thread": "Abrir hilo",
         "edit": "Editar mensaje",
@@ -100,7 +99,10 @@
         "copy_link": "Copiar enlace"
       },
       "meta": {
+        "pinned": "Mensaje fijado",
         "thread": "Hilo",
+        "edited": "Mensaje editado",
+        "echoed_to_channel": "También enviado al canal",
         "reply_count_one": "1 respuesta",
         "reply_count_many": "{count} responde",
         "follow_thread": "Seguir hilo",
@@ -120,39 +122,24 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "se unió a la sala",
-            "countPlural=other": "se unió a la sala"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "salió de la habitación",
-            "countPlural=other": "salió de la habitación"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "se unió a la sala",
+        "other": "se unió a la sala"
+      },
+      "left_count": {
+        "one": "salió de la habitación",
+        "other": "salió de la habitación"
+      },
       "archived": "archivó la sala",
       "unarchived": "desarchivó la sala",
+      "call_started": "inició una llamada en esta sala",
+      "call_ended": "La llamada activa ha terminado",
+      "threading_mode_changed": "cambió el modo de hilos a {mode}",
       "and": "y",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "otro",
-            "countPlural=other": "otros"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "otro",
+        "other": "otros"
+      },
       "show_less": "mostrar menos"
     },
     "attachment": {
@@ -186,6 +173,7 @@
       "offline": "Sin conexión ({count})",
       "no_files": "Aún no hay archivos en esta sala.",
       "files": "Archivos",
+      "pins": "Mensajes fijados",
       "call": "Llamar",
       "jump_to_file": "Saltar a {filename}",
       "loading_files": "Cargando archivos...",
@@ -195,6 +183,20 @@
       "in_video_call": "En una videollamada",
       "ban_failed": "No se pudo prohibir la entrada a un miembro a la sala",
       "ban_success": "{name} baneado de la sala"
+    },
+    "pins": {
+      "show": "Mostrar mensajes fijados",
+      "unseen": "Nuevos mensajes fijados",
+      "hide": "Ocultar mensajes fijados",
+      "pin": "Fijar mensaje",
+      "unpin": "Desfijar mensaje",
+      "unpin_prompt": "¿Seguro que quieres quitar este mensaje fijado?",
+      "loading": "Cargando mensajes fijados...",
+      "empty_title": "No hay mensajes fijados",
+      "empty_description": "Los administradores de la sala pueden fijar mensajes importantes aquí.",
+      "error_title": "Mensajes fijados no disponibles",
+      "error_description": "No se pudieron cargar los mensajes fijados. Inténtalo de nuevo en un momento.",
+      "update_failed": "No se pudo actualizar el mensaje fijado"
     },
     "title": {
       "direct_message": "Mensaje Directo"

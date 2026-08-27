@@ -7,21 +7,17 @@ import {
   formatDateTime,
   formatMonthYear,
   formatDayLabel,
-  isSameDay
+  isSameDay,
+  type TimeFormatSettings
 } from './formatTime';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 
-function settings(timezone: string | undefined, hour12?: boolean): UserSettingsState {
+function settings(timezone: string | undefined, hour12?: boolean): TimeFormatSettings {
   return {
-    get effectiveTimezone() {
-      return timezone;
-    },
-    get effectiveHour12() {
-      return hour12;
-    }
-  } as unknown as UserSettingsState;
+    effectiveTimezone: timezone,
+    effectiveHour12: hour12
+  };
 }
 
 const utc12 = settings('UTC', false);

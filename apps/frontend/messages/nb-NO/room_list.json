@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room_list": {
     "active_call": "Aktiv samtale",
     "call_participants": "{count} deltakere i samtalen",
@@ -16,6 +15,10 @@
     "mark_as_read": "Merk som lest",
     "remove_server": "Fjern server",
     "leave_room": "Forlat rom",
+    "copy_room_id": "Kopier rom-ID",
+    "copy_server_hostname": "Kopier serverens vertsnavn",
+    "room_settings": "Rominnstillinger",
+    "group_settings": "Innstillinger for {group}",
     "server_actions": "Handlinger for {server}",
     "room_actions": "Handlinger for #{room}"
   }

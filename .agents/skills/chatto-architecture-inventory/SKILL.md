@@ -100,7 +100,7 @@ contain them.
 
 File: `docs/architecture/subjects-and-events.md`
 
-Use `cli/internal/events/subjects.go`,
+Use `cli/internal/evtstream/subjects.go`,
 `cli/internal/core/subjects/subjects.go`, durable event protobufs, and live
 publishers. Inventory envelope boundaries, subject grammar, aggregate families,
 durable event-token-to-protobuf mappings, and transient/live roots. Existing

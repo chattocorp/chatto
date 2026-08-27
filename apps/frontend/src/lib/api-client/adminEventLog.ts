@@ -1,12 +1,7 @@
-import { Timestamp } from "@bufbuild/protobuf";
-import {
-  authHeaders,
-  Code,
-  ConnectError,
-  createChattoClient,
-} from "./connect.js";
-import { AdminEventLogService } from "@chatto/api-types/admin/v1/event_log_connect";
-import type { AdminEventLogEntry as APIAdminEventLogEntry } from "@chatto/api-types/admin/v1/event_log_pb";
+import { Timestamp } from '@bufbuild/protobuf';
+import { authHeaders, Code, ConnectError, createChattoClient } from './connect.js';
+import { AdminEventLogService } from '@chatto/api-types/admin/v1/event_log_connect';
+import type { AdminEventLogEntry as APIAdminEventLogEntry } from '@chatto/api-types/admin/v1/event_log_pb';
 
 export type AdminEventLogAPIConfig = {
   baseUrl: string;
@@ -46,10 +41,10 @@ export type AdminEventLogPage = {
 export type AdminEventLogAPI = ReturnType<typeof createAdminEventLogAPI>;
 
 export const EMPTY_ADMIN_EVENT_LOG_FILTER: AdminEventLogFilter = {
-  eventType: "",
-  actorId: "",
-  createdAtFrom: "",
-  createdAtTo: "",
+  eventType: '',
+  actorId: '',
+  createdAtFrom: '',
+  createdAtTo: ''
 };
 
 export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
@@ -57,20 +52,21 @@ export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    async listEvents(input: {
-      limit: number;
-      before?: string | null;
-      filter?: AdminEventLogFilter;
-    }): Promise<AdminEventLogPage> {
+    async listEvents(
+      input: {
+        limit: number;
+        before?: string | null;
+        filter?: AdminEventLogFilter;
+      },
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminEventLogPage> {
       const response = await client.listEvents(
         {
           limit: input.limit,
           before: input.before ?? undefined,
-          filter: eventLogFilterInput(
-            input.filter ?? EMPTY_ADMIN_EVENT_LOG_FILTER,
-          ),
+          filter: eventLogFilterInput(input.filter ?? EMPTY_ADMIN_EVENT_LOG_FILTER)
         },
-        { headers: headers() },
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
       );
       return {
         entries: response.entries.map(adminEventLogEntry),
@@ -79,28 +75,33 @@ export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
         totalCount: String(response.totalCount),
         scannedCount: response.scannedCount,
         scanLimit: response.scanLimit,
-        scanLimited: response.scanLimited,
+        scanLimited: response.scanLimited
       };
     },
 
-    async listEventTypes(): Promise<string[]> {
-      const response = await client.listEventTypes({}, { headers: headers() });
+    async listEventTypes(options: { signal?: AbortSignal } = {}): Promise<string[]> {
+      const response = await client.listEventTypes(
+        {},
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+      );
       return [...response.eventTypes];
     },
 
-    async getEvent(sequence: string): Promise<AdminEventLogEntry | null> {
+    async getEvent(
+      sequence: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminEventLogEntry | null> {
       try {
         const response = await client.getEvent(
           { sequence },
-          { headers: headers() },
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
         );
         return response.entry ? adminEventLogEntry(response.entry) : null;
       } catch (error) {
-        if (error instanceof ConnectError && error.code === Code.NotFound)
-          return null;
+        if (error instanceof ConnectError && error.code === Code.NotFound) return null;
         throw error;
       }
-    },
+    }
   };
 }
 
@@ -110,17 +111,12 @@ function eventLogFilterInput(filter: AdminEventLogFilter) {
     eventType: filter.eventType || undefined,
     actorId: filter.actorId || undefined,
     createdAtFrom: timestampFromISO(filter.createdAtFrom),
-    createdAtTo: timestampFromISO(filter.createdAtTo),
+    createdAtTo: timestampFromISO(filter.createdAtTo)
   };
 }
 
 function hasActiveEventLogFilter(filter: AdminEventLogFilter): boolean {
-  return Boolean(
-    filter.eventType ||
-    filter.actorId ||
-    filter.createdAtFrom ||
-    filter.createdAtTo,
-  );
+  return Boolean(filter.eventType || filter.actorId || filter.createdAtFrom || filter.createdAtTo);
 }
 
 function timestampFromISO(value: string): Timestamp | undefined {
@@ -137,7 +133,7 @@ function adminEventLogEntry(entry: APIAdminEventLogEntry): AdminEventLogEntry {
     eventType: entry.eventType,
     eventId: entry.eventId,
     actorId: entry.actorId,
-    createdAt: entry.createdAt?.toDate().toISOString() ?? "",
-    payloadJson: entry.payloadJson,
+    createdAt: entry.createdAt?.toDate().toISOString() ?? '',
+    payloadJson: entry.payloadJson
   };
 }

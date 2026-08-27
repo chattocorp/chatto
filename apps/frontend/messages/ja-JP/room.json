@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "新しいルームを作成する",
@@ -14,7 +13,7 @@
       "missing_group": "ルームを作成する前にルーム グループを選択してください。",
       "failed": "ルームの作成に失敗しました",
       "creating": "作成中...",
-      "submit": "ルームの作成"
+      "submit_and_configure": "ルームを作成して設定"
     },
     "join": {
       "title": "ルームに参加",
@@ -23,16 +22,10 @@
       "inline_prompt": "このルームに参加して読んで参加してください。",
       "group_label": "{group} 内",
       "member_preview_label": "ルームメンバー",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} 人のメンバー",
-            "countPlural=other": "{count} 人のメンバー"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} 人のメンバー",
+        "other": "{count} 人のメンバー"
+      },
       "success": "#{room} に参加しました",
       "success_generic": "ルームに参加しました",
       "failed": "ルームに参加できませんでした",
@@ -77,7 +70,8 @@
       "remove_account_suffix": "を開いてください。"
     },
     "timeline": {
-      "beginning": "ここから会話が始まります。"
+      "beginning": "ここから会話が始まります。",
+      "read_denied": "このルームのメッセージを読む権限がありません。"
     },
     "message": {
       "empty": "まだメッセージはありません",
@@ -85,6 +79,7 @@
       "delete_prompt": "このメッセージを削除してもよろしいですか?これを元に戻すことはできません。",
       "delete_failed": "メッセージの削除に失敗しました",
       "reaction_failed": "リアクションの更新に失敗しました",
+      "reaction_limit_reached": "1件のメッセージに追加できるリアクションは20個までです。",
       "deleted": "メッセージが削除されました",
       "actions": {
         "toolbar": "メッセージアクション",
@@ -93,6 +88,7 @@
         "add_reaction": "リアクションを追加",
         "more_reactions": "その他のリアクション",
         "reply": "返信",
+        "reply_room": "ルームで返信",
         "reply_thread": "スレッド内で返信",
         "open_thread": "スレッドを開きます",
         "edit": "メッセージを編集",
@@ -103,7 +99,10 @@
         "copy_link": "リンクをコピー"
       },
       "meta": {
+        "pinned": "ピン留めされたメッセージ",
         "thread": "スレッド",
+        "edited": "編集済みメッセージ",
+        "echoed_to_channel": "チャンネルにも送信済み",
         "reply_count_one": "1 件の返信",
         "reply_count_many": "{count} が返信します",
         "follow_thread": "スレッドをフォローする",
@@ -123,39 +122,24 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "がルームに参加しました",
-            "countPlural=other": "がルームに参加しました"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "が部屋を出ました",
-            "countPlural=other": "が部屋を出ました"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "がルームに参加しました",
+        "other": "がルームに参加しました"
+      },
+      "left_count": {
+        "one": "が部屋を出ました",
+        "other": "が部屋を出ました"
+      },
       "archived": "がルームをアーカイブしました",
       "unarchived": "ルームのアーカイブを解除しました",
+      "call_started": "がこのルームで通話を開始しました",
+      "call_ended": "通話が終了しました",
+      "threading_mode_changed": "スレッドモードを「{mode}」に変更しました",
       "and": "と",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "その他",
-            "countPlural=other": "他"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "その他",
+        "other": "他"
+      },
       "show_less": "一部を表示"
     },
     "attachment": {
@@ -189,6 +173,7 @@
       "offline": "オフライン ({count})",
       "no_files": "このルームにはまだファイルがありません。",
       "files": "ファイル",
+      "pins": "ピン留め",
       "call": "電話をかける",
       "jump_to_file": "{filename} にジャンプします",
       "loading_files": "ファイルをロードしています...",
@@ -198,6 +183,20 @@
       "in_video_call": "ビデオ通話中",
       "ban_failed": "ルームへのメンバーの参加禁止に失敗しました",
       "ban_success": "{name} をルームから禁止しました"
+    },
+    "pins": {
+      "show": "ピン留めされたメッセージを表示",
+      "unseen": "新しいピン留めメッセージ",
+      "hide": "ピン留めされたメッセージを非表示",
+      "pin": "メッセージをピン留め",
+      "unpin": "メッセージのピン留めを解除",
+      "unpin_prompt": "このメッセージのピン留めを解除してもよろしいですか？",
+      "loading": "ピン留めされたメッセージを読み込み中...",
+      "empty_title": "ピン留めされたメッセージはありません",
+      "empty_description": "ルーム管理者は重要なメッセージをここにピン留めできます。",
+      "error_title": "ピン留めされたメッセージを利用できません",
+      "error_description": "ピン留めされたメッセージを読み込めませんでした。しばらくしてからもう一度お試しください。",
+      "update_failed": "ピン留めされたメッセージを更新できませんでした"
     },
     "title": {
       "direct_message": "ダイレクトメッセージ"

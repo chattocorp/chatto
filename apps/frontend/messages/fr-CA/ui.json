@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Basculer la barre latérale",
     "notifications": "Notifications",
@@ -32,6 +31,19 @@
     "tooltip": {
       "more_information": "Plus d'info",
       "about": "À propos de {subject}"
+    },
+    "easter_egg": {
+      "fire": "Tirer un laser prêt sur Chatto",
+      "points": "{count} points",
+      "laser_guns_count": {
+        "one": "{count} canon laser",
+        "other": "{count} canons laser"
+      },
+      "laser_ready": "Laser {number}, puissance {power}, prêt",
+      "laser_cooldown": "Laser {number}, puissance {power} : encore {seconds} secondes de recharge",
+      "upgrade_power": "Améliorer le laser {number} au niveau de puissance {level} pour {cost} points",
+      "buy_laser": "Acheter le canon laser {number} pour {cost} points",
+      "maximum_lasers": "Maximum de {count} canons laser atteint"
     },
     "pane_header": {
       "back": "Retour"

@@ -1,13 +1,21 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "settings": {
     "nav": {
       "title": "設定",
       "back_to_server": "サーバーに戻る",
       "profile": "プロフィール",
-      "display": "ディスプレイ",
+      "display": "設定",
       "notifications": "通知",
-      "account": "アカウント"
+      "account": "アカウント",
+      "bots": "ボット",
+      "user_preferences": "ユーザー設定",
+      "server_configuration": "サーバー構成"
+    },
+    "app_preferences": {
+      "title": "アプリ設定",
+      "subtitle": "登録済みのすべてのサーバーに適用される、このアプリの設定",
+      "appearance": { "title": "外観" },
+      "composer": { "title": "メッセージ作成" }
     },
     "profile": {
       "title": "プロフィール",
@@ -105,8 +113,9 @@
       "save_button": "変更を保存"
     },
     "preferences": {
-      "title": "ディスプレイ",
-      "subtitle": "Chatto の表示方法を選択してください",
+      "title": "時刻と地域",
+      "subtitle": "このサーバーでの日付と時刻の表示方法を選択します",
+      "browser_scope": "この選択は、このブラウザーのすべての Chatto サーバーに適用されます。",
       "theme": {
         "title": "テーマ",
         "system": {
@@ -120,6 +129,28 @@
         "dark": {
           "label": "ダーク",
           "description": "このブラウザではダーク インターフェースを使用してください"
+        }
+      },
+      "editor": {
+        "title": "メッセージエディター",
+        "visual": {
+          "label": "ビジュアル",
+          "description": "Markdown 記法を表示せずにメッセージを装飾します"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "構文強調表示付きで Markdown ソースを編集します"
+        }
+      },
+      "send_mode": {
+        "title": "メッセージの送信キー",
+        "enter": {
+          "label": "Return",
+          "description": "Return で送信し、Cmd/Ctrl+Return でエディターの通常の Return 操作を実行します"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return で送信し、Return でエディターの通常の操作を実行します"
         }
       },
       "language": {
@@ -153,9 +184,9 @@
           "description": "例: 14:30"
         }
       },
-      "save_button": "表示設定の保存",
-      "saved": "表示設定が保存されました",
-      "save_failed": "表示設定の保存に失敗しました"
+      "save_button": "時刻設定を保存",
+      "saved": "時刻設定を保存しました",
+      "save_failed": "時刻設定を保存できませんでした"
     },
     "notifications": {
       "title": "通知",
@@ -180,9 +211,7 @@
         "enabling": "有効化中...",
         "blocked_error": "ブラウザまたは OS の設定でプッシュ通知がブロックされています。",
         "enable_failed": "プッシュ通知を有効にできませんでした。もう一度試してください。",
-        "enable_error": "プッシュ通知を有効にするときにエラーが発生しました",
-        "remote_title": "ネイティブプッシュはリモートサーバーでは使用できません",
-        "remote_description": "このインストールされたアプリは、それを提供するサーバーにブラウザー プッシュ通知のみを登録できます。 Chatto が開いている間、アプリ内通知バッジとサウンドはこのサーバーで引き続き機能します。"
+        "enable_error": "プッシュ通知を有効にするときにエラーが発生しました"
       },
       "push_prompt": {
         "title": "プッシュ通知を有効にする",
@@ -195,35 +224,6 @@
         "enabling": "有効化中...",
         "enable": "有効にする",
         "dismiss": "いいえ、ありがとう"
-      },
-      "levels": {
-        "loading": "読み込み中...",
-        "load_failed": "通知設定の読み込みに失敗しました",
-        "server_updated": "サーバー通知レベルが更新されました",
-        "room_updated": "ルーム通知レベルが更新されました",
-        "update_failed": "更新に失敗しました",
-        "server_title": "サーバー通知レベル",
-        "server_description": "このサーバー内のすべてのルームの通知を受信する方法を制御します。個々のルームはこの設定をオーバーライドできます。",
-        "room_title": "ルームのオーバーライド",
-        "room_description": "個々のルームのサーバーレベルの設定を上書きします。 「デフォルト」に設定されたルームはサーバー設定（{level}）を継承します。",
-        "room_level_label": "#{room} の通知レベル",
-        "effective": "有効: {level}",
-        "default": {
-          "label": "デフォルト",
-          "description": "継承されたデフォルトを使用する"
-        },
-        "muted": {
-          "label": "ミュートされました",
-          "description": "通知または未読マーカーがありません"
-        },
-        "normal": {
-          "label": "通常",
-          "description": "未読マーカー + メンション、DM、スレッド返信"
-        },
-        "all_messages": {
-          "label": "すべてのメッセージ",
-          "description": "通常 + 新しいメッセージごとに通知"
-        }
       },
       "sound": {
         "title": "通知音",
@@ -273,6 +273,50 @@
           "siren": "警報サイレン",
           "dubstep": "ダブステップドロップ",
           "circus": "サーカス"
+        }
+      },
+      "policy": {
+        "title": "通知ポリシー",
+        "description": "サーバー、ルームグループ、ルームの各範囲で、アクティビティごとの通知方法を選択します。ルームはグループ、サーバーの順に設定を継承します。",
+        "load_failed": "通知ポリシーを読み込めませんでした",
+        "save_failed": "通知ポリシーを保存できませんでした",
+        "effective": "適用値：{mode}",
+        "filter_label": "通知範囲を絞り込む",
+        "filter_placeholder": "グループとルームを絞り込む…",
+        "no_filter_matches": "この条件に一致する通知範囲はありません。",
+        "legend": "通知の配信モード",
+        "cell_aria": "{cause}、{scope}。上書き：{override}。適用値：{effective}。{next}に設定するには有効にします。",
+        "server_default_cell_aria": "{cause}、{scope}。デフォルト：{current}。{next}に設定するには有効にします。",
+        "not_applicable_cell_aria": "{cause}、{scope}。適用されません。",
+        "delivery_mode": {
+          "inherit": "継承",
+          "off": "オフ",
+          "notification": "通知",
+          "push_notification": "プッシュ通知"
+        },
+        "reason": {
+          "direct_message": "ダイレクトメッセージ",
+          "direct_mention": "直接メンション",
+          "reply": "自分のメッセージへの返信",
+          "role_mention": "ロールメンション",
+          "here": "@here メンション",
+          "all": "@all メンション",
+          "followed_thread": "フォロー中のスレッド",
+          "followed_room": "フォロー中のルーム",
+          "reaction": "自分のメッセージへのリアクション",
+          "activity": "アクティビティ",
+          "room_invitation": "ルームへの招待"
+        },
+        "reason_hint": {
+          "direct_message": "他のメンバーがダイレクトメッセージの会話で送信したメッセージです。",
+          "direct_mention": "あなたのユーザー名を直接メンションしたメッセージです。",
+          "reply": "あなたのメッセージに対する返信です。",
+          "role_mention": "あなたに割り当てられたロールをメンションしたメッセージです。",
+          "here": "あなたのプレゼンスがオフラインでないときに @here を使ったメッセージです。",
+          "all": "あなたが参加しているルームで @all を使ったメッセージです。",
+          "followed_thread": "フォロー中のスレッドへの新しい返信です。",
+          "followed_room": "フォロー中のルームに投稿されたスレッド外のメッセージです。",
+          "reaction": "他のメンバーがあなたのメッセージに追加したリアクションです。"
         }
       }
     },
@@ -350,6 +394,52 @@
         "confirm_placeholder": "DELETE",
         "cancel": "キャンセル",
         "deleting": "削除中..."
+      }
+    },
+    "bots": {
+      "title": "ボット",
+      "subtitle": "API アカウントを作成し、そのアカウントで実行できる内容を正確に制御します",
+      "singular": "ボット",
+      "unsupported": "このサーバーのバージョンはボット アカウントをサポートしていません。",
+      "list_title": "ボット アカウント",
+      "loading": "ボットを読み込んでいます...",
+      "empty_title": "ボットはまだありません",
+      "empty_body": "統合に独自の ID と権限が必要な場合は、ボットを作成します。",
+      "create_permission_required": "既存のボットは管理できますが、新しいボットを作成する権限がありません。",
+      "create": "ボットの作成",
+      "create_title": "ボット アカウントの作成",
+      "create_failed": "ボットの作成に失敗しました",
+      "created": "ボットが作成されました",
+      "edit": "編集",
+      "edit_title": "ボット アカウントを編集",
+      "updated": "ボットが更新されました",
+      "update_failed": "ボットを更新できませんでした",
+      "update_conflict": "別のユーザーがこのボットを更新しました。ページを再読み込みして、もう一度お試しください。",
+      "username": "ユーザー名",
+      "username_hint": "ボットのユーザー名は _bot で終わる必要があります。",
+      "display_name": "表示名",
+      "owner": "所有者",
+      "reassign_owner": "所有者を再割り当て",
+      "reassign_owner_warning": "ボットのAPIキーと設定済みの権限は変更されません。有効な権限には新しい所有者の権限が直ちに反映されます。",
+      "owner_reassigned": "ボットの所有者を再割り当てしました",
+      "owner_reassign_failed": "ボットの所有者を再割り当てできませんでした",
+      "api_key_title": "この API キーを保存",
+      "api_key_warning": "このキーは 1 回だけ表示されます。このウィンドウを閉じる前に、安全な場所に保管してください。",
+      "key_created": "API キーが作成されました",
+      "key_rotated_at": "最後にローテーションした日",
+      "key_copied": "API キーがコピーされました",
+      "rotate_key": "回転キー",
+      "rotate_title": "API キーをローテーション",
+      "rotate_warning": "現在のキーはすぐに動作を停止します。これを使用する統合は更新する必要があります。",
+      "key_rotated": "API キーがローテーションされました",
+      "rotate_failed": "API キーのローテーションに失敗しました",
+      "delete_title": "ボットを削除",
+      "delete_warning": "{name} を削除しますか?その API キーはすぐに動作を停止し、アカウントは回復できなくなります。",
+      "deleted": "ボットが削除されました",
+      "delete_failed": "ボットの削除に失敗しました",
+      "permissions": {
+        "owner_ceiling": "このボットに許可する操作を選んでください。自分が持っている権限だけを付与できます。あなたが権限を失うと、ボットもその権限を使用できなくなります。",
+        "save_failed": "ボットの権限を更新できませんでした"
       }
     }
   }

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Kreu Novan Ĉambron",
@@ -14,7 +13,7 @@
       "missing_group": "Elektu ĉambrogrupon antaŭ krei ĉambron.",
       "failed": "Malsukcesis krei ĉambron",
       "creating": "Kreante...",
-      "submit": "Krei Ĉambron"
+      "submit_and_configure": "Krei kaj agordi ĉambron"
     },
     "join": {
       "title": "Aliĝu al Ĉambro",
@@ -23,13 +22,10 @@
       "inline_prompt": "Aliĝu al ĉi tiu ĉambro por legi kaj partopreni.",
       "group_label": "En {group}",
       "member_preview_label": "Ĉambromembroj",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} membro", "countPlural=other": "{count} membroj" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} membro",
+        "other": "{count} membroj"
+      },
       "success": "Aliĝis al #{room}",
       "success_generic": "Aliĝis al ĉambro",
       "failed": "Malsukcesis aliĝi al ĉambro",
@@ -74,7 +70,8 @@
       "remove_account_suffix": " de ĉi tiu servilo antaŭ ol forigi ĝin."
     },
     "timeline": {
-      "beginning": "Jen la komenco de ĉi tiu konversacio."
+      "beginning": "Jen la komenco de ĉi tiu konversacio.",
+      "read_denied": "Vi ne havas permeson legi mesaĝojn en ĉi tiu ĉambro."
     },
     "message": {
       "empty": "Ankoraŭ neniuj mesaĝoj",
@@ -82,6 +79,7 @@
       "delete_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun mesaĝon? Ĉi tio ne povas esti malfarita.",
       "delete_failed": "Malsukcesis forigi mesaĝon",
       "reaction_failed": "Malsukcesis ĝisdatigi reagon",
+      "reaction_limit_reached": "Vi povas aldoni ĝis 20 reagojn al mesaĝo.",
       "deleted": "Mesaĝo forigita",
       "actions": {
         "toolbar": "Mesaĝaj agoj",
@@ -90,6 +88,7 @@
         "add_reaction": "Aldonu reagon",
         "more_reactions": "Pli da reagoj",
         "reply": "Respondu",
+        "reply_room": "Respondi en la ĉambro",
         "reply_thread": "Respondu en fadeno",
         "open_thread": "Malfermu fadenon",
         "edit": "Redaktu mesaĝon",
@@ -100,7 +99,10 @@
         "copy_link": "Kopiu ligilon"
       },
       "meta": {
+        "pinned": "Alpinglita mesaĝo",
         "thread": "Fadeno",
+        "edited": "Redaktita mesaĝo",
+        "echoed_to_channel": "Ankaŭ sendita al la kanalo",
         "reply_count_one": "1 respondo",
         "reply_count_many": "{count} respondas",
         "follow_thread": "Sekvu fadenon",
@@ -120,39 +122,24 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "aliĝis al la ĉambro",
-            "countPlural=other": "aliĝis al la ĉambro"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "forlasis la ĉambron",
-            "countPlural=other": "forlasis la ĉambron"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "aliĝis al la ĉambro",
+        "other": "aliĝis al la ĉambro"
+      },
+      "left_count": {
+        "one": "forlasis la ĉambron",
+        "other": "forlasis la ĉambron"
+      },
       "archived": "arkivis la ĉambron",
       "unarchived": "malarkivigis la ĉambron",
+      "call_started": "komencis vokon en ĉi tiu ĉambro",
+      "call_ended": "La aktiva voko finiĝis",
+      "threading_mode_changed": "ŝanĝis la fadenan reĝimon al {mode}",
       "and": "kaj",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "alia",
-            "countPlural=other": "aliaj"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "alia",
+        "other": "aliaj"
+      },
       "show_less": "montri malpli"
     },
     "attachment": {
@@ -186,6 +173,7 @@
       "offline": "Senkonekta ({count})",
       "no_files": "Ankoraŭ neniuj dosieroj en ĉi tiu ĉambro.",
       "files": "Dosieroj",
+      "pins": "Alpinglitaj mesaĝoj",
       "call": "Voku",
       "jump_to_file": "Saltu al {filename}",
       "loading_files": "Ŝarĝante dosierojn...",
@@ -195,6 +183,20 @@
       "in_video_call": "En videovoko",
       "ban_failed": "Malsukcesis malpermesi membron de ĉambro",
       "ban_success": "Malpermesita {name} de ĉambro"
+    },
+    "pins": {
+      "show": "Montri alpinglitajn mesaĝojn",
+      "unseen": "Novaj alpinglitaj mesaĝoj",
+      "hide": "Kaŝi alpinglitajn mesaĝojn",
+      "pin": "Alpingli mesaĝon",
+      "unpin": "Malpingli mesaĝon",
+      "unpin_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun alpinglon?",
+      "loading": "Ŝargante alpinglitajn mesaĝojn...",
+      "empty_title": "Neniuj alpinglitaj mesaĝoj",
+      "empty_description": "Ĉambroadministrantoj povas alpingli gravajn mesaĝojn ĉi tie.",
+      "error_title": "Alpinglitaj mesaĝoj ne disponeblas",
+      "error_description": "Ne eblis ŝargi alpinglitajn mesaĝojn. Provu denove post momento.",
+      "update_failed": "Ne eblis ĝisdatigi la alpinglitan mesaĝon"
     },
     "title": {
       "direct_message": "Rekta Mesaĝo"

@@ -11,6 +11,7 @@ import (
 	"github.com/c2h5oh/datasize"
 	"github.com/pelletier/go-toml/v2"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/pkg/natsauth"
 )
 
 func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoConfig, error) {
@@ -45,6 +46,7 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 	}
 
 	directRegistration := true
+	directLogin := true
 	unlimited := -1
 	client := selectedExternalNATSClient(answers)
 	replicas := answers.NATSReplicas
@@ -55,6 +57,7 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 		General: config.GeneralConfig{LogLevel: "info", LogFormat: "auto"},
 		Auth: config.AuthConfig{
 			DirectRegistration: &directRegistration,
+			DirectLogin:        &directLogin,
 			EmailOTP: config.EmailOTPConfig{
 				ThrottlingEnabled: &directRegistration,
 				TTL:               config.Duration(15 * time.Minute),
@@ -79,6 +82,9 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 			},
 		},
 		SMTP: config.SMTPConfig{Enabled: false, Port: 587, TLS: config.SMTPTLSMandatory},
+		AssetProcessing: config.AssetProcessingConfig{
+			Enabled: true,
+		},
 		NATS: config.NATSConfig{
 			Replicas: replicas,
 			Client:   client,
@@ -96,7 +102,7 @@ func buildInitialConfig(answers initAnswers, entropy io.Reader) (config.ChattoCo
 		// The client block is emitted as a commented example for embedded mode.
 		cfg.NATS.Client = config.NATSClientConfig{
 			URL:        "nats://nats.example.com:4222",
-			AuthMethod: config.NATSAuthToken,
+			AuthMethod: natsauth.AuthToken,
 			Token:      "replace-me",
 		}
 	}
@@ -109,14 +115,14 @@ func selectedExternalNATSClient(answers initAnswers) config.NATSClientConfig {
 		AuthMethod: answers.NATSAuthMethod,
 	}
 	switch answers.NATSAuthMethod {
-	case config.NATSAuthCredentials:
+	case natsauth.AuthCredentials:
 		client.CredentialsFile = strings.TrimSpace(answers.NATSCredentialsFile)
-	case config.NATSAuthToken:
+	case natsauth.AuthToken:
 		client.Token = answers.NATSToken
-	case config.NATSAuthUserPass:
+	case natsauth.AuthUserPass:
 		client.Username = answers.NATSUsername
 		client.Password = answers.NATSPassword
-	case config.NATSAuthNKey:
+	case natsauth.AuthNKey:
 		client.NKeySeed = strings.TrimSpace(answers.NATSNKeySeed)
 	}
 	return client
@@ -147,13 +153,13 @@ func renderInitialConfig(cfg config.ChattoConfig, mode initNATSMode) (string, er
 }
 
 type externalNATSClientTOML struct {
-	URL             string                `toml:"url"`
-	AuthMethod      config.NATSAuthMethod `toml:"auth_method"`
-	Token           string                `toml:"token,omitempty"`
-	Username        string                `toml:"username,omitempty"`
-	Password        string                `toml:"password,omitempty"`
-	CredentialsFile string                `toml:"credentials_file,omitempty"`
-	NKeySeed        string                `toml:"nkey_seed,omitempty"`
+	URL             string              `toml:"url"`
+	AuthMethod      natsauth.AuthMethod `toml:"auth_method"`
+	Token           string              `toml:"token,omitempty"`
+	Username        string              `toml:"username,omitempty"`
+	Password        string              `toml:"password,omitempty"`
+	CredentialsFile string              `toml:"credentials_file,omitempty"`
+	NKeySeed        string              `toml:"nkey_seed,omitempty"`
 }
 
 func activateExternalNATSClient(text string, client config.NATSClientConfig) (string, error) {

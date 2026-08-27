@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"hmans.de/chatto/internal/core"
 )
 
 func TestInternalErrorLoggingIncludesProcedureWithoutExposingCause(t *testing.T) {
@@ -56,6 +57,12 @@ func TestInternalErrorLoggingIncludesProcedureWithoutExposingCause(t *testing.T)
 	}
 	if strings.Contains(gotLogs, "person@example.test") || !strings.Contains(gotLogs, "[redacted]") {
 		t.Fatalf("internal error log did not preserve redaction: %q", gotLogs)
+	}
+}
+
+func TestConnectErrorMapsInvalidInvitation(t *testing.T) {
+	if got := connect.CodeOf(connectError(core.ErrInvitationInvalid)); got != connect.CodeInvalidArgument {
+		t.Fatalf("connectError code = %v, want invalid argument", got)
 	}
 }
 

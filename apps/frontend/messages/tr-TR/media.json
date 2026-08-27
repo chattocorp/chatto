@@ -1,0 +1,13 @@
+{
+  "media": {
+    "server_banner_alt": "Sunucu başlığı",
+    "fullscreen_video": "Tam ekran video",
+    "close_fullscreen_video": "Tam ekran videoyu kapat",
+    "video_alt": "video",
+    "video_original_missing": "Orijinal yükleme eksik olduğundan video kullanılamıyor.",
+    "video_processing_failed_retry": "Video işleme başarısız oldu. Lütfen tekrar yüklemeyi deneyin.",
+    "video_queued": "Video işlenmek üzere sıraya alındı...",
+    "video_processing": "Video işleniyor...",
+    "video_processing_failed": "Video işleme başarısız oldu"
+  }
+}

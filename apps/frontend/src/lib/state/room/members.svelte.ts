@@ -1,23 +1,18 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createContext } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import { type PresenceStatus } from '$lib/render/types';
+
 import {
   createMemberDirectoryAPI,
   type DirectoryMember,
   type MemberDirectoryAPI,
   type MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
-import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
 
 export const ROOM_MEMBERS_PAGE_SIZE = 250;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
-const roomMemberInvalidatingEventKinds = new Set<RoomEventKind>([
-  RoomEventKind.UserJoinedRoom,
-  RoomEventKind.UserLeftRoom
-]);
 
 /**
  * Room member data for the current room.
@@ -27,6 +22,7 @@ export type RoomMember = {
   login: string;
   displayName: string;
   deleted?: boolean;
+  isBot?: boolean;
   avatarUrl?: string | null;
   customStatus?: CustomUserStatus | null;
   presenceStatus: PresenceStatus;
@@ -57,11 +53,6 @@ function mapPage(page: MemberDirectoryPage): RoomMembersPage {
     totalCount: page.totalCount,
     hasMore: page.hasMore
   };
-}
-
-function eventRoomId(eventData: EventEnvelope['event']): string | null {
-  if (!eventData || !('roomId' in eventData) || typeof eventData.roomId !== 'string') return null;
-  return eventData.roomId;
 }
 
 /**
@@ -96,10 +87,7 @@ export class RoomMembersStore {
     } else if ('listRoomMembers' in source) {
       this.api = source;
     } else {
-      this.api = createMemberDirectoryAPI({
-        baseUrl: source.connectBaseUrl,
-        bearerToken: source.bearerToken
-      });
+      this.api = source.getAPI(createMemberDirectoryAPI);
     }
   }
 
@@ -133,6 +121,31 @@ export class RoomMembersStore {
     )
       return;
     void this.loadInitial();
+  }
+
+  /** Keep membership explicitly pending until the projection materializes it. */
+  awaitProjection(roomId: string): void {
+    if (this.roomId === roomId && this.isInitialLoading && !this.hasFirstPage) return;
+    if (this.roomId !== roomId) this.roomId = roomId;
+    this.reset();
+    this.isInitialLoading = true;
+  }
+
+  /** Replace membership from the canonical server projection. */
+  replaceProjection(roomId: string, members: RoomMember[]): void {
+    if (this.roomId !== roomId) {
+      this.roomId = roomId;
+      this.reset();
+    }
+    this.#loadId++;
+    this.members = members;
+    this.totalCount = members.length;
+    this.hasFirstPage = true;
+    this.hasLoadedAll = true;
+    this.isInitialLoading = false;
+    this.isBackgroundLoading = false;
+    this.loadError = null;
+    this.#searchCache.clear();
   }
 
   async setSearch(search: string): Promise<void> {
@@ -245,19 +258,6 @@ export class RoomMembersStore {
     }
   }
 
-  ingestServerEvent(serverEvent: EventEnvelope): void {
-    const eventData = serverEvent.event;
-    if (!eventData) return;
-    const kind = roomEventKind(eventData);
-    if (
-      kind &&
-      roomMemberInvalidatingEventKinds.has(kind) &&
-      eventRoomId(eventData) === this.roomId
-    ) {
-      void this.refresh();
-    }
-  }
-
   updatePresence(userId: string, status: PresenceStatus): void {
     this.livePresence.set(userId, status);
     this.presenceVersion++;
@@ -364,6 +364,7 @@ function memberFromDirectory(member: DirectoryMember): RoomMember {
     login: member.login,
     displayName: member.displayName,
     deleted: member.deleted,
+    isBot: member.isBot,
     avatarUrl: member.avatarUrl,
     customStatus: member.customStatus,
     presenceStatus: member.presenceStatus

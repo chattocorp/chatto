@@ -1,0 +1,36 @@
+import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import { normalizeRoomName } from '$lib/utils/roomName';
+import type { RoomThreadingMode } from '$lib/roomThreading';
+
+export type RoomSettingsValues = {
+  name: string;
+  description: string;
+  universal: boolean;
+  slowModeSeconds: number;
+  threadingMode: RoomThreadingMode;
+};
+
+type RoomUpdateInput = Parameters<RoomCommandAPI['updateRoom']>[0];
+
+/** Builds a sparse update so unchanged fields do not emit durable room events. */
+export function buildRoomSettingsUpdate(
+  roomId: string,
+  current: RoomSettingsValues,
+  original: RoomSettingsValues
+): RoomUpdateInput {
+  const input: RoomUpdateInput = { roomId };
+  const name = normalizeRoomName(current.name);
+  const description = current.description.trim();
+
+  if (name !== original.name) input.name = name;
+  if (description !== original.description) input.description = description || null;
+  if (current.universal !== original.universal) input.universal = current.universal;
+  if (current.slowModeSeconds !== original.slowModeSeconds) {
+    input.slowModeSeconds = current.slowModeSeconds;
+  }
+  if (current.threadingMode !== original.threadingMode) {
+    input.threadingMode = current.threadingMode;
+  }
+
+  return input;
+}

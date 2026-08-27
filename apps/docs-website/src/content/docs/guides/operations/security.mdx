@@ -23,9 +23,38 @@ Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-on
 
 ### Sessions and tokens
 
-Chatto issues **opaque bearer tokens**, not JWTs. Bearer-token and same-origin cookie-session handles are stored as typed runtime credentials in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys, with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete -- there is no signed-but-still-valid window to worry about. Deprecated legacy cookie-session records remain readable for now so upgrades do not sign out existing browser sessions.
+Chatto issues **opaque credentials**, not JWTs. Same-origin cookie-session
+handles use typed `RUNTIME_STATE` `session.{hmac}` records with explicit
+expiry. In the final quarter, the bundled browser automatically extends the
+same stable handle through a dedicated route. Ordinary validation remains
+read-only. Each changed record revision keeps a per-message TTL equal to its
+remaining explicit lifetime.
 
-Browser sessions use signed cookies with the following options:
+Human bearer authentication uses renewable sessions. Programmatic direct
+login and remote OAuth return a short-lived access token (15 minutes by
+default), a rotating refresh credential, and a renewable session window (90
+days by default). The bundled same-origin browser uses only its HttpOnly
+cookie. The
+access verifier is a fixed-expiry `session.{hmac}` record; the stable
+`renewable_session.{hmac}` record holds the current rotation generation and is
+the revocation authority for every access generation. Ordinary KV revision
+checks serialize its updates. A refresh in the final quarter advances the
+session window and sets the changed record's per-message TTL to its new
+remaining lifetime. Access-token validation does not extend either expiry. Raw
+access and refresh credentials are not stored.
+
+Refresh rotation uses JetStream KV revision checks across replicas. The client
+generates a random UUID version 4 recovery nonce for each rotation. The server
+stores only its purpose-separated HMAC verifier. An exact retry with the same
+client-persisted request ID can recover a lost response; reuse of an older
+refresh generation under another request ID revokes the whole renewable
+session. Deleting the stable record rejects every access generation on its next
+API request or realtime connection, even before its short-lived verifier record
+expires. The server checks the exact human credential before a realtime
+subscription starts and once per minute after that. A bearer socket also cannot
+continue past the access token's fixed expiry.
+
+Each `chatto_auth_<slot>` browser authentication cookie has these options:
 
 | Option     | Value                                   |
 | ---------- | --------------------------------------- |
@@ -33,11 +62,23 @@ Browser sessions use signed cookies with the following options:
 | `SameSite` | `Lax`                                   |
 | `Secure`   | `true` when `webserver.url` is `https://` |
 | `Path`     | `/`                                     |
-| `MaxAge`   | 90 days                                 |
+| `MaxAge`   | `auth.token_ttl` (90 days by default)   |
 
-Session cookies are always signed with `webserver.cookie_signing_secret`. They are additionally **encrypted** if `webserver.cookie_encryption_secret` is set. When the encryption secret is missing, Chatto logs a startup warning — running `chatto init` on a fresh server generates both secrets automatically.
+The cookie contains only a random SCS handle. It does not contain identity or
+authorization data. The user ID, source, auth generation, fresh-auth metadata,
+and explicit expiry live in the server-side `session.{hmac}` record. Chatto
+uses a new cookie slot for each successful sign-in or renewal. If an old HTTP
+response arrives late, it cannot overwrite a newer session cookie. Chatto
+ignores revoked slots and removes obsolete slots during the next authentication
+change. Concurrent renewals can create more than one slot for the same handle.
+Chatto validates that handle once and converges the browser back to one slot.
 
-New browser session cookies store only an opaque runtime credential handle. The user ID, source, auth generation, and fresh-auth metadata live in the server-side `session.{hmac}` runtime credential record.
+The separate `chatto_session` cookie stores short-lived provider, invitation,
+and OAuth browser-flow state. Chatto signs it with
+`webserver.cookie_signing_secret` and also encrypts it when
+`webserver.cookie_encryption_secret` is set. When the encryption secret is
+missing, Chatto logs a startup warning. Running `chatto init` on a fresh server
+generates both secrets automatically.
 
 ### Email verification
 
@@ -51,27 +92,33 @@ Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no s
 
 ### Chatto frontend OAuth redirects
 
-When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a bearer token. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the trusted frontend origin; the main client exchanges the code and stores the resulting token.
+When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a renewable bearer session. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the exact callback validated from the frontend's metadata; the main client exchanges the code and stores the access token, rotating refresh credential, and expiry metadata. Normal access renewal happens through the token endpoint without reopening OAuth.
 
-For a known hosted frontend, list the exact callback origin:
+The frontend identifies itself with the URL of its published CIMD document.
+Chatto retrieves that document and accepts only the exact callback registered
+there. The user approves the identified client, and consent is remembered by
+user and stable client ID:
 
-```toml
-[webserver]
-oauth_redirect_origins = ["https://app.example.com"]
-```
+<LinkCard
+  title="Connections From Other Chatto Clients"
+  href="/guides/operations/cross-server-connections/"
+  description="Learn how CIMD identity, exact callbacks, bearer-only transport, and the Chatto 0.5 compatibility boundary work."
+/>
 
-You can also allow any valid HTTPS Chatto frontend to connect:
+Any compatible software that can publish valid CIMD metadata may ask for
+access. This is an open client ecosystem, not an endorsement system. A
+malicious application can still initiate its own flow and ask a logged-in user
+to approve it; users should authorize only clients they recognize.
 
-```toml
-[webserver]
-oauth_redirect_origins = ["*"]
-```
+Successfully authorized clients appear in **Server settings → Security → OAuth
+clients**. Server managers can label a client trusted or block it. Trust is
+informational and never bypasses consent. A block prevents authorization and
+invalidates that client's OAuth access tokens; merely requesting CIMD metadata
+does not create an entry.
 
-Use `*` only when you intentionally want open connectivity. It allows any HTTPS origin to start a Chatto OAuth authorization request. PKCE prevents passive interception of the code, and Chatto still shows the user a consent screen for each redirect origin, but a malicious site can initiate its own flow and ask a logged-in user to approve it. If the user approves, that site receives an authorization code it can exchange for a bearer token.
-
-<Aside type="caution">
-  `webserver.allowed_origins = ["*"]` is different. That wildcard only affects CORS and WebSocket access; it does not trust OAuth redirect callbacks. Use `webserver.oauth_redirect_origins` for OAuth callback trust.
-</Aside>
+Chatto Desktop uses the built-in `chatto://desktop` identity and exact callback.
+It needs no server origin configuration and otherwise uses the same PKCE,
+consent, and bearer-token flow as hosted frontends.
 
 ## Authorization
 
@@ -185,11 +232,14 @@ There is **no per-IP or per-user rate limiting** at the application layer. If yo
 
 ### CORS and WebSockets
 
-CORS allows the configured `webserver.url`, the local listen port (for development), and any explicit entries in `webserver.allowed_origins`. Credentials (cookies) are only attached for explicit origins; wildcard mode omits credentials, forcing token-based auth in that case.
+Chatto permits browser HTTP and realtime transport from any syntactically valid
+origin without enabling credentialed CORS. When a request carries a foreign
+`Origin`, the server ignores ambient session cookies and requires a bearer
+token. Same-origin browser requests can still use the HTTP-only session cookie.
 
-Realtime WebSocket connections perform the same origin check before the upgrade is accepted.
-
-OAuth redirect callbacks use a separate trust list, `webserver.oauth_redirect_origins`. See [Chatto frontend OAuth redirects](#chatto-frontend-oauth-redirects).
+OAuth callback trust is separate from CORS: Chatto accepts only an exact
+callback from the validated client's CIMD document or a built-in registration
+such as Chatto Desktop. See [Connections From Other Chatto Clients](/guides/operations/cross-server-connections/).
 
 ## HTTP security headers
 
@@ -212,7 +262,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | Per-user KEK records | `ENCRYPTION_KEYS` (NATS KV) | No (export separately, or use `--include-keys`) |
 | Per-call LiveKit E2EE keys | `ENCRYPTION_KEYS` (NATS KV, short-lived) | No (active calls are not recoverable without them) |
 | Wrapped app DEK records | `RUNTIME_STATE` (`dek.*` protobuf records) | Yes (unusable without KEKs) |
-| Runtime credential verifiers | `RUNTIME_STATE` (`session.{hmac}`, HMAC-keyed, with TTL) | Yes (not raw bearer tokens or cookie handles) |
+| Runtime credential verifiers | `RUNTIME_STATE` (`session.{hmac}` and `renewable_session.{hmac}`, HMAC-keyed, with explicit expiry and per-message TTL) | Yes (not raw access tokens, refresh credentials, or cookie handles) |
 | Account-flow and OAuth-code verifiers | `RUNTIME_STATE` (HMAC-keyed, with TTL) | Yes (not raw codes or links) |
 | Core secret key | `chatto.toml` / `CHATTO_CORE_SECRET_KEY` | n/a |
 | Cookie signing secret | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` | n/a |
@@ -226,7 +276,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | LiveKit API and webhook secrets | `chatto.toml` / `CHATTO_LIVEKIT_API_KEY`, `CHATTO_LIVEKIT_API_SECRET`, `CHATTO_LIVEKIT_WEBHOOK_API_KEY`, `CHATTO_LIVEKIT_WEBHOOK_API_SECRET` | n/a |
 | TLS certificates | Disk cache directory (`autocert`) | n/a |
 
-`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer tokens, cookie-session handles, OAuth authorization codes, and pending account-flow credentials, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`.
+`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer access and refresh credentials, cookie-session handles, OAuth authorization codes, pending account-flow credentials, and existing invite links, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`. Invite-link records remain in `EVT`, so authorised administrators can copy newly derived links after rotation.
 
 ## Reporting a security issue
 

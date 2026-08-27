@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const frontendRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const sourceRoot = resolve(frontendRoot, 'src');
+const appCssPath = resolve(sourceRoot, 'app.css');
 
 const styleBlockAllowlist = new Set([
   'src/lib/components/MobileSidebarChrome.svelte',
@@ -63,7 +64,46 @@ async function svelteFiles(directory) {
   return files.flat();
 }
 
+async function sourceFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) return sourceFiles(path);
+      if (!/\.(?:svelte|[cm]?[jt]s)$/.test(entry.name)) return [];
+      return [path];
+    })
+  );
+  return files.flat();
+}
+
 const failures = [];
+const appCss = await readFile(appCssPath, 'utf8');
+
+if (!/@import\s+['"]tailwindcss['"]\s+source\(['"]\.\/['"]\)/.test(appCss)) {
+  failures.push(
+    "src/app.css: scope Tailwind source detection to source('./') so production ignores sources outside src"
+  );
+}
+
+if (/\bprefixes\s*:/.test(appCss)) {
+  failures.push(
+    'src/app.css: Iconify prefixes eagerly expand complete icon collections; use dynamic utilities such as icon-[uil--check]'
+  );
+}
+
+for (const file of await sourceFiles(sourceRoot)) {
+  const path = relative(frontendRoot, file);
+  const source = await readFile(file, 'utf8');
+  const legacyIcon = /(?<!icon-\[)\b(?:uil|mdi|logos)--[a-z0-9-]+/g;
+
+  for (const match of source.matchAll(legacyIcon)) {
+    const line = source.slice(0, match.index).split('\n').length;
+    failures.push(
+      `${path}:${line}: legacy Iconify class eagerly requires complete collections; use icon-[${match[0]}]`
+    );
+  }
+}
 
 for (const file of await svelteFiles(sourceRoot)) {
   const path = relative(frontendRoot, file);
@@ -85,6 +125,20 @@ for (const file of await svelteFiles(sourceRoot)) {
       const line = utilitySource.slice(0, match.index).split('\n').length;
       failures.push(`${path}:${line}: ${description} (${match[0].trim()})`);
     }
+  }
+
+  for (const contextMenu of utilitySource.matchAll(/<ContextMenu\b[\s\S]*?<\/ContextMenu>/g)) {
+    const actionSeparator = contextMenu[0].match(
+      /(?:class\s*=\s*["'][^"']*\bborder-t\b[^"']*["']|role\s*=\s*["']separator["'])[\s\S]*?<(?:a|button)\b/
+    );
+    if (!actionSeparator) continue;
+
+    const line = utilitySource
+      .slice(0, (contextMenu.index ?? 0) + (actionSeparator.index ?? 0))
+      .split('\n').length;
+    failures.push(
+      `${path}:${line}: context-menu action groups must use sibling menu-section surfaces, not inline separators`
+    );
   }
 }
 

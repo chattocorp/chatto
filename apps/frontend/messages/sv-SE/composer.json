@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "Bifoga fil",
     "send": "Skicka meddelande",
-    "send_enter": "Skicka meddelande (Enter)",
-    "send_ctrl_enter": "Skicka meddelande (Ctrl/Cmd+Enter)",
+    "send_label": "Skicka",
     "also_send_to_channel": "Skicka även till kanal",
+    "post_as_thread": "Publicera som tråd",
+    "thread_label": "Tråd",
+    "echo_label": "Eko",
     "replying_to": "Svarar på",
     "esc_to_cancel": "för att avbryta",
     "editing": "Redigerar meddelande",
@@ -21,7 +22,23 @@
     "drop_files_title": "Släpp filer här",
     "drop_files_subtitle": "Bilder och videor kommer att läggas till i ditt meddelande",
     "send_failed": "Det gick inte att skicka meddelandet",
+    "slow_mode_ready": "Långsamt läge: ett meddelande per {interval}.",
+    "slow_mode_waiting": "Långsamt läge: skicka igen om {countdown}.",
+    "slow_mode_bypassed": "Långsamt läge: {interval} (du är undantagen).",
+    "slow_mode_rejected": "Långsamt läge är aktivt. Vänta innan du skickar ett nytt meddelande.",
+    "threads_encouraged": "Trådar rekommenderas i det här rummet.",
+    "recent_thread_confirm_title": "Fortsätta i din förra tråd?",
+    "recent_thread_confirm_body": "Ditt förra meddelande har redan en tråd. Var ska det här meddelandet publiceras?",
+    "post_as_new_message": "Publicera som nytt meddelande",
+    "continue_in_thread": "Fortsätt i tråden",
     "edit_failed": "Det gick inte att redigera meddelandet",
+    "upload": {
+      "preparing": "Förbereder…",
+      "uploading": "{percentage} % uppladdat",
+      "uploaded": "Uppladdad",
+      "failed": "Uppladdningen misslyckades",
+      "remove": "Ta bort {filename}"
+    },
     "format": {
       "bold": "Fet",
       "italic": "Kursiv",
@@ -30,7 +47,9 @@
       "bullet_list": "Punktlista",
       "ordered_list": "Numrerad lista",
       "blockquote": "Citat",
-      "code_block": "Kodblock"
+      "code_block": "Kodblock",
+      "outdent": "Minska indrag",
+      "indent": "Öka indrag"
     },
     "timestamp": {
       "title": "Infoga tidsstämpel",

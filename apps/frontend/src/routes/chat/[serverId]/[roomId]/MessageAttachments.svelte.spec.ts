@@ -1,12 +1,15 @@
+import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
+import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
-import { FitMode, type MessageAttachmentView } from '$lib/render/types';
+import { VideoProcessingStatus, type MessageAttachmentView } from '$lib/render/messageAttachments';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({
   pushState: vi.fn(),
-  refreshAssetUrls: vi.fn()
+  refreshAssetUrls: vi.fn(),
+  videoPlayerModuleLoaded: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -15,17 +18,31 @@ vi.mock('$app/navigation', () => ({
   replaceState: vi.fn()
 }));
 
-vi.mock('$lib/api-client/attachments', () => ({
+vi.mock('$lib/api-client/attachments', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/api-client/attachments')>()),
   createAttachmentAPI: vi.fn(() => ({
     refreshAssetUrls: attachmentMocks.refreshAssetUrls
   }))
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
+vi.mock('$lib/components/chat/VideoPlayer.svelte', async () => {
+  attachmentMocks.videoPlayerModuleLoaded();
+  return {
+    default: (await import('./MessageAttachmentsVideoPlayerStub.svelte')).default
+  };
+});
+
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
     serverId: 'server_1',
-    connectBaseUrl: 'https://chat.example.test/api/connect',
-    bearerToken: null
+    store: {},
+    connection: {
+      serverId: 'server_1',
+      connectBaseUrl: 'https://chat.example.test/api/connect',
+      bearerToken: null,
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    },
+    isCurrent: () => true
   })
 }));
 
@@ -77,6 +94,33 @@ function fileAttachment(overrides: Partial<MessageAttachmentView>): MessageAttac
   };
 }
 
+function hlsVideoAttachment(overrides: Partial<MessageAttachmentView> = {}): MessageAttachmentView {
+  return {
+    id: 'video_1',
+    filename: 'clip.mp4',
+    contentType: 'video/mp4',
+    width: 1280,
+    height: 720,
+    assetUrl: null,
+    thumbnailAssetUrl: null,
+    videoProcessing: {
+      status: VideoProcessingStatus.Completed,
+      durationMs: 12_000,
+      width: 1280,
+      height: 720,
+      thumbnailAssetUrl: null,
+      sourceAvailable: true,
+      variants: [],
+      hlsMasterPlaylistUrl: {
+        url: 'https://chat.example.test/assets/hls/video_1/master.m3u8?access=expired',
+        expiresAt: '2099-01-01T00:00:00Z'
+      },
+      reasonCode: null
+    },
+    ...overrides
+  };
+}
+
 function renderAttachments(
   attachments: MessageAttachmentView[],
   options: { canDeleteAttachment?: boolean } = {}
@@ -111,7 +155,17 @@ describe('MessageAttachments', () => {
   beforeEach(() => {
     attachmentMocks.pushState.mockReset();
     attachmentMocks.refreshAssetUrls.mockReset();
+    attachmentMocks.videoPlayerModuleLoaded.mockReset();
     attachmentMocks.refreshAssetUrls.mockResolvedValue(new Map());
+  });
+
+  it('keeps the video player module out of non-video attachment rendering', async () => {
+    renderAttachment(fileAttachment({}));
+
+    await tick();
+    await Promise.resolve();
+
+    expect(attachmentMocks.videoPlayerModuleLoaded).not.toHaveBeenCalled();
   });
 
   it('renders very tall portrait images as contained narrow strips', () => {
@@ -171,19 +225,61 @@ describe('MessageAttachments', () => {
   });
 
   it('uses a subtle attachment remove control when deletion is allowed', () => {
-    const { container } = renderAttachment(
-      imageAttachment({
-        filename: 'delete-me.jpg'
-      }),
+    const { container } = renderAttachments(
+      [
+        imageAttachment({
+          filename: 'delete-me.jpg'
+        }),
+        fileAttachment({ filename: 'delete-me.pdf' })
+      ],
       { canDeleteAttachment: true }
     );
 
-    const deleteControl = container.querySelector<HTMLElement>('[aria-label="Delete attachment"]');
+    const deleteControls = container.querySelectorAll<HTMLElement>(
+      '[aria-label="Delete attachment"]'
+    );
 
-    expect(deleteControl).not.toBeNull();
-    expect(deleteControl!.getAttribute('title')).toBe('Delete attachment');
-    expect(deleteControl!.className).toContain('attachment-remove-button');
-    expect(deleteControl!.className).not.toContain('embed-control-button');
+    expect(deleteControls).toHaveLength(2);
+    expect(deleteControls[0].tagName).toBe('SPAN');
+    expect(deleteControls[1].tagName).toBe('BUTTON');
+    expect(deleteControls[1].getAttribute('title')).toBe('Delete attachment');
+    expect(deleteControls[1].className).toContain('attachment-remove-button');
+    expect(deleteControls[1].className).not.toContain('embed-control-button');
+
+    deleteControls[1].click();
+    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'deleteAttachment',
+        serverId: 'server_1',
+        roomId: 'room_1',
+        eventId: 'event_1',
+        attachmentId: 'file_1'
+      }
+    });
+  });
+
+  it('keeps processed GIFs autolooping and processed videos using standard playback', async () => {
+    const gif = hlsVideoAttachment({
+      id: 'gif_1',
+      filename: 'animated.gif',
+      contentType: 'image/gif',
+      videoProcessing: {
+        ...hlsVideoAttachment().videoProcessing!,
+        hlsMasterPlaylistUrl: null
+      }
+    });
+    const { container } = renderAttachments([gif, hlsVideoAttachment()]);
+
+    await vi.waitFor(() => {
+      expect(attachmentMocks.videoPlayerModuleLoaded).toHaveBeenCalledOnce();
+      expect(
+        container.querySelectorAll('[data-testid="message-attachments-video-player"]')
+      ).toHaveLength(2);
+    });
+    const players = container.querySelectorAll<HTMLElement>(
+      '[data-testid="message-attachments-video-player"]'
+    );
+    expect(Array.from(players, (player) => player.dataset.autoLoop)).toEqual(['true', 'false']);
   });
 
   it('does not render empty media URLs for attachments that are missing asset URLs', () => {
@@ -199,6 +295,61 @@ describe('MessageAttachments', () => {
     expect(container.querySelector('video[src=""]')).toBeNull();
     expect(container.querySelector('audio[src=""]')).toBeNull();
     expect(container.querySelector('img[alt="pending.jpg"]')).toBeNull();
+  });
+
+  it('refreshes stale attachment URLs when mounted', async () => {
+    renderAttachment(
+      imageAttachment({
+        assetUrl: {
+          url: transparentGif,
+          expiresAt: '2026-01-01T00:00:00Z'
+        }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
+        width: 960,
+        height: 400,
+        fit: ImageFitMode.CONTAIN
+      });
+    });
+  });
+
+  it('retries HLS URL recovery after an earlier refresh request fails', async () => {
+    attachmentMocks.refreshAssetUrls
+      .mockRejectedValueOnce(new Error('network failed'))
+      .mockResolvedValueOnce(
+        new Map([
+          [
+            'video_1',
+            {
+              ...emptyRefreshedUrls(),
+              hlsMasterPlaylistUrl: {
+                url: 'https://chat.example.test/assets/hls/video_1/master.m3u8?access=fresh',
+                expiresAt: '2099-01-02T00:00:00Z'
+              }
+            }
+          ]
+        ])
+      );
+    const { container } = renderAttachment(hlsVideoAttachment());
+
+    let player: HTMLButtonElement | null = null;
+    await vi.waitFor(() => {
+      player = container.querySelector<HTMLButtonElement>(
+        '[data-testid="message-attachments-video-player"]'
+      );
+      expect(player).not.toBeNull();
+    });
+
+    player!.click();
+    await vi.waitFor(() => expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+    player!.click();
+    await vi.waitFor(() => expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledTimes(2));
+    await expect.poll(() => player!.dataset.hlsUrl?.includes('access=fresh') ?? false).toBe(true);
   });
 
   it('clears stale image URLs when refresh returns null asset URLs', async () => {
@@ -274,11 +425,12 @@ describe('MessageAttachments', () => {
       expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
         width: 2048,
         height: 2048,
-        fit: FitMode.Contain
+        fit: ImageFitMode.CONTAIN
       });
       expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
         modal: {
           type: 'imageViewer',
+          serverId: 'server_1',
           roomId: 'room_1',
           eventId: 'event_1',
           imageItems: [

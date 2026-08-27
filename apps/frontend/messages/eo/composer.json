@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "Alektu dosieron",
     "send": "Sendu mesaĝon",
-    "send_enter": "Sendu mesaĝon (Enigu)",
-    "send_ctrl_enter": "Sendu mesaĝon (Ctrl/Cmd+Enigu)",
+    "send_label": "Sendu",
     "also_send_to_channel": "Ankaŭ sendu al kanalo",
+    "post_as_thread": "Afiŝi kiel fadenon",
+    "thread_label": "Fadeno",
+    "echo_label": "Eĥo",
     "replying_to": "Respondante al",
     "esc_to_cancel": "nuligi",
     "editing": "Redaktante mesaĝon",
@@ -21,7 +22,23 @@
     "drop_files_title": "Forigu dosierojn ĉi tie",
     "drop_files_subtitle": "Bildoj kaj filmetoj estos aldonitaj al via mesaĝo",
     "send_failed": "Malsukcesis sendi mesaĝon",
+    "slow_mode_ready": "Malrapida reĝimo: unu mesaĝo ĉiun {interval}.",
+    "slow_mode_waiting": "Malrapida reĝimo: sendu denove post {countdown}.",
+    "slow_mode_bypassed": "Malrapida reĝimo: {interval} (vi estas esceptita).",
+    "slow_mode_rejected": "Malrapida reĝimo estas aktiva. Atendu antaŭ ol sendi alian mesaĝon.",
+    "threads_encouraged": "Fadenoj estas instigitaj en ĉi tiu ĉambro.",
+    "recent_thread_confirm_title": "Ĉu daŭrigi vian antaŭan fadenon?",
+    "recent_thread_confirm_body": "Via antaŭa mesaĝo jam havas fadenon. Kien ĉi tiu mesaĝo estu afiŝita?",
+    "post_as_new_message": "Afiŝi kiel novan mesaĝon",
+    "continue_in_thread": "Daŭrigi en la fadeno",
     "edit_failed": "Malsukcesis redakti mesaĝon",
+    "upload": {
+      "preparing": "Preparante…",
+      "uploading": "{percentage}% alŝutita",
+      "uploaded": "Alŝutita",
+      "failed": "Alŝuto malsukcesis",
+      "remove": "Forigi {filename}"
+    },
     "format": {
       "bold": "Grasa",
       "italic": "Kursiva",
@@ -30,7 +47,9 @@
       "bullet_list": "Bulleta listo",
       "ordered_list": "Numerita listo",
       "blockquote": "Citaĵo",
-      "code_block": "Kodbloko"
+      "code_block": "Kodbloko",
+      "outdent": "Malpligrandigi deŝovon",
+      "indent": "Pligrandigi deŝovon"
     },
     "timestamp": {
       "title": "Enmeti tempomarkon",

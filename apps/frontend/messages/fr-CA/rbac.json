@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "rbac": {
     "delete_role": {
       "title": "Supprimer le rôle",
@@ -45,10 +44,22 @@
       "allow": "autoriser",
       "deny": "refuser",
       "winning_decision": "(décision gagnante)",
+      "included_by": "Included by {permission}",
       "level_server": "Serveur",
       "level_group": "Groupe",
       "level_room": "Chambre",
       "empty_category": "Aucune permission dans cette catégorie",
+      "filter_label": "Filtrer les autorisations",
+      "filter_placeholder": "Filtrer les autorisations...",
+      "no_filter_matches": "Aucune autorisation ne correspond à ce filtre.",
+      "binary": {
+        "aria": "{permission} est {state} pour {subject} dans {scope}",
+        "enabled": "activée",
+        "disabled": "désactivée",
+        "inherited": "Héritée d'une portée plus large",
+        "unavailable": "Actuellement indisponible",
+        "owner_ceiling": "Tu ne peux pas accorder {permission} dans {scope}, car le propriétaire du robot ne l'a pas actuellement."
+      },
       "categories": {
         "space": {
           "title": "Autorisations du serveur",
@@ -80,7 +91,7 @@
         },
         "user": {
           "title": "Autorisations de l'utilisateur",
-          "description": "Contrôlez les opérations de compte d'utilisateur et d'autorisation par utilisateur. Tout refus d'un non-propriétaire annule les subventions"
+          "description": "Contrôlez les opérations de compte d'utilisateur et d'autorisation par utilisateur"
         }
       }
     },
@@ -91,6 +102,8 @@
       "room_list": "Voir les salles dans l'annuaire. Un utilisateur peut être autorisé à voir une salle (par exemple pour demander l'accès) sans être autorisé à la rejoindre.",
       "room_manage": "Modifier les paramètres et les autorisations d'une salle et supprimer des salles",
       "room_ban_member": "Interdire les membres des salles",
+      "message_read": "Lire les messages dans les salons",
+      "message_read_interactions": "Lire les fils complets que vous avez créés ou dans lesquels un autre utilisateur vous a mentionné directement",
       "message_post": "Publiez des messages root dans les salons et démarrez des DM",
       "message_post_in_thread": "Publier des réponses dans un fil de discussion",
       "message_attach": "Joindre des fichiers aux messages",
@@ -104,6 +117,7 @@
       "admin_view_audit": "Afficher le journal d'audit dans l'administrateur",
       "user_delete_any": "Supprimer le compte d'un autre utilisateur",
       "user_delete_self": "Supprimez votre propre compte",
+      "user_invite": "Créez et gérez les liens d’invitation",
       "user_manage_accounts": "Créez des utilisateurs, modifiez l'identité du compte, réinitialisez les mots de passe, joignez des courriels vérifiés et effacez les délais de connexion.",
       "user_manage_permissions": "Modifier les remplacements d'autorisations directes par utilisateur"
     }

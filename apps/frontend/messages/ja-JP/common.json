@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "common": {
     "cancel": "キャンセル",
     "close_sidebar": "サイドバーを閉じる",

@@ -41,14 +41,16 @@ enum AssetDerivativeRole {
   ASSET_DERIVATIVE_ROLE_THUMBNAIL = 1;
   // A transcoded video rendition (e.g. a 480p variant) of the parent.
   ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT = 2;
+  // One bounded HLS media segment generated for a parent video rendition.
+  ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT = 3;
 }
 
 // AssetCreatedEvent carries no message linkage: it is emitted at upload
-// time, before any message exists. Message ownership of an asset is derived
-// from MessagePostedEvent.asset_ids in the room-timeline projection.
+// time, before any message exists. AssetAttachedEvent later records the
+// exclusive message attachment; MessageBodyEvent.asset_ids remains a replay
+// fallback for histories written before explicit attachment events existed.
 message AssetCreatedEvent {
-  // Tag 4 was message_event_id, removed before this event type shipped —
-  // message ownership is derived from MessagePostedEvent.asset_ids instead.
+  // Tag 4 was message_event_id, removed before this event type shipped.
   reserved 4;
   reserved "message_event_id";
 
@@ -80,12 +82,12 @@ message AssetCreatedEvent {
   // Empty for legacy assets and generated derivatives.
   string sha256 = 8;
 
-  // Time after which an unclaimed room-scoped attachment upload may be
-  // deleted. Cleared/ignored once a message body references the asset ID.
+  // Time after which an unattached room-scoped upload may be deleted. Ignored
+  // once AssetAttachedEvent binds the asset to a message.
   google.protobuf.Timestamp pending_expires_at = 9;
 
   // Whether this asset should be routed through attachment video processing
-  // after a message claims it. Set for videos and animated GIFs.
+  // after a message attaches it. Set for videos and animated GIFs.
   bool needs_video_processing = 10;
 }
 
@@ -93,6 +95,21 @@ message AssetCreatedEvent {
 // asset from any local projection; storage cleanup is separate.
 message AssetDeletedEvent {
   string asset_id = 1;
+}
+
+// AssetAttachedEvent records that one pending uploaded asset became an
+// attachment of the exact message that first references it. The attachment
+// commits atomically with the message and is fenced against the complete asset
+// aggregate.
+message AssetAttachedEvent {
+  // Asset ID being attached.
+  string asset_id = 1;
+  // Room containing both the upload and owning message.
+  string room_id = 2;
+  // Event ID of the one message that owns the asset.
+  string message_event_id = 3;
+  // User ID of the uploader and message author.
+  string user_id = 4;
 }
 
 // AssetProcessingStartedEvent signals that derivative processing has been
@@ -151,9 +168,31 @@ message AssetProcessedVideo {
   int32 height = 3;
   string thumbnail_asset_id = 4;
   repeated AssetVideoVariant variants = 5;
+  // HLS adaptive-streaming manifest. Absent on historical MP4-only results.
+  AssetProcessedHLS hls = 6;
 }
 
 message AssetVideoVariant {
   string quality = 1;  // e.g., "720p", "480p"
   string asset_id = 2;
+}
+
+// AssetProcessedHLS contains enough durable metadata to render HLS playlists
+// on demand. Only media segments are stored as derivative assets; clients
+// receive an authorised master-playlist URL rather than these relationships.
+message AssetProcessedHLS {
+  repeated AssetHLSRendition renditions = 1;
+}
+
+message AssetHLSRendition {
+  int32 width = 2;
+  int32 height = 3;
+  int64 bandwidth = 4;
+  repeated AssetHLSSegment segments = 5;
+}
+
+message AssetHLSSegment {
+  string asset_id = 1;
+  // Exact EXTINF duration, rounded to milliseconds during packaging.
+  int64 duration_ms = 2;
 }

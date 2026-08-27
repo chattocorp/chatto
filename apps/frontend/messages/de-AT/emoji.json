@@ -1,7 +1,0 @@
-{
-  "$schema": "https://inlang.com/schema/inlang-message-format",
-  "emoji": {
-    "search_placeholder": "Emojis suchen...",
-    "no_results": "Keine Emojis gefunden"
-  }
-}

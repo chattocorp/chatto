@@ -10,13 +10,12 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/embedded_nats"
 	"hmans.de/chatto/pkg/natsauth"
+	"hmans.de/chatto/pkg/natsruntime"
 )
 
 // Unit is a Chatto runtime unit that can run either as its own process or
@@ -25,6 +24,41 @@ import (
 type Unit interface {
 	Name() string
 	Run(ctx context.Context, env Env) error
+}
+
+// Registration describes one optional unit that chatto run may compose into
+// the main process. Standalone commands run the same Unit directly and ignore
+// StartWithRun.
+type Registration struct {
+	Unit         Unit
+	StartWithRun func(config.ChattoConfig) bool
+}
+
+// Enabled reports whether this registration should start under chatto run.
+func (r Registration) Enabled(cfg config.ChattoConfig) bool {
+	return r.Unit != nil && r.StartWithRun != nil && r.StartWithRun(cfg)
+}
+
+// ValidateRegistrations rejects incomplete or duplicate runtime-unit entries.
+func ValidateRegistrations(registrations []Registration) error {
+	seen := make(map[string]struct{}, len(registrations))
+	for i, registration := range registrations {
+		if registration.Unit == nil {
+			return fmt.Errorf("runtime unit registration %d has no unit", i)
+		}
+		name := registration.Unit.Name()
+		if name == "" {
+			return fmt.Errorf("runtime unit registration %d has an empty name", i)
+		}
+		if registration.StartWithRun == nil {
+			return fmt.Errorf("runtime unit %q has no chatto run predicate", name)
+		}
+		if _, exists := seen[name]; exists {
+			return fmt.Errorf("runtime unit %q is registered more than once", name)
+		}
+		seen[name] = struct{}{}
+	}
+	return nil
 }
 
 // Env is the shared runtime environment given to a unit.
@@ -92,13 +126,13 @@ func RequireStandaloneNATSClientURL(cfg config.ChattoConfig, unitName string) er
 // ConnectToNATS establishes a NATS connection for Chatto runtime processes.
 // When embeddedNATS is non-nil, the connection is in-process and intended only
 // for `chatto run` and units embedded within it.
-func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.Conn, error) {
+func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *natsruntime.Server) (*nats.Conn, error) {
 	logger := log.WithPrefix("nats")
 
 	var connectOpts []nats.Option
 
 	if embeddedNATS != nil {
-		connectOpts = append(connectOpts, embedded_nats.InProcessConnectOption(embeddedNATS))
+		connectOpts = append(connectOpts, embeddedNATS.InProcessOption())
 		if cfg.NATS.Embedded.AuthToken != "" {
 			connectOpts = append(connectOpts, nats.Token(cfg.NATS.Embedded.AuthToken))
 		}
@@ -112,6 +146,10 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *s
 
 	connectOpts = append(connectOpts,
 		nats.MaxReconnects(-1),
+		// A NATS server may temporarily restart with incomplete authentication
+		// configuration. Keep the infinite reconnect contract effective so an
+		// operator can repair the server without also restarting Chatto.
+		nats.IgnoreAuthErrorAbort(),
 		nats.ReconnectWait(100*time.Millisecond),
 		nats.ReconnectBufSize(8*1024*1024),
 		nats.DrainTimeout(5*time.Second),
@@ -141,7 +179,7 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *s
 		nc  *nats.Conn
 		err error
 	)
-	for attempt := range 10 {
+	for attempt := 1; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -149,19 +187,16 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *s
 		if err == nil {
 			break
 		}
-		if attempt < 9 {
-			logger.Warn("Failed to connect to NATS, retrying", "error", err, "attempt", attempt+1)
-			timer := time.NewTimer(2 * time.Second)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return nil, ctx.Err()
-			case <-timer.C:
-			}
+		if attempt == 1 || attempt%30 == 0 {
+			logger.Warn("Failed to connect to NATS; waiting for it to become available", "error", err, "attempt", attempt)
 		}
-	}
-	if err != nil {
-		return nil, err
+		timer := time.NewTimer(2 * time.Second)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
 	}
 
 	if embeddedNATS != nil {

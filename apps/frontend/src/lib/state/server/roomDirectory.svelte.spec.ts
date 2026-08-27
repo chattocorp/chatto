@@ -1,47 +1,64 @@
-import { describe, it, expect, vi } from 'vitest';
-import { flushSync } from 'svelte';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
-import {
-  RoomDirectoryScope,
-  RoomKind,
-  type DirectoryRoomSummary,
-  type RoomDirectoryAPI
-} from '$lib/api-client/roomDirectory';
-import { PresenceStatus } from '$lib/api-client/renderTypes';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { RoomKind } from '$lib/api-client/roomDirectory';
+import { describe, expect, it, vi } from 'vitest';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
-import { RoomDirectoryStore, type DirectoryRoom } from './roomDirectory.svelte';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import type { RoomsListItem } from './rooms.svelte';
+import {
+  RoomDirectoryStore,
+  type RoomDirectoryNavigation
+} from './roomDirectory.svelte';
 
-function makeRoom(id: string, overrides: Partial<DirectoryRoomSummary> = {}): DirectoryRoomSummary {
+function room(id: string, member = false): RoomsListItem {
   return {
     id,
-    name: overrides.name ?? id,
-    description: overrides.description ?? null,
-    kind: overrides.kind ?? RoomKind.CHANNEL,
-    archived: overrides.archived ?? false,
-    isUniversal: overrides.isUniversal ?? false,
-    isMember: overrides.isMember ?? false,
-    hasUnread: overrides.hasUnread ?? false,
-    canJoinRoom: overrides.canJoinRoom ?? true
+    name: id,
+    description: `${id} description`,
+    type: RoomKind.CHANNEL,
+    isUniversal: false,
+    viewerIsMember: member,
+    viewerCanJoinRoom: true,
+    viewerCanManageRoom: false,
+    viewerNotificationCount: 0,
+    viewerImportantNotificationCount: 0,
+    members: []
   };
 }
 
-function makeRoomDirectoryAPI(
-  rooms: DirectoryRoomSummary[] = []
-): Pick<RoomDirectoryAPI, 'listRooms'> {
+function makeNavigation(rooms: RoomsListItem[] = [room('R1')]): RoomDirectoryNavigation {
   return {
-    listRooms: vi.fn().mockResolvedValue(rooms)
+    rooms,
+    roomGroups: [],
+    isInitialLoading: false,
+    isRoomMember(roomId: string) {
+      return this.rooms.some((candidate) => candidate.id === roomId && candidate.viewerIsMember);
+    }
   };
 }
 
-function makeMemberDirectoryAPI(): Pick<MemberDirectoryAPI, 'listRoomMembers'> {
+function memberAPI(): Pick<MemberDirectoryAPI, 'listRoomMembers'> {
   return {
-    listRoomMembers: vi.fn().mockResolvedValue({ members: [], totalCount: 0, hasMore: false })
+    listRoomMembers: vi.fn().mockResolvedValue({
+      members: [
+        {
+          id: 'U1',
+          login: 'ada',
+          displayName: 'Ada',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: PresenceStatus.ONLINE,
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 7,
+      hasMore: true
+    })
   };
 }
 
-function roomAPI(
+function commands(
   overrides: Partial<Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>> = {}
 ): Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'> {
   return {
@@ -52,338 +69,165 @@ function roomAPI(
   };
 }
 
-function makeStore({
-  roomDirectoryAPI = makeRoomDirectoryAPI(),
-  memberDirectoryAPI = makeMemberDirectoryAPI(),
-  commands = roomAPI()
-}: {
-  roomDirectoryAPI?: Pick<RoomDirectoryAPI, 'listRooms'>;
-  memberDirectoryAPI?: Pick<MemberDirectoryAPI, 'listRoomMembers'>;
-  commands?: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>;
-} = {}) {
-  return new RoomDirectoryStore(roomDirectoryAPI, memberDirectoryAPI, commands);
+function makeStore(
+  navigation = makeNavigation(),
+  api = commands()
+): RoomDirectoryStore {
+  return new RoomDirectoryStore(navigation, memberAPI(), api);
 }
 
-async function settle() {
-  await Promise.resolve();
-  await Promise.resolve();
-  flushSync();
-}
+describe('RoomDirectoryStore', () => {
+  it('derives directory rows and membership from the navigation projection', () => {
+    const navigation = makeNavigation([room('joined', true), room('open')]);
+    const store = makeStore(navigation);
 
-describe('RoomDirectoryStore - initial load', () => {
-  it('populates allRooms and clears isLoading', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([
-      makeRoom('r1', { description: 'Lobby' }),
-      makeRoom('r2', { archived: true })
-    ]);
-    const store = makeStore({ roomDirectoryAPI });
+    expect(store.allRooms.map((candidate) => candidate.id)).toEqual(['joined', 'open']);
+    expect(store.isJoined('joined')).toBe(true);
+    expect(store.isJoined('open')).toBe(false);
 
-    expect(store.isLoading).toBe(true);
-    void store.refresh();
-    await settle();
-
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.CHANNELS);
-    // Both rooms (archived + non-archived) are stored. Filtering is a
-    // presentation concern because Browse Rooms needs archived state.
-    expect(store.allRooms).toMatchObject([
-      { id: 'r1', description: 'Lobby', archived: false },
-      { id: 'r2', archived: true }
-    ]);
-    expect(store.isLoading).toBe(false);
+    navigation.rooms = [room('open', true)];
+    expect(store.allRooms.map((candidate) => candidate.id)).toEqual(['open']);
+    expect(store.isJoined('open')).toBe(true);
   });
 
-  it('replaces allRooms with an empty list when Connect returns no rooms', async () => {
-    const store = makeStore({ roomDirectoryAPI: makeRoomDirectoryAPI([]) });
-    store.allRooms = [directoryRoom('stale')];
-
-    await store.refresh();
-
-    expect(store.allRooms).toEqual([]);
-    expect(store.isLoading).toBe(false);
-  });
-});
-
-describe('RoomDirectoryStore - join preview', () => {
-  it('returns five sampled members and the exact total from ListMembers', async () => {
-    const memberDirectoryAPI = makeMemberDirectoryAPI();
-    vi.mocked(memberDirectoryAPI.listRoomMembers).mockResolvedValue({
-      members: [
-        {
-          id: 'u1',
-          login: 'alice',
-          displayName: 'Alice',
-          deleted: false,
-          avatarUrl: null,
-          presenceStatus: PresenceStatus.Offline,
-          customStatus: null,
-          roles: [],
-          createdAt: null
-        }
-      ],
-      totalCount: 12,
-      hasMore: true
-    });
-    const store = makeStore({ memberDirectoryAPI });
-
-    await expect(store.loadJoinPreview('r1')).resolves.toMatchObject({
-      memberCount: 12,
-      sampleMembers: [{ id: 'u1', displayName: 'Alice' }]
-    });
-    expect(memberDirectoryAPI.listRoomMembers).toHaveBeenCalledWith('r1', '', 5, 0);
-  });
-
-  it('returns no preview when the member listing fails', async () => {
-    const memberDirectoryAPI = makeMemberDirectoryAPI();
-    vi.mocked(memberDirectoryAPI.listRoomMembers).mockRejectedValue(new Error('offline'));
-    const store = makeStore({ memberDirectoryAPI });
-
-    await expect(store.loadJoinPreview('r1')).resolves.toBeNull();
-  });
-});
-
-describe('RoomDirectoryStore - isJoined predicate', () => {
-  it('returns true when the room is in the joined set', async () => {
+  it('keeps successful join and leave state optimistic until projection acknowledgement', async () => {
     const store = makeStore();
-    void store.refresh();
-    await settle();
 
-    expect(store.isJoined('r1', new Set(['r1']))).toBe(true);
-    expect(store.isJoined('r2', new Set(['r1']))).toBe(false);
+    expect((await store.joinRoom('R1')).ok).toBe(true);
+    expect(store.isJoined('R1')).toBe(true);
+    store.acknowledgeMembership('R1', true);
+    expect(store.isJoined('R1')).toBe(false);
+
+    const joinedNavigation = makeNavigation([room('R1', true)]);
+    const joinedStore = makeStore(joinedNavigation);
+    expect((await joinedStore.leaveRoom('R1')).ok).toBe(true);
+    expect(joinedStore.isJoined('R1')).toBe(false);
+    joinedStore.acknowledgeMembership('R1', false);
+    expect(joinedStore.isJoined('R1')).toBe(true);
   });
 
-  it('returns true for an optimistically-just-joined room even if not in the joined set yet', async () => {
+  it('rolls command failures back without changing authoritative membership', async () => {
+    const failure = new Error('nope');
+    const store = makeStore(
+      makeNavigation(),
+      commands({ joinRoom: vi.fn().mockRejectedValue(failure) })
+    );
+
+    expect(await store.joinRoom('R1')).toEqual({ ok: false, error: failure });
+    expect(store.isJoined('R1')).toBe(false);
+    expect(store.joiningIds.size).toBe(0);
+  });
+
+  it('fences a late command response across projection reset', async () => {
+    let resolveJoin!: () => void;
+    const store = makeStore(
+      makeNavigation(),
+      commands({
+        joinRoom: vi.fn(
+          () =>
+            new Promise<null>((resolve) => {
+              resolveJoin = () => resolve(null);
+            })
+        )
+      })
+    );
+
+    const joining = store.joinRoom('R1');
+    store.resetOptimisticState();
+    resolveJoin();
+    await joining;
+
+    expect(store.justJoinedIds.size).toBe(0);
+    expect(store.joiningIds.size).toBe(0);
+  });
+
+  it('does not restore an optimistic overlay when projection acknowledgement wins the race', async () => {
+    let resolveJoin!: () => void;
+    const store = makeStore(
+      makeNavigation(),
+      commands({
+        joinRoom: vi.fn(
+          () =>
+            new Promise<null>((resolve) => {
+              resolveJoin = () => resolve(null);
+            })
+        )
+      })
+    );
+
+    const joining = store.joinRoom('R1');
+    store.acknowledgeMembership('R1', true);
+    resolveJoin();
+    await joining;
+
+    expect(store.justJoinedIds.size).toBe(0);
+  });
+
+  it('keeps successful overlays until the projection confirms their value', async () => {
     const store = makeStore();
-    void store.refresh();
-    await settle();
 
-    store.justJoinedIds.add('r1');
-    expect(store.isJoined('r1', new Set())).toBe(true);
+    await store.joinRoom('R1');
+    store.acknowledgeMembership('R1', false);
+    expect(store.isJoined('R1')).toBe(true);
+    store.acknowledgeMembership('R1', true);
+    expect(store.isJoined('R1')).toBe(false);
+
+    const joinedNavigation = makeNavigation([room('R1', true)]);
+    const joinedStore = makeStore(joinedNavigation);
+    await joinedStore.leaveRoom('R1');
+    joinedStore.acknowledgeMembership('R1', true);
+    expect(joinedStore.isJoined('R1')).toBe(false);
+    joinedStore.acknowledgeMembership('R1', false);
+    expect(joinedStore.isJoined('R1')).toBe(true);
   });
 
-  it('returns false for an optimistically-just-left room even if still in the joined set', async () => {
+  it('clears every membership overlay when the projected room is removed', async () => {
     const store = makeStore();
-    void store.refresh();
-    await settle();
+    await store.joinRoom('R1');
+    expect(store.isJoined('R1')).toBe(true);
 
-    store.justLeftIds.add('r1');
-    expect(store.isJoined('r1', new Set(['r1']))).toBe(false);
-  });
+    store.removeMembershipProjection('R1');
 
-  it('justLeft takes precedence over justJoined when both are set', async () => {
-    const store = makeStore();
-    void store.refresh();
-    await settle();
-
-    store.justJoinedIds.add('r1');
-    store.justLeftIds.add('r1');
-    expect(store.isJoined('r1', new Set())).toBe(false);
-  });
-});
-
-describe('RoomDirectoryStore - joinRoom', () => {
-  it('marks joining during the request and just-joined on success', async () => {
-    const store = makeStore({
-      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1', { name: 'general' })])
-    });
-    void store.refresh();
-    await settle();
-
-    const promise = store.joinRoom('r1');
-    expect(store.joiningIds.has('r1')).toBe(true);
-
-    const result = await promise;
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.room?.name).toBe('general');
-    expect(store.joiningIds.has('r1')).toBe(false);
-    expect(store.justJoinedIds.has('r1')).toBe(true);
-  });
-
-  it('returns an error result and does not set just-joined when the mutation fails', async () => {
-    const store = makeStore({
-      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]),
-      commands: roomAPI({ joinRoom: vi.fn().mockRejectedValue(new Error('permission denied')) })
-    });
-    void store.refresh();
-    await settle();
-
-    const result = await store.joinRoom('r1');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.message).toBe('permission denied');
-    expect(store.joiningIds.has('r1')).toBe(false);
-    expect(store.justJoinedIds.has('r1')).toBe(false);
-  });
-
-  it('clears a stale justLeft when the user re-joins', async () => {
-    const store = makeStore({ roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]) });
-    void store.refresh();
-    await settle();
-
-    store.justLeftIds.add('r1');
-    await store.joinRoom('r1');
-
-    expect(store.justJoinedIds.has('r1')).toBe(true);
-    expect(store.justLeftIds.has('r1')).toBe(false);
-  });
-});
-
-describe('RoomDirectoryStore - leaveRoom', () => {
-  it('marks leaving during the request and just-left on success, clearing justJoined', async () => {
-    const store = makeStore({ roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]) });
-    void store.refresh();
-    await settle();
-
-    store.justJoinedIds.add('r1');
-    const promise = store.leaveRoom('r1');
-    expect(store.leavingIds.has('r1')).toBe(true);
-
-    const result = await promise;
-    expect(result.ok).toBe(true);
-    expect(store.leavingIds.has('r1')).toBe(false);
-    expect(store.justLeftIds.has('r1')).toBe(true);
-    expect(store.justJoinedIds.has('r1')).toBe(false);
-  });
-
-  it('returns an error result on failure', async () => {
-    const store = makeStore({
-      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]),
-      commands: roomAPI({ leaveRoom: vi.fn().mockRejectedValue(new Error('cannot leave')) })
-    });
-    void store.refresh();
-    await settle();
-
-    const result = await store.leaveRoom('r1');
-    expect(result.ok).toBe(false);
-    expect(store.leavingIds.has('r1')).toBe(false);
-    expect(store.justLeftIds.has('r1')).toBe(false);
-  });
-});
-
-describe('RoomDirectoryStore - refresh clears optimistic state', () => {
-  it('refresh clears just-* sets so the authoritative joined membership wins', async () => {
-    const store = makeStore({ roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]) });
-    void store.refresh();
-    await settle();
-
-    store.justJoinedIds.add('r1');
-    store.justLeftIds.add('r2');
-
-    await store.refresh();
-    await settle();
-
+    expect(store.isJoined('R1')).toBe(false);
     expect(store.justJoinedIds.size).toBe(0);
     expect(store.justLeftIds.size).toBe(0);
   });
-});
 
-describe('RoomDirectoryStore - ingestServerEvent', () => {
-  function makeEvent(kind: RoomEventKind): RoomEventView {
-    return { event: { kind } } as unknown as RoomEventView;
-  }
+  it('does not let an older command clear a newer pending marker', async () => {
+    const resolvers: Array<() => void> = [];
+    const store = makeStore(
+      makeNavigation(),
+      commands({
+        joinRoom: vi.fn(
+          () =>
+            new Promise<null>((resolve) => {
+              resolvers.push(() => resolve(null));
+            })
+        )
+      })
+    );
 
-  it('refreshes on UserJoinedRoomEvent', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(1);
+    const oldJoin = store.joinRoom('R1');
+    store.resetOptimisticState();
+    const newJoin = store.joinRoom('R1');
+    resolvers[0]?.();
+    await oldJoin;
 
-    store.ingestServerEvent(makeEvent(RoomEventKind.UserJoinedRoom));
-    await settle();
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
+    expect(store.joiningIds.has('R1')).toBe(true);
+
+    resolvers[1]?.();
+    await newJoin;
+    expect(store.joiningIds.has('R1')).toBe(false);
   });
 
-  it('refreshes on UserLeftRoomEvent', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
+  it('loads join previews as an explicit best-effort query', async () => {
+    const api = memberAPI();
+    const store = new RoomDirectoryStore(makeNavigation(), api, commands());
 
-    store.ingestServerEvent(makeEvent(RoomEventKind.UserLeftRoom));
-    await settle();
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
-  });
-
-  it('refreshes on room catalog and layout changes', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomCreated));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomUpdated));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomArchived));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomUnarchived));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomDeleted));
-    await settle();
-    store.ingestServerEvent(makeEvent(RoomEventKind.RoomGroupsUpdated));
-    await settle();
-
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(7);
-  });
-
-  it('does NOT refresh on irrelevant event types', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-
-    store.ingestServerEvent(makeEvent(RoomEventKind.MessagePosted));
-    store.ingestServerEvent(makeEvent(RoomEventKind.ReactionAdded));
-    await settle();
-
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(1);
-  });
-
-  it('ingestRoomLayoutUpdated triggers a refresh', async () => {
-    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    await settle();
-
-    store.ingestRoomLayoutUpdated();
-    await settle();
-    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
+    expect(await store.loadJoinPreview('R1')).toMatchObject({
+      memberCount: 7,
+      sampleMembers: [{ id: 'U1', displayName: 'Ada' }]
+    });
+    expect(api.listRoomMembers).toHaveBeenCalledWith('R1', '', 5, 0);
   });
 });
-
-describe('RoomDirectoryStore - concurrent refresh guard', () => {
-  it('discards out-of-order responses', async () => {
-    let resolveFirst!: (value: DirectoryRoomSummary[]) => void;
-    let resolveSecond!: (value: DirectoryRoomSummary[]) => void;
-
-    const listRooms = vi
-      .fn()
-      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
-      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
-    const roomDirectoryAPI = { listRooms } as unknown as Pick<RoomDirectoryAPI, 'listRooms'>;
-
-    const store = makeStore({ roomDirectoryAPI });
-    void store.refresh();
-    void store.refresh();
-
-    resolveSecond([makeRoom('newer')]);
-    await settle();
-
-    expect(store.allRooms.map((r) => r.id)).toEqual(['newer']);
-
-    resolveFirst([makeRoom('older')]);
-    await settle();
-
-    expect(store.allRooms.map((r) => r.id)).toEqual(['newer']);
-  });
-});
-
-function directoryRoom(id: string): DirectoryRoom {
-  return {
-    id,
-    name: id,
-    description: null,
-    archived: false,
-    isUniversal: false,
-    viewerCanJoinRoom: true
-  };
-}

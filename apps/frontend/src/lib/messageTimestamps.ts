@@ -228,7 +228,7 @@ export function wrapMessageTimestamps(
       button.setAttribute('aria-haspopup', 'dialog');
 
       const icon = doc.createElement('span');
-      icon.className = 'message-timestamp-icon iconify uil--clock';
+      icon.className = 'message-timestamp-icon iconify icon-[uil--clock]';
       icon.setAttribute('aria-hidden', 'true');
 
       const time = doc.createElement('time');

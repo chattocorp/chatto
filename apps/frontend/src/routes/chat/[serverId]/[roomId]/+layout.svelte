@@ -1,8 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { roomRouteAccess } from '$lib/navigation/roomLinkAccess';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import Room from './Room.svelte';
   import RoomJoinScreen from './RoomJoinScreen.svelte';
 
@@ -10,14 +9,18 @@
 
   let { roomId } = $derived(data);
 
-  const activeServerId = $derived(getActiveServer());
+  const serverScope = useServerScope();
+  const activeServerId = $derived(serverScope.serverId);
 
-  // Wait for the active server's merged rooms store (channels + DMs) to
-  // settle before letting children mount. Without this, a freshly-loaded
-  // room page can fire queries against the URL roomId before the store has
-  // decided whether the room exists, briefly showing the not-found redirect.
-  const roomsStore = $derived(serverRegistry.getStore(activeServerId).rooms);
-  const ready = $derived(!roomsStore.isInitialLoading);
+  // Wait for the active server projection to contain its viewer prefix before
+  // treating room absence as authoritative.
+  const serverStore = $derived(serverScope.store);
+  const navigation = $derived(serverStore.navigation);
+  const ready = $derived(
+    !navigation.isInitialLoading &&
+      !!serverStore.currentUser.user?.id &&
+      navigation.currentUserId === serverStore.currentUser.user.id
+  );
 
   let threadId = $derived(page.params.threadId);
 
@@ -25,12 +28,14 @@
   const roomAccess = $derived.by(() => {
     if (!ready || !roomId) return { kind: 'unknown' } as const;
     return roomRouteAccess({
-      rooms: roomsStore.rooms,
+      rooms: navigation.rooms,
       roomId
     });
   });
   const canRenderRoom = $derived(
-    ready && roomId && (roomAccess.kind === 'member' || roomAccess.kind === 'unknown')
+    ready &&
+      roomId &&
+      (roomAccess.kind === 'member' || (roomAccess.kind === 'unknown' && !isMessageLinkMode))
   );
 </script>
 

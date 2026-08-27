@@ -151,7 +151,7 @@ func (c *ChattoCore) AdminCreateUserAs(ctx context.Context, actorID string, req 
 		if roleName == RoleEveryone {
 			return nil, ErrImplicitRole
 		}
-		if !c.RBAC.RoleExists(roleName) {
+		if !c.rbacModel.roleExists(roleName) {
 			return nil, ErrRoleNotFound
 		}
 	}
@@ -214,6 +214,9 @@ func (c *ChattoCore) AdminDeleteUser(ctx context.Context, userID string) error {
 
 // AdminDeleteUserAs permanently deletes a user with an explicit actor.
 func (c *ChattoCore) AdminDeleteUserAs(ctx context.Context, actorID, userID string) error {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
 	return c.DeleteUser(ctx, actorID, userID)
 }
 

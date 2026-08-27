@@ -26,7 +26,7 @@ describe('AddServerDialog', () => {
 
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEY);
-    serverRegistry.servers = [];
+    serverRegistry.removeAll();
     startServerOAuthFlowMock.mockReset();
     startServerOAuthFlowMock.mockResolvedValue(undefined);
     originalFetch = globalThis.fetch;
@@ -153,6 +153,9 @@ describe('AddServerDialog', () => {
 
   it('starts the shared OAuth flow from the preview stage', async () => {
     const onclose = vi.fn();
+    startServerOAuthFlowMock.mockImplementationOnce(
+      async (_serverUrl, _serverInfo, beforeNavigate?: () => void) => beforeNavigate?.()
+    );
     globalThis.fetch = vi.fn(async () =>
       makeProbeResponse({
         profile: {
@@ -178,9 +181,9 @@ describe('AddServerDialog', () => {
     container.querySelector('form')!.requestSubmit();
 
     await vi.waitFor(() => {
-      expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toMatch(
-        /^\s*Sign in\s*$/
-      );
+      expect(
+        container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent
+      ).toMatch(/^\s*Sign in\s*$/);
     });
 
     container.querySelector('form')!.requestSubmit();
@@ -191,7 +194,8 @@ describe('AddServerDialog', () => {
         expect.objectContaining({
           name: 'Remote Chatto',
           authorizeUrl: '/oauth/authorize'
-        })
+        }),
+        expect.any(Function)
       );
     });
     expect(onclose).toHaveBeenCalledOnce();
@@ -219,21 +223,24 @@ describe('AddServerDialog', () => {
   });
 
   it('blocks adding a server that is already connected', async () => {
-    serverRegistry.servers = [
+    serverRegistry.removeAll();
+    serverRegistry.addServer(
       {
         id: 'remote',
         url: 'https://chat.example.com',
         name: 'Remote',
         iconUrl: null,
+        addedAt: 0
+      },
+      {
         token: 'abc',
         userId: 'user-1',
         userLogin: 'someone',
         userDisplayName: null,
         userAvatarUrl: null,
-        reauthRequiredAt: null,
-        addedAt: 0
+        reauthRequiredAt: null
       }
-    ];
+    );
 
     const fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy as unknown as typeof fetch;

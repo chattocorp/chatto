@@ -1,7 +1,8 @@
 # ADR-043: Client-Shell Internationalization
 
 **Date:** 2026-06-22
-**Updated:** 2026-07-14
+**Updated:** 2026-08-19
+**Status:** Superseded by [ADR-065](ADR-065-runtime-json-client-internationalization.md)
 
 ## Context
 
@@ -26,7 +27,7 @@ Chatto will internationalize the web client with a compile-time message catalog 
 
 British English (`en-GB`) is the source and fallback locale. US English (`en-US`) is a regional content locale with sparse overrides for differences in spelling and terminology. German uses explicit `de-DE`, `de-AT`, and `de-CH` content locales; the former language-only `de` preference migrates to `de-DE`.
 
-The other supported content locales are Dutch (`nl-NL`, `nl-BE`), Swedish (`sv-SE`), French (`fr-FR`, `fr-CA`), Spanish (`es-ES`, `es-419`), Portuguese (`pt-BR`, `pt-PT`), Norwegian Bokmål (`nb-NO`), Polish (`pl-PL`), Ukrainian (`uk-UA`), Japanese (`ja-JP`), and Esperanto (`eo`). Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
+The other supported content locales are Dutch (`nl-NL`, `nl-BE`), Swedish (`sv-SE`), French (`fr-FR`, `fr-CA`), Spanish (`es-ES`, `es-419`), Portuguese (`pt-BR`, `pt-PT`), Norwegian Bokmål (`nb-NO`), Polish (`pl-PL`), Ukrainian (`uk-UA`), Italian (`it-IT`), Latvian (`lv-LV`), Estonian (`et-EE`), Turkish (`tr-TR`), Czech (`cs-CZ`), Russian (`ru-RU`), Modern Standard Arabic (`ar`), Hebrew for Israel (`he-IL`), Japanese (`ja-JP`), Traditional Chinese for Taiwan (`zh-TW`), Simplified Chinese for China (`zh-CN`), and Esperanto (`eo`). Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
 
 Locale identifiers use canonical BCP 47 language tags such as `en-GB`, not POSIX-style identifiers such as `en_GB`. A locale identifies translated content, not only formatting conventions: regional variants must be distinct locales when their spelling, terminology, grammar, or other wording differs. A regional catalog may contain only its differences and inherit missing messages through Paraglide's locale fallback. The locale picker must name supported variants explicitly rather than presenting an ambiguous language label such as “English”.
 
@@ -35,7 +36,7 @@ Locale payloads should be split into separate bundles and loaded lazily. Chatto 
 Chatto will prefer static, typed message keys over runtime string lookups:
 
 - Component chrome, settings labels, dialogs, validation messages, empty states, toast text, and system-event labels use generated message functions.
-- Stable enums, permission names, event types, and notification levels are mapped explicitly to message functions at the UI boundary.
+- Stable enums, permission names, event types, notification policy fields, delivery modes, attention levels, and signal kinds are mapped explicitly to message functions at the UI boundary.
 - User-generated content, server names, room names, display names, message bodies, uploaded filenames, and other user-authored values are displayed as authored and are not translated.
 - Backend APIs should return structured data, stable codes, enum values, and parameters rather than pre-rendered localized product copy.
 - Persisted EVT events and projections must store language-neutral facts, not localized labels or sentences.
@@ -48,7 +49,7 @@ Locale selection is owned by the client shell, not by the active server. The eff
 2. The browser's language preferences.
 3. `en-GB`.
 
-Locale negotiation prefers an exact supported regional tag. A language-only preference uses the project's documented default region for that language, such as `en-GB`, `de-DE`, `nl-NL`, `fr-FR`, `es-ES`, or `pt-BR`. The former stored `en` and `de` preferences migrate to `en-GB` and `de-DE`, respectively, so explicit choices are not lost during the transition.
+Locale negotiation prefers an exact supported regional tag. A language-only preference uses the project's documented default region for that language, such as `en-GB`, `de-DE`, `nl-NL`, `fr-FR`, `es-ES`, or `pt-BR`. Chinese preferences using the `Hant` script or the Taiwan, Hong Kong, or Macao regions select `zh-TW`; preferences using `Hans`, China, or language-only `zh` select `zh-CN`. The former stored `en` and `de` preferences migrate to `en-GB` and `de-DE`, respectively, so explicit choices are not lost during the transition.
 
 The selected locale applies to the whole SPA. It does not change when the user navigates between connected servers. This avoids conflicting per-server language settings in a multi-server client and keeps language selection available before authentication.
 
@@ -61,7 +62,7 @@ Chatto will keep canonical app routes unlocalized for now. The app will not intr
 The app shell must set language metadata correctly:
 
 - `document.documentElement.lang` and `dir` are set as early as practical from the resolved locale and updated when the locale changes.
-- Direction support is part of the locale model, but RTL locales require an explicit UI audit before being listed as supported.
+- Direction support is part of the locale model. RTL locales require complete catalogues and an explicit UI audit before being listed as supported.
 - The default static web manifest remains English until Chatto adds a deliberate per-locale manifest strategy.
 
 Dates, times, numbers, plurals, and relative labels should be formatted with the active content locale through `Intl` or the message system's formatter support. Existing timezone and time-format settings still control timezone and explicit 12/24-hour behavior; locale controls language, default date and time conventions, calendar labels, week starts, number formatting, and plural rules. Region-bearing content locales are authoritative for these defaults. A language-only content locale may inherit the browser region until a more specific supported content locale exists. A separate formatting-region override may be added later without changing the content locale.
@@ -76,7 +77,7 @@ Compile-time message functions give Chatto type-checked message usage, tree-shak
 
 Supporting regional English content locales prevents “English” from silently mixing dialects or treating region as formatting-only. Sparse `en-US` overrides avoid duplicating the complete British English catalog, but contributors must recognise and maintain genuine regional wording differences.
 
-Supporting both English and German prevents the architecture from being English-only in practice and gives the project a reviewable non-English translation target. The tradeoff is that every converted surface must carry translation work immediately.
+Supporting complete regional catalogues, including distinct Traditional Chinese for Taiwan and Simplified Chinese for China, prevents the architecture from treating language variants as interchangeable. The tradeoff is that every converted surface must carry translation work for every complete locale immediately.
 
 Keeping locale selection client-owned avoids a poor multi-server user experience where switching servers changes the whole UI language. The tradeoff is that language does not automatically sync across devices in the first implementation.
 
@@ -86,4 +87,4 @@ Leaving user-generated content untranslated keeps authorship, moderation, search
 
 Keeping persisted events language-neutral preserves replay compatibility and prevents future locale changes from requiring data migrations. Rendered wording can evolve without rewriting event history.
 
-RTL support remains a deliberate later milestone. The i18n architecture should not block RTL, but Chatto should not claim RTL locale support until layouts, truncation, icons, gestures, and directional affordances have been reviewed in-browser.
+The client shell supports RTL layouts: first paint and runtime locale changes set direction, primary navigation and room chrome use logical layout edges, mobile sidebar gestures mirror, directional icons mirror, and user-authored message content is bidi-isolated while code remains left-to-right. Modern Standard Arabic (`ar`) and Hebrew for Israel (`he-IL`) are the first supported RTL locales. Their initial catalogues are complete machine-assisted drafts and require continuing review by native speakers; future RTL locales still require complete catalogues and desktop and mobile browser review before they are listed as supported.

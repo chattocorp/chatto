@@ -1,0 +1,101 @@
+{
+  "ui": {
+    "toggle_sidebar": "Attiva/disattiva la barra laterale",
+    "notifications": "Notifiche",
+    "open_quick_switcher": "Apri il cambio rapido",
+    "quick_switcher_shortcut": "Cambio rapido (Cmd+K)",
+    "realtime_paused": "Aggiornamenti in tempo reale sospesi. Riconnessione...",
+    "update_available": "Una nuova versione è disponibile",
+    "reload": "Ricarica",
+    "sign_out": "Esci",
+    "close": "Chiudi",
+    "auth_status": {
+      "origin_title": "Sessione scaduta",
+      "origin_message": "Puoi continuare a leggere ciò che è già caricato. Accedi di nuovo per inviare messaggi e aggiornare i dati.",
+      "origin_action": "Accedi di nuovo",
+      "remote_title": "{server} richiede l'accesso",
+      "remote_message": "Questo server ha rifiutato l'accesso memorizzato. Ricollegalo per riprendere gli aggiornamenti e le azioni in tempo reale.",
+      "remote_action": "Riconnettiti",
+      "remote_failed": "Impossibile avviare la riconnessione",
+      "sidebar_reauth": "{server} richiede l'accesso"
+    },
+    "access_denied": {
+      "title": "Accesso negato",
+      "message": "Non hai il permesso per accedere a questa pagina.",
+      "back": "Torna alla chat",
+      "back_to_server": "Ritorna al server"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Maggiori informazioni",
+      "about": "Informazioni su {subject}"
+    },
+    "easter_egg": {
+      "fire": "Spara un laser pronto a Chatto",
+      "points": "{count} punti",
+      "laser_guns_count": {
+        "one": "{count} pistola laser",
+        "other": "{count} pistole laser"
+      },
+      "laser_ready": "Laser {number}, potenza {power}, pronto",
+      "laser_cooldown": "Laser {number}, potenza {power}: {seconds} secondi di ricarica rimanenti",
+      "upgrade_power": "Aggiorna il laser {number} al livello di potenza {level} per {cost} punti",
+      "buy_laser": "Acquista pistola laser {number} per {cost} punti",
+      "maximum_lasers": "È stato raggiunto il numero massimo di {count} pistole laser"
+    },
+    "pane_header": {
+      "back": "Indietro"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Torna alla chat"
+    },
+    "resize_handle": {
+      "resize": "Ridimensionare",
+      "resize_sidebar": "Ridimensiona la barra laterale"
+    },
+    "data_table": {
+      "empty": "Nessun dato",
+      "loading_more": "Caricamento di più..."
+    },
+    "loading_page": {
+      "loading": "Caricamento..."
+    },
+    "image_modal": {
+      "previous": "Immagine precedente",
+      "next": "Immagine successiva",
+      "fallback_alt": "Immagine"
+    },
+    "toast": {
+      "dismiss": "Ignora notifica"
+    },
+    "combobox": {
+      "loading": "Caricamento...",
+      "empty": "Nessuna corrispondenza",
+      "clear": "Chiaro"
+    },
+    "expiry": {
+      "label": "Scade",
+      "24h": "24 ore",
+      "7d": "7 giorni",
+      "30d": "30 giorni",
+      "indefinite": "Nessuna scadenza",
+      "custom": "Personalizzato",
+      "custom_label": "Scadenza personalizzata",
+      "error_required": "Scegli una data di scadenza.",
+      "error_invalid": "Inserisci una scadenza valida.",
+      "error_future": "La scadenza deve essere nel futuro."
+    },
+    "form": {
+      "required": "Obbligatorio",
+      "max_bytes": "Numero massimo di {max} byte; alcuni caratteri utilizzano più di un byte."
+    },
+    "dates": {
+      "today": "Oggi",
+      "yesterday": "Ieri",
+      "this_week": "Questa settimana",
+      "this_month": "Questo mese"
+    }
+  }
+}

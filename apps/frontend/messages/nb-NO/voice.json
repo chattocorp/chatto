@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Kobler til...",
     "joining": "Blir med...",
@@ -11,6 +10,15 @@
     "leave": "Forlat samtalen",
     "share_screen": "Del skjermen",
     "stop_share_screen": "Slutt å dele skjermen",
+    "applications": "Programmer",
+    "entire_screen": "Hele skjermen",
+    "share_source": "Delingskilde",
+    "main_display": "Hovedskjerm",
+    "display_number": "Skjerm {number}",
+    "video_only": "Bare video",
+    "share_sources_failed": "Kunne ikke laste inn delbare kilder.",
+    "no_share_windows": "Fant ingen delbare programvinduer.",
+    "no_share_displays": "Fant ingen skjermer.",
     "user_settings": "Brukerinnstillinger",
     "speaking": "Snakker",
     "muted": "Dempet",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Kunne ikke starte skjermdeling.",
     "speaker_switch_failed": "Kunne ikke bytte høyttalere. Denne nettleseren eller enheten støtter kanskje ikke høyttalervalg.",
     "device_switch_failed": "Kunne ikke bytte til den enheten.",
-    "media_device_failed": "Kunne ikke få tilgang til en medieenhet."
+    "media_device_failed": "Kunne ikke få tilgang til en medieenhet.",
+    "stream_game": "Strøm et spill",
+    "stream_game_description": "Velg spillvinduet du vil dele med alle i samtalen.",
+    "game_windows": "Spillvinduer",
+    "no_game_windows": "Fant ingen vinduer som kan deles. Åpne et spill i vindus- eller kantløs modus og prøv igjen.",
+    "game_windows_failed": "Kunne ikke laste vinduer som kan deles.",
+    "untitled_window": "Vindu uten tittel",
+    "game_window_selected": "{name} er valgt"
   }
 }

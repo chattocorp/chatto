@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
+  import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
     createExternalIdentityFlowAPI,
     ExternalIdentityFlowKind,
     type PendingExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
-  import * as m from '$lib/i18n/messages';
-  import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
+  import { m } from '$lib/i18n/messages';
+  import { validateDisplayName } from '$lib/validation/displayName';
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
@@ -23,21 +24,31 @@
   let loading = $state(true);
   let submitting = $state(false);
   let login = $state('');
+  let displayName = $state('');
   let loadedToken = '';
 
   const loginSchema = z
     .string()
-    .min(2, m['common.validation.username_min']())
-    .max(32, m['common.validation.username_max']())
-    .regex(/^[a-zA-Z0-9._-]+$/, m['common.validation.username_charset']())
-    .refine((val) => !val.endsWith('.'), m['common.validation.username_end_alphanumeric']())
-    .refine((val) => !val.includes('..'), m['common.validation.username_no_consecutive_periods']());
+    .min(2, m('common.validation.username_min'))
+    .max(32, m('common.validation.username_max'))
+    .regex(/^[a-zA-Z0-9._-]+$/, m('common.validation.username_charset'))
+    .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
+    .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
 
   const loginError = $derived(login ? validate(loginSchema, login) : undefined);
+  const displayNameError = $derived.by(() => {
+    if (!displayName) return undefined;
+    return validateDisplayName(displayName).valid
+      ? undefined
+      : m('settings.profile.display_name.invalid');
+  });
   const isCreate = $derived(pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT);
   const isLink = $derived(pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT);
   const canSubmit = $derived(
-    pending && !submitting && ((isCreate && login.trim() && !loginError) || isLink)
+    pending &&
+      !submitting &&
+      ((isCreate && login.trim() && displayName.trim() && !loginError && !displayNameError) ||
+        isLink)
   );
 
   $effect(() => {
@@ -55,52 +66,39 @@
     try {
       const result = await flowAPI.getPending(token);
       if (!result) {
-        loadError = m['auth.sso.invalid']();
+        loadError = m('auth.sso.invalid');
         return;
       }
       pending = result;
       login = result.loginHint;
+      displayName = result.displayNameHint || result.loginHint;
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.NotFound) {
-        loadError = m['auth.sso.invalid']();
+        loadError = m('auth.sso.invalid');
       } else {
-        loadError = err instanceof Error ? err.message : m['auth.sso.load_failed']();
+        loadError = err instanceof Error ? err.message : m('auth.sso.load_failed');
       }
     } finally {
       loading = false;
     }
   }
 
-  async function authenticateOrigin(
-    token: string,
-    user: AuthenticatedUserSummary | null
-  ): Promise<void> {
-    const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
-      import('$lib/state/server/registry.svelte'),
-      import('$lib/auth/loadAuth')
-    ]);
-    serverRegistry.authenticateOrigin(token, user);
-    clearCachedUser();
-  }
-
   async function handleCreate(e: Event) {
     e.preventDefault();
-    if (!pending || !data.token || loginError) {
-      actionError = loginError || m['common.validation.fix_errors']();
+    if (!pending || !data.token || loginError || displayNameError) {
+      actionError = loginError || displayNameError || m('common.validation.fix_errors');
       return;
     }
     submitting = true;
     actionError = '';
     try {
-      const result = await flowAPI.createAccount({ token: data.token, login });
-      await authenticateOrigin(result.token, {
-        id: result.userId,
-        login: result.login
-      });
-      await invalidateAll();
-      goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
+      await flowAPI.createAccount({ token: data.token, login, displayName });
+      const resumedReturnNavigation = await completeOriginAuthentication();
+      if (!resumedReturnNavigation) {
+        goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
+      }
     } catch (err) {
-      actionError = err instanceof Error ? err.message : m['auth.sso.create_failed']();
+      actionError = err instanceof Error ? err.message : m('auth.sso.create_failed');
     } finally {
       submitting = false;
     }
@@ -114,7 +112,7 @@
       await flowAPI.confirmLink(data.token);
       goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
     } catch (err) {
-      actionError = err instanceof Error ? err.message : m['auth.sso.link_failed']();
+      actionError = err instanceof Error ? err.message : m('auth.sso.link_failed');
     } finally {
       submitting = false;
     }
@@ -132,27 +130,27 @@
   }
 </script>
 
-<PageTitle title={m['auth.sso.title']()} />
+<PageTitle title={m('auth.sso.title')} />
 
 <AuthLayout>
-  <h1 class="mb-6 text-center text-2xl font-bold">{m['auth.sso.title']()}</h1>
+  <h1 class="mb-6 text-center text-2xl font-bold">{m('auth.sso.title')}</h1>
 
   {#if !data.token}
-    <Hint tone="danger">{m['auth.sso.invalid']()}</Hint>
+    <Hint tone="danger">{m('auth.sso.invalid')}</Hint>
     <p class="mt-6 text-center">
-      <a href={resolve('/login')} class="link">{m['common.sign_in']()}</a>
+      <a href={resolve('/login')} class="link">{m('common.sign_in')}</a>
     </p>
   {:else if loading}
-    <div class="text-center text-sm text-muted">{m['auth.sso.loading']()}</div>
+    <div class="text-center text-sm text-muted">{m('auth.sso.loading')}</div>
   {:else if loadError}
     <Hint tone="danger">{loadError}</Hint>
     <p class="mt-6 text-center">
-      <a href={resolve('/login')} class="link">{m['common.sign_in']()}</a>
+      <a href={resolve('/login')} class="link">{m('common.sign_in')}</a>
     </p>
   {:else if pending && isCreate}
     <div class="mb-5 flex flex-col gap-2 text-center">
       <p class="text-sm text-muted">
-        {m['auth.sso.create_intro']({ provider: pending.providerLabel })}
+        {m('auth.sso.create_intro', { provider: pending.providerLabel })}
       </p>
       {#if pending.verifiedEmail}
         <p class="text-sm">{pending.verifiedEmail}</p>
@@ -162,13 +160,25 @@
     <form onsubmit={handleCreate} class="flex flex-col gap-4">
       <TextInput
         id="sso-login"
-        label={m['common.username']()}
+        label={m('common.username')}
         bind:value={login}
-        placeholder={m['common.username_placeholder']()}
+        placeholder={m('common.username_placeholder')}
         disabled={submitting}
         required
         autocomplete="username"
         error={loginError}
+      />
+
+      <TextInput
+        id="sso-display-name"
+        label={m('settings.profile.display_name.label')}
+        bind:value={displayName}
+        placeholder={m('settings.profile.display_name.placeholder')}
+        disabled={submitting}
+        required
+        maxlength={32}
+        autocomplete="name"
+        error={displayNameError}
       />
 
       <FormError error={actionError} />
@@ -178,29 +188,29 @@
         size="lg"
         disabled={!canSubmit}
         loading={submitting}
-        loadingText={m['auth.sso.creating']()}
+        loadingText={m('auth.sso.creating')}
       >
-        <span class="iconify uil--user-plus"></span>
-        {m['common.create_account']()}
+        <span class="iconify icon-[uil--user-plus]"></span>
+        {m('common.create_account')}
       </Button>
     </form>
 
     <div class="mt-3">
       <Button variant="secondary" fullWidth href={resolve('/login')} disabled={submitting}>
-        <span class="iconify mdi--login"></span>
-        {m['auth.sso.sign_in_existing']()}
+        <span class="iconify icon-[mdi--login]"></span>
+        {m('auth.sso.sign_in_existing')}
       </Button>
     </div>
 
     <div class="mt-3">
       <Button variant="ghost" fullWidth onclick={handleCancel} disabled={submitting}>
-        {m['common.cancel']()}
+        {m('common.cancel')}
       </Button>
     </div>
   {:else if pending && isLink}
     <div class="mb-5 flex flex-col gap-2 text-center">
       <p class="text-sm text-muted">
-        {m['auth.sso.link_intro']({ provider: pending.providerLabel })}
+        {m('auth.sso.link_intro', { provider: pending.providerLabel })}
       </p>
       {#if pending.verifiedEmail}
         <p class="text-sm">{pending.verifiedEmail}</p>
@@ -214,17 +224,17 @@
         size="lg"
         disabled={!canSubmit}
         loading={submitting}
-        loadingText={m['auth.sso.linking']()}
+        loadingText={m('auth.sso.linking')}
         onclick={handleLink}
       >
-        <span class="iconify uil--link"></span>
-        {m['auth.sso.link_button']()}
+        <span class="iconify icon-[uil--link]"></span>
+        {m('auth.sso.link_button')}
       </Button>
       <Button variant="secondary" fullWidth onclick={handleCancel} disabled={submitting}>
-        {m['common.cancel']()}
+        {m('common.cancel')}
       </Button>
     </div>
   {:else}
-    <Hint tone="danger">{m['auth.sso.invalid']()}</Hint>
+    <Hint tone="danger">{m('auth.sso.invalid')}</Hint>
   {/if}
 </AuthLayout>

@@ -1,13 +1,21 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "settings": {
     "nav": {
       "title": "Innstillinger",
       "back_to_server": "Tilbake til server",
       "profile": "Profil",
-      "display": "Skjerm",
+      "display": "Innstillinger",
       "notifications": "Varsler",
-      "account": "Konto"
+      "account": "Konto",
+      "bots": "Botter",
+      "user_preferences": "Brukerinnstillinger",
+      "server_configuration": "Serverkonfigurasjon"
+    },
+    "app_preferences": {
+      "title": "Appinnstillinger",
+      "subtitle": "Valg for denne appen som gjelder for alle registrerte servere",
+      "appearance": { "title": "Utseende" },
+      "composer": { "title": "Meldingsskriving" }
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +113,9 @@
       "save_button": "Lagre endringer"
     },
     "preferences": {
-      "title": "Skjerm",
-      "subtitle": "Velg hvordan Chatto vises",
+      "title": "Tid og region",
+      "subtitle": "Velg hvordan denne serveren viser datoer og klokkeslett for deg",
+      "browser_scope": "Dette valget gjelder for alle Chatto-servere i denne nettleseren.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +129,28 @@
         "dark": {
           "label": "Mørkt",
           "description": "Bruk det mørke grensesnittet på denne nettleseren"
+        }
+      },
+      "editor": {
+        "title": "Meldingsredigering",
+        "visual": {
+          "label": "Visuell",
+          "description": "Formater meldinger uten å se Markdown-syntaks"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Rediger Markdown-kilde med syntaksutheving"
+        }
+      },
+      "send_mode": {
+        "title": "Send meldinger med",
+        "enter": {
+          "label": "Return",
+          "description": "Return sender; Cmd/Ctrl+Return utfører redigeringsprogrammets vanlige Return-handling"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sender; Return utfører redigeringsprogrammets vanlige handling"
         }
       },
       "language": {
@@ -153,9 +184,9 @@
           "description": "f.eks. 14:30"
         }
       },
-      "save_button": "Lagre skjerminnstillinger",
-      "saved": "Skjerminnstillinger lagret",
-      "save_failed": "Kunne ikke lagre skjerminnstillinger"
+      "save_button": "Lagre tidsinnstillinger",
+      "saved": "Tidsinnstillinger lagret",
+      "save_failed": "Kunne ikke lagre tidsinnstillinger"
     },
     "notifications": {
       "title": "Varsler",
@@ -180,9 +211,7 @@
         "enabling": "Aktiverer...",
         "blocked_error": "Push-varsler er blokkert i nettleseren eller OS-innstillingene.",
         "enable_failed": "Kunne ikke aktivere push-varsler. Vennligst prøv igjen.",
-        "enable_error": "Det oppstod en feil under aktivering av push-varsler",
-        "remote_title": "Native push er ikke tilgjengelig for eksterne servere",
-        "remote_description": "Denne installerte appen kan bare registrere nettleser-push-varsler med serveren som serverte den. Varslingsmerker og lyder i appen fungerer fortsatt for denne serveren mens Chatto er åpen."
+        "enable_error": "Det oppstod en feil under aktivering av push-varsler"
       },
       "push_prompt": {
         "title": "Aktiver push-varsler",
@@ -195,35 +224,6 @@
         "enabling": "Aktiverer...",
         "enable": "Aktiver",
         "dismiss": "Nei takk"
-      },
-      "levels": {
-        "loading": "Laster ...",
-        "load_failed": "Kunne ikke laste inn varslingspreferanser",
-        "server_updated": "Servervarslingsnivå oppdatert",
-        "room_updated": "Romvarslingsnivå oppdatert",
-        "update_failed": "Kunne ikke oppdatere",
-        "server_title": "Servervarslingsnivå",
-        "server_description": "Styrer hvordan du mottar varsler for alle rom på denne serveren. Individuelle rom kan overstyre denne innstillingen.",
-        "room_title": "Romoverstyringer",
-        "room_description": "Overstyr innstillingen på servernivå for individuelle rom. Rom satt til \"Standard\" arver serverinnstillingen ({level}).",
-        "room_level_label": "Varslingsnivå for #{room}",
-        "effective": "Gjelder: {level}",
-        "default": {
-          "label": "Standard",
-          "description": "Bruk den nedarvede standarden"
-        },
-        "muted": {
-          "label": "Dempet",
-          "description": "Ingen varsler eller uleste markører"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Uleste markører + omtaler, DM-er og trådsvar"
-        },
-        "all_messages": {
-          "label": "Alle meldinger",
-          "description": "Normal + varsling for hver ny melding"
-        }
       },
       "sound": {
         "title": "Varslingslyd",
@@ -273,6 +273,50 @@
           "siren": "Varslingssirene",
           "dubstep": "Dubstep Drop",
           "circus": "Sirkus"
+        }
+      },
+      "policy": {
+        "title": "Varslingsregler",
+        "description": "Velg hvordan hver aktivitet varsler deg på server-, romgruppe- og romnivå. Rom arver fra gruppen sin og deretter fra serveren.",
+        "load_failed": "Kunne ikke laste varslingsreglene",
+        "save_failed": "Kunne ikke lagre varslingsreglene",
+        "effective": "Gjeldende: {mode}",
+        "filter_label": "Filtrer varslingsområder",
+        "filter_placeholder": "Filtrer grupper og rom…",
+        "no_filter_matches": "Ingen varslingsområder samsvarer med dette filteret.",
+        "legend": "Leveringsmåter for varsler",
+        "cell_aria": "{cause}, {scope}. Overstyring: {override}. Gjeldende: {effective}. Aktiver for å angi {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktiver for å angi {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Ikke relevant.",
+        "delivery_mode": {
+          "inherit": "Arv",
+          "off": "Av",
+          "notification": "Varsel",
+          "push_notification": "Push-varsel"
+        },
+        "reason": {
+          "direct_message": "Direktemeldinger",
+          "direct_mention": "Direkte omtaler",
+          "reply": "Svar på meldingene dine",
+          "role_mention": "Rolleomtaler",
+          "here": "@here-omtaler",
+          "all": "@all-omtaler",
+          "followed_thread": "Fulgte tråder",
+          "followed_room": "Fulgte rom",
+          "reaction": "Reaksjoner på meldingene dine",
+          "activity": "Aktivitet",
+          "room_invitation": "Invitasjoner til rom"
+        },
+        "reason_hint": {
+          "direct_message": "Meldinger som andre medlemmer sender i direktemeldingssamtaler.",
+          "direct_mention": "Meldinger som omtaler brukernavnet ditt direkte.",
+          "reply": "Meldinger som svarer på en av meldingene dine.",
+          "role_mention": "Meldinger som omtaler en rolle du er tildelt.",
+          "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
+          "all": "Meldinger som bruker @all i et rom du er medlem av.",
+          "followed_thread": "Nye svar i tråder du følger.",
+          "followed_room": "Meldinger på toppnivå i rom du følger.",
+          "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
         }
       }
     },
@@ -350,6 +394,52 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Avbryt",
         "deleting": "Sletter..."
+      }
+    },
+    "bots": {
+      "title": "Botter",
+      "subtitle": "Opprett API-kontoer og kontroller nøyaktig hva de kan gjøre",
+      "singular": "bot",
+      "unsupported": "Denne serverversjonen støtter ikke bot-kontoer.",
+      "list_title": "Botkontoer",
+      "loading": "Laster inn roboter...",
+      "empty_title": "Ingen roboter ennå",
+      "empty_body": "Opprett en bot når en integrasjon trenger sin egen identitet og tillatelser.",
+      "create_permission_required": "Du kan administrere eksisterende boter, men du har ikke tillatelse til å opprette en ny.",
+      "create": "Opprett bot",
+      "create_title": "Opprett bot-konto",
+      "create_failed": "Kunne ikke opprette bot",
+      "created": "Bote opprettet",
+      "edit": "Rediger",
+      "edit_title": "Rediger botkonto",
+      "updated": "Bot oppdatert",
+      "update_failed": "Kunne ikke oppdatere bot",
+      "update_conflict": "Noen andre oppdaterte denne boten. Last inn siden på nytt og prøv igjen.",
+      "username": "Brukernavn",
+      "username_hint": "Botebrukernavn må ende på _bot.",
+      "display_name": "Visningsnavn",
+      "owner": "Eier",
+      "reassign_owner": "Tilordne eier på nytt",
+      "reassign_owner_warning": "Botens API-nøkkel og konfigurerte tillatelser forblir uendret. Effektive tillatelser følger den nye eieren umiddelbart.",
+      "owner_reassigned": "Bot-eier tilordnet på nytt",
+      "owner_reassign_failed": "Kunne ikke tilordne bot-eier på nytt",
+      "api_key_title": "Lagre denne API-nøkkelen",
+      "api_key_warning": "Denne nøkkelen vises bare én gang. Oppbevar det et sikkert sted før du lukker dette vinduet.",
+      "key_created": "API-nøkkel opprettet",
+      "key_rotated_at": "Sist rotert",
+      "key_copied": "API-nøkkel kopiert",
+      "rotate_key": "Roteringsnøkkel",
+      "rotate_title": "Roter API-nøkkel",
+      "rotate_warning": "Gjeldende nøkkel slutter å virke umiddelbart. Enhver integrasjon som bruker det, må oppdateres.",
+      "key_rotated": "API-nøkkel rotert",
+      "rotate_failed": "Kunne ikke rotere API-nøkkel",
+      "delete_title": "Slett bot",
+      "delete_warning": "Vil du slette {name}? API-nøkkelen slutter å fungere umiddelbart, og kontoen kan ikke gjenopprettes.",
+      "deleted": "Bote slettet",
+      "delete_failed": "Kunne ikke slette bot",
+      "permissions": {
+        "owner_ceiling": "Velg hva denne boten kan gjøre. Du kan bare gi den tillatelser du selv har. Hvis du mister en tillatelse, kan boten heller ikke bruke den lenger.",
+        "save_failed": "Kunne ikke oppdatere bottillatelsen"
       }
     }
   }

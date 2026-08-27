@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PERMISSION_METADATA } from './permissions';
+import { getIncludedByPermission, PERMISSION_METADATA } from './permissions';
 
 describe('PERMISSION_METADATA', () => {
   it('covers every current backend permission', () => {
@@ -12,6 +12,8 @@ describe('PERMISSION_METADATA', () => {
       'message.post',
       'message.post-in-thread',
       'message.react',
+      'message.read',
+      'message.read.interactions',
       'role.assign',
       'role.manage',
       'room.ban-member',
@@ -22,6 +24,7 @@ describe('PERMISSION_METADATA', () => {
       'server.manage',
       'user.delete-any',
       'user.delete-self',
+      'user.invite',
       'user.manage-accounts',
       'user.manage-permissions'
     ]);
@@ -32,5 +35,11 @@ describe('PERMISSION_METADATA', () => {
     expect(PERMISSION_METADATA).not.toHaveProperty('message.edit-any');
     expect(PERMISSION_METADATA).not.toHaveProperty('message.delete-own');
     expect(PERMISSION_METADATA).not.toHaveProperty('message.delete-any');
+  });
+
+  it('defines the explicit message read inclusion without a general hierarchy', () => {
+    expect(getIncludedByPermission('message.read.interactions')).toBe('message.read');
+    expect(getIncludedByPermission('message.read')).toBeNull();
+    expect(getIncludedByPermission('message.post-in-thread')).toBeNull();
   });
 });

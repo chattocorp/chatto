@@ -1,9 +1,6 @@
-import { loadLocaleMessages } from '$lib/i18n/messages';
-import {
-  getTextDirection,
-  setLocale as setParaglideLocale,
-  type Locale
-} from '$lib/paraglide/runtime';
+import { switchLocaleMessages } from '$lib/i18n/messages';
+
+import { localeStorageKey, type Locale } from './locales';
 import { getReactiveLocale, setReactiveLocale } from './state.svelte';
 
 export { type Locale };
@@ -24,8 +21,7 @@ export function getBrowserLocale(): string {
  * Combine Chatto's selected language with the browser's region for Intl formatting.
  *
  * Region-bearing content locales (for example, `en-GB`) are preserved. Language-only
- * locales such as `de` inherit the browser's region so regional formatting remains
- * useful until Chatto offers a more specific translation locale.
+ * locales inherit the browser's region when possible.
  */
 export function getFormattingLocale(locale: string = getLocale()): string {
   if (typeof Intl.Locale !== 'function') return locale;
@@ -44,18 +40,50 @@ export function getFormattingLocale(locale: string = getLocale()): string {
   }
 }
 
+const rtlLanguages = new Set([
+  'ar',
+  'ckb',
+  'dv',
+  'fa',
+  'he',
+  'ks',
+  'ku',
+  'ps',
+  'sd',
+  'syr',
+  'ug',
+  'ur',
+  'yi'
+]);
+const rtlScripts = new Set(['adlm', 'arab', 'hebr', 'nkoo', 'rohg', 'thaa']);
+
+export function getTextDirection(locale: string): 'ltr' | 'rtl' {
+  const parsed = new Intl.Locale(locale);
+  const language = parsed.language.toLowerCase();
+  const script = parsed.script?.toLowerCase();
+  return script !== undefined
+    ? rtlScripts.has(script)
+      ? 'rtl'
+      : 'ltr'
+    : rtlLanguages.has(language)
+      ? 'rtl'
+      : 'ltr';
+}
+
 function applyDocumentLocale(locale: Locale): void {
   if (typeof document === 'undefined') return;
   document.documentElement.lang = locale;
   document.documentElement.dir = getTextDirection(locale);
 }
 
-export async function setLocale(
-  locale: Locale,
-  options?: Parameters<typeof setParaglideLocale>[1]
-): Promise<void> {
-  await loadLocaleMessages(locale);
-  await setParaglideLocale(locale, { reload: false, ...options });
+export async function setLocale(locale: Locale): Promise<void> {
+  await switchLocaleMessages(locale);
+  try {
+    localStorage.setItem(localeStorageKey, locale);
+    localStorage.removeItem('PARAGLIDE_LOCALE');
+  } catch {
+    // Keep the in-memory preference when persistent storage is unavailable.
+  }
   setReactiveLocale(locale);
   applyDocumentLocale(locale);
 }

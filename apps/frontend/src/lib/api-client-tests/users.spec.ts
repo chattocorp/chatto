@@ -37,6 +37,7 @@ describe('createUserAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             deleted: false,
+            isBot: true,
             avatarUrl: 'https://cdn/avatar.webp'
           })
         })
@@ -54,6 +55,7 @@ describe('createUserAPI', () => {
         login: 'alice',
         displayName: 'Alice',
         deleted: false,
+        isBot: true,
         avatarUrl: 'https://cdn/avatar.webp'
       }
     ]);
@@ -84,6 +86,7 @@ describe('createUserAPI', () => {
       login: 'bob',
       displayName: 'Bob',
       deleted: false,
+      isBot: false,
       avatarUrl: null
     });
   });

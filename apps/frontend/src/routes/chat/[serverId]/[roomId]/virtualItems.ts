@@ -1,5 +1,8 @@
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+import {
+  TimelineEventKind,
+  timelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import type { EventWithMeta } from './messageGrouping';
 
 export type SystemGroupKind = 'join' | 'leave';
@@ -14,19 +17,19 @@ export type VirtualItem =
   | { type: 'start-marker'; key: string }
   | { type: 'day-separator'; key: string; label: string }
   | { type: 'unread-separator'; key: string }
-  | { type: 'event'; key: string; event: RoomEventView; isFirstInGroup: boolean }
+  | { type: 'event'; key: string; event: TimelineEventView; isFirstInGroup: boolean }
   | {
       type: 'system-group';
       key: string;
       kind: SystemGroupKind;
-      events: RoomEventView[];
+      events: TimelineEventView[];
     };
 
-function getSystemGroupKind(event: RoomEventView): SystemGroupKind | null {
-  switch (roomEventKind(event.event)) {
-    case RoomEventKind.UserJoinedRoom:
+function getSystemGroupKind(event: TimelineEventView): SystemGroupKind | null {
+  switch (timelineEventKind(event.event)) {
+    case TimelineEventKind.UserJoinedRoom:
       return 'join';
-    case RoomEventKind.UserLeftRoom:
+    case TimelineEventKind.UserLeftRoom:
       return 'leave';
     default:
       return null;
@@ -53,7 +56,7 @@ export function buildVirtualItems(
 
   let openGroup: {
     kind: SystemGroupKind;
-    events: RoomEventView[];
+    events: TimelineEventView[];
   } | null = null;
 
   const flushGroup = () => {

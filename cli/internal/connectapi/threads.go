@@ -28,7 +28,7 @@ func (s *threadService) ListFollowedThreads(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	resp, err := newThreadAssembler(s.api).followedThreadsResponse(ctx, caller.UserID, page)
+	resp, err := followedThreadsResponse(ctx, s.api, caller.UserID, page)
 	if err != nil {
 		return nil, connectError(err)
 	}

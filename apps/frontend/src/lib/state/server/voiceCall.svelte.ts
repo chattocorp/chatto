@@ -6,28 +6,26 @@
  * screen share toggle, and audio/video device selection.
  */
 
-import {
+import type {
+  Participant,
+  RemoteTrack,
+  RemoteTrackPublication,
+  RemoteParticipant,
   Room,
-  RoomEvent,
-  Track,
-  AudioPresets,
-  VideoPresets,
-  ExternalE2EEKeyProvider,
-  type Participant,
-  type RemoteTrack,
-  type RemoteTrackPublication,
-  type RemoteParticipant
+  Track
 } from 'livekit-client';
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
+import { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
 
 export type CallParticipantInfo = {
   identity: string;
   name: string;
   login: string;
   avatarUrl: string | null;
+  isBot?: boolean;
   isMuted: boolean;
   isLocal: boolean;
   connectionQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
@@ -50,20 +48,42 @@ export type CallTransitionSoundDecision = 'play' | 'defer' | 'skip';
 type ParticipantMetadata = {
   login?: string;
   avatarUrl?: string;
+  isBot?: boolean;
+  publisherKind?: string;
+  ownerIdentity?: string;
 };
+
+type LiveKitModule = typeof import('livekit-client');
 
 const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
 const MEDIA_DEVICE_TOAST_DEDUPLICATION_MS = 1_500;
+let liveKitModule: LiveKitModule | null = null;
+let liveKitModulePromise: Promise<LiveKitModule> | null = null;
+
+async function loadLiveKit(): Promise<LiveKitModule> {
+  liveKitModulePromise ??= import('livekit-client')
+    .then((module) => {
+      liveKitModule = module;
+      return module;
+    })
+    .catch((error: unknown) => {
+      liveKitModulePromise = null;
+      throw error;
+    });
+  return liveKitModulePromise;
+}
+
+function getLoadedLiveKit(): LiveKitModule {
+  if (!liveKitModule) {
+    throw new Error('LiveKit must be loaded before using an active call');
+  }
+  return liveKitModule;
+}
 
 type VoiceCallMediaDeviceTarget = 'microphone' | 'camera' | 'screen' | 'speaker' | 'device';
 type VoiceCallMediaDeviceContext = 'join' | 'enable' | 'switch' | 'event';
 type MediaDeviceFailureKind =
-  | 'permission-denied'
-  | 'not-found'
-  | 'in-use'
-  | 'constraint'
-  | 'aborted'
-  | 'unknown';
+  'permission-denied' | 'not-found' | 'in-use' | 'constraint' | 'aborted' | 'unknown';
 
 export class VoiceCallJoinError extends Error {
   readonly userMessage: string;
@@ -82,13 +102,13 @@ export function getVoiceCallJoinErrorMessage(err: unknown): string {
 
   const message = errorMessage(err);
   if (/signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)) {
-    return m['voice.signaling_failed']();
+    return m('voice.signaling_failed');
   }
   if (/e2ee|cryptor|encoded transform|insertable stream/i.test(message)) {
-    return m['voice.encrypted_unsupported']();
+    return m('voice.encrypted_unsupported');
   }
 
-  return m['voice.join_failed']();
+  return m('voice.join_failed');
 }
 
 export function getVoiceCallMediaDeviceErrorMessage(
@@ -101,58 +121,58 @@ export function getVoiceCallMediaDeviceErrorMessage(
   if (target === 'microphone' && context === 'join') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.microphone_join_denied']();
+        return m('voice.microphone_join_denied');
       case 'not-found':
-        return m['voice.microphone_join_not_found']();
+        return m('voice.microphone_join_not_found');
       case 'in-use':
-        return m['voice.microphone_join_in_use']();
+        return m('voice.microphone_join_in_use');
       default:
-        return m['voice.microphone_join_failed']();
+        return m('voice.microphone_join_failed');
     }
   }
 
   if (target === 'microphone') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.microphone_denied']();
+        return m('voice.microphone_denied');
       case 'not-found':
-        return m['voice.microphone_not_found']();
+        return m('voice.microphone_not_found');
       case 'in-use':
-        return m['voice.microphone_in_use']();
+        return m('voice.microphone_in_use');
       default:
-        return m['voice.microphone_failed']();
+        return m('voice.microphone_failed');
     }
   }
 
   if (target === 'camera') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.camera_denied']();
+        return m('voice.camera_denied');
       case 'not-found':
-        return m['voice.camera_not_found']();
+        return m('voice.camera_not_found');
       case 'in-use':
-        return m['voice.camera_in_use']();
+        return m('voice.camera_in_use');
       default:
-        return m['voice.camera_failed']();
+        return m('voice.camera_failed');
     }
   }
 
   if (target === 'screen') {
     if (failure === 'permission-denied' || failure === 'aborted') {
-      return m['voice.screen_share_blocked']();
+      return m('voice.screen_share_blocked');
     }
-    return m['voice.screen_share_failed']();
+    return m('voice.screen_share_failed');
   }
 
   if (target === 'speaker') {
-    return m['voice.speaker_switch_failed']();
+    return m('voice.speaker_switch_failed');
   }
 
   if (context === 'switch') {
-    return m['voice.device_switch_failed']();
+    return m('voice.device_switch_failed');
   }
 
-  return m['voice.media_device_failed']();
+  return m('voice.media_device_failed');
 }
 
 export class VoiceCallState {
@@ -177,6 +197,9 @@ export class VoiceCallState {
   isScreenShareEnabled = $state(false);
   // True while LiveKit is applying local screen-share enable/disable changes.
   isScreenSharePending = $state(false);
+  isNativeScreenShareEnabled = $state(false);
+  isNativeScreenSharePending = $state(false);
+  nativeScreenShareSourceName = $state<string | null>(null);
 
   // Participants (including local)
   participants = $state<CallParticipantInfo[]>([]);
@@ -198,6 +221,7 @@ export class VoiceCallState {
 
   // Internal LiveKit room instance
   private room: Room | null = null;
+  private liveKitURL: string | null = null;
   private activeCallId: string | null = null;
   private pendingOwnJoinSound: {
     roomId: string;
@@ -214,6 +238,8 @@ export class VoiceCallState {
   private microphoneToggleInFlight: Promise<void> | null = null;
   private cameraToggleInFlight: Promise<void> | null = null;
   private screenShareToggleInFlight: Promise<void> | null = null;
+  private nativeScreenShareToggleInFlight: Promise<void> | null = null;
+  private nativeScreenShareSession: NativeScreenSharePublisherSession | null = null;
   private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
   private suppressDisconnectToast = false;
@@ -364,6 +390,8 @@ export class VoiceCallState {
     let joinIntentRecorded = false;
 
     try {
+      const { AudioPresets, ExternalE2EEKeyProvider, Room, VideoPresets } = await loadLiveKit();
+
       await this.#api.joinCall(roomId);
       joinIntentRecorded = true;
 
@@ -411,6 +439,7 @@ export class VoiceCallState {
       await keyProvider.setKey(e2eeKey);
       await this.room.setE2EEEnabled(true);
       await this.room.connect(livekitUrl, token);
+      this.liveKitURL = livekitUrl;
 
       // Try to enable microphone, but join muted if no device is available
       try {
@@ -489,6 +518,18 @@ export class VoiceCallState {
    */
   handleCallEndedEvent(roomId: string, callId: string | null): void {
     this.disconnectFromServerEvent(roomId, callId);
+  }
+
+  /** Disconnect local media immediately when this viewer loses room access. */
+  handleRoomAccessRevoked(roomId: string): void {
+    if (this.roomId !== roomId) return;
+    const room = this.room;
+    if (room) {
+      this.suppressDisconnectToast = true;
+      room.disconnect();
+    }
+    this.cleanup();
+    this.suppressDisconnectToast = false;
   }
 
   private disconnectFromServerEvent(roomId: string, callId: string | null): void {
@@ -610,6 +651,14 @@ export class VoiceCallState {
    * Toggle video-only screen/window/tab sharing.
    */
   async toggleScreenShare(): Promise<void> {
+    if (this.nativeScreenShareToggleInFlight) {
+      await this.nativeScreenShareToggleInFlight;
+      return;
+    }
+    if (this.nativeScreenShareSession) {
+      await this.stopNativeScreenShare();
+      return;
+    }
     if (this.screenShareToggleInFlight) return this.screenShareToggleInFlight;
 
     const room = this.room;
@@ -628,8 +677,166 @@ export class VoiceCallState {
     }
   }
 
+  /** Publish a host-provided native capture as this participant's screen share. */
+  async startNativeScreenShare(sourceId: string, sourceName: string): Promise<void> {
+    if (this.nativeScreenShareToggleInFlight) return this.nativeScreenShareToggleInFlight;
+    if (this.screenShareToggleInFlight) await this.screenShareToggleInFlight;
+    const room = this.room;
+    if (!room) return;
+
+    const startPromise = this.performStartNativeScreenShare(room, sourceId, sourceName);
+    this.nativeScreenShareToggleInFlight = startPromise;
+    this.isNativeScreenSharePending = true;
+    try {
+      await startPromise;
+    } finally {
+      if (this.nativeScreenShareToggleInFlight === startPromise) {
+        this.nativeScreenShareToggleInFlight = null;
+        this.isNativeScreenSharePending = false;
+      }
+    }
+  }
+
+  private async performStartNativeScreenShare(
+    room: Room,
+    sourceId: string,
+    sourceName: string
+  ): Promise<void> {
+    if (this.nativeScreenShareSession) await this.performStopNativeScreenShare(room);
+    const replacingBrowserScreenShare = this.isScreenShareEnabled;
+
+    const livekitUrl = this.liveKitURL;
+    const roomId = this.roomId;
+    if (!livekitUrl || !roomId) return;
+    const credential = await this.#api.createGameSharePublisherToken(roomId);
+    if (!credential || credential.callId !== this.activeCallId) {
+      throw new Error('The server could not create a native screen-share publisher credential.');
+    }
+    const session = await NativeScreenSharePublisherSession.start({
+      sourceId,
+      livekitUrl,
+      token: credential.token,
+      e2eeKey: credential.e2eeKey
+    });
+    let provisionalSessionEnded = false;
+    let provisionalSessionError: Error | undefined;
+    session.onEnded = (error) => {
+      provisionalSessionEnded = true;
+      provisionalSessionError = error;
+    };
+    if (this.room !== room) {
+      await session.stop().catch(() => undefined);
+      return;
+    }
+
+    if (replacingBrowserScreenShare) {
+      let replacementError: unknown;
+      try {
+        await room.localParticipant.setScreenShareEnabled(false);
+      } catch (error) {
+        replacementError = error;
+      }
+      if (this.room !== room) {
+        await session.stop().catch(() => undefined);
+        return;
+      }
+
+      const browserScreenShareStillPublished = hasParticipantScreenSharePublication(
+        room.localParticipant
+      );
+      this.isScreenShareEnabled = browserScreenShareStillPublished;
+      if (browserScreenShareStillPublished) {
+        await session.stop().catch(() => undefined);
+        throw (
+          replacementError ?? new Error('The existing browser screen share could not be replaced.')
+        );
+      }
+
+      // LiveKit removes local tracks before its final negotiation completes, so
+      // a late rejection can still mean that the browser share was replaced.
+      // Keep the working native publisher in that case instead of losing both.
+      if (provisionalSessionEnded) {
+        this.isNativeScreenShareEnabled = false;
+        this.nativeScreenShareSourceName = null;
+        this.updateParticipants();
+        throw (
+          provisionalSessionError ??
+          new Error('The native screen-share publisher stopped during handoff.')
+        );
+      }
+    }
+
+    if (provisionalSessionEnded) {
+      throw (
+        provisionalSessionError ??
+        new Error('The native screen-share publisher stopped before it became active.')
+      );
+    }
+    this.nativeScreenShareSession = session;
+    session.onEnded = (error) => void this.handleNativeScreenShareEnded(session, error);
+    if (this.room !== room || this.nativeScreenShareSession !== session) {
+      session.stop();
+      return;
+    }
+
+    this.isNativeScreenShareEnabled = true;
+    this.nativeScreenShareSourceName = sourceName;
+    this.isScreenShareEnabled = true;
+    this.updateParticipants();
+  }
+
+  /** Stop the active native screen-share companion publisher. */
+  async stopNativeScreenShare(): Promise<void> {
+    if (this.nativeScreenShareToggleInFlight) return this.nativeScreenShareToggleInFlight;
+    const room = this.room;
+    if (!room || !this.nativeScreenShareSession) return;
+
+    const stopPromise = this.performStopNativeScreenShare(room);
+    this.nativeScreenShareToggleInFlight = stopPromise;
+    this.isNativeScreenSharePending = true;
+    try {
+      await stopPromise;
+    } finally {
+      if (this.nativeScreenShareToggleInFlight === stopPromise) {
+        this.nativeScreenShareToggleInFlight = null;
+        this.isNativeScreenSharePending = false;
+      }
+    }
+  }
+
+  private async performStopNativeScreenShare(room: Room): Promise<void> {
+    const session = this.nativeScreenShareSession;
+    if (!session) return;
+    session.onEnded = null;
+    try {
+      await session.stop();
+    } finally {
+      if (this.nativeScreenShareSession === session) this.nativeScreenShareSession = null;
+      if (this.room === room) {
+        this.isNativeScreenShareEnabled = false;
+        this.nativeScreenShareSourceName = null;
+        this.isScreenShareEnabled = false;
+        this.updateParticipants();
+      }
+    }
+  }
+
+  private async handleNativeScreenShareEnded(
+    session: NativeScreenSharePublisherSession,
+    error?: Error
+  ): Promise<void> {
+    if (this.nativeScreenShareSession !== session) return;
+    this.nativeScreenShareSession = null;
+    this.isNativeScreenShareEnabled = false;
+    this.nativeScreenShareSourceName = null;
+    this.isScreenShareEnabled = false;
+    this.updateParticipants();
+    if (error) toast.error(m('voice.screen_share_failed'));
+  }
+
   private async performToggleScreenShare(room: Room): Promise<void> {
     const newEnabled = !this.isScreenShareEnabled;
+    const { AudioPresets } = getLoadedLiveKit();
     try {
       await this.runExplicitMediaDeviceOperation(() =>
         room.localParticipant.setScreenShareEnabled(
@@ -670,6 +877,7 @@ export class VoiceCallState {
    */
   async refreshDevices(options: { requestVideoPermissions?: boolean } = {}): Promise<void> {
     try {
+      const { Room } = await loadLiveKit();
       const requestVideoPermissions = options.requestVideoPermissions ?? this.isCameraEnabled;
       const [inputDevices, outputDevices, videoInputDevices] = await Promise.all([
         Room.getLocalDevices('audioinput'),
@@ -696,11 +904,6 @@ export class VoiceCallState {
       this.audioOutputDevices = [];
       this.videoDevices = [];
     }
-  }
-
-  /** @deprecated Use refreshDevices() instead */
-  async refreshAudioDevices(): Promise<void> {
-    return this.refreshDevices();
   }
 
   /**
@@ -759,6 +962,7 @@ export class VoiceCallState {
 
   private setupRoomEventListeners(): void {
     if (!this.room) return;
+    const { RoomEvent, Track } = getLoadedLiveKit();
 
     this.room.on(RoomEvent.ParticipantConnected, () => {
       this.updateParticipants();
@@ -779,7 +983,7 @@ export class VoiceCallState {
     this.room.on(RoomEvent.Disconnected, () => {
       // Only show toast if we were in an active call (not a failed join attempt)
       if (this.connected && !this.suppressDisconnectToast) {
-        toast.error(m['voice.disconnected']());
+        toast.error(m('voice.disconnected'));
       }
       this.cleanup();
     });
@@ -803,9 +1007,13 @@ export class VoiceCallState {
     // Video tracks are NOT attached here — VideoThumbnail manages its own lifecycle.
     this.room.on(
       RoomEvent.TrackSubscribed,
-      (track: RemoteTrack, _publication: RemoteTrackPublication) => {
+      (
+        track: RemoteTrack,
+        _publication: RemoteTrackPublication,
+        participant: RemoteParticipant
+      ) => {
         if (track.kind === Track.Kind.Audio) {
-          track.attach();
+          if (!this.isLocalCompanionPublisher(participant)) track.attach();
           this.applyAllParticipantAudioVolumes();
         }
         this.updateParticipants();
@@ -850,29 +1058,44 @@ export class VoiceCallState {
       return;
     }
 
+    const companionPublishers = Array.from(this.room.remoteParticipants.values()).filter(
+      isCompanionPublisher
+    );
     const allParticipants: Participant[] = [
       this.room.localParticipant,
-      ...Array.from(this.room.remoteParticipants.values())
+      ...Array.from(this.room.remoteParticipants.values()).filter(
+        (participant) => !isCompanionPublisher(participant)
+      )
     ];
     this.isCameraEnabled = isParticipantCameraEnabled(this.room.localParticipant);
-    this.isScreenShareEnabled = isParticipantScreenShareEnabled(this.room.localParticipant);
+    this.isScreenShareEnabled =
+      isParticipantScreenShareEnabled(this.room.localParticipant) ||
+      this.isNativeScreenShareEnabled;
     this.applyAllParticipantAudioVolumes();
 
     this.participants = allParticipants.map((p) => {
       const md = parseParticipantMetadata(p.metadata);
       const isLocal = p === this.room!.localParticipant;
+      const companion = companionPublishers.find(
+        (candidate) => parseParticipantMetadata(candidate.metadata).ownerIdentity === p.identity
+      );
+      const screenShareTrack =
+        getParticipantScreenShareTrack(p) ??
+        (companion ? getParticipantScreenShareTrack(companion) : null);
       return {
         identity: p.identity,
         name: p.name ?? p.identity,
         login: md.login ?? p.identity,
         avatarUrl: md.avatarUrl ?? null,
+        isBot: md.isBot ?? false,
         isMuted: isParticipantMuted(p),
         isLocal,
         connectionQuality: p.connectionQuality as CallParticipantInfo['connectionQuality'],
         isCameraEnabled: isParticipantCameraEnabled(p),
         videoTrack: getParticipantCameraTrack(p),
-        isScreenShareEnabled: isParticipantScreenShareEnabled(p),
-        screenShareTrack: getParticipantScreenShareTrack(p),
+        isScreenShareEnabled:
+          screenShareTrack !== null || (isLocal && this.isNativeScreenShareEnabled),
+        screenShareTrack,
         isLocallyMuted: !isLocal && this.isParticipantLocallyMuted(p.identity)
       };
     });
@@ -886,14 +1109,34 @@ export class VoiceCallState {
   }
 
   private applyParticipantAudioVolume(identity: string): void {
-    const participant = this.room?.remoteParticipants.get(identity);
-    if (participant) this.applyRemoteParticipantAudioVolume(participant);
+    if (!this.room) return;
+    for (const participant of this.room.remoteParticipants.values()) {
+      const ownerIdentity = parseParticipantMetadata(participant.metadata).ownerIdentity;
+      if (participant.identity === identity || ownerIdentity === identity) {
+        this.applyRemoteParticipantAudioVolume(participant);
+      }
+    }
   }
 
   private applyRemoteParticipantAudioVolume(participant: RemoteParticipant): void {
-    const volume = this.isParticipantLocallyMuted(participant.identity) ? 0 : 1;
+    const { Track } = getLoadedLiveKit();
+    const ownerIdentity = parseParticipantMetadata(participant.metadata).ownerIdentity;
+    const logicalIdentity = ownerIdentity || participant.identity;
+    const volume =
+      logicalIdentity === this.room?.localParticipant.identity ||
+      this.isParticipantLocallyMuted(logicalIdentity)
+        ? 0
+        : 1;
     participant.setVolume(volume, Track.Source.Microphone);
     participant.setVolume(volume, Track.Source.ScreenShareAudio);
+  }
+
+  private isLocalCompanionPublisher(participant: RemoteParticipant): boolean {
+    const metadata = parseParticipantMetadata(participant.metadata);
+    return (
+      isCompanionPublisher(participant) &&
+      metadata.ownerIdentity === this.room?.localParticipant.identity
+    );
   }
 
   /**
@@ -908,7 +1151,9 @@ export class VoiceCallState {
 
     const allParticipants: Participant[] = [
       this.room.localParticipant,
-      ...Array.from(this.room.remoteParticipants.values())
+      ...Array.from(this.room.remoteParticipants.values()).filter(
+        (participant) => !isCompanionPublisher(participant)
+      )
     ];
 
     for (const p of allParticipants) {
@@ -928,6 +1173,7 @@ export class VoiceCallState {
     this.teardownLocalAudioAnalyser();
     if (!this.room) return;
 
+    const { Track } = getLoadedLiveKit();
     const micPub = this.room.localParticipant.getTrackPublication(Track.Source.Microphone);
     const mediaStreamTrack = micPub?.track?.mediaStreamTrack;
     if (!mediaStreamTrack) return;
@@ -1009,12 +1255,17 @@ export class VoiceCallState {
       };
     }
     this.activeCallId = null;
+    this.liveKitURL = null;
     this.pendingOwnJoinSound = null;
     this.joinInFlight = null;
     this.joinInFlightRoomId = null;
     this.microphoneToggleInFlight = null;
     this.cameraToggleInFlight = null;
     this.screenShareToggleInFlight = null;
+    this.nativeScreenShareToggleInFlight = null;
+    if (this.nativeScreenShareSession)
+      void this.nativeScreenShareSession.stop().catch(() => undefined);
+    this.nativeScreenShareSession = null;
     this.suppressDisconnectToast = false;
     this.connected = false;
     this.connecting = false;
@@ -1025,6 +1276,9 @@ export class VoiceCallState {
     this.isCameraPending = false;
     this.isScreenShareEnabled = false;
     this.isScreenSharePending = false;
+    this.isNativeScreenShareEnabled = false;
+    this.isNativeScreenSharePending = false;
+    this.nativeScreenShareSourceName = null;
     this.participants = [];
     this.locallyMutedParticipantIds = {};
     this.audioDevices = [];
@@ -1095,7 +1349,13 @@ function parseParticipantMetadata(metadata: string | undefined): ParticipantMeta
   }
 }
 
+function isCompanionPublisher(participant: Participant): boolean {
+  const metadata = parseParticipantMetadata(participant.metadata);
+  return metadata.publisherKind === 'game_share' && !!metadata.ownerIdentity;
+}
+
 function isParticipantMuted(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Microphone) {
       return pub.isMuted;
@@ -1106,6 +1366,7 @@ function isParticipantMuted(participant: Participant): boolean {
 }
 
 function isParticipantCameraEnabled(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Camera) {
       return !pub.isMuted;
@@ -1115,6 +1376,7 @@ function isParticipantCameraEnabled(participant: Participant): boolean {
 }
 
 function getParticipantCameraTrack(participant: Participant): Track | null {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Camera && !pub.isMuted) {
       return pub.track;
@@ -1124,6 +1386,7 @@ function getParticipantCameraTrack(participant: Participant): Track | null {
 }
 
 function isParticipantScreenShareEnabled(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.ScreenShare) {
       return !pub.isMuted;
@@ -1132,7 +1395,15 @@ function isParticipantScreenShareEnabled(participant: Participant): boolean {
   return false;
 }
 
+function hasParticipantScreenSharePublication(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
+  return participant
+    .getTrackPublications()
+    .some((publication) => publication.track?.source === Track.Source.ScreenShare);
+}
+
 function getParticipantScreenShareTrack(participant: Participant): Track | null {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.ScreenShare && !pub.isMuted) {
       return pub.track;
@@ -1161,7 +1432,7 @@ function assertLiveKitE2EESupported(): void {
   ) {
     throw new VoiceCallJoinError(
       'LiveKit E2EE is not supported by this browser',
-      m['voice.encrypted_unsupported']()
+      m('voice.encrypted_unsupported')
     );
   }
 }

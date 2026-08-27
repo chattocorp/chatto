@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -63,6 +63,7 @@ type PendingExternalIdentityFlow struct {
 	RedirectPath    string    `json:"redirect_path,omitempty"`
 	BoundUserID     string    `json:"bound_user_id,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
+	InvitationID    string    `json:"invitation_id,omitempty"`
 }
 
 func (c *ChattoCore) externalIdentityCreateTokenKey(token string) string {
@@ -78,6 +79,9 @@ func (c *ChattoCore) externalIdentityLinkStartKey(token string) string {
 }
 
 func (c *ChattoCore) CreatePendingExternalIdentityLinkStart(ctx context.Context, providerID, redirectPath, userID string) (string, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return "", err
+	}
 	start := PendingExternalIdentityLinkStart{
 		ProviderID:   strings.TrimSpace(providerID),
 		RedirectPath: strings.TrimSpace(redirectPath),
@@ -135,6 +139,9 @@ func (c *ChattoCore) CreatePendingExternalIdentityLinkFlow(ctx context.Context, 
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
 		return "", ErrInvalidArgument
+	}
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return "", err
 	}
 	flow.Kind = ExternalIdentityFlowKindLink
 	flow.BoundUserID = userID
@@ -258,22 +265,12 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 	if displayName == "" {
 		displayName = login
 	}
-	user, err := c.CreateUser(ctx, SystemActorID, login, displayName, "")
+	user, err := c.createUserWithOptions(ctx, SystemActorID, login, displayName, "", userCreationOptions{
+		verifiedEmail: flow.VerifiedEmail,
+		external:      flow,
+		invitationID:  flow.InvitationID,
+	})
 	if err != nil {
-		return nil, err
-	}
-	rollback := true
-	defer func() {
-		if rollback {
-			c.rollbackUserCreation(ctx, user)
-		}
-	}()
-	if flow.VerifiedEmail != "" {
-		if err := c.AddVerifiedEmailDirect(ctx, user.Id, flow.VerifiedEmail); err != nil {
-			return nil, fmt.Errorf("failed to add provider verified email: %w", err)
-		}
-	}
-	if err := c.LinkExternalIdentity(ctx, flow.ProviderID, flow.ProviderType, flow.Issuer, flow.Subject, user.Id); err != nil {
 		return nil, err
 	}
 	if flow.AvatarURL != "" {
@@ -281,11 +278,13 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 			c.logger.Warn("Failed to import provider avatar", "provider_id", flow.ProviderID, "provider_type", flow.ProviderType, "user_id", user.Id, "error", err)
 		}
 	}
-	rollback = false
 	return user, nil
 }
 
 func (c *ChattoCore) LinkPendingExternalIdentity(ctx context.Context, userID string, flow *PendingExternalIdentityFlow) (ExternalIdentity, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return ExternalIdentity{}, err
+	}
 	if flow == nil || flow.Kind != ExternalIdentityFlowKindLink {
 		return ExternalIdentity{}, ErrExternalIdentityFlowWrongKind
 	}
@@ -311,6 +310,9 @@ func (c *ChattoCore) ConfirmPendingExternalIdentityLink(ctx context.Context, flo
 	if flow.BoundUserID == "" {
 		return ExternalIdentity{}, ErrExternalIdentityFlowUserBound
 	}
+	if err := c.requireHumanUser(ctx, flow.BoundUserID); err != nil {
+		return ExternalIdentity{}, err
+	}
 	if err := c.LinkExternalIdentity(ctx, flow.ProviderID, flow.ProviderType, flow.Issuer, flow.Subject, flow.BoundUserID); err != nil {
 		return ExternalIdentity{}, err
 	}
@@ -324,16 +326,19 @@ func (c *ChattoCore) ConfirmPendingExternalIdentityLink(ctx context.Context, flo
 }
 
 func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID string) ([]ExternalIdentity, error) {
-	if err := c.userModel.waitForUsersCurrent(ctx, "external identities", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+	if err := c.userModel.waitForUsersCurrent(ctx, "external identities", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
 		return nil, err
 	}
-	return c.Users.ExternalIdentities(userID), nil
+	return c.userModel.externalIdentities(userID), nil
 }
 
 // DisconnectExternalIdentity removes a linked provider identity from a user.
 // It refuses to remove the last available sign-in method for passwordless
 // accounts so users created through SSO cannot lock themselves out.
 func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, subjectHash string) error {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
 	userID = strings.TrimSpace(userID)
 	subjectHash = strings.TrimSpace(subjectHash)
 	if userID == "" || subjectHash == "" {
@@ -345,15 +350,15 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 			SubjectHash: subjectHash,
 		},
 	}})
-	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		_, ok, err := c.Users.GetContext(ctx, userID)
+	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
+		_, ok, err := c.userModel.user(ctx, userID)
 		if err != nil {
 			return err
 		}
 		if !ok {
 			return ErrNotFound
 		}
-		identities := c.Users.ExternalIdentities(userID)
+		identities := c.userModel.externalIdentities(userID)
 		found := false
 		for _, identity := range identities {
 			if identity.SubjectHash == subjectHash {
@@ -364,7 +369,7 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 		if !found {
 			return ErrExternalIdentityNotFound
 		}
-		if _, hasPassword := c.Users.PasswordHash(userID); !hasPassword && len(identities) <= 1 {
+		if _, hasPassword := c.userModel.passwordHash(userID); !hasPassword && len(identities) <= 1 {
 			return ErrExternalIdentityLastMethod
 		}
 		return nil

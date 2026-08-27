@@ -1,13 +1,21 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "settings": {
     "nav": {
       "title": "Paramètres",
       "back_to_server": "Retour au serveur",
       "profile": "Profil",
-      "display": "Affichage",
+      "display": "Préférences",
       "notifications": "Notifications",
-      "account": "Compte"
+      "account": "Compte",
+      "bots": "Robots",
+      "user_preferences": "Préférences utilisateur",
+      "server_configuration": "Configuration du serveur"
+    },
+    "app_preferences": {
+      "title": "Préférences de l’application",
+      "subtitle": "Choix de cette application qui s’appliquent à tous vos serveurs enregistrés",
+      "appearance": { "title": "Apparence" },
+      "composer": { "title": "Rédaction" }
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +113,9 @@
       "save_button": "Enregistrer les modifications"
     },
     "preferences": {
-      "title": "Affichage",
-      "subtitle": "Choisissez comment Chatto apparaît",
+      "title": "Heure et région",
+      "subtitle": "Choisissez comment ce serveur affiche les dates et les heures pour vous",
+      "browser_scope": "Ce choix s’applique à tous les serveurs Chatto dans ce navigateur.",
       "theme": {
         "title": "Thème",
         "system": {
@@ -120,6 +129,28 @@
         "dark": {
           "label": "Sombre",
           "description": "Utiliser l'interface sombre sur ce navigateur"
+        }
+      },
+      "editor": {
+        "title": "Éditeur de messages",
+        "visual": {
+          "label": "Visuel",
+          "description": "Mettez les messages en forme sans voir la syntaxe Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Modifiez le code Markdown avec coloration syntaxique"
+        }
+      },
+      "send_mode": {
+        "title": "Envoyer les messages avec",
+        "enter": {
+          "label": "Retour",
+          "description": "Retour envoie ; Cmd/Ctrl+Retour exécute l'action Retour normale de l'éditeur"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Retour",
+          "description": "Cmd/Ctrl+Retour envoie ; Retour exécute l'action normale de l'éditeur"
         }
       },
       "language": {
@@ -153,9 +184,9 @@
           "description": "par exemple, 14h30"
         }
       },
-      "save_button": "Enregistrer les paramètres d'affichage",
-      "saved": "Paramètres d'affichage enregistrés",
-      "save_failed": "Échec de l'enregistrement des paramètres d'affichage"
+      "save_button": "Enregistrer les réglages horaires",
+      "saved": "Réglages horaires enregistrés",
+      "save_failed": "Impossible d’enregistrer les réglages horaires"
     },
     "notifications": {
       "title": "Notifications",
@@ -180,9 +211,7 @@
         "enabling": "Activation...",
         "blocked_error": "Les notifications push sont bloquées dans les paramètres de votre navigateur ou de votre système d'exploitation.",
         "enable_failed": "Échec de l'activation des notifications push. Veuillez réessayer.",
-        "enable_error": "Une erreur s'est produite lors de l'activation des notifications push",
-        "remote_title": "Le push natif n'est pas disponible pour les serveurs distants",
-        "remote_description": "Cette application installée ne peut enregistrer les notifications push du navigateur qu'avec le serveur qui l'a servie. Les badges et les sons de notification dans l'application fonctionnent toujours pour ce serveur lorsque Chatto est ouvert."
+        "enable_error": "Une erreur s'est produite lors de l'activation des notifications push"
       },
       "push_prompt": {
         "title": "Activer les notifications push",
@@ -195,35 +224,6 @@
         "enabling": "Activation...",
         "enable": "Activer",
         "dismiss": "Non merci"
-      },
-      "levels": {
-        "loading": "Chargement...",
-        "load_failed": "Échec du chargement des préférences de notification",
-        "server_updated": "Niveau de notification du serveur mis à jour",
-        "room_updated": "Niveau de notification de la salle mis à jour",
-        "update_failed": "Échec de la mise à jour",
-        "server_title": "Niveau de notification du serveur",
-        "server_description": "Contrôle la façon dont vous recevez des notifications pour toutes les salles de ce serveur. Les pièces individuelles peuvent remplacer ce paramètre.",
-        "room_title": "Remplacements de salle",
-        "room_description": "Remplacez le paramètre au niveau du serveur pour les salles individuelles. Les salles définies sur « Par défaut » héritent du paramètre du serveur ({level}).",
-        "room_level_label": "Niveau de notification pour #{room}",
-        "effective": "En vigueur : {level}",
-        "default": {
-          "label": "Par défaut",
-          "description": "Utiliser la valeur par défaut héritée"
-        },
-        "muted": {
-          "label": "Muet",
-          "description": "Aucune notification ni marqueur non lu"
-        },
-        "normal": {
-          "label": "Normale",
-          "description": "Marqueurs non lus + mentions, messages directs et réponses au fil de discussion"
-        },
-        "all_messages": {
-          "label": "Tous les messages",
-          "description": "Normal + notification pour chaque nouveau message"
-        }
       },
       "sound": {
         "title": "Son de notification",
@@ -273,6 +273,50 @@
           "siren": "Sirène d'alerte",
           "dubstep": "Sortie Dubstep",
           "circus": "Cirque"
+        }
+      },
+      "policy": {
+        "title": "Politique de notifications",
+        "description": "Choisissez comment chaque activité vous avertit au niveau du serveur, du groupe de salles et de la salle. Les salles héritent de leur groupe, puis du serveur.",
+        "load_failed": "Impossible de charger la politique de notifications",
+        "save_failed": "Impossible d'enregistrer la politique de notifications",
+        "effective": "Effectif : {mode}",
+        "filter_label": "Filtrer les portées de notification",
+        "filter_placeholder": "Filtrer les groupes et les salles…",
+        "no_filter_matches": "Aucune portée de notification ne correspond à ce filtre.",
+        "legend": "Modes de distribution des notifications",
+        "cell_aria": "{cause}, {scope}. Remplacement : {override}. Effectif : {effective}. Activez pour définir {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Valeur par défaut : {current}. Activez pour définir {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Non applicable.",
+        "delivery_mode": {
+          "inherit": "Hériter",
+          "off": "Désactivé",
+          "notification": "Notification",
+          "push_notification": "Notification push"
+        },
+        "reason": {
+          "direct_message": "Messages directs",
+          "direct_mention": "Mentions directes",
+          "reply": "Réponses à vos messages",
+          "role_mention": "Mentions de rôles",
+          "here": "Mentions @here",
+          "all": "Mentions @all",
+          "followed_thread": "Fils suivis",
+          "followed_room": "Salons suivis",
+          "reaction": "Réactions à vos messages",
+          "activity": "Activité",
+          "room_invitation": "Invitations à des salons"
+        },
+        "reason_hint": {
+          "direct_message": "Messages envoyés par d’autres membres dans des conversations privées.",
+          "direct_mention": "Messages qui mentionnent directement votre nom d’utilisateur.",
+          "reply": "Messages qui répondent à l’un de vos messages.",
+          "role_mention": "Messages qui mentionnent un rôle qui vous est attribué.",
+          "here": "Messages qui utilisent @here lorsque votre présence n’est pas hors ligne.",
+          "all": "Messages qui utilisent @all dans un salon dont vous êtes membre.",
+          "followed_thread": "Nouvelles réponses dans les fils que vous suivez.",
+          "followed_room": "Messages de premier niveau dans les salons que vous suivez.",
+          "reaction": "Réactions ajoutées à vos messages par d’autres membres."
         }
       }
     },
@@ -350,6 +394,52 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Annuler",
         "deleting": "Suppression..."
+      }
+    },
+    "bots": {
+      "title": "Robots",
+      "subtitle": "Créez des comptes API et contrôlez exactement ce qu'ils peuvent faire",
+      "singular": "bot",
+      "unsupported": "Cette version du serveur ne prend pas en charge les comptes de robots.",
+      "list_title": "Comptes de robots",
+      "loading": "Chargement des robots...",
+      "empty_title": "Aucun robot pour l'instant",
+      "empty_body": "Créez un bot lorsqu'une intégration a besoin de sa propre identité et de ses propres autorisations.",
+      "create_permission_required": "Vous pouvez gérer les bots existants, mais vous n’avez pas l’autorisation d’en créer un nouveau.",
+      "create": "Créer un robot",
+      "create_title": "Créer un compte de robot",
+      "create_failed": "Échec de la création du bot",
+      "created": "Bot créé",
+      "edit": "Modifier",
+      "edit_title": "Modifier le compte du robot",
+      "updated": "Bot mis à jour",
+      "update_failed": "Échec de la mise à jour du bot",
+      "update_conflict": "Quelqu’un d’autre a mis à jour ce bot. Recharge la page et réessaie.",
+      "username": "Nom d'utilisateur",
+      "username_hint": "Les noms d'utilisateur des robots doivent se terminer par _bot.",
+      "display_name": "Nom d'affichage",
+      "owner": "Propriétaire",
+      "reassign_owner": "Réattribuer le propriétaire",
+      "reassign_owner_warning": "La clé API et les permissions configurées du robot resteront inchangées. Les permissions effectives dépendront immédiatement du nouveau propriétaire.",
+      "owner_reassigned": "Propriétaire du robot réattribué",
+      "owner_reassign_failed": "Impossible de réattribuer le propriétaire du robot",
+      "api_key_title": "Enregistrer cette clé API",
+      "api_key_warning": "Cette clé n'est affichée qu'une seule fois. Conservez-le dans un endroit sécurisé avant de fermer cette fenêtre.",
+      "key_created": "Clé API créée",
+      "key_rotated_at": "Dernière rotation",
+      "key_copied": "Clé API copiée",
+      "rotate_key": "Clé de rotation",
+      "rotate_title": "Rotation de la clé API",
+      "rotate_warning": "La clé actuelle cessera de fonctionner immédiatement. Toute intégration l'utilisant doit être mise à jour.",
+      "key_rotated": "Clé API alternée",
+      "rotate_failed": "Échec de la rotation de la clé API",
+      "delete_title": "Supprimer le robot",
+      "delete_warning": "Supprimer {name} ? Sa clé API cessera de fonctionner immédiatement et le compte ne pourra pas être récupéré.",
+      "deleted": "Bot supprimé",
+      "delete_failed": "Échec de la suppression du bot",
+      "permissions": {
+        "owner_ceiling": "Choisissez ce que ce bot peut faire. Vous ne pouvez lui accorder que les autorisations dont vous disposez vous-même. Si vous perdez une autorisation, le bot ne pourra plus l’utiliser non plus.",
+        "save_failed": "Échec de la mise à jour de l'autorisation du bot"
       }
     }
   }

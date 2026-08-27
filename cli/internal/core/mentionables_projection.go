@@ -11,9 +11,10 @@ import (
 
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type mentionableOwnerKind string
@@ -65,7 +66,7 @@ func newMentionablesProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver)
 }
 
 func (p *MentionablesProjection) Subjects() []string {
-	return []string{events.EventSubjectFilter()}
+	return []string{evtstream.EventSubjectFilter()}
 }
 
 func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
@@ -95,8 +96,11 @@ func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
 	case *corev1.Event_UserAccountDeleted:
 		p.applyUserAccountDeleted(e.UserAccountDeleted)
 		delete(p.userLoginSources, e.UserAccountDeleted.GetUserId())
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.applyUserKeyShredded(e.UserKeyShreddingRequested.GetUserId())
+		delete(p.userLoginSources, e.UserKeyShreddingRequested.GetUserId())
 	case *corev1.Event_UserKeyShredded:
-		p.applyUserKeyShredded(e.UserKeyShredded)
+		p.applyUserKeyShredded(e.UserKeyShredded.GetUserId())
 		delete(p.userLoginSources, e.UserKeyShredded.GetUserId())
 	case *corev1.Event_RbacRoleCreated:
 		p.addOwner(e.RbacRoleCreated.GetRoleName(), mentionableOwner{kind: mentionableOwnerRole, id: strings.ToLower(e.RbacRoleCreated.GetRoleName())})
@@ -128,7 +132,7 @@ func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *core
 	if e == nil || e.GetUserId() == "" {
 		return nil
 	}
-	login, ok, err := p.userPIIString(eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIString(eventID, e.GetUserId(), evtstream.EventUserAccountCreated, "login", e.GetEncryptedLogin())
 	if err != nil {
 		return err
 	}
@@ -143,7 +147,7 @@ func (p *MentionablesProjection) applyUserLoginChanged(eventID string, e *corev1
 	if e == nil || e.GetUserId() == "" {
 		return nil
 	}
-	login, ok, err := p.userPIIString(eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIString(eventID, e.GetUserId(), evtstream.EventUserLoginChanged, "login", e.GetEncryptedLogin())
 	if err != nil {
 		return err
 	}
@@ -161,12 +165,12 @@ func (p *MentionablesProjection) applyUserAccountDeleted(e *corev1.UserAccountDe
 	p.removeUserLogin(e.GetUserId())
 }
 
-func (p *MentionablesProjection) applyUserKeyShredded(e *corev1.UserKeyShreddedEvent) {
-	if e == nil || e.GetUserId() == "" {
+func (p *MentionablesProjection) applyUserKeyShredded(userID string) {
+	if userID == "" {
 		return
 	}
-	delete(p.dekEvents, e.GetUserId())
-	p.removeUserLogin(e.GetUserId())
+	delete(p.dekEvents, userID)
+	p.removeUserLogin(userID)
 }
 
 func (p *MentionablesProjection) setUserLogin(userID, login string) {
@@ -302,20 +306,19 @@ type MentionableAvailability struct {
 }
 
 type MentionablesModel struct {
-	projection *MentionablesProjection
-	projector  *events.Projector
+	mentionables events.ProjectionHandle[*MentionablesProjection]
 }
 
-func newMentionablesModel(projection *MentionablesProjection, projector *events.Projector) *MentionablesModel {
-	return &MentionablesModel{projection: projection, projector: projector}
+func newMentionablesModel(mentionables events.ProjectionHandle[*MentionablesProjection]) *MentionablesModel {
+	return &MentionablesModel{mentionables: mentionables}
 }
 
 func (s *MentionablesModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
-	return s.projector.WaitFor(ctx, pos)
+	return s.mentionables.Projector().WaitFor(ctx, pos)
 }
 
 func (s *MentionablesModel) Availability(handle string, allowedOwner *mentionableOwner) MentionableAvailability {
-	return s.projection.Availability(handle, allowedOwner)
+	return s.mentionables.Projection().Availability(handle, allowedOwner)
 }
 
 func normalizeMentionableHandle(handle string) string {

@@ -46,7 +46,7 @@ func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
 	})
 
 	// Body lookup is keyed by the durable event envelope id.
-	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, event.Id)
+	fetchedBody, err := core.GetMessageBody(ctx, event.Id)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
 	}

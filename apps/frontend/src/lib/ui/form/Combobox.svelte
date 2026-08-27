@@ -1,7 +1,7 @@
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
   import FormField from './FormField.svelte';
 
@@ -21,8 +21,8 @@
     disabled = false,
     loading = false,
     allowFreeform = true,
-    emptyMessage = m['ui.combobox.empty'](),
-    clearLabel = m['ui.combobox.clear'](),
+    emptyMessage = m('ui.combobox.empty'),
+    clearLabel = m('ui.combobox.clear'),
     class: className,
     item,
     ontextchange,
@@ -151,14 +151,16 @@
       aria-controls={`${id}-listbox`}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
-      class={['input pr-16', loading && 'pr-20']}
+      class={['input pe-16', loading && 'pe-20']}
       onfocus={openMenu}
       oninput={handleInput}
       onkeydown={handleKeydown}
     />
-    <div class="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
+    <div class="absolute end-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
       {#if loading}
-        <span class="iconify animate-spin text-base text-muted uil--spinner" aria-hidden="true"
+        <span
+          class="iconify icon-[uil--spinner] animate-spin text-base text-muted"
+          aria-hidden="true"
         ></span>
       {/if}
       {#if text}
@@ -170,7 +172,7 @@
           {disabled}
           onclick={clear}
         >
-          <span class="pane-header-icon-glyph iconify uil--times" aria-hidden="true"></span>
+          <span class="iconify icon-[uil--times] pane-header-icon-glyph" aria-hidden="true"></span>
         </button>
       {/if}
     </div>
@@ -192,7 +194,7 @@
           type="button"
           role="option"
           aria-selected={index === selectedIndex}
-          class={['menu-item w-full text-left', index === selectedIndex && 'menu-item-active']}
+          class={['menu-item w-full text-start', index === selectedIndex && 'menu-item-active']}
           onpointerenter={() => (selectedIndex = index)}
           onclick={() => selectOption(option)}
         >
@@ -204,7 +206,7 @@
         </button>
       {/each}
     {:else if loading}
-      <div class="px-3 py-2 text-sm text-muted">{m['ui.combobox.loading']()}</div>
+      <div class="px-3 py-2 text-sm text-muted">{m('ui.combobox.loading')}</div>
     {:else}
       <div class="px-3 py-2 text-sm text-muted">{emptyMessage}</div>
     {/if}

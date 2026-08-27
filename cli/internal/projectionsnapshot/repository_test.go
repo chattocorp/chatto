@@ -11,8 +11,8 @@ import (
 )
 
 const testSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-const testStreamIdentity = "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-const otherStreamIdentity = "evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+const testStreamIdentity = "test-application/stream-incarnation-1"
+const otherStreamIdentity = "test-application/stream-incarnation-2"
 const testContractID = "v1"
 
 func testSaveInput(seq uint64, payload []byte) SaveInput {

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
     "nav": {
       "general": "一般",
@@ -10,7 +9,8 @@
       "security": "セキュリティ",
       "event_log": "イベントログ",
       "system": "システム",
-      "back_to_server": "サーバーに戻る"
+      "back_to_server": "サーバーに戻る",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} |管理者",
@@ -122,6 +122,7 @@
       "create_role_title": "ロールの作成",
       "create_role_subtitle": "このサーバーの新しいロールを作成します",
       "create_role_action": "ロールの作成",
+      "new_role_action": "+ 新しいロール",
       "creating_role": "作成中...",
       "create_after_hint": "ロールを作成した後、編集ページでロールに権限を割り当てることができます。",
       "back_to_permissions": "権限に戻る",
@@ -142,7 +143,7 @@
       "no_users_with_role": "このロールを持つユーザーはいません",
       "server_tier_intro": "このページはサーバー層ロールの権限に関するものです。ルーム固有の上書きの前に適用される広範なデフォルトです。",
       "server_tier_rooms_hint": "グループごとおよびルームごとの上書きにはルームを使用します。",
-      "server_tier_denies_hint": "拒否は意図的に使用してください。ルーム内の全員を拒否すると、その層で継承されたすべての許可がブロックされます。"
+      "resolution_hint": "各ユーザーまたは名前付きロールには、最も近いルーム、グループ、サーバーの値が適用されます。それらの間では拒否が優先されます。許可が everyone の拒否を上書きできるのは、同じか、より限定的なスコープの場合だけです。"
     },
     "rooms_admin": {
       "title": "部屋",
@@ -160,6 +161,7 @@
       "empty_groups_body": "セットを作成してルームの整理を始めます。",
       "drag_hint": "グループ間でルームをドラッグして整理します。グループヘッダーをドラッグしてグループを並べ替えます。アーカイブされたルームはセット内に残りますが、メンバーには表示されません。",
       "drag_group": "ドラッグしてグループを並べ替えます",
+      "drag_room": "ドラッグしてルームを並べ替えます",
       "new_room": "新しい部屋",
       "new_link": "新しいリンク",
       "new_group": "新しいグループ",
@@ -174,9 +176,23 @@
       "edit_room": "編集室",
       "edit_room_action": "編集室",
       "room_description_placeholder": "このルームの説明 (オプション)",
+      "slow_mode": "低速モード",
+      "slow_mode_description": "このルームでメンバーが次のメッセージを送信するまでの待ち時間を設定します。",
+      "slow_mode_off": "オフ",
+      "slow_mode_custom": "{interval}（現在の値）",
+      "threading_mode": "スレッドモード",
+      "threading_mode_description": "必須では常にスレッドを使用し、推奨ではスレッド返信が主操作になります。有効では自由に選択でき、無効では新しいスレッド活動を禁止します。",
+      "threading_mode_required": "必須",
+      "threading_mode_required_description": "すべてのメッセージでスレッドが始まります。",
+      "threading_mode_encouraged": "推奨",
+      "threading_mode_encouraged_description": "スレッドの使用を推奨しますが、必須ではありません。",
+      "threading_mode_enabled": "有効",
+      "threading_mode_enabled_description": "スレッドは利用できますが、任意です。",
+      "threading_mode_disabled": "無効",
+      "threading_mode_disabled_description": "スレッドは利用できません。",
       "room_name_empty": "ルーム名を空にすることはできません",
       "room_name_trim": "ルーム名の先頭または末尾に空白を含めることはできません",
-      "room_name_charset": "ルーム名には文字、数字、ハイフン、アンダースコアのみを使用できます",
+      "room_name_invalid": "ルーム名に改行や制御文字を含めることはできません",
       "room_name_too_long": "ルーム名は 30 文字を超えることはできません",
       "create_group": "グループの作成",
       "group_name": "グループ名",
@@ -215,14 +231,40 @@
       "archive_room_failed": "ルームのアーカイブに失敗しました: {error}",
       "unarchive_room_failed": "ルームのアーカイブを解除できませんでした: {error}",
       "save_link_failed": "リンクの保存に失敗しました: {error}",
-      "delete_link_failed": "リンクの削除に失敗しました: {error}"
+      "delete_link_failed": "リンクの削除に失敗しました: {error}",
+      "universal_members_description": "ユニバーサルルームのメンバーシップは自動です。このルームへのアクセス権限を持つ全員が含まれます。",
+      "archived_members_description": "このルームがアーカイブされている間はメンバーシップを変更できません。",
+      "add_member": "メンバーを追加",
+      "adding_member": "メンバーを追加中...",
+      "load_members_failed": "ルームメンバーの読み込みに失敗しました: {error}",
+      "remove_member": "メンバーを削除",
+      "remove_member_prompt": "{name}を{room}から削除しますか？このルームの明示的なメンバーではなくなります。",
+      "member_added": "{name}をルームに追加しました",
+      "add_member_failed": "メンバーの追加に失敗しました: {error}",
+      "member_removed": "{name}をルームから削除しました",
+      "remove_member_failed": "メンバーの削除に失敗しました: {error}"
     },
     "security": {
       "title": "セキュリティ",
       "subtitle": "サインアップ制限とアカウント保護",
       "blocked_usernames": "ブロックされたユーザー名",
       "blocked_usernames_description": "1 行に 1 つ。ユーザーはこれらの名前で登録することはできません。",
-      "settings_saved": "設定を保存しました"
+      "settings_saved": "設定を保存しました",
+      "oauth_clients": {
+        "title": "OAuth クライアント",
+        "description": "メンバーが承認したアプリケーションがここに表示されます。信頼は管理上のラベルであり、個別の同意を省略するものではありません。ブロックすると新しいアクセスを防ぎ、既存のアクセストークンを取り消します。",
+        "empty": "承認された OAuth クライアントはありません",
+        "application": "アプリケーション",
+        "origins": "コールバックオリジン",
+        "users": "承認済みユーザー",
+        "last_authorization": "最終認可",
+        "policy": "ポリシー",
+        "policy_for": "{client} のポリシー",
+        "policy_default": "デフォルト",
+        "policy_trusted": "信頼済み",
+        "policy_blocked": "ブロック済み",
+        "policy_saved": "OAuth クライアントのポリシーを保存しました"
+      }
     },
     "system": {
       "title": "システム",
@@ -235,6 +277,7 @@
       "unlimited": "無制限",
       "all_subjects": "すべての科目",
       "pending_state": "保留中",
+      "worker_unconfirmed": "未確認",
       "rtt": "RTT",
       "max_payload": "最大ペイロード",
       "server_id": "サーバーID",
@@ -374,6 +417,39 @@
       "email": "メール",
       "id": "ID",
       "total": "{count} ユーザーの合計"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

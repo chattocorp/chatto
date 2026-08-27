@@ -28,12 +28,12 @@ handles viewport-clamped positioning.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import FloatingPopover from './FloatingPopover.svelte';
 
   let {
     children,
-    label = m['ui.tooltip.more_information']()
+    label = m('ui.tooltip.more_information')
   }: {
     children: Snippet;
     /** aria-label for the trigger button. */
@@ -118,7 +118,7 @@ handles viewport-clamped positioning.
   onblur={hideHover}
   onclick={toggle}
 >
-  <span class="iconify text-base uil--info-circle" aria-hidden="true"></span>
+  <span class="iconify icon-[uil--info-circle] text-base" aria-hidden="true"></span>
 </button>
 
 {#if open && anchorRect}

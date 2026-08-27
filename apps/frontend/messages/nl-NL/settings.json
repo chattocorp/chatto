@@ -1,13 +1,21 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "settings": {
     "nav": {
       "title": "Instellingen",
       "back_to_server": "Terug naar server",
       "profile": "Profiel",
-      "display": "Weergave",
+      "display": "Voorkeuren",
       "notifications": "Meldingen",
-      "account": "Account"
+      "account": "Account",
+      "bots": "Bots",
+      "user_preferences": "Gebruikersvoorkeuren",
+      "server_configuration": "Serverconfiguratie"
+    },
+    "app_preferences": {
+      "title": "Appvoorkeuren",
+      "subtitle": "Keuzes van deze app die gelden voor al je geregistreerde servers",
+      "appearance": { "title": "Weergave" },
+      "composer": { "title": "Berichten opstellen" }
     },
     "profile": {
       "title": "Profiel",
@@ -105,8 +113,9 @@
       "save_button": "Wijzigingen opslaan"
     },
     "preferences": {
-      "title": "Weergave",
-      "subtitle": "Kies hoe Chatto wordt weergegeven",
+      "title": "Tijd en regio",
+      "subtitle": "Kies hoe deze server datums en tijden voor je weergeeft",
+      "browser_scope": "Deze keuze geldt voor alle Chatto-servers in deze browser.",
       "theme": {
         "title": "Thema",
         "system": {
@@ -120,6 +129,28 @@
         "dark": {
           "label": "Donker",
           "description": "Gebruik de donkere interface in deze browser"
+        }
+      },
+      "editor": {
+        "title": "Berichteneditor",
+        "visual": {
+          "label": "Visueel",
+          "description": "Maak berichten op zonder Markdown-syntaxis te zien"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Bewerk Markdown-broncode met syntaxismarkering"
+        }
+      },
+      "send_mode": {
+        "title": "Berichten verzenden met",
+        "enter": {
+          "label": "Return",
+          "description": "Return verzendt; Cmd/Ctrl+Return voert de normale Return-actie van de editor uit"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return verzendt; Return voert de normale actie van de editor uit"
         }
       },
       "language": {
@@ -153,9 +184,9 @@
           "description": "bijvoorbeeld 14:30"
         }
       },
-      "save_button": "Weergave-instellingen opslaan",
-      "saved": "Weergave-instellingen opgeslagen",
-      "save_failed": "Kan weergave-instellingen niet opslaan"
+      "save_button": "Tijdinstellingen opslaan",
+      "saved": "Tijdinstellingen opgeslagen",
+      "save_failed": "Tijdinstellingen konden niet worden opgeslagen"
     },
     "notifications": {
       "title": "Meldingen",
@@ -180,9 +211,7 @@
         "enabling": "Aanzetten...",
         "blocked_error": "Pushmeldingen worden geblokkeerd in uw browser- of besturingssysteeminstellingen.",
         "enable_failed": "Kan pushmeldingen niet inschakelen. Probeer het opnieuw.",
-        "enable_error": "Er is een fout opgetreden bij het inschakelen van pushmeldingen",
-        "remote_title": "Native push is niet beschikbaar voor externe servers",
-        "remote_description": "Deze geïnstalleerde app kan alleen browser-pushmeldingen registreren bij de server die deze heeft aangeboden. In-app-meldingsbadges en -geluiden werken nog steeds voor deze server terwijl Chatto open is."
+        "enable_error": "Er is een fout opgetreden bij het inschakelen van pushmeldingen"
       },
       "push_prompt": {
         "title": "Schakel pushmeldingen in",
@@ -195,35 +224,6 @@
         "enabling": "Aanzetten...",
         "enable": "Inschakelen",
         "dismiss": "Nee bedankt"
-      },
-      "levels": {
-        "loading": "Laden...",
-        "load_failed": "Kan meldingsvoorkeuren niet laden",
-        "server_updated": "Servermeldingsniveau bijgewerkt",
-        "room_updated": "Meldingsniveau voor ruimte bijgewerkt",
-        "update_failed": "Updaten is mislukt",
-        "server_title": "Servermeldingsniveau",
-        "server_description": "Bepaalt hoe u meldingen ontvangt voor alle kamers op deze server. Individuele kamers kunnen deze instelling overschrijven.",
-        "room_title": "Kameroverschrijvingen",
-        "room_description": "Negeer de instelling op serverniveau voor individuele kamers. Kamers die zijn ingesteld op \"Standaard\" nemen de serverinstelling over ({level}).",
-        "room_level_label": "Meldingsniveau voor #{room}",
-        "effective": "Van kracht: {level}",
-        "default": {
-          "label": "Standaard",
-          "description": "Gebruik de overgenomen standaard"
-        },
-        "muted": {
-          "label": "Gedempt",
-          "description": "Geen meldingen of ongelezen markeringen"
-        },
-        "normal": {
-          "label": "Normaal",
-          "description": "Ongelezen markeringen + vermeldingen, DM's en threadantwoorden"
-        },
-        "all_messages": {
-          "label": "Alle berichten",
-          "description": "Normaal + notificatie voor elk nieuw bericht"
-        }
       },
       "sound": {
         "title": "Meldingsgeluid",
@@ -273,6 +273,50 @@
           "siren": "Alarmsirene",
           "dubstep": "Dubstep-drop",
           "circus": "Circus"
+        }
+      },
+      "policy": {
+        "title": "Meldingsbeleid",
+        "description": "Kies hoe elke activiteit je waarschuwt op server-, kamergroep- en kamerniveau. Kamers nemen de instelling over van hun groep en daarna van de server.",
+        "load_failed": "Meldingsbeleid kon niet worden geladen",
+        "save_failed": "Meldingsbeleid kon niet worden opgeslagen",
+        "effective": "Effectief: {mode}",
+        "filter_label": "Meldingsbereiken filteren",
+        "filter_placeholder": "Groepen en kamers filteren…",
+        "no_filter_matches": "Geen meldingsbereiken komen overeen met dit filter.",
+        "legend": "Bezorgmodi voor meldingen",
+        "cell_aria": "{cause}, {scope}. Overschrijving: {override}. Effectief: {effective}. Activeer om {next} in te stellen.",
+        "server_default_cell_aria": "{cause}, {scope}. Standaard: {current}. Activeer om {next} in te stellen.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Niet van toepassing.",
+        "delivery_mode": {
+          "inherit": "Overnemen",
+          "off": "Uit",
+          "notification": "Melding",
+          "push_notification": "Pushmelding"
+        },
+        "reason": {
+          "direct_message": "Directe berichten",
+          "direct_mention": "Directe vermeldingen",
+          "reply": "Antwoorden op je berichten",
+          "role_mention": "Rolvermeldingen",
+          "here": "@here-vermeldingen",
+          "all": "@all-vermeldingen",
+          "followed_thread": "Gevolgde threads",
+          "followed_room": "Gevolgde ruimtes",
+          "reaction": "Reacties op je berichten",
+          "activity": "Activiteit",
+          "room_invitation": "Uitnodigingen voor ruimtes"
+        },
+        "reason_hint": {
+          "direct_message": "Berichten die andere leden in privégesprekken sturen.",
+          "direct_mention": "Berichten waarin je gebruikersnaam rechtstreeks wordt vermeld.",
+          "reply": "Berichten die op een van je berichten antwoorden.",
+          "role_mention": "Berichten waarin een aan jou toegewezen rol wordt vermeld.",
+          "here": "Berichten met @here wanneer je aanwezigheidsstatus niet offline is.",
+          "all": "Berichten met @all in een ruimte waarvan je lid bent.",
+          "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
+          "followed_room": "Berichten buiten threads in ruimtes die je volgt.",
+          "reaction": "Reacties die andere leden aan je berichten toevoegen."
         }
       }
     },
@@ -350,6 +394,52 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Annuleren",
         "deleting": "Verwijderen..."
+      }
+    },
+    "bots": {
+      "title": "Bots",
+      "subtitle": "Maak API-accounts en beheer precies wat ze kunnen doen",
+      "singular": "bot",
+      "unsupported": "Deze serverversie ondersteunt geen botaccounts.",
+      "list_title": "Bot-accounts",
+      "loading": "Bots laden...",
+      "empty_title": "Nog geen bots",
+      "empty_body": "Maak een bot wanneer een integratie een eigen identiteit en rechten nodig heeft.",
+      "create_permission_required": "Je kunt bestaande bots beheren, maar je hebt geen toestemming om een nieuwe te maken.",
+      "create": "Bot maken",
+      "create_title": "Bot-account maken",
+      "create_failed": "Kan geen bot maken",
+      "created": "Bot gemaakt",
+      "edit": "Bewerken",
+      "edit_title": "Bot-account bewerken",
+      "updated": "Bot bijgewerkt",
+      "update_failed": "Kan bot niet updaten",
+      "update_conflict": "Iemand anders heeft deze bot bijgewerkt. Laad de pagina opnieuw en probeer het nog eens.",
+      "username": "Gebruikersnaam",
+      "username_hint": "Bot-gebruikersnamen moeten eindigen op _bot.",
+      "display_name": "Weergavenaam",
+      "owner": "Eigenaar",
+      "reassign_owner": "Eigenaar opnieuw toewijzen",
+      "reassign_owner_warning": "De API-sleutel en ingestelde rechten van de bot blijven ongewijzigd. Effectieve rechten volgen onmiddellijk de nieuwe eigenaar.",
+      "owner_reassigned": "Bot-eigenaar opnieuw toegewezen",
+      "owner_reassign_failed": "Bot-eigenaar kon niet opnieuw worden toegewezen",
+      "api_key_title": "Bewaar deze API-sleutel",
+      "api_key_warning": "Deze sleutel wordt slechts één keer weergegeven. Bewaar het op een veilige plek voordat u dit venster sluit.",
+      "key_created": "API-sleutel gemaakt",
+      "key_rotated_at": "Laatst geroteerd",
+      "key_copied": "API-sleutel gekopieerd",
+      "rotate_key": "Sleutel draaien",
+      "rotate_title": "API-sleutel roteren",
+      "rotate_warning": "De huidige sleutel werkt onmiddellijk niet meer. Elke integratie die hiervan gebruik maakt, moet worden bijgewerkt.",
+      "key_rotated": "API-sleutel geroteerd",
+      "rotate_failed": "Kan de API-sleutel niet roteren",
+      "delete_title": "Bot verwijderen",
+      "delete_warning": "{name} verwijderen? De API-sleutel werkt onmiddellijk niet meer en het account kan niet worden hersteld.",
+      "deleted": "Bot verwijderd",
+      "delete_failed": "Kan bot niet verwijderen",
+      "permissions": {
+        "owner_ceiling": "Kies wat deze bot mag doen. Je kunt alleen rechten geven die je zelf hebt. Als je een recht verliest, kan de bot het ook niet meer gebruiken.",
+        "save_failed": "Kan de botrechten niet bijwerken"
       }
     }
   }

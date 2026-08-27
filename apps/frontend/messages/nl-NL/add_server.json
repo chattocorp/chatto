@@ -1,8 +1,7 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "add_server": {
     "title": "Server toevoegen",
-  "sign_in": "Inloggen",
+    "sign_in": "Inloggen",
     "connect": "Verbinding maken",
     "redirecting": "Wachten op aanmelden...",
     "connecting": "Verbinden...",
@@ -12,7 +11,7 @@
     "not_chatto_server": "Dit lijkt geen Chatto-server te zijn.",
     "oauth_unsupported": "Deze server ondersteunt geen OAuth-authenticatie. Mogelijk moet het worden bijgewerkt.",
     "connection_timed_out": "Er is een time-out opgetreden voor de verbinding. Controleer de URL en probeer het opnieuw.",
-    "connection_failed": "Kan geen verbinding maken. Controleer de URL en zorg ervoor dat CORS is geconfigureerd.",
+    "connection_failed": "Kan geen verbinding maken. Controleer de URL en probeer het opnieuw.",
     "connect_failed": "Kan geen verbinding maken.",
     "edit_url": "Verkeerde server? Bewerk URL",
     "description_url": "Chatto wordt gedistribueerd - uw client maakt rechtstreeks verbinding met elke server. Voer een URL in om nog een toe te voegen.",

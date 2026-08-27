@@ -6,7 +6,7 @@
  *
  * @param options.onDrop - Called with File[] when valid files are dropped
  * @param options.onDragStateChange - Called with boolean when drag enters/leaves
- * @param options.acceptedTypes - MIME types to accept (default: ['image/*'])
+ * @param options.acceptedTypes - MIME types to accept. Omit to accept all files.
  */
 export function dropZone(options: {
   onDrop: (files: File[]) => void;
@@ -14,7 +14,7 @@ export function dropZone(options: {
   acceptedTypes?: string[];
 }) {
   return (element: HTMLElement) => {
-    const acceptedTypes = options.acceptedTypes ?? ['image/*'];
+    const acceptedTypes = options.acceptedTypes;
 
     // Counter to handle nested elements triggering enter/leave
     let dragCounter = 0;
@@ -72,7 +72,9 @@ export function dropZone(options: {
       options.onDragStateChange?.(false);
 
       const files = Array.from(e.dataTransfer?.files ?? []);
-      const validFiles = files.filter((f) => matchesMimeType(f, acceptedTypes));
+      const validFiles = acceptedTypes
+        ? files.filter((file) => matchesMimeType(file, acceptedTypes))
+        : files;
 
       if (validFiles.length > 0) {
         options.onDrop(validFiles);

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Io misfunkciis",
     "description": "Ĉi tiu vido ne povis esti malfermita. Vi povas reveni al Chatto kaj provi denove de tie.",

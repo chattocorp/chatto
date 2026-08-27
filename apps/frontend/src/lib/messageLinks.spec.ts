@@ -225,7 +225,7 @@ describe('classifyMessageBodyChatLink', () => {
       `${origin}/chat/-/settings`,
       `${origin}/chat/-/overview`,
       `${origin}/chat/-/threads`,
-      `${origin}/chat/-/server-admin/general`,
+      `${origin}/chat/-/manage/server/general`,
       `${origin}/chat/notifications`,
       `${origin}/login`
     ];

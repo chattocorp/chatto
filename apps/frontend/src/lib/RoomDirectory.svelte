@@ -7,29 +7,24 @@ are compact rows with a join / joined / restricted indicator. The
 header carries a "Join all" affordance when there's at least one
 joinable, non-joined room left in the group.
 
-Both stores are passed in as props — the active server's `directory`
-(`RoomDirectoryStore`) owns the all-rooms listing and optimistic
-join/leave state, and the active server's `roomsStore` (`RoomsStore`)
-supplies the joined-membership set. Explicit props keep the component
-testable without context stubs and decoupled from the multi-server
-registry.
+The active server's command store is passed as a prop. Directory rows and
+membership are read through its projection-backed navigation view, while the
+store owns only optimistic join/leave state.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
-  import type { RoomsStore } from '$lib/state/server/rooms.svelte';
+  import { Panel } from '$lib/components/admin';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 
   let {
     directory,
-    roomsStore,
     serverSegment
   }: {
     directory: RoomDirectoryStore;
-    roomsStore: RoomsStore;
     serverSegment: string;
   } = $props();
 
@@ -39,10 +34,7 @@ registry.
 
   // --- Derived data ---
 
-  const joinedRoomIds = $derived(
-    new Set(roomsStore.rooms.filter((r) => r.viewerIsMember).map((r) => r.id))
-  );
-  const roomGroups = $derived(roomsStore.roomGroups);
+  const roomGroups = $derived(directory.roomGroups);
   const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
 
   function matchesSearch(room: DirectoryRoom): boolean {
@@ -81,11 +73,11 @@ registry.
     if (result.ok) {
       toast.success(
         result.room
-          ? m['room.join.success']({ room: result.room.name })
-          : m['room.join.success_generic']()
+          ? m('room.join.success', { room: result.room.name })
+          : m('room.join.success_generic')
       );
     } else {
-      toast.error(m['room.join.failed']());
+      toast.error(m('room.join.failed'));
       console.error('Error joining room:', result.error);
     }
   }
@@ -94,19 +86,19 @@ registry.
     const result = await directory.joinGroup(group.id);
     if (result.ok) {
       if (result.joinedRoomIds.length === 0) {
-        toast.success(m['room.directory.already_in_group']({ group: group.name }));
+        toast.success(m('room.directory.already_in_group', { group: group.name }));
       } else {
         toast.success(
           result.joinedRoomIds.length === 1
-            ? m['room.directory.joined_group_one']({ group: group.name })
-            : m['room.directory.joined_group_many']({
+            ? m('room.directory.joined_group_one', { group: group.name })
+            : m('room.directory.joined_group_many', {
                 count: result.joinedRoomIds.length,
                 group: group.name
               })
         );
       }
     } else {
-      toast.error(m['room.directory.join_group_failed']());
+      toast.error(m('room.directory.join_group_failed'));
       console.error('Error joining group:', result.error);
     }
   }
@@ -118,7 +110,7 @@ registry.
       (r) =>
         r.viewerCanJoinRoom &&
         !r.isUniversal &&
-        !directory.isJoined(r.id, joinedRoomIds) &&
+        !directory.isJoined(r.id) &&
         !directory.joiningIds.has(r.id)
     );
   }
@@ -169,18 +161,18 @@ registry.
     if (result.ok) {
       toast.success(
         result.room
-          ? m['room.directory.left']({ room: result.room.name })
-          : m['room.directory.left_generic']()
+          ? m('room.directory.left', { room: result.room.name })
+          : m('room.directory.left_generic')
       );
     } else {
-      toast.error(m['room.leave.failed']());
+      toast.error(m('room.leave.failed'));
       console.error('Error leaving room:', result.error);
     }
   }
 </script>
 
 {#snippet roomRow(room: DirectoryRoom)}
-  {@const joined = directory.isJoined(room.id, joinedRoomIds)}
+  {@const joined = directory.isJoined(room.id)}
   {@const joining = directory.joiningIds.has(room.id)}
   {@const leaving = directory.leavingIds.has(room.id)}
   <!--
@@ -211,11 +203,7 @@ registry.
     serverId: serverSegment,
     roomId: room.id
   })}
-  <li
-    class="flex items-center gap-3 rounded px-3 py-1.5 transition-colors {joined
-      ? 'hover:bg-surface-emphasized'
-      : ''}"
-  >
+  <li class="flex items-center gap-3 selectable-list-item px-3 py-1.5">
     {#snippet roomLabel()}
       <div class="flex min-w-0 items-start gap-2 font-medium">
         <span class="mt-0.5 shrink-0 text-muted/60">#</span>
@@ -240,9 +228,9 @@ registry.
     {/if}
 
     {#if joined && room.isUniversal}
-      <span class={universalSoft} title={m['room.directory.universal_title']()}>
-        <span class="iconify uil--globe"></span>
-        {m['room.directory.universal']()}
+      <span class={universalSoft} title={m('room.directory.universal_title')}>
+        <span class="iconify icon-[uil--globe]"></span>
+        {m('room.directory.universal')}
       </span>
     {:else if joined}
       <button
@@ -250,32 +238,32 @@ registry.
         class="group {joinedGhost}"
         onclick={() => promptLeaveRoom(room)}
         disabled={leaving}
-        title={m['room.directory.joined_title']({ room: room.name })}
+        title={m('room.directory.joined_title', { room: room.name })}
       >
         {#if leaving}
-          <span class="iconify animate-spin uil--spinner"></span>
-          {m['room.directory.leaving']()}
+          <span class="iconify icon-[uil--spinner] animate-spin"></span>
+          {m('room.directory.leaving')}
         {:else}
-          <span class="iconify uil--check group-hover:hidden"></span>
-          <span class="iconify hidden uil--sign-out-alt group-hover:inline"></span>
-          <span class="group-hover:hidden">{m['room.directory.joined']()}</span>
-          <span class="hidden group-hover:inline">{m['room.directory.leave']()}</span>
+          <span class="iconify icon-[uil--check] group-hover:hidden"></span>
+          <span class="iconify icon-[uil--sign-out-alt] hidden group-hover:inline"></span>
+          <span class="group-hover:hidden">{m('room.directory.joined')}</span>
+          <span class="hidden group-hover:inline">{m('room.directory.leave')}</span>
         {/if}
       </button>
     {:else if joining}
       <button type="button" class={primarySolid} disabled>
-        <span class="iconify animate-spin uil--spinner"></span>
-        {m['room.directory.joining']()}
+        <span class="iconify icon-[uil--spinner] animate-spin"></span>
+        {m('room.directory.joining')}
       </button>
     {:else if room.viewerCanJoinRoom}
       <button type="button" class={primarySolid} onclick={() => handleJoin(room.id)}>
-        <span class="iconify uil--plus"></span>
-        {m['room.directory.join']()}
+        <span class="iconify icon-[uil--plus]"></span>
+        {m('room.directory.join')}
       </button>
     {:else}
-      <span class={restrictedSoft} title={m['room.directory.restricted_title']()}>
-        <span class="iconify uil--lock"></span>
-        {m['room.directory.restricted']()}
+      <span class={restrictedSoft} title={m('room.directory.restricted_title')}>
+        <span class="iconify icon-[uil--lock]"></span>
+        {m('room.directory.restricted')}
       </span>
     {/if}
   </li>
@@ -284,54 +272,53 @@ registry.
 {#snippet groupCard(set: { id: string; name: string; roomIds: string[] }, rooms: DirectoryRoom[])}
   {@const joining = directory.joiningGroupIds.has(set.id)}
   {@const canJoinAll = canJoinAllInGroup(rooms)}
-  <div {@attach masonryItem} class="self-start overflow-hidden panel-shell">
-    <div class="flex items-center justify-between gap-4 border-b border-border p-4">
-      <h2 class="truncate text-lg font-semibold">{set.name}</h2>
-      {#if canJoinAll || joining}
-        <!-- Matches the per-row primary buttons: w-28 so the card's
-             header action lines up vertically with Join / Joined. -->
-        <button
-          type="button"
-          class="btn-action btn w-28 shrink-0 justify-center border border-transparent btn-sm transition-none"
-          onclick={() => handleJoinGroup(set)}
-          disabled={joining}
-        >
-          {#if joining}
-            <span class="iconify animate-spin uil--spinner"></span>
-            {m['room.directory.joining']()}
-          {:else}
-            <span class="iconify uil--plus-circle"></span>
-            {m['room.directory.join_all']()}
-          {/if}
-        </button>
-      {/if}
-    </div>
-    <!--
-      Horizontal inset (`px-1` + the menu-item's own `px-3` = 16px)
-      matches the header's `p-4` so the per-row buttons line up with
-      the "Join all" action above.
-    -->
-    <ul class="flex flex-col gap-0.5 px-1 py-2">
-      {#each rooms as room (room.id)}
-        {@render roomRow(room)}
-      {/each}
-    </ul>
+  <div {@attach masonryItem} class="self-start">
+    <Panel title={set.name} noPadding>
+      {#snippet actions()}
+        {#if canJoinAll || joining}
+          <!-- Matches the per-row primary buttons: w-28 so the card's
+               header action lines up vertically with Join / Joined. -->
+          <button
+            type="button"
+            class="btn-action btn w-28 shrink-0 justify-center border border-transparent btn-sm transition-none"
+            onclick={() => handleJoinGroup(set)}
+            disabled={joining}
+          >
+            {#if joining}
+              <span class="iconify icon-[uil--spinner] animate-spin"></span>
+              {m('room.directory.joining')}
+            {:else}
+              <span class="iconify icon-[uil--plus-circle]"></span>
+              {m('room.directory.join_all')}
+            {/if}
+          </button>
+        {/if}
+      {/snippet}
+
+      <!-- Horizontal inset (`px-1` + the menu-item's own `px-3` = 16px)
+           keeps per-row actions aligned within the shared panel inset. -->
+      <ul class="selectable-list py-2">
+        {#each rooms as room (room.id)}
+          {@render roomRow(room)}
+        {/each}
+      </ul>
+    </Panel>
   </div>
 {/snippet}
 
 <div class="mb-6">
   <input
     type="text"
-    placeholder={m['room.directory.search_placeholder']()}
+    placeholder={m('room.directory.search_placeholder')}
     bind:value={searchQuery}
     class="input w-full"
   />
 </div>
 
 {#if visibleRooms.length === 0}
-  <p class="text-muted">{m['room.directory.empty']()}</p>
+  <p class="text-muted">{m('room.directory.empty')}</p>
 {:else if !hasVisibleResults}
-  <p class="text-muted">{m['room.directory.no_results']()}</p>
+  <p class="text-muted">{m('room.directory.no_results')}</p>
 {:else if hasLayout}
   <!-- Row-major masonry via JS row-spans. Each card is measured by the
        `masonryItem` attachment, which sets `grid-row: span N` to fit
@@ -352,21 +339,21 @@ registry.
     style="grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); grid-auto-rows: 8px; grid-auto-flow: row dense;"
   >
     {@render groupCard(
-      { id: 'all', name: m['common.rooms'](), roomIds: filteredRooms.map((r) => r.id) },
+      { id: 'all', name: m('common.rooms'), roomIds: filteredRooms.map((r) => r.id) },
       filteredRooms
     )}
   </div>
 {/if}
 
-<Dialog bind:visible={leaveConfirmVisible} title={m['room.leave.title']()} size="sm">
+<Dialog bind:visible={leaveConfirmVisible} title={m('room.leave.title')} size="sm">
   <p class="mb-4">
-    {m['room.directory.leave_confirm']({ room: leaveConfirmRoom?.name ?? '' })}
+    {m('room.directory.leave_confirm', { room: leaveConfirmRoom?.name ?? '' })}
   </p>
 
   <div class="flex items-center gap-3">
-    <Button variant="danger" onclick={confirmLeaveRoom}>{m['room.leave.action']()}</Button>
+    <Button defaultAction variant="danger" onclick={confirmLeaveRoom}>{m('room.leave.action')}</Button>
     <Button variant="ghost" onclick={() => (leaveConfirmVisible = false)}>
-      {m['common.cancel']()}
+      {m('common.cancel')}
     </Button>
   </div>
 </Dialog>

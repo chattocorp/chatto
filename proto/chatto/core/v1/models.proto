@@ -17,6 +17,17 @@ enum RoomKind {
   ROOM_KIND_DM = 2;
 }
 
+// RoomThreadingMode controls thread creation and reply placement for channel
+// rooms. Historical channel events with UNSPECIFIED are interpreted as ENABLED.
+// Direct-message rooms remain UNSPECIFIED because they do not support threads.
+enum RoomThreadingMode {
+  ROOM_THREADING_MODE_UNSPECIFIED = 0;
+  ROOM_THREADING_MODE_REQUIRED = 1;
+  ROOM_THREADING_MODE_ENCOURAGED = 2;
+  ROOM_THREADING_MODE_ENABLED = 3;
+  ROOM_THREADING_MODE_DISABLED = 4;
+}
+
 // Room represents a chat room on the server.
 // For channel rooms, group_id MUST point to a RoomGroup; DM rooms leave it empty.
 message Room {
@@ -46,6 +57,12 @@ message Room {
   // who is currently eligible to join the room. Explicit memberships are
   // preserved separately so disabling universal restores the previous state.
   bool universal = 9;
+  // Minimum number of seconds a non-exempt member must wait between original
+  // message posts. Channel rooms only; zero disables slow mode.
+  uint32 slow_mode_seconds = 10;
+  // Thread policy for channel rooms. See RoomThreadingMode for legacy and DM
+  // normalization rules.
+  RoomThreadingMode threading_mode = 11;
 }
 
 // User represents a user account
@@ -57,6 +74,11 @@ message User {
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
   bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
   CustomUserStatus custom_status = 6; // Optional durable user-authored status, hidden after expires_at.
+  // True for an automated bot identity. False for human accounts, including
+  // historical accounts created before bot identities existed.
+  bool is_bot = 7;
+  // Human owner of this bot. Empty for human accounts.
+  string bot_owner_user_id = 8;
 }
 
 // CustomUserStatus is a durable, public user-authored status that is
@@ -86,9 +108,9 @@ message AuditRequestMetadata {
   string ip_hash = 2;
 }
 
-// CookieSession is the server-side runtime-state record for the embedded SPA's
-// HTTP cookie session. The raw session ID is never stored in this payload; it is
-// represented only by the HMAC-derived RUNTIME_STATE key.
+// CookieSession describes a validated embedded-SPA cookie credential. The
+// authoritative stored value is a typed runtime credential; its opaque handle
+// is not exposed in this normalized view.
 message CookieSession {
   string user_id = 1;
   google.protobuf.Timestamp created_at = 2;

@@ -143,17 +143,3 @@ func EventPresenceChanged(event EventEnvelope) *corev1.PresenceChangedEvent {
 	}
 	return event.LiveEvent().GetPresenceChanged()
 }
-
-func EventMentionNotification(event EventEnvelope) *corev1.MentionNotificationEvent {
-	if event == nil || event.LiveEvent() == nil {
-		return nil
-	}
-	return event.LiveEvent().GetMentionNotification()
-}
-
-func EventNotificationCreated(event EventEnvelope) *corev1.NotificationCreatedEvent {
-	if event == nil || event.LiveEvent() == nil {
-		return nil
-	}
-	return event.LiveEvent().GetNotificationCreated()
-}

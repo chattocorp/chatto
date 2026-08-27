@@ -1,26 +1,9 @@
-import { useRenderData } from '$lib/render/data';
-import {
-  RoomEventViewDocument,
-  type RoomEventView
-} from '$lib/render/types';
-import type { RenderType } from '$lib/render/data';
+import type { TimelineEventView } from '$lib/render/timelineEvents';
 
-export type RawEvent = RenderType<typeof RoomEventViewDocument>;
-
-export type EventConnectionPage = {
-  events: readonly RawEvent[];
-  startCursor?: string | null;
-  endCursor?: string | null;
-  hasOlder: boolean;
-  hasNewer: boolean;
-};
-
-export function unmask(raw: readonly RawEvent[]): RoomEventView[] {
-  return raw
-    .map((e) => useRenderData(RoomEventViewDocument, e))
-    .filter((e): e is RoomEventView => e !== null);
+export function unmask(events: readonly TimelineEventView[]): TimelineEventView[] {
+  return events.filter((event): event is TimelineEventView => event !== null);
 }
 
-export function getActorId(actor: RoomEventView['actor']): string | undefined {
+export function getActorId(actor: TimelineEventView['actor']): string | undefined {
   return actor ? (actor as { id?: string }).id : undefined;
 }

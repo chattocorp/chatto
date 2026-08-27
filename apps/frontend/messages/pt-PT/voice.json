@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Ligar...",
     "joining": "Entrando...",
@@ -11,6 +10,15 @@
     "leave": "Sair da chamada",
     "share_screen": "Partilhar ecrã",
     "stop_share_screen": "Parar de partilhar ecrã",
+    "applications": "Aplicações",
+    "entire_screen": "Ecrã inteiro",
+    "share_source": "Fonte da partilha",
+    "main_display": "Ecrã principal",
+    "display_number": "Ecrã {number}",
+    "video_only": "Apenas vídeo",
+    "share_sources_failed": "Não foi possível carregar as fontes partilháveis.",
+    "no_share_windows": "Não foram encontradas janelas de aplicações partilháveis.",
+    "no_share_displays": "Não foram encontrados ecrãs.",
     "user_settings": "Definições do utilizador",
     "speaking": "Falando",
     "muted": "Silenciado",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Não foi possível iniciar a partilha de ecrã.",
     "speaker_switch_failed": "Não foi possível trocar os altifalantes. Este navegador ou dispositivo pode não suportar a seleção de colunas.",
     "device_switch_failed": "Não foi possível mudar para este dispositivo.",
-    "media_device_failed": "Não foi possível aceder a um dispositivo de multimédia."
+    "media_device_failed": "Não foi possível aceder a um dispositivo de multimédia.",
+    "stream_game": "Transmitir um jogo",
+    "stream_game_description": "Escolhe a janela do jogo que queres partilhar com todos na chamada.",
+    "game_windows": "Janelas de jogos",
+    "no_game_windows": "Não foram encontradas janelas partilháveis. Abre um jogo no modo de janela ou sem margens e tenta novamente.",
+    "game_windows_failed": "Não foi possível carregar as janelas partilháveis.",
+    "untitled_window": "Janela sem título",
+    "game_window_selected": "{name} selecionado"
   }
 }

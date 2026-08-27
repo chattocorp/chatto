@@ -136,7 +136,7 @@ func ResetChattoJetStream(t testing.TB, nc *nats.Conn) {
 		}
 	}
 
-	for _, stream := range []string{"EVT"} {
+	for _, stream := range []string{"EVT", "NOTIFICATIONS"} {
 		if err := js.DeleteStream(ctx, stream); err != nil && !errors.Is(err, jetstream.ErrStreamNotFound) {
 			t.Fatalf("delete stream %s: %v", stream, err)
 		}

@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "ファイルを添付",
     "send": "メッセージを送信",
-    "send_enter": "メッセージを送信（Enter）",
-    "send_ctrl_enter": "メッセージを送信 (Ctrl/Cmd+Enter)",
+    "send_label": "送信",
     "also_send_to_channel": "チャンネルにも送信します",
+    "post_as_thread": "スレッドとして投稿",
+    "thread_label": "スレッド",
+    "echo_label": "エコー",
     "replying_to": "返信中",
     "esc_to_cancel": "キャンセルします",
     "editing": "メッセージを編集中",
@@ -21,7 +22,23 @@
     "drop_files_title": "ここにファイルをドロップします",
     "drop_files_subtitle": "画像と動画がメッセージに追加されます",
     "send_failed": "メッセージの送信に失敗しました",
+    "slow_mode_ready": "低速モード：{interval}ごとに1件のメッセージ。",
+    "slow_mode_waiting": "低速モード：あと{countdown}で再送信できます。",
+    "slow_mode_bypassed": "低速モード：{interval}（あなたは対象外です）。",
+    "slow_mode_rejected": "低速モードが有効です。次のメッセージを送信するまでお待ちください。",
+    "threads_encouraged": "このルームではスレッドの使用が推奨されています。",
+    "recent_thread_confirm_title": "前のスレッドを続けますか？",
+    "recent_thread_confirm_body": "前のメッセージにはすでにスレッドがあります。このメッセージをどこに投稿しますか？",
+    "post_as_new_message": "新しいメッセージとして投稿",
+    "continue_in_thread": "スレッドで続ける",
     "edit_failed": "メッセージの編集に失敗しました",
+    "upload": {
+      "preparing": "準備中…",
+      "uploading": "アップロード済み {percentage}%",
+      "uploaded": "アップロード済み",
+      "failed": "アップロードに失敗しました",
+      "remove": "{filename}を削除"
+    },
     "format": {
       "bold": "太字",
       "italic": "斜体",
@@ -30,7 +47,9 @@
       "bullet_list": "箇条書きリスト",
       "ordered_list": "番号付きリスト",
       "blockquote": "引用",
-      "code_block": "コードブロック"
+      "code_block": "コードブロック",
+      "outdent": "インデントを減らす",
+      "indent": "インデントを増やす"
     },
     "timestamp": {
       "title": "タイムスタンプを挿入",

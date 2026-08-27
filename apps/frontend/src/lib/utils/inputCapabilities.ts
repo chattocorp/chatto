@@ -6,7 +6,7 @@ function mediaMatches(query: string): boolean {
 /**
  * True when the primary pointer is coarse. Use this for behavior that should
  * avoid surprising touch-primary users, such as autofocus that opens a virtual
- * keyboard or Enter-to-send in the composer.
+ * keyboard or desktop-only keyboard interactions in the composer.
  */
 export function prefersTouchActions(): boolean {
   return mediaMatches('(pointer: coarse)');

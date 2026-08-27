@@ -1,13 +1,21 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "settings": {
     "nav": {
       "title": "Settings",
       "back_to_server": "Back to Server",
       "profile": "Profile",
-      "display": "Display",
+      "display": "Preferences",
       "notifications": "Notifications",
-      "account": "Account"
+      "account": "Account",
+      "bots": "Bots",
+      "user_preferences": "User Preferences",
+      "server_configuration": "Server Configuration"
+    },
+    "app_preferences": {
+      "title": "App Preferences",
+      "subtitle": "Choices for this app that apply across all your registered servers",
+      "appearance": { "title": "Appearance" },
+      "composer": { "title": "Composer" }
     },
     "profile": {
       "title": "Profile",
@@ -105,8 +113,9 @@
       "save_button": "Save Changes"
     },
     "preferences": {
-      "title": "Display",
-      "subtitle": "Choose how Chatto appears",
+      "title": "Time & region",
+      "subtitle": "Choose how this server displays dates and times for you",
+      "browser_scope": "This choice applies to every Chatto server in this browser.",
       "theme": {
         "title": "Theme",
         "system": {
@@ -120,6 +129,28 @@
         "dark": {
           "label": "Dark",
           "description": "Use the dark interface on this browser"
+        }
+      },
+      "editor": {
+        "title": "Message editor",
+        "visual": {
+          "label": "Visual",
+          "description": "Format messages without seeing Markdown syntax"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Edit Markdown source with syntax highlighting"
+        }
+      },
+      "send_mode": {
+        "title": "Send messages with",
+        "enter": {
+          "label": "Return",
+          "description": "Return sends; Cmd/Ctrl+Return performs the editor's normal Return action"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sends; Return performs the editor's normal action"
         }
       },
       "language": {
@@ -153,9 +184,9 @@
           "description": "e.g., 14:30"
         }
       },
-      "save_button": "Save Display Settings",
-      "saved": "Display settings saved",
-      "save_failed": "Failed to save display settings"
+      "save_button": "Save Time Settings",
+      "saved": "Time settings saved",
+      "save_failed": "Failed to save time settings"
     },
     "notifications": {
       "title": "Notifications",
@@ -180,9 +211,7 @@
         "enabling": "Enabling...",
         "blocked_error": "Push notifications are blocked in your browser or OS settings.",
         "enable_failed": "Failed to enable push notifications. Please try again.",
-        "enable_error": "An error occurred while enabling push notifications",
-        "remote_title": "Native push is unavailable for remote servers",
-        "remote_description": "This installed app can only register browser push notifications with the server that served it. In-app notification badges and sounds still work for this server while Chatto is open."
+        "enable_error": "An error occurred while enabling push notifications"
       },
       "push_prompt": {
         "title": "Enable push notifications",
@@ -195,35 +224,6 @@
         "enabling": "Enabling...",
         "enable": "Enable",
         "dismiss": "No thanks"
-      },
-      "levels": {
-        "loading": "Loading...",
-        "load_failed": "Failed to load notification preferences",
-        "server_updated": "Server notification level updated",
-        "room_updated": "Room notification level updated",
-        "update_failed": "Failed to update",
-        "server_title": "Server Notification Level",
-        "server_description": "Controls how you receive notifications for all rooms in this server. Individual rooms can override this setting.",
-        "room_title": "Room Overrides",
-        "room_description": "Override the server-level setting for individual rooms. Rooms set to \"Default\" inherit the server setting ({level}).",
-        "room_level_label": "Notification level for #{room}",
-        "effective": "Effective: {level}",
-        "default": {
-          "label": "Default",
-          "description": "Use the inherited default"
-        },
-        "muted": {
-          "label": "Muted",
-          "description": "No notifications or unread markers"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Unread markers + mentions, DMs, and thread replies"
-        },
-        "all_messages": {
-          "label": "All Messages",
-          "description": "Normal + notification for every new message"
-        }
       },
       "sound": {
         "title": "Notification Sound",
@@ -273,6 +273,50 @@
           "siren": "Alert Siren",
           "dubstep": "Dubstep Drop",
           "circus": "Circus"
+        }
+      },
+      "policy": {
+        "title": "Notification policy",
+        "description": "Choose how each kind of activity gets your attention at server, room-group, and room scope. Rooms inherit from their group, then the server.",
+        "load_failed": "Failed to load notification policy",
+        "save_failed": "Failed to save notification policy",
+        "effective": "Effective: {mode}",
+        "filter_label": "Filter notification scopes",
+        "filter_placeholder": "Filter groups and rooms…",
+        "no_filter_matches": "No notification scopes match this filter.",
+        "legend": "Notification delivery modes",
+        "cell_aria": "{cause}, {scope}. Override: {override}. Effective: {effective}. Activate to set {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Default: {current}. Activate to set {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Not applicable.",
+        "delivery_mode": {
+          "inherit": "Inherit",
+          "off": "Off",
+          "notification": "Notification",
+          "push_notification": "Push notification"
+        },
+        "reason": {
+          "direct_message": "Direct messages",
+          "direct_mention": "Direct mentions",
+          "reply": "Replies to your messages",
+          "role_mention": "Role mentions",
+          "here": "@here mentions",
+          "all": "@all mentions",
+          "followed_thread": "Followed threads",
+          "followed_room": "Followed rooms",
+          "reaction": "Reactions to your messages",
+          "activity": "Activity",
+          "room_invitation": "Room invitations"
+        },
+        "reason_hint": {
+          "direct_message": "Messages that other members send in direct-message conversations.",
+          "direct_mention": "Messages that mention your username directly.",
+          "reply": "Messages that reply to one of your messages.",
+          "role_mention": "Messages that mention a role assigned to you.",
+          "here": "Messages that use @here while your presence is not offline.",
+          "all": "Messages that use @all in a room you belong to.",
+          "followed_thread": "New replies in threads that you follow.",
+          "followed_room": "Top-level messages in rooms that you follow.",
+          "reaction": "Reactions that other members add to your messages."
         }
       }
     },
@@ -350,6 +394,52 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Cancel",
         "deleting": "Deleting..."
+      }
+    },
+    "bots": {
+      "title": "Bots",
+      "subtitle": "Create API accounts and control exactly what they can do",
+      "singular": "bot",
+      "unsupported": "This server version does not support bot accounts.",
+      "list_title": "Bot Accounts",
+      "loading": "Loading bots...",
+      "empty_title": "No bots yet",
+      "empty_body": "Create a bot when an integration needs its own identity and permissions.",
+      "create_permission_required": "You can manage existing bots, but you do not have permission to create one.",
+      "create": "Create Bot",
+      "create_title": "Create Bot Account",
+      "create_failed": "Failed to create bot",
+      "created": "Bot created",
+      "edit": "Edit",
+      "edit_title": "Edit Bot Account",
+      "updated": "Bot updated",
+      "update_failed": "Failed to update bot",
+      "update_conflict": "Someone else updated this bot. Reload the page and try again.",
+      "username": "Username",
+      "username_hint": "Bot usernames must end in _bot.",
+      "display_name": "Display Name",
+      "owner": "Owner",
+      "reassign_owner": "Reassign owner",
+      "reassign_owner_warning": "The bot's API key and configured permissions will stay the same. Effective permissions will immediately follow the new owner.",
+      "owner_reassigned": "Bot owner reassigned",
+      "owner_reassign_failed": "Failed to reassign bot owner",
+      "api_key_title": "Save This API Key",
+      "api_key_warning": "This key is shown only once. Store it somewhere secure before closing this window.",
+      "key_created": "API key created",
+      "key_rotated_at": "Last rotated",
+      "key_copied": "API key copied",
+      "rotate_key": "Rotate Key",
+      "rotate_title": "Rotate API Key",
+      "rotate_warning": "The current key will stop working immediately. Any integration using it must be updated.",
+      "key_rotated": "API key rotated",
+      "rotate_failed": "Failed to rotate API key",
+      "delete_title": "Delete Bot",
+      "delete_warning": "Delete {name}? Its API key will stop working immediately and the account cannot be recovered.",
+      "deleted": "Bot deleted",
+      "delete_failed": "Failed to delete bot",
+      "permissions": {
+        "owner_ceiling": "Choose what your bot can do. You can only give it permissions you have yourself. If you lose a permission, your bot loses it too.",
+        "save_failed": "Failed to update bot permission"
       }
     }
   }

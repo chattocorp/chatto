@@ -1,0 +1,211 @@
+syntax = "proto3";
+
+package authling.core.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/authling/internal/pb/authling/core/v1;corev1";
+
+// Event is Authling's persisted envelope for durable domain facts.
+//
+// This message is a storage contract. Existing fields and oneof tags must not
+// be removed, renumbered, or reused.
+message Event {
+  // Stable opaque event identifier used for idempotent publication and
+  // correlation. Values are restricted to one NATS-safe subject token.
+  string id = 1;
+
+  // Time at which the durable fact was created.
+  google.protobuf.Timestamp created_at = 2;
+
+  oneof event {
+    AccountCreatedEvent account_created = 100;
+    EmailClaimedEvent email_claimed = 101;
+    IssuerEstablishedEvent issuer_established = 102;
+    PasswordChangedEvent password_changed = 103;
+    PasswordResetRequestedEvent password_reset_requested = 104;
+    EmailChangeRequestedEvent email_change_requested = 105;
+    EmailChangedEvent email_changed = 106;
+    OIDCGrantAuthorizedEvent oidc_grant_authorized = 107;
+    OIDCGrantRevokedEvent oidc_grant_revoked = 108;
+    ProfileUpdatedEvent profile_updated = 109;
+    OIDCSigningKeyRotationRequestedEvent oidc_signing_key_rotation_requested = 110;
+    OIDCSigningKeyPreparedEvent oidc_signing_key_prepared = 111;
+    OIDCSigningKeyActivatedEvent oidc_signing_key_activated = 112;
+    OIDCSigningKeyRetirementRequestedEvent oidc_signing_key_retirement_requested = 113;
+    OIDCSigningKeyRetiredEvent oidc_signing_key_retired = 114;
+  }
+}
+
+// ProfileUpdatedEvent replaces the encrypted, non-unique identity hints that
+// Authling publishes to relying parties.
+message ProfileUpdatedEvent {
+  string account_id = 1;
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  uint32 profile_envelope_version = 4;
+  bytes preferred_username_nonce = 5;
+  bytes preferred_username_ciphertext = 6;
+  bytes full_name_nonce = 7;
+  bytes full_name_ciphertext = 8;
+}
+
+// IssuerEstablishedEvent permanently binds one Authling deployment to its
+// externally visible OpenID Connect issuer and initial signing-key identity.
+message IssuerEstablishedEvent {
+  string issuer = 1;
+  string signing_key_ref = 2;
+  string signing_key_id = 3;
+}
+
+// OIDCSigningKeyRotationRequestedEvent durably requests creation of a new
+// signing key before any key material is provisioned. The opaque reference
+// makes key creation idempotent and recoverable after a crash.
+message OIDCSigningKeyRotationRequestedEvent {
+  string signing_key_ref = 1;
+}
+
+// OIDCSigningKeyPreparedEvent records that the requested key exists and may
+// be published for verification. It must not sign tokens before activate_at.
+message OIDCSigningKeyPreparedEvent {
+  string signing_key_ref = 1;
+  string signing_key_id = 2;
+  google.protobuf.Timestamp activate_at = 3;
+}
+
+// OIDCSigningKeyActivatedEvent switches token signing to a prepared key and
+// retains the preceding public key through retire_after.
+message OIDCSigningKeyActivatedEvent {
+  string signing_key_ref = 1;
+  string signing_key_id = 2;
+  string previous_signing_key_ref = 3;
+  string previous_signing_key_id = 4;
+  google.protobuf.Timestamp retire_after = 5;
+}
+
+// OIDCSigningKeyRetirementRequestedEvent removes an expired predecessor from
+// the published verification set before its private material is destroyed.
+message OIDCSigningKeyRetirementRequestedEvent {
+  string signing_key_ref = 1;
+  string signing_key_id = 2;
+}
+
+// OIDCSigningKeyRetiredEvent confirms destruction of private signing material.
+message OIDCSigningKeyRetiredEvent {
+  string signing_key_ref = 1;
+  string signing_key_id = 2;
+}
+
+// EmailClaimedEvent activates the protected email credential staged by the
+// immediately preceding account creation or email change in the same atomic
+// publish batch.
+message EmailClaimedEvent {
+  string account_id = 1;
+
+  // The account event that staged the email. Historical account-creation
+  // claims written before correlation was added leave this empty.
+  string credential_event_id = 2;
+}
+
+// AccountCreatedEvent records the creation of an opaque Authling account and,
+// for local accounts, separately encrypted email and password-verifier fields.
+message AccountCreatedEvent {
+  string account_id = 1;
+
+  // Opaque references and authenticated ciphertext for an optional local
+  // credential. Historical structural accounts leave these fields empty.
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  bytes email_nonce = 4;
+  bytes email_ciphertext = 5;
+  uint32 credential_envelope_version = 6;
+  bytes password_verifier_nonce = 7;
+  bytes password_verifier_ciphertext = 8;
+
+  // Encrypted preferred username published to relying parties as the standard
+  // OpenID Connect preferred_username claim. Historical accounts omit it.
+  bytes preferred_username_nonce = 9;
+  bytes preferred_username_ciphertext = 10;
+}
+
+// PasswordChangedEvent replaces one local account's password verifier without
+// changing its stable account identity or verified email address.
+message PasswordChangedEvent {
+  string account_id = 1;
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  uint32 credential_envelope_version = 4;
+  bytes password_verifier_nonce = 5;
+  bytes password_verifier_ciphertext = 6;
+
+  // The audit event that initiated this recovery-driven change. Historical
+  // password changes written before request auditing leave this empty.
+  string password_reset_request_event_id = 7;
+
+  // The protected credential event that was current when this change was
+  // authorized. Historical password changes leave this empty.
+  string prior_credential_event_id = 8;
+
+  // The ceremony that authorized this change. Historical password changes
+  // leave this unspecified.
+  PasswordChangeKind kind = 9;
+}
+
+enum PasswordChangeKind {
+  PASSWORD_CHANGE_KIND_UNSPECIFIED = 0;
+  PASSWORD_CHANGE_KIND_RECOVERY = 1;
+  PASSWORD_CHANGE_KIND_SIGNED_IN = 2;
+}
+
+// PasswordResetRequestedEvent records an accepted recovery request for an
+// existing local account without retaining the submitted email or flow secret.
+// The envelope event ID is the opaque recovery request identifier.
+message PasswordResetRequestedEvent {
+  string account_id = 1;
+  string credential_event_id = 2;
+}
+
+// EmailChangeRequestedEvent records accepted reauthentication for an email
+// change without retaining either the old or requested address.
+message EmailChangeRequestedEvent {
+  string account_id = 1;
+  string credential_event_id = 2;
+}
+
+// EmailChangedEvent stages a verified replacement login address. Its adjacent
+// EmailClaimedEvent activates the address atomically through the registry.
+message EmailChangedEvent {
+  string account_id = 1;
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  uint32 credential_envelope_version = 4;
+  bytes email_nonce = 5;
+  bytes email_ciphertext = 6;
+  string email_change_request_event_id = 7;
+  string prior_credential_event_id = 8;
+}
+
+// OIDCGrantAuthorizedEvent records an account's authorization of one exact
+// OIDC client and scope set. Repeated explicit consent renews the active grant
+// by correlating it to the preceding authorization event.
+message OIDCGrantAuthorizedEvent {
+  string account_id = 1;
+  string grant_id = 2;
+  // Deployment-keyed digest of the exact client ID. The raw configured ID or
+  // CIMD URL is not retained in durable account history.
+  bytes client_id_digest = 3;
+  string client_name = 4;
+  string client_host = 5;
+  repeated string scopes = 6;
+
+  // Empty for a new grant. Renewals identify the active authorization event
+  // they replace so replay rejects stale or forked grant history.
+  string prior_authorization_event_id = 7;
+}
+
+// OIDCGrantRevokedEvent ends one active authorization-grant generation.
+message OIDCGrantRevokedEvent {
+  string account_id = 1;
+  string grant_id = 2;
+  string authorization_event_id = 3;
+}

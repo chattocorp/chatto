@@ -3,10 +3,12 @@
 	import type { Component } from 'svelte';
 	import type { Track } from 'livekit-client';
 	import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
-	import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
+	import type { ServerPermissions } from '$lib/state/server/permissions';
 	import { createPresenceCache } from '$lib/state/presenceCache.svelte';
 	import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
 	import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
+	import { provideServerScope } from '$lib/state/server/scope.svelte';
+	import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 
 	type VoiceCallPanelProps = {
 		roomId: string;
@@ -26,6 +28,19 @@
 	const storybookServerId = 'storybook-call-server';
 	createPresenceCache();
 	createUserProfileCache();
+	const getScopedServerId = () => serverRegistry.originServer?.id ?? storybookServerId;
+	provideServerScope({
+		get serverId() {
+			return getScopedServerId();
+		},
+		get connection() {
+			return serverConnectionManager.getClient(getScopedServerId());
+		},
+		get store() {
+			return serverRegistry.getStore(getScopedServerId());
+		},
+		isCurrent: () => true
+	});
 	let Panel = $state<Component<VoiceCallPanelProps> | null>(null);
 
 	const permissions: ServerPermissions = {
@@ -38,7 +53,8 @@
 		canAdminViewRoles: false,
 		canAdminManageRoles: false,
 		canAdminViewSystem: false,
-		canAdminViewAudit: false
+		canAdminViewAudit: false,
+		canManageInvites: false
 	};
 
 	function posterTrack(svg: string): Track {
@@ -91,6 +107,7 @@
 			name,
 			login: identity,
 			avatarUrl: null,
+			isBot: false,
 			isMuted: false,
 			isLocal: false,
 			connectionQuality: 'excellent',
@@ -147,11 +164,7 @@
 			return [viewer, bob, chloe];
 		}
 
-		return [
-			participant('viewer', 'Alice', { isLocal: true }),
-			bob,
-			chloe
-		];
+		return [participant('viewer', 'Alice', { isLocal: true }), bob, chloe];
 	}
 
 	function ensureStorybookServer(): RegisteredServer {
@@ -172,7 +185,23 @@
 			reauthRequiredAt: null,
 			addedAt: Date.now()
 		};
-		serverRegistry.addServer(server);
+		serverRegistry.addServer(
+			{
+				id: server.id,
+				url: server.url,
+				name: server.name,
+				iconUrl: server.iconUrl,
+				addedAt: server.addedAt
+			},
+			{
+				token: server.token,
+				userId: server.userId,
+				userLogin: server.userLogin,
+				userDisplayName: server.userDisplayName,
+				userAvatarUrl: server.userAvatarUrl,
+				reauthRequiredAt: server.reauthRequiredAt
+			}
+		);
 		return server;
 	}
 
@@ -181,7 +210,6 @@
 		const store = serverRegistry.getStore(server.id);
 
 		store.permissions = permissions;
-		store.rooms.currentUserId = 'viewer';
 		store.voiceCall.roomId = roomId;
 		store.voiceCall.connected = true;
 		store.voiceCall.connecting = false;

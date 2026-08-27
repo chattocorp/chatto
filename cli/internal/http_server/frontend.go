@@ -1,17 +1,20 @@
 package http_server
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"mime"
 	"net/http"
 	"net/url"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -96,7 +99,7 @@ func setServiceWorkerETag(c *gin.Context, content []byte) bool {
 
 func setFrontendCacheHeaders(c *gin.Context) {
 	urlPath := c.Request.URL.Path
-	if strings.HasPrefix(urlPath, "/_app/immutable/") {
+	if isImmutableFrontendAsset(urlPath) {
 		c.Header("Cache-Control", cacheControlImmutable)
 
 		// Extract ETag from the content-hashed filename
@@ -120,6 +123,10 @@ func setFrontendCacheHeaders(c *gin.Context) {
 		c.Header("Cache-Control", cacheControlNoCache)
 	}
 	c.Next()
+}
+
+func isImmutableFrontendAsset(urlPath string) bool {
+	return strings.HasPrefix(urlPath, "/_app/immutable/")
 }
 
 func (s *HTTPServer) currentServerIconURL(ctx context.Context, size int) string {
@@ -147,13 +154,13 @@ func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs 
 	return icons
 }
 
-func (s *HTTPServer) currentPWAServerName(ctx context.Context) string {
-	if s.core == nil || s.core.ConfigManager() == nil {
+func (s *HTTPServer) currentPWAServerName() string {
+	if s.core == nil || s.core.ConfigModel() == nil {
 		return "Chatto"
 	}
 
-	name, err := s.core.ConfigManager().GetEffectiveServerName(ctx)
-	if err != nil || strings.TrimSpace(name) == "" {
+	name := s.core.ConfigModel().GetEffectiveServerName()
+	if strings.TrimSpace(name) == "" {
 		return "Chatto"
 	}
 	return name
@@ -214,26 +221,88 @@ func dynamicPWAManifest(staticManifest []byte, serverName string, icons *pwaServ
 // clientAcceptsEncoding checks if the client accepts a specific encoding.
 // It parses the Accept-Encoding header and looks for the encoding name.
 func clientAcceptsEncoding(acceptEncoding, encoding string) bool {
-	// Simple check - look for the encoding in the header
-	// This handles common cases like "gzip, deflate, br" or "br"
+	encoding = strings.ToLower(encoding)
+	wildcardQuality := -1.0
 	for _, part := range strings.Split(acceptEncoding, ",") {
-		part = strings.TrimSpace(part)
-		// Strip quality value if present (e.g., "gzip;q=0.8")
-		if idx := strings.Index(part, ";"); idx != -1 {
-			part = part[:idx]
+		fields := strings.Split(part, ";")
+		name := strings.ToLower(strings.TrimSpace(fields[0]))
+		quality := 1.0
+		valid := name != ""
+		for _, parameter := range fields[1:] {
+			key, value, found := strings.Cut(parameter, "=")
+			if !found || !strings.EqualFold(strings.TrimSpace(key), "q") {
+				continue
+			}
+			parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+			if err != nil || parsed < 0 || parsed > 1 {
+				valid = false
+				break
+			}
+			quality = parsed
 		}
-		if part == encoding {
-			return true
+		if !valid {
+			continue
+		}
+		if name == encoding {
+			return quality > 0
+		}
+		if name == "*" {
+			wildcardQuality = quality
 		}
 	}
-	return false
+	return wildcardQuality > 0
+}
+
+// readFrontendIdentityFile returns the uncompressed representation of an
+// embedded frontend file. Release builds omit raw files when SvelteKit emitted
+// a gzip sibling, so clients without compression support are served by
+// inflating that trusted embedded fallback on demand.
+func readFrontendIdentityFile(clientFS fs.FS, filePath string) ([]byte, error) {
+	content, rawErr := fs.ReadFile(clientFS, filePath)
+	if rawErr == nil {
+		return content, nil
+	}
+
+	compressed, err := clientFS.Open(filePath + ".gz")
+	if err != nil {
+		return nil, rawErr
+	}
+	defer compressed.Close()
+
+	reader, err := gzip.NewReader(compressed)
+	if err != nil {
+		return nil, fmt.Errorf("open embedded gzip fallback for %q: %w", filePath, err)
+	}
+	defer reader.Close()
+
+	content, err = io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("decompress embedded gzip fallback for %q: %w", filePath, err)
+	}
+	return content, nil
+}
+
+func frontendFileExists(clientFS fs.FS, filePath string) bool {
+	if _, err := fs.Stat(clientFS, filePath); err == nil {
+		return true
+	}
+	_, err := fs.Stat(clientFS, filePath+".gz")
+	return err == nil
+}
+
+func frontendContentType(filePath string) string {
+	contentType := mime.TypeByExtension(filepath.Ext(filePath))
+	if contentType == "" {
+		return "application/octet-stream"
+	}
+	return contentType
 }
 
 // serveSPAFallback serves the 200.html file as a fallback for SPA routing.
 // It injects OpenGraph meta tags based on the URL path.
 // Returns true if the fallback was served successfully, false if an error occurred.
 func (s *HTTPServer) serveSPAFallback(c *gin.Context, clientFS fs.FS) bool {
-	content, err := fs.ReadFile(clientFS, "200.html")
+	content, err := readFrontendIdentityFile(clientFS, "200.html")
 	if err != nil {
 		log.Error("Failed to read 200.html for SPA fallback", "error", err)
 		c.String(http.StatusInternalServerError, "Failed to load application")
@@ -259,14 +328,14 @@ func (s *HTTPServer) redirectBrowserIcon(c *gin.Context, size int, fallbackURL s
 }
 
 func (s *HTTPServer) servePWAWebManifest(c *gin.Context, clientFS fs.FS) {
-	content, err := fs.ReadFile(clientFS, "manifest.webmanifest")
+	content, err := readFrontendIdentityFile(clientFS, "manifest.webmanifest")
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return
 	}
 	content, err = dynamicPWAManifest(
 		content,
-		s.currentPWAServerName(c.Request.Context()),
+		s.currentPWAServerName(),
 		s.currentPWAIconURLs(c.Request.Context()),
 	)
 	if err != nil {
@@ -306,11 +375,7 @@ func servePrecompressedFile(c *gin.Context, clientFS fs.FS, filePath string) boo
 			continue // Compressed file doesn't exist, try next
 		}
 
-		// Determine content type from the original file extension
-		contentType := mime.TypeByExtension(filepath.Ext(filePath))
-		if contentType == "" {
-			contentType = "application/octet-stream"
-		}
+		contentType := frontendContentType(filePath)
 
 		c.Header("Content-Encoding", enc.name)
 		c.Header("Content-Type", contentType)
@@ -321,6 +386,23 @@ func servePrecompressedFile(c *gin.Context, clientFS fs.FS, filePath string) boo
 	}
 
 	return false
+}
+
+func serveFrontendFile(c *gin.Context, clientFS fs.FS, filePath string) error {
+	// Identity and encoded representations share this URL.
+	c.Header("Vary", "Accept-Encoding")
+	if servePrecompressedFile(c, clientFS, filePath) {
+		return nil
+	}
+
+	// Development builds retain the raw file. Release builds instead inflate
+	// the embedded gzip fallback for clients that do not accept compression.
+	content, err := readFrontendIdentityFile(clientFS, filePath)
+	if err != nil {
+		return err
+	}
+	c.Data(http.StatusOK, frontendContentType(filePath), content)
+	return nil
 }
 
 func isReservedNonFrontendPath(urlPath string) bool {
@@ -362,17 +444,6 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		s.redirectBrowserIcon(c, 180, "/icons/apple-touch-icon.png")
 	})
 
-	// refreshSessionIfAuthenticated validates and rotates authenticated
-	// cookie-session records for active SPA browsing. KV TTL is set only when
-	// a session is created, so near-expiry sessions are rotated instead of
-	// "touched" in place.
-	refreshSessionIfAuthenticated := func(c *gin.Context) {
-		credential, ok, _ := s.cookiePresentedCredential(c)
-		if ok {
-			s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
-		}
-	}
-
 	// Custom static file handler with precompressed file support
 	serveStatic := func(c *gin.Context, filePath string) {
 		// Clean the path and prevent directory traversal
@@ -381,12 +452,8 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 			filePath = "200.html"
 		}
 
-		// Refresh session for all SPA routes to prevent cookie expiration
-		refreshSessionIfAuthenticated(c)
-
-		// Check if file exists
-		_, err := fs.Stat(clientFS, filePath)
-		if err != nil {
+		// Release builds may retain only compressed representations.
+		if !frontendFileExists(clientFS, filePath) {
 			// File not found, serve 200.html for SPA routing
 			s.serveSPAFallback(c, clientFS)
 			return
@@ -399,7 +466,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		}
 
 		if filePath == "service-worker.js" {
-			content, err := fs.ReadFile(clientFS, filePath)
+			content, err := readFrontendIdentityFile(clientFS, filePath)
 			if err != nil {
 				c.Status(http.StatusInternalServerError)
 				return
@@ -414,23 +481,9 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 			return
 		}
 
-		// Try to serve precompressed version first
-		if servePrecompressedFile(c, clientFS, filePath) {
-			return
-		}
-
-		// Serve the original file
-		content, err := fs.ReadFile(clientFS, filePath)
-		if err != nil {
+		if err := serveFrontendFile(c, clientFS, filePath); err != nil {
 			c.Status(http.StatusInternalServerError)
-			return
 		}
-
-		contentType := mime.TypeByExtension(filepath.Ext(filePath))
-		if contentType == "" {
-			contentType = "application/octet-stream"
-		}
-		c.Data(http.StatusOK, contentType, content)
 	}
 
 	// Handle root path explicitly to avoid directory listing

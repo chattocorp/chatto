@@ -29,7 +29,7 @@
     docs: {
       description: {
         story:
-          'The copy button uses the compact inline icon-action treatment and stops row-click propagation.'
+          'The copy button uses the mini-icon-action treatment and stops row-click propagation.'
       }
     }
   }}

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room_list": {
     "active_call": "Aktiva voko",
     "call_participants": "{count} partoprenantoj en voko",
@@ -16,6 +15,10 @@
     "mark_as_read": "Marki kiel legitan",
     "remove_server": "Forigi servilon",
     "leave_room": "Forlasi ĉambron",
+    "copy_room_id": "Kopii identigilon de ĉambro",
+    "copy_server_hostname": "Kopii la gastigantonomon de la servilo",
+    "room_settings": "Agordoj de ĉambro",
+    "group_settings": "Agordoj por {group}",
     "server_actions": "Agoj por {server}",
     "room_actions": "Agoj por #{room}"
   }

@@ -1,0 +1,446 @@
+{
+  "settings": {
+    "nav": {
+      "title": "הגדרות",
+      "back_to_server": "חזרה לשרת",
+      "profile": "פרופיל",
+      "display": "העדפות",
+      "notifications": "התראות",
+      "account": "חשבון",
+      "bots": "בוטים",
+      "user_preferences": "העדפות משתמש",
+      "server_configuration": "תצורת שרת"
+    },
+    "app_preferences": {
+      "title": "העדפות האפליקציה",
+      "subtitle": "בחירות באפליקציה הזו שחלות על כל השרתים הרשומים שלך",
+      "appearance": { "title": "מראה" },
+      "composer": { "title": "כתיבת הודעות" }
+    },
+    "profile": {
+      "title": "פרופיל",
+      "subtitle": "נהל את פרטי הפרופיל שלך",
+      "avatar": {
+        "title": "אוואטר",
+        "drop_title": "שחרר תמונה",
+        "drop_subtitle": "העלה כדמות שלך",
+        "alt": "הדמות שלך",
+        "description": "העלה אווטאר. גודל התמונות ישתנה ל-256x256 פיקסלים.",
+        "uploading": "מעלה...",
+        "upload": "העלאת אוואטר",
+        "change": "שנה תמונת פרופיל",
+        "removing": "מסיר...",
+        "remove": "הסר",
+        "invalid_type": "אנא בחר קובץ תמונה",
+        "too_large": "התמונה חייבת להיות קטנה מ-10MB",
+        "uploaded": "תמונת הפרופיל הועלתה בהצלחה",
+        "upload_failed": "העלאת תמונת הפרופיל נכשלה",
+        "removed": "תמונת הפרופיל הוסרה",
+        "delete_failed": "נכשל מחיקת הדמות"
+      },
+      "display_name": {
+        "label": "שם תצוגה",
+        "placeholder": "הזן את שם התצוגה שלך",
+        "invalid": "שם תצוגה לא חוקי"
+      },
+      "username": {
+        "label": "שם משתמש",
+        "placeholder": "הזן את שם המשתמש שלך",
+        "invalid": "שם משתמש לא חוקי",
+        "cooldown_error": "אתה יכול לשנות את שם המשתמש שלך רק פעם אחת בכל 30 יום. נסה שוב ב-{remaining}.",
+        "cooldown_notice": "אתה יכול לשנות את שם המשתמש שלך שוב ב-{remaining}.",
+        "confirm_title": "שנה שם משתמש",
+        "confirm_prompt": "האם אתה בטוח שברצונך לשנות את שם המשתמש שלך ל-@{login}?",
+        "confirm_cooldown": "אתה יכול לשנות את שם המשתמש שלך רק פעם ב-30 יום.",
+        "confirm_button": "שנה שם משתמש"
+      },
+      "status": {
+        "title": "סטטוס מותאם אישית",
+        "dialog_title": "הגדר סטטוס",
+        "set_custom_status": "הגדר סטטוס מותאם אישית",
+        "edit_button": "עריכת סטטוס",
+        "emoji": {
+          "label": "אמוג'י סטטוס",
+          "placeholder": "🌿",
+          "choose": "בחר אימוג'י"
+        },
+        "text": {
+          "label": "טקסט סטטוס",
+          "placeholder": "במצב מיקוד"
+        },
+        "expires_at": {
+          "label": "נקה אוטומטית ב"
+        },
+        "expiry": {
+          "today": "היום",
+          "thirty_minutes": "30 דקות",
+          "one_hour": "שעה אחת",
+          "four_hours": "4 שעות",
+          "tomorrow": "מחר",
+          "never": "לא נקה",
+          "custom": "מותאם אישית",
+          "custom_date": "זמן פינוי מותאם אישית"
+        },
+        "suggestions": "הצעות",
+        "template": {
+          "label": "תבנית",
+          "none": "אין סטטוס",
+          "out_for_lunch": "בחוץ לארוחת צהריים",
+          "vacation": "חג",
+          "sick": "חולה",
+          "custom": "מותאם אישית"
+        },
+        "emoji_required": "בחר אימוג'י לסטטוס שלך",
+        "text_required": "הזן טקסט לסטטוס",
+        "saved": "הסטטוס עודכן",
+        "save_failed": "נכשל בשמירת הסטטוס",
+        "cleared": "סטטוס נוקה",
+        "clear_failed": "נכשל בניקוי הסטטוס",
+        "save_button": "שמור סטטוס",
+        "clear_button": "נקה סטטוס"
+      },
+      "presence": {
+        "button": "נוכחות: {status}",
+        "title": "נוכחות",
+        "auto": "באינטרנט",
+        "away": "לא נמצא/ת",
+        "do_not_disturb": "נא לא להפריע",
+        "offline": "במצב לא מקוון",
+        "invisible": "הצגה כלא מחובר/ת"
+      },
+      "saved": "הפרופיל עודכן בהצלחה",
+      "save_failed": "שמירת הפרופיל נכשלה",
+      "save_button": "שמור שינויים"
+    },
+    "preferences": {
+      "title": "זמן ואזור",
+      "subtitle": "בחרו כיצד השרת הזה יציג עבורכם תאריכים ושעות",
+      "browser_scope": "הבחירה חלה על כל שרתי Chatto בדפדפן הזה.",
+      "theme": {
+        "title": "ערכת נושא",
+        "system": {
+          "label": "מערכת",
+          "description": "עקוב אחר מראה הדפדפן או מערכת ההפעלה שלך"
+        },
+        "light": {
+          "label": "אור",
+          "description": "השתמש בממשק הקל בדפדפן זה"
+        },
+        "dark": {
+          "label": "כהה",
+          "description": "השתמש בממשק הכהה בדפדפן זה"
+        }
+      },
+      "editor": {
+        "title": "עורך הודעות",
+        "visual": {
+          "label": "חזותי",
+          "description": "עיצוב הודעות בלי לראות תחביר Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "עריכת מקור Markdown עם הדגשת תחביר"
+        }
+      },
+      "send_mode": {
+        "title": "שליחת הודעות באמצעות",
+        "enter": {
+          "label": "Return",
+          "description": "Return שולח; Cmd/Ctrl+Return מבצע את פעולת Return הרגילה של העורך"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return שולח; Return מבצע את הפעולה הרגילה של העורך"
+        }
+      },
+      "language": {
+        "title": "שפה",
+        "description": "בחר את השפה והניסוח האזורי עבור דפדפן זה.",
+        "english_uk": "אנגלית (בריטניה)",
+        "english_us": "אנגלית (ארצות הברית)",
+        "german": "דויטש"
+      },
+      "timezone": {
+        "title": "אזור זמן",
+        "description": "הגדר את אזור הזמן שלך להצגת חותמות זמן בזמן המקומי שלך. השאר ריק כדי להשתמש בברירת המחדל של הדפדפן שלך.",
+        "browser_default": "ברירת המחדל של דפדפן",
+        "clear": "נקה אזור זמן (השתמש בברירת המחדל של הדפדפן)",
+        "invalid": "אנא בחר אזור זמן חוקי מהרשימה",
+        "more_results": "{count} עוד - הקלד כדי לצמצם את התוצאות",
+        "current_time": "זמן נוכחי שם: {time}"
+      },
+      "time_format": {
+        "title": "פורמט זמן",
+        "browser_default": {
+          "label": "ברירת המחדל של דפדפן",
+          "description": "השתמש במיקום הדפדפן שלך כדי לקבוע פורמט של 12 שעות או 24 שעות"
+        },
+        "12h": {
+          "label": "12 שעות",
+          "description": "לדוגמה, 2:30 אחה״צ"
+        },
+        "24h": {
+          "label": "24 שעות",
+          "description": "למשל, 14:30"
+        }
+      },
+      "save_button": "שמירת הגדרות הזמן",
+      "saved": "הגדרות הזמן נשמרו",
+      "save_failed": "שמירת הגדרות הזמן נכשלה"
+    },
+    "notifications": {
+      "title": "התראות",
+      "subtitle": "הגדר כיצד אתה מקבל התראות",
+      "push": {
+        "title": "הודעות דחיפה",
+        "not_configured": "התראות דחיפה אינן מוגדרות בשרת זה",
+        "not_supported": "התראות דחיפה אינן נתמכות בדפדפן זה.",
+        "ios_home_screen_title": "הוסף את Chatto למסך הבית שלך",
+        "ios_home_screen_description": "בגרסאות iOS/iPadOS נתמכות, הוסף את Chatto למסך הבית ופתח אותו מסמל האפליקציה כדי לאפשר הודעות דחיפה.",
+        "blocked_title": "הודעות דחיפה חסומות",
+        "blocked_description": "הפעל התראות בדפדפן או בהגדרות מערכת ההפעלה שלך, ולאחר מכן פתח שוב את Chatto.",
+        "enabled_title": "התראות דחיפה מופעלות",
+        "enabled_description": "Chatto משתמש בהרשאת ההתראה של הדפדפן או מערכת ההפעלה שלך בתור המתג. כדי לכבות התראות, השבת אותן עבור אתר זה בהגדרות הדפדפן או מערכת ההפעלה שלך.",
+        "test_button": "שלח הודעת בדיקה",
+        "testing": "שולח…",
+        "test_sent": "התראת הבדיקה נשלחה.",
+        "test_failed": "לא ניתן לשלוח הודעת בדיקה. נסה להפעיל שוב התראות דחיפה.",
+        "enable_title": "אפשר הודעות דחיפה",
+        "enable_description": "קבל התראה על הודעות חדשות כאשר Chatto סגור או פועל ברקע.",
+        "enable_button": "הפעל",
+        "enabling": "מפעיל...",
+        "blocked_error": "התראות דחיפה חסומות בהגדרות הדפדפן או מערכת ההפעלה.",
+        "enable_failed": "נכשל בהפעלת הודעות דחיפה. אנא נסה שוב.",
+        "enable_error": "אירעה שגיאה בעת הפעלת הודעות דחיפה"
+      },
+      "push_prompt": {
+        "title": "אפשר הודעות דחיפה",
+        "message": "קבל הודעה על הודעות DM, אזכורים ותשובות.",
+        "ios_home_screen_title": "הוסף את Chatto למסך הבית שלך",
+        "ios_home_screen_message": "בגרסאות נתמכות של iOS/iPadOS, פתח את Chatto מסמל מסך הבית לפני הפעלת התראות דחיפה.",
+        "enabled": "התראות דחיפה מופעלות",
+        "blocked": "התראות דחיפה חסומות בהגדרות הדפדפן או מערכת ההפעלה",
+        "enable_failed": "נכשל בהפעלת הודעות דחיפה",
+        "enabling": "מפעיל...",
+        "enable": "הפעל",
+        "dismiss": "לא תודה"
+      },
+      "sound": {
+        "title": "צליל התראה",
+        "shape_title": "צורת צליל",
+        "preview": "תצוגה מקדימה",
+        "reset": "איפוס",
+        "off": "כבוי",
+        "volume": "נפח",
+        "tinny": "טיני",
+        "muffled": "עמום",
+        "echo": "Echo",
+        "reverb": "Reverb",
+        "crunch": "קראנץ'",
+        "category": {
+          "silent": "שקט",
+          "simple": "פשוט",
+          "playful": "שובב",
+          "robots": "רובוטים",
+          "musical": "מיוזיקל",
+          "here_be_dragons": "Here Be Dragons"
+        },
+        "name": {
+          "silent": "שקט",
+          "ding": "דינג",
+          "chime_up": "צלצול עולה",
+          "chime_down": "צלצול נופל",
+          "pop": "פופ רך",
+          "bubble": "בועה",
+          "retro": "רטרו ביפ",
+          "coin": "איסוף מטבעות",
+          "powerup": "התחזקות",
+          "fanfare": "8-bit Fanfare",
+          "laser": "לייזר זאפ",
+          "robot": "קול רובוט",
+          "ufo": "עב\"ם",
+          "beepboop": "ביפ בופ",
+          "dialup": "חיוג",
+          "r2d2": "R2-D2",
+          "harp": "פריחת נבל",
+          "music_box": "תיבת נגינה",
+          "celesta": "Celesta Dream",
+          "synth": "אקורד סינת'י",
+          "orchestra": "מכת תזמורת",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "כאוס",
+          "glitch": "תקלה",
+          "siren": "צפירת התראה",
+          "dubstep": "Dubstep Drop",
+          "circus": "קרקס"
+        }
+      },
+      "policy": {
+        "title": "מדיניות התראות",
+        "description": "בחרו כיצד כל פעילות תתריע ברמת השרת, קבוצת החדרים והחדר. חדרים יורשים מהקבוצה שלהם ולאחר מכן מהשרת.",
+        "load_failed": "טעינת מדיניות ההתראות נכשלה",
+        "save_failed": "שמירת מדיניות ההתראות נכשלה",
+        "effective": "בתוקף: {mode}",
+        "filter_label": "סינון טווחי התראות",
+        "filter_placeholder": "סינון קבוצות וחדרים…",
+        "no_filter_matches": "אין טווחי התראות שתואמים למסנן הזה.",
+        "legend": "מצבי מסירת התראות",
+        "cell_aria": "{cause}, {scope}. דריסה: {override}. בתוקף: {effective}. הפעילו כדי להגדיר {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. ברירת מחדל: {current}. הפעילו כדי להגדיר {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. לא ישים.",
+        "delivery_mode": {
+          "inherit": "ירושה",
+          "off": "כבוי",
+          "notification": "התראה",
+          "push_notification": "התראת דחיפה"
+        },
+        "reason": {
+          "direct_message": "הודעות ישירות",
+          "direct_mention": "אזכורים ישירים",
+          "reply": "תגובות להודעות שלך",
+          "role_mention": "אזכורי תפקידים",
+          "here": "אזכורי @here",
+          "all": "אזכורי @all",
+          "followed_thread": "שרשורים במעקב",
+          "followed_room": "חדרים במעקב",
+          "reaction": "תגובות להודעות שלך",
+          "activity": "פעילות",
+          "room_invitation": "הזמנות לחדרים"
+        },
+        "reason_hint": {
+          "direct_message": "הודעות שחברים אחרים שולחים בשיחות ישירות.",
+          "direct_mention": "הודעות שמזכירות ישירות את שם המשתמש שלך.",
+          "reply": "הודעות שמשיבות לאחת מההודעות שלך.",
+          "role_mention": "הודעות שמזכירות תפקיד שהוקצה לך.",
+          "here": "הודעות שמשתמשות ב-@here כשמצב הנוכחות שלך אינו לא מקוון.",
+          "all": "הודעות שמשתמשות ב-@all בחדר שאתה חבר בו.",
+          "followed_thread": "תגובות חדשות בשרשורים שאתה עוקב אחריהם.",
+          "followed_room": "הודעות ברמה העליונה בחדרים שאתה עוקב אחריהם.",
+          "reaction": "תגובות שחברים אחרים מוסיפים להודעות שלך."
+        }
+      }
+    },
+    "account": {
+      "title": "חשבון",
+      "subtitle": "נהל את הגדרות החשבון שלך",
+      "info_title": "פרטי חשבון",
+      "username": "שם משתמש",
+      "display_name": "שם תצוגה",
+      "danger_title": "אזור סכנה",
+      "danger_description": "מחיקת החשבון שלך היא לצמיתות ולא ניתן לבטלה. כל הנתונים שלך יוסרו.",
+      "delete_button": "מחק חשבון",
+      "delete_failed": "נכשל מחיקת החשבון",
+      "delete_request_failed": "נכשל בבקשת מחיקת החשבון",
+      "password": {
+        "title": "סיסמא",
+        "add_description": "הוסף סיסמה כדי שתוכל להיכנס ישירות ולנתק את ספק ה-SSO האחרון שלך.",
+        "change_description": "שנה את הסיסמה המשמשת לכניסה ישירה.",
+        "current_label": "סיסמה נוכחית",
+        "current_required": "הזן את הסיסמה הנוכחית שלך.",
+        "add_button": "הוסף סיסמה",
+        "change_button": "שנה סיסמה",
+        "saving": "שומר סיסמה...",
+        "saved": "נוספה סיסמה",
+        "changed": "הסיסמה השתנתה",
+        "save_failed": "נכשל בשמירת הסיסמה",
+        "fresh_auth_required": "היכנס שוב לפני הוספת סיסמה.",
+        "already_set": "לחשבון זה כבר יש סיסמה."
+      },
+      "sso": {
+        "title": "כניסה יחידה",
+        "loading": "טוען ספקי כניסה...",
+        "load_failed": "נכשלה טעינת ספקי כניסה",
+        "none_configured": "לא מוגדרים ספקי כניסה חיצוניים.",
+        "linked": "מקושר",
+        "not_linked": "לא מקושר",
+        "link_button": "קישור",
+        "link_failed": "נכשל בקישור ספק הכניסה",
+        "fresh_auth_required": "היכנס שוב לפני קישור לספק אחר.",
+        "provider_unconfigured": "ספק כבר לא מוגדר",
+        "disconnect_button": "נתק",
+        "disconnecting": "מתנתק...",
+        "disconnect_failed": "נכשל ניתוק ספק הכניסה",
+        "disconnect_last_method": "הוסף סיסמה או שיטת כניסה אחרת לפני ניתוק ספק זה.",
+        "disconnect_fresh_auth_required": "היכנס שוב לפני ניתוק ספק זה.",
+        "disconnect_modal": {
+          "title": "ניתוק ספק",
+          "body": "לנתק את {provider} מהחשבון הזה?",
+          "action": "נתק"
+        },
+        "disconnect_blocked_modal": {
+          "title": "לא ניתן לנתק את הספק",
+          "body": "{provider} היא שיטת הכניסה היחידה שלך. הוסף תחילה סיסמה או קשר ספק אחר."
+        },
+        "fresh_auth_modal": {
+          "title": "אשר סיסמה",
+          "body": "הזן את הסיסמה הנוכחית שלך לפני קישור {provider}.",
+          "action": "המשך"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "אשר סיסמה",
+          "body": "הזן את הסיסמה הנוכחית שלך לפני ניתוק {provider}.",
+          "action": "נתק"
+        }
+      },
+      "delete_modal": {
+        "title": "מחק חשבון",
+        "warning_label": "אזהרה:",
+        "warning_text": "פעולה זו היא קבועה ולא ניתן לבטל אותה.",
+        "intro": "זה ימחק לצמיתות את חשבונך ו:",
+        "remove_from_rooms": "הסר אותך מכל החללים והחדרים",
+        "delete_messages": "מחק את כל ההודעות שלך (לא ניתן יהיה לשחזר את התוכן)",
+        "delete_profile": "מחק את הפרופיל, הדמות והנתונים המשויכים",
+        "confirm_label": "הקלד DELETE כדי לאשר",
+        "confirm_placeholder": "DELETE",
+        "cancel": "בטל",
+        "deleting": "מוחק..."
+      }
+    },
+    "bots": {
+      "title": "בוטים",
+      "subtitle": "צור חשבונות API ושלוט בדיוק במה שהם יכולים לעשות",
+      "singular": "בוט",
+      "unsupported": "גרסת שרת זו אינה תומכת בחשבונות בוטים.",
+      "list_title": "חשבונות בוט",
+      "loading": "טוען בוטים...",
+      "empty_title": "עדיין אין בוטים",
+      "empty_body": "צור בוט כאשר אינטגרציה זקוקה לזהות והרשאות משלו.",
+      "create_permission_required": "אפשר לנהל בוטים קיימים, אך אין לך הרשאה ליצור בוט חדש.",
+      "create": "צור בוט",
+      "create_title": "צור חשבון בוט",
+      "create_failed": "יצירת הבוט נכשלה",
+      "created": "בוט נוצר",
+      "edit": "ערוך",
+      "edit_title": "ערוך חשבון בוט",
+      "updated": "בוט עודכן",
+      "update_failed": "עדכון הבוט נכשל",
+      "update_conflict": "מישהו אחר עדכן את הבוט הזה. יש לטעון מחדש את הדף ולנסות שוב.",
+      "username": "שם משתמש",
+      "username_hint": "שמות משתמש בוטים חייבים להסתיים ב-_bot.",
+      "display_name": "שם תצוגה",
+      "owner": "בעלים",
+      "reassign_owner": "הקצאת בעלים מחדש",
+      "reassign_owner_warning": "מפתח ה-API וההרשאות שהוגדרו לבוט יישארו ללא שינוי. ההרשאות בפועל ייקבעו מיד לפי הבעלים החדשים.",
+      "owner_reassigned": "הבעלים של הבוט הוקצו מחדש",
+      "owner_reassign_failed": "לא ניתן להקצות מחדש את הבעלים של הבוט",
+      "api_key_title": "שמור מפתח API זה",
+      "api_key_warning": "מפתח זה מוצג פעם אחת בלבד. אחסן אותו במקום מאובטח לפני סגירת החלון הזה.",
+      "key_created": "מפתח API נוצר",
+      "key_rotated_at": "סובב לאחרונה",
+      "key_copied": "מפתח API הועתק",
+      "rotate_key": "סיבוב מפתח",
+      "rotate_title": "סיבוב מפתח API",
+      "rotate_warning": "המפתח הנוכחי יפסיק לפעול באופן מיידי. כל שילוב המשתמש בו חייב להיות מעודכן.",
+      "key_rotated": "מפתח API סובב",
+      "rotate_failed": "סובב מפתח API נכשל",
+      "delete_title": "מחק בוט",
+      "delete_warning": "למחוק את {name}? מפתח ה-API שלו יפסיק לפעול באופן מיידי ולא ניתן לשחזר את החשבון.",
+      "deleted": "הבוט נמחק",
+      "delete_failed": "מחיקת הבוט נכשלה",
+      "permissions": {
+        "owner_ceiling": "בחרו מה הבוט הזה יכול לעשות. אפשר להעניק לו רק הרשאות שיש לכם. אם תאבדו הרשאה, גם הבוט לא יוכל עוד להשתמש בה.",
+        "save_failed": "נכשל בעדכון הרשאת הבוט"
+      }
+    }
+  }
+}

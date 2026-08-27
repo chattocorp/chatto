@@ -25,6 +25,32 @@ type AssetAccessTicket struct {
 	Fit       string `json:"f,omitempty"`
 }
 
+// HLSAccessTicket authorizes a viewer to read the complete HLS generation for
+// one source video. Individual playlist and segment paths are still checked
+// against the source asset's durable derivative manifest.
+type HLSAccessTicket struct {
+	AssetID   string `json:"a"`
+	UserID    string `json:"u"`
+	ExpiresAt int64  `json:"e"`
+}
+
+func (t HLSAccessTicket) Validate() error {
+	if t.AssetID == "" {
+		return errors.New("HLS ticket: missing asset id")
+	}
+	if t.UserID == "" {
+		return errors.New("HLS ticket: missing user id")
+	}
+	if t.ExpiresAt == 0 {
+		return errors.New("HLS ticket: missing expiry")
+	}
+	return nil
+}
+
+func (t HLSAccessTicket) Expired(now int64) bool {
+	return t.ExpiresAt <= now
+}
+
 func (t AssetAccessTicket) Validate() error {
 	if t.AssetID == "" {
 		return errors.New("asset ticket: missing asset id")
@@ -93,6 +119,50 @@ func ParseSignedAssetAccessTicket(secret, signed string) (*AssetAccessTicket, er
 		return nil, fmt.Errorf("invalid base64 payload: %w", err)
 	}
 	var ticket AssetAccessTicket
+	if err := json.Unmarshal(payloadJSON, &ticket); err != nil {
+		return nil, fmt.Errorf("invalid payload JSON: %w", err)
+	}
+	if err := ticket.Validate(); err != nil {
+		return nil, err
+	}
+	return &ticket, nil
+}
+
+// SignedHLSAccessTicket signs an origin-scoped HLS access credential. The HMAC
+// input is domain-separated from ordinary single-asset tickets.
+func SignedHLSAccessTicket(secret string, ticket HLSAccessTicket) (string, error) {
+	if err := ticket.Validate(); err != nil {
+		return "", err
+	}
+	payloadJSON, err := json.Marshal(ticket)
+	if err != nil {
+		return "", fmt.Errorf("marshal HLS ticket: %w", err)
+	}
+	payloadB64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte("hls:" + payloadB64))
+	signature := hex.EncodeToString(h.Sum(nil)[:16])
+	return payloadB64 + "." + signature, nil
+}
+
+// ParseSignedHLSAccessTicket verifies and decodes an HLS access credential.
+func ParseSignedHLSAccessTicket(secret, signed string) (*HLSAccessTicket, error) {
+	parts := strings.SplitN(signed, ".", 2)
+	if len(parts) != 2 {
+		return nil, errors.New("invalid signed HLS ticket format")
+	}
+	payloadB64, signature := parts[0], parts[1]
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte("hls:" + payloadB64))
+	expectedSig := hex.EncodeToString(h.Sum(nil)[:16])
+	if !hmac.Equal([]byte(expectedSig), []byte(signature)) {
+		return nil, errors.New("invalid signature")
+	}
+	payloadJSON, err := base64.RawURLEncoding.DecodeString(payloadB64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base64 payload: %w", err)
+	}
+	var ticket HLSAccessTicket
 	if err := json.Unmarshal(payloadJSON, &ticket); err != nil {
 		return nil, fmt.Errorf("invalid payload JSON: %w", err)
 	}

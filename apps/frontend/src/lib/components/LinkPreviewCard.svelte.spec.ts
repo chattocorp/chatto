@@ -1,57 +1,50 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { makeRenderData } from '$lib/render/data';
-import LinkPreviewCard, { LinkPreviewViewData } from './LinkPreviewCard.svelte';
+import type { LinkPreviewView } from '$lib/render/linkPreviews';
+import LinkPreviewCard from './LinkPreviewCard.svelte';
 
-type PreviewData = {
-  url: string;
-  title?: string | null;
-  description?: string | null;
-  imageUrl?: string | null;
-  siteName?: string | null;
-  embedType?: string | null;
-  embedId?: string | null;
-  socialPost?: {
-    provider: string;
-    url?: string | null;
-    author?: {
-      displayName: string;
-      handle: string;
-      avatarUrl?: string | null;
-    } | null;
-    text: string;
-    publishedAt?: string | null;
-    externalLink?: {
-      url: string;
-      title?: string | null;
-      description?: string | null;
-      imageUrl?: string | null;
-    } | null;
-    contentWarning?: string | null;
-    images: Array<{
-      url: string;
-      alt?: string | null;
-      width?: number | null;
-      height?: number | null;
-    }>;
-    quotedPost?: PreviewData['socialPost'];
-  } | null;
-};
+const navigation = vi.hoisted(() => ({
+  pushState: vi.fn()
+}));
 
-function preview(o: Partial<PreviewData> = {}) {
-  return makeRenderData(
-    {
-      url: 'https://example.com',
-      title: null,
-      description: null,
-      imageUrl: null,
-      siteName: null,
-      embedType: 'generic',
-      embedId: null,
-      ...o
-    },
-    LinkPreviewViewData
+vi.mock('$app/navigation', () => navigation);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function preview(o: Partial<LinkPreviewView> = {}): LinkPreviewView {
+  return {
+    url: 'https://example.com',
+    title: null,
+    description: null,
+    imageUrl: null,
+    siteName: null,
+    embedType: 'generic',
+    embedId: null,
+    ...o
+  };
+}
+
+function openContextMenu(container: HTMLElement, selector: string) {
+  const surface = container.querySelector(selector);
+  if (!surface) throw new Error(`Missing preview surface: ${selector}`);
+  surface.dispatchEvent(
+    new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 20, clientY: 30 })
   );
+}
+
+async function menuButton(label: string): Promise<HTMLButtonElement> {
+  await vi.waitFor(() => expect(document.body.textContent).toContain(label));
+  const button = Array.from(document.querySelectorAll('button')).find(
+    (candidate) => candidate.textContent?.trim() === label
+  );
+  if (!button) throw new Error(`Missing menu button: ${label}`);
+  return button;
 }
 
 describe('LinkPreviewCard', () => {
@@ -104,6 +97,121 @@ describe('LinkPreviewCard', () => {
     });
     expect(container.querySelector('[data-testid="link-preview-card"]')).toBeNull();
     expect(container.querySelector('iframe')).not.toBeNull();
+  });
+
+  it('owns context-menu actions for every preview renderer', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const sharedProps = {
+      canDelete: true,
+      serverId: 'remote',
+      roomId: 'room-1',
+      eventId: 'event-1',
+      showDismiss: false
+    };
+    const { container, rerender } = render(LinkPreviewCard, {
+      props: {
+        preview: preview({ url: 'https://generic.example', title: 'Generic' }),
+        ...sharedProps
+      }
+    });
+
+    openContextMenu(container, '[data-testid="link-preview-card"]');
+    (await menuButton('Open link')).click();
+    expect(open).toHaveBeenCalledWith(
+      'https://generic.example',
+      '_blank',
+      'noopener,noreferrer'
+    );
+
+    await rerender({
+      preview: preview({
+        url: 'https://youtube.example/watch?v=abc123',
+        embedType: 'youtube',
+        embedId: 'abc123'
+      }),
+      ...sharedProps
+    });
+    openContextMenu(container, '[data-testid="youtube-embed"]');
+    expect((await menuButton('Open on YouTube')).textContent).toContain('Open on YouTube');
+    (await menuButton('Delete embed')).click();
+    expect(navigation.pushState).toHaveBeenLastCalledWith('', {
+      modal: {
+        type: 'deleteLinkPreview',
+        serverId: 'remote',
+        roomId: 'room-1',
+        eventId: 'event-1',
+        previewUrl: 'https://youtube.example/watch?v=abc123'
+      }
+    });
+
+    await rerender({
+      preview: preview({
+        url: 'https://social.example/@alice/post',
+        socialPost: { provider: 'mastodon', text: 'Hello', images: [] }
+      }),
+      ...sharedProps
+    });
+    openContextMenu(container, '[data-testid="social-post-embed"]');
+    expect((await menuButton('Open link')).textContent).toContain('Open link');
+    (await menuButton('Delete preview')).click();
+    expect(navigation.pushState).toHaveBeenLastCalledWith('', {
+      modal: {
+        type: 'deleteLinkPreview',
+        serverId: 'remote',
+        roomId: 'room-1',
+        eventId: 'event-1',
+        previewUrl: 'https://social.example/@alice/post'
+      }
+    });
+  });
+
+  it('routes rich-preview delete controls through the shared owner', async () => {
+    const sharedProps = {
+      canDelete: true,
+      serverId: 'remote',
+      roomId: 'room-1',
+      eventId: 'event-1',
+      showDismiss: false
+    };
+    const { container, rerender } = render(LinkPreviewCard, {
+      props: {
+        preview: preview({
+          url: 'https://youtube.example/watch?v=abc123',
+          embedType: 'youtube',
+          embedId: 'abc123'
+        }),
+        ...sharedProps
+      }
+    });
+
+    container.querySelector<HTMLButtonElement>('button[aria-label="Delete video"]')?.click();
+    expect(navigation.pushState).toHaveBeenLastCalledWith('', {
+      modal: {
+        type: 'deleteLinkPreview',
+        serverId: 'remote',
+        roomId: 'room-1',
+        eventId: 'event-1',
+        previewUrl: 'https://youtube.example/watch?v=abc123'
+      }
+    });
+
+    await rerender({
+      preview: preview({
+        url: 'https://social.example/@alice/post',
+        socialPost: { provider: 'mastodon', text: 'Hello', images: [] }
+      }),
+      ...sharedProps
+    });
+    container.querySelector<HTMLButtonElement>('button[aria-label="Delete preview"]')?.click();
+    expect(navigation.pushState).toHaveBeenLastCalledWith('', {
+      modal: {
+        type: 'deleteLinkPreview',
+        serverId: 'remote',
+        roomId: 'room-1',
+        eventId: 'event-1',
+        previewUrl: 'https://social.example/@alice/post'
+      }
+    });
   });
 
   it('renders a native social-post snapshot and conceals a warned quote', async () => {

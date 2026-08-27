@@ -23,6 +23,9 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// NotificationServiceName is the fully-qualified name of the NotificationService service.
 	NotificationServiceName = "chatto.api.v1.NotificationService"
+	// NotificationPolicyServiceName is the fully-qualified name of the NotificationPolicyService
+	// service.
+	NotificationPolicyServiceName = "chatto.api.v1.NotificationPolicyService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,52 +36,89 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// NotificationServiceListNotificationsProcedure is the fully-qualified name of the
-	// NotificationService's ListNotifications RPC.
-	NotificationServiceListNotificationsProcedure = "/chatto.api.v1.NotificationService/ListNotifications"
-	// NotificationServiceGetNotificationProcedure is the fully-qualified name of the
-	// NotificationService's GetNotification RPC.
-	NotificationServiceGetNotificationProcedure = "/chatto.api.v1.NotificationService/GetNotification"
-	// NotificationServiceBatchGetNotificationsProcedure is the fully-qualified name of the
-	// NotificationService's BatchGetNotifications RPC.
-	NotificationServiceBatchGetNotificationsProcedure = "/chatto.api.v1.NotificationService/BatchGetNotifications"
-	// NotificationServiceListRoomNotificationsProcedure is the fully-qualified name of the
-	// NotificationService's ListRoomNotifications RPC.
-	NotificationServiceListRoomNotificationsProcedure = "/chatto.api.v1.NotificationService/ListRoomNotifications"
-	// NotificationServiceListRoomNotificationCountsProcedure is the fully-qualified name of the
-	// NotificationService's ListRoomNotificationCounts RPC.
-	NotificationServiceListRoomNotificationCountsProcedure = "/chatto.api.v1.NotificationService/ListRoomNotificationCounts"
-	// NotificationServiceHasNotificationsProcedure is the fully-qualified name of the
-	// NotificationService's HasNotifications RPC.
-	NotificationServiceHasNotificationsProcedure = "/chatto.api.v1.NotificationService/HasNotifications"
-	// NotificationServiceDismissNotificationProcedure is the fully-qualified name of the
-	// NotificationService's DismissNotification RPC.
-	NotificationServiceDismissNotificationProcedure = "/chatto.api.v1.NotificationService/DismissNotification"
-	// NotificationServiceDismissAllNotificationsProcedure is the fully-qualified name of the
-	// NotificationService's DismissAllNotifications RPC.
-	NotificationServiceDismissAllNotificationsProcedure = "/chatto.api.v1.NotificationService/DismissAllNotifications"
+	// NotificationServiceGetNotificationOccurrenceProcedure is the fully-qualified name of the
+	// NotificationService's GetNotificationOccurrence RPC.
+	NotificationServiceGetNotificationOccurrenceProcedure = "/chatto.api.v1.NotificationService/GetNotificationOccurrence"
+	// NotificationServiceBatchGetNotificationOccurrencesProcedure is the fully-qualified name of the
+	// NotificationService's BatchGetNotificationOccurrences RPC.
+	NotificationServiceBatchGetNotificationOccurrencesProcedure = "/chatto.api.v1.NotificationService/BatchGetNotificationOccurrences"
+	// NotificationServiceListNotificationOccurrencesProcedure is the fully-qualified name of the
+	// NotificationService's ListNotificationOccurrences RPC.
+	NotificationServiceListNotificationOccurrencesProcedure = "/chatto.api.v1.NotificationService/ListNotificationOccurrences"
+	// NotificationServiceMarkNotificationReadProcedure is the fully-qualified name of the
+	// NotificationService's MarkNotificationRead RPC.
+	NotificationServiceMarkNotificationReadProcedure = "/chatto.api.v1.NotificationService/MarkNotificationRead"
+	// NotificationServiceDeleteNotificationOccurrenceProcedure is the fully-qualified name of the
+	// NotificationService's DeleteNotificationOccurrence RPC.
+	NotificationServiceDeleteNotificationOccurrenceProcedure = "/chatto.api.v1.NotificationService/DeleteNotificationOccurrence"
+	// NotificationServiceBatchDeleteNotificationOccurrencesProcedure is the fully-qualified name of the
+	// NotificationService's BatchDeleteNotificationOccurrences RPC.
+	NotificationServiceBatchDeleteNotificationOccurrencesProcedure = "/chatto.api.v1.NotificationService/BatchDeleteNotificationOccurrences"
+	// NotificationServiceDeleteAllNotificationOccurrencesProcedure is the fully-qualified name of the
+	// NotificationService's DeleteAllNotificationOccurrences RPC.
+	NotificationServiceDeleteAllNotificationOccurrencesProcedure = "/chatto.api.v1.NotificationService/DeleteAllNotificationOccurrences"
+	// NotificationServiceGetNotificationPolicyProcedure is the fully-qualified name of the
+	// NotificationService's GetNotificationPolicy RPC.
+	NotificationServiceGetNotificationPolicyProcedure = "/chatto.api.v1.NotificationService/GetNotificationPolicy"
+	// NotificationServiceUpdateNotificationPolicyProcedure is the fully-qualified name of the
+	// NotificationService's UpdateNotificationPolicy RPC.
+	NotificationServiceUpdateNotificationPolicyProcedure = "/chatto.api.v1.NotificationService/UpdateNotificationPolicy"
+	// NotificationPolicyServiceGetNotificationPolicyProcedure is the fully-qualified name of the
+	// NotificationPolicyService's GetNotificationPolicy RPC.
+	NotificationPolicyServiceGetNotificationPolicyProcedure = "/chatto.api.v1.NotificationPolicyService/GetNotificationPolicy"
+	// NotificationPolicyServiceBatchGetNotificationPoliciesProcedure is the fully-qualified name of the
+	// NotificationPolicyService's BatchGetNotificationPolicies RPC.
+	NotificationPolicyServiceBatchGetNotificationPoliciesProcedure = "/chatto.api.v1.NotificationPolicyService/BatchGetNotificationPolicies"
+	// NotificationPolicyServiceUpdateNotificationPolicyProcedure is the fully-qualified name of the
+	// NotificationPolicyService's UpdateNotificationPolicy RPC.
+	NotificationPolicyServiceUpdateNotificationPolicyProcedure = "/chatto.api.v1.NotificationPolicyService/UpdateNotificationPolicy"
 )
 
 // NotificationServiceClient is a client for the chatto.api.v1.NotificationService service.
 type NotificationServiceClient interface {
-	// Lists the authenticated viewer's pending notifications.
-	ListNotifications(context.Context, *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error)
-	// Gets one pending notification. Returns NOT_FOUND when the notification is
-	// unknown or has been dismissed.
-	GetNotification(context.Context, *connect.Request[v1.GetNotificationRequest]) (*connect.Response[v1.GetNotificationResponse], error)
-	// Gets pending notifications by ID.
-	BatchGetNotifications(context.Context, *connect.Request[v1.BatchGetNotificationsRequest]) (*connect.Response[v1.BatchGetNotificationsResponse], error)
-	// Lists pending notifications for one room. Non-members receive an empty page.
-	ListRoomNotifications(context.Context, *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error)
-	// Lists pending notification counts grouped by room as a finite snapshot.
-	ListRoomNotificationCounts(context.Context, *connect.Request[v1.ListRoomNotificationCountsRequest]) (*connect.Response[v1.ListRoomNotificationCountsResponse], error)
-	// Checks whether the authenticated viewer has any pending notifications.
-	HasNotifications(context.Context, *connect.Request[v1.HasNotificationsRequest]) (*connect.Response[v1.HasNotificationsResponse], error)
-	// Dismisses one pending notification. Already-dismissed notifications are
-	// treated as idempotent success.
-	DismissNotification(context.Context, *connect.Request[v1.DismissNotificationRequest]) (*connect.Response[v1.DismissNotificationResponse], error)
-	// Dismisses all pending notifications.
-	DismissAllNotifications(context.Context, *connect.Request[v1.DismissAllNotificationsRequest]) (*connect.Response[v1.DismissAllNotificationsResponse], error)
+	// Gets one exact visible occurrence. Message-derived occurrences require
+	// current room membership. Channel-room occurrences also require message.read
+	// or a matching thread relationship with message.read.interactions. DM
+	// membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
+	// is absent, deleted, expired, or no longer visible to the authenticated
+	// viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
+	// kind.
+	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
+	// Gets an explicit bounded set of visible occurrences. Missing or
+	// inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
+	// UNIMPLEMENTED rather than partially answering when this server cannot
+	// validate one requested signal kind.
+	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
+	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
+	// presentation groups without changing occurrence identity or counts.
+	// Message-derived occurrences require current room membership. Channel-room
+	// occurrences also require message.read or a matching thread relationship
+	// with message.read.interactions. DM membership authorizes DM occurrences.
+	// Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+	// signal kind this server version cannot validate and assemble.
+	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
+	// Marks one occurrence read. Repeating the call is safe. Returns
+	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
+	MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error)
+	// Permanently deletes one occurrence while retaining its anti-recreation
+	// tombstone through the original expiry. Repeating the call is safe. Returns
+	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
+	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
+	// Permanently deletes an exact set of occurrences. Repeating the call is
+	// safe because later activity receives different occurrence IDs. Returns
+	// UNIMPLEMENTED rather than partially deleting a signal kind this server
+	// cannot validate.
+	BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error)
+	// Permanently deletes every visible occurrence current at the server's
+	// authoritative mutation boundary. Callers must not retry this mutation
+	// automatically because later activity may arrive after that boundary.
+	// Returns UNIMPLEMENTED rather than partially deleting a signal kind this
+	// server cannot validate.
+	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
+	// Gets explicit and effective modes for every supported signal class.
+	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
+	// Atomically sets or clears selected server- or room-scoped signal-class overrides.
+	UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error)
 }
 
 // NewNotificationServiceClient constructs a client for the chatto.api.v1.NotificationService
@@ -92,53 +132,62 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 	baseURL = strings.TrimRight(baseURL, "/")
 	notificationServiceMethods := v1.File_chatto_api_v1_notifications_proto.Services().ByName("NotificationService").Methods()
 	return &notificationServiceClient{
-		listNotifications: connect.NewClient[v1.ListNotificationsRequest, v1.ListNotificationsResponse](
+		getNotificationOccurrence: connect.NewClient[v1.GetNotificationOccurrenceRequest, v1.GetNotificationOccurrenceResponse](
 			httpClient,
-			baseURL+NotificationServiceListNotificationsProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("ListNotifications")),
+			baseURL+NotificationServiceGetNotificationOccurrenceProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("GetNotificationOccurrence")),
 			connect.WithClientOptions(opts...),
 		),
-		getNotification: connect.NewClient[v1.GetNotificationRequest, v1.GetNotificationResponse](
+		batchGetNotificationOccurrences: connect.NewClient[v1.BatchGetNotificationOccurrencesRequest, v1.BatchGetNotificationOccurrencesResponse](
 			httpClient,
-			baseURL+NotificationServiceGetNotificationProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("GetNotification")),
+			baseURL+NotificationServiceBatchGetNotificationOccurrencesProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("BatchGetNotificationOccurrences")),
 			connect.WithClientOptions(opts...),
 		),
-		batchGetNotifications: connect.NewClient[v1.BatchGetNotificationsRequest, v1.BatchGetNotificationsResponse](
+		listNotificationOccurrences: connect.NewClient[v1.ListNotificationOccurrencesRequest, v1.ListNotificationOccurrencesResponse](
 			httpClient,
-			baseURL+NotificationServiceBatchGetNotificationsProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("BatchGetNotifications")),
+			baseURL+NotificationServiceListNotificationOccurrencesProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("ListNotificationOccurrences")),
 			connect.WithClientOptions(opts...),
 		),
-		listRoomNotifications: connect.NewClient[v1.ListRoomNotificationsRequest, v1.ListRoomNotificationsResponse](
+		markNotificationRead: connect.NewClient[v1.MarkNotificationReadRequest, v1.MarkNotificationReadResponse](
 			httpClient,
-			baseURL+NotificationServiceListRoomNotificationsProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("ListRoomNotifications")),
-			connect.WithClientOptions(opts...),
-		),
-		listRoomNotificationCounts: connect.NewClient[v1.ListRoomNotificationCountsRequest, v1.ListRoomNotificationCountsResponse](
-			httpClient,
-			baseURL+NotificationServiceListRoomNotificationCountsProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("ListRoomNotificationCounts")),
-			connect.WithClientOptions(opts...),
-		),
-		hasNotifications: connect.NewClient[v1.HasNotificationsRequest, v1.HasNotificationsResponse](
-			httpClient,
-			baseURL+NotificationServiceHasNotificationsProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("HasNotifications")),
-			connect.WithClientOptions(opts...),
-		),
-		dismissNotification: connect.NewClient[v1.DismissNotificationRequest, v1.DismissNotificationResponse](
-			httpClient,
-			baseURL+NotificationServiceDismissNotificationProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("DismissNotification")),
+			baseURL+NotificationServiceMarkNotificationReadProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("MarkNotificationRead")),
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
-		dismissAllNotifications: connect.NewClient[v1.DismissAllNotificationsRequest, v1.DismissAllNotificationsResponse](
+		deleteNotificationOccurrence: connect.NewClient[v1.DeleteNotificationOccurrenceRequest, v1.DeleteNotificationOccurrenceResponse](
 			httpClient,
-			baseURL+NotificationServiceDismissAllNotificationsProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("DismissAllNotifications")),
+			baseURL+NotificationServiceDeleteNotificationOccurrenceProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("DeleteNotificationOccurrence")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		batchDeleteNotificationOccurrences: connect.NewClient[v1.BatchDeleteNotificationOccurrencesRequest, v1.BatchDeleteNotificationOccurrencesResponse](
+			httpClient,
+			baseURL+NotificationServiceBatchDeleteNotificationOccurrencesProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("BatchDeleteNotificationOccurrences")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		deleteAllNotificationOccurrences: connect.NewClient[v1.DeleteAllNotificationOccurrencesRequest, v1.DeleteAllNotificationOccurrencesResponse](
+			httpClient,
+			baseURL+NotificationServiceDeleteAllNotificationOccurrencesProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("DeleteAllNotificationOccurrences")),
+			connect.WithClientOptions(opts...),
+		),
+		getNotificationPolicy: connect.NewClient[v1.GetNotificationPolicyRequest, v1.GetNotificationPolicyResponse](
+			httpClient,
+			baseURL+NotificationServiceGetNotificationPolicyProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("GetNotificationPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		updateNotificationPolicy: connect.NewClient[v1.UpdateNotificationPolicyRequest, v1.UpdateNotificationPolicyResponse](
+			httpClient,
+			baseURL+NotificationServiceUpdateNotificationPolicyProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("UpdateNotificationPolicy")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -146,76 +195,111 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // notificationServiceClient implements NotificationServiceClient.
 type notificationServiceClient struct {
-	listNotifications          *connect.Client[v1.ListNotificationsRequest, v1.ListNotificationsResponse]
-	getNotification            *connect.Client[v1.GetNotificationRequest, v1.GetNotificationResponse]
-	batchGetNotifications      *connect.Client[v1.BatchGetNotificationsRequest, v1.BatchGetNotificationsResponse]
-	listRoomNotifications      *connect.Client[v1.ListRoomNotificationsRequest, v1.ListRoomNotificationsResponse]
-	listRoomNotificationCounts *connect.Client[v1.ListRoomNotificationCountsRequest, v1.ListRoomNotificationCountsResponse]
-	hasNotifications           *connect.Client[v1.HasNotificationsRequest, v1.HasNotificationsResponse]
-	dismissNotification        *connect.Client[v1.DismissNotificationRequest, v1.DismissNotificationResponse]
-	dismissAllNotifications    *connect.Client[v1.DismissAllNotificationsRequest, v1.DismissAllNotificationsResponse]
+	getNotificationOccurrence          *connect.Client[v1.GetNotificationOccurrenceRequest, v1.GetNotificationOccurrenceResponse]
+	batchGetNotificationOccurrences    *connect.Client[v1.BatchGetNotificationOccurrencesRequest, v1.BatchGetNotificationOccurrencesResponse]
+	listNotificationOccurrences        *connect.Client[v1.ListNotificationOccurrencesRequest, v1.ListNotificationOccurrencesResponse]
+	markNotificationRead               *connect.Client[v1.MarkNotificationReadRequest, v1.MarkNotificationReadResponse]
+	deleteNotificationOccurrence       *connect.Client[v1.DeleteNotificationOccurrenceRequest, v1.DeleteNotificationOccurrenceResponse]
+	batchDeleteNotificationOccurrences *connect.Client[v1.BatchDeleteNotificationOccurrencesRequest, v1.BatchDeleteNotificationOccurrencesResponse]
+	deleteAllNotificationOccurrences   *connect.Client[v1.DeleteAllNotificationOccurrencesRequest, v1.DeleteAllNotificationOccurrencesResponse]
+	getNotificationPolicy              *connect.Client[v1.GetNotificationPolicyRequest, v1.GetNotificationPolicyResponse]
+	updateNotificationPolicy           *connect.Client[v1.UpdateNotificationPolicyRequest, v1.UpdateNotificationPolicyResponse]
 }
 
-// ListNotifications calls chatto.api.v1.NotificationService.ListNotifications.
-func (c *notificationServiceClient) ListNotifications(ctx context.Context, req *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error) {
-	return c.listNotifications.CallUnary(ctx, req)
+// GetNotificationOccurrence calls chatto.api.v1.NotificationService.GetNotificationOccurrence.
+func (c *notificationServiceClient) GetNotificationOccurrence(ctx context.Context, req *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error) {
+	return c.getNotificationOccurrence.CallUnary(ctx, req)
 }
 
-// GetNotification calls chatto.api.v1.NotificationService.GetNotification.
-func (c *notificationServiceClient) GetNotification(ctx context.Context, req *connect.Request[v1.GetNotificationRequest]) (*connect.Response[v1.GetNotificationResponse], error) {
-	return c.getNotification.CallUnary(ctx, req)
+// BatchGetNotificationOccurrences calls
+// chatto.api.v1.NotificationService.BatchGetNotificationOccurrences.
+func (c *notificationServiceClient) BatchGetNotificationOccurrences(ctx context.Context, req *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error) {
+	return c.batchGetNotificationOccurrences.CallUnary(ctx, req)
 }
 
-// BatchGetNotifications calls chatto.api.v1.NotificationService.BatchGetNotifications.
-func (c *notificationServiceClient) BatchGetNotifications(ctx context.Context, req *connect.Request[v1.BatchGetNotificationsRequest]) (*connect.Response[v1.BatchGetNotificationsResponse], error) {
-	return c.batchGetNotifications.CallUnary(ctx, req)
+// ListNotificationOccurrences calls chatto.api.v1.NotificationService.ListNotificationOccurrences.
+func (c *notificationServiceClient) ListNotificationOccurrences(ctx context.Context, req *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error) {
+	return c.listNotificationOccurrences.CallUnary(ctx, req)
 }
 
-// ListRoomNotifications calls chatto.api.v1.NotificationService.ListRoomNotifications.
-func (c *notificationServiceClient) ListRoomNotifications(ctx context.Context, req *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error) {
-	return c.listRoomNotifications.CallUnary(ctx, req)
+// MarkNotificationRead calls chatto.api.v1.NotificationService.MarkNotificationRead.
+func (c *notificationServiceClient) MarkNotificationRead(ctx context.Context, req *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error) {
+	return c.markNotificationRead.CallUnary(ctx, req)
 }
 
-// ListRoomNotificationCounts calls chatto.api.v1.NotificationService.ListRoomNotificationCounts.
-func (c *notificationServiceClient) ListRoomNotificationCounts(ctx context.Context, req *connect.Request[v1.ListRoomNotificationCountsRequest]) (*connect.Response[v1.ListRoomNotificationCountsResponse], error) {
-	return c.listRoomNotificationCounts.CallUnary(ctx, req)
+// DeleteNotificationOccurrence calls
+// chatto.api.v1.NotificationService.DeleteNotificationOccurrence.
+func (c *notificationServiceClient) DeleteNotificationOccurrence(ctx context.Context, req *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error) {
+	return c.deleteNotificationOccurrence.CallUnary(ctx, req)
 }
 
-// HasNotifications calls chatto.api.v1.NotificationService.HasNotifications.
-func (c *notificationServiceClient) HasNotifications(ctx context.Context, req *connect.Request[v1.HasNotificationsRequest]) (*connect.Response[v1.HasNotificationsResponse], error) {
-	return c.hasNotifications.CallUnary(ctx, req)
+// BatchDeleteNotificationOccurrences calls
+// chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences.
+func (c *notificationServiceClient) BatchDeleteNotificationOccurrences(ctx context.Context, req *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error) {
+	return c.batchDeleteNotificationOccurrences.CallUnary(ctx, req)
 }
 
-// DismissNotification calls chatto.api.v1.NotificationService.DismissNotification.
-func (c *notificationServiceClient) DismissNotification(ctx context.Context, req *connect.Request[v1.DismissNotificationRequest]) (*connect.Response[v1.DismissNotificationResponse], error) {
-	return c.dismissNotification.CallUnary(ctx, req)
+// DeleteAllNotificationOccurrences calls
+// chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences.
+func (c *notificationServiceClient) DeleteAllNotificationOccurrences(ctx context.Context, req *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error) {
+	return c.deleteAllNotificationOccurrences.CallUnary(ctx, req)
 }
 
-// DismissAllNotifications calls chatto.api.v1.NotificationService.DismissAllNotifications.
-func (c *notificationServiceClient) DismissAllNotifications(ctx context.Context, req *connect.Request[v1.DismissAllNotificationsRequest]) (*connect.Response[v1.DismissAllNotificationsResponse], error) {
-	return c.dismissAllNotifications.CallUnary(ctx, req)
+// GetNotificationPolicy calls chatto.api.v1.NotificationService.GetNotificationPolicy.
+func (c *notificationServiceClient) GetNotificationPolicy(ctx context.Context, req *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error) {
+	return c.getNotificationPolicy.CallUnary(ctx, req)
+}
+
+// UpdateNotificationPolicy calls chatto.api.v1.NotificationService.UpdateNotificationPolicy.
+func (c *notificationServiceClient) UpdateNotificationPolicy(ctx context.Context, req *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error) {
+	return c.updateNotificationPolicy.CallUnary(ctx, req)
 }
 
 // NotificationServiceHandler is an implementation of the chatto.api.v1.NotificationService service.
 type NotificationServiceHandler interface {
-	// Lists the authenticated viewer's pending notifications.
-	ListNotifications(context.Context, *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error)
-	// Gets one pending notification. Returns NOT_FOUND when the notification is
-	// unknown or has been dismissed.
-	GetNotification(context.Context, *connect.Request[v1.GetNotificationRequest]) (*connect.Response[v1.GetNotificationResponse], error)
-	// Gets pending notifications by ID.
-	BatchGetNotifications(context.Context, *connect.Request[v1.BatchGetNotificationsRequest]) (*connect.Response[v1.BatchGetNotificationsResponse], error)
-	// Lists pending notifications for one room. Non-members receive an empty page.
-	ListRoomNotifications(context.Context, *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error)
-	// Lists pending notification counts grouped by room as a finite snapshot.
-	ListRoomNotificationCounts(context.Context, *connect.Request[v1.ListRoomNotificationCountsRequest]) (*connect.Response[v1.ListRoomNotificationCountsResponse], error)
-	// Checks whether the authenticated viewer has any pending notifications.
-	HasNotifications(context.Context, *connect.Request[v1.HasNotificationsRequest]) (*connect.Response[v1.HasNotificationsResponse], error)
-	// Dismisses one pending notification. Already-dismissed notifications are
-	// treated as idempotent success.
-	DismissNotification(context.Context, *connect.Request[v1.DismissNotificationRequest]) (*connect.Response[v1.DismissNotificationResponse], error)
-	// Dismisses all pending notifications.
-	DismissAllNotifications(context.Context, *connect.Request[v1.DismissAllNotificationsRequest]) (*connect.Response[v1.DismissAllNotificationsResponse], error)
+	// Gets one exact visible occurrence. Message-derived occurrences require
+	// current room membership. Channel-room occurrences also require message.read
+	// or a matching thread relationship with message.read.interactions. DM
+	// membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
+	// is absent, deleted, expired, or no longer visible to the authenticated
+	// viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
+	// kind.
+	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
+	// Gets an explicit bounded set of visible occurrences. Missing or
+	// inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
+	// UNIMPLEMENTED rather than partially answering when this server cannot
+	// validate one requested signal kind.
+	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
+	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
+	// presentation groups without changing occurrence identity or counts.
+	// Message-derived occurrences require current room membership. Channel-room
+	// occurrences also require message.read or a matching thread relationship
+	// with message.read.interactions. DM membership authorizes DM occurrences.
+	// Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+	// signal kind this server version cannot validate and assemble.
+	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
+	// Marks one occurrence read. Repeating the call is safe. Returns
+	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
+	MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error)
+	// Permanently deletes one occurrence while retaining its anti-recreation
+	// tombstone through the original expiry. Repeating the call is safe. Returns
+	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
+	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
+	// Permanently deletes an exact set of occurrences. Repeating the call is
+	// safe because later activity receives different occurrence IDs. Returns
+	// UNIMPLEMENTED rather than partially deleting a signal kind this server
+	// cannot validate.
+	BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error)
+	// Permanently deletes every visible occurrence current at the server's
+	// authoritative mutation boundary. Callers must not retry this mutation
+	// automatically because later activity may arrive after that boundary.
+	// Returns UNIMPLEMENTED rather than partially deleting a signal kind this
+	// server cannot validate.
+	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
+	// Gets explicit and effective modes for every supported signal class.
+	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
+	// Atomically sets or clears selected server- or room-scoped signal-class overrides.
+	UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error)
 }
 
 // NewNotificationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -225,73 +309,84 @@ type NotificationServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	notificationServiceMethods := v1.File_chatto_api_v1_notifications_proto.Services().ByName("NotificationService").Methods()
-	notificationServiceListNotificationsHandler := connect.NewUnaryHandler(
-		NotificationServiceListNotificationsProcedure,
-		svc.ListNotifications,
-		connect.WithSchema(notificationServiceMethods.ByName("ListNotifications")),
+	notificationServiceGetNotificationOccurrenceHandler := connect.NewUnaryHandler(
+		NotificationServiceGetNotificationOccurrenceProcedure,
+		svc.GetNotificationOccurrence,
+		connect.WithSchema(notificationServiceMethods.ByName("GetNotificationOccurrence")),
 		connect.WithHandlerOptions(opts...),
 	)
-	notificationServiceGetNotificationHandler := connect.NewUnaryHandler(
-		NotificationServiceGetNotificationProcedure,
-		svc.GetNotification,
-		connect.WithSchema(notificationServiceMethods.ByName("GetNotification")),
+	notificationServiceBatchGetNotificationOccurrencesHandler := connect.NewUnaryHandler(
+		NotificationServiceBatchGetNotificationOccurrencesProcedure,
+		svc.BatchGetNotificationOccurrences,
+		connect.WithSchema(notificationServiceMethods.ByName("BatchGetNotificationOccurrences")),
 		connect.WithHandlerOptions(opts...),
 	)
-	notificationServiceBatchGetNotificationsHandler := connect.NewUnaryHandler(
-		NotificationServiceBatchGetNotificationsProcedure,
-		svc.BatchGetNotifications,
-		connect.WithSchema(notificationServiceMethods.ByName("BatchGetNotifications")),
+	notificationServiceListNotificationOccurrencesHandler := connect.NewUnaryHandler(
+		NotificationServiceListNotificationOccurrencesProcedure,
+		svc.ListNotificationOccurrences,
+		connect.WithSchema(notificationServiceMethods.ByName("ListNotificationOccurrences")),
 		connect.WithHandlerOptions(opts...),
 	)
-	notificationServiceListRoomNotificationsHandler := connect.NewUnaryHandler(
-		NotificationServiceListRoomNotificationsProcedure,
-		svc.ListRoomNotifications,
-		connect.WithSchema(notificationServiceMethods.ByName("ListRoomNotifications")),
-		connect.WithHandlerOptions(opts...),
-	)
-	notificationServiceListRoomNotificationCountsHandler := connect.NewUnaryHandler(
-		NotificationServiceListRoomNotificationCountsProcedure,
-		svc.ListRoomNotificationCounts,
-		connect.WithSchema(notificationServiceMethods.ByName("ListRoomNotificationCounts")),
-		connect.WithHandlerOptions(opts...),
-	)
-	notificationServiceHasNotificationsHandler := connect.NewUnaryHandler(
-		NotificationServiceHasNotificationsProcedure,
-		svc.HasNotifications,
-		connect.WithSchema(notificationServiceMethods.ByName("HasNotifications")),
-		connect.WithHandlerOptions(opts...),
-	)
-	notificationServiceDismissNotificationHandler := connect.NewUnaryHandler(
-		NotificationServiceDismissNotificationProcedure,
-		svc.DismissNotification,
-		connect.WithSchema(notificationServiceMethods.ByName("DismissNotification")),
+	notificationServiceMarkNotificationReadHandler := connect.NewUnaryHandler(
+		NotificationServiceMarkNotificationReadProcedure,
+		svc.MarkNotificationRead,
+		connect.WithSchema(notificationServiceMethods.ByName("MarkNotificationRead")),
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
-	notificationServiceDismissAllNotificationsHandler := connect.NewUnaryHandler(
-		NotificationServiceDismissAllNotificationsProcedure,
-		svc.DismissAllNotifications,
-		connect.WithSchema(notificationServiceMethods.ByName("DismissAllNotifications")),
+	notificationServiceDeleteNotificationOccurrenceHandler := connect.NewUnaryHandler(
+		NotificationServiceDeleteNotificationOccurrenceProcedure,
+		svc.DeleteNotificationOccurrence,
+		connect.WithSchema(notificationServiceMethods.ByName("DeleteNotificationOccurrence")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationServiceBatchDeleteNotificationOccurrencesHandler := connect.NewUnaryHandler(
+		NotificationServiceBatchDeleteNotificationOccurrencesProcedure,
+		svc.BatchDeleteNotificationOccurrences,
+		connect.WithSchema(notificationServiceMethods.ByName("BatchDeleteNotificationOccurrences")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationServiceDeleteAllNotificationOccurrencesHandler := connect.NewUnaryHandler(
+		NotificationServiceDeleteAllNotificationOccurrencesProcedure,
+		svc.DeleteAllNotificationOccurrences,
+		connect.WithSchema(notificationServiceMethods.ByName("DeleteAllNotificationOccurrences")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationServiceGetNotificationPolicyHandler := connect.NewUnaryHandler(
+		NotificationServiceGetNotificationPolicyProcedure,
+		svc.GetNotificationPolicy,
+		connect.WithSchema(notificationServiceMethods.ByName("GetNotificationPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationServiceUpdateNotificationPolicyHandler := connect.NewUnaryHandler(
+		NotificationServiceUpdateNotificationPolicyProcedure,
+		svc.UpdateNotificationPolicy,
+		connect.WithSchema(notificationServiceMethods.ByName("UpdateNotificationPolicy")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/chatto.api.v1.NotificationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case NotificationServiceListNotificationsProcedure:
-			notificationServiceListNotificationsHandler.ServeHTTP(w, r)
-		case NotificationServiceGetNotificationProcedure:
-			notificationServiceGetNotificationHandler.ServeHTTP(w, r)
-		case NotificationServiceBatchGetNotificationsProcedure:
-			notificationServiceBatchGetNotificationsHandler.ServeHTTP(w, r)
-		case NotificationServiceListRoomNotificationsProcedure:
-			notificationServiceListRoomNotificationsHandler.ServeHTTP(w, r)
-		case NotificationServiceListRoomNotificationCountsProcedure:
-			notificationServiceListRoomNotificationCountsHandler.ServeHTTP(w, r)
-		case NotificationServiceHasNotificationsProcedure:
-			notificationServiceHasNotificationsHandler.ServeHTTP(w, r)
-		case NotificationServiceDismissNotificationProcedure:
-			notificationServiceDismissNotificationHandler.ServeHTTP(w, r)
-		case NotificationServiceDismissAllNotificationsProcedure:
-			notificationServiceDismissAllNotificationsHandler.ServeHTTP(w, r)
+		case NotificationServiceGetNotificationOccurrenceProcedure:
+			notificationServiceGetNotificationOccurrenceHandler.ServeHTTP(w, r)
+		case NotificationServiceBatchGetNotificationOccurrencesProcedure:
+			notificationServiceBatchGetNotificationOccurrencesHandler.ServeHTTP(w, r)
+		case NotificationServiceListNotificationOccurrencesProcedure:
+			notificationServiceListNotificationOccurrencesHandler.ServeHTTP(w, r)
+		case NotificationServiceMarkNotificationReadProcedure:
+			notificationServiceMarkNotificationReadHandler.ServeHTTP(w, r)
+		case NotificationServiceDeleteNotificationOccurrenceProcedure:
+			notificationServiceDeleteNotificationOccurrenceHandler.ServeHTTP(w, r)
+		case NotificationServiceBatchDeleteNotificationOccurrencesProcedure:
+			notificationServiceBatchDeleteNotificationOccurrencesHandler.ServeHTTP(w, r)
+		case NotificationServiceDeleteAllNotificationOccurrencesProcedure:
+			notificationServiceDeleteAllNotificationOccurrencesHandler.ServeHTTP(w, r)
+		case NotificationServiceGetNotificationPolicyProcedure:
+			notificationServiceGetNotificationPolicyHandler.ServeHTTP(w, r)
+		case NotificationServiceUpdateNotificationPolicyProcedure:
+			notificationServiceUpdateNotificationPolicyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -301,34 +396,177 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 // UnimplementedNotificationServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedNotificationServiceHandler struct{}
 
-func (UnimplementedNotificationServiceHandler) ListNotifications(context.Context, *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.ListNotifications is not implemented"))
+func (UnimplementedNotificationServiceHandler) GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.GetNotificationOccurrence is not implemented"))
 }
 
-func (UnimplementedNotificationServiceHandler) GetNotification(context.Context, *connect.Request[v1.GetNotificationRequest]) (*connect.Response[v1.GetNotificationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.GetNotification is not implemented"))
+func (UnimplementedNotificationServiceHandler) BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.BatchGetNotificationOccurrences is not implemented"))
 }
 
-func (UnimplementedNotificationServiceHandler) BatchGetNotifications(context.Context, *connect.Request[v1.BatchGetNotificationsRequest]) (*connect.Response[v1.BatchGetNotificationsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.BatchGetNotifications is not implemented"))
+func (UnimplementedNotificationServiceHandler) ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.ListNotificationOccurrences is not implemented"))
 }
 
-func (UnimplementedNotificationServiceHandler) ListRoomNotifications(context.Context, *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.ListRoomNotifications is not implemented"))
+func (UnimplementedNotificationServiceHandler) MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.MarkNotificationRead is not implemented"))
 }
 
-func (UnimplementedNotificationServiceHandler) ListRoomNotificationCounts(context.Context, *connect.Request[v1.ListRoomNotificationCountsRequest]) (*connect.Response[v1.ListRoomNotificationCountsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.ListRoomNotificationCounts is not implemented"))
+func (UnimplementedNotificationServiceHandler) DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.DeleteNotificationOccurrence is not implemented"))
 }
 
-func (UnimplementedNotificationServiceHandler) HasNotifications(context.Context, *connect.Request[v1.HasNotificationsRequest]) (*connect.Response[v1.HasNotificationsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.HasNotifications is not implemented"))
+func (UnimplementedNotificationServiceHandler) BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences is not implemented"))
 }
 
-func (UnimplementedNotificationServiceHandler) DismissNotification(context.Context, *connect.Request[v1.DismissNotificationRequest]) (*connect.Response[v1.DismissNotificationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.DismissNotification is not implemented"))
+func (UnimplementedNotificationServiceHandler) DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences is not implemented"))
 }
 
-func (UnimplementedNotificationServiceHandler) DismissAllNotifications(context.Context, *connect.Request[v1.DismissAllNotificationsRequest]) (*connect.Response[v1.DismissAllNotificationsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.DismissAllNotifications is not implemented"))
+func (UnimplementedNotificationServiceHandler) GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.GetNotificationPolicy is not implemented"))
+}
+
+func (UnimplementedNotificationServiceHandler) UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.UpdateNotificationPolicy is not implemented"))
+}
+
+// NotificationPolicyServiceClient is a client for the chatto.api.v1.NotificationPolicyService
+// service.
+type NotificationPolicyServiceClient interface {
+	// Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+	// for a missing room group or room, and PERMISSION_DENIED when the viewer is
+	// not a current member of a requested room.
+	GetNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceGetNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceGetNotificationPolicyResponse], error)
+	// Gets an explicit bounded set of policies. Missing and inaccessible scopes
+	// are omitted, and duplicate scopes are de-duplicated in first-seen order.
+	BatchGetNotificationPolicies(context.Context, *connect.Request[v1.BatchGetNotificationPoliciesRequest]) (*connect.Response[v1.BatchGetNotificationPoliciesResponse], error)
+	// Atomically sets or clears selected overrides at one explicit scope.
+	UpdateNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceUpdateNotificationPolicyResponse], error)
+}
+
+// NewNotificationPolicyServiceClient constructs a client for the
+// chatto.api.v1.NotificationPolicyService service. By default, it uses the Connect protocol with
+// the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To use
+// the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewNotificationPolicyServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) NotificationPolicyServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	notificationPolicyServiceMethods := v1.File_chatto_api_v1_notifications_proto.Services().ByName("NotificationPolicyService").Methods()
+	return &notificationPolicyServiceClient{
+		getNotificationPolicy: connect.NewClient[v1.NotificationPolicyServiceGetNotificationPolicyRequest, v1.NotificationPolicyServiceGetNotificationPolicyResponse](
+			httpClient,
+			baseURL+NotificationPolicyServiceGetNotificationPolicyProcedure,
+			connect.WithSchema(notificationPolicyServiceMethods.ByName("GetNotificationPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetNotificationPolicies: connect.NewClient[v1.BatchGetNotificationPoliciesRequest, v1.BatchGetNotificationPoliciesResponse](
+			httpClient,
+			baseURL+NotificationPolicyServiceBatchGetNotificationPoliciesProcedure,
+			connect.WithSchema(notificationPolicyServiceMethods.ByName("BatchGetNotificationPolicies")),
+			connect.WithClientOptions(opts...),
+		),
+		updateNotificationPolicy: connect.NewClient[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest, v1.NotificationPolicyServiceUpdateNotificationPolicyResponse](
+			httpClient,
+			baseURL+NotificationPolicyServiceUpdateNotificationPolicyProcedure,
+			connect.WithSchema(notificationPolicyServiceMethods.ByName("UpdateNotificationPolicy")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// notificationPolicyServiceClient implements NotificationPolicyServiceClient.
+type notificationPolicyServiceClient struct {
+	getNotificationPolicy        *connect.Client[v1.NotificationPolicyServiceGetNotificationPolicyRequest, v1.NotificationPolicyServiceGetNotificationPolicyResponse]
+	batchGetNotificationPolicies *connect.Client[v1.BatchGetNotificationPoliciesRequest, v1.BatchGetNotificationPoliciesResponse]
+	updateNotificationPolicy     *connect.Client[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest, v1.NotificationPolicyServiceUpdateNotificationPolicyResponse]
+}
+
+// GetNotificationPolicy calls chatto.api.v1.NotificationPolicyService.GetNotificationPolicy.
+func (c *notificationPolicyServiceClient) GetNotificationPolicy(ctx context.Context, req *connect.Request[v1.NotificationPolicyServiceGetNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceGetNotificationPolicyResponse], error) {
+	return c.getNotificationPolicy.CallUnary(ctx, req)
+}
+
+// BatchGetNotificationPolicies calls
+// chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies.
+func (c *notificationPolicyServiceClient) BatchGetNotificationPolicies(ctx context.Context, req *connect.Request[v1.BatchGetNotificationPoliciesRequest]) (*connect.Response[v1.BatchGetNotificationPoliciesResponse], error) {
+	return c.batchGetNotificationPolicies.CallUnary(ctx, req)
+}
+
+// UpdateNotificationPolicy calls chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy.
+func (c *notificationPolicyServiceClient) UpdateNotificationPolicy(ctx context.Context, req *connect.Request[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceUpdateNotificationPolicyResponse], error) {
+	return c.updateNotificationPolicy.CallUnary(ctx, req)
+}
+
+// NotificationPolicyServiceHandler is an implementation of the
+// chatto.api.v1.NotificationPolicyService service.
+type NotificationPolicyServiceHandler interface {
+	// Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+	// for a missing room group or room, and PERMISSION_DENIED when the viewer is
+	// not a current member of a requested room.
+	GetNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceGetNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceGetNotificationPolicyResponse], error)
+	// Gets an explicit bounded set of policies. Missing and inaccessible scopes
+	// are omitted, and duplicate scopes are de-duplicated in first-seen order.
+	BatchGetNotificationPolicies(context.Context, *connect.Request[v1.BatchGetNotificationPoliciesRequest]) (*connect.Response[v1.BatchGetNotificationPoliciesResponse], error)
+	// Atomically sets or clears selected overrides at one explicit scope.
+	UpdateNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceUpdateNotificationPolicyResponse], error)
+}
+
+// NewNotificationPolicyServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewNotificationPolicyServiceHandler(svc NotificationPolicyServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	notificationPolicyServiceMethods := v1.File_chatto_api_v1_notifications_proto.Services().ByName("NotificationPolicyService").Methods()
+	notificationPolicyServiceGetNotificationPolicyHandler := connect.NewUnaryHandler(
+		NotificationPolicyServiceGetNotificationPolicyProcedure,
+		svc.GetNotificationPolicy,
+		connect.WithSchema(notificationPolicyServiceMethods.ByName("GetNotificationPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationPolicyServiceBatchGetNotificationPoliciesHandler := connect.NewUnaryHandler(
+		NotificationPolicyServiceBatchGetNotificationPoliciesProcedure,
+		svc.BatchGetNotificationPolicies,
+		connect.WithSchema(notificationPolicyServiceMethods.ByName("BatchGetNotificationPolicies")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationPolicyServiceUpdateNotificationPolicyHandler := connect.NewUnaryHandler(
+		NotificationPolicyServiceUpdateNotificationPolicyProcedure,
+		svc.UpdateNotificationPolicy,
+		connect.WithSchema(notificationPolicyServiceMethods.ByName("UpdateNotificationPolicy")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/chatto.api.v1.NotificationPolicyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case NotificationPolicyServiceGetNotificationPolicyProcedure:
+			notificationPolicyServiceGetNotificationPolicyHandler.ServeHTTP(w, r)
+		case NotificationPolicyServiceBatchGetNotificationPoliciesProcedure:
+			notificationPolicyServiceBatchGetNotificationPoliciesHandler.ServeHTTP(w, r)
+		case NotificationPolicyServiceUpdateNotificationPolicyProcedure:
+			notificationPolicyServiceUpdateNotificationPolicyHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedNotificationPolicyServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedNotificationPolicyServiceHandler struct{}
+
+func (UnimplementedNotificationPolicyServiceHandler) GetNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceGetNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceGetNotificationPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPolicyService.GetNotificationPolicy is not implemented"))
+}
+
+func (UnimplementedNotificationPolicyServiceHandler) BatchGetNotificationPolicies(context.Context, *connect.Request[v1.BatchGetNotificationPoliciesRequest]) (*connect.Response[v1.BatchGetNotificationPoliciesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies is not implemented"))
+}
+
+func (UnimplementedNotificationPolicyServiceHandler) UpdateNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceUpdateNotificationPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy is not implemented"))
 }

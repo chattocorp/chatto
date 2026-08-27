@@ -1,13 +1,21 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "settings": {
     "nav": {
       "title": "Configurações",
       "back_to_server": "Voltar ao servidor",
       "profile": "Perfil",
-      "display": "Exibição",
+      "display": "Preferências",
       "notifications": "Notificações",
-      "account": "Conta"
+      "account": "Conta",
+      "bots": "Bots",
+      "user_preferences": "Preferências do usuário",
+      "server_configuration": "Configuração do servidor"
+    },
+    "app_preferences": {
+      "title": "Preferências do aplicativo",
+      "subtitle": "Opções deste aplicativo que se aplicam a todos os seus servidores registrados",
+      "appearance": { "title": "Aparência" },
+      "composer": { "title": "Composição" }
     },
     "profile": {
       "title": "Perfil",
@@ -105,8 +113,9 @@
       "save_button": "Salvar alterações"
     },
     "preferences": {
-      "title": "Exibição",
-      "subtitle": "Escolha como Chatto aparece",
+      "title": "Hora e região",
+      "subtitle": "Escolha como este servidor exibe datas e horários para você",
+      "browser_scope": "Esta escolha vale para todos os servidores do Chatto neste navegador.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +129,28 @@
         "dark": {
           "label": "Escuro",
           "description": "Use a interface escura neste navegador"
+        }
+      },
+      "editor": {
+        "title": "Editor de mensagens",
+        "visual": {
+          "label": "Visual",
+          "description": "Formate mensagens sem ver a sintaxe Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Edite o código Markdown com realce de sintaxe"
+        }
+      },
+      "send_mode": {
+        "title": "Enviar mensagens com",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter envia; Cmd/Ctrl+Enter executa a ação normal de Enter do editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter envia; Enter executa a ação normal do editor"
         }
       },
       "language": {
@@ -153,9 +184,9 @@
           "description": "por exemplo, 14h30"
         }
       },
-      "save_button": "Salvar configurações de exibição",
-      "saved": "Configurações de exibição salvas",
-      "save_failed": "Falha ao salvar as configurações de exibição"
+      "save_button": "Salvar configurações de horário",
+      "saved": "Configurações de horário salvas",
+      "save_failed": "Não foi possível salvar as configurações de horário"
     },
     "notifications": {
       "title": "Notificações",
@@ -180,9 +211,7 @@
         "enabling": "Habilitando...",
         "blocked_error": "As notificações push são bloqueadas nas configurações do seu navegador ou sistema operacional.",
         "enable_failed": "Falha ao ativar notificações push. Por favor, tente novamente.",
-        "enable_error": "Ocorreu um erro ao ativar notificações push",
-        "remote_title": "Push nativo não está disponível para servidores remotos",
-        "remote_description": "Este aplicativo instalado só pode registrar notificações push do navegador no servidor que o atendeu. Os emblemas e sons de notificação no aplicativo ainda funcionam para este servidor enquanto o Chatto está aberto."
+        "enable_error": "Ocorreu um erro ao ativar notificações push"
       },
       "push_prompt": {
         "title": "Habilitar notificações push",
@@ -195,35 +224,6 @@
         "enabling": "Habilitando...",
         "enable": "Ativar",
         "dismiss": "Não, obrigado"
-      },
-      "levels": {
-        "loading": "Carregando...",
-        "load_failed": "Falha ao carregar preferências de notificação",
-        "server_updated": "Nível de notificação do servidor atualizado",
-        "room_updated": "Nível de notificação da sala atualizado",
-        "update_failed": "Falha ao atualizar",
-        "server_title": "Nível de notificação do servidor",
-        "server_description": "Controla como você recebe notificações de todas as salas deste servidor. Salas individuais podem substituir essa configuração.",
-        "room_title": "Substituições de salas",
-        "room_description": "Substitua a configuração de nível de servidor para salas individuais. As salas definidas como \"Padrão\" herdam a configuração do servidor ({level}).",
-        "room_level_label": "Nível de notificação para #{room}",
-        "effective": "Em vigor: {level}",
-        "default": {
-          "label": "Padrão",
-          "description": "Use o padrão herdado"
-        },
-        "muted": {
-          "label": "Silenciado",
-          "description": "Nenhuma notificação ou marcadores não lidos"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Marcadores não lidos + menções, mensagens diretas e respostas ao tópico"
-        },
-        "all_messages": {
-          "label": "Todas as mensagens",
-          "description": "Normal + notificação para cada nova mensagem"
-        }
       },
       "sound": {
         "title": "Som de notificação",
@@ -273,6 +273,50 @@
           "siren": "Sirene de Alerta",
           "dubstep": "Queda de Dubstep",
           "circus": "Circo"
+        }
+      },
+      "policy": {
+        "title": "Política de notificações",
+        "description": "Escolha como cada atividade avisa você no servidor, grupo de salas e sala. As salas herdam do grupo e depois do servidor.",
+        "load_failed": "Não foi possível carregar a política de notificações",
+        "save_failed": "Não foi possível salvar a política de notificações",
+        "effective": "Efetivo: {mode}",
+        "filter_label": "Filtrar escopos de notificação",
+        "filter_placeholder": "Filtrar grupos e salas…",
+        "no_filter_matches": "Nenhum escopo de notificação corresponde a este filtro.",
+        "legend": "Modos de entrega de notificações",
+        "cell_aria": "{cause}, {scope}. Substituição: {override}. Efetivo: {effective}. Ative para definir {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Padrão: {current}. Ative para definir {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Não se aplica.",
+        "delivery_mode": {
+          "inherit": "Herdar",
+          "off": "Desativado",
+          "notification": "Notificação",
+          "push_notification": "Notificação push"
+        },
+        "reason": {
+          "direct_message": "Mensagens diretas",
+          "direct_mention": "Menções diretas",
+          "reply": "Respostas às suas mensagens",
+          "role_mention": "Menções a cargos",
+          "here": "Menções @here",
+          "all": "Menções @all",
+          "followed_thread": "Tópicos seguidos",
+          "followed_room": "Salas seguidas",
+          "reaction": "Reações às suas mensagens",
+          "activity": "Atividade",
+          "room_invitation": "Convites para salas"
+        },
+        "reason_hint": {
+          "direct_message": "Mensagens que outros membros enviam em conversas de mensagens diretas.",
+          "direct_mention": "Mensagens que mencionam diretamente seu nome de usuário.",
+          "reply": "Mensagens que respondem a uma das suas mensagens.",
+          "role_mention": "Mensagens que mencionam um cargo atribuído a você.",
+          "here": "Mensagens que usam @here quando sua presença não está offline.",
+          "all": "Mensagens que usam @all em uma sala da qual você participa.",
+          "followed_thread": "Novas respostas nos tópicos que você segue.",
+          "followed_room": "Mensagens fora de tópicos nas salas que você segue.",
+          "reaction": "Reações que outros membros adicionam às suas mensagens."
         }
       }
     },
@@ -350,6 +394,52 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Cancelar",
         "deleting": "Excluindo..."
+      }
+    },
+    "bots": {
+      "title": "Bots",
+      "subtitle": "Crie contas de API e controle exatamente o que elas podem fazer",
+      "singular": "bot",
+      "unsupported": "Esta versão do servidor não suporta contas de bot.",
+      "list_title": "Contas de bots",
+      "loading": "Carregando bots...",
+      "empty_title": "Nenhum bot ainda",
+      "empty_body": "Crie um bot quando uma integração precisar de identidade e permissões próprias.",
+      "create_permission_required": "Você pode gerenciar bots existentes, mas não tem permissão para criar um novo.",
+      "create": "Criar bot",
+      "create_title": "Criar conta de bot",
+      "create_failed": "Falha ao criar o bot",
+      "created": "Bot criado",
+      "edit": "Editar",
+      "edit_title": "Editar conta do bot",
+      "updated": "Bot atualizado",
+      "update_failed": "Falha ao atualizar o bot",
+      "update_conflict": "Outra pessoa atualizou este bot. Recarregue a página e tente novamente.",
+      "username": "Nome de usuário",
+      "username_hint": "Os nomes de usuário dos bots devem terminar em _bot.",
+      "display_name": "Nome de exibição",
+      "owner": "Proprietário",
+      "reassign_owner": "Reatribuir proprietário",
+      "reassign_owner_warning": "A chave de API e as permissões configuradas do bot permanecerão iguais. As permissões efetivas passarão imediatamente a seguir o novo proprietário.",
+      "owner_reassigned": "Proprietário do bot reatribuído",
+      "owner_reassign_failed": "Não foi possível reatribuir o proprietário do bot",
+      "api_key_title": "Salvar esta chave de API",
+      "api_key_warning": "Esta chave é mostrada apenas uma vez. Guarde-o em algum lugar seguro antes de fechar esta janela.",
+      "key_created": "Chave de API criada",
+      "key_rotated_at": "Última rotação",
+      "key_copied": "Chave de API copiada",
+      "rotate_key": "Girar chave",
+      "rotate_title": "Alternar chave de API",
+      "rotate_warning": "A chave atual irá parar de funcionar imediatamente. Qualquer integração que o utilize deve ser atualizada.",
+      "key_rotated": "Chave de API rotacionada",
+      "rotate_failed": "Falha ao alternar a chave de API",
+      "delete_title": "Excluir bot",
+      "delete_warning": "Excluir {name}? Sua chave de API deixará de funcionar imediatamente e a conta não poderá ser recuperada.",
+      "deleted": "Bot excluído",
+      "delete_failed": "Falha ao excluir o bot",
+      "permissions": {
+        "owner_ceiling": "Escolha o que este bot pode fazer. Você só pode conceder a ele permissões que também possui. Se você perder uma permissão, o bot também não poderá mais usá-la.",
+        "save_failed": "Falha ao atualizar a permissão do bot"
       }
     }
   }

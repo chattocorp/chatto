@@ -27,7 +27,7 @@
     <RangeField
       id="volume"
       label="Notification volume"
-      icon="uil--volume"
+      icon="icon-[uil--volume]"
       min={0}
       max={100}
       bind:value={volume}

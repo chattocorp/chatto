@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "rbac": {
     "delete_role": {
       "title": "Usuń rolę",
@@ -45,10 +44,22 @@
       "allow": "zezwól",
       "deny": "odmów",
       "winning_decision": "(zwycięska decyzja)",
+      "included_by": "Included by {permission}",
       "level_server": "Serwer",
       "level_group": "Grupa",
       "level_room": "Pokój",
       "empty_category": "Brak uprawnień w tej kategorii",
+      "filter_label": "Filtruj uprawnienia",
+      "filter_placeholder": "Filtruj uprawnienia...",
+      "no_filter_matches": "Żadne uprawnienia nie pasują do tego filtra.",
+      "binary": {
+        "aria": "Stan uprawnienia {permission} dla {subject} w zakresie {scope}: {state}",
+        "enabled": "Włączone",
+        "disabled": "Wyłączone",
+        "inherited": "Odziedziczone z szerszego zakresu",
+        "unavailable": "Obecnie niedostępne",
+        "owner_ceiling": "Nie możesz przyznać uprawnienia {permission} w zakresie {scope}, ponieważ właściciel bota obecnie go nie ma."
+      },
       "categories": {
         "space": {
           "title": "Uprawnienia serwera",
@@ -80,7 +91,7 @@
         },
         "user": {
           "title": "Uprawnienia użytkownika",
-          "description": "Kontroluj operacje na koncie użytkownika i uprawnieniach poszczególnych użytkowników. Każda odmowa niebędąca właścicielem powoduje anulowanie dotacji"
+          "description": "Kontroluj operacje na koncie użytkownika i uprawnieniach poszczególnych użytkowników"
         }
       }
     },
@@ -91,6 +102,8 @@
       "room_list": "Zobacz pokoje w katalogu. Użytkownik może uzyskać dostęp do pokoju (np. poprosić o dostęp) bez możliwości dołączenia do niego.",
       "room_manage": "Edytuj ustawienia i uprawnienia pokoju oraz usuwaj pokoje",
       "room_ban_member": "Zablokuj członkom dostęp do pokojów",
+      "message_read": "Czytaj wiadomości w pokojach kanałów",
+      "message_read_interactions": "Czytać całe wątki utworzone przez Ciebie lub takie, w których inny użytkownik wspomniał Cię bezpośrednio",
       "message_post": "Publikuj wiadomości root w pokojach i rozpoczynaj czaty",
       "message_post_in_thread": "Publikuj odpowiedzi w wątku",
       "message_attach": "Dołącz pliki do wiadomości",
@@ -104,6 +117,7 @@
       "admin_view_audit": "Wyświetl dziennik audytu w panelu administratora",
       "user_delete_any": "Usuń konto innego użytkownika",
       "user_delete_self": "Usuń własne konto",
+      "user_invite": "Twórz linki z zaproszeniem i zarządzaj nimi",
       "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
       "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników"
     }

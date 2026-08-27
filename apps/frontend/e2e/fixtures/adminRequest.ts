@@ -2,7 +2,12 @@ import { expect, request, type APIRequestContext } from '@playwright/test';
 
 export async function createBootstrapAdminRequest(baseURL: string): Promise<APIRequestContext> {
   const adminRequest = await request.newContext({ baseURL });
-  const loginResponse = await adminRequest.post('/auth/login', {
+  const loginResponse = await adminRequest.post('/auth/browser/login', {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Chatto-Authentication-Mode': 'cookie',
+      Origin: new URL(baseURL).origin
+    },
     data: { login: 'e2eadmin', password: 'adminpassword123' }
   });
   expect(loginResponse.ok()).toBeTruthy();

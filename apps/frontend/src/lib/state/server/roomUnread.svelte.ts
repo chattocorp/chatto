@@ -1,35 +1,30 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
+import type { ServerProjectionStore } from './projection.svelte';
 
 export type OptimisticRoomReadHandle = {
   commit(): void;
   rollback(): void;
 };
 
+type ProjectedUnreadSource = Pick<ServerProjectionStore, 'rooms' | 'viewer'>;
+
 /**
- * Tracks which rooms on the server have unread messages.
+ * Optimistic overlays for projection-owned room unread state.
  *
- * Post-PR(b) the API surface no longer carries `spaceId`, so unread state
- * collapses from "rooms-by-space" to a flat per-room group with a single
- * server-level "unknown unread" sentinel.
- *
- * Updated by:
- * - Root `MessagePostedEvent` for any room on the server → `setRoomUnread(_, true)`
- * - Marking a room as read (posting or entering) → `setRoomUnread(_, false)`
- * - Initial load with full room data → `initRooms`
- * - Initial load with only a server-level signal → `setServerHasUnread`
+ * Authoritative unread answers are read directly from `ServerProjectionStore`.
+ * Local posting/reading actions can temporarily override one room until the
+ * next room viewer-state operation acknowledges that command.
  */
 export class RoomUnreadStore {
-  // Specific rooms authoritatively known to be unread.
-  private unreadRooms = new SvelteSet<string>();
-  // Provisional reads hide the underlying unread fact until they settle.
+  private roomOverrides = new SvelteMap<string, boolean>();
   private optimisticReadRooms = new SvelteSet<string>();
   private optimisticReads = new OptimisticMutationRegistry();
   private roomRevisions = new SvelteMap<string, number>();
   private revision = 0;
-  // Server-level unknown-unread flag (set when we know there's unread but
-  // not which room — e.g. on initial load before rooms are queried).
-  private serverHasUnknownUnread = $state(false);
+  private serverHasUnknownUnreadOverride = $state<boolean | null>(null);
+
+  constructor(private readonly getProjection?: () => ProjectedUnreadSource) {}
 
   private optimisticReadKey(roomId: string): string {
     return `room:${roomId}`;
@@ -49,24 +44,12 @@ export class RoomUnreadStore {
     this.optimisticReadRooms.delete(roomId);
   }
 
-  /**
-   * Set unread status for a specific room.
-   */
   setRoomUnread(roomId: string, unread: boolean): void {
     this.advanceRoomRevision(roomId);
     this.invalidateOptimisticRead(roomId);
-
-    if (unread) {
-      this.unreadRooms.add(roomId);
-    } else {
-      this.unreadRooms.delete(roomId);
-    }
+    this.roomOverrides.set(roomId, unread);
   }
 
-  /**
-   * Provisionally mark a room read while retaining the underlying unread fact.
-   * New room state invalidates the handle so rollback cannot overwrite it.
-   */
   beginOptimisticRead(roomId: string): OptimisticRoomReadHandle {
     const token = this.optimisticReads.createToken();
     const roomRevision = this.roomRevision(roomId);
@@ -79,9 +62,8 @@ export class RoomUnreadStore {
       commit: () => {
         if (!this.optimisticReads.isCurrent(key, token)) return;
         if (this.roomRevision(roomId) !== roomRevision) return;
-
         this.advanceRoomRevision(roomId);
-        this.unreadRooms.delete(roomId);
+        this.roomOverrides.set(roomId, false);
         this.optimisticReads.clear(key);
         this.optimisticReadRooms.delete(roomId);
       },
@@ -93,100 +75,102 @@ export class RoomUnreadStore {
     };
   }
 
-  /**
-   * Check if the server has any unread rooms (or is flagged with unknown unread).
-   */
   get hasAnyUnread(): boolean {
-    for (const roomId of this.unreadRooms) {
-      if (!this.optimisticReadRooms.has(roomId)) return true;
+    const roomIds = new SvelteSet<string>(this.roomOverrides.keys());
+    for (const roomId of this.getProjection?.().rooms.keys() ?? []) roomIds.add(roomId);
+    for (const roomId of roomIds) if (this.roomIsUnread(roomId)) return true;
+    if (this.serverHasUnknownUnreadOverride !== null) {
+      return this.serverHasUnknownUnreadOverride;
     }
-    return this.serverHasUnknownUnread;
+    const projection = this.getProjection?.();
+    return projection?.rooms.size === 0
+      ? (projection.viewer?.viewerState?.hasUnreadRooms ?? false)
+      : false;
   }
 
-  /**
-   * Get the first known unread room ID, or null if only the unknown-unread
-   * flag is set (no specific rooms).
-   */
   getFirstUnreadRoomId(): string | null {
-    for (const roomId of this.unreadRooms) {
-      if (!this.optimisticReadRooms.has(roomId)) return roomId;
-    }
+    const roomIds = new SvelteSet<string>(this.roomOverrides.keys());
+    for (const roomId of this.getProjection?.().rooms.keys() ?? []) roomIds.add(roomId);
+    for (const roomId of roomIds) if (this.roomIsUnread(roomId)) return roomId;
     return null;
   }
 
-  /**
-   * Check if a specific room is unread.
-   */
   roomIsUnread(roomId: string): boolean {
-    return this.unreadRooms.has(roomId) && !this.optimisticReadRooms.has(roomId);
+    if (this.optimisticReadRooms.has(roomId)) return false;
+    const override = this.roomOverrides.get(roomId);
+    if (override !== undefined) return override;
+    return this.getProjection?.().rooms.get(roomId)?.room?.viewerState?.hasUnread ?? false;
   }
 
-  /** Capture before loading a snapshot so newer room events win on arrival. */
   captureSnapshotRevision(): number {
     return this.revision;
   }
 
-  /**
-   * Initialize unread state from room data.
-   * Call this when loading rooms.
-   */
   initRooms(
     rooms: Array<{ id: string; hasUnread: boolean }>,
     serverHasUnknownUnread = false,
     snapshotRevision = this.captureSnapshotRevision()
   ): void {
     const snapshotRoomIds = new SvelteSet(rooms.map((room) => room.id));
-    for (const roomId of this.unreadRooms) {
+    for (const roomId of this.roomOverrides.keys()) {
       if (!snapshotRoomIds.has(roomId) && this.roomRevision(roomId) <= snapshotRevision) {
-        this.unreadRooms.delete(roomId);
+        this.roomOverrides.delete(roomId);
       }
     }
-
     this.updateRooms(rooms, snapshotRevision);
-    this.serverHasUnknownUnread = serverHasUnknownUnread;
+    this.serverHasUnknownUnreadOverride = serverHasUnknownUnread;
   }
 
-  /** Merge an authoritative partial room snapshot without dropping other rooms. */
   updateRooms(
     rooms: Array<{ id: string; hasUnread: boolean }>,
     snapshotRevision = this.captureSnapshotRevision()
   ): void {
     for (const room of rooms) {
       if (this.roomRevision(room.id) > snapshotRevision) continue;
-      if (room.hasUnread) this.unreadRooms.add(room.id);
-      else this.unreadRooms.delete(room.id);
+      this.roomOverrides.set(room.id, room.hasUnread);
     }
   }
 
-  /** Clear the server-level sentinel after all relevant room scopes are known. */
   resolveUnknownUnread(): void {
-    this.serverHasUnknownUnread = false;
+    this.serverHasUnknownUnreadOverride = false;
   }
 
-  /**
-   * Flag (or unflag) the server as having unread when only the server-level
-   * signal is known (initial load, before rooms are queried).
-   */
   setServerHasUnread(hasUnread: boolean): void {
-    if (hasUnread) {
-      this.serverHasUnknownUnread = true;
-    } else {
+    this.serverHasUnknownUnreadOverride = hasUnread;
+    if (!hasUnread) {
       this.optimisticReads.clearAll();
       this.optimisticReadRooms.clear();
-      this.serverHasUnknownUnread = false;
-      this.unreadRooms.clear();
+      this.roomOverrides.clear();
     }
   }
 
-  /**
-   * Clear all unread state.
-   */
+  /** Clear only local overlays confirmed by this projected unread value. */
+  acknowledgeRoomProjection(roomId: string, hasUnread: boolean | undefined): void {
+    if (hasUnread === undefined) return;
+    if (hasUnread && this.optimisticReadRooms.has(roomId)) return;
+    this.advanceRoomRevision(roomId);
+    if (hasUnread === false) this.invalidateOptimisticRead(roomId);
+    this.roomOverrides.delete(roomId);
+  }
+
+  /** Remove all local state when the projected room itself disappears. */
+  removeRoomProjection(roomId: string): void {
+    this.advanceRoomRevision(roomId);
+    this.invalidateOptimisticRead(roomId);
+    this.roomOverrides.delete(roomId);
+  }
+
+  /** A viewer operation supersedes the server-level fallback overlay. */
+  acknowledgeViewerProjection(): void {
+    this.serverHasUnknownUnreadOverride = null;
+  }
+
   clear(): void {
     this.optimisticReads.clearAll();
     this.optimisticReadRooms.clear();
     this.roomRevisions.clear();
     this.revision = 0;
-    this.unreadRooms.clear();
-    this.serverHasUnknownUnread = false;
+    this.roomOverrides.clear();
+    this.serverHasUnknownUnreadOverride = null;
   }
 }

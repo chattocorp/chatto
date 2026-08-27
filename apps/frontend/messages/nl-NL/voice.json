@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Verbinden...",
     "joining": "Deelnemen...",
@@ -11,6 +10,15 @@
     "leave": "Gesprek verlaten",
     "share_screen": "Deel scherm",
     "stop_share_screen": "Scherm delen stoppen",
+    "applications": "Applicaties",
+    "entire_screen": "Volledig scherm",
+    "share_source": "Deelbron",
+    "main_display": "Hoofdscherm",
+    "display_number": "Scherm {number}",
+    "video_only": "Alleen video",
+    "share_sources_failed": "Kan deelbare bronnen niet laden.",
+    "no_share_windows": "Geen deelbare applicatievensters gevonden.",
+    "no_share_displays": "Geen schermen gevonden.",
     "user_settings": "Gebruikersinstellingen",
     "speaking": "Aan het woord",
     "muted": "Gedempt",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Kan scherm delen niet starten.",
     "speaker_switch_failed": "Kan niet schakelen tussen luidsprekers. Deze browser of dit apparaat ondersteunt mogelijk geen luidsprekerselectie.",
     "device_switch_failed": "Kan niet overschakelen naar dat apparaat.",
-    "media_device_failed": "Kan geen toegang krijgen tot een media-apparaat."
+    "media_device_failed": "Kan geen toegang krijgen tot een media-apparaat.",
+    "stream_game": "Een game streamen",
+    "stream_game_description": "Kies het gamevenster dat je met iedereen in het gesprek wilt delen.",
+    "game_windows": "Gamevensters",
+    "no_game_windows": "Geen deelbare vensters gevonden. Open een game in venster- of randloze modus en probeer het opnieuw.",
+    "game_windows_failed": "De deelbare vensters konden niet worden geladen.",
+    "untitled_window": "Venster zonder titel",
+    "game_window_selected": "{name} geselecteerd"
   }
 }

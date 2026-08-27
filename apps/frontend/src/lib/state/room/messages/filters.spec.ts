@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { RoomEventKind } from '$lib/render/eventKinds';
-import type { RoomEventView } from '$lib/render/types';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { isRootRoomEvent, isThreadEvent } from './filters';
 
-function event(payload: RoomEventView['event'], id = 'event-1'): RoomEventView {
+function event(payload: TimelineEventView['event'], id = 'event-1'): TimelineEventView {
   return {
     id,
     createdAt: '2026-06-01T12:00:00.000Z',
@@ -13,9 +12,9 @@ function event(payload: RoomEventView['event'], id = 'event-1'): RoomEventView {
   };
 }
 
-function messagePayload(overrides: Record<string, unknown> = {}): RoomEventView['event'] {
+function messagePayload(overrides: Record<string, unknown> = {}): TimelineEventView['event'] {
   return {
-    kind: RoomEventKind.MessagePosted,
+    kind: TimelineEventKind.MessagePosted,
     roomId: 'room-1',
     body: 'hello',
     attachments: [],
@@ -32,7 +31,7 @@ function messagePayload(overrides: Record<string, unknown> = {}): RoomEventView[
     threadParticipants: [],
     viewerIsFollowingThread: null,
     ...overrides
-  } as RoomEventView['event'];
+  } as TimelineEventView['event'];
 }
 
 describe('room message event filters', () => {
@@ -41,19 +40,40 @@ describe('room message event filters', () => {
       isRootRoomEvent(
         event(
           messagePayload({
-            kind: RoomEventKind.MessagePosted
+            kind: TimelineEventKind.MessagePosted
           })
         )
       )
     ).toBe(true);
   });
 
+  it.each([TimelineEventKind.CallStarted, TimelineEventKind.CallEnded])(
+    'keeps %s in the room timeline',
+    (kind) => {
+      expect(isRootRoomEvent(event({ kind, roomId: 'room-1', callId: 'call-1' } as never))).toBe(
+        true
+      );
+    }
+  );
+
   it('uses local event kind for room lifecycle events', () => {
     expect(
       isRootRoomEvent(
         event({
-          kind: RoomEventKind.RoomUpdated,
+          kind: TimelineEventKind.RoomUpdated,
           roomId: 'room-1'
+        } as never)
+      )
+    ).toBe(true);
+  });
+
+  it('keeps Threading Mode changes in the room timeline', () => {
+    expect(
+      isRootRoomEvent(
+        event({
+          kind: TimelineEventKind.RoomThreadingModeChanged,
+          roomId: 'room-1',
+          threadingMode: 2
         } as never)
       )
     ).toBe(true);
@@ -68,7 +88,7 @@ describe('room message event filters', () => {
       isThreadEvent(
         event(
           messagePayload({
-            kind: RoomEventKind.MessagePosted,
+            kind: TimelineEventKind.MessagePosted,
             threadRootEventId: 'root-1'
           }),
           'reply-1'

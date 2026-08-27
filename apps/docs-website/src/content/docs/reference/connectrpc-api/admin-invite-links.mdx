@@ -1,0 +1,150 @@
+---
+title: AdminInviteLinkService
+description: Invite-link administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService"></a>
+
+## AdminInviteLinkService
+
+Manages the invite links used for invite-only account admission.
+
+<a id="chatto-admin-v1-AdminInviteLinkService-ListInviteLinks"></a>
+
+### ListInviteLinks
+
+Lists invite links. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/ListInviteLinks
+```
+
+<a id="chatto-admin-v1-ListInviteLinksRequest"></a>
+
+#### Input: ListInviteLinksRequest
+
+Requests a page of invite links, newest first.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`chatto.api.v1.PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | No field description provided. |
+
+
+<a id="chatto-admin-v1-ListInviteLinksResponse"></a>
+
+#### Result: ListInviteLinksResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_links` | repeated [`InviteLink`](/reference/connectrpc-api/types/#chatto-admin-v1-InviteLink) | No field description provided. |
+| `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-GetInviteLink"></a>
+
+### GetInviteLink
+
+Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/GetInviteLink
+```
+
+<a id="chatto-admin-v1-GetInviteLinkRequest"></a>
+
+#### Input: GetInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-GetInviteLinkResponse"></a>
+
+#### Result: GetInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](/reference/connectrpc-api/types/#chatto-admin-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-CreateInviteLink"></a>
+
+### CreateInviteLink
+
+Creates an invite link. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/CreateInviteLink
+```
+
+<a id="chatto-admin-v1-CreateInviteLinkRequest"></a>
+
+#### Input: CreateInviteLinkRequest
+
+Creates an invite link. Absent constraints mean unlimited uses and no expiry.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+<a id="chatto-admin-v1-CreateInviteLinkResponse"></a>
+
+#### Result: CreateInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](/reference/connectrpc-api/types/#chatto-admin-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-RevokeInviteLink"></a>
+
+### RevokeInviteLink
+
+Permanently revokes an invite link while retaining its audit history. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/RevokeInviteLink
+```
+
+<a id="chatto-admin-v1-RevokeInviteLinkRequest"></a>
+
+#### Input: RevokeInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-RevokeInviteLinkResponse"></a>
+
+#### Result: RevokeInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](/reference/connectrpc-api/types/#chatto-admin-v1-InviteLink) | No field description provided. |

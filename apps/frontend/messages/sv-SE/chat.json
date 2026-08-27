@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Aviseringar",
@@ -10,7 +9,19 @@
       "time_now": "Just nu",
       "time_minutes": "{count}m sedan",
       "time_hours": "{count}h sedan",
-      "time_days": "{count}d sedan"
+      "time_days": "{count}d sedan",
+      "unread": "Oläst",
+      "activity": "Ny aktivitet",
+      "summary": {
+        "direct_message": "{actor} har skickat ett direktmeddelande till dig.",
+        "reaction": "{actor} reagerade med ”{emoji}” på ditt meddelande i {channel}.",
+        "reaction_group": "{actor} och andra reagerade med ”{emoji}” på ditt meddelande i {channel}.",
+        "reply": "{actor} svarade på ditt meddelande.",
+        "mention": "{actor} nämnde dig.",
+        "followed_thread": "{actor} svarade i en tråd som du följer.",
+        "new_message": "{actor} publicerade ett nytt meddelande.",
+        "activity": "{actor} skickade en avisering till dig."
+      }
     },
     "sign_out": {
       "title": "Logga ut",
@@ -28,17 +39,16 @@
     },
     "user_menu": {
       "profile": "Användarprofil",
-      "send_message": "Skicka meddelande"
+      "send_message": "Skicka meddelande",
+      "copy_user_id": "Kopiera användar-ID"
     },
     "server_gutter": {
       "add_server": "Lägg till server",
       "version": "Version {version}",
       "version_unknown": "Okänd version",
-      "compatibility_degraded": "Vissa livefunktioner är inte tillgängliga på den här servern.",
-      "compatibility_server_too_old": "Den här servern kör en äldre version. Vissa funktioner kanske inte fungerar som förväntat.",
-      "compatibility_client_too_old": "Den här appen är för gammal för servern. Läs in eller uppdatera den.",
-      "compatibility_unsupported": "Den här servern stöder inte protokollen som appen kräver.",
-      "compatibility_unknown": "Den här servern rapporterar ingen kompatibilitetsinformation."
+      "unreachable": "Servern kan inte nås",
+      "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",
+      "compatibility_unknown": "Den här appen kan inte avgöra kompatibiliteten utifrån serverversionen."
     },
     "threads": {
       "title": "Mina trådar",
@@ -50,7 +60,7 @@
       "empty_body": "Trådar du följer kommer att visas här. Du följer automatiskt trådar du deltar i.",
       "no_unread_loaded": "Inga olästa trådar laddade",
       "all_caught_up": "Alla kom ikapp",
-      "loaded_count": "{loaded} av {total} följde trådar laddade.",
+      "loaded_summary": "{loaded} av {total} följde trådar laddade.",
       "load_more": "Ladda mer",
       "no_unread": "Inga olästa trådar just nu.",
       "message_missing": "Meddelandet är inte längre tillgängligt",

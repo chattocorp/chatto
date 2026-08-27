@@ -74,6 +74,12 @@ func TestRunInitCommandCreatesEmbeddedConfiguration(t *testing.T) {
 	if !cfg.Auth.EmailOTP.ThrottlingEnabledOrDefault() {
 		t.Fatal("generated config should enable email OTP throttling")
 	}
+	if cfg.Auth.DirectLogin == nil || !*cfg.Auth.DirectLogin {
+		t.Fatal("generated config should enable direct password login")
+	}
+	if !cfg.AssetProcessing.Enabled {
+		t.Fatal("generated config should enable built-in asset processing")
+	}
 
 	info, err := os.Stat(configPath)
 	if err != nil {
@@ -92,6 +98,8 @@ func TestRunInitCommandCreatesEmbeddedConfiguration(t *testing.T) {
 		"storage_backend = 'nats'",
 		"[auth.email_otp]",
 		"throttling_enabled = true",
+		"direct_login = true",
+		"[asset_processing]",
 		"# [[auth.providers]]",
 		"# [nats.client]",
 		"[nats.embedded]",
@@ -119,7 +127,7 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 		{
 			name: "credentials file",
 			configure: func(a *initAnswers) {
-				a.NATSAuthMethod = config.NATSAuthCredentials
+				a.NATSAuthMethod = natsauth.AuthCredentials
 				a.NATSCredentialsFile = "/run/secrets/chatto.creds"
 			},
 			assertNATS: func(t *testing.T, c config.NATSClientConfig) {
@@ -131,7 +139,7 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 		{
 			name: "token",
 			configure: func(a *initAnswers) {
-				a.NATSAuthMethod = config.NATSAuthToken
+				a.NATSAuthMethod = natsauth.AuthToken
 				a.NATSToken = "top-secret-token"
 			},
 			assertNATS: func(t *testing.T, c config.NATSClientConfig) {
@@ -143,7 +151,7 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 		{
 			name: "userpass",
 			configure: func(a *initAnswers) {
-				a.NATSAuthMethod = config.NATSAuthUserPass
+				a.NATSAuthMethod = natsauth.AuthUserPass
 				a.NATSUsername = "chatto"
 				a.NATSPassword = "password"
 			},
@@ -156,7 +164,7 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 		{
 			name: "nkey",
 			configure: func(a *initAnswers) {
-				a.NATSAuthMethod = config.NATSAuthNKey
+				a.NATSAuthMethod = natsauth.AuthNKey
 				a.NATSNKeySeed = validNKeySeed
 			},
 			assertNATS: func(t *testing.T, c config.NATSClientConfig) {
@@ -168,7 +176,7 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 		{
 			name: "none",
 			configure: func(a *initAnswers) {
-				a.NATSAuthMethod = config.NATSAuthNone
+				a.NATSAuthMethod = natsauth.AuthNone
 			},
 			assertNATS: func(t *testing.T, c config.NATSClientConfig) {},
 		},
@@ -228,32 +236,32 @@ func TestRunInitCommandCreatesExternalNATSConfiguration(t *testing.T) {
 
 func assertOnlySelectedNATSCredentials(t *testing.T, client config.NATSClientConfig) {
 	t.Helper()
-	if client.AuthMethod != config.NATSAuthToken && client.Token != "" {
+	if client.AuthMethod != natsauth.AuthToken && client.Token != "" {
 		t.Errorf("unselected token was retained")
 	}
-	if client.AuthMethod != config.NATSAuthUserPass && (client.Username != "" || client.Password != "") {
+	if client.AuthMethod != natsauth.AuthUserPass && (client.Username != "" || client.Password != "") {
 		t.Errorf("unselected username/password was retained")
 	}
-	if client.AuthMethod != config.NATSAuthCredentials && client.CredentialsFile != "" {
+	if client.AuthMethod != natsauth.AuthCredentials && client.CredentialsFile != "" {
 		t.Errorf("unselected credentials file was retained")
 	}
-	if client.AuthMethod != config.NATSAuthNKey && client.NKeySeed != "" {
+	if client.AuthMethod != natsauth.AuthNKey && client.NKeySeed != "" {
 		t.Errorf("unselected NKey seed was retained")
 	}
 }
 
-func ttAuthMethod(name string) config.NATSAuthMethod {
+func ttAuthMethod(name string) natsauth.AuthMethod {
 	switch name {
 	case "credentials file":
-		return config.NATSAuthCredentials
+		return natsauth.AuthCredentials
 	case "token":
-		return config.NATSAuthToken
+		return natsauth.AuthToken
 	case "userpass":
-		return config.NATSAuthUserPass
+		return natsauth.AuthUserPass
 	case "nkey":
-		return config.NATSAuthNKey
+		return natsauth.AuthNKey
 	default:
-		return config.NATSAuthNone
+		return natsauth.AuthNone
 	}
 }
 
@@ -305,21 +313,21 @@ func TestRunInitCommandRejectsInvalidAnswersBeforeWriting(t *testing.T) {
 		}},
 		{name: "missing token", configure: func(a *initAnswers) {
 			a.NATSMode = initNATSExternal
-			a.NATSAuthMethod = config.NATSAuthToken
+			a.NATSAuthMethod = natsauth.AuthToken
 		}},
 		{name: "missing username", configure: func(a *initAnswers) {
 			a.NATSMode = initNATSExternal
-			a.NATSAuthMethod = config.NATSAuthUserPass
+			a.NATSAuthMethod = natsauth.AuthUserPass
 			a.NATSPassword = "secret"
 		}},
 		{name: "missing password", configure: func(a *initAnswers) {
 			a.NATSMode = initNATSExternal
-			a.NATSAuthMethod = config.NATSAuthUserPass
+			a.NATSAuthMethod = natsauth.AuthUserPass
 			a.NATSUsername = "chatto"
 		}},
 		{name: "invalid NKey seed", configure: func(a *initAnswers) {
 			a.NATSMode = initNATSExternal
-			a.NATSAuthMethod = config.NATSAuthNKey
+			a.NATSAuthMethod = natsauth.AuthNKey
 			a.NATSNKeySeed = "not-a-seed"
 		}},
 		{name: "unknown auth method", configure: func(a *initAnswers) {

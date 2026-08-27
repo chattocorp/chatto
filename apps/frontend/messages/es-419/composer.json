@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "Adjuntar archivo",
     "send": "Enviar mensaje",
-    "send_enter": "Enviar mensaje (Entrar)",
-    "send_ctrl_enter": "Enviar mensaje (Ctrl/Cmd+Entrar)",
+    "send_label": "Enviar",
     "also_send_to_channel": "También enviar al canal",
+    "post_as_thread": "Publicar como hilo",
+    "thread_label": "Hilo",
+    "echo_label": "Eco",
     "replying_to": "Respondiendo a",
     "esc_to_cancel": "para cancelar",
     "editing": "Editando mensaje",
@@ -21,7 +22,23 @@
     "drop_files_title": "Suelta archivos aquí",
     "drop_files_subtitle": "Se agregarán imágenes y videos a tu mensaje",
     "send_failed": "No se pudo enviar el mensaje",
+    "slow_mode_ready": "Modo lento: un mensaje cada {interval}.",
+    "slow_mode_waiting": "Modo lento: vuelve a enviar en {countdown}.",
+    "slow_mode_bypassed": "Modo lento: {interval} (tienes una exención).",
+    "slow_mode_rejected": "El modo lento está activo. Espera antes de enviar otro mensaje.",
+    "threads_encouraged": "Se recomienda usar hilos en esta sala.",
+    "recent_thread_confirm_title": "¿Continuar en tu hilo anterior?",
+    "recent_thread_confirm_body": "Tu mensaje anterior ya tiene un hilo. ¿Dónde quieres publicar este mensaje?",
+    "post_as_new_message": "Publicar como mensaje nuevo",
+    "continue_in_thread": "Continuar en el hilo",
     "edit_failed": "No se pudo editar el mensaje",
+    "upload": {
+      "preparing": "Preparando…",
+      "uploading": "{percentage}% subido",
+      "uploaded": "Subido",
+      "failed": "Error al subir",
+      "remove": "Eliminar {filename}"
+    },
     "format": {
       "bold": "Negrita",
       "italic": "Cursiva",
@@ -30,7 +47,9 @@
       "bullet_list": "Lista con viñetas",
       "ordered_list": "Lista numerada",
       "blockquote": "Cita",
-      "code_block": "Bloque de código"
+      "code_block": "Bloque de código",
+      "outdent": "Reducir sangría",
+      "indent": "Aumentar sangría"
     },
     "timestamp": {
       "title": "Insertar marca de tiempo",

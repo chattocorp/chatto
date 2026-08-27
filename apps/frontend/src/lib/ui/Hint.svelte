@@ -17,7 +17,7 @@ a page without competing with primary content.
 ```svelte
 <Hint>Room overrides take precedence over space-level role configuration.</Hint>
 
-<Hint tone="warning" icon="uil--exclamation-triangle">
+<Hint tone="warning" icon="icon-[uil--exclamation-triangle]">
   Changes here apply immediately to all members.
 </Hint>
 ```
@@ -36,7 +36,7 @@ a page without competing with primary content.
     /** Tint of the hint. Defaults to a muted info style. */
     tone?: Tone;
     /**
-     * Iconify class name (e.g. `'uil--info-circle'`). Defaults to a sensible
+     * Iconify class name (e.g. `'icon-[uil--info-circle]'`). Defaults to a sensible
      * icon per tone. Pass `null` to suppress the icon.
      */
     icon?: string | null;
@@ -50,10 +50,10 @@ a page without competing with primary content.
   };
 
   const defaultIcons: Record<Tone, string> = {
-    info: 'uil--info-circle',
-    warning: 'uil--exclamation-triangle',
-    success: 'uil--check-circle',
-    danger: 'uil--times-circle'
+    info: 'icon-[uil--info-circle]',
+    warning: 'icon-[uil--exclamation-triangle]',
+    success: 'icon-[uil--check-circle]',
+    danger: 'icon-[uil--times-circle]'
   };
 
   const resolvedIcon = $derived(icon === null ? null : (icon ?? defaultIcons[tone]));
@@ -63,7 +63,7 @@ a page without competing with primary content.
   {#if resolvedIcon}
     <span class={['mt-0.5 iconify shrink-0 text-lg', resolvedIcon]}></span>
   {/if}
-  <div class="flex-1">
+  <div class="min-w-0 flex-1">
     {@render children()}
   </div>
 </div>

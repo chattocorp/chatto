@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "Datei anhängen",
     "send": "Nachricht senden",
-    "send_enter": "Nachricht senden (Enter)",
-    "send_ctrl_enter": "Nachricht senden (Strg/Cmd+Enter)",
+    "send_label": "Senden",
     "also_send_to_channel": "Auch an Kanal senden",
+    "post_as_thread": "Als Thread posten",
+    "thread_label": "Thread",
+    "echo_label": "Echo",
     "replying_to": "Antwort an",
     "esc_to_cancel": "zum Abbrechen",
     "editing": "Nachricht bearbeiten",
@@ -21,7 +22,23 @@
     "drop_files_title": "Dateien hier ablegen",
     "drop_files_subtitle": "Bilder und Videos werden deiner Nachricht hinzugefügt",
     "send_failed": "Nachricht konnte nicht gesendet werden",
+    "slow_mode_ready": "Langsamer Modus: eine Nachricht alle {interval}.",
+    "slow_mode_waiting": "Langsamer Modus: erneut senden in {countdown}.",
+    "slow_mode_bypassed": "Langsamer Modus: {interval} (du bist ausgenommen).",
+    "slow_mode_rejected": "Der langsame Modus ist aktiv. Warte, bevor du eine weitere Nachricht sendest.",
+    "threads_encouraged": "In diesem Raum werden Antworten in Threads empfohlen.",
+    "recent_thread_confirm_title": "Im vorherigen Thread fortfahren?",
+    "recent_thread_confirm_body": "Deine vorherige Nachricht hat bereits einen Thread. Wohin soll diese Nachricht gesendet werden?",
+    "post_as_new_message": "Als neue Nachricht senden",
+    "continue_in_thread": "Im Thread fortfahren",
     "edit_failed": "Nachricht konnte nicht bearbeitet werden",
+    "upload": {
+      "preparing": "Wird vorbereitet…",
+      "uploading": "{percentage} % hochgeladen",
+      "uploaded": "Hochgeladen",
+      "failed": "Upload fehlgeschlagen",
+      "remove": "{filename} entfernen"
+    },
     "format": {
       "bold": "Fett",
       "italic": "Kursiv",
@@ -30,7 +47,9 @@
       "bullet_list": "Aufzählung",
       "ordered_list": "Nummerierte Liste",
       "blockquote": "Zitat",
-      "code_block": "Codeblock"
+      "code_block": "Codeblock",
+      "outdent": "Ausrücken",
+      "indent": "Einrücken"
     },
     "timestamp": {
       "title": "Zeitstempel einfügen",

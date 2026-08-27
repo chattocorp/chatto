@@ -1,5 +1,6 @@
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { describe, expect, it } from 'vitest';
-import { RoomType } from '$lib/render/types';
+
 import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
 import { roomRouteAccess } from './roomLinkAccess';
 
@@ -7,11 +8,13 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
   return {
     id: 'room-1',
     name: 'general',
-    type: RoomType.Channel,
+    type: RoomKind.CHANNEL,
     isUniversal: false,
     viewerIsMember: true,
     viewerCanJoinRoom: true,
+    viewerCanManageRoom: false,
     viewerNotificationCount: 0,
+    viewerImportantNotificationCount: 0,
     members: [],
     ...overrides
   };

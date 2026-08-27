@@ -1,6 +1,6 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CurrentUserState } from './currentUser.svelte';
-import { PresenceStatus } from '$lib/render/types';
 
 const { clearCachedUserMock } = vi.hoisted(() => ({
   clearCachedUserMock: vi.fn()
@@ -63,7 +63,7 @@ describe('CurrentUserState', () => {
       login: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
-      presenceStatus: PresenceStatus.Online,
+      presenceStatus: PresenceStatus.ONLINE,
       hasVerifiedEmail: true,
       viewerCanDeleteAccount: false,
       hasPassword: true,
@@ -72,10 +72,14 @@ describe('CurrentUserState', () => {
 
     await state.handleAuthFailure({ revokeServerSession: true });
 
-    expect(fetch).toHaveBeenCalledWith('/auth/logout', {
+    expect(fetch).toHaveBeenCalledWith('/auth/browser/logout', {
       method: 'POST',
-      headers: expect.any(Headers)
+      headers: expect.any(Headers),
+      body: '{}'
     });
+    const headers = vi.mocked(fetch).mock.calls[0]?.[1]?.headers as Headers;
+    expect(headers.get('Content-Type')).toBe('application/json');
+    expect(headers.get('X-Chatto-Authentication-Mode')).toBe('cookie');
     expect(state.user).toBeUndefined();
     expect(clearCachedUserMock).toHaveBeenCalledOnce();
     expect(onAuthenticationRequired).not.toHaveBeenCalled();

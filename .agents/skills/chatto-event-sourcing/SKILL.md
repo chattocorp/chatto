@@ -5,7 +5,10 @@ description: "Use when designing, implementing, reviewing, debugging, or documen
 
 # Chatto Event Sourcing
 
-Use this skill whenever touching durable domain state in Chatto. It is a guardrail checklist for the event-sourced architecture, not a replacement for the architecture docs.
+Use this skill whenever touching durable domain state in Chatto. Apply the
+repository-wide [`loom-architecture`](../loom-architecture/SKILL.md) skill
+alongside it for the shared architectural invariants. This skill adds
+Chatto-specific guardrails and does not replace the architecture docs.
 
 ## Start Here
 
@@ -18,8 +21,9 @@ Read only what is relevant to the task:
 
 Authoritative code anchors:
 
-- `cli/internal/events/publisher.go` - OCC-only event publishing.
-- `cli/internal/events/subjects.go` - aggregate types, event tokens, subject helpers, and wildcard filters.
+- `pkg/events/encoded_event_log.go` - envelope-neutral OCC-only event-log mechanics.
+- `cli/internal/evtstream/publisher.go` - Chatto's typed EVT publishing adapter.
+- `cli/internal/evtstream/subjects.go` - aggregate types, event tokens, subject helpers, and wildcard filters.
 - `proto/chatto/core/v1/event.proto` and sibling `*_events.proto` files - durable event payloads.
 - `cli/internal/core/core.go` - service/projection wiring and live/reconnect delivery.
 - `cli/internal/core/*_service.go` - domain services and write orchestration.
@@ -29,6 +33,13 @@ Authoritative code anchors:
 ## Core Rules
 
 - Durable domain facts go into `EVT`. Do not add durable mirrors in KV or object metadata unless the architecture explicitly calls the state runtime, ephemeral, secret, binary, or cache data.
+- Treat every new `EVT` event type as a last resort. It must record an
+  authoritative fact that changes durable domain state, not implementation
+  bookkeeping, an invalidation, a work item, or an outbox/recovery trigger.
+  First exhaust existing domain facts, projections, `RUNTIME_STATE`, transient
+  live sync, reconciliation, and an explicitly acceptable best-effort effect.
+  If a new event is still necessary, document why those alternatives cannot
+  preserve the required domain behavior.
 - Domain state interactions should go through a Service for that domain. Avoid direct JetStream, KV, object-store, or projection manipulation from unrelated code.
 - `ChattoCore` is a facade and wiring point. Prefer moving domain-specific write/readiness logic into a focused Service.
 - Projections are process-local read models rebuilt from `EVT`. They are not locks, coordination points, or sources of durable truth.
@@ -36,24 +47,45 @@ Authoritative code anchors:
 - Every successful write that needs read-your-writes must wait for the local projector(s) that serve the next read path.
 - Event subjects are part of the persisted data model. Changing an aggregate lane is a compatibility decision, not a refactor.
 
+### Latest-Value Runtime Indexes
+
+For a hot, high-fanout `RUNTIME_STATE` or `MEMORY_CACHE` read path:
+
+- Prefer one filtered KV watcher owned by the process-level domain model, not
+  one watcher or key scan per request, user, or WebSocket.
+- Use the watcher's initial latest-value delivery as the startup snapshot and
+  expose an explicit readiness barrier before serving indexed reads. Do not
+  combine an independent key scan and watcher without closing their race.
+- Keep KV authoritative across replicas. The in-memory index is an acceleration
+  layer, not a coordination mechanism.
+- Keep `Create`/revision `Update` OCC on writes. After a successful mutation,
+  wait until the watcher has applied that key's returned revision when the
+  caller needs local read-your-writes.
+- Apply local and remote changes through the same watcher path, including
+  delete/purge events, and return cloned or detached values to readers.
+- Document and test initial sync, remote-replica convergence, OCC conflict
+  retries, deletes, shutdown, and the memory cost of any material index.
+
 ## Before Adding Or Changing A Write
 
 Answer these questions before editing:
 
 1. Is this a durable domain fact, runtime state, transient live sync, binary/object data, a secret, or a cache?
-2. Which Service owns the domain? If none exists, should this change introduce one?
-3. Which aggregate owns the event subject?
-4. What invariant does the OCC filter protect?
-5. Which projections must consume the event?
-6. Which projections must be current before the mutation returns?
-7. Does the write need to publish transient `LiveEvent`s, or will `EVT` republish through `live.evt.>` be enough?
-8. What happens with multiple replicas racing the same write?
-9. What happens on forward deploy, mixed-version rolling deploy, and rollback?
-10. Which focused tests lock down the subject, replay, OCC, projection, and delivery behavior?
+2. If this proposes a new `EVT` event, what durable domain state changes, and
+   why can no existing fact or non-EVT mechanism represent the requirement?
+3. Which Service owns the domain? If none exists, should this change introduce one?
+4. Which aggregate owns the event subject?
+5. What invariant does the OCC filter protect?
+6. Which projections must consume the event?
+7. Which projections must be current before the mutation returns?
+8. Does the write need to publish transient `LiveEvent`s, or will `EVT` republish through `live.evt.>` be enough?
+9. What happens with multiple replicas racing the same write?
+10. What happens on forward deploy, mixed-version rolling deploy, and rollback?
+11. Which focused tests lock down the subject, replay, OCC, projection, and delivery behavior?
 
 ## Choosing An Aggregate Subject
 
-Use `events.{Domain}Aggregate(...).SubjectFor(event)` helpers instead of hand-built subjects.
+Use `evtstream.{Domain}Aggregate(...).SubjectFor(event)` helpers instead of hand-built subjects.
 
 Subject guidance:
 
@@ -75,14 +107,25 @@ The asset migration is the current example: new writes use `evt.asset.{assetId}.
 
 ## OCC Checklist
 
-Use `events.Publisher`; do not add non-OCC publish paths.
+Use `evtstream.Publisher`; do not add non-OCC publish paths.
 
 Common patterns:
 
 - Per-aggregate append: use the typed aggregate helper and the publisher's append path.
 - Cross-event-type invariant on one aggregate family: read the wildcard tail with `LastSubjectPosition(filter)`, wait for any needed projections to catch up, re-check the projected invariant, then `AppendAtFilter`.
 - Multi-event atomic write: use atomic publish entries with explicit OCC on every entry that needs protection. Do not publish a batch with no OCC guard.
-- Retry only after re-reading the OCC tail and re-checking the invariant from projections.
+- Retry only after re-reading the OCC tail and re-checking the invariant from
+  projections. Re-run authorization, validation, uniqueness checks, no-op
+  detection, and event construction when any of them can change the command's
+  meaning.
+- For an interactive replacement-style edit, return a conflict so the client
+  can preserve the draft and ask the user to reload unless the complete command
+  is deliberately recomputed from its original intent. Do not replay a
+  precomputed event merely because another attempt may pass OCC.
+- Retry an unchanged event only when its semantics are proven to remain valid
+  after intervening writes. Sparse patches protect untouched fields but do not
+  detect stale edits to the same field; require a client-supplied revision when
+  that distinction matters.
 
 Pitfalls:
 
@@ -107,7 +150,10 @@ Projection implementations should be boring and replay-safe:
 - Keep derived indexes consistent when events remove, replace, tombstone, or supersede prior state.
 - Return cloned/protective values from projection read methods.
 - Let the projector framework own JetStream message metadata. Projection code should use the stream sequence passed into `Apply`; do not parse `msg.Metadata()` or substitute consumer sequence numbers in projection logic.
-- Use stable stream sequence numbers for reconnect replay and delivery cursors.
+- Use stable stream sequence numbers internally for reconnect replay and
+  delivery positions, but seal them before crossing a normal client or
+  integration boundary. Public cursors must provide confidentiality and
+  integrity rather than merely encoding the sequence.
 - Add admin projection estimates when adding meaningful in-memory indexes.
 
 When a projection consumes legacy lanes, name them as legacy compatibility in comments/docs/tests. New writes should still have one canonical subject family.
@@ -124,6 +170,13 @@ cutoff handling.
 - Bump the projection's contract ID when that equivalence can change. Contract
   IDs are bounded path-safe, projection-local equality tokens, not Chatto
   versions or ordered schema versions.
+- Build every contract ID from its manual restore-semantics token and the
+  shared reachable-schema fingerprint. Keep only the current snapshot message:
+  changing its schema automatically selects a new namespace. Old binaries
+  retain their own schema and namespace; prior generations remain isolated
+  until normal retention removes them, after which that version cold-replays
+  EVT. Bump the manual token when restore equivalence changes without a
+  protobuf schema change.
 - Scope pointers and generation objects by projection plus contract. Different
   contracts must never read, rotate, delete, or apply no-regression checks to
   each other's generations.
@@ -158,6 +211,11 @@ Check:
 Treat the interval between an EVT commit and completion of any KMS, LiveKit,
 object-store, webhook, or other external side effect as a crash boundary.
 
+- Recovery requirements alone do not justify a new event type. Recover work
+  from the existing domain-changing fact whenever possible. If no such fact
+  exists, decide explicitly whether the effect belongs in `RUNTIME_STATE`, can
+  be reconciled from current authority, or may remain best-effort before
+  proposing another `EVT` fact.
 - External side effects required by a committed fact must be retryable from
   durable state after process restart and lease-holder turnover.
 - A process-local retry queue may reduce recovery latency, but must not be the
@@ -196,6 +254,12 @@ When adding or moving deliverable events:
 - If the subject is not room-scoped, add a path to resolve room/user visibility from payload/projections.
 - Include the event family in reconnect replay if clients need to recover it after disconnect.
 - Keep replay ordered by global stream sequence and deduplicate by event ID where room and non-room projections can both see legacy facts.
+- Internal stream positions may back a public resume cursor, but must never be
+  exposed directly or through reversible encoding. Seal cursors with
+  confidentiality and integrity, domain-separate their keys, and bind them to
+  the authenticated viewer/resource scope. Invalid, foreign, or stale cursors
+  must select a safe reset or documented public error without revealing the
+  failed internal coordinate.
 - Transient `LiveEvent`s on `live.sync.>` are not replayed and are not projection input.
 
 ## Compatibility And Deployment
@@ -217,7 +281,7 @@ Prefer additive protobuf changes. Avoid breaking persisted event payload fields.
 
 For event-sourced changes, look for focused tests in addition to end-to-end behavior:
 
-- Subject helper tests in `cli/internal/events`.
+- Subject helper tests in `pkg/events`.
 - Projection `Subjects()` policy in `cli/internal/core/projection_subjects_test.go`.
 - Projection replay tests for canonical and legacy event shapes.
 - OCC conflict/race tests for the invariant being protected.

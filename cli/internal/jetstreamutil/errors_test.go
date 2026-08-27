@@ -20,18 +20,26 @@ func TestIsSequenceConflict(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "nats.go revision mismatch sentinel",
+			err:  jetstream.ErrKeyRevisionMismatch,
+			want: true,
+		},
+		{
 			name: "detailed wrong last sequence",
-			err:  &jetstream.APIError{Code: 400, ErrorCode: jetstream.ErrorCode(10071)},
+			err:  &jetstream.APIError{Code: 400, ErrorCode: jetstream.JSErrCodeStreamWrongLastSequence},
 			want: true,
 		},
 		{
 			name: "constant wrong last sequence",
-			err:  &jetstream.APIError{Code: 400, ErrorCode: jetstream.ErrorCode(10164)},
+			err:  &jetstream.APIError{Code: 400, ErrorCode: jetstream.JSErrCodeStreamWrongLastSequenceConstant},
 			want: true,
 		},
 		{
 			name: "wrapped constant wrong last sequence",
-			err:  fmt.Errorf("publish presence: %w", &jetstream.APIError{Code: 400, ErrorCode: jetstream.ErrorCode(10164)}),
+			err: fmt.Errorf(
+				"publish presence: %w",
+				&jetstream.APIError{Code: 400, ErrorCode: jetstream.JSErrCodeStreamWrongLastSequenceConstant},
+			),
 			want: true,
 		},
 		{

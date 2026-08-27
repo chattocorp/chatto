@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Створіть нову кімнату",
@@ -14,7 +13,7 @@
       "missing_group": "Виберіть групу кімнат, перш ніж створювати кімнату.",
       "failed": "Не вдалося створити кімнату",
       "creating": "Створення...",
-      "submit": "Створити кімнату"
+      "submit_and_configure": "Створити й налаштувати кімнату"
     },
     "join": {
       "title": "Приєднатися до кімнати",
@@ -23,16 +22,10 @@
       "inline_prompt": "Приєднуйтеся до цієї кімнати, щоб читати та брати участь.",
       "group_label": "У групі {group}",
       "member_preview_label": "Учасники кімнати",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} учасник",
-            "countPlural=other": "{count} учасників"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} учасник",
+        "other": "{count} учасників"
+      },
       "success": "Приєднався до #{room}",
       "success_generic": "Приєднався до кімнати",
       "failed": "Не вдалося приєднатися до кімнати",
@@ -77,7 +70,8 @@
       "remove_account_suffix": "."
     },
     "timeline": {
-      "beginning": "Це початок цієї розмови."
+      "beginning": "Це початок цієї розмови.",
+      "read_denied": "У вас немає дозволу читати повідомлення в цій кімнаті."
     },
     "message": {
       "empty": "Поки що немає повідомлень",
@@ -85,6 +79,7 @@
       "delete_prompt": "Ви впевнені, що хочете видалити це повідомлення? Це неможливо скасувати.",
       "delete_failed": "Не вдалося видалити повідомлення",
       "reaction_failed": "Не вдалося оновити реакцію",
+      "reaction_limit_reached": "До одного повідомлення можна додати не більше 20 реакцій.",
       "deleted": "Повідомлення видалено",
       "actions": {
         "toolbar": "Дії з повідомленнями",
@@ -93,6 +88,7 @@
         "add_reaction": "Додайте реакцію",
         "more_reactions": "Більше реакцій",
         "reply": "Відповідь",
+        "reply_room": "Відповісти в кімнаті",
         "reply_thread": "Відповідь у ланцюжку",
         "open_thread": "Відкрити тему",
         "edit": "Редагувати повідомлення",
@@ -103,7 +99,10 @@
         "copy_link": "Копіювати посилання"
       },
       "meta": {
+        "pinned": "Закріплене повідомлення",
         "thread": "Тема",
+        "edited": "Повідомлення відредаговано",
+        "echoed_to_channel": "Також надіслано до каналу",
         "reply_count_one": "1 відповідь",
         "reply_count_many": "Відповіді {count}",
         "follow_thread": "Слідкуйте за темою",
@@ -123,45 +122,30 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "приєднався до кімнати",
-            "countPlural=few": "приєдналися до кімнати",
-            "countPlural=many": "приєдналися до кімнати",
-            "countPlural=other": "приєдналися до кімнати"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "залишив кімнату",
-            "countPlural=few": "залишили кімнату",
-            "countPlural=many": "залишили кімнату",
-            "countPlural=other": "залишили кімнату"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "приєднався до кімнати",
+        "few": "приєдналися до кімнати",
+        "many": "приєдналися до кімнати",
+        "other": "приєдналися до кімнати"
+      },
+      "left_count": {
+        "one": "залишив кімнату",
+        "few": "залишили кімнату",
+        "many": "залишили кімнату",
+        "other": "залишили кімнату"
+      },
       "archived": "заархівував кімнату",
       "unarchived": "розархівував кімнату",
+      "call_started": "розпочав дзвінок у цій кімнаті",
+      "call_ended": "Активний дзвінок завершився",
+      "threading_mode_changed": "змінив(-ла) режим гілок на {mode}",
       "and": "і",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "інша людина",
-            "countPlural=few": "інші людини",
-            "countPlural=many": "інших людей",
-            "countPlural=other": "інших людей"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "інша людина",
+        "few": "інші людини",
+        "many": "інших людей",
+        "other": "інших людей"
+      },
       "show_less": "показувати менше"
     },
     "attachment": {
@@ -195,6 +179,7 @@
       "offline": "Офлайн ({count})",
       "no_files": "У цій кімнаті ще немає файлів.",
       "files": "Файли",
+      "pins": "Закріплені повідомлення",
       "call": "Телефонуйте",
       "jump_to_file": "Перейти до {filename}",
       "loading_files": "Завантаження файлів...",
@@ -204,6 +189,20 @@
       "in_video_call": "У відеодзвінку",
       "ban_failed": "Не вдалося забанити учасника в кімнаті",
       "ban_success": "{name} забанено в кімнаті"
+    },
+    "pins": {
+      "show": "Показати закріплені повідомлення",
+      "unseen": "Нові закріплені повідомлення",
+      "hide": "Сховати закріплені повідомлення",
+      "pin": "Закріпити повідомлення",
+      "unpin": "Відкріпити повідомлення",
+      "unpin_prompt": "Ви впевнені, що хочете відкріпити це повідомлення?",
+      "loading": "Завантаження закріплених повідомлень...",
+      "empty_title": "Немає закріплених повідомлень",
+      "empty_description": "Керівники кімнати можуть закріплювати тут важливі повідомлення.",
+      "error_title": "Закріплені повідомлення недоступні",
+      "error_description": "Не вдалося завантажити закріплені повідомлення. Спробуйте ще раз за мить.",
+      "update_failed": "Не вдалося оновити закріплене повідомлення"
     },
     "title": {
       "direct_message": "Пряме повідомлення"

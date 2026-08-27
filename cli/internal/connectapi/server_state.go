@@ -3,13 +3,17 @@ package connectapi
 import (
 	"bytes"
 	"context"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
+	"golang.org/x/sync/errgroup"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/parallel"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 type serverService struct {
@@ -21,12 +25,8 @@ func (s *serverService) GetMotd(ctx context.Context, _ *connect.Request[apiv1.Ge
 		return nil, err
 	}
 
-	motd, err := s.serverMotd(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	resp := &apiv1.GetMotdResponse{}
+	motd := serverMOTD(s.api)
 	if motd != "" {
 		resp.Motd = stringPtr(motd)
 	}
@@ -38,27 +38,27 @@ func (s *serverService) GetRuntimeConfig(ctx context.Context, _ *connect.Request
 		return nil, err
 	}
 
-	return connect.NewResponse(&apiv1.GetRuntimeConfigResponse{Runtime: s.serverRuntimeConfig()}), nil
+	return connect.NewResponse(&apiv1.GetRuntimeConfigResponse{Runtime: serverRuntimeConfig(s.api)}), nil
 }
 
-func (s *serverService) serverRuntimeConfig() *apiv1.ServerRuntimeConfig {
-	maxUploadSize := s.api.core.AssetsConfig().MaxUploadSize
+func serverRuntimeConfig(api *API) *apiv1.ServerRuntimeConfig {
+	maxUploadSize := api.core.AssetsConfig().MaxUploadSize
 	maxVideoUploadSize := maxUploadSize
-	if s.api.config.Video.Enabled {
-		maxVideoUploadSize = int64(s.api.config.Video.MaxUploadSizeOrDefault())
+	if api.config.Video.Enabled {
+		maxVideoUploadSize = int64(api.config.Video.MaxUploadSizeOrDefault())
 	}
 	runtime := &apiv1.ServerRuntimeConfig{
-		PushNotificationsEnabled: s.api.config.Push.IsConfigured(),
-		VideoProcessingEnabled:   s.api.config.Video.Enabled,
+		PushNotificationsEnabled: api.config.Push.IsConfigured(),
+		VideoProcessingEnabled:   api.config.Video.Enabled,
 		MaxUploadSize:            maxUploadSize,
 		MaxVideoUploadSize:       maxVideoUploadSize,
 		MessageEditWindowSeconds: int32(core.MessageEditWindow / time.Second),
 	}
-	if s.api.config.Push.IsConfigured() {
-		runtime.VapidPublicKey = stringPtr(s.api.config.Push.VAPIDPublicKey)
+	if api.config.Push.IsConfigured() {
+		runtime.VapidPublicKey = stringPtr(api.config.Push.VAPIDPublicKey)
 	}
-	if s.api.config.LiveKit.IsConfigured() {
-		runtime.LivekitUrl = stringPtr(s.api.config.LiveKit.URL)
+	if api.config.LiveKit.IsConfigured() {
+		runtime.LivekitUrl = stringPtr(api.config.LiveKit.URL)
 	}
 	return runtime
 }
@@ -224,37 +224,48 @@ func adminServerConfig(cfg *configv1.ServerConfig) *adminv1.ServerConfig {
 	}
 }
 
-func (s *serverService) serverMotd(ctx context.Context) (string, error) {
-	if cm := s.api.core.ConfigManager(); cm != nil {
-		motd, err := cm.GetEffectiveMOTD(ctx)
-		if err != nil {
-			return "", connectError(err)
-		}
-		return motd, nil
+func serverMOTD(api *API) string {
+	if cm := api.core.ConfigModel(); cm != nil {
+		return cm.GetEffectiveMOTD()
 	}
-	return "", nil
+	return ""
 }
 
 func (a *API) serverViewerState(ctx context.Context, userID string) (*apiv1.ServerViewerPermissions, *apiv1.ServerViewerState, error) {
-	hasUnreadRooms, err := a.viewerHasUnreadRooms(ctx, userID)
-	if err != nil {
+	var (
+		hasUnreadRooms   bool
+		permissionGrants []*apiv1.PermissionGrant
+	)
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		var err error
+		hasUnreadRooms, err = a.viewerHasUnreadRooms(groupCtx, userID)
+		return err
+	})
+	group.Go(func() error {
+		var err error
+		permissionGrants, err = parallel.Map(
+			groupCtx,
+			maxConnectAPIHydrationConcurrency,
+			core.AllPermissions(),
+			func(ctx context.Context, _ int, meta core.PermissionMetadata) (*apiv1.PermissionGrant, error) {
+				granted, err := a.core.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
+				if err != nil {
+					return nil, connectError(err)
+				}
+				return &apiv1.PermissionGrant{
+					Permission: string(meta.Permission),
+					Granted:    granted,
+				}, nil
+			},
+		)
+		return err
+	})
+	if err := group.Wait(); err != nil {
 		return nil, nil, err
 	}
 
-	permissions := &apiv1.ServerViewerPermissions{
-		Permissions: make([]*apiv1.PermissionGrant, 0, len(core.AllPermissions())),
-	}
-	for _, meta := range core.AllPermissions() {
-		granted, err := a.core.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
-		if err != nil {
-			return nil, nil, connectError(err)
-		}
-		permissions.Permissions = append(permissions.Permissions, &apiv1.PermissionGrant{
-			Permission: string(meta.Permission),
-			Granted:    granted,
-		})
-	}
-
+	permissions := &apiv1.ServerViewerPermissions{Permissions: permissionGrants}
 	return permissions, &apiv1.ServerViewerState{HasUnreadRooms: hasUnreadRooms}, nil
 }
 
@@ -263,14 +274,26 @@ func (a *API) viewerHasUnreadRooms(ctx context.Context, userID string) (bool, er
 	if err != nil {
 		return false, connectError(err)
 	}
-	for _, room := range rooms {
+	var found atomic.Bool
+	_, err = parallel.Map(ctx, maxConnectAPIHydrationConcurrency, rooms, func(ctx context.Context, _ int, room *corev1.Room) (struct{}, error) {
+		if found.Load() {
+			return struct{}{}, nil
+		}
+		canRead, err := a.core.CanAccessRoomMessages(ctx, userID, core.KindChannel, room.GetId())
+		if err != nil || !canRead {
+			return struct{}{}, err
+		}
 		hasUnread, err := a.core.HasUnread(ctx, core.KindChannel, userID, room.GetId())
 		if err != nil {
-			continue
+			return struct{}{}, nil
 		}
 		if hasUnread {
-			return true, nil
+			found.Store(true)
 		}
+		return struct{}{}, nil
+	})
+	if err != nil {
+		return false, connectError(err)
 	}
-	return false, nil
+	return found.Load(), nil
 }

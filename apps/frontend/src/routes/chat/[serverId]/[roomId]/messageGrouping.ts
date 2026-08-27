@@ -1,27 +1,28 @@
-import type { RoomEventView } from '$lib/render/types';
-import { isMessagePostedEvent } from '$lib/render/eventKinds';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
-import { isSameDay, formatDayLabel } from '$lib/utils/formatTime';
+import {
+  isMessagePostedEvent,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
+import { isSameDay, formatDayLabel, type TimeFormatSettings } from '$lib/utils/formatTime';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
 export type EventWithMeta = {
-  event: RoomEventView;
+  event: TimelineEventView;
   isFirstInGroup: boolean;
   showDaySeparator: boolean;
   dayLabel: string;
 };
 
 export function computeEventMetadata(
-  events: RoomEventView[],
-  settings: UserSettingsState,
+  events: TimelineEventView[],
+  settings: TimeFormatSettings,
   locale?: string
 ): EventWithMeta[] {
   const result: EventWithMeta[] = [];
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    const prevEvent: RoomEventView | null = i > 0 ? events[i - 1] : null;
+    const prevEvent: TimelineEventView | null = i > 0 ? events[i - 1] : null;
 
     const eventDate = new Date(event.createdAt);
     const prevEventDate = prevEvent ? new Date(prevEvent.createdAt) : null;

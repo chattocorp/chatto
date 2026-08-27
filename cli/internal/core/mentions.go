@@ -2,6 +2,9 @@ package core
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -9,7 +12,6 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
-	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -31,7 +33,7 @@ func IsVirtualMentionHandle(handle string) bool {
 
 func (c *ChattoCore) loginConflictsWithMentionHandle(login string) bool {
 	normalized := strings.ToLower(login)
-	return IsVirtualMentionHandle(normalized) || c.RBAC.RoleExists(normalized)
+	return IsVirtualMentionHandle(normalized) || c.rbacModel.roleExists(normalized)
 }
 
 func (c *ChattoCore) roleNameConflictsWithMentionHandle(roleName string) bool {
@@ -39,7 +41,7 @@ func (c *ChattoCore) roleNameConflictsWithMentionHandle(roleName string) bool {
 	if IsVirtualMentionHandle(normalized) {
 		return true
 	}
-	return c.Users.LoginExists(roleName)
+	return c.userModel.loginExists(roleName)
 }
 
 func (c *ChattoCore) requireLoginMentionHandleAvailable(login string) error {
@@ -225,8 +227,18 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 	return userIDs, nil
 }
 
-// ResolveRoomMentions resolves @handles in a message to concrete room-member
-// user IDs. Handles share one namespace across users, roles, and virtual
+// RoomMentionResolution retains both the concrete recipients and each mention
+// kind that selected them. This provenance is embedded in the durable message
+// source fact so @here presence and overlapping handles are not re-evaluated
+// later by notification materialization.
+type RoomMentionResolution struct {
+	RecipientIDs []string
+	Mentions     []*corev1.MessageMention
+}
+
+// ResolveRoomMentionKinds resolves @handles in a message to concrete
+// room-member user IDs while retaining each typed mention's provenance.
+// Handles share one namespace across users, roles, and virtual
 // room-scoped broadcasts:
 //   - @all: every current room member
 //   - @here: current room members whose presence is not OFFLINE
@@ -234,9 +246,10 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 //   - @user: that user, if they are a current room member
 //
 // Invalid handles are silently ignored, matching existing @user behavior.
-func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roomID string, handles []string) ([]string, error) {
+func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind, roomID string, handles []string) (*RoomMentionResolution, error) {
+	result := &RoomMentionResolution{}
 	if len(handles) == 0 {
-		return nil, nil
+		return result, nil
 	}
 
 	members, err := c.GetRoomMembersList(ctx, kind, roomID)
@@ -250,24 +263,30 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 		}
 	}
 
-	seen := make(map[string]struct{})
-	userIDs := make([]string, 0, len(handles))
-	add := func(userID string) {
+	seenRecipients := make(map[string]struct{})
+	seenMentions := make(map[string]struct{})
+	add := func(userID string, causeKey string, mention *corev1.MessageMention) {
 		if userID == "" {
 			return
 		}
 		if _, ok := roomMembers[userID]; !ok {
 			return
 		}
-		if _, ok := seen[userID]; ok {
+		if _, seen := seenRecipients[userID]; !seen {
+			seenRecipients[userID] = struct{}{}
+			result.RecipientIDs = append(result.RecipientIDs, userID)
+		}
+		mentionKey := userID + "\x00" + causeKey
+		if _, duplicate := seenMentions[mentionKey]; duplicate {
 			return
 		}
-		seen[userID] = struct{}{}
-		userIDs = append(userIDs, userID)
+		seenMentions[mentionKey] = struct{}{}
+		mention.UserId = userID
+		result.Mentions = append(result.Mentions, mention)
 	}
-	addMembers := func(candidates []string) {
+	addMembers := func(candidates []string, causeKey string, cause func() *corev1.MessageMention) {
 		for _, userID := range candidates {
-			add(userID)
+			add(userID, causeKey, cause())
 		}
 	}
 
@@ -277,7 +296,7 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 		case MentionHandleAll:
 			for _, member := range members {
 				if member != nil {
-					add(member.UserId)
+					add(member.UserId, "all", &corev1.MessageMention{Cause: &corev1.MessageMention_All{All: &corev1.AllMessageMention{}}})
 				}
 			}
 			continue
@@ -288,14 +307,10 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 				}
 				status, err := c.GetUserPresence(ctx, member.UserId)
 				if err != nil {
-					c.logger.Warn("Failed to get presence for @here mention",
-						"user_id", member.UserId,
-						"room_id", roomID,
-						"error", err)
-					continue
+					return nil, fmt.Errorf("resolve @here presence: %w", err)
 				}
 				if status != PresenceStatusOffline {
-					add(member.UserId)
+					add(member.UserId, "here", &corev1.MessageMention{Cause: &corev1.MessageMention_Here{Here: &corev1.HereMessageMention{}}})
 				}
 			}
 			continue
@@ -305,208 +320,63 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 			continue
 		}
 
-		if role, ok := c.RBAC.GetRole(normalized); ok {
+		if role, ok := c.rbacModel.role(normalized); ok {
 			if !role.GetPingable() {
 				continue
 			}
 			roleUsers, err := c.GetRoleUsers(ctx, normalized)
 			if err != nil {
-				if err != ErrRoleNotFound {
-					c.logger.Warn("Failed to resolve role mention",
-						"role", normalized,
-						"room_id", roomID,
-						"error", err)
+				if errors.Is(err, ErrRoleNotFound) {
+					continue
 				}
-				continue
+				return nil, fmt.Errorf("resolve role mention: %w", err)
 			}
-			addMembers(roleUsers)
+			addMembers(roleUsers, "role:"+normalized, func() *corev1.MessageMention {
+				return &corev1.MessageMention{Cause: &corev1.MessageMention_Role{Role: &corev1.RoleMessageMention{RoleName: normalized}}}
+			})
 			continue
 		}
 
 		user, err := c.GetUserByLogin(ctx, handle)
 		if err != nil {
-			continue
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
+			return nil, fmt.Errorf("resolve user mention: %w", err)
 		}
-		add(user.Id)
+		add(user.Id, "direct", &corev1.MessageMention{Cause: &corev1.MessageMention_Direct{Direct: &corev1.DirectUserMention{}}})
 	}
 
-	return userIDs, nil
+	return result, nil
+}
+
+// ResolveRoomMentions is the compatibility view used by message rendering and
+// legacy callers that only need the concrete recipient list.
+func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roomID string, handles []string) ([]string, error) {
+	resolved, err := c.ResolveRoomMentionKinds(ctx, kind, roomID, handles)
+	if err != nil {
+		return nil, err
+	}
+	return resolved.RecipientIDs, nil
 }
 
 // ResolveDirectRoomMentions resolves only direct @user handles to room-member
 // user IDs. Role and virtual broadcast handles are intentionally ignored.
 func (c *ChattoCore) ResolveDirectRoomMentions(ctx context.Context, kind RoomKind, roomID string, handles []string) ([]string, error) {
-	if len(handles) == 0 {
-		return nil, nil
-	}
-
-	members, err := c.GetRoomMembersList(ctx, kind, roomID)
+	resolved, err := c.ResolveRoomMentionKinds(ctx, kind, roomID, handles)
 	if err != nil {
 		return nil, err
 	}
-	roomMembers := make(map[string]struct{}, len(members))
-	for _, member := range members {
-		if member != nil && member.UserId != "" {
-			roomMembers[member.UserId] = struct{}{}
-		}
-	}
-
 	seen := make(map[string]struct{})
-	userIDs := make([]string, 0, len(handles))
-	for _, handle := range handles {
-		normalized := strings.ToLower(handle)
-		if IsVirtualMentionHandle(normalized) || normalized == RoleEveryone {
-			continue
+	for _, mention := range resolved.Mentions {
+		if _, direct := mention.GetCause().(*corev1.MessageMention_Direct); direct {
+			seen[mention.GetUserId()] = struct{}{}
 		}
-		if _, ok := c.RBAC.GetRole(normalized); ok {
-			continue
-		}
-
-		user, err := c.GetUserByLogin(ctx, handle)
-		if err != nil {
-			continue
-		}
-		if _, ok := roomMembers[user.Id]; !ok {
-			continue
-		}
-		if _, ok := seen[user.Id]; ok {
-			continue
-		}
-		seen[user.Id] = struct{}{}
-		userIDs = append(userIDs, user.Id)
 	}
-
+	userIDs := make([]string, 0, len(seen))
+	for userID := range seen {
+		userIDs = append(userIDs, userID)
+	}
+	sort.Strings(userIDs)
 	return userIDs, nil
-}
-
-func (c *ChattoCore) mentionNotificationRecipientCount(ctx context.Context, roomID, authorID string, mentionedUserIDs []string) (int, error) {
-	count := 0
-	for _, mentionedUserID := range mentionedUserIDs {
-		if mentionedUserID == "" || mentionedUserID == authorID {
-			continue
-		}
-		level, err := c.GetEffectiveNotificationLevel(ctx, mentionedUserID, roomID)
-		if err != nil {
-			return 0, err
-		}
-		if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			continue
-		}
-		count++
-	}
-	return count, nil
-}
-
-// MentionNotificationRecipientCountForBody returns how many people would
-// receive a notification from the @mentions in body after room membership,
-// author/self, dedupe, and room-mute filtering are applied.
-func (c *ChattoCore) MentionNotificationRecipientCountForBody(ctx context.Context, kind RoomKind, roomID, authorID, body string) (int, error) {
-	handles := ExtractMentionUsernames(body)
-	mentionedUserIDs, err := c.ResolveRoomMentions(ctx, kind, roomID, handles)
-	if err != nil {
-		return 0, err
-	}
-	return c.mentionNotificationRecipientCount(ctx, roomID, authorID, mentionedUserIDs)
-}
-
-// notifyMentionedUsers creates persistent notifications for all mentioned users.
-// This is best-effort - failures are logged but don't affect message posting.
-//
-// inThread is the thread root event ID when the mention is on a message inside
-// a thread, or empty string for room-level messages. The frontend uses this to
-// route notification clicks directly into the thread pane.
-func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, roomID, authorID, eventID, inThread string, mentionedUserIDs, directMentionedUserIDs []string) []string {
-	directMentioned := make(map[string]struct{}, len(directMentionedUserIDs))
-	for _, userID := range directMentionedUserIDs {
-		if userID != "" {
-			directMentioned[userID] = struct{}{}
-		}
-	}
-
-	var newlyAutoFollowed []string
-	for _, mentionedUserID := range mentionedUserIDs {
-		// Don't notify the author if they mentioned themselves
-		if mentionedUserID == authorID {
-			continue
-		}
-
-		// Skip if user has muted this room
-		level, err := c.GetEffectiveNotificationLevel(ctx, mentionedUserID, roomID)
-		if err != nil {
-			c.logger.Warn("Failed to get notification level for mention check, continuing",
-				"user_id", mentionedUserID, "error", err)
-		} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			continue
-		}
-		// Create persistent notification (for bell icon and notification center)
-		// This also publishes NotificationCreatedEvent for real-time updates
-		created, createErr := c.CreateNotification(ctx, mentionedUserID, authorID, &corev1.Notification{
-			Notification: &corev1.Notification_Mention{
-				Mention: &corev1.MentionNotification{
-					RoomId:   roomID,
-					EventId:  eventID,
-					InThread: inThread,
-				},
-			},
-		})
-		if createErr != nil {
-			c.logger.Warn("Failed to create mention notification",
-				"mentioned_user_id", mentionedUserID,
-				"author_id", authorID,
-				"kind", kind,
-				"room_id", roomID,
-				"error", createErr)
-			continue
-		}
-		if created == nil {
-			continue
-		}
-		if inThread != "" {
-			if _, ok := directMentioned[mentionedUserID]; ok {
-				followed, err := c.FollowThreadIfNeverSet(ctx, kind, mentionedUserID, roomID, inThread, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION)
-				if err != nil {
-					c.logger.Warn("Failed to auto-follow thread for mentioned user",
-						"mentioned_user_id", mentionedUserID,
-						"kind", kind,
-						"room_id", roomID,
-						"thread_root_event_id", inThread,
-						"error", err)
-				} else if followed {
-					newlyAutoFollowed = append(newlyAutoFollowed, mentionedUserID)
-					c.logger.Debug("Auto-followed thread for mentioned user",
-						"mentioned_user_id", mentionedUserID,
-						"kind", kind,
-						"room_id", roomID,
-						"thread_root_event_id", inThread)
-				}
-			}
-		}
-		if c.suppressesNotificationAlertsForPresence(ctx, mentionedUserID) {
-			continue
-		}
-
-		// Publish live mention event for room-level indicator real-time update.
-		// Clients hydrate space, room, and user names from projected reads.
-		mentionEvent := newLiveEvent(authorID, &corev1.LiveEvent{
-			Event: &corev1.LiveEvent_MentionNotification{
-				MentionNotification: &corev1.MentionNotificationEvent{
-					RoomId:            roomID,
-					MentionedByUserId: authorID,
-				},
-			},
-		})
-		subject := subjects.LiveSyncUserEvent(mentionedUserID, "mentioned")
-		if err := c.publishLiveEvent(ctx, subject, mentionEvent); err != nil {
-			c.logger.Warn("Failed to publish mention live event",
-				"mentioned_user_id", mentionedUserID,
-				"error", err)
-		}
-
-		c.logger.Debug("Created mention notification",
-			"mentioned_user_id", mentionedUserID,
-			"author_id", authorID,
-			"kind", kind,
-			"room_id", roomID)
-	}
-	return newlyAutoFollowed
 }

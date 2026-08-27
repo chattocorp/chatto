@@ -1,15 +1,15 @@
 <!--
 @component
 
-The **Server Gutter** — narrow leftmost column listing every server the user
+The **Server Gutter** — narrow inline-start column listing every server the user
 is connected to, plus the add-server button pinned to the bottom. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
-  import * as m from '$lib/i18n/messages';
-  import ScrollFader from '$lib/ui/ScrollFader.svelte';
+  import type { ServerPermissions } from '$lib/state/server/permissions';
+  import { m } from '$lib/i18n/messages';
+  import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
   // Check whether any authenticated server grants a permission.
@@ -37,16 +37,16 @@ is connected to, plus the add-server button pinned to the bottom. See the
   }
 </script>
 
-<div class="server-gutter flex min-h-0 flex-1 flex-col border-r border-border">
+<div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border">
   <ScrollFader top bottom scrollClass="scrollbar-hide">
-    <div class="flex flex-col gap-2 p-2 max-md:pl-3">
+    <div class="flex flex-col gap-2 p-2 max-md:ps-3">
       {#each serverRegistry.servers as server (server.id)}
         {@const store = serverRegistry.tryGetStore(server.id)}
         {#if store}
           <!-- Authentication changes replace the per-server store. Remount the
                entry so its one-time private-data load follows the new state. -->
-          {#key store.isAuthenticated}
-            <ServerSidebarEntry serverId={server.id} currentUserId={store.currentUser.user?.id} />
+          {#key store}
+            <ServerSidebarEntry serverId={server.id} />
           {/key}
         {/if}
       {/each}
@@ -54,17 +54,17 @@ is connected to, plus the add-server button pinned to the bottom. See the
   </ScrollFader>
 
   <!-- Add Server - pinned to the bottom -->
-  <div class="flex shrink-0 justify-center p-2 max-md:pl-3">
+  <div class="flex shrink-0 flex-col items-center gap-2 p-2 max-md:ps-3">
     <button
       type="button"
       onclick={() => (addServerDialogVisible = true)}
-      title={m['chat.server_gutter.add_server']()}
+      title={m('chat.server_gutter.add_server')}
       class={[
         'server-gutter-item cursor-pointer',
         addServerDialogVisible && 'server-gutter-item-active'
       ]}
     >
-      <span class="iconify uil--plus"></span>
+      <span class="iconify icon-[uil--plus]"></span>
     </button>
   </div>
 </div>

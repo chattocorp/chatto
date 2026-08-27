@@ -1,23 +1,33 @@
 # Instructions for Agents Working in `cli/`
 
-This file covers backend code: Go services, ConnectRPC, NATS/JetStream,
-authorization, live events, backup/restore, and backend tests.
+This file applies to backend code: Go services, ConnectRPC, NATS/JetStream,
+authorization, live events, backup and restore, and backend tests.
 
 ## Non-Negotiables
 
-- Chatto is multi-replica software. Never rely on process-local serialization
-  for correctness.
+- Chatto can run in more than one replica. Never use process-local
+  serialization for correctness.
 - NATS JetStream/KV is the primary data store. Use JetStream OCC or KV
   `Create`/revision `Update` for uniqueness and cross-replica invariants.
 - Durable domain state belongs in `EVT`; latest-value runtime state belongs in
   `RUNTIME_STATE` only when it is truly runtime/latest-value state.
 - Services own their domain state and projections. Do not bypass service
-  boundaries to poke JetStream, KV, or projections from unrelated code.
-- Do not log PII. Use opaque IDs, counts, booleans, event names, and safe hashes.
+  boundaries to access JetStream, KV, or projections from unrelated code.
+- Call access is generation-bound. Use one call-state snapshot whenever an
+  operation combines call identity and participants. For access credentials,
+  capture the call ID and E2EE key reference from the same projected session,
+  resolve that key reference, then revalidate both values before issuing
+  access; fail or retry if the generation changed. Never assemble one response
+  or credential from independent call-state reads.
+- Do not log PII. Use opaque IDs, counts, Boolean values, event names, and safe
+  hashes.
 - Projections must not retain decrypted PII when encrypted source fields can be
   retained and hydrated at read boundaries. Keep derived lookup state
   non-plaintext, and never turn KMS or decryption failures into apparent
   absence, deletion, or a free uniqueness claim.
+- Required encryption dependencies and projected key state must fail closed.
+  Never treat unavailable key state as ordinary absence: generation,
+  decryption, and shredding must return an error before mutating key material.
 
 ## Architecture Touchpoints
 
@@ -58,9 +68,25 @@ authorization, live events, backup/restore, and backend tests.
 - `RUNTIME_STATE` stores sessions, auth/workflow tokens, notification state,
   push subscriptions, cached previews, wrapped DEK records, and similar
   latest-value runtime data.
+- For hot, high-fanout latest-value KV reads, let the owning model maintain one
+  process-wide filtered watcher with an explicit initial-sync readiness
+  barrier. Serve detached reads from that in-memory index, keep KV authoritative
+  with `Create`/revision `Update`, and wait for the successful KV revision to
+  reach the local watcher before returning when read-your-writes matters.
+  Watchers belong to the process lifecycle, never to a request, user, or
+  WebSocket goroutine.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.
+- Treat OCC conflicts according to command semantics. For interactive
+  replacement-style edits, do not replay precomputed events after a conflict.
+  Either return a conflict so the client can preserve the draft and ask the
+  user to reload, or re-read state and rerun authorization, validation,
+  uniqueness checks, no-op detection, and event construction from the original
+  command intent. Retry an unchanged event only when its meaning is proven to
+  remain valid after intervening writes. Sparse patches avoid overwriting
+  untouched fields, but detecting a stale edit to the same field requires a
+  client-supplied revision.
 - Defaults required for a newly created aggregate must commit with its creation
   facts in the same atomic EVT batch. Do not reconstruct creation-time defaults
   later by scanning projections during startup.
@@ -68,6 +94,18 @@ authorization, live events, backup/restore, and backend tests.
   external side effect, that fact must provide a durable recovery path. Verify
   crash recovery, multi-replica discovery, lease handover, and bounded
   request-path cost.
+- Treat a named durable consumer as a persisted, deployment-wide resource
+  contract. Required effect consumers must not use inactivity cleanup, delete
+  themselves on worker shutdown, or be deleted by one replica. Keep consumer
+  creation, versioned names, rollout, and retirement application-owned rather
+  than adding them to `events.DurableWorker`.
+- Removing or incompatibly changing a durable consumer requires ADR-069's
+  staged migration: stop its producers or overlap an idempotent replacement,
+  exclude old binaries that can recreate it, then prove a stable drain or
+  replacement cutoff before idempotent deletion. Treat skipped work as an
+  explicit abandonment decision and update the NATS inventory. Never
+  garbage-collect unknown `chatto-*` consumers merely because the current
+  binary does not declare them.
 - Match distributed lease ownership to the work lifecycle. Continuous polling
   workers may hold and renew a lease while running; periodic workers should
   attempt one lease acquisition per pass and wait outside the lease. Treat the
@@ -84,6 +122,48 @@ authorization, live events, backup/restore, and backend tests.
   as the stream name and cutoff sequence; reject missing, corrupt,
   incompatible, or future snapshots by replaying EVT. Do not use
   `StreamInfo.Created` as a persisted identity.
+- Keep Chatto's EVT incarnation metadata key, generation, format validation,
+  and lookup in `internal/evtstream` or application composition. Reusable
+  projector restore mechanics receive an application resolver and treat its
+  result as an opaque, non-empty value. Resolve identity from the same fresh
+  `StreamInfo` as restore sequence bounds; framework code must not impose
+  Chatto's metadata key or identity syntax. Bind the resolved identity to the
+  projector run, capture it with snapshot state and cutoff, and publish that
+  captured value rather than caching an identity separately in worker wiring.
+  Check identity immediately before and after the capture barrier; never hold
+  the projection apply barrier across NATS or other external I/O.
+- Keep the package dependency direction application/core code ->
+  `internal/evtstream` -> the `hmans.de/chatto/pkg/events` shared module.
+  Chatto's `corev1.Event` codec,
+  aggregate subjects, event tokens, typed publisher/projector constructors, and
+  envelope-aware effect consumers belong in `internal/evtstream`.
+  The framework lives in the independently versioned `../pkg/events` module.
+  It remains an unstable incubation surface and must not import Chatto
+  protobufs or `internal/evtstream`. Keep its production imports limited to
+  the Go standard library and `github.com/nats-io/nats.go`; application-wide
+  helpers must not become hidden extraction dependencies. Keep its tests
+  portable too: test infrastructure may add `nats-server/v2`, but must not
+  borrow other Chatto packages or unrelated third-party helpers.
+- Drive reusable framework API changes from external-package consumer
+  contracts with non-Chatto envelopes. Do not add generic framework surface
+  merely to shorten Chatto wiring.
+- Keep embedded NATS process mechanics behind the independently versioned
+  `hmans.de/chatto/pkg/natsruntime` module from ADR-058. Chatto retains its
+  configuration, listener, authentication, monitoring, logging, storage, and
+  deployment policy in `internal/embedded_nats`; the shared module must not
+  import Chatto packages.
+- Keep raw XChaCha20-Poly1305 and 256-bit key-wrapping primitives behind the
+  independently versioned `hmans.de/chatto/pkg/datacrypto` module from
+  ADR-060. Chatto retains its associated-data formats, legacy cipher path,
+  key references and hierarchy, envelope serialization, storage, KMS, cache,
+  rotation, and cryptographic-erasure policy in `internal/encryption`; the
+  shared module must not import Chatto packages.
+- Keep TOML file loading and struct-tagged environment overrides behind the
+  independently versioned `hmans.de/chatto/pkg/appconfig` module from ADR-061.
+  Chatto retains its configuration schema, environment names, compatibility
+  aliases, defaults, normalization, validation, generated examples, and CLI
+  flag policy in `internal/config` and `cmd`; the shared module must not import
+  Chatto packages or tighten existing configuration compatibility implicitly.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,
@@ -107,8 +187,14 @@ authorization, live events, backup/restore, and backend tests.
   Scope generation object paths by encryption-key epoch. NATS Object Store TTL
   and marker-verified S3 age expiry may remove referenced generations; loaders
   must treat absence as a normal cold-replay condition.
-- Most current snapshot contracts use projection-local ID `v1`;
-  the user profile projection uses `v2`. Keep password
+- Snapshot contract IDs combine a manual restore-semantics token with a
+  fingerprint of the codec's reachable protobuf schema. Keep only the current
+  snapshot message: a schema change automatically selects a new
+  contract-scoped generation, while an old binary retains its own schema and
+  namespace. Bump the manual token when `Apply`, replay, cutoff, or restore
+  semantics change without a schema change.
+- Most current snapshot contracts use semantic token `v1`; Assets and user
+  profile use `v2`, while Room Timeline uses `v3`. Keep password
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.
@@ -119,6 +205,23 @@ authorization, live events, backup/restore, and backend tests.
   boot-time sequence waiters when installing a restored cutoff, and test
   all-restored, partial, corrupt, future, tail-replay, and restore-in-flight
   waiter interleavings.
+- Keep projection `Subjects()` precise as the logical application and readiness
+  contract. Prefer one physical replay filter where practical. In particular,
+  benchmark a broad wildcard combined with sparse extra families against one
+  broader `ReplaySubjects()` filter on real EVT history: JetStream multi-filter
+  scanning can cost more than delivering extra envelopes, and the projector
+  rejects non-logical subjects before protobuf decoding.
+- Projection snapshot methods are optional. Locally checkpointed projections
+  own disposable derived state and must bind it to a stable projection key,
+  contract ID, EVT stream incarnation, and retained sequence bounds. A
+  successful `Apply` must atomically persist both its materialized changes and
+  the supplied logical EVT sequence.
+- Give each projection exactly one restore authority: shared snapshots or a
+  local checkpoint, never both. Missing, corrupt, incompatible, future, or
+  retention-gapped local state may be reset and replayed; transient filesystem
+  and volume failures must fail startup without destructively resetting a
+  potentially valid checkpoint. Define backup exclusion, deletion, and
+  plaintext/privacy behavior for each checkpointed feature.
 
 ## Live Events
 
@@ -145,26 +248,53 @@ authorization, live events, backup/restore, and backend tests.
   `permission_resolver.go`, `can.go`, and FDR-001/ADR-040.
 - Users are server-scoped. Spaces and rooms may be discoverable, but room
   message access requires room membership.
-- Permission resolution for non-owners is deny-wins, then allow-if-any, then
-  default deny. Effective owners bypass normal permission decisions.
+- For non-owners, each direct-user or explicitly assigned role contributes its
+  nearest room/group/server decision. Denies win across those subjects. The
+  implicit `everyone` role supplies the scoped baseline: a named allow overrides
+  an everyone deny only at the same or a nearer scope. Effective owners bypass
+  normal permission decisions.
 - Effective owner means durable `owner` role or verified email matching
   `owners.emails`.
 - DM rooms have an explicit privacy boundary; owners/admins/moderators do not
   get moderation visibility into DM contents.
-- Permission strings use exactly `{object}.{verb}` with hyphenated verbs:
-  `room.ban-member`, `message.post-in-thread`, `admin.view-users`.
+- DM membership is the complete DM content-read boundary. `message.read`
+  applies only to channel rooms. Do not add a second DM read gate.
+- A bot must never start or fetch a DM through `RoomService.StartDM`, even when
+  it has `message.post` or the DM already exists. A human must start the DM.
+  After that, the bot can read it through membership and can use its normal
+  message permissions inside it.
+- Permission strings use two or more non-empty dot-separated components.
+  Hyphens can stay inside a component: `room.ban-member`,
+  `message.post-in-thread`, and `message.read.interactions` are valid.
+- A dotted prefix does not automatically include a longer permission. Record
+  each permission inclusion explicitly in code and in the applicable ADR and
+  FDR. Currently, `message.read` includes `message.read.interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-boundary behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses
   `role.assign`, direct user permissions use `user.manage-permissions`, room
-  bans use `room.ban-member`.
+  bans use `room.ban-member`. A non-owner's role assignment authority is bounded
+  by the target role's explicit scoped permission decisions; assigning requires
+  every allow, revoking requires every allow and deny, and the `owner` role is
+  owner-only.
+- Authorization-sensitive event writes must evaluate authorization inside the
+  target aggregate's OCC retry. Request-time authorization is the default: a
+  conflict-free command may finish after a concurrent cross-aggregate
+  revocation. Commands that require strict commit-time revocation semantics
+  must also guard the narrow authorization fence, keep its writer classification
+  complete, and wait every projection consulted by authorization through the
+  relevant captured subject tail inside the retry. Use ADR-068's whole-EVT
+  boundary only for a genuine stream-wide invariant whose cost is worth
+  contention with unrelated `evt.>` traffic, and record exceptional consistency
+  choices in the relevant ADR/FDR.
 
 ## Admin Interface
 
 - Owners/admins can see operational metadata, not user content. Message/file
   visibility for moderation must be an explicit audited feature.
-- Server admin routes live under `/chat/[serverId]/server-admin/`.
-- The shared admin `Panel` component is used in both server-admin and settings
+- Management routes live under `/chat/[serverId]/manage/`, with server-only
+  pages under `manage/server/` and delegated room/group pages beside it.
+- The shared admin `Panel` component is used in both management and settings
   surfaces; changes affect both.
 - Implicit roles such as `everyone` must not be editable as normal assignments.
 
@@ -220,6 +350,9 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 
 - Always set a timeout for targeted Go tests.
 - Use table-driven tests where practical.
+- Treat fixture and setup errors as fatal before using returned values. Never
+  discard an error from helpers such as `CreateRoom` or `CreateUser` and then
+  dereference the result; fail the test at the setup call instead.
 - Tests that mutate a projection wired into a running `ChattoCore` must append
   the fact through `EventPublisher` and wait for the owning projector. Reserve
   direct `Apply` calls for isolated projection tests, using monotonically

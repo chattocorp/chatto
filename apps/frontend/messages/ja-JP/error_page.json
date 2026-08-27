@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "問題が発生しました",
     "description": "このビューを開けませんでした。 Chatto に戻って、そこから再試行できます。",

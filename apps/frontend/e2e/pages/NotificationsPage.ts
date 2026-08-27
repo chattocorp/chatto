@@ -4,7 +4,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the notifications page and bell icon.
- * Handles notification bell, notification list, and dismiss actions.
+ * Handles the notification bell, persistent notification list, and dismissal.
  */
 export class NotificationsPage {
   constructor(readonly page: Page) {}
@@ -16,7 +16,7 @@ export class NotificationsPage {
     return this.page.locator('a[title="Notifications"]');
   }
 
-  /** The orange indicator dot on the bell icon (visible when there are notifications) */
+  /** The ambient or important indicator dot shown when notifications are unread. */
   get bellIndicator(): Locator {
     return this.bellButton.getByTestId('notifications-unread-dot');
   }
@@ -28,11 +28,6 @@ export class NotificationsPage {
     return this.page.getByRole('heading', { name: 'Notifications' });
   }
 
-  /** The "Clear all" button */
-  get clearAllButton(): Locator {
-    return this.page.getByRole('button', { name: 'Clear all' });
-  }
-
   /** The empty state message */
   get emptyState(): Locator {
     return this.page.getByText("You're all caught up!");
@@ -40,7 +35,19 @@ export class NotificationsPage {
 
   /** Get all notification items on the page */
   get notificationItems(): Locator {
-    return this.page.locator('[data-testid="notification-item"]');
+    return this.page.locator('[data-testid="notification-group"]');
+  }
+
+  /** Notification groups that still need attention. */
+  get unreadItems(): Locator {
+    return this.page.locator(
+      '[data-testid="notification-group"][data-notification-state="unread"]'
+    );
+  }
+
+  /** Notification groups that have already been read. */
+  get readItems(): Locator {
+    return this.page.locator('[data-testid="notification-group"][data-notification-state="read"]');
   }
 
   /**
@@ -74,17 +81,17 @@ export class NotificationsPage {
   }
 
   /**
-   * Get a notification item by its summary text.
+   * Get a notification item by text in its localised activity summary.
    */
   getNotificationBySummary(summaryText: string): Locator {
     return this.notificationItems.filter({ hasText: summaryText });
   }
 
   /**
-   * Get the dismiss button (X) for a specific notification.
+   * Get the Delete button for a specific notification group.
    */
-  getDismissButton(notification: Locator): Locator {
-    return notification.locator('button[title="Dismiss"]');
+  getDeleteButton(notification: Locator): Locator {
+    return notification.locator('button[title="Delete"]');
   }
 
   /**
@@ -95,17 +102,21 @@ export class NotificationsPage {
   }
 
   /**
-   * Dismiss a specific notification.
+   * Permanently dismiss a specific notification group.
    */
-  async dismissNotification(notification: Locator): Promise<void> {
-    await this.getDismissButton(notification).click();
+  async dismiss(notification: Locator): Promise<void> {
+    await this.getDeleteButton(notification).click();
   }
 
   /**
-   * Dismiss all notifications.
+   * Permanently dismiss every currently visible notification group.
    */
   async dismissAll(): Promise<void> {
-    await this.clearAllButton.click();
+    await expect(this.notificationItems.first()).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    await this.page.getByRole('button', { name: 'Dismiss all' }).click();
+    await expect(this.notificationItems).toHaveCount(0);
   }
 
   // --- Assertions ---
@@ -132,7 +143,7 @@ export class NotificationsPage {
   }
 
   /**
-   * Assert that a notification with specific summary text exists.
+   * Assert that a notification with specific localised summary text exists.
    */
   async expectNotificationWithSummary(summaryText: string): Promise<void> {
     await expect(this.getNotificationBySummary(summaryText)).toBeVisible();
@@ -141,13 +152,8 @@ export class NotificationsPage {
   /**
    * Assert that a notification shows the correct location (e.g., "#general in My Space").
    */
-  async expectNotificationWithLocation(
-    notification: Locator,
-    roomName: string,
-    serverName: string
-  ): Promise<void> {
-    const locationText = `#${roomName} in ${serverName}`;
-    await expect(notification.getByText(locationText)).toBeVisible();
+  async expectNotificationWithLocation(notification: Locator, roomName: string): Promise<void> {
+    await expect(notification.getByText(`#${roomName}`, { exact: false })).toBeVisible();
   }
 
   /**
@@ -159,17 +165,18 @@ export class NotificationsPage {
     await expect(this.notificationItems).toHaveCount(count, { timeout: timeout ?? 5000 });
   }
 
-  /**
-   * Assert that Clear all button is visible (only when there are notifications).
-   */
-  async expectClearAllVisible(): Promise<void> {
-    await expect(this.clearAllButton).toBeVisible();
+  /** Assert that the list contains at least one unread notification group. */
+  async expectUnreadNotEmpty(): Promise<void> {
+    await expect(this.unreadItems.first()).toBeVisible();
   }
 
-  /**
-   * Assert that Clear all button is NOT visible (empty state).
-   */
-  async expectClearAllNotVisible(): Promise<void> {
-    await expect(this.clearAllButton).not.toBeVisible();
+  /** Assert that the list contains no unread notification groups. */
+  async expectUnreadEmpty(): Promise<void> {
+    await expect(this.unreadItems).toHaveCount(0);
+  }
+
+  /** Assert that the list contains at least one read notification group. */
+  async expectReadNotEmpty(): Promise<void> {
+    await expect(this.readItems.first()).toBeVisible();
   }
 }

@@ -1,13 +1,16 @@
 package core
 
 import (
+	"bytes"
 	"sort"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // UserAuthProjection retains credential and external-identity state. It is a
@@ -15,13 +18,25 @@ import (
 // authentication material by construction.
 type UserAuthProjection struct {
 	events.MemoryProjection
-	users         map[string]*projectedUserAuth
-	identityIndex map[string]string
-	replayGuard   projectionReplayGuard
+	users                   map[string]*projectedUserAuth
+	identityIndex           map[string]string
+	replayGuard             projectionReplayGuard
+	nextBotAPIKeyWatcherID  uint64
+	botAPIKeyWatchersByUser map[string]map[uint64]botAPIKeyWatcher
+}
+
+type botAPIKeyWatcher struct {
+	verifier    []byte
+	invalidated chan struct{}
 }
 
 type projectedUserAuth struct {
 	deleted            bool
+	isBot              bool
+	botOwnerUserID     string
+	botAPIKeyVerifier  []byte
+	botAPIKeyCreatedAt time.Time
+	botAPIKeyRotatedAt time.Time
 	passwordHash       []byte
 	passwordSetAt      time.Time
 	authGeneration     uint64
@@ -31,22 +46,27 @@ type projectedUserAuth struct {
 
 func newUserAuthProjection() *UserAuthProjection {
 	return &UserAuthProjection{
-		users:         make(map[string]*projectedUserAuth),
-		identityIndex: make(map[string]string),
-		replayGuard:   newProjectionReplayGuard(),
+		users:                   make(map[string]*projectedUserAuth),
+		identityIndex:           make(map[string]string),
+		replayGuard:             newProjectionReplayGuard(),
+		botAPIKeyWatchersByUser: make(map[string]map[uint64]botAPIKeyWatcher),
 	}
 }
 
 func (p *UserAuthProjection) Subjects() []string {
 	return []string{
-		events.UserEventTypeFilter(events.EventUserAccountCreated),
-		events.UserEventTypeFilter(events.EventUserPasswordHashChanged),
-		events.UserEventTypeFilter(events.EventUserOIDCSubjectLinked),
-		events.UserEventTypeFilter(events.EventUserExternalIdentityLinked),
-		events.UserEventTypeFilter(events.EventUserExternalIdentityUnlinked),
-		events.UserEventTypeFilter(events.EventOAuthConsentGranted),
-		events.UserEventTypeFilter(events.EventUserAccountDeleted),
-		events.UserEventTypeFilter(events.EventUserKeyShredded),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountCreated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserPasswordHashChanged),
+		evtstream.UserEventTypeFilter(evtstream.EventUserOIDCSubjectLinked),
+		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked),
+		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityUnlinked),
+		evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyCreated),
+		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
+		evtstream.UserEventTypeFilter(evtstream.EventBotOwnerReassigned),
 	}
 }
 
@@ -62,7 +82,20 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_UserAccountCreated:
 		if e.UserAccountCreated != nil {
-			p.ensureUserLocked(e.UserAccountCreated.GetUserId()).deleted = false
+			u := p.ensureUserLocked(e.UserAccountCreated.GetUserId())
+			u.isBot = e.UserAccountCreated.GetIsBot()
+			u.botOwnerUserID = e.UserAccountCreated.GetBotOwnerUserId()
+		}
+	case *corev1.Event_BotApiKeyCreated:
+		p.applyBotAPIKeyCreated(e.BotApiKeyCreated, event.GetCreatedAt())
+	case *corev1.Event_BotApiKeyRotated:
+		p.applyBotAPIKeyRotated(e.BotApiKeyRotated, event.GetCreatedAt())
+	case *corev1.Event_BotOwnerReassigned:
+		if e.BotOwnerReassigned != nil {
+			u := p.ensureUserLocked(e.BotOwnerReassigned.GetUserId())
+			if u.isBot && !u.deleted {
+				u.botOwnerUserID = e.BotOwnerReassigned.GetOwnerUserId()
+			}
 		}
 	case *corev1.Event_UserPasswordHashChanged:
 		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
@@ -76,8 +109,10 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyOAuthConsentGranted(e.OauthConsentGranted)
 	case *corev1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted, seq)
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.applyKeyShredded(e.UserKeyShreddingRequested.GetUserId(), seq)
 	case *corev1.Event_UserKeyShredded:
-		p.applyKeyShredded(e.UserKeyShredded)
+		p.applyKeyShredded(e.UserKeyShredded.GetUserId(), seq)
 	}
 	return nil
 }
@@ -108,6 +143,9 @@ func (p *UserAuthProjection) applyPasswordHashChanged(e *corev1.UserPasswordHash
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
 	u.passwordHash = append(u.passwordHash[:0], e.GetPasswordHash()...)
 	if !e.GetPreserveExistingCredentials() {
 		u.authGeneration = seq
@@ -129,8 +167,11 @@ func (p *UserAuthProjection) applyOIDCSubjectLinked(e *corev1.UserOIDCSubjectLin
 	if hash == "" {
 		return
 	}
-	p.identityIndex[hash] = e.GetUserId()
 	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
+	p.identityIndex[hash] = e.GetUserId()
 	u.externalIdentities[hash] = ExternalIdentity{ProviderID: "oidc", ProviderType: "oidc", Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash}
 }
 
@@ -153,8 +194,12 @@ func (p *UserAuthProjection) applyExternalIdentityLinked(e *corev1.UserExternalI
 	if providerType == "" {
 		providerType = providerID
 	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
 	p.identityIndex[hash] = e.GetUserId()
-	p.ensureUserLocked(e.GetUserId()).externalIdentities[hash] = ExternalIdentity{
+	u.externalIdentities[hash] = ExternalIdentity{
 		ProviderID: providerID, ProviderType: providerType, Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash,
 	}
 }
@@ -167,15 +212,26 @@ func (p *UserAuthProjection) applyExternalIdentityUnlinked(e *corev1.UserExterna
 		delete(p.identityIndex, e.GetSubjectHash())
 	}
 	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
 	delete(u.externalIdentities, e.GetSubjectHash())
 	u.authGeneration = seq
 }
 
 func (p *UserAuthProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetRedirectOrigin() == "" {
+	if e == nil || e.GetUserId() == "" {
 		return
 	}
-	p.ensureUserLocked(e.GetUserId()).oauthConsent[e.GetRedirectOrigin()] = struct{}{}
+	key := OAuthConsentKey(e.GetClientId(), e.GetRedirectOrigin())
+	if key == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
+	u.oauthConsent[key] = struct{}{}
 }
 
 func (p *UserAuthProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, seq uint64) {
@@ -189,19 +245,142 @@ func (p *UserAuthProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEve
 	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
+	u.botAPIKeyVerifier = nil
+	u.botAPIKeyCreatedAt = time.Time{}
+	u.botAPIKeyRotatedAt = time.Time{}
+	p.closeBotAPIKeyWatchersLocked(e.GetUserId())
 	p.deleteIdentityIndexLocked(e.GetUserId())
 }
 
-func (p *UserAuthProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
-	if e == nil || e.GetUserId() == "" {
+func (p *UserAuthProjection) applyKeyShredded(userID string, seq uint64) {
+	if userID == "" {
 		return
 	}
-	u := p.ensureUserLocked(e.GetUserId())
+	u := p.ensureUserLocked(userID)
+	u.deleted = true
+	u.authGeneration = seq
 	u.passwordHash = nil
 	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
-	p.deleteIdentityIndexLocked(e.GetUserId())
+	u.botAPIKeyVerifier = nil
+	u.botAPIKeyCreatedAt = time.Time{}
+	u.botAPIKeyRotatedAt = time.Time{}
+	p.closeBotAPIKeyWatchersLocked(userID)
+	p.deleteIdentityIndexLocked(userID)
+}
+
+func (p *UserAuthProjection) applyBotAPIKeyCreated(e *corev1.BotApiKeyCreatedEvent, createdAt *timestamppb.Timestamp) {
+	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted || !u.isBot {
+		return
+	}
+	u.botAPIKeyVerifier = append(u.botAPIKeyVerifier[:0], e.GetVerifier()...)
+	u.botAPIKeyCreatedAt = timestampTime(createdAt)
+	u.botAPIKeyRotatedAt = time.Time{}
+}
+
+func (p *UserAuthProjection) applyBotAPIKeyRotated(e *corev1.BotApiKeyRotatedEvent, createdAt *timestamppb.Timestamp) {
+	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted || !u.isBot || len(u.botAPIKeyVerifier) == 0 {
+		return
+	}
+	nextVerifier := e.GetVerifier()
+	for watcherID, watcher := range p.botAPIKeyWatchersByUser[e.GetUserId()] {
+		if bytes.Equal(watcher.verifier, nextVerifier) {
+			continue
+		}
+		close(watcher.invalidated)
+		delete(p.botAPIKeyWatchersByUser[e.GetUserId()], watcherID)
+	}
+	if len(p.botAPIKeyWatchersByUser[e.GetUserId()]) == 0 {
+		delete(p.botAPIKeyWatchersByUser, e.GetUserId())
+	}
+	u.botAPIKeyVerifier = append(u.botAPIKeyVerifier[:0], nextVerifier...)
+	u.botAPIKeyRotatedAt = timestampTime(createdAt)
+}
+
+func timestampTime(value *timestamppb.Timestamp) time.Time {
+	if value == nil || !value.IsValid() {
+		return time.Time{}
+	}
+	return value.AsTime()
+}
+
+// BotAPIKeyCredential is the projected verifier and safe metadata for one bot.
+type BotAPIKeyCredential struct {
+	Verifier  []byte
+	CreatedAt time.Time
+	RotatedAt time.Time
+}
+
+func (p *UserAuthProjection) BotAPIKeyCredential(userID string) (BotAPIKeyCredential, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted || !u.isBot || len(u.botAPIKeyVerifier) == 0 {
+		return BotAPIKeyCredential{}, false
+	}
+	return BotAPIKeyCredential{
+		Verifier:  append([]byte(nil), u.botAPIKeyVerifier...),
+		CreatedAt: u.botAPIKeyCreatedAt,
+		RotatedAt: u.botAPIKeyRotatedAt,
+	}, true
+}
+
+// watchBotAPIKeyInvalidated registers a process-local notification backed by
+// the durable user-auth projection. Registration and the current-verifier
+// check share the projection lock, so a concurrent rotation cannot leave a
+// stale realtime connection unwatched.
+func (p *UserAuthProjection) watchBotAPIKeyInvalidated(userID string, verifier []byte) (<-chan struct{}, func()) {
+	invalidated := make(chan struct{})
+	p.Lock()
+	u := p.users[userID]
+	if u == nil || u.deleted || !u.isBot ||
+		!bytes.Equal(u.botAPIKeyVerifier, verifier) {
+		close(invalidated)
+		p.Unlock()
+		return invalidated, func() {}
+	}
+	p.nextBotAPIKeyWatcherID++
+	watcherID := p.nextBotAPIKeyWatcherID
+	watchers := p.botAPIKeyWatchersByUser[userID]
+	if watchers == nil {
+		watchers = make(map[uint64]botAPIKeyWatcher)
+		p.botAPIKeyWatchersByUser[userID] = watchers
+	}
+	watchers[watcherID] = botAPIKeyWatcher{
+		verifier:    append([]byte(nil), verifier...),
+		invalidated: invalidated,
+	}
+	p.Unlock()
+
+	var cancelOnce sync.Once
+	return invalidated, func() {
+		cancelOnce.Do(func() {
+			p.Lock()
+			if watchers := p.botAPIKeyWatchersByUser[userID]; watchers != nil {
+				delete(watchers, watcherID)
+				if len(watchers) == 0 {
+					delete(p.botAPIKeyWatchersByUser, userID)
+				}
+			}
+			p.Unlock()
+		})
+	}
+}
+
+func (p *UserAuthProjection) closeBotAPIKeyWatchersLocked(userID string) {
+	for _, watcher := range p.botAPIKeyWatchersByUser[userID] {
+		close(watcher.invalidated)
+	}
+	delete(p.botAPIKeyWatchersByUser, userID)
 }
 
 func (p *UserAuthProjection) deleteIdentityIndexLocked(userID string) {
@@ -217,6 +396,21 @@ func (p *UserAuthProjection) ExternalIdentityOwnerID(issuer, subject string) (st
 	defer p.RUnlock()
 	userID := p.identityIndex[externalIdentityHash(issuer, subject)]
 	return userID, userID != ""
+}
+
+// ExternalIdentityAuthentication returns the identity owner and the exact
+// authentication generation from one projection snapshot. Authentication
+// callers must carry this generation through credential issuance so an unlink
+// that races the login invalidates the pending proof.
+func (p *UserAuthProjection) ExternalIdentityAuthentication(issuer, subject string) (string, uint64, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	userID := p.identityIndex[externalIdentityHash(issuer, subject)]
+	user := p.users[userID]
+	if userID == "" || user == nil || user.deleted {
+		return "", 0, false
+	}
+	return userID, user.authGeneration, true
 }
 
 func (p *UserAuthProjection) ExternalIdentities(userID string) []ExternalIdentity {

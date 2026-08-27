@@ -1,14 +1,19 @@
 <script lang="ts">
-  import { RoomEventKind } from '$lib/render/eventKinds';
-  import type { RoomEventView } from '$lib/render/types';
+  import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
   import { getComposerContext } from '$lib/state/room';
 
   let {
     inReplyTo,
-    onMessageSent
+    showCreateThread = false,
+    createThreadRequired = false,
+    onMessageSent,
+    onThreadCreated
   }: {
     inReplyTo?: string;
-    onMessageSent?: (event: RoomEventView | null) => void;
+    showCreateThread?: boolean;
+    createThreadRequired?: boolean;
+    onMessageSent?: (event: TimelineEventView | null) => void;
+    onThreadCreated?: (threadRootEventId: string) => void;
   } = $props();
 
   const composerContext = getComposerContext();
@@ -19,7 +24,7 @@
     actorId: 'test-user',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: 'local hello',
       attachments: [],
@@ -36,7 +41,7 @@
       threadParticipants: [],
       viewerIsFollowingThread: true
     }
-  } as RoomEventView;
+  } as TimelineEventView;
 
   const returnedEcho = {
     id: 'echo-local',
@@ -44,7 +49,7 @@
     actorId: 'test-user',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: 'echoed reply',
       attachments: [],
@@ -61,11 +66,21 @@
       threadParticipants: [],
       viewerIsFollowingThread: true
     }
-  } as RoomEventView;
+  } as TimelineEventView;
 </script>
 
 <button data-testid="emit-returned-post" onclick={() => onMessageSent?.(returnedPost)}>
   emit returned post
+</button>
+
+<button
+  data-testid="emit-created-thread"
+  onclick={() => {
+    onMessageSent?.(returnedPost);
+    onThreadCreated?.(returnedPost.id);
+  }}
+>
+  emit created thread
 </button>
 
 <button data-testid="emit-returned-echo" onclick={() => onMessageSent?.(returnedEcho)}>
@@ -80,3 +95,5 @@
 </button>
 
 <output data-testid="composer-in-reply-to">{inReplyTo ?? ''}</output>
+<output data-testid="composer-can-create-thread">{String(showCreateThread)}</output>
+<output data-testid="composer-requires-thread">{String(createThreadRequired)}</output>

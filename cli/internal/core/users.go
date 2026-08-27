@@ -1,25 +1,17 @@
 package core
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/crypto/bcrypt"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -28,11 +20,6 @@ import (
 // ============================================================================
 
 const DeletedUserDisplayName = "Deleted User"
-
-const (
-	MaxCustomStatusEmojiLength = 16
-	MaxCustomStatusTextLength  = 100
-)
 
 func DeletedUserReference(userID string) *corev1.User {
 	return &corev1.User{
@@ -47,10 +34,34 @@ func DeletedUserReference(userID string) *corev1.User {
 // handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
 func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
+	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{})
+}
+
+type userCreationOptions struct {
+	verifiedEmail string
+	external      *PendingExternalIdentityFlow
+	invitationID  string
+	isBot         bool
+	botOwnerID    string
+	botAPIKeyOut  *string
+	authorize     func() error
+}
+
+func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*corev1.User, error) {
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
-	if err := ValidateLogin(login); err != nil {
-		return nil, err
+	isBot := options.isBot
+	if isBot {
+		if err := ValidateBotLogin(login); err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(options.botOwnerID) == "" || password != "" || options.verifiedEmail != "" || options.external != nil || options.invitationID != "" {
+			return nil, ErrInvalidArgument
+		}
+	} else {
+		if err := ValidateHumanLogin(login); err != nil {
+			return nil, err
+		}
 	}
 
 	// Normalize and validate display name
@@ -70,11 +81,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	}
 
 	// Check if login is blocked (defense in depth - HTTP layer should check first)
-	isBlocked, err := c.configManager.IsUsernameBlocked(ctx, login)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check blocked usernames: %w", err)
-	}
-	if isBlocked {
+	if c.configModel.IsUsernameBlocked(login) {
 		return nil, ErrUsernameBlocked
 	}
 	if c.loginConflictsWithMentionHandle(login) {
@@ -85,7 +92,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	// only to be blocked when adding their first verified sign-in factor. The
 	// factor-add checks remain the race-safe hard gate.
 	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
-		count, err := c.CountVerifiedAccounts(ctx)
+		count, err := c.CountUserLimitAccounts(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to count verified accounts: %w", err)
 		}
@@ -103,10 +110,22 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 
 	now := timestamppb.Now()
 	user := &corev1.User{
-		Id:          userID,
-		Login:       login,
-		DisplayName: displayName,
-		CreatedAt:   now,
+		Id:             userID,
+		Login:          login,
+		DisplayName:    displayName,
+		CreatedAt:      now,
+		IsBot:          isBot,
+		BotOwnerUserId: options.botOwnerID,
+	}
+	var botAPIKey string
+	var botAPIKeyVerifier []byte
+	if isBot {
+		var err error
+		botAPIKey, err = NewBotAPIKey(userID)
+		if err != nil {
+			return nil, err
+		}
+		botAPIKeyVerifier = c.botAPIKeyVerifier(botAPIKey)
 	}
 
 	// Create encryption key for this user. Keys are always created so they
@@ -141,7 +160,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	cleanupContentKeyRefs = append(cleanupContentKeyRefs, wrappedPIIDEK.GetContentKeyRef())
 
 	piiDEK := &userDEK{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: piiDEKBytes}
-	agg := events.UserAggregate(userID)
+	agg := evtstream.UserAggregate(userID)
 	messageDEKEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
 		UserDekGenerated: wrappedMessageDEK,
 	}})
@@ -151,29 +170,43 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	}})
 	piiDEKEvent.CreatedAt = now
 	accountCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
-		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID},
+		UserAccountCreated: &corev1.UserAccountCreatedEvent{
+			UserId:         userID,
+			IsBot:          isBot,
+			BotOwnerUserId: options.botOwnerID,
+		},
 	}})
 	accountCreated.CreatedAt = now
 	account := accountCreated.GetUserAccountCreated()
-	account.EncryptedLogin, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
+	account.EncryptedLogin, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, evtstream.EventUserAccountCreated, "login", login)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt login: %w", err)
 	}
-	account.EncryptedDisplayName, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "display_name", displayName)
+	account.EncryptedDisplayName, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, evtstream.EventUserAccountCreated, "display_name", displayName)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt display name: %w", err)
 	}
 
-	entries := []events.BatchEntry{{
-		Subject: agg.Subject(events.EventUserDEKGenerated),
+	entries := []evtstream.BatchEntry{{
+		Subject: agg.Subject(evtstream.EventUserDEKGenerated),
 		Event:   messageDEKEvent,
 	}, {
-		Subject: agg.Subject(events.EventUserDEKGenerated),
+		Subject: agg.Subject(evtstream.EventUserDEKGenerated),
 		Event:   piiDEKEvent,
 	}, {
-		Subject: agg.Subject(events.EventUserAccountCreated),
+		Subject: agg.Subject(evtstream.EventUserAccountCreated),
 		Event:   accountCreated,
 	}}
+	if isBot {
+		keyCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_BotApiKeyCreated{
+			BotApiKeyCreated: &corev1.BotApiKeyCreatedEvent{UserId: userID, Verifier: botAPIKeyVerifier},
+		}})
+		keyCreated.CreatedAt = now
+		entries = append(entries, evtstream.BatchEntry{
+			Subject: agg.Subject(evtstream.EventBotAPIKeyCreated),
+			Event:   keyCreated,
+		})
+	}
 	if password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 		if err != nil {
@@ -186,21 +219,118 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 			},
 		}})
 		passwordChanged.CreatedAt = now
-		entries = append(entries, events.BatchEntry{
-			Subject: agg.Subject(events.EventUserPasswordHashChanged),
+		entries = append(entries, evtstream.BatchEntry{
+			Subject: agg.Subject(evtstream.EventUserPasswordHashChanged),
 			Event:   passwordChanged,
 		})
 	}
 
+	if options.invitationID != "" {
+		invitationEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_InvitationRedeemed{
+			InvitationRedeemed: &corev1.InvitationRedeemedEvent{InvitationId: options.invitationID, UserId: userID},
+		}})
+		invitationEvent.CreatedAt = now
+		entries = append(entries, evtstream.BatchEntry{
+			Subject: evtstream.InvitationAggregate(options.invitationID).SubjectFor(invitationEvent),
+			Event:   invitationEvent,
+		})
+	}
+
+	if options.verifiedEmail != "" {
+		email := strings.ToLower(strings.TrimSpace(options.verifiedEmail))
+		verifiedEmailEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
+			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{UserId: userID},
+		}})
+		verifiedEmailEvent.CreatedAt = now
+		verifiedEmailEvent.GetUserVerifiedEmailAdded().EncryptedEmail, err = encryptUserPIIStringWithDEK(
+			piiDEK,
+			verifiedEmailEvent.GetId(),
+			userID,
+			evtstream.EventUserVerifiedEmailAdded,
+			"email",
+			email,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt verified email: %w", err)
+		}
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(verifiedEmailEvent), Event: verifiedEmailEvent})
+	}
+
+	if options.external != nil {
+		flow := options.external
+		externalEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityLinked{
+			UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+				UserId:       userID,
+				Issuer:       flow.Issuer,
+				Subject:      flow.Subject,
+				SubjectHash:  externalIdentityHash(flow.Issuer, flow.Subject),
+				ProviderId:   flow.ProviderID,
+				ProviderType: flow.ProviderType,
+			},
+		}})
+		externalEvent.CreatedAt = now
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(externalEvent), Event: externalEvent})
+	}
+
 	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
-		return c.requireLoginMentionHandleAvailable(login)
+		if options.authorize != nil {
+			if err := options.authorize(); err != nil {
+				return err
+			}
+		}
+		if err := c.requireLoginMentionHandleAvailable(login); err != nil {
+			return err
+		}
+		if isBot && c.config.Limits.MaxUsersOrDefault() >= 0 {
+			count, err := c.CountUserLimitAccounts(ctx)
+			if err != nil {
+				return err
+			}
+			if count >= c.config.Limits.MaxUsersOrDefault() {
+				return ErrLimitExceeded
+			}
+		}
+		if options.verifiedEmail != "" {
+			if _, claimed := c.userModel.emailOwnerID(options.verifiedEmail); claimed {
+				return ErrEmailAlreadyVerified
+			}
+		}
+		if options.external != nil {
+			if _, claimed := c.userModel.externalIdentityOwnerID(options.external.Issuer, options.external.Subject); claimed {
+				return ErrExternalIdentityAlreadyClaimed
+			}
+		}
+		if (options.verifiedEmail != "" || options.external != nil) && c.config.Limits.MaxUsersOrDefault() >= 0 {
+			if err := c.requireVerifiedAccountCapacity(ctx, ""); err != nil {
+				return err
+			}
+		}
+		if options.invitationID != "" {
+			if _, err := c.invitationModel.validateIDAt(options.invitationID, time.Now()); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	cleanupEncryptionKey = false
+	if options.botAPIKeyOut != nil {
+		*options.botAPIKeyOut = botAPIKey
+	}
 	if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return nil, err
+	}
+	if options.invitationID != "" {
+		if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
+			return nil, err
+		}
+	}
+	if options.verifiedEmail != "" && c.config.Owners.IsServerOwnerEmail(options.verifiedEmail) {
+		if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
+			c.logger.Warn("Failed to auto-assign owner role on signup", "user_id", userID, "error", err)
+		}
 	}
 
 	// Create and publish audit event (best-effort)
@@ -232,24 +362,33 @@ func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, keyRef
 	}
 }
 
-// CreateVerifiedUser creates a user and registers an already-verified email for them
-// in a single best-effort transaction. If verification fails after the user record is
-// written, the user record is rolled back so signup paths don't produce orphan accounts.
+// CreateVerifiedUser atomically creates a user with an already-verified email.
 //
 // Used by signup-completion (post email-link click) and trusted account-link
 // flows where the email has already been proven.
 func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*corev1.User, error) {
-	user, err := c.CreateUser(ctx, actorID, login, displayName, password)
-	if err != nil {
-		return nil, err
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return nil, ErrInvalidArgument
 	}
+	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{verifiedEmail: email})
+}
 
-	if err := c.AddVerifiedEmailDirectAs(ctx, actorID, user.Id, email); err != nil {
-		c.rollbackUserCreation(ctx, user)
-		return nil, fmt.Errorf("failed to verify email for new user: %w", err)
+// CreateVerifiedUserWithInvitation atomically creates a verified account and
+// records its invitation redemption.
+func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*corev1.User, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return nil, ErrInvalidArgument
 	}
-
-	return user, nil
+	invitationID = strings.TrimSpace(invitationID)
+	if invitationID == "" {
+		return nil, ErrInvitationInvalid
+	}
+	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{
+		verifiedEmail: email,
+		invitationID:  invitationID,
+	})
 }
 
 // rollbackUserCreation undoes the persisted writes performed by CreateUser. Best-effort —
@@ -261,7 +400,7 @@ func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User
 
 // GetUser retrieves a user from the user projection.
 func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, error) {
-	user, ok, err := c.Users.GetContext(ctx, userID)
+	user, ok, err := c.userModel.user(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +413,7 @@ func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, 
 // GetUserReference retrieves a public user reference. Deleted or crypto-shredded
 // users are returned as tombstones; unknown users still return ErrNotFound.
 func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*corev1.User, error) {
-	user, ok, err := c.Users.GetReferenceContext(ctx, userID)
+	user, ok, err := c.userModel.userReference(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +443,7 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.
 
 	userMap := make(map[string]*corev1.User, len(uniqueIDs))
 	for _, id := range uniqueIDs {
-		user, ok, err := c.Users.GetContext(ctx, id)
+		user, ok, err := c.userModel.user(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +463,7 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.
 
 // GetUserByLogin retrieves a user by their login name using the login index.
 func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.User, error) {
-	user, ok, err := c.Users.GetByLoginContext(ctx, login)
+	user, ok, err := c.userModel.userByLogin(ctx, login)
 	if err != nil {
 		return nil, err
 	}
@@ -334,460 +473,14 @@ func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.
 	return nil, ErrNotFound
 }
 
-// SetPasswordHash hashes and stores a password for a user.
-// Password hashes are stored separately from user profile data in the user event stream.
-func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, password string) error {
-	return c.SetPasswordHashAs(ctx, userID, userID, password)
-}
-
-// SetPasswordHashAs hashes and stores a password for a user with explicit
-// actor attribution. Operator/admin flows should pass SystemActorID.
-func (c *ChattoCore) SetPasswordHashAs(ctx context.Context, actorID, userID string, password string) error {
-	return c.setPasswordHash(ctx, actorID, userID, password, true, nil)
-}
-
-// SetInitialPasswordHash adds the first password credential for a passwordless
-// account. It refuses to overwrite an existing password.
-func (c *ChattoCore) SetInitialPasswordHash(ctx context.Context, userID string, password string) error {
-	return c.setPasswordHash(ctx, userID, userID, password, false, func() error {
-		if _, hasPassword := c.Users.PasswordHash(userID); hasPassword {
-			return ErrPasswordAlreadySet
-		}
-		return nil
-	})
-}
-
-// SetOwnPassword sets or changes a user's own password. Existing password
-// credentials require current password proof; adding the first password keeps
-// existing runtime credentials valid so SSO-only users are not logged out.
-func (c *ChattoCore) SetOwnPassword(ctx context.Context, userID, currentPassword, newPassword string) error {
-	hasPassword, err := c.HasPassword(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if !hasPassword {
-		return c.SetInitialPasswordHash(ctx, userID, newPassword)
-	}
-	if currentPassword == "" {
-		return ErrCurrentPasswordRequired
-	}
-	if err := c.VerifyUserPassword(ctx, userID, currentPassword); err != nil {
-		return err
-	}
-	return c.setPasswordHash(ctx, userID, userID, newPassword, true, func() error {
-		return c.verifyUserPasswordCurrent(ctx, userID, currentPassword)
-	})
-}
-
-// AdminSetUserPasswordAuthorized sets a password for the target account without requiring
-// the old password. Changing another account requires the same admin-management
-// gate used by admin identity changes.
-func (c *ChattoCore) AdminSetUserPasswordAuthorized(ctx context.Context, actorID, targetUserID, password string) error {
-	if actorID == "" {
-		return ErrNotAuthenticated
-	}
-	if targetUserID == "" {
-		return fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
-	}
-	if actorID == targetUserID {
-		return ErrAdminCannotSetOwnPassword
-	}
-	canManage, err := c.CanManageUserAccounts(ctx, actorID)
-	if err != nil {
-		return fmt.Errorf("check user.manage-accounts: %w", err)
-	}
-	if !canManage {
-		return ErrPermissionDenied
-	}
-	return c.setPasswordHash(ctx, actorID, targetUserID, password, true, nil)
-}
-
-func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, error) {
-	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
-		return false, err
-	}
-	_, ok, err := c.Users.GetContext(ctx, userID)
-	if err != nil {
-		return false, err
-	}
-	if !ok {
-		return false, ErrNotFound
-	}
-	_, hasPassword := c.Users.PasswordHash(userID)
-	return hasPassword, nil
-}
-
-func (c *ChattoCore) VerifyUserPassword(ctx context.Context, userID, password string) error {
-	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
-		return err
-	}
-	return c.verifyUserPasswordCurrent(ctx, userID, password)
-}
-
-func (c *ChattoCore) verifyUserPasswordCurrent(ctx context.Context, userID, password string) error {
-	_, ok, err := c.Users.GetContext(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return ErrNotFound
-	}
-	passwordHash, ok := c.Users.PasswordHash(userID)
-	if !ok {
-		return ErrCurrentPasswordRequired
-	}
-	if err := bcrypt.CompareHashAndPassword(passwordHash, []byte(password)); err != nil {
-		return ErrCurrentPasswordInvalid
-	}
-	return nil
-}
-
-func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string, password string, revokeCredentials bool, check func() error) error {
-	// Validate password strength
-	if err := ValidatePassword(password); err != nil {
-		return err
-	}
-
-	// Verify user exists
-	_, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
-	}
-
-	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
-	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
-	}
-
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
-		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
-			UserId:                      userID,
-			PasswordHash:                hashedPassword,
-			PreserveExistingCredentials: !revokeCredentials,
-		},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", func() error {
-		if _, err := c.GetUser(ctx, userID); err != nil {
-			return fmt.Errorf("user not found: %w", err)
-		}
-		if check != nil {
-			return check()
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	if !revokeCredentials {
-		return nil
-	}
-	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "password_changed"); err != nil {
-		c.logger.Warn("Failed to clean up runtime credentials after password change", "user_id", userID, "error", err)
-	}
-	if err := c.PublishSessionTerminated(ctx, userID, "password_changed"); err != nil {
-		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "reason", "password_changed", "error", err)
-	}
-	return nil
-}
-
-// VerifyPassword verifies a user's password by login name or email and returns the user if valid.
-func (c *ChattoCore) VerifyPassword(ctx context.Context, identifier string, password string) (*corev1.User, error) {
-	user, _, err := c.VerifyPasswordWithAuthGeneration(ctx, identifier, password)
-	return user, err
-}
-
-// VerifyPasswordWithAuthGeneration verifies a password and returns the user
-// auth generation that was current when the password hash was checked.
-func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, identifier string, password string) (*corev1.User, uint64, error) {
-	// Timing attack protection: Always run bcrypt comparison even for non-existent users.
-	// Without this, attackers could enumerate valid logins by measuring response times:
-	// - Non-existent login: fast return (~1μs)
-	// - Real login, wrong password: slow bcrypt check (~100ms)
-	// By always running bcrypt, both paths take the same time, preventing user enumeration.
-	dummyHash := []byte("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy")
-
-	// First try to find user by login/username
-	user, err := c.GetUserByLogin(ctx, identifier)
-	if err != nil {
-		// If not found and identifier looks like an email, try email lookup
-		if strings.Contains(identifier, "@") {
-			user, err = c.GetUserByVerifiedEmail(ctx, identifier)
-		}
-	}
-
-	if err != nil || user == nil {
-		// User doesn't exist - run dummy bcrypt to match timing
-		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
-		return nil, 0, fmt.Errorf("invalid credentials")
-	}
-
-	return c.verifyUserPassword(ctx, user, password, dummyHash)
-}
-
-// verifyUserPassword is an internal helper that verifies a password for an already-fetched user.
-func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *corev1.User, password string, dummyHash []byte) (*corev1.User, uint64, error) {
-	authGeneration, err := c.CurrentAuthGeneration(ctx, user.Id)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// Retrieve password hash from the user projection.
-	passwordHash, ok := c.Users.PasswordHash(user.Id)
-	if !ok {
-		// No password set (OAuth-only user) - run dummy bcrypt to match timing
-		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
-		return nil, 0, fmt.Errorf("password not set for this user")
-	}
-
-	err = bcrypt.CompareHashAndPassword(passwordHash, []byte(password))
-	if err != nil {
-		return nil, 0, fmt.Errorf("invalid credentials")
-	}
-
-	return user, authGeneration, nil
-}
-
-// UploadUserAvatar processes an image (resizes to 256x256 max, converts to WebP),
-// uploads it to the object store (NATS or S3), and returns the asset reference.
-// If the user already has an avatar, the old one is deleted after successful upload.
-func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader io.Reader) (*corev1.AssetRecord, error) {
-	// Verify user exists
-	_, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-
-	// Capture old avatar reference for cleanup after successful upload
-	oldAvatar, _ := c.GetUserAvatar(ctx, userID)
-
-	// Process image: resize and convert to WebP
-	webpReader, err := assets.ProcessAvatarImageWithConfig(reader, c.AssetsConfig())
-	if err != nil {
-		return nil, fmt.Errorf("failed to process avatar image: %w", err)
-	}
-
-	// Read the processed image into bytes (needed for both NATS and S3)
-	webpData, err := io.ReadAll(webpReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read processed avatar: %w", err)
-	}
-
-	// Upload to storage with unique asset ID
-	assetID := NewAssetID()
-	asset := &corev1.AssetRecord{
-		Id:          assetID,
-		Filename:    "avatar.webp",
-		ContentType: "image/webp",
-		Size:        int64(len(webpData)),
-	}
-
-	if c.ShouldUseS3() {
-		// Upload to S3 - use the same assetID as NATS would use for the key
-		// The S3 path is constructed from the assetID for consistency
-		s3Key := S3KeyServerAsset(assetID)
-		_, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, webpData, "image/webp")
-		if err != nil {
-			return nil, fmt.Errorf("failed to upload avatar to S3: %w", err)
-		}
-		// Store just the assetID in Key (same as NATS) so URL generation is consistent
-		asset.Storage = &corev1.AssetRecord_S3{
-			S3: &corev1.S3Asset{
-				Key:    assetID,
-				Bucket: proto.String(c.s3Client.Bucket()),
-			},
-		}
-		c.logger.Info("Uploaded avatar to S3", "user_id", userID, "asset_id", assetID, "size", len(webpData))
-	} else {
-		// Upload to NATS ObjectStore
-		headers := nats.Header{}
-		headers.Set("Content-Type", "image/webp")
-		objectKey := PublicServerAssetObjectKey(assetID)
-		meta := jetstream.ObjectMeta{
-			Name:    objectKey,
-			Headers: headers,
-		}
-		info, err := c.storage.serverAssets.Put(ctx, meta, bytes.NewReader(webpData))
-		if err != nil {
-			return nil, fmt.Errorf("failed to upload avatar: %w", err)
-		}
-		asset.Storage = &corev1.AssetRecord_Nats{
-			Nats: &corev1.NATSAsset{
-				Key: objectKey,
-			},
-		}
-		c.logger.Info("Uploaded avatar", "user_id", userID, "size", info.Size)
-	}
-
-	// Delete old avatar now that new one is successfully uploaded
-	if oldAvatar != nil {
-		c.deleteAsset(ctx, assetStorageFromAsset(oldAvatar), "avatar", userID)
-	}
-
-	return asset, nil
-}
-
-// SetUserAvatar stores the user's avatar asset reference through the user aggregate.
-func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *corev1.AssetRecord) error {
-	// Verify user exists
-	_, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
-	}
-
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_AssetCreated{
-		AssetCreated: &corev1.AssetCreatedEvent{
-			Asset:                   asset,
-			OriginalBinaryAvailable: true,
-			UserId:                  userID,
-		},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
-		return fmt.Errorf("failed to store avatar: %w", err)
-	}
-
-	c.logger.Info("Updated user avatar", "user_id", userID)
-
-	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
-
-	return nil
-}
-
-// GetUserAvatar retrieves a user's avatar asset reference from the user projection.
-// Returns nil if the user has no avatar set.
-func (c *ChattoCore) GetUserAvatar(ctx context.Context, userID string) (*corev1.AssetRecord, error) {
-	if asset, ok := c.Users.Avatar(userID); ok {
-		return asset, nil
-	}
-	return nil, nil
-}
-
-// DeleteUserAvatar removes a user's avatar from storage (NATS or S3).
-// Returns nil if the user has no avatar set.
-func (c *ChattoCore) DeleteUserAvatar(ctx context.Context, userID string) error {
-	// Verify user exists
-	_, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
-	}
-
-	// Get current avatar to delete the file from storage
-	avatar, err := c.GetUserAvatar(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	// If no avatar, nothing to do
-	if avatar == nil {
-		return nil
-	}
-
-	// Delete the asset from storage (NATS or S3)
-	c.deleteAsset(ctx, assetStorageFromAsset(avatar), "avatar", userID)
-
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAvatarCleared{
-		UserAvatarCleared: &corev1.UserAvatarClearedEvent{UserId: userID},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
-		return fmt.Errorf("failed to delete avatar reference: %w", err)
-	}
-
-	c.logger.Info("Deleted user avatar", "user_id", userID)
-
-	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
-
-	return nil
-}
-
-func (c *ChattoCore) RecordUserAssetDeleted(ctx context.Context, actorID, userID, assetID string) error {
-	if userID == "" || assetID == "" {
-		return fmt.Errorf("user asset deletion missing user or asset id")
-	}
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetDeleted{
-			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
-		},
-	})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
-		return fmt.Errorf("failed to record user asset deletion: %w", err)
-	}
-	return nil
-}
-
-// publishUserProfileUpdate publishes a UserProfileUpdatedEvent to the server stream.
-// This allows other users to see profile changes (avatar, display name) in real-time.
-func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string) {
-	// Get current user data
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
-		c.logger.Warn("failed to get user for profile update event", "error", err, "user_id", userID)
-		return
-	}
-
-	// Get current avatar URL (full resolution for events)
-	avatarURL, err := c.GetUserAvatarURL(ctx, userID, nil, nil, "")
-	if err != nil {
-		c.logger.Warn("failed to get avatar URL for profile update event", "error", err, "user_id", userID)
-		avatarURL = ""
-	}
-
-	event := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_UserProfileUpdated{
-			UserProfileUpdated: &corev1.UserProfileUpdatedEvent{
-				UserId:      userID,
-				DisplayName: user.DisplayName,
-				AvatarUrl:   avatarURL,
-				Login:       user.Login,
-			},
-		},
-	})
-
-	// Publish to live.sync.user.{userId}.profile_updated for real-time delivery.
-	// Profile updates are transient (no need for JetStream storage/replay)
-	subject := subjects.LiveSyncUserEvent(userID, "profile_updated")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("failed to publish user profile update event", "error", err, "user_id", userID)
-	}
-}
-
 // ListUsers retrieves all users from the user projection.
 // CountUsers returns the total number of users on the server.
 func (c *ChattoCore) CountUsers(ctx context.Context) (int, error) {
-	return c.Users.Count(), nil
+	return c.userModel.userCount(), nil
 }
 
 func (c *ChattoCore) ListUsers(ctx context.Context) ([]*corev1.User, error) {
-	return c.Users.UsersContext(ctx)
-}
-
-// GetUserAvatarURL returns the URL for a user's avatar.
-// If width and height are provided (non-nil), returns a URL to a resized version.
-// Returns empty string if no avatar is set.
-func (c *ChattoCore) GetUserAvatarURL(ctx context.Context, userID string, width, height *int, fit string) (string, error) {
-	avatar, err := c.GetUserAvatar(ctx, userID)
-	if err != nil {
-		return "", err
-	}
-
-	// No avatar set
-	if avatar == nil {
-		return "", nil
-	}
-
-	assetKey := ServerAssetDeliveryKey(avatar)
-	if assetKey == "" {
-		return "", fmt.Errorf("unknown asset type")
-	}
-
-	// Always use the standard server asset URL format - storage backend is an internal detail
-	if width != nil && height != nil {
-		if fit == "" {
-			fit = "cover"
-		}
-		return c.GetTransformedServerAssetURL(assetKey, *width, *height, fit), nil
-	}
-	return c.assetURL(fmt.Sprintf("/assets/server/%s", assetKey)), nil
+	return c.userModel.allUsers(ctx)
 }
 
 // ============================================================================
@@ -800,629 +493,18 @@ var ErrLoginAlreadyTaken = fmt.Errorf("login name is already taken")
 // ErrUsernameBlocked is returned when the login name is in the blocked list.
 var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 
-var ErrCustomStatusEmojiRequired = fmt.Errorf("custom status emoji is required")
-var ErrCustomStatusEmojiInvalid = fmt.Errorf("custom status emoji must be a single supported emoji")
-var ErrCustomStatusTextRequired = fmt.Errorf("custom status text is required")
-var ErrCustomStatusEmojiTooLong = fmt.Errorf("custom status emoji is too long")
-var ErrCustomStatusTextTooLong = fmt.Errorf("custom status text is too long")
-var ErrCustomStatusExpiryInPast = fmt.Errorf("custom status expiry must be in the future")
-
 // CheckLoginExists checks if a login name is already taken.
 func (c *ChattoCore) CheckLoginExists(ctx context.Context, login string) (bool, error) {
-	return c.Users.LoginExists(login), nil
+	return c.userModel.loginExists(login), nil
 }
 
-// UpdateUserDisplayName updates a user's display name.
-// Authorization: Caller should verify the actor is the user being updated.
-func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
-	return c.updateUserDisplayNameAs(ctx, userID, userID, displayName)
-}
-
-func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userID, displayName string) (*corev1.User, error) {
-	// Normalize and validate display name
-	displayName = NormalizeDisplayName(displayName)
-	if displayName == "" {
-		return nil, fmt.Errorf("display name cannot be empty")
-	}
-	if utf8.RuneCountInString(displayName) > MaxDisplayNameLength {
-		return nil, ErrDisplayNameTooLong
-	}
-	if err := ValidateDisplayName(displayName); err != nil {
-		return nil, err
-	}
-
-	// Get current user
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
-		UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{
-			UserId: userID,
-		},
-	}})
-	encryptedDisplayName, err := c.encryptUserPIIString(ctx, event.GetId(), userID, events.EventUserDisplayNameChanged, "display_name", displayName)
-	if err != nil {
-		return nil, fmt.Errorf("encrypt display name: %w", err)
-	}
-	event.GetUserDisplayNameChanged().EncryptedDisplayName = encryptedDisplayName
-	if _, err := c.appendUserEvent(ctx, userID, event, "", func() error {
-		if _, err := c.GetUser(ctx, userID); err != nil {
-			return fmt.Errorf("user not found: %w", err)
-		}
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("failed to store user: %w", err)
-	}
-	user.DisplayName = displayName
-
-	c.logger.Info("Updated user display name", "id", userID)
-
-	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
-
-	return user, nil
-}
-
-// AdminUpdateUserDisplayName updates a user's display name as an admin action.
-// Behavior matches UpdateUserDisplayName; this exists as a distinct entry point
-// for audit clarity in logs.
-// Authorization: Caller must verify admin privileges.
-func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
-	user, err := c.updateUserDisplayNameAs(ctx, SystemActorID, userID, displayName)
-	if err != nil {
-		return nil, err
-	}
-	c.logger.Info("Admin updated user display name", "id", userID)
-	return user, nil
-}
-
-// AdminUpdateUserProfile updates a user's login and/or display name as a
-// single admin-authored mutation. When both fields are changed, both durable
-// events are appended atomically in one batch.
-func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName *string) (*corev1.User, error) {
-	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName)
-}
-
-func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName *string) (*corev1.User, error) {
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-
-	var nextLogin string
-	var loginChanged bool
-	var loginNeedsMentionCheck bool
-	if login != nil {
-		nextLogin = strings.TrimSpace(*login)
-		if err := ValidateLogin(nextLogin); err != nil {
-			return nil, err
-		}
-		loginChanged = user.GetLogin() != nextLogin
-		loginNeedsMentionCheck = loginChanged && !strings.EqualFold(user.GetLogin(), nextLogin)
-		if loginNeedsMentionCheck {
-			isBlocked, err := c.configManager.IsUsernameBlocked(ctx, nextLogin)
-			if err != nil {
-				return nil, fmt.Errorf("failed to check blocked usernames: %w", err)
-			}
-			if isBlocked {
-				return nil, ErrUsernameBlocked
-			}
-			if c.loginConflictsWithMentionHandle(nextLogin) {
-				return nil, ErrUsernameBlocked
-			}
-		}
-	}
-
-	var nextDisplayName string
-	var displayNameChanged bool
-	if displayName != nil {
-		nextDisplayName = NormalizeDisplayName(*displayName)
-		if nextDisplayName == "" {
-			return nil, ErrInvalidArgument
-		}
-		if utf8.RuneCountInString(nextDisplayName) > MaxDisplayNameLength {
-			return nil, ErrDisplayNameTooLong
-		}
-		if err := ValidateDisplayName(nextDisplayName); err != nil {
-			return nil, err
-		}
-		displayNameChanged = user.GetDisplayName() != nextDisplayName
-	}
-
-	agg := events.UserAggregate(userID)
-	entries := make([]events.BatchEntry, 0, 2)
-	if loginChanged {
-		loginChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
-			UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: userID},
-		}})
-		encryptedLogin, err := c.encryptUserPIIString(ctx, loginChangedEvent.GetId(), userID, events.EventUserLoginChanged, "login", nextLogin)
-		if err != nil {
-			return nil, fmt.Errorf("encrypt login: %w", err)
-		}
-		loginChangedEvent.GetUserLoginChanged().EncryptedLogin = encryptedLogin
-		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(loginChangedEvent), Event: loginChangedEvent})
-	}
-	if displayNameChanged {
-		displayNameChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
-			UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{UserId: userID},
-		}})
-		encryptedDisplayName, err := c.encryptUserPIIString(ctx, displayNameChangedEvent.GetId(), userID, events.EventUserDisplayNameChanged, "display_name", nextDisplayName)
-		if err != nil {
-			return nil, fmt.Errorf("encrypt display name: %w", err)
-		}
-		displayNameChangedEvent.GetUserDisplayNameChanged().EncryptedDisplayName = encryptedDisplayName
-		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(displayNameChangedEvent), Event: displayNameChangedEvent})
-	}
-
-	checkUserExists := func() error {
-		if _, err := c.GetUser(ctx, userID); err != nil {
-			return fmt.Errorf("user not found: %w", err)
-		}
-		return nil
-	}
-	if len(entries) > 0 {
-		if loginNeedsMentionCheck {
-			_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
-				if err := checkUserExists(); err != nil {
-					return err
-				}
-				return c.requireLoginMentionHandleAvailable(nextLogin)
-			})
-		} else {
-			_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), checkUserExists)
-		}
-		if err != nil {
-			if errors.Is(err, ErrLoginAlreadyTaken) {
-				return nil, ErrLoginAlreadyTaken
-			}
-			return nil, fmt.Errorf("failed to store user: %w", err)
-		}
-	}
-
-	if loginChanged {
-		user.Login = nextLogin
-	}
-	if displayNameChanged {
-		user.DisplayName = nextDisplayName
-	}
-	c.logger.Info("Admin updated user profile", "id", userID)
-	c.publishUserProfileUpdate(ctx, userID)
-	return user, nil
-}
-
-type AdminUpdateUserInput struct {
-	Login       *string
-	DisplayName *string
-}
-
-func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*corev1.User, error) {
-	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
-		return nil, err
-	}
-	if input.Login == nil && input.DisplayName == nil {
-		return nil, fmt.Errorf("%w: at least one of login or display_name must be provided", ErrInvalidArgument)
-	}
-	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName)
-}
-
-func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {
-	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
-		return err
-	}
-	return c.ClearLoginChangeCooldownAs(ctx, actorID, targetUserID)
-}
-
-func (c *ChattoCore) requireCanAdminManageOtherUser(ctx context.Context, actorID, targetUserID string) error {
-	if actorID == "" {
-		return ErrNotAuthenticated
-	}
-	if targetUserID == "" {
-		return fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
-	}
-	if actorID == targetUserID {
-		return ErrPermissionDenied
-	}
-	canManage, err := c.CanManageUserAccounts(ctx, actorID)
-	if err != nil {
-		return fmt.Errorf("check user.manage-accounts: %w", err)
-	}
-	if !canManage {
-		return ErrPermissionDenied
-	}
-	return nil
-}
-
-// ============================================================================
-// Login Change Operations
-// ============================================================================
-
-// userLoginChangedAtKey returns the KV key for tracking when a user last changed their login.
-func userLoginChangedAtKey(userID string) string {
-	return "user_login_changed_at." + userID
-}
-
-// UpdateUserLogin changes a user's login/username with 30-day cooldown enforcement.
-// Authorization: Caller should verify the actor is the user being updated.
-func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
-	return c.applyLoginChange(ctx, userID, userID, newLogin, true)
-}
-
-// AdminUpdateUserLogin changes a user's login/username, bypassing the cooldown
-// check and not advancing the cooldown timestamp. The user retains whatever
-// rename allowance they had prior to the admin edit.
-// Authorization: Caller must verify admin privileges.
-func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
-	user, err := c.applyLoginChange(ctx, SystemActorID, userID, newLogin, false)
-	if err != nil {
-		return nil, err
-	}
-	c.logger.Info("Admin updated user login", "id", userID)
-	return user, nil
-}
-
-// applyLoginChange performs the actual login change. When enforceCooldown is
-// true, the 30-day cooldown is checked before changing and a new timestamp is
-// recorded after a successful change.
-func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*corev1.User, error) {
-	// Trim and validate (preserve original casing)
-	newLogin = strings.TrimSpace(newLogin)
-	if err := ValidateLogin(newLogin); err != nil {
-		return nil, err
-	}
-
-	// Get current user
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-
-	// Check if unchanged (exact match — case-only changes are allowed)
-	if user.Login == newLogin {
-		return user, nil // No-op, return current user
-	}
-
-	caseOnly := strings.EqualFold(user.Login, newLogin)
-	if !caseOnly {
-		isBlocked, err := c.configManager.IsUsernameBlocked(ctx, newLogin)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check blocked usernames: %w", err)
-		}
-		if isBlocked {
-			return nil, ErrUsernameBlocked
-		}
-		if c.loginConflictsWithMentionHandle(newLogin) {
-			return nil, ErrUsernameBlocked
-		}
-	}
-
-	// Check cooldown (skipped on admin path)
-	if enforceCooldown && !caseOnly {
-		lastChange, err := c.GetLastLoginChange(ctx, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check login change cooldown: %w", err)
-		}
-		if !lastChange.IsZero() && time.Since(lastChange) < LoginChangeCooldown {
-			return nil, ErrLoginChangeCooldown
-		}
-	}
-
-	loginChanged := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
-		UserLoginChanged: &corev1.UserLoginChangedEvent{
-			UserId: userID,
-		},
-	}})
-	encryptedLogin, err := c.encryptUserPIIString(ctx, loginChanged.GetId(), userID, events.EventUserLoginChanged, "login", newLogin)
-	if err != nil {
-		return nil, fmt.Errorf("encrypt login: %w", err)
-	}
-	loginChanged.GetUserLoginChanged().EncryptedLogin = encryptedLogin
-	agg := events.UserAggregate(userID)
-	entries := []events.BatchEntry{{
-		Subject: agg.SubjectFor(loginChanged),
-		Event:   loginChanged,
-	}}
-	if enforceCooldown && !caseOnly {
-		cooldownStarted := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{
-			UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{UserId: userID},
-		}})
-		cooldownStarted.CreatedAt = loginChanged.GetCreatedAt()
-		entries = append(entries, events.BatchEntry{
-			Subject: agg.SubjectFor(cooldownStarted),
-			Event:   cooldownStarted,
-		})
-	}
-	if !caseOnly {
-		_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
-			if _, err := c.GetUser(ctx, userID); err != nil {
-				return fmt.Errorf("user not found: %w", err)
-			}
-			return c.requireLoginMentionHandleAvailable(newLogin)
-		})
-	} else {
-		_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
-			if _, err := c.GetUser(ctx, userID); err != nil {
-				return fmt.Errorf("user not found: %w", err)
-			}
-			return nil
-		})
-	}
-	if err != nil {
-		if errors.Is(err, ErrLoginAlreadyTaken) {
-			return nil, ErrLoginAlreadyTaken
-		}
-		return nil, fmt.Errorf("failed to store user: %w", err)
-	}
-	user.Login = newLogin
-
-	c.logger.Info("Updated user login", "id", userID)
-
-	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
-
-	return user, nil
-}
-
-// GetLastLoginChange returns when the user last changed their login.
-// Returns zero time if the user has never changed their login.
-func (c *ChattoCore) GetLastLoginChange(ctx context.Context, userID string) (time.Time, error) {
-	return c.Users.LoginChangedAt(userID), nil
-}
-
-// ClearLoginChangeCooldown removes the cooldown timestamp for a user, allowing
-// them to immediately change their login again. Idempotent — clearing an
-// already-clear cooldown is a no-op.
-// Authorization: Caller must verify admin privileges.
-func (c *ChattoCore) ClearLoginChangeCooldown(ctx context.Context, userID string) error {
-	return c.ClearLoginChangeCooldownAs(ctx, userID, userID)
-}
-
-// ClearLoginChangeCooldownAs removes the cooldown timestamp with explicit actor
-// attribution. Authorization must be checked by the caller.
-func (c *ChattoCore) ClearLoginChangeCooldownAs(ctx context.Context, actorID, userID string) error {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownCleared{
-		UserLoginCooldownCleared: &corev1.UserLoginCooldownClearedEvent{UserId: userID},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", func() error {
-		if _, err := c.GetUser(ctx, userID); err != nil {
-			return fmt.Errorf("user not found: %w", err)
-		}
-		return nil
-	}); err != nil {
-		return fmt.Errorf("failed to clear login change cooldown: %w", err)
-	}
-	c.logger.Info("Cleared user login change cooldown", "id", userID)
-	c.publishUserProfileUpdate(ctx, userID)
-	return nil
-}
-
-// SetUserCustomStatus stores or replaces a user's durable custom status.
-// Expiry is modeled on the event itself; readers hide expired statuses without
-// writing auxiliary runtime state.
-func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, text string, expiresAt *time.Time) (*corev1.User, error) {
-	emoji = strings.TrimSpace(emoji)
-	text = strings.TrimSpace(text)
-	if emoji == "" {
-		return nil, ErrCustomStatusEmojiRequired
-	}
-	if text == "" {
-		return nil, ErrCustomStatusTextRequired
-	}
-	if utf8.RuneCountInString(emoji) > MaxCustomStatusEmojiLength {
-		return nil, ErrCustomStatusEmojiTooLong
-	}
-	if !IsValidUnicodeEmoji(emoji) {
-		return nil, ErrCustomStatusEmojiInvalid
-	}
-	if utf8.RuneCountInString(text) > MaxCustomStatusTextLength {
-		return nil, ErrCustomStatusTextTooLong
-	}
-	if expiresAt != nil && !expiresAt.After(time.Now()) {
-		return nil, ErrCustomStatusExpiryInPast
-	}
-	if _, err := c.GetUser(ctx, userID); err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-
-	status := &corev1.CustomUserStatus{
-		Emoji: emoji,
-		Text:  text,
-	}
-	if expiresAt != nil {
-		status.ExpiresAt = timestamppb.New(*expiresAt)
-	}
-
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserCustomStatusSet{
-		UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
-			UserId: userID,
-			Status: status,
-		},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
-		return nil, fmt.Errorf("failed to store custom status: %w", err)
-	}
-
-	return c.GetUser(ctx, userID)
-}
-
-// ClearUserCustomStatus removes a user's durable custom status. It is
-// idempotent and still records a clear event for explicit user action history.
-func (c *ChattoCore) ClearUserCustomStatus(ctx context.Context, userID string) (*corev1.User, error) {
-	if _, err := c.GetUser(ctx, userID); err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
-
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserCustomStatusCleared{
-		UserCustomStatusCleared: &corev1.UserCustomStatusClearedEvent{UserId: userID},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
-		return nil, fmt.Errorf("failed to clear custom status: %w", err)
-	}
-
-	return c.GetUser(ctx, userID)
-}
-
-// ============================================================================
-// Account Deletion Token Operations
-// ============================================================================
-
-const accountDeletionTokenKeyPrefix = "account_deletion_token."
-
-// accountDeletionTokenKey returns the HMAC-derived KV key for an account deletion token.
-func (c *ChattoCore) accountDeletionTokenKey(token string) string {
-	return c.runtimeTokenKey(accountDeletionTokenKeyPrefix, token)
-}
-
-// AccountDeletionTokenTTL is how long an account deletion token is valid.
-const AccountDeletionTokenTTL = 15 * time.Minute
-
-// AccountDeletionToken represents a token used to confirm account deletion.
-type AccountDeletionToken struct {
-	UserID    string    `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-// CreateAccountDeletionToken generates a confirmation token for account deletion.
-// The token is stored in RUNTIME_STATE and must be provided to DeleteUser within the TTL.
-func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID string) (string, error) {
-	token := NewAccountDeletionToken()
-	createdAt := time.Now()
-
-	tokenData := AccountDeletionToken{
-		UserID:    userID,
-		CreatedAt: createdAt,
-	}
-
-	data, err := json.Marshal(tokenData)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal token: %w", err)
-	}
-
-	_, err = c.storage.runtimeStateKV.Create(ctx, c.accountDeletionTokenKey(token), data, jetstream.KeyTTL(AccountDeletionTokenTTL))
-	if err != nil {
-		return "", fmt.Errorf("failed to store account deletion token: %w", err)
-	}
-
-	if err := c.recordAccountDeletionConfirmationIssued(ctx, userID, createdAt); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, c.accountDeletionTokenKey(token))
-		return "", err
-	}
-
-	c.logger.Debug("Created account deletion token", "user_id", userID)
-	return token, nil
-}
-
-// ValidateAccountDeletionToken validates a token and ensures it belongs to the user.
-// If valid, the token is consumed (deleted) to prevent reuse.
-// Returns an error if the token is invalid, expired, or doesn't belong to the user.
-func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, userID string) error {
-	key := c.accountDeletionTokenKey(token)
-
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return ErrTokenNotFound
-		}
-		return fmt.Errorf("failed to get account deletion token: %w", err)
-	}
-
-	var tokenData AccountDeletionToken
-	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		return fmt.Errorf("failed to unmarshal token: %w", err)
-	}
-
-	// Check if token has expired
-	if time.Since(tokenData.CreatedAt) > AccountDeletionTokenTTL {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key) // Clean up expired token
-		return ErrTokenExpired
-	}
-
-	// Check if token belongs to the user
-	if tokenData.UserID != userID {
-		return ErrPermissionDenied
-	}
-
-	// Consume the token (delete it)
-	if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
-		c.logger.Warn("Failed to delete consumed account deletion token", "error", err)
-		// Continue anyway - the token was valid
-	}
-
-	return nil
-}
-
-// DeleteUser permanently deletes a user account and all associated data.
-// This performs GDPR-compliant deletion including removal of message bodies.
-// Authorization: Caller must verify CanDeleteUser(actorID, userID) before calling.
-func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) error {
-	if _, err := c.GetUser(ctx, userID); err != nil {
-		return fmt.Errorf("user not found: %w", err)
-	}
-
-	// Post-ADR-030 there are two implicit scopes — channel and DM — and
-	// cleanup iterates each kind.
-	allKinds := []RoomKind{KindChannel, KindDM}
-
-	// Delete encryption key (crypto-shreds any remaining encrypted data) and
-	// record the durable shred signal projections use to tombstone messages
-	// before decrypting.
-	if err := c.DeleteUserEncryptionKeyAs(ctx, actorID, userID); err != nil {
-		c.logger.Warn("Failed to delete encryption key", "user_id", userID, "error", err)
-		// Continue - this is best-effort
-	}
-
-	if deleted := c.DeleteMessageOwnedAssetsForUser(ctx, actorID, userID); deleted > 0 {
-		c.logger.Info("Deleted message-owned assets during user deletion", "user_id", userID, "count", deleted)
-	}
-
-	// Delete push notification subscriptions
-	if _, err := c.DeleteAllUserPushSubscriptions(ctx, userID); err != nil {
-		c.logger.Warn("Failed to delete push subscriptions", "user_id", userID, "error", err)
-		// Continue - this is best-effort
-	}
-	// Delete avatar from object store if it exists
-	avatar, _ := c.GetUserAvatar(ctx, userID)
-	if avatar != nil {
-		if err := c.RecordUserAssetDeleted(ctx, actorID, userID, avatar.GetId()); err != nil {
-			c.logger.Warn("Failed to publish avatar asset deletion event", "user_id", userID, "asset_id", avatar.GetId(), "error", err)
-		}
-		c.deleteAsset(ctx, assetStorageFromAsset(avatar), "avatar", userID)
-	}
-
-	deletedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
-		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
-	}})
-	if _, err := c.appendUserEvent(ctx, userID, deletedEvent, "", nil); err != nil {
-		return fmt.Errorf("failed to mark user deleted: %w", err)
-	}
-	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "account_deleted"); err != nil {
-		c.logger.Warn("Failed to revoke runtime credentials during deletion", "user_id", userID, "error", err)
-		// Continue - this is best-effort
-	}
-	if err := c.deleteUserSettings(ctx, userID); err != nil {
-		c.logger.Warn("Failed to delete user settings during deletion", "user_id", userID, "error", err)
-	}
-
-	// Clean per-kind user artifacts AFTER the user projection marks the
-	// account deleted, so ServerMemberDeletedEvent refetches already see
-	// "Deleted User".
-	for _, kind := range allKinds {
-		if err := c.CleanupUserState(ctx, userID, kind, true); err != nil {
-			c.logger.Warn("Failed to clean up user state during deletion", "user_id", userID, "kind", kind, "error", err)
-		}
-	}
-
-	// Revoke all role assignments (server-wide, no per-space loop needed).
-	if err := c.RevokeAllUserRoles(ctx, actorID, userID); err != nil {
-		c.logger.Warn("Failed to revoke user roles during deletion", "user_id", userID, "error", err)
-	}
-
-	if err := c.PublishSessionTerminated(ctx, userID, "account_deleted"); err != nil {
-		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "error", err)
-	}
-
-	c.logger.Info("Deleted user account", "id", userID)
-
-	return nil
+// IsLoginAvailable reports whether a login currently passes validation and
+// conflicts with neither reserved names nor existing mention handles. The
+// result is advisory; account creation remains the race-safe authority.
+func (c *ChattoCore) IsLoginAvailable(login string) bool {
+	login = strings.TrimSpace(login)
+	return ValidateLogin(login) == nil &&
+		!c.configModel.IsUsernameBlocked(login) &&
+		!c.loginConflictsWithMentionHandle(login) &&
+		!c.userModel.loginExists(login)
 }

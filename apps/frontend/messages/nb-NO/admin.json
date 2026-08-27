@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
     "nav": {
       "general": "Generelt",
@@ -10,7 +9,8 @@
       "security": "Sikkerhet",
       "event_log": "Hendelseslogg",
       "system": "System",
-      "back_to_server": "Gå tilbake til server"
+      "back_to_server": "Gå tilbake til server",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | Admin",
@@ -122,6 +122,7 @@
       "create_role_title": "Opprett rolle",
       "create_role_subtitle": "Opprett en ny rolle for denne serveren",
       "create_role_action": "Opprett rolle",
+      "new_role_action": "+ Ny rolle",
       "creating_role": "Oppretter...",
       "create_after_hint": "Etter å ha opprettet rollen, kan du tildele tillatelser til den på redigeringssiden.",
       "back_to_permissions": "Tilbake til tillatelser",
@@ -142,7 +143,7 @@
       "no_users_with_role": "Ingen brukere har denne rollen",
       "server_tier_intro": "Denne siden er for rolletillatelser på servernivå: brede standarder som gjelder før romspesifikke overstyringer.",
       "server_tier_rooms_hint": "Bruk rom for overstyringer per gruppe og per rom.",
-      "server_tier_denies_hint": "Bruk nekter bevisst: å nekte alle i et rom blokkerer alt som er arvet tillater på det nivået."
+      "resolution_hint": "For hver bruker eller navngitte rolle gjelder den nærmeste rom-, gruppe- eller serververdien. Avslag vinner mellom dem. En tillatelse overstyrer et everyone-avslag bare på samme eller et mer spesifikt nivå."
     },
     "rooms_admin": {
       "title": "Rom",
@@ -160,6 +161,7 @@
       "empty_groups_body": "Lag et sett for å begynne å organisere rom.",
       "drag_hint": "Dra rom mellom grupper for å organisere dem. Dra gruppeoverskrifter for å omorganisere grupper. Arkiverte rom forblir i settet, men er skjult for medlemmene.",
       "drag_group": "Dra for å omorganisere gruppen",
+      "drag_room": "Dra for å omorganisere rommet",
       "new_room": "Nytt rom",
       "new_link": "Ny lenke",
       "new_group": "Ny gruppe",
@@ -174,9 +176,23 @@
       "edit_room": "Rediger rom",
       "edit_room_action": "Rediger rom",
       "room_description_placeholder": "Valgfri beskrivelse for dette rommet",
+      "slow_mode": "Sakte modus",
+      "slow_mode_description": "Angi hvor lenge medlemmer må vente mellom meldinger i dette rommet.",
+      "slow_mode_off": "Av",
+      "slow_mode_custom": "{interval} (gjeldende verdi)",
+      "threading_mode": "Trådmodus",
+      "threading_mode_description": "Påkrevd bruker alltid tråder; Oppmuntret gjør trådsvar til hovedhandlingen; Aktivert lar valget være åpent; Deaktivert blokkerer ny trådaktivitet.",
+      "threading_mode_required": "Påkrevd",
+      "threading_mode_required_description": "Hver melding starter en tråd.",
+      "threading_mode_encouraged": "Anbefalt",
+      "threading_mode_encouraged_description": "Tråder anbefales, men er ikke påkrevd.",
+      "threading_mode_enabled": "Aktivert",
+      "threading_mode_enabled_description": "Tråder er tilgjengelige, men valgfrie.",
+      "threading_mode_disabled": "Deaktivert",
+      "threading_mode_disabled_description": "Tråder er ikke tilgjengelige.",
       "room_name_empty": "Romnavnet kan ikke være tomt",
       "room_name_trim": "Romnavnet kan ikke ha innledende eller etterfølgende mellomrom",
-      "room_name_charset": "Romnavnet kan bare inneholde bokstaver, tall, bindestreker og understrekinger",
+      "room_name_invalid": "Romnavnet kan ikke inneholde linjeskift eller kontrolltegn",
       "room_name_too_long": "Romnavnet kan ikke overstige 30 tegn",
       "create_group": "Opprett gruppe",
       "group_name": "Gruppenavn",
@@ -215,14 +231,40 @@
       "archive_room_failed": "Kunne ikke arkivere rommet: {error}",
       "unarchive_room_failed": "Kunne ikke dearkivere rom: {error}",
       "save_link_failed": "Kunne ikke lagre koblingen: {error}",
-      "delete_link_failed": "Kunne ikke slette linken: {error}"
+      "delete_link_failed": "Kunne ikke slette linken: {error}",
+      "universal_members_description": "Medlemskap er automatisk i universelle rom. Alle med tilgang til rommet blir inkludert.",
+      "archived_members_description": "Medlemskapet kan ikke endres mens rommet er arkivert.",
+      "add_member": "Legg til medlem",
+      "adding_member": "Legger til medlem...",
+      "load_members_failed": "Kunne ikke laste rommedlemmer: {error}",
+      "remove_member": "Fjern medlem",
+      "remove_member_prompt": "Fjerne {name} fra {room}? Personen vil ikke lenger være eksplisitt medlem av rommet.",
+      "member_added": "{name} ble lagt til i rommet",
+      "add_member_failed": "Kunne ikke legge til medlemmet: {error}",
+      "member_removed": "{name} ble fjernet fra rommet",
+      "remove_member_failed": "Kunne ikke fjerne medlemmet: {error}"
     },
     "security": {
       "title": "Sikkerhet",
       "subtitle": "Registreringsbegrensninger og kontobeskyttelse",
       "blocked_usernames": "Blokkerte brukernavn",
       "blocked_usernames_description": "En per linje. Brukere kan ikke registrere seg med disse navnene.",
-      "settings_saved": "Innstillinger lagret"
+      "settings_saved": "Innstillinger lagret",
+      "oauth_clients": {
+        "title": "OAuth-klienter",
+        "description": "Apper vises her etter at et medlem har autorisert dem. Tillit er bare en administrativ etikett og hopper aldri over individuelt samtykke; blokkering hindrer ny tilgang og tilbakekaller eksisterende tilgangstokener.",
+        "empty": "Ingen OAuth-klienter er autorisert",
+        "application": "App",
+        "origins": "Tilbakekallingsopprinnelser",
+        "users": "Autoriserte brukere",
+        "last_authorization": "Siste autorisering",
+        "policy": "Retningslinje",
+        "policy_for": "Retningslinje for {client}",
+        "policy_default": "Standard",
+        "policy_trusted": "Klarert",
+        "policy_blocked": "Blokkert",
+        "policy_saved": "OAuth-klientens retningslinje er lagret"
+      }
     },
     "system": {
       "title": "System",
@@ -235,6 +277,7 @@
       "unlimited": "ubegrenset",
       "all_subjects": "alle fag",
       "pending_state": "Venter",
+      "worker_unconfirmed": "Ubekreftet",
       "rtt": "RTT",
       "max_payload": "Maks nyttelast",
       "server_id": "Server-ID",
@@ -374,6 +417,39 @@
       "email": "E-post",
       "id": "ID",
       "total": "{count} bruker(e) totalt"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

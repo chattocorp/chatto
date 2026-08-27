@@ -24,6 +24,27 @@ import { TIMEOUTS } from './constants';
  */
 
 test.describe('Direct Messages (room-shaped)', () => {
+  test('an empty DM stays hidden until its first attachment-only message', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+
+    await withServerUser(browser, serverURL, async ({ page: pageB, user: userB }) => {
+      const roomB = await new DMPage(pageB).startConversation(userA.login);
+
+      await page.goto(routes.browseRooms);
+      await page.waitForURL(routes.browseRooms);
+      const conversation = new DMPage(page).getConversation(userB.displayName);
+      await expect(conversation).not.toBeVisible();
+
+      await roomB.sendAttachment('e2e/fixtures/brighton.jpg');
+
+      await expect(conversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    });
+  });
+
   test('post a DM message, reload, and stay on the conversation', async ({
     page,
     browser,
@@ -46,15 +67,12 @@ test.describe('Direct Messages (room-shaped)', () => {
       await page.goto(routes.room(conversationId));
       await page.waitForURL(routes.patterns.anyRoom);
 
-      // Bug #1 (the silent post): the ServerEventProvider must subscribe to
+      // Bug #1 (the silent post): ServerPresenceSync must subscribe to
       // DM events too, so MessagePostedEvent reaches RoomEventsPane
       // and the new message renders without a reload.
       const roomA = new RoomPage(page);
       const postedBody = `dm round-trip ${Date.now()}`;
       const postedMessage = await roomA.sendMessage(postedBody);
-      await expect(page.getByText(postedBody)).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
 
       // DMs support flat reply attribution, but threads are a channel-room-only
       // capability. The server-provided room capability must suppress thread
@@ -315,7 +333,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     });
   });
 
-  test('user with denied message.post still sees existing DM conversations', async ({
+  test('message.read denial does not hide a DM from its participant', async ({
     page,
     browser,
     serverURL
@@ -338,9 +356,10 @@ test.describe('Direct Messages (room-shaped)', () => {
       const dmRoomId = (await startResp.json()).room.id as string;
       await postMessageViaConnect(page, dmRoomId, 'seed');
 
-      // Deny message.post BEFORE the regular user navigates. This should stop
-      // starting/sending DMs, not reading an existing DM.
-      const denyRole = await denyUserPermission(page, regularUser.id!, 'message.post');
+      // Deny both permissions before the regular user navigates. message.post
+      // must stop sending, while message.read is inapplicable to DM reads.
+      const denyPostRole = await denyUserPermission(page, regularUser.id!, 'message.post');
+      const denyReadRole = await denyUserPermission(page, regularUser.id!, 'message.read');
       try {
         const deniedStartResp = await regularPage.request.post(
           '/api/connect/chatto.api.v1.RoomService/StartDM',
@@ -362,8 +381,8 @@ test.describe('Direct Messages (room-shaped)', () => {
           timeout: TIMEOUTS.UI_STANDARD
         });
 
-        // DM read access is membership-based, so the seeded conversation still
-        // appears even while message.post is denied.
+        // DM read access is membership-based, so the seeded DM still appears
+        // while message.post and message.read are denied.
         await expect(regularPage.getByRole('button', { name: /direct messages/i })).toBeVisible({
           timeout: TIMEOUTS.UI_STANDARD
         });
@@ -374,6 +393,11 @@ test.describe('Direct Messages (room-shaped)', () => {
         const roomPage = new RoomPage(regularPage);
         await expect(roomPage.getMessage('seed').locator).toBeVisible({
           timeout: TIMEOUTS.UI_STANDARD
+        });
+        const liveBody = `live DM after message.read denial ${Date.now()}`;
+        await postMessageViaConnect(page, dmRoomId, liveBody);
+        await expect(roomPage.getMessage(liveBody).locator).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
         });
         await expect(roomPage.messageInput).toHaveAttribute('contenteditable', 'false');
         await expect(roomPage.sendButton).toBeDisabled();
@@ -387,7 +411,8 @@ test.describe('Direct Messages (room-shaped)', () => {
         await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
         await expect(profileDialog.getByRole('button', { name: 'Send Message' })).toBeHidden();
       } finally {
-        await clearUserPermissionOverride(page, regularUser.id!, 'message.post', denyRole);
+        await clearUserPermissionOverride(page, regularUser.id!, 'message.read', denyReadRole);
+        await clearUserPermissionOverride(page, regularUser.id!, 'message.post', denyPostRole);
       }
     });
   });

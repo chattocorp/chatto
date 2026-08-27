@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Conectando...",
     "joining": "Uniéndose...",
@@ -11,6 +10,15 @@
     "leave": "Dejar llamada",
     "share_screen": "Compartir pantalla",
     "stop_share_screen": "Dejar de compartir pantalla",
+    "applications": "Aplicaciones",
+    "entire_screen": "Pantalla completa",
+    "share_source": "Fuente para compartir",
+    "main_display": "Pantalla principal",
+    "display_number": "Pantalla {number}",
+    "video_only": "Solo vídeo",
+    "share_sources_failed": "No se pudieron cargar las fuentes disponibles.",
+    "no_share_windows": "No se encontraron ventanas de aplicaciones para compartir.",
+    "no_share_displays": "No se encontraron pantallas.",
     "user_settings": "Configuración de usuario",
     "speaking": "Hablando",
     "muted": "Silenciado",
@@ -54,6 +62,13 @@
     "screen_share_failed": "No se pudo comenzar a compartir la pantalla.",
     "speaker_switch_failed": "No se pudo cambiar de altavoz. Es posible que este navegador o dispositivo no admita la selección de altavoces.",
     "device_switch_failed": "No se pudo cambiar a ese dispositivo.",
-    "media_device_failed": "No se pudo acceder a un dispositivo multimedia."
+    "media_device_failed": "No se pudo acceder a un dispositivo multimedia.",
+    "stream_game": "Transmitir un juego",
+    "stream_game_description": "Elige la ventana del juego que quieres compartir con todos en la llamada.",
+    "game_windows": "Ventanas de juegos",
+    "no_game_windows": "No se han encontrado ventanas para compartir. Abre un juego en modo ventana o sin bordes e inténtalo de nuevo.",
+    "game_windows_failed": "No se han podido cargar las ventanas para compartir.",
+    "untitled_window": "Ventana sin título",
+    "game_window_selected": "{name} seleccionado"
   }
 }

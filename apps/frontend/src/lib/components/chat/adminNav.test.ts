@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getAdminNavItems, type AdminNavChromePermissions, type AdminNavServerPermissions } from './adminNav';
+import {
+  getAdminNavItems,
+  type AdminNavChromePermissions,
+  type AdminNavServerPermissions
+} from './adminNav';
 
 function chrome(overrides: Partial<AdminNavChromePermissions> = {}): AdminNavChromePermissions {
   return {
@@ -21,11 +25,24 @@ function server(overrides: Partial<AdminNavServerPermissions> = {}): AdminNavSer
     canAdminViewRoles: false,
     canAdminViewAudit: false,
     canAdminViewSystem: false,
+    canManageInvites: false,
     ...overrides
   };
 }
 
 describe('getAdminNavItems', () => {
+  it('shows Bots as a server-management surface for every signed-in human', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome(),
+      server: server()
+    });
+
+    expect(items.find((item) => item.label === 'Bots')?.href).toBe(
+      '/chat/local/manage/server/bots'
+    );
+  });
+
   it('shows Members for admin user viewers', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
@@ -64,5 +81,36 @@ describe('getAdminNavItems', () => {
     });
 
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
+  });
+
+  it('shows Invite links only for invitation managers', () => {
+    const hidden = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true }),
+      server: server()
+    });
+    const visible = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true }),
+      server: server({ canManageInvites: true })
+    });
+
+    expect(hidden.some((item) => item.label === 'Invite links')).toBe(false);
+    expect(visible.find((item) => item.label === 'Invite links')?.href).toBe(
+      '/chat/local/manage/server/invite-links'
+    );
+  });
+
+  it('keeps server pages beneath manage/server and rooms as sibling resources', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true, canManage: true, canManageRooms: true }),
+      server: server()
+    });
+
+    expect(items.find((item) => item.label === 'General')?.href).toBe(
+      '/chat/local/manage/server/general'
+    );
+    expect(items.find((item) => item.label === 'Rooms')?.href).toBe('/chat/local/manage/rooms');
   });
 });

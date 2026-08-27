@@ -1,0 +1,22 @@
+{
+  "add_server": {
+    "title": "Pievienot serveri",
+    "sign_in": "Pierakstīties",
+    "connect": "Savienot",
+    "redirecting": "Gaida pierakstīšanos...",
+    "connecting": "Notiek savienojuma izveide...",
+    "start_failed": "Neizdevās sākt pierakstīšanos.",
+    "invalid_url": "Lūdzu, ievadiet derīgu URL.",
+    "already_connected": "Šis serveris jau ir savienots.",
+    "not_chatto_server": "Šķiet, ka tas nav Chatto serveris.",
+    "oauth_unsupported": "Šis serveris neatbalsta OAuth autentifikāciju. Iespējams, tas būs jāatjaunina.",
+    "connection_timed_out": "Savienojuma noildze. Pārbaudiet URL un mēģiniet vēlreiz.",
+    "connection_failed": "Nevarēja izveidot savienojumu. Pārbaudiet URL un mēģiniet vēlreiz.",
+    "connect_failed": "Neizdevās izveidot savienojumu.",
+    "edit_url": "Nepareizs serveris? Rediģēt URL",
+    "description_url": "Chatto tiek izplatīts — jūsu klients izveido savienojumu ar katru serveri tieši. Ievadiet URL, lai pievienotu citu.",
+    "description_preview": "Tiks atvērts atsevišķs logs, lai jūs varētu pierakstīties tieši šajā serverī.",
+    "url_label": "Servera URL",
+    "url_placeholder": "chat.example.com"
+  }
+}

@@ -17,6 +17,36 @@ Chatto supports local password accounts, email verification and reset flows, ext
 | Mixed community | Allow local accounts and selected external providers. |
 | Passwordless external login | Ensure users keep at least one linked provider and understand recovery paths. |
 
+## SSO-Only Login
+
+Configure and test at least one external provider before disabling password login. To make the server SSO-only, disable both password sign-in and direct email/password registration on every serving replica:
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[auth]
+direct_login = false
+direct_registration = false
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_AUTH_DIRECT_LOGIN=false
+CHATTO_AUTH_DIRECT_REGISTRATION=false
+```
+
+</TabItem>
+</Tabs>
+
+With `direct_login = false`, Chatto rejects `/auth/login` and advertises the disabled capability through public server discovery. The bundled login page then shows only configured external providers. Existing sessions stay valid, and registration remains independently controlled by `direct_registration`.
+
+<Aside type="caution">
+  Disabling password login without a working external provider can lock signed-out users out. Keep an operator recovery path and apply the same authentication configuration to every replica.
+</Aside>
+
 ## SMTP Email
 
 SMTP is needed for verification and password reset email flows. Configure it before inviting members if you expect self-service account recovery.
@@ -86,6 +116,37 @@ Chatto does not silently merge accounts by email. External identities link by ve
 
 This avoids accidental account takeover through recycled or unverified email addresses.
 
+## Invite-Only Account Creation
+
+Set `auth.account_creation_policy = "invite_only"` (or
+`CHATTO_AUTH_ACCOUNT_CREATION_POLICY=invite_only`) to require an invite link for
+every new self-service account. This applies to email/password registration and
+external-provider auto-provisioning. Existing users can still sign in and link
+providers, and operator-created accounts are unaffected.
+
+Administrators with `user.invite` create and revoke invite links under
+**Server Admin → Invite links**. New links default to one use and seven days;
+the administrator can choose a different use limit, unlimited uses, another
+expiry, or no expiry. Active links can be copied again later.
+
+Invite links prove admission, not identity. Direct registration still
+verifies the user's email, while an external provider still authenticates its
+own subject. Expired, exhausted, revoked, and malformed invite links all appear
+to the person signing up as unavailable. People join by opening the link's
+compact `/invite/{token}` URL; there is nothing to copy into a form.
+
+<Aside type="caution">
+  Invite links are bearer capabilities. Chatto redacts their tokens from its
+  request logs, but reverse proxies and CDNs must also redact the suffix of
+  `/invite/*` in their access logs.
+</Aside>
+
+<Aside type="caution">
+  Keep `core.secret_key` stable across replicas and restores. Rotating it
+  invalidates links already shared, although the durable invite-link records
+  remain and administrators can copy newly derived links.
+</Aside>
+
 ## Owner Recovery
 
 Set owner recovery emails in `chatto.toml`:
@@ -103,7 +164,7 @@ The email must be verified by the user before Chatto treats the user as an effec
 
 ## Sessions And Logout
 
-Chatto uses opaque runtime credentials, not JWTs. Browser sessions use signed HTTP-only cookies for same-origin flows, including direct external-provider login, and provider redirects never contain bearer credentials. Registered cross-origin server connections use Chatto's OAuth PKCE flow to obtain bearer tokens. Password resets, password changes, external identity disconnects, and account deletion revoke older credentials through the user's auth generation.
+Chatto uses opaque runtime credentials, not JWTs. Browser authentication uses an HttpOnly cookie for same-origin flows, including direct external-provider login, and provider redirects never contain bearer credentials. In the final quarter, the bundled browser automatically renews the same session handle through a dedicated route; ordinary validation does not write the session or cookie. Registered cross-origin server connections use Chatto's OAuth PKCE flow to obtain a short-lived access token and rotating refresh credential. The client renews the current session window in the background without reopening OAuth or asking the user to extend the session. A client that is inactive for one complete window must sign in again. Password resets, password changes, external identity disconnects, and account deletion revoke older credentials through the user's auth generation.
 
 Operators do not normally manage sessions directly. Use password reset, password set, account deletion, or future dedicated revocation tooling when you need to force a credential cutoff.
 

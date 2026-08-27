@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Opprett et nytt rom",
@@ -14,7 +13,7 @@
       "missing_group": "Velg en romgruppe før du oppretter et rom.",
       "failed": "Kunne ikke opprette rom",
       "creating": "Oppretter ...",
-      "submit": "Opprett rom"
+      "submit_and_configure": "Opprett og konfigurer rommet"
     },
     "join": {
       "title": "Bli med i rommet",
@@ -23,13 +22,10 @@
       "inline_prompt": "Bli med i dette rommet for å lese og delta.",
       "group_label": "I {group}",
       "member_preview_label": "Rommedlemmer",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} medlem", "countPlural=other": "{count} medlemmer" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} medlem",
+        "other": "{count} medlemmer"
+      },
       "success": "Ble med #{room}",
       "success_generic": "Ble med i rommet",
       "failed": "Kunne ikke bli med i rommet",
@@ -74,7 +70,8 @@
       "remove_account_suffix": " for denne serveren før du fjerner den."
     },
     "timeline": {
-      "beginning": "Dette er begynnelsen på denne samtalen."
+      "beginning": "Dette er begynnelsen på denne samtalen.",
+      "read_denied": "Du har ikke tillatelse til å lese meldinger i dette rommet."
     },
     "message": {
       "empty": "Ingen meldinger ennå",
@@ -82,6 +79,7 @@
       "delete_prompt": "Er du sikker på at du vil slette denne meldingen? Dette kan ikke angres.",
       "delete_failed": "Kunne ikke slette meldingen",
       "reaction_failed": "Kunne ikke oppdatere reaksjonen",
+      "reaction_limit_reached": "Du kan legge til opptil 20 reaksjoner på en melding.",
       "deleted": "Melding slettet",
       "actions": {
         "toolbar": "Meldingshandlinger",
@@ -90,6 +88,7 @@
         "add_reaction": "Legg til reaksjon",
         "more_reactions": "Flere reaksjoner",
         "reply": "Svar",
+        "reply_room": "Svar i rommet",
         "reply_thread": "Svar i tråden",
         "open_thread": "Åpne tråden",
         "edit": "Rediger melding",
@@ -100,7 +99,10 @@
         "copy_link": "Kopier lenken"
       },
       "meta": {
+        "pinned": "Festet melding",
         "thread": "Tråd",
+        "edited": "Redigert melding",
+        "echoed_to_channel": "Også sendt til kanalen",
         "reply_count_one": "1 svar",
         "reply_count_many": "{count} svarer",
         "follow_thread": "Følg tråden",
@@ -120,39 +122,24 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "ble med i rommet",
-            "countPlural=other": "ble med i rommet"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "forlot rommet",
-            "countPlural=other": "forlot rommet"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "ble med i rommet",
+        "other": "ble med i rommet"
+      },
+      "left_count": {
+        "one": "forlot rommet",
+        "other": "forlot rommet"
+      },
       "archived": "arkiverte rommet",
       "unarchived": "fjernet arkivet fra rommet",
+      "call_started": "startet en samtale i dette rommet",
+      "call_ended": "Den aktive samtalen er avsluttet",
+      "threading_mode_changed": "endret trådmodus til {mode}",
       "and": "og",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "annet",
-            "countPlural=other": "andre"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "annet",
+        "other": "andre"
+      },
       "show_less": "vis mindre"
     },
     "attachment": {
@@ -186,6 +173,7 @@
       "offline": "Frakoblet ({count})",
       "no_files": "Ingen filer i dette rommet ennå.",
       "files": "Filer",
+      "pins": "Festede meldinger",
       "call": "Ring",
       "jump_to_file": "Hopp til {filename}",
       "loading_files": "Laster inn filer...",
@@ -195,6 +183,20 @@
       "in_video_call": "I en videosamtale",
       "ban_failed": "Kunne ikke utestenge medlem fra rommet",
       "ban_success": "Utestengt {name} fra rommet"
+    },
+    "pins": {
+      "show": "Vis festede meldinger",
+      "unseen": "Nye festede meldinger",
+      "hide": "Skjul festede meldinger",
+      "pin": "Fest melding",
+      "unpin": "Løsne melding",
+      "unpin_prompt": "Er du sikker på at du vil løsne denne meldingen?",
+      "loading": "Laster festede meldinger...",
+      "empty_title": "Ingen festede meldinger",
+      "empty_description": "Romadministratorer kan feste viktige meldinger her.",
+      "error_title": "Festede meldinger er ikke tilgjengelige",
+      "error_description": "Kunne ikke laste festede meldinger. Prøv igjen om litt.",
+      "update_failed": "Kunne ikke oppdatere den festede meldingen"
     },
     "title": {
       "direct_message": "Direktemelding"

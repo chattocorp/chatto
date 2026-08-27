@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "rbac": {
     "delete_role": {
       "title": "Excluir função",
@@ -45,10 +44,22 @@
       "allow": "permitir",
       "deny": "negar",
       "winning_decision": "(decisão vencedora)",
+      "included_by": "Included by {permission}",
       "level_server": "Servidor",
       "level_group": "Grupo",
       "level_room": "Quarto",
       "empty_category": "Nenhuma permissão nesta categoria",
+      "filter_label": "Filtrar permissões",
+      "filter_placeholder": "Filtrar permissões...",
+      "no_filter_matches": "Nenhuma permissão corresponde a este filtro.",
+      "binary": {
+        "aria": "{permission} está {state} para {subject} em {scope}",
+        "enabled": "ativada",
+        "disabled": "desativada",
+        "inherited": "Herdada de um escopo mais amplo",
+        "unavailable": "Indisponível no momento",
+        "owner_ceiling": "Você não pode conceder {permission} em {scope} porque o proprietário do bot não tem essa permissão no momento."
+      },
       "categories": {
         "space": {
           "title": "Permissões do servidor",
@@ -80,7 +91,7 @@
         },
         "user": {
           "title": "Permissões do usuário",
-          "description": "Controle a conta do usuário e as operações de permissão por usuário. Qualquer negação de não proprietário cancela concessões"
+          "description": "Controle a conta do usuário e as operações de permissão por usuário"
         }
       }
     },
@@ -91,6 +102,8 @@
       "room_list": "Ver salas no diretório. Um usuário pode ter permissão para ver uma sala (por exemplo, para solicitar acesso) sem ter permissão para ingressar nela.",
       "room_manage": "Edite as configurações e permissões de uma sala e exclua salas",
       "room_ban_member": "Banir membros das salas",
+      "message_read": "Ler mensagens em salas de canal",
+      "message_read_interactions": "Ler tópicos completos que você criou ou nos quais outro usuário mencionou você diretamente",
       "message_post": "Poste mensagens root nas salas e inicie DMs",
       "message_post_in_thread": "Postar respostas dentro de um tópico",
       "message_attach": "Anexar arquivos às mensagens",
@@ -104,6 +117,7 @@
       "admin_view_audit": "Visualize o log de auditoria no admin",
       "user_delete_any": "Excluir conta de outro usuário",
       "user_delete_self": "Exclua sua própria conta",
+      "user_invite": "Crie e gerencie links de convite",
       "user_manage_accounts": "Crie usuários, edite a identidade da conta, redefina senhas, anexe e-mails verificados e limpe os tempos de espera de login",
       "user_manage_permissions": "Editar substituições de permissão direta por usuário"
     }

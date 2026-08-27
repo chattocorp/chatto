@@ -31,6 +31,11 @@ func (s *PresenceModel) Run(ctx context.Context) error {
 	return s.hub.Run(ctx)
 }
 
+// Resync replaces the presence watcher and waits for a current snapshot.
+func (s *PresenceModel) Resync(ctx context.Context) error {
+	return s.hub.Resync(ctx)
+}
+
 func (s *PresenceModel) Subscribe(ctx context.Context) (*PresenceSubscription, error) {
 	return s.hub.Subscribe(ctx)
 }

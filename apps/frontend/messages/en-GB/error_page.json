@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Something went wrong",
     "description": "This view could not be opened. You can return to Chatto and try again from there.",

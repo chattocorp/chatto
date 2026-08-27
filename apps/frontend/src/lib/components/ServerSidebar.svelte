@@ -1,11 +1,11 @@
 <!--
 @component
 
-The **Server Sidebar** — wider sidebar to the right of the Server Gutter,
-scoped to a single server. Owns the per-server pane's chrome: positioning,
-mobile slide-in/-out, resize handle, and the current-user bar pinned to the
-bottom. The actual contents (server banner + room list, settings nav, admin
-nav, …) are passed in via the `children` snippet by `Chrome.svelte`.
+The **Server Sidebar** — wider sidebar after the Server Gutter. Owns the
+secondary pane's chrome: positioning, mobile slide-in/-out, resize handle, and
+the optional current-user bar pinned to the bottom. Server pages provide the
+footer; app-wide preferences reuse the same shell without it. The actual
+contents are passed through the `children` snippet.
 
 See the "UI" section of `docs/GLOSSARY.md`.
 -->
@@ -18,14 +18,15 @@ See the "UI" section of `docs/GLOSSARY.md`.
     SERVER_SIDEBAR_MAX_WIDTH,
     SERVER_SIDEBAR_MIN_WIDTH
   } from '$lib/storage/serverSidebarWidth';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import CurrentUserBar from './CurrentUserBar.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
 
   let {
     children,
     width,
-    mobileWidth = 'max-md:w-64'
+    mobileWidth = 'max-md:w-64',
+    showCurrentUserBar = true
   }: {
     children: Snippet;
     /** Optional Tailwind class to lock the desktop width (e.g. "md:w-56"). When
@@ -33,6 +34,9 @@ See the "UI" section of `docs/GLOSSARY.md`.
      *  a drag handle. */
     width?: string;
     mobileWidth?: string;
+    /** Whether to render the active server's user card in the footer. App-wide
+     *  sidebars have no server scope and omit it. */
+    showCurrentUserBar?: boolean;
   } = $props();
 
   // On mobile the panel slides as a single unit with the Server Gutter — both
@@ -48,14 +52,14 @@ See the "UI" section of `docs/GLOSSARY.md`.
   data-app-sidebar="true"
   data-testid="server-sidebar"
   class={[
-    'server-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-r border-border bg-background',
+    'server-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-e border-border bg-background',
     width,
     mobileWidth,
     'md:flex-initial',
     // Mobile: fixed overlay positioned after the Server Gutter (~68px); touch-pan-y so
     // vertical scroll inside the panel still works while horizontal pans go to
     // the sidebar swipe action.
-    'max-md:fixed max-md:top-11 max-md:bottom-0 max-md:left-17 max-md:touch-pan-y',
+    'max-md:fixed max-md:start-17 max-md:top-11 max-md:bottom-0 max-md:touch-pan-y',
     // Mobile: always rendered so the slide animation is visible.
     // Desktop: hide entirely when closed.
     sidebarNav.isMobile ? '' : sidebarNav.isOpen ? '' : 'hidden',
@@ -68,10 +72,14 @@ See the "UI" section of `docs/GLOSSARY.md`.
     resizable && 'md:w-[var(--server-sidebar-width)]'
   ]}
   style:--server-sidebar-width={resizable ? `${serverSidebarWidth.value}px` : undefined}
-  style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
+  style:transform={sidebarNav.isMobile
+    ? `translateX(calc(${tx}px * var(--inline-direction)))`
+    : undefined}
 >
   {@render children()}
-  <CurrentUserBar />
+  {#if showCurrentUserBar}
+    <CurrentUserBar />
+  {/if}
   {#if resizable && !sidebarNav.isMobile}
     <ResizeHandle
       width={serverSidebarWidth.value}
@@ -79,7 +87,8 @@ See the "UI" section of `docs/GLOSSARY.md`.
       max={SERVER_SIDEBAR_MAX_WIDTH}
       onResize={(w) => serverSidebarWidth.set(w)}
       onReset={() => serverSidebarWidth.reset()}
-      label={m['ui.resize_handle.resize_sidebar']()}
+      label={m('ui.resize_handle.resize_sidebar')}
+      edge="end"
     />
   {/if}
 </div>

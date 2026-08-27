@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const roomDirectorySnapshotContractID = "v1"
+var roomDirectorySnapshotContractID = snapshotContractID("v1", &corev1.RoomDirectoryProjectionSnapshot{})
 
 func (*RoomDirectoryProjection) SnapshotContractID() string {
 	return roomDirectorySnapshotContractID
@@ -26,7 +26,13 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 
 	snapshot := &corev1.RoomDirectoryProjectionSnapshot{CatalogSequence: p.Catalog.seq}
 	for _, roomID := range sortedMapKeys(p.Catalog.rooms) {
-		snapshot.Rooms = append(snapshot.Rooms, entryToRoom(roomID, p.Catalog.rooms[roomID]))
+		entry := p.Catalog.rooms[roomID]
+		room := entryToRoom(roomID, entry)
+		// Persist the raw enum value. Runtime readers normalize unknown future
+		// values to Disabled, but snapshots must not erase information written by
+		// a newer binary during a rollback.
+		room.ThreadingMode = entry.threadingMode
+		snapshot.Rooms = append(snapshot.Rooms, room)
 	}
 	for _, roomID := range sortedMapKeys(p.Membership.byRoom) {
 		snapshot.Memberships = append(snapshot.Memberships, &corev1.RoomMembershipSnapshot{
@@ -68,7 +74,11 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 		if _, duplicate := rooms[room.GetId()]; duplicate {
 			return fmt.Errorf("room directory snapshot repeats room %q", room.GetId())
 		}
-		rooms[room.GetId()] = &roomCatalogEntry{name: room.GetName(), description: room.GetDescription(), kind: room.GetKind(), archived: room.GetArchived(), universal: room.GetUniversal()}
+		rooms[room.GetId()] = &roomCatalogEntry{
+			name: room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
+			archived: room.GetArchived(), universal: room.GetUniversal(), slowModeSeconds: room.GetSlowModeSeconds(),
+			threadingMode: room.GetThreadingMode(),
+		}
 	}
 	byRoom := make(map[string]map[string]struct{}, len(snapshot.GetMemberships()))
 	byUser := make(map[string]map[string]struct{})

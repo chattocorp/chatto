@@ -113,7 +113,7 @@ describe('ServerPill', () => {
     it('renders the globe icon and the truncated instance name', async () => {
       const { container } = render(ServerPill, { props: { serverId: 'a' } });
 
-      await expect.element(q(container, '.uil--globe')).toBeInTheDocument();
+      await expect.element(q(container, '[class~="icon-[uil--globe]"]')).toBeInTheDocument();
       await expect
         .element(q(container, '.truncate'))
         .toHaveTextContent('Alpha');

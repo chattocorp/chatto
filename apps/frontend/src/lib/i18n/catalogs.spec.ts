@@ -2,39 +2,48 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { baseLocale, fallbackLocales, selectableLocales } from './locales';
 
 const messagesRoot = fileURLToPath(new URL('../../../messages/', import.meta.url));
-const settings = JSON.parse(
-  readFileSync(new URL('../../../project.inlang/settings.json', import.meta.url), 'utf8')
-) as { baseLocale: string; locales: string[] };
-const sparseLocales = new Set(['en-US']);
+const sourceRoot = fileURLToPath(new URL('../../../src/', import.meta.url));
+const sparseLocales = new Set(Object.keys(fallbackLocales));
+const pluralCategories = new Set(['zero', 'one', 'two', 'few', 'many', 'other']);
 
 function placeholders(value: string): string[] {
   return [...value.matchAll(/\{[^{}]+\}/g)].map(([match]) => match).sort();
 }
 
+function isPlural(value: unknown): value is Record<string, string> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  return (
+    Object.keys(value).length > 0 &&
+    Object.entries(value).every(
+      ([key, branch]) => pluralCategories.has(key) && typeof branch === 'string'
+    )
+  );
+}
+
 function compareCatalogValue(source: unknown, translated: unknown, path: string): void {
-  if (Array.isArray(source)) {
-    expect(Array.isArray(translated), `${path} must remain an array`).toBe(true);
-    expect(translated, `${path} must keep the same number of entries`).toHaveLength(source.length);
-    source.forEach((value, index) =>
-      compareCatalogValue(value, (translated as unknown[])[index], `${path}.${index}`)
+  if (isPlural(source)) {
+    expect(isPlural(translated), `${path} must remain a plural object`).toBe(true);
+    expect((translated as Record<string, string>).other, `${path} must define other`).toBeTypeOf(
+      'string'
     );
+    const expectedPlaceholders = placeholders(source.other);
+    for (const [category, branch] of Object.entries(translated as Record<string, string>)) {
+      expect(placeholders(branch), `${path}.${category} must preserve placeholders`).toEqual(
+        expectedPlaceholders
+      );
+    }
     return;
   }
 
   if (source && typeof source === 'object') {
     expect(translated, `${path} must remain an object`).toBeTypeOf('object');
     expect(Array.isArray(translated), `${path} must not become an array`).toBe(false);
-    if (path.endsWith('.match')) {
-      expect(Object.keys(translated as object), `${path} must keep every source branch`).toEqual(
-        expect.arrayContaining(Object.keys(source))
-      );
-    } else {
-      expect(Object.keys(translated as object), `${path} must keep the same keys`).toEqual(
-        Object.keys(source)
-      );
-    }
+    expect(Object.keys(translated as object), `${path} must keep the same keys`).toEqual(
+      Object.keys(source)
+    );
     for (const [key, value] of Object.entries(source)) {
       compareCatalogValue(value, (translated as Record<string, unknown>)[key], `${path}.${key}`);
     }
@@ -47,38 +56,133 @@ function compareCatalogValue(source: unknown, translated: unknown, path: string)
   expect(placeholders(translated), `${path} must preserve placeholders`).toEqual(
     placeholders(source)
   );
-  if (path.includes('.declarations.') || path.includes('.selectors.')) {
-    expect(translated, `${path} is message syntax, not translated copy`).toBe(source);
-  }
   if (source.includes('Chatto')) {
     expect(translated, `${path} must preserve the Chatto product name`).toContain('Chatto');
   }
 }
 
+function compareCatalogOverlay(source: unknown, overlay: unknown, path: string): void {
+  if (isPlural(source)) {
+    expect(isPlural(overlay), `${path} must remain a plural object`).toBe(true);
+    expect((overlay as Record<string, string>).other, `${path} must define other`).toBeTypeOf(
+      'string'
+    );
+    const expectedPlaceholders = placeholders(source.other);
+    for (const [category, branch] of Object.entries(overlay as Record<string, string>)) {
+      expect(placeholders(branch), `${path}.${category} must preserve placeholders`).toEqual(
+        expectedPlaceholders
+      );
+    }
+    return;
+  }
+
+  if (source && typeof source === 'object') {
+    expect(overlay, `${path} must remain an object`).toBeTypeOf('object');
+    expect(Array.isArray(overlay), `${path} must not be an array`).toBe(false);
+    for (const [key, value] of Object.entries(overlay as Record<string, unknown>)) {
+      expect(
+        key in (source as Record<string, unknown>),
+        `${path}.${key} must exist in the fallback`
+      ).toBe(true);
+      compareCatalogOverlay((source as Record<string, unknown>)[key], value, `${path}.${key}`);
+    }
+    return;
+  }
+
+  expect(typeof overlay, `${path} must keep its scalar type`).toBe(typeof source);
+  if (typeof source === 'string' && typeof overlay === 'string') {
+    expect(placeholders(overlay), `${path} must preserve placeholders`).toEqual(
+      placeholders(source)
+    );
+  }
+}
+
+function sourceFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.(?:svelte|ts)$/.test(entry.name) ? [path] : [];
+  });
+}
+
+function collectMessageKeys(value: unknown, path = '', keys = new Set<string>()): Set<string> {
+  if (typeof value === 'string' || isPlural(value)) {
+    keys.add(path);
+    return keys;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return keys;
+  for (const [key, child] of Object.entries(value)) {
+    collectMessageKeys(child, path ? `${path}.${key}` : key, keys);
+  }
+  return keys;
+}
+
+function expectNoEmptyMessages(value: unknown, path: string): void {
+  if (typeof value === 'string') {
+    expect(value.trim(), `${path} must not be empty`).not.toBe('');
+    return;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  for (const [key, child] of Object.entries(value)) {
+    expectNoEmptyMessages(child, `${path}.${key}`);
+  }
+}
+
 describe('translated message catalogs', () => {
+  it('defines every literal message key used by frontend source', () => {
+    const sourceKeys = new Set<string>();
+    for (const filename of readdirSync(join(messagesRoot, baseLocale)).filter((name) =>
+      name.endsWith('.json')
+    )) {
+      collectMessageKeys(
+        JSON.parse(readFileSync(join(messagesRoot, baseLocale, filename), 'utf8')),
+        '',
+        sourceKeys
+      );
+    }
+
+    for (const filename of sourceFiles(sourceRoot)) {
+      const source = readFileSync(filename, 'utf8');
+      for (const match of source.matchAll(/\bm(?:Html)?\(\s*(['"])([^'"\n]+)\1/g)) {
+        expect(sourceKeys, `${filename} uses unknown message key ${match[2]}`).toContain(match[2]);
+      }
+    }
+  });
+
   it('keeps every complete locale structurally aligned with the source catalog', () => {
-    const sourceFiles = readdirSync(join(messagesRoot, settings.baseLocale))
+    const sourceFiles = readdirSync(join(messagesRoot, baseLocale))
       .filter((filename) => filename.endsWith('.json'))
       .sort();
 
-    for (const locale of settings.locales.filter((locale) => !sparseLocales.has(locale))) {
+    for (const locale of selectableLocales.filter((locale) => !sparseLocales.has(locale))) {
       const localeFiles = readdirSync(join(messagesRoot, locale))
         .filter((filename) => filename.endsWith('.json'))
         .sort();
       expect(localeFiles, `${locale} must contain every catalog file`).toEqual(sourceFiles);
 
       for (const filename of sourceFiles) {
-        const source = JSON.parse(
-          readFileSync(join(messagesRoot, settings.baseLocale, filename), 'utf8')
-        );
+        const source = JSON.parse(readFileSync(join(messagesRoot, baseLocale, filename), 'utf8'));
         const translated = JSON.parse(readFileSync(join(messagesRoot, locale, filename), 'utf8'));
         compareCatalogValue(source, translated, `${locale}.${filename}`);
       }
     }
   });
 
+  it('keeps regional catalogs as overlays of their configured fallback', () => {
+    for (const [locale, fallback] of Object.entries(fallbackLocales)) {
+      const files = readdirSync(join(messagesRoot, locale)).filter((filename) =>
+        filename.endsWith('.json')
+      );
+      for (const filename of files) {
+        const source = JSON.parse(readFileSync(join(messagesRoot, fallback, filename), 'utf8'));
+        const overlay = JSON.parse(readFileSync(join(messagesRoot, locale, filename), 'utf8'));
+        compareCatalogOverlay(source, overlay, `${locale}.${filename}`);
+      }
+    }
+  });
+
   it('keeps functional account-deletion literals untranslated', () => {
-    for (const locale of settings.locales) {
+    for (const locale of selectableLocales) {
       const catalog = JSON.parse(
         readFileSync(join(messagesRoot, locale, 'settings.json'), 'utf8')
       ) as {
@@ -91,8 +195,19 @@ describe('translated message catalogs', () => {
     }
   });
 
+  it.each(['ar', 'he-IL'] as const)('keeps every %s message populated', (locale) => {
+    for (const filename of readdirSync(join(messagesRoot, locale)).filter((name) =>
+      name.endsWith('.json')
+    )) {
+      expectNoEmptyMessages(
+        JSON.parse(readFileSync(join(messagesRoot, locale, filename), 'utf8')),
+        `${locale}.${filename}`
+      );
+    }
+  });
+
   it('keeps syntax-like examples valid', () => {
-    for (const locale of settings.locales.filter((locale) => !sparseLocales.has(locale))) {
+    for (const locale of selectableLocales.filter((locale) => !sparseLocales.has(locale))) {
       const common = JSON.parse(
         readFileSync(join(messagesRoot, locale, 'common.json'), 'utf8')
       ) as { common: { username_placeholder: string } };

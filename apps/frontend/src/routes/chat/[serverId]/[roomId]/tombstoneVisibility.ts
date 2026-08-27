@@ -1,6 +1,4 @@
-import { isMessagePostedEvent } from '$lib/render/eventKinds';
-import type { RoomEventView } from '$lib/render/types';
-
+import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
 export const MESSAGE_TOMBSTONE_GRACE_MS = 60 * 60 * 1000;
 
 /**
@@ -8,29 +6,38 @@ export const MESSAGE_TOMBSTONE_GRACE_MS = 60 * 60 * 1000;
  * Null means the row is not an expiring tombstone or currently has persistent
  * visible context.
  */
-export function tombstoneExpiry(event: RoomEventView): number | null {
+export function tombstoneExpiry(event: TimelineEventView): number | null {
   const message = event.event;
-  if (!isMessagePostedEvent(message) || !message.deletedAt) return null;
-  if (message.body != null) return null;
+  if (!isMessagePostedEvent(message) || message.body) return null;
   if ((message.attachments?.length ?? 0) > 0 || message.linkPreview) return null;
   if ((message.reactions?.length ?? 0) > 0 || message.replyCount > 0) return null;
 
-  const deletedAt = Date.parse(message.deletedAt);
-  if (!Number.isFinite(deletedAt)) return null;
+  // Removing the final attachment from an attachment-only message is a
+  // MessageEditedEvent rather than a retraction. The API preserves its empty
+  // body and edit timestamp, which together mark when the row became a
+  // context-free tombstone. A null body without deletedAt remains an unknown
+  // or corrupt body and is deliberately retained.
+  const tombstonedAt = message.deletedAt ?? (message.body === '' ? message.updatedAt : null);
+  if (!tombstonedAt) return null;
+  const tombstonedAtMs = Date.parse(tombstonedAt);
+  if (!Number.isFinite(tombstonedAtMs)) return null;
 
-  return deletedAt + MESSAGE_TOMBSTONE_GRACE_MS;
+  return tombstonedAtMs + MESSAGE_TOMBSTONE_GRACE_MS;
 }
 
-export function shouldHideTombstone(event: RoomEventView, nowMs: number): boolean {
+export function shouldHideTombstone(event: TimelineEventView, nowMs: number): boolean {
   const expiresAt = tombstoneExpiry(event);
   return expiresAt !== null && nowMs >= expiresAt;
 }
 
-export function visibleTombstoneEvents(events: RoomEventView[], nowMs: number): RoomEventView[] {
+export function visibleTombstoneEvents(
+  events: TimelineEventView[],
+  nowMs: number
+): TimelineEventView[] {
   return events.filter((event) => !shouldHideTombstone(event, nowMs));
 }
 
-export function nextTombstoneExpiry(events: RoomEventView[], nowMs: number): number | null {
+export function nextTombstoneExpiry(events: TimelineEventView[], nowMs: number): number | null {
   let next: number | null = null;
   for (const event of events) {
     const expiresAt = tombstoneExpiry(event);
@@ -46,7 +53,7 @@ export function nextTombstoneExpiry(events: RoomEventView[], nowMs: number): num
  * component teardown independently testable.
  */
 export function scheduleNextTombstoneExpiry(
-  events: RoomEventView[],
+  events: TimelineEventView[],
   nowMs: number,
   onExpire: (expiresAt: number) => void
 ): () => void {
@@ -58,8 +65,8 @@ export function scheduleNextTombstoneExpiry(
 }
 
 export function visibleUnreadMarkerEventId(
-  timelineEvents: RoomEventView[],
-  visibleEvents: RoomEventView[],
+  timelineEvents: TimelineEventView[],
+  visibleEvents: TimelineEventView[],
   unreadEventId: string | null
 ): string | null {
   if (!unreadEventId) return null;

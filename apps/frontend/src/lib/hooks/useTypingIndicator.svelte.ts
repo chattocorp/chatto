@@ -1,8 +1,7 @@
 import { SvelteMap } from 'svelte/reactivity';
-import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
-import { useConnection } from '$lib/state/server/connection.svelte';
-import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { useServerScope } from '$lib/state/server/scope.svelte';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
+import { useTypingEvent, type TypingEventData } from './useEvent.svelte';
 
 /** How long to display typing indicator after receiving an event (ms) */
 export const TYPING_TIMEOUT_MS = 6000;
@@ -31,7 +30,7 @@ interface TypingIndicatorConfig {
  * tracked.
  */
 export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   /** Current configuration snapshot */
   let configRoomId: string | null = null;
@@ -83,8 +82,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
     }
   }
 
-  // Subscribe to typing events
-  const unsubscribe = onTypingEvent(handleTypingEvent);
+  useTypingEvent(handleTypingEvent);
   const cleanupInterval = setInterval(cleanupExpired, 1000);
 
   // Sync config reactively — getConfig() is called inside the $effect,
@@ -108,7 +106,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
   // Cleanup on destroy
   $effect(() => {
     return () => {
-      unsubscribe();
       clearInterval(cleanupInterval);
       typingUsers.clear();
     };
@@ -144,12 +141,9 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       lastSentAt = now;
 
       try {
-        const conn = connection();
-        await createRoomCommandAPI({
-          serverId: conn.serverId ?? getActiveServer(),
-          baseUrl: conn.connectBaseUrl,
-          bearerToken: conn.bearerToken
-        }).updateTypingIndicator(configRoomId, configThreadRootEventId);
+        await serverScope.connection
+          .getAPI(createRoomCommandAPI)
+          .updateTypingIndicator(configRoomId, configThreadRootEventId);
       } catch (err) {
         console.debug('Failed to send typing indicator:', err);
       }

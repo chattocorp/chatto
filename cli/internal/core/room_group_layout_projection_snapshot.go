@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const roomGroupLayoutSnapshotContractID = "v1"
+var roomGroupLayoutSnapshotContractID = snapshotContractID("v1", &corev1.RoomGroupLayoutProjectionSnapshot{})
 
 func (*RoomGroupLayoutProjection) SnapshotContractID() string {
 	return roomGroupLayoutSnapshotContractID

@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/event.proto";
 import "chatto/core/v1/models.proto";
+import "chatto/core/v1/notification.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/room_events.proto";
 import "chatto/core/v1/user_events.proto";
@@ -49,7 +50,7 @@ message ProjectionSnapshotPointer {
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the
-// Threads v1 projection snapshot contract. Repeated fields are emitted in
+// Threads projection snapshot contract. Repeated fields are emitted in
 // deterministic key order by the codec.
 message ThreadProjectionSnapshot {
   repeated ThreadSnapshot threads = 1;
@@ -57,6 +58,9 @@ message ThreadProjectionSnapshot {
   repeated ThreadFollowSnapshot follows = 3;
   repeated string shredded_user_ids = 4;
   ProjectionReplayGuardSnapshot replay_guard = 5;
+  repeated string channel_room_ids = 6;
+  repeated ThreadMessageSnapshot messages = 7;
+  repeated ThreadInteractionSnapshot interactions = 8;
 }
 
 message ThreadSnapshot {
@@ -82,6 +86,21 @@ message ThreadFollowSnapshot {
   string room_id = 2;
   string thread_root_event_id = 3;
   string state = 4;
+}
+
+message ThreadMessageSnapshot {
+  string event_id = 1;
+  string room_id = 2;
+  string thread_root_event_id = 3;
+}
+
+message ThreadInteractionSnapshot {
+  string user_id = 1;
+  string room_id = 2;
+  string thread_root_event_id = 3;
+  string cause = 4;
+  string source_event_id = 5;
+  google.protobuf.Timestamp created_at = 6;
 }
 
 message ProjectionReplayGuardSnapshot {
@@ -123,6 +142,24 @@ message RoomGroupStateSnapshot {
   RoomGroup group = 1;
 }
 
+// NotificationDecisionProjectionSnapshot combines the exact event-time
+// state needed to derive notifications and enforce persistent visibility
+// boundaries.
+message NotificationDecisionProjectionSnapshot {
+  RoomDirectoryProjectionSnapshot room_directory = 1;
+  RoomGroupLayoutProjectionSnapshot room_group_layout = 2;
+  RBACProjectionSnapshot rbac = 3;
+  ConfigProjectionSnapshot config = 4;
+  repeated string active_user_ids = 5;
+  repeated ThreadFollowSnapshot thread_follows = 6;
+  repeated NotificationThreadStateSnapshot threads = 7;
+}
+
+message NotificationThreadStateSnapshot {
+  string thread_root_event_id = 1;
+  uint64 reply_count = 2;
+}
+
 message CallStateProjectionSnapshot {
   repeated CallRoomStateSnapshot rooms = 1;
 }
@@ -151,6 +188,7 @@ message CallParticipantSnapshot {
 message ContentKeyProjectionSnapshot {
   repeated UserDEKGeneratedEvent keys = 1;
   ProjectionReplayGuardSnapshot replay_guard = 2;
+  repeated string shredded_user_ids = 3;
 }
 
 message RBACProjectionSnapshot {
@@ -189,13 +227,31 @@ message UserConfigSnapshot {
   string user_id = 1;
   optional string timezone = 2;
   optional TimeFormat time_format = 3;
-  optional NotificationLevel server_notification_level = 4;
-  repeated RoomNotificationLevelSnapshot room_notification_levels = 5;
+  NotificationDeliveryModes server_notification_modes = 4;
+  repeated RoomNotificationModesSnapshot room_notification_modes = 5;
+  repeated RoomGroupNotificationModesSnapshot room_group_notification_modes = 6;
 }
 
-message RoomNotificationLevelSnapshot {
+message RoomNotificationModesSnapshot {
   string room_id = 1;
-  NotificationLevel level = 2;
+  NotificationDeliveryModes modes = 2;
+}
+
+message RoomGroupNotificationModesSnapshot {
+  string room_group_id = 1;
+  NotificationDeliveryModes modes = 2;
+}
+
+message NotificationProjectionSnapshot {
+  repeated NotificationOccurrence notifications = 1;
+  repeated NotificationProjectionTombstone tombstones = 2;
+}
+
+message NotificationProjectionTombstone {
+  string notification_id = 1;
+  string recipient_id = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  uint64 signal_stream_sequence = 4;
 }
 
 message AssetProjectionSnapshot {
@@ -204,6 +260,8 @@ message AssetProjectionSnapshot {
   repeated AssetManifestSnapshot manifests = 3;
   repeated DeletedAssetSnapshot deleted_assets = 4;
   ProjectionReplayGuardSnapshot replay_guard = 5;
+  repeated AssetMessageOwnerSnapshot message_owners = 6;
+  repeated string public_link_preview_asset_ids = 7;
 }
 
 message AssetChildrenSnapshot {
@@ -245,6 +303,7 @@ message EmojiReactionsSnapshot {
 message UserReactionSnapshot {
   string user_id = 1;
   int64 added_at_nanos = 2;
+  string source_event_id = 3;
 }
 
 message StringUint64Snapshot { string key = 1; uint64 value = 2; }
@@ -302,10 +361,24 @@ message RoomTimelineProjectionSnapshot {
   repeated string retracted_event_ids = 5;
   repeated string hidden_echo_event_ids = 6;
   repeated string shredded_user_ids = 7;
-  AssetProjectionSnapshot legacy_assets = 8;
-  repeated AssetMessageOwnerSnapshot asset_message_owners = 9;
-  repeated string public_link_preview_asset_ids = 10;
-  ProjectionReplayGuardSnapshot replay_guard = 11;
+  ProjectionReplayGuardSnapshot replay_guard = 8;
+  repeated PinnedMessageSnapshot pinned_messages = 9;
+  repeated LatestRoomPinSnapshot latest_room_pins = 10;
+}
+
+message PinnedMessageSnapshot {
+  string pin_event_id = 1;
+  string room_id = 2;
+  string message_event_id = 3;
+  // Durable EVT stream order of the pin fact.
+  uint64 pin_sequence = 4;
+}
+
+message LatestRoomPinSnapshot {
+  string room_id = 1;
+  string pin_event_id = 2;
+  // Durable EVT stream order of the latest pin fact.
+  uint64 pin_sequence = 3;
 }
 
 message TimelineEntrySnapshot {
@@ -329,4 +402,5 @@ message AssetMessageOwnerSnapshot {
   string asset_id = 1;
   string room_id = 2;
   string message_event_id = 3;
+  string author_id = 4;
 }

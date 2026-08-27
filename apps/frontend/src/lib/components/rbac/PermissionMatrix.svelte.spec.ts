@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import PermissionMatrix from './PermissionMatrix.svelte';
+import { adminQueryKeys } from '$lib/query/admin';
+import { queryClient } from '$lib/query/client';
 
 type TierRoles = {
   applicablePermissions: string[];
@@ -55,7 +57,7 @@ const HAPPY_TIER_ROLES: TierRoles = {
 };
 
 // A module-level holder so individual tests can swap the resolver payload
-// before rendering. The `useConnection` mock dereferences it on every call.
+// before rendering. The scoped API mock dereferences it on every call.
 let nextTierRoles: TierRoles | null = HAPPY_TIER_ROLES;
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionTierMatrix: vi.fn(),
@@ -69,12 +71,15 @@ vi.mock('$lib/api-client/permissions', () => ({
   }))
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    connectBaseUrl: '/api/connect',
-    bearerToken: 'token'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'server-test',
+    store: {},
+    connection: {
+      queryScope: 'permission-matrix-test',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    },
+    isCurrent: () => true
   })
 }));
 
@@ -96,41 +101,207 @@ async function settle() {
 }
 
 describe('PermissionMatrix', () => {
-  it('renders one column per role and one row per permission', async () => {
+  it('renders one alphabetically ordered permission matrix without category dividers', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
 
     const tables = container.querySelectorAll('table');
-    expect(tables.length).toBeGreaterThan(0);
-    // "Permission" + "@owner" + "@admin" + "@moderator" per category panel;
-    // two categories ('message' and 'room'), so 8 header cells total.
-    expect(container.querySelectorAll('thead th').length).toBe(8);
-    expect(container.querySelectorAll('tbody tr').length).toBe(2);
+    expect(tables).toHaveLength(1);
+    // The permission and role columns, followed by the flexible spacer.
+    expect(container.querySelectorAll('thead th')).toHaveLength(5);
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-testid="permission-section-divider"]')).toHaveLength(
+      0
+    );
+    expect(container.querySelector('table')?.className).toContain('w-full');
+    expect(container.querySelectorAll('[data-testid="permission-matrix-spacer"]')).toHaveLength(2);
+    expect(container.querySelector('thead th:last-child')?.className).toContain('bg-background');
+    expect(container.querySelectorAll('tbody h3')).toHaveLength(0);
   });
 
-  it('keeps panel, table header, and sticky cells on one surface', async () => {
+  it('orders permission names alphabetically', async () => {
+    nextTierRoles = {
+      ...HAPPY_TIER_ROLES,
+      applicablePermissions: ['user.delete-self', 'room.manage', 'server.manage', 'user.delete-any']
+    };
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    expect(
+      [...container.querySelectorAll('[data-testid="permission-name"]')].map(
+        (permission) => permission.textContent
+      )
+    ).toEqual(['room.manage', 'server.manage', 'user.delete-any', 'user.delete-self']);
+  });
+
+  it('shows that message.read includes the nested interaction permission', async () => {
+    nextTierRoles = {
+      applicablePermissions: ['message.read', 'message.read.interactions'],
+      roles: [
+        {
+          roleName: 'reader',
+          displayName: 'Reader',
+          description: '',
+          isSystem: false,
+          position: 1,
+          override: {
+            permissions: ['message.read'],
+            permissionDenials: ['message.read.interactions']
+          },
+          inheritedAllows: [],
+          inheritedDenials: []
+        }
+      ]
+    };
+    const { container } = render(PermissionMatrix);
+    await settle();
+
+    const rowName = [
+      ...container.querySelectorAll<HTMLElement>('[data-testid="permission-name"]')
+    ].find((permission) => permission.textContent === 'message.read.interactions');
+    const cell = container.querySelector<HTMLButtonElement>(
+      'td[data-role="reader"][data-permission="message.read.interactions"] button'
+    );
+    expect(rowName?.parentElement?.className).toContain('ml-4');
+    expect(cell?.title).toContain('Effective Allow (included by message.read)');
+  });
+
+  it('filters permission names as the query changes', async () => {
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
+    filter.value = 'room';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    expect(
+      [...container.querySelectorAll('[data-testid="permission-name"]')].map(
+        (row) => row.textContent
+      )
+    ).toEqual(['room.create']);
+
+    filter.value = 'missing';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    expect(container.textContent).toContain('No permissions match this filter.');
+  });
+
+  it('visually hides the redundant filter label and focuses the filter with Cmd/Ctrl-/', async () => {
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
+    const label = container.querySelector<HTMLLabelElement>('label[for="permission-filter"]')!;
+    const shortcut = new KeyboardEvent('keydown', {
+      key: '/',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+
+    filter.value = 'room';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    window.dispatchEvent(shortcut);
+
+    expect(label.className).toContain('sr-only');
+    expect(filter.placeholder).toMatch(/(⌘\/|Ctrl-\/)/);
+    expect(shortcut.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(filter);
+    expect(filter.selectionStart).toBe(0);
+    expect(filter.selectionEnd).toBe(4);
+  });
+
+  it('labels the server-level matrix', async () => {
+    const { container } = render(PermissionMatrix);
+    await settle();
+
+    expect(container.querySelector('.panel-header')?.textContent).toContain('Server Permissions');
+  });
+
+  it('renders an optional panel subtitle', async () => {
+    const { container } = render(PermissionMatrix, {
+      props: { subtitle: 'Default permissions that apply before room overrides.' }
+    });
+    await settle();
+
+    expect(container.querySelector('.panel-header')?.textContent).toContain(
+      'Default permissions that apply before room overrides.'
+    );
+  });
+
+  it('renders a final column that links to create a role when supplied', async () => {
+    const { container } = render(PermissionMatrix, {
+      props: { newRoleHref: '/chat/server/manage/server/permissions/new' }
+    });
+    await settle();
+
+    const newRoleColumn = container.querySelector('[data-testid="new-role-column"]');
+    expect(newRoleColumn?.getAttribute('href')).toBe('/chat/server/manage/server/permissions/new');
+    expect(newRoleColumn?.textContent).toContain('+ New Role');
+    expect(container.querySelectorAll('thead th')).toHaveLength(6);
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
+  });
+
+  it('contrasts the panel inset and sticky cells with the surface table header', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
 
     const panel = container.querySelector('.panel-shell') as HTMLElement;
-    const panelHeader = panel.querySelector(':scope > .panel-header') as HTMLElement;
     const tableHeader = panel.querySelector('thead tr') as HTMLElement;
     const stickyHeader = panel.querySelector('thead th.sticky') as HTMLElement;
-    const stickyBody = panel.querySelector('tbody td.sticky') as HTMLElement;
+    const stickyBody = panel.querySelector('tbody th[scope="row"].sticky') as HTMLElement;
     const surfaceColor = getComputedStyle(panel).backgroundColor;
+    const headerColor = getComputedStyle(tableHeader).backgroundColor;
+    const viewport = panel.querySelector('table')?.parentElement?.parentElement as HTMLElement;
+    const inset = panel.querySelector(':scope > div:last-child > div') as HTMLElement;
+    const frame = inset.parentElement as HTMLElement;
+
+    const backgroundColor = getComputedStyle(inset).backgroundColor;
 
     expect(surfaceColor).not.toBe('rgba(0, 0, 0, 0)');
-    expect(getComputedStyle(panelHeader).backgroundColor).toBe(surfaceColor);
-    expect(getComputedStyle(tableHeader).backgroundColor).toBe(surfaceColor);
-    expect(getComputedStyle(stickyHeader).backgroundColor).toBe(surfaceColor);
-    expect(getComputedStyle(stickyBody).backgroundColor).toBe(surfaceColor);
+    expect(headerColor).toBe(surfaceColor);
+    expect(backgroundColor).not.toBe(surfaceColor);
+    expect(getComputedStyle(inset).backgroundColor).toBe(backgroundColor);
+    expect(getComputedStyle(viewport).backgroundColor).toBe(backgroundColor);
+    expect(frame.className).toContain('px-1');
+    expect(frame.className).toContain('pb-1');
+    expect(viewport.className).toContain('data-table-viewport');
+    expect(viewport.className).not.toContain('rounded-md');
+    expect((panel.querySelector('table')?.parentElement as HTMLElement).className).toContain(
+      'overflow-y-auto'
+    );
+    expect((panel.querySelector('table')?.parentElement as HTMLElement).className).toContain(
+      'overflow-x-auto'
+    );
+    expect(getComputedStyle(tableHeader).backgroundColor).toBe(headerColor);
+    expect(getComputedStyle(panel.querySelector('thead') as HTMLElement).position).toBe('sticky');
+    expect(getComputedStyle(stickyHeader).backgroundColor).toBe(backgroundColor);
+    expect(getComputedStyle(stickyBody).backgroundColor).toBe(backgroundColor);
+    expect(stickyBody.className).toContain('z-10');
+    const fades = panel.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+    expect(fades[fades.length - 1].className).toContain('z-30');
   });
 
-  it('highlights the hovered permission row and role column', async () => {
-    nextTierRoles = {
-      ...HAPPY_TIER_ROLES,
-      applicablePermissions: ['message.post', 'message.delete']
-    };
+  it('flows vertically with the page when contained scrolling is disabled', async () => {
+    const { container } = render(PermissionMatrix, {
+      props: { roomId: 'room-1', scrollContents: false }
+    });
+    await settle();
+
+    const table = container.querySelector('table') as HTMLTableElement;
+    const viewport = table.parentElement as HTMLElement;
+    const header = container.querySelector('thead') as HTMLElement;
+
+    expect(viewport.className).toContain('overflow-x-auto');
+    expect(viewport.className).not.toContain('overflow-y-auto');
+    expect(viewport.className).not.toContain('max-h-[70dvh]');
+    expect(header.className).not.toContain('sticky');
+  });
+
+  it('highlights the hovered permission row and the role column across categories', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
 
@@ -141,13 +312,15 @@ describe('PermissionMatrix', () => {
       'td[data-role="admin"][data-permission="message.post"]'
     ) as HTMLTableCellElement;
     const sameColumn = container.querySelector(
-      'td[data-role="moderator"][data-permission="message.delete"]'
+      'td[data-role="moderator"][data-permission="room.create"]'
     ) as HTMLTableCellElement;
     const unrelated = container.querySelector(
-      'td[data-role="admin"][data-permission="message.delete"]'
+      'td[data-role="admin"][data-permission="room.create"]'
     ) as HTMLTableCellElement;
     const columnHeader = container.querySelector('th[data-role="moderator"]') as HTMLElement;
-    const rowLabel = intersection.parentElement!.querySelector('td.sticky') as HTMLElement;
+    const rowLabel = intersection.parentElement!.querySelector(
+      'th[scope="row"].sticky'
+    ) as HTMLElement;
 
     intersection.dispatchEvent(new MouseEvent('mouseenter'));
     flushSync();
@@ -157,6 +330,7 @@ describe('PermissionMatrix', () => {
     expect(sameColumn.className).toContain('bg-action/8');
     expect(unrelated.className).not.toContain('bg-action/');
     expect(columnHeader.className).toContain('bg-action/10');
+    expect(columnHeader.querySelector('span.text-action, button.text-action')).not.toBeNull();
     expect(rowLabel.className).toContain('bg-action/8');
     expect(rowLabel.querySelector('[data-testid="permission-name"]')!.className).toContain(
       'text-action'
@@ -217,7 +391,7 @@ describe('PermissionMatrix', () => {
       'button[aria-label*="Moderator"][aria-label*="message.post"]'
     );
     expect(modMessagePost?.getAttribute('aria-pressed')).toBe('false');
-    expect(modMessagePost?.querySelector('.uil--check')).not.toBeNull();
+    expect(modMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
   });
 
   it('shows feedback immediately until a permission update completes', async () => {
@@ -235,14 +409,83 @@ describe('PermissionMatrix', () => {
     flushSync();
 
     expect(button.getAttribute('aria-busy')).toBe('true');
-    expect(button.querySelector('.animate-spin.uil--spinner')).not.toBeNull();
+    expect(button.querySelector('.animate-spin[class~="icon-[uil--spinner]"]')).not.toBeNull();
 
+    nextTierRoles = {
+      ...HAPPY_TIER_ROLES,
+      roles: HAPPY_TIER_ROLES.roles.map((role) =>
+        role.roleName === 'moderator'
+          ? { ...role, override: { permissions: [], permissionDenials: [] } }
+          : role
+      )
+    };
     resolveUpdate?.();
+    await vi.waitFor(() => {
+      expect(button.hasAttribute('aria-busy')).toBe(false);
+      expect(button.querySelector('.animate-spin[class~="icon-[uil--spinner]"]')).toBeNull();
+      expect(button.querySelector('[class~="icon-[uil--minus]"]')).not.toBeNull();
+    });
+  });
+
+  it('invalidates cached user matrices after a role permission changes', async () => {
+    const connection = { queryScope: 'permission-matrix-test' };
+    const userPermissionKey = adminQueryKeys.userPermissions('server-test', connection, 'member-1');
+    queryClient.setQueryData(userPermissionKey, { effective: 'stale' });
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
 
-    expect(button.hasAttribute('aria-busy')).toBe(false);
-    expect(button.querySelector('.animate-spin.uil--spinner')).toBeNull();
-    expect(button.querySelector('.uil--minus')).not.toBeNull();
+    const button = container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    button.click();
+
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryState(userPermissionKey)?.isInvalidated).toBe(true)
+    );
+  });
+
+  it('isolates pending permission state after its resource scope changes', async () => {
+    const updates: Array<{
+      resolve: () => void;
+      reject: (error: Error) => void;
+    }> = [];
+    permissionMocks.setRolePermission.mockImplementation(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          updates.push({ resolve, reject });
+        })
+    );
+    const rendered = render(PermissionMatrix, { props: { roomId: 'room-a' } });
+    await settle();
+
+    const button = rendered.container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    button.click();
+    await rendered.rerender({ roomId: 'room-b' });
+    await settle();
+
+    const replacementButton = rendered.container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    expect(replacementButton.disabled).toBe(false);
+
+    replacementButton.click();
+    flushSync();
+    expect(replacementButton.disabled).toBe(false);
+    expect(replacementButton.getAttribute('aria-disabled')).toBe('true');
+
+    updates[0].reject(new Error('stale permission failure'));
+    await settle();
+
+    expect(rendered.container.textContent).not.toContain('stale permission failure');
+    expect(replacementButton.disabled).toBe(false);
+    expect(replacementButton.getAttribute('aria-disabled')).toBe('true');
+
+    updates[1].resolve();
+    await settle();
+    expect(replacementButton.disabled).toBe(false);
+    expect(replacementButton.getAttribute('aria-disabled')).toBeNull();
   });
 
   it('invokes onRoleClick when a column header is clicked', async () => {
@@ -252,16 +495,12 @@ describe('PermissionMatrix', () => {
     });
     await settle();
 
-    const buttons = Array.from(
-      container.querySelectorAll('thead button')
-    ) as HTMLButtonElement[];
+    const buttons = Array.from(container.querySelectorAll('thead button')) as HTMLButtonElement[];
     const adminHeader = buttons.find((b) => b.textContent?.trim() === '@admin');
     expect(adminHeader).toBeDefined();
     adminHeader!.click();
     flushSync();
-    expect(onRoleClick).toHaveBeenCalledWith(
-      expect.objectContaining({ roleName: 'admin' })
-    );
+    expect(onRoleClick).toHaveBeenCalledWith(expect.objectContaining({ roleName: 'admin' }));
   });
 
   it('renders headers as plain text when isRoleClickable returns false', async () => {
@@ -291,7 +530,7 @@ describe('PermissionMatrix', () => {
     expect(ownerMessagePost).not.toBeNull();
     expect(ownerMessagePost?.disabled).toBe(true);
     expect(ownerMessagePost?.getAttribute('aria-pressed')).toBe('true');
-    expect(ownerMessagePost?.querySelector('.uil--check')).not.toBeNull();
+    expect(ownerMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
   });
 
   it('shows the "no roles" hint when the resolver returns no roles', async () => {

@@ -10,7 +10,6 @@ import (
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 	"golang.org/x/term"
-	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/pkg/natsauth"
 )
 
@@ -35,7 +34,7 @@ type initAnswers struct {
 	NATSReplicas        int
 	EmbeddedDataDir     string
 	ExternalNATSURL     string
-	NATSAuthMethod      config.NATSAuthMethod
+	NATSAuthMethod      natsauth.AuthMethod
 	NATSToken           string
 	NATSUsername        string
 	NATSPassword        string
@@ -60,7 +59,7 @@ func defaultInitAnswers() initAnswers {
 		NATSReplicas:    1,
 		EmbeddedDataDir: "./data",
 		ExternalNATSURL: "nats://localhost:4222",
-		NATSAuthMethod:  config.NATSAuthCredentials,
+		NATSAuthMethod:  natsauth.AuthCredentials,
 		Confirmed:       true,
 	}
 }
@@ -79,17 +78,17 @@ func runInitWizard(answers *initAnswers, opts initWizardOptions) error {
 	external := initExternalNATSGroup(answers, false).WithHideFunc(func() bool {
 		return answers.NATSMode != initNATSExternal
 	})
-	credentials := initNATSCredentialsGroup(answers, config.NATSAuthCredentials).WithHideFunc(func() bool {
-		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != config.NATSAuthCredentials
+	credentials := initNATSCredentialsGroup(answers, natsauth.AuthCredentials).WithHideFunc(func() bool {
+		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != natsauth.AuthCredentials
 	})
-	token := initNATSCredentialsGroup(answers, config.NATSAuthToken).WithHideFunc(func() bool {
-		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != config.NATSAuthToken
+	token := initNATSCredentialsGroup(answers, natsauth.AuthToken).WithHideFunc(func() bool {
+		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != natsauth.AuthToken
 	})
-	userpass := initNATSCredentialsGroup(answers, config.NATSAuthUserPass).WithHideFunc(func() bool {
-		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != config.NATSAuthUserPass
+	userpass := initNATSCredentialsGroup(answers, natsauth.AuthUserPass).WithHideFunc(func() bool {
+		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != natsauth.AuthUserPass
 	})
-	nkey := initNATSCredentialsGroup(answers, config.NATSAuthNKey).WithHideFunc(func() bool {
-		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != config.NATSAuthNKey
+	nkey := initNATSCredentialsGroup(answers, natsauth.AuthNKey).WithHideFunc(func() bool {
+		return answers.NATSMode != initNATSExternal || answers.NATSAuthMethod != natsauth.AuthNKey
 	})
 
 	groups := make([]*huh.Group, 0, 11)
@@ -134,7 +133,7 @@ func runAccessibleInitWizard(answers *initAnswers, opts initWizardOptions) error
 		if err := newInitForm(opts, initExternalNATSGroup(answers, true)).Run(); err != nil {
 			return err
 		}
-		if answers.NATSAuthMethod != config.NATSAuthNone {
+		if answers.NATSAuthMethod != natsauth.AuthNone {
 			if err := newInitForm(opts, initNATSCredentialsGroup(answers, answers.NATSAuthMethod)).Run(); err != nil {
 				return err
 			}
@@ -256,37 +255,37 @@ func initExternalNATSGroup(answers *initAnswers, accessible bool) *huh.Group {
 				huh.NewOption("5  ·  larger resilient cluster", 5),
 			).
 			Value(&answers.NATSReplicas),
-		huh.NewSelect[config.NATSAuthMethod]().
+		huh.NewSelect[natsauth.AuthMethod]().
 			Title("How does NATS authenticate Chatto?").
 			Options(
-				huh.NewOption("Credentials file  ·  recommended", config.NATSAuthCredentials),
-				huh.NewOption("Token", config.NATSAuthToken),
-				huh.NewOption("Username and password", config.NATSAuthUserPass),
-				huh.NewOption("NKey seed", config.NATSAuthNKey),
-				huh.NewOption("No authentication", config.NATSAuthNone),
+				huh.NewOption("Credentials file  ·  recommended", natsauth.AuthCredentials),
+				huh.NewOption("Token", natsauth.AuthToken),
+				huh.NewOption("Username and password", natsauth.AuthUserPass),
+				huh.NewOption("NKey seed", natsauth.AuthNKey),
+				huh.NewOption("No authentication", natsauth.AuthNone),
 			).
 			Value(&answers.NATSAuthMethod),
 	).Title("Connect the antenna")
 }
 
-func initNATSCredentialsGroup(answers *initAnswers, method config.NATSAuthMethod) *huh.Group {
+func initNATSCredentialsGroup(answers *initAnswers, method natsauth.AuthMethod) *huh.Group {
 	var fields []huh.Field
 	switch method {
-	case config.NATSAuthCredentials:
+	case natsauth.AuthCredentials:
 		fields = append(fields, huh.NewInput().
 			Title("Credentials file").
 			Description("Path to the NATS .creds file mounted for Chatto.").
 			Placeholder("/run/secrets/chatto.creds").
 			Value(&answers.NATSCredentialsFile).
 			Validate(validateNotBlank("credentials file")))
-	case config.NATSAuthToken:
+	case natsauth.AuthToken:
 		fields = append(fields, huh.NewInput().
 			Title("NATS token").
 			Description("The token is written to chatto.toml, which is created with mode 0600.").
 			Password(true).
 			Value(&answers.NATSToken).
 			Validate(validateNotBlank("token")))
-	case config.NATSAuthUserPass:
+	case natsauth.AuthUserPass:
 		fields = append(fields,
 			huh.NewInput().
 				Title("NATS username").
@@ -298,7 +297,7 @@ func initNATSCredentialsGroup(answers *initAnswers, method config.NATSAuthMethod
 				Value(&answers.NATSPassword).
 				Validate(validateNotBlank("password")),
 		)
-	case config.NATSAuthNKey:
+	case natsauth.AuthNKey:
 		fields = append(fields, huh.NewInput().
 			Title("NKey seed").
 			Description("The seed is written to chatto.toml, which is created with mode 0600.").
@@ -450,26 +449,26 @@ func validateInitAnswers(answers initAnswers) error {
 			return fmt.Errorf("NATS replicas must be 1, 3, or 5")
 		}
 		switch answers.NATSAuthMethod {
-		case config.NATSAuthCredentials:
+		case natsauth.AuthCredentials:
 			if err := validateNotBlank("NATS credentials file")(answers.NATSCredentialsFile); err != nil {
 				return err
 			}
-		case config.NATSAuthToken:
+		case natsauth.AuthToken:
 			if err := validateNotBlank("NATS token")(answers.NATSToken); err != nil {
 				return err
 			}
-		case config.NATSAuthUserPass:
+		case natsauth.AuthUserPass:
 			if err := validateNotBlank("NATS username")(answers.NATSUsername); err != nil {
 				return err
 			}
 			if err := validateNotBlank("NATS password")(answers.NATSPassword); err != nil {
 				return err
 			}
-		case config.NATSAuthNKey:
+		case natsauth.AuthNKey:
 			if err := validateNKeySeed(answers.NATSNKeySeed); err != nil {
 				return fmt.Errorf("NATS NKey seed: %w", err)
 			}
-		case config.NATSAuthNone:
+		case natsauth.AuthNone:
 		default:
 			return fmt.Errorf("unsupported NATS authentication method %q", answers.NATSAuthMethod)
 		}

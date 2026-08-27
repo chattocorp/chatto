@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
     "nav": {
       "general": "Allgemein",
@@ -10,7 +9,8 @@
       "security": "Sicherheit",
       "event_log": "Ereignisprotokoll",
       "system": "System",
-      "back_to_server": "Zurück zum Server"
+      "back_to_server": "Zurück zum Server",
+      "invitations": "Einladungslinks"
     },
     "common": {
       "page_title": "{title} | Admin",
@@ -122,6 +122,7 @@
       "create_role_title": "Rolle erstellen",
       "create_role_subtitle": "Eine neue Rolle für diesen Server erstellen",
       "create_role_action": "Rolle erstellen",
+      "new_role_action": "+ Neue Rolle",
       "creating_role": "Wird erstellt...",
       "create_after_hint": "Nach dem Erstellen der Rolle kannst du ihr auf der Bearbeitungsseite Berechtigungen zuweisen.",
       "back_to_permissions": "Zurück zu Berechtigungen",
@@ -142,7 +143,7 @@
       "no_users_with_role": "Keine Benutzer haben diese Rolle",
       "server_tier_intro": "Diese Seite ist für serverweite Rollenberechtigungen: breite Vorgaben, die vor raumspezifischen Überschreibungen gelten.",
       "server_tier_rooms_hint": "Nutze Räume für Überschreibungen pro Gruppe und Raum.",
-      "server_tier_denies_hint": "Setze Verweigerungen gezielt ein: everyone in einem Raum zu verweigern blockiert alle geerbten Erlaubnisse auf dieser Ebene."
+      "resolution_hint": "Für jeden Benutzer oder jede benannte Rolle gilt der nächstgelegene Raum-, Gruppen- oder Serverwert. Verweigerungen haben dazwischen Vorrang. Eine Erlaubnis überschreibt eine everyone-Verweigerung nur auf derselben oder einer spezifischeren Ebene."
     },
     "rooms_admin": {
       "title": "Räume",
@@ -160,6 +161,7 @@
       "empty_groups_body": "Erstelle ein Set, um Räume zu organisieren.",
       "drag_hint": "Ziehe Räume zwischen Gruppen, um sie zu organisieren. Ziehe Gruppenüberschriften, um Gruppen neu anzuordnen. Archivierte Räume bleiben in ihrem Set, sind aber für Mitglieder ausgeblendet.",
       "drag_group": "Gruppe per Ziehen neu anordnen",
+      "drag_room": "Raum per Ziehen neu anordnen",
       "new_room": "Neuer Raum",
       "new_link": "Neuer Link",
       "new_group": "Neue Gruppe",
@@ -174,9 +176,23 @@
       "edit_room": "Raum bearbeiten",
       "edit_room_action": "Raum bearbeiten",
       "room_description_placeholder": "Optionale Beschreibung für diesen Raum",
+      "slow_mode": "Langsamer Modus",
+      "slow_mode_description": "Lege fest, wie lange Mitglieder zwischen Nachrichten in diesem Raum warten müssen.",
+      "slow_mode_off": "Aus",
+      "slow_mode_custom": "{interval} (aktueller Wert)",
+      "threading_mode": "Thread-Modus",
+      "threading_mode_description": "Erforderlich erzwingt Threads; Empfohlen macht die Thread-Antwort zur Hauptaktion; Aktiviert lässt die Wahl offen; Deaktiviert blockiert neue Thread-Aktivität.",
+      "threading_mode_required": "Erforderlich",
+      "threading_mode_required_description": "Jede Nachricht startet einen Thread.",
+      "threading_mode_encouraged": "Empfohlen",
+      "threading_mode_encouraged_description": "Threads werden empfohlen, sind aber nicht erforderlich.",
+      "threading_mode_enabled": "Aktiviert",
+      "threading_mode_enabled_description": "Threads sind verfügbar, aber optional.",
+      "threading_mode_disabled": "Deaktiviert",
+      "threading_mode_disabled_description": "Threads sind nicht verfügbar.",
       "room_name_empty": "Raumname darf nicht leer sein",
       "room_name_trim": "Raumname darf keine Leerzeichen am Anfang oder Ende enthalten",
-      "room_name_charset": "Raumname darf nur Buchstaben, Zahlen, Bindestriche und Unterstriche enthalten",
+      "room_name_invalid": "Raumname darf keine Zeilenumbrüche oder Steuerzeichen enthalten",
       "room_name_too_long": "Raumname darf höchstens 30 Zeichen lang sein",
       "create_group": "Gruppe erstellen",
       "group_name": "Gruppenname",
@@ -215,14 +231,40 @@
       "archive_room_failed": "Raum konnte nicht archiviert werden: {error}",
       "unarchive_room_failed": "Raum konnte nicht wiederhergestellt werden: {error}",
       "save_link_failed": "Link konnte nicht gespeichert werden: {error}",
-      "delete_link_failed": "Link konnte nicht gelöscht werden: {error}"
+      "delete_link_failed": "Link konnte nicht gelöscht werden: {error}",
+      "universal_members_description": "Die Mitgliedschaft in universellen Räumen erfolgt automatisch. Alle Personen mit Zugriffsberechtigung für diesen Raum sind enthalten.",
+      "archived_members_description": "Die Mitgliedschaft kann nicht geändert werden, solange dieser Raum archiviert ist.",
+      "add_member": "Mitglied hinzufügen",
+      "adding_member": "Mitglied wird hinzugefügt...",
+      "load_members_failed": "Raummitglieder konnten nicht geladen werden: {error}",
+      "remove_member": "Mitglied entfernen",
+      "remove_member_prompt": "{name} aus {room} entfernen? Die Person ist dann kein ausdrückliches Mitglied dieses Raums mehr.",
+      "member_added": "{name} wurde dem Raum hinzugefügt",
+      "add_member_failed": "Mitglied konnte nicht hinzugefügt werden: {error}",
+      "member_removed": "{name} wurde aus dem Raum entfernt",
+      "remove_member_failed": "Mitglied konnte nicht entfernt werden: {error}"
     },
     "security": {
       "title": "Sicherheit",
       "subtitle": "Registrierungsbeschränkungen und Kontoschutz",
       "blocked_usernames": "Blockierte Benutzernamen",
       "blocked_usernames_description": "Eine pro Zeile. Benutzer können sich nicht mit diesen Namen registrieren.",
-      "settings_saved": "Einstellungen gespeichert"
+      "settings_saved": "Einstellungen gespeichert",
+      "oauth_clients": {
+        "title": "OAuth-Clients",
+        "description": "Anwendungen erscheinen hier, nachdem ein Mitglied sie autorisiert hat. Vertrauen ist nur eine administrative Kennzeichnung und überspringt niemals die individuelle Zustimmung; Blockieren verhindert neuen Zugriff und widerruft bestehende Zugriffstoken.",
+        "empty": "Es wurden noch keine OAuth-Clients autorisiert",
+        "application": "Anwendung",
+        "origins": "Callback-Ursprünge",
+        "users": "Autorisierte Benutzer",
+        "last_authorization": "Letzte Autorisierung",
+        "policy": "Richtlinie",
+        "policy_for": "Richtlinie für {client}",
+        "policy_default": "Standard",
+        "policy_trusted": "Vertrauenswürdig",
+        "policy_blocked": "Blockiert",
+        "policy_saved": "OAuth-Client-Richtlinie gespeichert"
+      }
     },
     "system": {
       "title": "System",
@@ -235,6 +277,7 @@
       "unlimited": "unbegrenzt",
       "all_subjects": "alle Subjects",
       "pending_state": "Ausstehend",
+      "worker_unconfirmed": "Unbestätigt",
       "rtt": "RTT",
       "max_payload": "Maximale Nutzlast",
       "server_id": "Server-ID",
@@ -374,6 +417,39 @@
       "email": "E-Mail",
       "id": "ID",
       "total": "{count} Benutzer insgesamt"
+    },
+    "invitations": {
+      "title": "Einladungslinks",
+      "subtitle": "Erstelle und verwalte Links, die neue Konten zulassen.",
+      "create_title": "Einladungslink erstellen",
+      "max_uses": "Maximale Nutzungen",
+      "max_uses_error": "Gib eine ganze Zahl von mindestens 1 ein.",
+      "unlimited_uses": "Unbegrenzte Nutzungen erlauben",
+      "expiry": "Ablauf",
+      "expiry_1d": "1 Tag",
+      "expiry_7d": "7 Tage",
+      "expiry_30d": "30 Tage",
+      "expiry_never": "Nie",
+      "create": "Einladungslink erstellen",
+      "created": "Einladungslink erstellt",
+      "list_title": "Einladungslinks",
+      "empty": "Noch keine Einladungslinks.",
+      "uses": "Nutzungen",
+      "created_at": "Erstellt",
+      "actions": "Aktionen",
+      "never": "Nie",
+      "copy": "Link kopieren",
+      "copied": "Einladungslink kopiert",
+      "revoke": "Widerrufen",
+      "revoked": "Einladungslink widerrufen",
+      "revoke_title": "Einladungslink widerrufen?",
+      "revoke_description": "Dieser Link lässt sofort keine neuen Konten mehr zu.",
+      "status": {
+        "active": "Aktiv",
+        "expired": "Abgelaufen",
+        "exhausted": "Aufgebraucht",
+        "revoked": "Widerrufen"
+      }
     }
   }
 }

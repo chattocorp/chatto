@@ -25,7 +25,7 @@ func (s *messageService) AddReaction(ctx context.Context, req *connect.Request[a
 	}
 	return connect.NewResponse(&apiv1.AddReactionResponse{
 		Added:    added,
-		Reaction: s.reactionSummary(ctx, caller.UserID, req.Msg.MessageEventId, req.Msg.Emoji),
+		Reaction: s.reactionSummary(ctx, caller.UserID, req.Msg.RoomId, req.Msg.MessageEventId, req.Msg.Emoji),
 	}), nil
 }
 
@@ -46,11 +46,23 @@ func (s *messageService) RemoveReaction(ctx context.Context, req *connect.Reques
 	}
 	return connect.NewResponse(&apiv1.RemoveReactionResponse{
 		Removed:  removed,
-		Reaction: s.reactionSummary(ctx, caller.UserID, req.Msg.MessageEventId, req.Msg.Emoji),
+		Reaction: s.reactionSummary(ctx, caller.UserID, req.Msg.RoomId, req.Msg.MessageEventId, req.Msg.Emoji),
 	}), nil
 }
 
-func (s *messageService) reactionSummary(ctx context.Context, viewerID, messageEventID, emoji string) *apiv1.MessageReaction {
+func (s *messageService) reactionSummary(ctx context.Context, viewerID, roomID, messageEventID, emoji string) *apiv1.MessageReaction {
+	room, err := s.api.core.FindRoomByID(ctx, roomID)
+	if err != nil {
+		return nil
+	}
+	member, err := s.api.core.RoomMembershipExists(ctx, core.KindOfRoom(room), viewerID, roomID)
+	if err != nil || !member {
+		return nil
+	}
+	canRead, err := s.api.core.CanReadMessage(ctx, viewerID, core.KindOfRoom(room), roomID, messageEventID)
+	if err != nil || !canRead {
+		return nil
+	}
 	summaries, err := s.api.core.GetReactions(ctx, messageEventID)
 	if err != nil {
 		return nil

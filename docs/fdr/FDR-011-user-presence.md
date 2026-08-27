@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -16,9 +16,10 @@ Every user has a presence status visible to others as a colored dot on their ava
 - Users can explicitly set Away. Explicit Away does not auto-return to Online on activity.
 - Users can set Do Not Disturb for their current live server presence. While DND is active, new notifications are still recorded for that user, but notification sounds and web push are suppressed (see FDR-012). Presence state is not persisted as server-side user/account state.
 - Explicit Away and Do Not Disturb are marked as manually selected in the live presence record. Automatic Online/Away reports from other clients do not overwrite that manual state; an explicit Online selection clears it.
-- Users can choose "Look offline" locally. The client does not report an Offline status; it stops reporting presence to the server and pauses live event subscriptions so the existing presence record expires normally.
+- Users can choose "Look offline" locally. The client does not report an Offline status; it stops reporting presence so the existing presence record expires normally while messages and other realtime updates continue working.
 - Disconnecting (closing the tab, network drop) does not send an active Offline signal. After 60 seconds without a heartbeat refresh, the presence entry expires and the user appears Offline.
 - The presence dot updates across the UI as other users' statuses change, in real time.
+- Room member sidebars update presence dots immediately but wait for a short quiet period before moving other users between the Online and Offline groups. Membership changes and the current user's own group movement remain immediate.
 - If a live connection falls behind presence updates, it reconnects and recovers current presence instead of remaining silently stale.
 
 ## Design Decisions
@@ -27,7 +28,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 **Decision:** A user has one presence status across all spaces/rooms in a server.
 **Why:** Anything else is confusing — "I'm online in #design but away in #engineering" doesn't match how presence works in any other chat tool. Per-server matches the user's actual session.
-**Tradeoff:** Users can't selectively appear online for some rooms. They can mute rooms for notification purposes (see FDR-012) but not for presence.
+**Tradeoff:** Users cannot selectively appear online for some rooms. They can configure per-cause notification delivery for a room (see FDR-012), but not per-room presence.
 
 ### 2. Offline is inferred, not stored
 
@@ -49,15 +50,15 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 5. DND is live user state
 
-**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT. While present, it silences notification sounds and web push delivery without dropping the underlying notification records. Durable custom statuses live separately as user profile metadata (FDR-022).
+**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT. While present, it suppresses notification sounds and Web Push at delivery time without dropping, downgrading, or rewriting the source-time delivery mode of underlying notification occurrences. Durable custom statuses live separately as user profile metadata (FDR-022).
 **Why:** Presence controls notification routing and "right now" UI hints. Persisting it as domain/account history would overstate its meaning, while custom statuses communicate user-authored profile context without changing availability.
 **Tradeoff:** The UI has two adjacent concepts: live presence dot and durable custom status. They deliberately answer different questions.
 
 ### 6. Invisible mode is client-local privacy behavior
 
-**Decision:** "Look offline" is not a server status. The client stops refreshing presence and stops receiving live event streams while the local mode is active. The server and other users only see the existing presence record expire.
-**Why:** Reporting an explicit invisible/offline status would make the server aware of the user's privacy choice and could leak it to other clients or operators through logs, admin tooling, or future APIs. Absence of reporting preserves the privacy property.
-**Tradeoff:** The user's own client loses realtime updates while invisible and must catch up from projected reads after returning to a reporting mode.
+**Decision:** "Look offline" is not a server status. The client stops refreshing presence while keeping its realtime event streams active. The server and other users only see the existing presence record expire.
+**Why:** Reporting an explicit invisible/offline status would make the server aware of the user's privacy choice and could leak it as presence state. Keeping realtime delivery independent from presence lets the app remain fully functional without reporting the user's availability choice.
+**Tradeoff:** The server can still observe ordinary authenticated activity, including API requests and an active realtime connection. "Look offline" controls the presence shown to other users; it is not an anonymity mode. Another active browser or device can also keep the user visibly present.
 
 ### 7. Per-server tracking, with frontend coordination across servers
 
@@ -68,8 +69,14 @@ Every user has a presence status visible to others as a colored dot on their ava
 ### 8. Delivery gaps force latest-value recovery
 
 **Decision:** A connection that cannot keep up with presence transitions is closed and reconnects rather than silently dropping transitions while remaining live.
-**Why:** Presence is latest-value state, so a missed transition can be repaired cheaply from current user reads. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049.
+**Why:** Presence is latest-value state. Every realtime subscription includes a complete `presences_replace` reconciliation before `caught_up`, so reconnect repairs a missed transition through the same projection stream without a separate user read. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049 and ADR-051.
 **Tradeoff:** A sufficiently large presence burst can reconnect a slow client, but only that lagging connection is affected and normal reconnect catch-up already handles the gap.
+
+### 9. Presence display is immediate while member-list grouping settles
+
+**Decision:** Presence indicators show the latest status immediately. Room member sidebars debounce presence-driven movement between their Online and Offline groups, while membership changes and the current user's own movement bypass that delay.
+**Why:** Presence is useful as a current status signal, but repeatedly moving rows during a burst makes a busy member list difficult to scan and causes avoidable repeated work. Delaying only the grouping preserves freshness without making membership or the user's own action feel stale.
+**Tradeoff:** Another user's row can briefly remain in its previous group while its presence dot already shows the new status. Continuous churn postpones regrouping until the updates settle.
 
 ## Permissions
 
@@ -77,5 +84,5 @@ Presence status is public. Any authenticated user can see any other authenticate
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub), ADR-051 (server-scoped resumable client projection)
 - **FDRs:** FDR-012 (Notifications), FDR-022 (User Profile)

@@ -26,6 +26,19 @@ This order is a decision aid, not a ban on native elements. Specialized chat,
 media, menu, and toolbar controls often need native buttons combined with a
 semantic utility because their behavior is not a committed form action.
 
+## Selectable Record Collections
+
+Selectable or directly actionable records use the same inset-box treatment as
+message search results:
+
+- Use `selectable-list` on non-table collections and `selectable-list-item` on
+  each navigable, draggable, or directly actionable record.
+- Rows rest transparently on the owning `background` work plane. Hover and
+  keyboard focus rise exactly one level to `surface`; do not introduce ruled
+  separators or a stronger surface jump.
+- Each row owns its rounded shape. The collection owns only the 1px inset and
+  gap, so selections never merge into a single slab.
+
 ## Choosing A Primitive
 
 | Need                                      | Use                                                                        | Avoid                                                        |
@@ -33,20 +46,101 @@ semantic utility because their behavior is not a committed form action.
 | Committed text action or button-like link | `Button` from `$lib/ui/form`                                               | Rebuilding `btn-*` recipes in feature code                   |
 | Form field                                | `TextInput`, `TextArea`, `Select`, `Combobox`, `Checkbox`, or `RangeField` | Raw controls unless the interaction is genuinely specialized |
 | One-of-many settings choice               | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
+| Compact one-of-many mode                  | `SegmentedControl`                                                         | Separate buttons or independently styled chips               |
+| Selectable non-table collection           | `selectable-list` and `selectable-list-item`                               | Feature-local hover recipes                                  |
 | Modal form                                | `FormDialog`                                                               | A dialog containing an unrelated hand-rolled form footer     |
 | Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
 | General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
 | Floating menu or tooltip                  | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                         | Hand-written fixed positioning and z-index                   |
+| Standard pane page                        | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections      | Hand-rolled page widths, scrolling, and section cards        |
 | Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
-| Inline icon action                        | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
+| Inline icon action with standard hit area | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
+| Mini icon action directly beside a value  | `mini-icon-action`                                                         | Adding padding, a background fill, or press scaling          |
 | Global app-header icon                    | `app-header-icon`                                                          | `icon-action` with compensating margins                      |
 | Durable content container                 | `Panel` or `panel-shell`                                                   | Ad hoc card borders, radius, and elevation                   |
 | Compact nested row                        | `surface-box`                                                              | A panel nested inside another panel                          |
-| Status or scope label                     | `Pill`; `ToggleChip` when interactive                                      | One-off colored badges                                       |
+| Status or scope label                     | `Pill`; `ToggleChip` when independently interactive                        | One-off colored badges                                       |
 | Inline contextual notice                  | `Hint`                                                                     | A panel used as an alert                                     |
 | Transient feedback                        | `toast`                                                                    | Persistent inline copy that disappears automatically         |
 | Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
 | Loading image                             | `SkeletonImg`                                                              | `<img class="skeleton">`                                     |
+
+## Standard Pane Pages
+
+Use the pane-page composition for primary application pages such as search,
+settings, and Server Admin. It gives these pages the same header, scrolling
+behaviour, content width, spacing, and panel hierarchy.
+
+```svelte
+<PageTitle title={pageTitle} />
+
+<div class="pane-page">
+  <PaneHeader title={pageTitle} subtitle={pageSubtitle} />
+
+  <PaneContent>
+    <div class="flex flex-col gap-6">
+      <Panel title={formTitle}>
+        <form><!-- padded form content --></form>
+      </Panel>
+
+      <Panel title={resultsTitle} noPadding>
+        <!-- edge-to-edge list, table, or result state -->
+      </Panel>
+    </div>
+  </PaneContent>
+</div>
+```
+
+Follow these defaults:
+
+- `PageTitle` owns the browser title. `PaneHeader` owns the visible page title,
+  optional subtitle, back affordance, and icon actions.
+- Keep the outer `pane-page` wrapper. This semantic utility lets the pane shrink
+  inside the application shell without creating an accidental second page
+  scrollbar.
+- Let `PaneContent` own scrolling, the `max-w-5xl` content width, and page
+  padding. Do not reproduce those constraints in each route.
+- Stack peer sections with `flex flex-col gap-6`. Use a tighter gap only for a
+  deliberately dense surface, not as a page-by-page styling choice.
+- Give peer panels short, descriptive titles. A form panel names the task or
+  input group; a list panel names the collection. If a panel title repeats a
+  single form field's visible label, keep the field label available to
+  assistive technology with the field component's `labelHidden` option.
+- Use the default padded `Panel` for forms, prose, summaries, and grouped
+  controls. Use `noPadding` for tables, lists, search results, and other
+  edge-to-edge collections; the child owns its row padding and dividers.
+- Render loading, error, and empty states inside the panel whose content they
+  replace. A single full-page availability state may use one untitled panel
+  because there are no peer sections to distinguish.
+- Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
+  dense table or editor should consume the remaining pane height. Ordinary
+  forms and document-like pages should remain content-sized.
+- Do not nest `Panel` components. Use `surface-box` for compact structure
+  inside a panel, and place page-level `Hint` notices above the affected panel.
+
+Panel titles are structural navigation, not decorative headings. Do not omit
+them merely because the page header already names the overall feature: the
+page title answers “where am I?”, while panel titles answer “what is in this
+section?”.
+
+### Settings And Preferences
+
+Server Configuration, server-scoped User Preferences, and App Preferences use
+the same page structure. Their different data scopes affect navigation and
+state ownership, not the visual treatment of their forms.
+
+- Put settings content in `PaneContent`; do not reproduce its scrolling,
+  padding, or width classes on a route-local wrapper.
+- Frame every page-level form or independently meaningful control group with a
+  titled, padded `Panel`. Keep its validation, status, and actions inside the
+  same panel.
+- Let the panel span the content column. Apply `max-w-*` to the fields or form
+  inside it when a shorter line length improves usability, not to the panel
+  shell itself.
+- Use `FormSection` only to subdivide a single panel whose controls submit or
+  operate as one group. It is not a substitute for the page-level panel frame.
+- Stack independent settings panels with the standard `gap-6`, and never nest
+  one `Panel` inside another.
 
 ## Semantic Color Language
 
@@ -69,20 +163,51 @@ recommended path and `neutral-action` for an emphasized control that should not
 compete with it. Retired `accent` and `primary` color utilities are rejected by
 the design-system guardrail.
 
+Focused form fields use the action colour for their border without an additional
+glow. Invalid fields follow the same treatment with the error-coloured border.
+
 Compact filled controls pair each tone with its `on-*` foreground token.
 Prominent action, success, warning, and danger buttons use dedicated fills with
-white labels. Light-theme action buttons share the friendly action blue; dark
-mode uses deeper button fills so white labels remain clear without darkening
-the brighter semantic tones used for links, focus rings, and status UI.
+contrast-safe labels. The action colour is the single blue accent in each theme:
+primary buttons, links, focus borders, selection indicators, and compact status
+UI all derive from that same token rather than maintaining a separate button blue.
+Each theme's action token must retain WCAG AA contrast both as text on its
+surrounding work surfaces and with its paired `on-action` button label.
+Buttons frame their fills with a tight inset related to `SegmentedControl`.
+Prominent semantic buttons tint the outer border to match their fill; quieter
+secondary and ghost buttons retain the input-coloured border. The tight inset
+keeps a standalone button from looking double-framed. The frame is part of the
+standard button geometry: do not remove it from individual variants or reproduce
+it with feature-local wrappers.
+
+A one-pixel black outer ring keeps framed controls legible on mid-tone surfaces.
+Buttons, form inputs, and `SegmentedControl` share the `control-frame` utility,
+which owns their radius, one-pixel border, and non-layout outer ring. Individual
+controls only add semantic border colours and their appropriate inset treatment.
+
+Button frames and `SegmentedControl` use one pixel for both the outer border and
+the inset gap. Keep these dimensions aligned so adjacent controls share the same
+optical height and edge rhythm.
 
 Surfaces form a small semantic ladder:
+
+### Surface Escalation Rule — Mandatory
+
+> [!IMPORTANT]
+> **NEVER INCREASE A NESTED ELEMENT BY MORE THAN ONE SURFACE LEVEL.** A child on
+> `background` may use `surface`; a child on `surface` may use
+> `surface-emphasized`; a child on `surface-emphasized` may use
+> `surface-strong`. Never jump directly from `background` to
+> `surface-emphasized` or from `surface` to `surface-strong`. If one level does
+> not provide enough separation, add an appropriate border or revise the
+> surrounding composition instead of skipping a level.
 
 - Light and dark mode are intentionally asymmetric. Do not infer elevation by
   mechanically reversing luminance between themes.
 - In light mode, `background` is the pale primary work plane and `surface` is
   the cool gray used for anchored chrome, composers, user cards, dialogs, and
-  panels. These surfaces read as inset and substantial, not as white paper
-  floating above the application.
+  panel frames and headers. These surfaces read as inset and substantial, not
+  as white paper floating above the application.
 - In dark mode, progressively lighter surfaces provide separation from the
   dark primary plane.
 - `surface-emphasized` separates hover states and nested rows from their
@@ -94,9 +219,34 @@ Surfaces form a small semantic ladder:
   paper-like surface; do not use it as the default fill for persistent
   application chrome.
 
-Panels, informational hints, table headers, table bodies, and sticky table
-cells share the same `surface`. Use dividers, spacing, type weight, and icons to
-express their different roles; do not introduce another header-band fill.
+Panel shells provide a `surface` frame around a `background` work plane. Panel
+and table headers also use `surface`, keeping padded forms, row rules, nested
+controls, and the outer frame visually distinct. Sticky table cells must match
+the body background. This contrast is structural, not an additional surface
+level.
+
+`Panel` owns the shared inset geometry for admin content. Titled panels frame a
+clipped `panel-inset` work plane with `px-1 pb-1`; omitting top padding prevents
+the frame gap from visually adding to the title band's bottom padding. Untitled
+edge-to-edge panels use the same rule so the gap does not add to a table header's
+top padding. Untitled padded panels retain `p-1`. Custom shells such as draggable
+room groups must compose the same structure instead of approximating it.
+`DataTable` owns only its scrollable table viewport and keeps a radius when used
+standalone or inside padded content. Inside `Panel noPadding`, the panel owns the
+single outer radius and clipping boundary: the table viewport becomes square so
+preceding controls or notices meet its header without an inset corner. Do not
+add feature-local radius overrides for this composition. Dense matrices may keep
+an intrinsic content width inside the viewport; ordinary record tables fill it.
+Standard record-table headings use `table-header-cell`; matrix headings remain
+bespoke because their vertical labels have different spatial needs.
+
+Panel title bands use `px-6 py-3`. The horizontal inset aligns titles with
+`p-5` panel content after accounting for the frame, while keeping the band
+compact. Panels in scrolling flex columns must not shrink below their content.
+Room-directory group cards use `Panel` as well; reusable product surfaces must
+not assemble `panel-shell` directly when the shared component can express them.
+Hoverable rows inside panel insets use the quiet `surface/70` treatment and a
+`rounded-md` radius; `surface-emphasized` is too strong for transient hover.
 
 Do not infer a new numeric surface level. Choose the nearest semantic role, or
 adjust the owning component when the hierarchy itself is wrong.
@@ -139,6 +289,10 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 Menus, compact chat hover bars, media overlays, and icon toolbars use their
 context-specific primitive.
 
+Context-menu action groups use sibling `menu-section` surfaces. Let the
+`ContextMenu` gap separate those surfaces; never draw a hairline divider inside
+a `menu-section`, because it conflicts with the standard surface-gap separator.
+
 The supported variants are `action`, `neutral`, `secondary`, `ghost`,
 `warning`, `danger`, and `danger-secondary`. Use the variant whose meaning
 matches the action.
@@ -164,7 +318,9 @@ matches the action.
   drag, resize, or text-selection behavior.
 - Respect `prefers-reduced-motion` for non-essential animation.
 - Keep interactive hit areas at least 40 by 40 pixels unless a dense desktop
-  toolbar has a documented non-overlapping exception.
+  toolbar has a documented non-overlapping exception. `mini-icon-action` is
+  the narrow exception for a subordinate icon placed directly beside the text
+  or value it acts on; do not use it for standalone or toolbar actions.
 
 Chatto deliberately uses browser/platform text rendering. Do not add global
 font smoothing. Ordinary controls are solid rather than gradient-filled;
@@ -188,7 +344,7 @@ Stories should:
 - include narrow-layout examples for responsive primitives;
 - keep fixture copy literal and local to the story.
 
-Literal story fixture copy is exempt from application Paraglide catalogs.
+Literal story fixture copy is exempt from application translation catalogs.
 Strings added to production components and routes are not exempt and require
 British English and German messages, plus US English overrides where wording
 differs.

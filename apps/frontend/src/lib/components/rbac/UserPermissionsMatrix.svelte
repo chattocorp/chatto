@@ -1,17 +1,17 @@
 <!--
 @component
 
-Per-user permission matrix loader. Owns the ConnectRPC query for the user's
-matrix and the mutation dispatch for cell clicks; delegates rendering to
-`SubjectPermissionsMatrix`.
+Per-user permission matrix loader for human and bot accounts. Owns the
+canonical ConnectRPC query and mutation dispatch for cell clicks; delegates
+rendering to `SubjectPermissionsMatrix`.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { Hint } from '$lib/ui';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     setUserPermission,
     type UserMutationScope,
@@ -20,69 +20,64 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   import SubjectPermissionsMatrix, {
     type MatrixData,
     type MatrixScope,
-    type CellState
+    type CellState,
+    type DecisionMode
   } from './SubjectPermissionsMatrix.svelte';
+  import { createQuery } from '@tanstack/svelte-query';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { queryClient } from '$lib/query/client';
 
   type Matrix = MatrixData & { userId: string };
 
-  let { userId }: { userId: string } = $props();
+  let {
+    userId,
+    subjectKind = 'user',
+    ownerCapped = false,
+    decisionMode = 'tri-state'
+  }: {
+    userId: string;
+    subjectKind?: string;
+    ownerCapped?: boolean;
+    decisionMode?: DecisionMode;
+  } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
-  function permissionAPI() {
-    const conn = connection();
-    return createPermissionAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
-  }
+  const matrixQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const activeConnection = serverScope.connection;
+      const activeUserId = userId;
+      return {
+        queryKey: adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId),
+        queryFn: ({ signal }) =>
+          activeConnection
+            .getAPI(createPermissionAPI)
+            .getUserPermissionMatrix(activeUserId, { signal })
+      };
+    },
+    () => queryClient
+  );
 
-  let data = $state<Matrix | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
+  const data = $derived<Matrix | null>(matrixQuery.data ?? null);
+  const loading = $derived(matrixQuery.isPending);
+  const loadError = $derived(matrixQuery.error instanceof Error ? matrixQuery.error.message : null);
+  let mutationError = $state<{ context: string; message: string } | null>(null);
   let updatingKey = $state<string | null>(null);
-
-  $effect(() => {
-    void load(userId);
+  let mutationContext = $state<string | null>(null);
+  let mutationGeneration = 0;
+  const activeMutationContext = $derived(
+    JSON.stringify([serverScope.serverId, serverScope.connection.queryScope, userId])
+  );
+  const visibleMutationError = $derived(
+    mutationError?.context === activeMutationContext ? mutationError.message : null
+  );
+  const visibleUpdatingKey = $derived(
+    mutationContext === activeMutationContext ? updatingKey : null
+  );
+  onDestroy(() => {
+    mutationGeneration += 1;
   });
-
-  async function load(uid: string) {
-    // Only show the loading state on the initial load; refreshes after a
-    // mutation keep the existing matrix visible so the page doesn't flash
-    // a blank panel between request and response.
-    //
-    // Wrap the `data` read in `untrack` so the caller `$effect` doesn't
-    // subscribe to it — otherwise every assignment below would re-fire
-    // the effect and loop.
-    const current = untrack(() => data);
-    if (!current || current.userId !== uid) loading = true;
-    error = null;
-
-    let matrix: Matrix | null = null;
-    try {
-      matrix = await permissionAPI().getUserPermissionMatrix(uid);
-    } catch (err) {
-      if (uid !== userId) return;
-      loading = false;
-      error = err instanceof Error ? err.message : String(err);
-      return;
-    }
-
-    if (uid !== userId) return;
-
-    loading = false;
-    if (!matrix) {
-      error = m['rbac.permissions.no_data']();
-      return;
-    }
-    const loadedMatrix = matrix;
-    data = {
-      userId: loadedMatrix.userId,
-      applicablePermissions: [...loadedMatrix.applicablePermissions],
-      scopes: loadedMatrix.scopes.map((s) => ({ ...s })),
-      cells: loadedMatrix.cells.map((c) => ({ ...c }))
-    };
-  }
 
   function mutationScopeFor(scope: MatrixScope): UserMutationScope {
     if (scope.kind === 'GROUP') {
@@ -97,40 +92,84 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   }
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
-    if (!data) return;
+    if (!data || visibleUpdatingKey) return;
+    const generation = ++mutationGeneration;
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const activeUserId = data.userId;
+    const context = JSON.stringify([serverId, activeConnection.queryScope, activeUserId]);
+    const queryKey = adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId);
     const cellKey = `${scope.id}::${permission}`;
     updatingKey = cellKey;
-    error = null;
+    mutationContext = context;
+    mutationError = null;
 
     const result = await setUserPermission(
-      permissionAPI(),
-      data.userId,
+      activeConnection.getAPI(createPermissionAPI),
+      activeUserId,
       mutationScopeFor(scope),
       permission,
       next as UserPermissionState
     );
+    if (mutationGeneration !== generation || !serverScope.isCurrent()) return;
     if (result.error) {
-      error = result.error;
-      toast.error(result.error);
-      updatingKey = null;
+      if (mutationGeneration === generation && context === activeMutationContext) {
+        mutationError = { context, message: result.error };
+        toast.error(result.error);
+      }
+      if (mutationGeneration === generation) {
+        updatingKey = null;
+      }
       return;
     }
 
-    // Reload the matrix so both the override AND effective decisions stay
-    // consistent — a server-scope grant flows into rooms via inheritance.
-    await load(data.userId);
-    updatingKey = null;
+    if (result.update) {
+      const decision = result.update.decision;
+      queryClient.setQueryData<Matrix | null>(queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              cells: current.cells.map((cell) =>
+                cell.scopeId === scope.id && cell.permission === permission
+                  ? { ...cell, override: decision }
+                  : cell
+              )
+            }
+          : current
+      );
+    }
+    void queryClient.invalidateQueries({
+      queryKey,
+      exact: true,
+      // The binary matrix derives inheritance from direct decisions, so its
+      // mutation response is enough to update the active view. Mark it stale
+      // for the next mount without replacing the whole visible matrix now.
+      refetchType: decisionMode === 'binary' ? 'none' : 'active'
+    });
+    if (!serverScope.isCurrent()) return;
+    if (mutationGeneration === generation) updatingKey = null;
   }
 </script>
 
-{#if error}
-  <Hint tone="danger">{error}</Hint>
+{#if ownerCapped}
+  <Hint tone="info">{m('settings.bots.permissions.owner_ceiling')}</Hint>
+{/if}
+
+{#if visibleMutationError || loadError}
+  <Hint tone="danger">{visibleMutationError ?? loadError}</Hint>
 {/if}
 
 {#if loading}
-  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
+  <div class="text-muted">{m('rbac.permissions.loading')}</div>
 {:else if !data}
-  <Hint tone="info">{m['rbac.permissions.no_data']()}</Hint>
+  <Hint tone="info">{m('rbac.permissions.no_data')}</Hint>
 {:else}
-  <SubjectPermissionsMatrix {data} {updatingKey} onCycle={handleCycle} subjectKind="user" />
+  <SubjectPermissionsMatrix
+    {data}
+    updatingKey={visibleUpdatingKey}
+    onCycle={handleCycle}
+    {subjectKind}
+    readOnly={decisionMode === 'tri-state' && visibleUpdatingKey !== null}
+    {decisionMode}
+  />
 {/if}

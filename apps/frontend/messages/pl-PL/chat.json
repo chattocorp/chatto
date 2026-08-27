@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Powiadomienia",
@@ -10,7 +9,19 @@
       "time_now": "Właśnie teraz",
       "time_minutes": "{count}m temu",
       "time_hours": "{count}h temu",
-      "time_days": "{count}d temu"
+      "time_days": "{count}d temu",
+      "unread": "Nieprzeczytane",
+      "activity": "Nowa aktywność",
+      "summary": {
+        "direct_message": "Masz nową wiadomość bezpośrednią od {actor}.",
+        "reaction": "Osoba {actor} zareagowała „{emoji}” na Twoją wiadomość w {channel}.",
+        "reaction_group": "Osoba {actor} i inni zareagowali „{emoji}” na Twoją wiadomość w {channel}.",
+        "reply": "Osoba {actor} odpowiedziała na Twoją wiadomość.",
+        "mention": "Osoba {actor} wspomniała o Tobie.",
+        "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku.",
+        "new_message": "Osoba {actor} opublikowała nową wiadomość.",
+        "activity": "Masz nowe powiadomienie od {actor}."
+      }
     },
     "sign_out": {
       "title": "Wyloguj się",
@@ -28,17 +39,16 @@
     },
     "user_menu": {
       "profile": "Profil użytkownika",
-      "send_message": "Wyślij wiadomość"
+      "send_message": "Wyślij wiadomość",
+      "copy_user_id": "Kopiuj identyfikator użytkownika"
     },
     "server_gutter": {
       "add_server": "Dodaj serwer",
       "version": "Wersja {version}",
       "version_unknown": "Nieznana wersja",
-      "compatibility_degraded": "Niektóre funkcje na żywo są niedostępne na tym serwerze.",
-      "compatibility_server_too_old": "Na tym serwerze działa starsza wersja. Niektóre funkcje mogą nie działać zgodnie z oczekiwaniami.",
-      "compatibility_client_too_old": "Ta aplikacja jest zbyt stara dla tego serwera. Odśwież ją lub zaktualizuj.",
-      "compatibility_unsupported": "Ten serwer nie obsługuje protokołów wymaganych przez tę aplikację.",
-      "compatibility_unknown": "Ten serwer nie udostępnia informacji o zgodności."
+      "unreachable": "Serwer jest niedostępny",
+      "compatibility_server_too_old": "Ten serwer musi zostać zaktualizowany do Chatto 0.5 lub nowszego, zanim ta aplikacja będzie mogła się połączyć.",
+      "compatibility_unknown": "Ta aplikacja nie może określić zgodności na podstawie wersji serwera."
     },
     "threads": {
       "title": "Moje wątki",
@@ -50,7 +60,7 @@
       "empty_body": "Wątki, które obserwujesz, pojawią się tutaj. Automatycznie obserwujesz wątki, w których bierzesz udział.",
       "no_unread_loaded": "Nie załadowano żadnych nieprzeczytanych wątków",
       "all_caught_up": "Wszystko nadrobione",
-      "loaded_count": "Załadowano następujące wątki {loaded} z {total}.",
+      "loaded_summary": "Załadowano następujące wątki {loaded} z {total}.",
       "load_more": "Załaduj więcej",
       "no_unread": "W tej chwili nie ma nieprzeczytanych wątków.",
       "message_missing": "Wiadomość nie jest już dostępna",

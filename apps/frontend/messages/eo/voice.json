@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Konektante...",
     "joining": "Aliĝo...",
@@ -11,6 +10,15 @@
     "leave": "Forlasu vokon",
     "share_screen": "Kunhavigi ekranon",
     "stop_share_screen": "Ĉesu kundividi ekranon",
+    "applications": "Aplikaĵoj",
+    "entire_screen": "Tuta ekrano",
+    "share_source": "Kunhaviga fonto",
+    "main_display": "Ĉefa ekrano",
+    "display_number": "Ekrano {number}",
+    "video_only": "Nur video",
+    "share_sources_failed": "Ne eblis ŝargi kundivideblajn fontojn.",
+    "no_share_windows": "Neniuj kundivideblaj aplikaĵaj fenestroj troviĝis.",
+    "no_share_displays": "Neniuj ekranoj troviĝis.",
     "user_settings": "Uzanto-Agordoj",
     "speaking": "Parolante",
     "muted": "Silentita",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Ne eblis komenci ekrankundividon.",
     "speaker_switch_failed": "Ne eblis ŝanĝi laŭtparolilojn. Ĉi tiu retumilo aŭ aparato eble ne subtenas elektadon de laŭtparoliloj.",
     "device_switch_failed": "Ne eblis ŝanĝi al tiu aparato.",
-    "media_device_failed": "Ne eblis aliri amaskomunikilaron."
+    "media_device_failed": "Ne eblis aliri amaskomunikilaron.",
+    "stream_game": "Fluigi ludon",
+    "stream_game_description": "Elektu la ludfenestron por kundividi kun ĉiuj en la alvoko.",
+    "game_windows": "Ludfenestroj",
+    "no_game_windows": "Neniuj kundivideblaj fenestroj troviĝis. Malfermu ludon en fenestra aŭ senranda reĝimo kaj reprovu.",
+    "game_windows_failed": "Ne eblis ŝargi kundivideblajn fenestrojn.",
+    "untitled_window": "Sentitola fenestro",
+    "game_window_selected": "{name} elektita"
   }
 }

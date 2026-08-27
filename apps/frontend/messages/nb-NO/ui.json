@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Bytt sidefelt",
     "notifications": "Varsler",
@@ -32,6 +31,19 @@
     "tooltip": {
       "more_information": "Mer informasjon",
       "about": "Om {subject}"
+    },
+    "easter_egg": {
+      "fire": "Avfyr en klar laser mot Chatto",
+      "points": "{count} poeng",
+      "laser_guns_count": {
+        "one": "{count} laserkanon",
+        "other": "{count} laserkanoner"
+      },
+      "laser_ready": "Laser {number}, styrke {power}, klar",
+      "laser_cooldown": "Laser {number}, styrke {power}: {seconds} sekunder nedkjøling gjenstår",
+      "upgrade_power": "Oppgrader laser {number} til styrkenivå {level} for {cost} poeng",
+      "buy_laser": "Kjøp laserkanon {number} for {cost} poeng",
+      "maximum_lasers": "Maksgrensen på {count} laserkanoner er nådd"
     },
     "pane_header": {
       "back": "Tilbake"

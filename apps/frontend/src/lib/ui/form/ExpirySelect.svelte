@@ -1,12 +1,12 @@
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import FormField from './FormField.svelte';
 
   type Preset = '24h' | '7d' | '30d' | 'indefinite' | 'custom';
 
   let {
     id,
-    label = m['ui.expiry.label'](),
+    label = m('ui.expiry.label'),
     value = $bindable<string | null>(null),
     valid = $bindable(true),
     disabled = false
@@ -22,19 +22,19 @@
   let customLocal = $state('');
 
   const presets: { value: Preset; label: string }[] = [
-    { value: '24h', label: m['ui.expiry.24h']() },
-    { value: '7d', label: m['ui.expiry.7d']() },
-    { value: '30d', label: m['ui.expiry.30d']() },
-    { value: 'indefinite', label: m['ui.expiry.indefinite']() },
-    { value: 'custom', label: m['ui.expiry.custom']() }
+    { value: '24h', label: m('ui.expiry.24h') },
+    { value: '7d', label: m('ui.expiry.7d') },
+    { value: '30d', label: m('ui.expiry.30d') },
+    { value: 'indefinite', label: m('ui.expiry.indefinite') },
+    { value: 'custom', label: m('ui.expiry.custom') }
   ];
 
   const customError = $derived.by(() => {
     if (preset !== 'custom') return null;
-    if (!customLocal) return m['ui.expiry.error_required']();
+    if (!customLocal) return m('ui.expiry.error_required');
     const date = new Date(customLocal);
-    if (Number.isNaN(date.getTime())) return m['ui.expiry.error_invalid']();
-    if (date <= new Date()) return m['ui.expiry.error_future']();
+    if (Number.isNaN(date.getTime())) return m('ui.expiry.error_invalid');
+    if (date <= new Date()) return m('ui.expiry.error_future');
     return null;
   });
 
@@ -76,7 +76,7 @@
   {#if preset === 'custom'}
     <FormField
       id={`${id}-custom`}
-      label={m['ui.expiry.custom_label']()}
+      label={m('ui.expiry.custom_label')}
       error={customError ?? undefined}
     >
       <input

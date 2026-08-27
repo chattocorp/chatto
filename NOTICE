@@ -14,6 +14,7 @@ Server and CLI Go Components:
 - age (https://filippo.io/age) - BSD 3-Clause License
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
 - AWS Smithy Go (https://github.com/aws/smithy-go) - Apache License 2.0
+- Bleve full-text search (https://github.com/blevesearch/bleve) - Apache License 2.0
 - Buf Protovalidate and generated protocol buffer tooling
   (https://protovalidate.com/, https://buf.build/) - Apache License 2.0
 - caarlos0/env (https://github.com/caarlos0/env) - MIT License
@@ -28,6 +29,7 @@ Server and CLI Go Components:
 - gin-contrib/sessions (https://github.com/gin-contrib/sessions) - MIT License
 - go-jwt (https://github.com/golang-jwt/jwt) - MIT License
 - go-mail (https://github.com/wneessen/go-mail) - MIT License
+- go-jose (https://github.com/go-jose/go-jose) - Apache License 2.0
 - go-nanoid (https://github.com/matoous/go-nanoid) - MIT License
 - go-smtp-mock (https://github.com/mocktools/go-smtp-mock) - MIT License
 - go-str2duration (https://github.com/xhit/go-str2duration) - BSD 3-Clause License
@@ -38,13 +40,18 @@ Server and CLI Go Components:
 - Goth OAuth/OIDC authentication (https://github.com/markbates/goth) -
   MIT License
 - imageorient (https://github.com/disintegration/imageorient) - MIT License
+- rs/cors (https://github.com/rs/cors) - MIT License
+- SCS session management (https://github.com/alexedwards/scs) - MIT License
 - LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
 - NATS Server, Go client, JSM, and nkeys (https://nats.io/) - Apache License 2.0
 - nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License
 - opengraph (https://github.com/otiai10/opengraph) - MIT License
+- Participle parser library (https://github.com/alecthomas/participle) - MIT License
 - Prometheus Go client (https://github.com/prometheus/client_golang) - Apache License 2.0
 - protoc-gen-doc (https://github.com/pseudomuto/protoc-gen-doc) - MIT License
 - Testify (https://github.com/stretchr/testify) - MIT License
+- templ (https://templ.guide/) - MIT License
+- ZITADEL OIDC (https://github.com/zitadel/oidc) - Apache License 2.0
 - Twirp (https://github.com/twitchtv/twirp) - Apache License 2.0
 - webpush-go (https://github.com/SherClockHolmes/webpush-go) - MIT License
 - Google Go libraries: x/crypto, x/image, x/oauth2, x/sync, x/term,
@@ -55,6 +62,8 @@ Frontend and Documentation Components:
 - Astro and Starlight (https://astro.build/) - MIT License
 - Buf Protobuf runtime and ES code generation for TypeScript
   (https://github.com/bufbuild/protobuf-es) - Apache License 2.0
+- CodeMirror and Lezer (https://codemirror.net/, https://lezer.codemirror.net/) -
+  MIT License
 - ConnectRPC for Web and Connect-ES code generation
   (https://connectrpc.com/) - Apache License 2.0
 - ESLint packages (https://eslint.org/) - MIT License and Apache License 2.0
@@ -64,6 +73,7 @@ Frontend and Documentation Components:
 - gemoji (https://github.com/github/gemoji) - MIT License
 - heic2any (https://github.com/alexcorvi/heic2any) - MIT License
 - highlight.js (https://highlightjs.org/) - BSD 3-Clause License
+- hls.js (https://github.com/video-dev/hls.js) - Apache License 2.0
 - Iconify packages (https://iconify.design/) - MIT License
 - js-sha256 (https://github.com/emn178/js-sha256) - MIT License
 - linkify-it (https://github.com/markdown-it/linkify-it) - MIT License
@@ -79,6 +89,7 @@ Frontend and Documentation Components:
 - Storybook packages (https://storybook.js.org/) - MIT License
 - Svelte, SvelteKit, Svelte check, and Svelte tooling
   (https://svelte.dev/) - MIT License
+- TanStack Query (https://tanstack.com/query) - MIT License
 - svelte-dnd-action (https://github.com/isaacHagoel/svelte-dnd-action) -
   MIT License
 - Tailwind CSS packages (https://tailwindcss.com/) - MIT License
@@ -91,6 +102,21 @@ Frontend and Documentation Components:
 - Virtua (https://github.com/inokawa/virtua) - MIT License
 - Vite and Vitest (https://vite.dev/, https://vitest.dev/) - MIT License
 - zod (https://zod.dev/) - MIT License
+
+Desktop Components:
+
+- Electron (https://www.electronjs.org/) - MIT License; Copyright OpenJS
+  Foundation and Electron contributors
+- LiveKit client SDK for Swift (https://github.com/livekit/client-sdk-swift) -
+  Apache License 2.0; Copyright 2023 LiveKit, Inc.
+- LiveKit UniFFI XCFramework
+  (https://github.com/livekit/livekit-uniffi-xcframework) - Apache License 2.0
+- LiveKit WebRTC XCFramework (https://github.com/livekit/webrtc-xcframework) -
+  MIT License; Copyright 2021 WebRTC SDKs; bundled WebRTC is BSD 3-Clause and
+  includes third-party components under their respective licences
+- Swift Protobuf (https://github.com/apple/swift-protobuf) - Apache License 2.0
+- Chromium (https://www.chromium.org/) - BSD 3-Clause License and other
+  licences included in Electron's bundled `LICENSES.chromium.html`
 
 Upstream NOTICE Text:
 
@@ -120,11 +146,12 @@ Copyright 2018 Twitch Interactive, Inc. All Rights Reserved.
 Trademark Notice:
 Chatto's source code uses mixed licensing. The default repository license is
 the GNU Affero General Public License version 3 or any later version, with
-Apache License 2.0 exceptions for selected frontend, integration, and
-documentation surfaces as annotated in REUSE.toml. These licenses do not grant
-permission to use the "Chatto" name, Chatto logos, or other Chatto marks except
-as otherwise permitted by law. "Chatto" and the Chatto logos are marks and
-trade names of ChattoCorp GmbH, and are not registered trademarks at this time.
+Apache License 2.0 exceptions for the independently versioned shared framework
+modules and selected frontend, integration, and documentation surfaces as
+annotated in REUSE.toml. These licenses do not grant permission to use the
+"Chatto" name, Chatto logos, or other Chatto marks except as otherwise
+permitted by law. "Chatto" and the Chatto logos are marks and trade names of
+ChattoCorp GmbH, and are not registered trademarks at this time.
 
 You may truthfully refer to Chatto to describe the origin of the software, for
 example by saying that a project is "based on Chatto" or "forked from Chatto".

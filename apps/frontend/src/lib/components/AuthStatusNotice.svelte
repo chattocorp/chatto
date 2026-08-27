@@ -4,7 +4,7 @@
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
   import { TopOverlayNotice } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let reconnectingServerId = $state<string | null>(null);
 
@@ -12,9 +12,7 @@
   const originNeedsReauth = $derived(originServer?.reauthRequiredAt != null);
   const activeServer = $derived(serverRegistry.getServer(getActiveServer()));
   const activeRemoteNeedsReauth = $derived(
-    !!activeServer &&
-      activeServer.id !== originServer?.id &&
-      activeServer.reauthRequiredAt != null
+    !!activeServer && activeServer.id !== originServer?.id && activeServer.reauthRequiredAt != null
   );
 
   const noticeServer = $derived.by<RegisteredServer | null>(() => {
@@ -30,7 +28,7 @@
       await startRemoteReauthentication(server);
     } catch {
       reconnectingServerId = null;
-      toast.error(m['ui.auth_status.remote_failed']());
+      toast.error(m('ui.auth_status.remote_failed'));
     }
   }
 </script>
@@ -39,17 +37,15 @@
   <TopOverlayNotice
     tone="warning"
     title={isOriginNotice
-      ? m['ui.auth_status.origin_title']()
-      : m['ui.auth_status.remote_title']({ server: noticeServer.name })}
+      ? m('ui.auth_status.origin_title')
+      : m('ui.auth_status.remote_title', { server: noticeServer.name })}
     message={isOriginNotice
-      ? m['ui.auth_status.origin_message']()
-      : m['ui.auth_status.remote_message']()}
+      ? m('ui.auth_status.origin_message')
+      : m('ui.auth_status.remote_message')}
     loading={reconnectingServerId === noticeServer.id}
     primaryAction={{
-      label: isOriginNotice
-        ? m['ui.auth_status.origin_action']()
-        : m['ui.auth_status.remote_action'](),
-      icon: 'uil--signin',
+      label: isOriginNotice ? m('ui.auth_status.origin_action') : m('ui.auth_status.remote_action'),
+      icon: 'icon-[uil--signin]',
       onclick: () => {
         if (isOriginNotice) {
           beginOriginReauthentication();

@@ -37,22 +37,22 @@
   <div class="grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-4">
     <StatCard
       color="action"
-      icon="iconify uil--users-alt"
+      icon="iconify icon-[uil--users-alt]"
       value={713}
       label="Users"
       subtitle="+12 this week"
     />
-    <StatCard color="success" icon="iconify uil--building" value={5} label="Spaces" />
+    <StatCard color="success" icon="iconify icon-[uil--building]" value={5} label="Spaces" />
     <StatCard
       color="warning"
-      icon="iconify uil--message"
+      icon="iconify icon-[uil--message]"
       value="48,221"
       label="Messages"
       subtitle="all-time"
     />
     <StatCard
       color="danger"
-      icon="iconify uil--exclamation-triangle"
+      icon="iconify icon-[uil--exclamation-triangle]"
       value={3}
       label="Failed jobs"
       subtitle="last 24h"

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "preview": {
     "dismiss": "Descartar vista previa",
     "delete": "Eliminar vista previa",

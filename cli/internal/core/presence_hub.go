@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -41,22 +42,24 @@ type PresenceHub struct {
 	memoryCacheKV jetstream.KeyValue
 	logger        *log.Logger
 
-	mu          sync.Mutex
-	subscribers map[uint64]*PresenceSubscription
-	nextID      uint64
-	snapshot    map[string]string // current presence state (built during init sync)
-	ready       chan struct{}     // closed when initial sync is complete
-	readyOnce   sync.Once         // ensures ready is closed exactly once
+	mu             sync.Mutex
+	subscribers    map[uint64]*PresenceSubscription
+	nextID         uint64
+	snapshot       map[string]string // current presence state (built during init sync)
+	ready          chan struct{}     // closed when initial sync is complete
+	readyOnce      sync.Once         // ensures ready is closed exactly once
+	resyncRequests chan chan error
 }
 
 // NewPresenceHub creates a PresenceHub. Call Run() to start it.
 func NewPresenceHub(memoryCacheKV jetstream.KeyValue, logger *log.Logger) *PresenceHub {
 	return &PresenceHub{
-		memoryCacheKV: memoryCacheKV,
-		logger:        logger,
-		subscribers:   make(map[uint64]*PresenceSubscription),
-		snapshot:      make(map[string]string),
-		ready:         make(chan struct{}),
+		memoryCacheKV:  memoryCacheKV,
+		logger:         logger,
+		subscribers:    make(map[uint64]*PresenceSubscription),
+		snapshot:       make(map[string]string),
+		ready:          make(chan struct{}),
+		resyncRequests: make(chan chan error),
 	}
 }
 
@@ -95,80 +98,127 @@ func (h *PresenceHub) GetUserPresences(ctx context.Context, userIDs []string) (m
 // Run starts the KV watcher and fans out updates to subscribers.
 // Blocks until ctx is cancelled. Should be started in an errgroup.
 func (h *PresenceHub) Run(ctx context.Context) error {
-	watcher, err := h.memoryCacheKV.Watch(ctx, "presence.>")
-	if err != nil {
-		return fmt.Errorf("presence hub: failed to create watcher: %w", err)
-	}
-	defer watcher.Stop()
-
 	h.logger.Debug("Presence hub started")
 	defer h.logger.Debug("Presence hub stopped")
 
-	syncComplete := false
-
+	var pendingResync chan error
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-
-		case entry := <-watcher.Updates():
-			if entry == nil {
-				// Initial sync complete (may fire more than once on watcher reconnect)
-				syncComplete = true
-				h.readyOnce.Do(func() { close(h.ready) })
-				h.logger.Debug("Presence hub initial sync complete", "entries", len(h.snapshot))
-				continue
-			}
-
-			userID, ok := parsePresenceKey(entry.Key())
-			if !ok {
-				continue
-			}
-
-			var status string
-
-			if entry.Operation() == jetstream.KeyValueDelete ||
-				entry.Operation() == jetstream.KeyValuePurge {
-				status = PresenceStatusOffline
-			} else {
-				var presence corev1.UserPresence
-				if err := proto.Unmarshal(entry.Value(), &presence); err != nil {
-					h.logger.Warn("Presence hub: failed to unmarshal", "error", err, "user_id", userID)
+		watcher, err := h.memoryCacheKV.Watch(ctx, "presence.>")
+		if err != nil {
+			if pendingResync != nil {
+				select {
+				case <-ctx.Done():
+					pendingResync <- ctx.Err()
+					return ctx.Err()
+				case <-time.After(natsRecoveryRetryWait):
 					continue
 				}
-				status = presenceStatusToString(presence.Status)
 			}
+			return fmt.Errorf("presence hub: failed to create watcher: %w", err)
+		}
 
-			h.mu.Lock()
-
-			previous, hadPrevious := h.snapshot[userID]
-			if status == PresenceStatusOffline {
-				delete(h.snapshot, userID)
-			} else {
-				h.snapshot[userID] = status
+		syncComplete := false
+		restart := false
+		for !restart {
+			var resyncRequests <-chan chan error
+			if pendingResync == nil {
+				resyncRequests = h.resyncRequests
 			}
-
-			// Only fan out after initial sync is complete, and only when the
-			// per-user status actually changed.
-			changed := previous != status
-			if status == PresenceStatusOffline && !hadPrevious {
-				changed = false
-			}
-			if syncComplete && changed {
-				update := PresenceUpdate{UserID: userID, Status: status}
-				for _, sub := range h.subscribers {
-					select {
-					case sub.ch <- update:
-					default:
-						sub.lagged.Store(true)
-						delete(h.subscribers, sub.id)
-						close(sub.done)
-						close(sub.ch)
-					}
+			select {
+			case <-ctx.Done():
+				watcher.Stop()
+				if pendingResync != nil {
+					pendingResync <- ctx.Err()
 				}
+				return ctx.Err()
+			case pendingResync = <-resyncRequests:
+				h.mu.Lock()
+				h.snapshot = make(map[string]string)
+				h.mu.Unlock()
+				restart = true
+			case entry, ok := <-watcher.Updates():
+				if !ok {
+					watcher.Stop()
+					if err := ctx.Err(); err != nil {
+						return err
+					}
+					return fmt.Errorf("presence hub: watcher stopped")
+				}
+				if entry == nil {
+					syncComplete = true
+					h.readyOnce.Do(func() { close(h.ready) })
+					if pendingResync != nil {
+						pendingResync <- nil
+						pendingResync = nil
+					}
+					h.mu.Lock()
+					entries := len(h.snapshot)
+					h.mu.Unlock()
+					h.logger.Debug("Presence hub sync complete", "entries", entries)
+					continue
+				}
+				h.applyWatcherEntry(entry, syncComplete)
 			}
+		}
+		watcher.Stop()
+	}
+}
 
-			h.mu.Unlock()
+// Resync replaces the watcher and waits for its latest-value snapshot.
+func (h *PresenceHub) Resync(ctx context.Context) error {
+	done := make(chan error, 1)
+	select {
+	case h.resyncRequests <- done:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (h *PresenceHub) applyWatcherEntry(entry jetstream.KeyValueEntry, fanOut bool) {
+	userID, ok := parsePresenceKey(entry.Key())
+	if !ok {
+		return
+	}
+
+	status := PresenceStatusOffline
+	if entry.Operation() != jetstream.KeyValueDelete && entry.Operation() != jetstream.KeyValuePurge {
+		var presence corev1.UserPresence
+		if err := proto.Unmarshal(entry.Value(), &presence); err != nil {
+			h.logger.Warn("Presence hub: failed to unmarshal", "error", err, "user_id", userID)
+			return
+		}
+		status = presenceStatusToString(presence.Status)
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	previous, hadPrevious := h.snapshot[userID]
+	if status == PresenceStatusOffline {
+		delete(h.snapshot, userID)
+	} else {
+		h.snapshot[userID] = status
+	}
+	changed := previous != status
+	if status == PresenceStatusOffline && !hadPrevious {
+		changed = false
+	}
+	if fanOut && changed {
+		update := PresenceUpdate{UserID: userID, Status: status}
+		for _, sub := range h.subscribers {
+			select {
+			case sub.ch <- update:
+			default:
+				sub.lagged.Store(true)
+				delete(h.subscribers, sub.id)
+				close(sub.done)
+				close(sub.ch)
+			}
 		}
 	}
 }

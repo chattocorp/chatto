@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "common": {
     "cancel": "Cancelar",
     "close_sidebar": "Fechar barra lateral",

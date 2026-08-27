@@ -68,11 +68,12 @@ test.describe('Link previews', () => {
     await expect(composerPreview).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Now send — the preview data is included in the mutation
-    await roomPage.messageInput.press('Enter');
-    await expect(page.getByText(messageText)).toBeVisible();
+    await roomPage.messageInput.press('Control+Enter');
+    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    await expect(postedMessage).toBeVisible();
 
     // The preview should be visible on the posted message (stored at post-time)
-    const previewCard = page.getByTestId('link-preview-card');
+    const previewCard = postedMessage.getByTestId('link-preview-card');
     await expect(previewCard).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Verify the OG metadata is rendered correctly
@@ -119,11 +120,12 @@ test.describe('Link previews', () => {
     });
 
     // Send the message (preview data included in mutation)
-    await roomPage.messageInput.press('Enter');
-    await expect(page.getByText(messageText)).toBeVisible();
+    await roomPage.messageInput.press('Control+Enter');
+    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    await expect(postedMessage).toBeVisible();
 
     // Wait for the preview to appear on the posted message
-    const previewCard = page.getByTestId('link-preview-card');
+    const previewCard = postedMessage.getByTestId('link-preview-card');
     await expect(previewCard).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Hover to reveal the delete button, then click it
@@ -165,18 +167,19 @@ test.describe('Link previews', () => {
     });
 
     // Send the message (preview data included in mutation)
-    await roomPage.messageInput.press('Enter');
-    await expect(page.getByText(messageText)).toBeVisible();
+    await roomPage.messageInput.press('Control+Enter');
+    const postedMessage = page.locator('[role="article"]', { hasText: messageText });
+    await expect(postedMessage).toBeVisible();
 
     // Wait for the first preview to appear
-    const previewCard = page.getByTestId('link-preview-card');
+    const previewCard = postedMessage.getByTestId('link-preview-card');
     await expect(previewCard).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Only the first URL should have a preview
     await expect(previewCard.getByText('Test Page Title')).toBeVisible();
 
     // There should be exactly one preview card, not two
-    await expect(page.getByTestId('link-preview-card')).toHaveCount(1);
+    await expect(postedMessage.getByTestId('link-preview-card')).toHaveCount(1);
   });
 
   test('YouTube URL shows embed in composer', async ({ page, chatPage, roomPage }) => {

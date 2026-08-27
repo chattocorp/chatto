@@ -28,10 +28,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/email"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -184,7 +185,14 @@ func (env *assetTestEnv) login(t *testing.T, login, password string) {
 	t.Helper()
 
 	loginBody := fmt.Sprintf(`{"login":"%s","password":"%s"}`, login, password)
-	resp, err := env.client.Post(env.server.URL+"/auth/login", "application/json", bytes.NewReader([]byte(loginBody)))
+	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/auth/browser/login", bytes.NewReader([]byte(loginBody)))
+	if err != nil {
+		t.Fatalf("Create login request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	req.Header.Set("Origin", env.server.URL)
+	resp, err := env.client.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}
@@ -243,10 +251,13 @@ func appendRoomTimelineAssetTestEvent(t *testing.T, env *assetTestEnv, roomID st
 	event.Id = core.NewEventID()
 	event.ActorId = core.SystemActorID
 	event.CreatedAt = timestamppb.Now()
-	if _, err := env.core.RoomTimelineProjector.AppendEventuallyAndWait(
-		env.ctx, env.core.EventPublisher, events.RoomAggregate(roomID), event,
+	if _, err := env.core.EventPublisher.AppendEventually(
+		env.ctx, evtstream.RoomAggregate(roomID).SubjectFor(event), event,
 	); err != nil {
 		t.Fatalf("append room timeline fixture: %v", err)
+	}
+	if err := env.core.WaitForProjectionsCurrent(env.ctx); err != nil {
+		t.Fatalf("wait for room timeline fixture projections: %v", err)
 	}
 }
 
@@ -255,10 +266,13 @@ func appendAssetProjectionTestEvent(t *testing.T, env *assetTestEnv, assetID str
 	event.Id = core.NewEventID()
 	event.ActorId = core.SystemActorID
 	event.CreatedAt = timestamppb.Now()
-	if _, err := env.core.AssetsProjector.AppendEventuallyAndWait(
-		env.ctx, env.core.EventPublisher, events.AssetAggregate(assetID), event,
+	if _, err := env.core.EventPublisher.AppendEventually(
+		env.ctx, evtstream.AssetAggregate(assetID).SubjectFor(event), event,
 	); err != nil {
 		t.Fatalf("append asset fixture: %v", err)
+	}
+	if err := env.core.WaitForProjectionsCurrent(env.ctx); err != nil {
+		t.Fatalf("wait for asset fixture projections: %v", err)
 	}
 }
 
@@ -592,6 +606,9 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 	if originalResp.StatusCode != http.StatusOK {
 		t.Errorf("Expected 200 OK, got %d", originalResp.StatusCode)
 	}
+	if got := originalResp.Header.Get("Accept-Ranges"); got != "none" {
+		t.Errorf("Expected Accept-Ranges: none, got %q", got)
+	}
 
 	// Should have correct content type
 	contentType := originalResp.Header.Get("Content-Type")
@@ -606,6 +623,32 @@ func TestAsset_OriginalAttachment_ServesCorrectly(t *testing.T) {
 	}
 	if len(body) == 0 {
 		t.Error("Expected non-empty response body")
+	}
+
+	// Chatto-backed attachments intentionally ignore Range and return the full
+	// object. Deployments that need seekable media should use S3 redirects.
+	rangeRequest, err := http.NewRequest(http.MethodGet, env.server.URL+attachmentURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to create range request: %v", err)
+	}
+	rangeRequest.Header.Set("Range", "bytes=1-2")
+	rangeResp, err := env.client.Do(rangeRequest)
+	if err != nil {
+		t.Fatalf("Failed to get ranged original attachment: %v", err)
+	}
+	defer rangeResp.Body.Close()
+	if rangeResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected full 200 response for Range request, got %d", rangeResp.StatusCode)
+	}
+	if got := rangeResp.Header.Get("Accept-Ranges"); got != "none" {
+		t.Fatalf("Expected Accept-Ranges: none, got %q", got)
+	}
+	rangeBody, err := io.ReadAll(rangeResp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read ranged response body: %v", err)
+	}
+	if !bytes.Equal(rangeBody, imageData) {
+		t.Fatal("Range request did not return the complete attachment")
 	}
 }
 
@@ -741,7 +784,7 @@ func TestAsset_StableS3ImageStreamsThroughChattoByDefault(t *testing.T) {
 
 func TestAsset_StableS3VideoRedirectsUnlessProxyForcesStream(t *testing.T) {
 	env := setupAssetTestServerWithS3AndVideo(t)
-	env.core.OnVideoProcessingRequested = func(context.Context, string, string) error { return nil }
+	env.core.VideoUploadsEnabled = true
 
 	user, err := env.core.CreateUser(env.ctx, "system", "s3videouser", "S3 Video User", "password123")
 	if err != nil {
@@ -793,7 +836,7 @@ func TestAsset_StableS3VideoRedirectsUnlessProxyForcesStream(t *testing.T) {
 
 func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 	env := setupAssetTestServerWithS3AndVideo(t)
-	env.core.OnVideoProcessingRequested = func(context.Context, string, string) error { return nil }
+	env.core.VideoUploadsEnabled = true
 
 	user, err := env.core.CreateUser(env.ctx, "system", "s3legacyvideouser", "S3 Legacy Video User", "password123")
 	if err != nil {
@@ -822,7 +865,7 @@ func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 		t.Fatal("Expected stable attachment URL")
 	}
 
-	if err := env.core.Assets.Apply(&corev1.Event{
+	appendAssetProjectionTestEvent(t, env, attachment.GetId(), &corev1.Event{
 		Id: "E-storage-less-" + attachment.GetId(),
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -836,9 +879,7 @@ func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 				},
 			},
 		},
-	}, 999); err != nil {
-		t.Fatalf("Failed to project storage-less asset metadata: %v", err)
-	}
+	})
 
 	noRedirectClient := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -1672,6 +1713,182 @@ func TestAsset_StableURLOnS3IsCapability(t *testing.T) {
 	}
 }
 
+func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		setup func(*testing.T) *assetTestEnv
+	}{
+		{name: "NATS", setup: setupAssetTestServer},
+		{name: "S3", setup: setupAssetTestServerWithS3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := tt.setup(t)
+			login := "hls-" + strings.ToLower(tt.name)
+			viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, login, "HLS Viewer", "password123")
+			if err != nil {
+				t.Fatalf("CreateUser: %v", err)
+			}
+			room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", login+"-room", "HLS Room")
+			if err != nil {
+				t.Fatalf("CreateRoom: %v", err)
+			}
+			if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+				t.Fatalf("JoinRoom: %v", err)
+			}
+
+			original, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("source")))
+			if err != nil {
+				t.Fatalf("UploadAttachment: %v", err)
+			}
+			segment, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment-bytes")))
+			if err != nil {
+				t.Fatalf("UploadDerivativeAttachment(segment): %v", err)
+			}
+			if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, room.Id, "E-hls", original.GetId()); err != nil {
+				t.Fatalf("RecordAssetProcessingStarted: %v", err)
+			}
+			hls := &corev1.AssetProcessedHLS{
+				Renditions: []*corev1.AssetHLSRendition{{
+					Width: 640, Height: 360, Bandwidth: 500000,
+					Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 6000}},
+				}},
+			}
+			if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, room.Id, "E-hls", original.GetId(), 6000, 640, 360, nil, nil, hls); err != nil {
+				t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
+			}
+
+			masterURL := env.core.GetStableHLSMasterPlaylistAssetURL(original.GetId(), viewer.Id).URL
+			plainClient := &http.Client{}
+			masterResp, err := plainClient.Get(env.server.URL + masterURL)
+			if err != nil {
+				t.Fatalf("GET master: %v", err)
+			}
+			masterBody, _ := io.ReadAll(masterResp.Body)
+			masterResp.Body.Close()
+			if masterResp.StatusCode != http.StatusOK {
+				t.Fatalf("master status = %d, body = %s", masterResp.StatusCode, masterBody)
+			}
+			mediaURL := firstHLSURI(t, masterBody)
+			if !strings.Contains(mediaURL, "/renditions/0/playlist.m3u8?access=") {
+				t.Fatalf("rewritten media URL = %q", mediaURL)
+			}
+
+			mediaResp, err := plainClient.Get(env.server.URL + mediaURL)
+			if err != nil {
+				t.Fatalf("GET media: %v", err)
+			}
+			mediaBody, _ := io.ReadAll(mediaResp.Body)
+			mediaResp.Body.Close()
+			if mediaResp.StatusCode != http.StatusOK {
+				t.Fatalf("media status = %d, body = %s", mediaResp.StatusCode, mediaBody)
+			}
+			segmentURL := firstHLSURI(t, mediaBody)
+			segmentResp, err := plainClient.Get(env.server.URL + segmentURL)
+			if err != nil {
+				t.Fatalf("GET segment: %v", err)
+			}
+			segmentBody, _ := io.ReadAll(segmentResp.Body)
+			segmentResp.Body.Close()
+			if segmentResp.StatusCode != http.StatusOK || string(segmentBody) != "segment-bytes" {
+				t.Fatalf("segment status/body = %d/%q", segmentResp.StatusCode, segmentBody)
+			}
+
+			if err := env.core.LeaveRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+				t.Fatalf("LeaveRoom: %v", err)
+			}
+			revoked, err := plainClient.Get(env.server.URL + masterURL)
+			if err != nil {
+				t.Fatalf("GET revoked master: %v", err)
+			}
+			revoked.Body.Close()
+			if revoked.StatusCode != http.StatusForbidden {
+				t.Fatalf("revoked master status = %d, want 403", revoked.StatusCode)
+			}
+		})
+	}
+}
+
+func TestHLSDerivativeRequiresExpectedParentAndRole(t *testing.T) {
+	env := setupAssetTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "hls-derivative", "HLS Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "hls-derivative-room", "HLS Room")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	original, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("source")))
+	if err != nil {
+		t.Fatalf("UploadAttachment(original): %v", err)
+	}
+	otherOriginal, err := env.core.UploadAttachment(env.ctx, viewer.Id, room.Id, "other.mp4", "video/mp4", bytes.NewReader([]byte("other source")))
+	if err != nil {
+		t.Fatalf("UploadAttachment(other): %v", err)
+	}
+	wrongParent, err := env.core.UploadDerivativeAttachment(env.ctx, otherOriginal.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "other-segment.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment(wrong parent): %v", err)
+	}
+	wrongRole, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment(wrong role): %v", err)
+	}
+
+	server := &HTTPServer{core: env.core}
+	for _, tt := range []struct {
+		name    string
+		assetID string
+	}{
+		{name: "wrong parent", assetID: wrongParent.GetId()},
+		{name: "wrong role", assetID: wrongRole.GetId()},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			if _, ok := server.hlsDerivative(c, original.GetId(), tt.assetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT); ok {
+				t.Fatal("hlsDerivative accepted an unrelated derivative")
+			}
+			if recorder.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404", recorder.Code)
+			}
+		})
+	}
+}
+
+func firstHLSURI(t *testing.T, playlist []byte) string {
+	t.Helper()
+	for line := range strings.SplitSeq(string(playlist), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			return line
+		}
+	}
+	t.Fatal("playlist contained no URI")
+	return ""
+}
+
+func TestRenderHLSPlaylistsFromManifest(t *testing.T) {
+	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{
+		Width: 640, Height: 360, Bandwidth: 500_000,
+		Segments: []*corev1.AssetHLSSegment{{AssetId: "A-one", DurationMs: 6000}, {AssetId: "A-two", DurationMs: 1500}},
+	}}}
+	master, err := renderHLSMasterPlaylist(hls, func(index int) string { return fmt.Sprintf("/rendition/%d", index) })
+	if err != nil {
+		t.Fatalf("render master: %v", err)
+	}
+	if got := string(master); !strings.Contains(got, "BANDWIDTH=500000,RESOLUTION=640x360\n/rendition/0") {
+		t.Fatalf("master playlist = %q", got)
+	}
+	media, err := renderHLSMediaPlaylist(hls.GetRenditions()[0], func(index int) string { return fmt.Sprintf("/segment/%d", index) })
+	if err != nil {
+		t.Fatalf("render media: %v", err)
+	}
+	if got := string(media); !strings.Contains(got, "#EXT-X-TARGETDURATION:6") || !strings.Contains(got, "#EXTINF:1.500,\n/segment/1") || !strings.HasSuffix(got, "#EXT-X-ENDLIST\n") {
+		t.Fatalf("media playlist = %q", got)
+	}
+}
+
 // TestAsset_RevokedMembership_RevokesStableURL covers the "kick / leave"
 // path under the per-user access-ticket model.
 func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {
@@ -1739,5 +1956,107 @@ func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {
 	thumb2.Body.Close()
 	if thumb2.StatusCode != http.StatusForbidden {
 		t.Errorf("expected cached thumbnail ticket to fail after leave, got %d", thumb2.StatusCode)
+	}
+}
+
+func TestAsset_RevokedMessageReadRevokesStableURL(t *testing.T) {
+	env := setupAssetTestServerWithS3(t)
+
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "asset-read-viewer", "Asset Read Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "asset-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	env.login(t, "asset-read-viewer", "password123")
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "private", createAssetTestPNG(t, 64, 64), "private.png")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	plainClient := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
+
+	before, err := plainClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("GET before denial: %v", err)
+	}
+	before.Body.Close()
+	if before.StatusCode != http.StatusOK {
+		t.Fatalf("status before denial = %d, want 200", before.StatusCode)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
+	after, err := plainClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("GET after denial: %v", err)
+	}
+	after.Body.Close()
+	if after.StatusCode != http.StatusForbidden {
+		t.Fatalf("status after denial = %d, want 403", after.StatusCode)
+	}
+}
+
+func TestAsset_InteractionReaderCanFetchStableURL(t *testing.T) {
+	env := setupAssetTestServerWithS3(t)
+
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "asset-interaction-author", "Asset Interaction Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reader, err := env.core.CreateUser(env.ctx, core.SystemActorID, "asset-interaction-reader", "Asset Interaction Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, author.GetId(), core.KindChannel, "", "asset-interaction-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.GetId(), reader.GetId()} {
+		if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.GetId(), core.RoleEveryone, core.PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.GetId(), reader.GetId(), core.PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+
+	env.login(t, "asset-interaction-author", "password123")
+	messageID, _ := env.postAssetMessageWithAttachment(
+		t, room.GetId(), "@asset-interaction-reader related attachment", createAssetTestPNG(t, 64, 64), "related.png",
+	)
+
+	env.login(t, "asset-interaction-reader", "password123")
+	messages := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
+	message, err := messages.GetMessage(env.ctx, connect.NewRequest(&apiv1.GetMessageRequest{
+		RoomId: room.GetId(), EventId: messageID,
+	}))
+	if err != nil {
+		t.Fatalf("GetMessage as interaction reader: %v", err)
+	}
+	attachments := message.Msg.GetMessage().GetAttachments()
+	if len(attachments) != 1 {
+		t.Fatalf("interaction-scoped message attachments = %d, want 1", len(attachments))
+	}
+	attachmentURL := attachments[0].GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("interaction-scoped attachment URL is empty")
+	}
+	plainClient := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
+	response, err := plainClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("GET interaction-scoped attachment: %v", err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("interaction-scoped attachment status = %d, want 200", response.StatusCode)
 	}
 }

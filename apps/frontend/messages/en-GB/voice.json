@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Connecting...",
     "joining": "Joining...",
@@ -11,6 +10,15 @@
     "leave": "Leave call",
     "share_screen": "Share screen",
     "stop_share_screen": "Stop sharing screen",
+    "applications": "Applications",
+    "entire_screen": "Entire screen",
+    "share_source": "Share source",
+    "main_display": "Main display",
+    "display_number": "Display {number}",
+    "video_only": "Video only",
+    "share_sources_failed": "Could not load shareable sources.",
+    "no_share_windows": "No shareable application windows found.",
+    "no_share_displays": "No displays found.",
     "user_settings": "User Settings",
     "speaking": "Speaking",
     "muted": "Muted",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Could not start screen sharing.",
     "speaker_switch_failed": "Could not switch speakers. This browser or device may not support speaker selection.",
     "device_switch_failed": "Could not switch to that device.",
-    "media_device_failed": "Could not access a media device."
+    "media_device_failed": "Could not access a media device.",
+    "stream_game": "Stream a game",
+    "stream_game_description": "Choose the game window to share with everyone in the call.",
+    "game_windows": "Game windows",
+    "no_game_windows": "No shareable windows found. Open a game in windowed or borderless mode and try again.",
+    "game_windows_failed": "Could not load shareable windows.",
+    "untitled_window": "Untitled window",
+    "game_window_selected": "{name} selected"
   }
 }

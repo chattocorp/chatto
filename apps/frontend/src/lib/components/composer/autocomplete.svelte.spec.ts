@@ -1,7 +1,8 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect } from 'vitest';
-import { PresenceStatus } from '$lib/render/types';
+
 import type { RoomMember } from '$lib/state/room';
-import type { TipTapEditorApi } from './TipTapEditor.svelte';
+import type { ComposerEditorApi } from './editorTypes';
 import { AutocompleteState } from './autocomplete.svelte';
 
 function member(login: string, displayName = login, deleted = false): RoomMember {
@@ -11,7 +12,7 @@ function member(login: string, displayName = login, deleted = false): RoomMember
     displayName,
     deleted,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 
@@ -19,7 +20,7 @@ function editor(
   initialText: string,
   initialCursor = initialText.length
 ): {
-  api: TipTapEditorApi;
+  api: ComposerEditorApi;
   getText: () => string;
   setText: (text: string) => void;
   setCursor: (position: number) => void;
@@ -34,6 +35,7 @@ function editor(
         cursor = text.length;
       },
       focus: () => {},
+      performEnter: () => {},
       getTextBeforeCursor: () => text.slice(0, cursor),
       isInCodeBlock: () => false,
       replaceTextBeforeCursor: (charCount, replacement) => {
@@ -45,7 +47,7 @@ function editor(
         cursor += inserted.length;
       },
       toggleFormatting: () => {},
-      insertBlockBreak: () => {},
+      adjustIndent: () => false,
       insertQuote: () => {}
     },
     getText: () => text,

@@ -1,7 +1,6 @@
 # Docker Assets
 
-This directory contains Docker build assets used by development, CI, and release
-automation.
+This directory contains Docker build assets used by CI and release automation.
 
 ## Files
 
@@ -21,10 +20,6 @@ automation.
   explicit operator overrides.
 - `Dockerfile.frontend.prebuilt` packages the already-built frontend static
   files into the release-only `ghcr.io/chattocorp/chatto-client` image.
-- `Dockerfile.dev` is the backend development image for containerized local or
-  cluster development.
-- `Dockerfile.frontend.dev` is the frontend development image used by
-  containerized local or cluster development.
 - `*.dockerignore` files are scoped to individual root-context Dockerfiles.
   Keep them next to the Dockerfile they apply to instead of recreating a broad
   root `.dockerignore`.

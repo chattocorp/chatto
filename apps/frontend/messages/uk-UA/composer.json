@@ -1,11 +1,12 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "Прикріпити файл",
     "send": "Надіслати повідомлення",
-    "send_enter": "Надіслати повідомлення (Enter)",
-    "send_ctrl_enter": "Надіслати повідомлення (Ctrl/Cmd+Enter)",
+    "send_label": "Надіслати",
     "also_send_to_channel": "Також надіслати на канал",
+    "post_as_thread": "Опублікувати як гілку",
+    "thread_label": "Тема",
+    "echo_label": "Ехо",
     "replying_to": "Відповідаю",
     "esc_to_cancel": ", щоб скасувати",
     "editing": "Редагування повідомлення",
@@ -21,7 +22,23 @@
     "drop_files_title": "Перетягніть файли сюди",
     "drop_files_subtitle": "До вашого повідомлення буде додано зображення та відео",
     "send_failed": "Не вдалося надіслати повідомлення",
+    "slow_mode_ready": "Повільний режим: одне повідомлення кожні {interval}.",
+    "slow_mode_waiting": "Повільний режим: повторне надсилання через {countdown}.",
+    "slow_mode_bypassed": "Повільний режим: {interval} (обмеження на вас не діє).",
+    "slow_mode_rejected": "Повільний режим увімкнено. Зачекайте перед надсиланням наступного повідомлення.",
+    "threads_encouraged": "У цій кімнаті рекомендовано використовувати гілки.",
+    "recent_thread_confirm_title": "Продовжити попередню гілку?",
+    "recent_thread_confirm_body": "Ваше попереднє повідомлення вже має гілку. Куди опублікувати це повідомлення?",
+    "post_as_new_message": "Опублікувати як нове повідомлення",
+    "continue_in_thread": "Продовжити в гілці",
     "edit_failed": "Не вдалося редагувати повідомлення",
+    "upload": {
+      "preparing": "Підготовка…",
+      "uploading": "Завантажено: {percentage}%",
+      "uploaded": "Завантажено",
+      "failed": "Не вдалося завантажити",
+      "remove": "Вилучити {filename}"
+    },
     "format": {
       "bold": "Жирний",
       "italic": "Курсив",
@@ -30,7 +47,9 @@
       "bullet_list": "Маркований список",
       "ordered_list": "Нумерований список",
       "blockquote": "Цитата",
-      "code_block": "Блок коду"
+      "code_block": "Блок коду",
+      "outdent": "Зменшити відступ",
+      "indent": "Збільшити відступ"
     },
     "timestamp": {
       "title": "Вставити часову позначку",

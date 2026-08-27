@@ -12,7 +12,10 @@ import (
 // identify the trace entry that determined State; both are zero-valued if no
 // role had an explicit grant or deny.
 type PermissionExplanation struct {
-	Permission    Permission
+	Permission Permission
+	// IncludedBy identifies the broader permission whose allow produced State.
+	// It is empty when Permission was resolved directly.
+	IncludedBy    Permission
 	State         DecisionKind
 	DecidedAt     PermissionLevel
 	DecidedByRole string
@@ -43,11 +46,6 @@ func (r *PermissionResolver) ExplainServerKindPermission(ctx context.Context, us
 		}
 	}
 
-	if kind == KindDM && dmBoundaryDenies(perm) {
-		exp.applyDMBoundaryDeny(LevelServer)
-		return exp, nil
-	}
-
 	err := r.collectFullTrace(ctx, userID, kind, "", perm, &exp)
 	return exp, err
 }
@@ -61,22 +59,21 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
-	if kind == KindDM && dmBoundaryDenies(perm) {
-		exp.applyDMBoundaryDeny(LevelRoom)
-		return exp, nil
-	}
-
 	err := r.collectFullTrace(ctx, userID, kind, roomID, perm, &exp)
 	return exp, err
 }
 
-// collectFullTrace populates the explanation by collecting every applicable
-// user and role decision. Mirrors Resolve's deny-wins model while preserving
-// the full trace for the inspector.
+// collectFullTrace mirrors Resolve while preserving the nearest decision for
+// each direct-user/named-role subject plus the everyone baseline. The baseline
+// remains visible in the trace and can win when its deny is nearer than every
+// named allow.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return nil
+	}
+	if isBot, ownerUserID, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
+		return r.collectBotFullTrace(ctx, userID, ownerUserID, kind, roomID, perm, exp)
 	}
 
 	if _, known := GetPermissionMetadata(perm); known {
@@ -98,15 +95,133 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 		}
 	}
 
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		level := LevelServer
+		if roomID != "" {
+			level = LevelRoom
+		}
+		exp.applyDMBoundaryDeny(level)
+		return nil
+	}
+
 	groupID := ""
 	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
 		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
 			groupID = room.GroupId
 		}
 	}
+	for _, including := range directlyIncludingPermissions(perm) {
+		included := PermissionExplanation{Permission: including, State: DecisionNone}
+		if err := r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, including, &included); err != nil {
+			return err
+		}
+		if included.State == DecisionAllow {
+			exp.IncludedBy = including
+			exp.State = included.State
+			exp.DecidedAt = included.DecidedAt
+			exp.DecidedByRole = included.DecidedByRole
+			exp.Trace = included.Trace
+			return nil
+		}
+	}
+	return r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, perm, exp)
+}
 
-	if err := r.visitApplicableDecisions(ctx, userID, kind, roomID, groupID, perm, exp.collect()); err != nil {
+func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
+	if perm == PermBotCreate || perm == PermBotManage {
+		exp.applyBotPolicyDeny(roomID, "@bot-policy")
+		return nil
+	}
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		level := LevelServer
+		if roomID != "" {
+			level = LevelRoom
+		}
+		exp.applyDMBoundaryDeny(level)
+		return nil
+	}
+	ownerIsBot, _, ownerExists := r.core.userModel.isBotAndOwner(ownerUserID)
+	if !ownerExists || ownerIsBot {
+		exp.applyBotPolicyDeny(roomID, "@bot-owner-ceiling")
+		return nil
+	}
+
+	groupID := ""
+	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) {
+		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
+			groupID = room.GroupId
+		}
+	}
+	delegated, sourcePermission, sourceEntry := r.botDelegatedExplanation(botUserID, kind, roomID, groupID, perm)
+	if delegated != DecisionAllow {
+		if sourceEntry != nil {
+			exp.State = DecisionDeny
+			exp.DecidedAt = sourceEntry.Level
+			exp.DecidedByRole = sourceEntry.RoleName
+			exp.Trace = []TraceEntry{*sourceEntry}
+		} else {
+			exp.applyBotPolicyDeny(roomID, "@bot-allowlist")
+		}
+		return nil
+	}
+
+	ownerExplanation := PermissionExplanation{Permission: perm, State: DecisionNone}
+	if err := r.collectFullTrace(ctx, ownerUserID, kind, roomID, perm, &ownerExplanation); err != nil {
 		return err
+	}
+	if ownerExplanation.State != DecisionAllow {
+		exp.applyBotPolicyDeny(roomID, "@bot-owner-ceiling")
+		exp.Trace = append(exp.Trace, ownerExplanation.Trace...)
+		return nil
+	}
+
+	if sourcePermission != perm {
+		exp.IncludedBy = sourcePermission
+	} else {
+		exp.IncludedBy = ownerExplanation.IncludedBy
+	}
+	exp.State = DecisionAllow
+	exp.DecidedAt = sourceEntry.Level
+	exp.DecidedByRole = sourceEntry.RoleName
+	exp.Trace = append([]TraceEntry{*sourceEntry}, ownerExplanation.Trace...)
+	return nil
+}
+
+func (r *PermissionResolver) botDelegatedExplanation(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, Permission, *TraceEntry) {
+	for _, candidate := range append(directlyIncludingPermissions(perm), perm) {
+		parts := candidate.KeyParts()
+		if parts.Verb == "" || parts.ObjectType == "" {
+			continue
+		}
+		scopes := r.applicableScopeTargets(kind, roomID, groupID, candidate)
+		entry, ok := r.nearestDecision(botUserID, parts, scopes)
+		if !ok {
+			continue
+		}
+		if entry.Decision == DecisionAllow {
+			return DecisionAllow, candidate, &entry
+		}
+		if candidate == perm {
+			return DecisionDeny, candidate, &entry
+		}
+	}
+	return DecisionNone, perm, nil
+}
+
+func (r *PermissionResolver) collectFullTraceExact(ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission, exp *PermissionExplanation) error {
+	decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, perm)
+	if err != nil {
+		return err
+	}
+	exp.Trace = append(exp.Trace, decisions.named...)
+	if decisions.everyone != nil {
+		exp.Trace = append(exp.Trace, *decisions.everyone)
+	}
+	state, winner, decided := resolveApplicablePermissionDecisions(decisions)
+	if decided {
+		exp.State = state
+		exp.DecidedAt = winner.Level
+		exp.DecidedByRole = winner.RoleName
 	}
 	if exp.State == DecisionNone && kind == KindDM && dmDefaultAllows(perm) {
 		exp.State = DecisionAllow
@@ -163,24 +278,6 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 	return results, nil
 }
 
-// collect returns a visitFunc that appends every visited entry to the
-// explanation's trace and applies the resolver's any-deny / any-allow rule.
-func (exp *PermissionExplanation) collect() visitFunc {
-	return func(entry TraceEntry) visitOutcome {
-		if entry.Decision == DecisionDeny {
-			exp.State = DecisionDeny
-			exp.DecidedAt = entry.Level
-			exp.DecidedByRole = entry.RoleName
-		} else if exp.State == DecisionNone {
-			exp.State = entry.Decision
-			exp.DecidedAt = entry.Level
-			exp.DecidedByRole = entry.RoleName
-		}
-		exp.Trace = append(exp.Trace, entry)
-		return visitContinue
-	}
-}
-
 // applyDMBoundaryDeny fills in the explanation for a permission that is
 // unconditionally denied by the DM privacy boundary. The trace is synthesized
 // as a single pseudo-entry attributed to "@dm-policy" so the inspector UI can
@@ -194,6 +291,21 @@ func (exp *PermissionExplanation) applyDMBoundaryDeny(level PermissionLevel) {
 	exp.Trace = []TraceEntry{{
 		Level:    level,
 		RoleName: "@dm-policy",
+		Decision: DecisionDeny,
+	}}
+}
+
+func (exp *PermissionExplanation) applyBotPolicyDeny(roomID, marker string) {
+	level := LevelServer
+	if roomID != "" {
+		level = LevelRoom
+	}
+	exp.State = DecisionDeny
+	exp.DecidedAt = level
+	exp.DecidedByRole = marker
+	exp.Trace = []TraceEntry{{
+		Level:    level,
+		RoleName: marker,
 		Decision: DecisionDeny,
 	}}
 }

@@ -1,7 +1,6 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "message_preview": {
-    "attachments_count": "{count} bijlagen",
+    "attachments_count": { "other": "{count} bijlagen" },
     "attachment_image": "Afbeelding",
     "attachment_video": "Video",
     "attachment_audio": "Audio",

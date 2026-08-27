@@ -11,8 +11,9 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -54,19 +55,12 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 	return s.hub.Run(ctx)
 }
 
-// StreamMyEventsOptions controls compatibility behavior for a myEvents stream.
+// StreamMyEventsOptions controls process-local behavior for a myEvents stream.
 type StreamMyEventsOptions struct {
 	// TouchPresence preserves the legacy behavior where opening myEvents marks
 	// the user online and refreshes the current presence value. New clients that
 	// refresh presence through ConnectRPC set this to false.
 	TouchPresence bool
-}
-
-func (c *ChattoCore) myEvents() *MyEventsModel {
-	if c.myEventsModel == nil {
-		c.myEventsModel = NewMyEventsModel(c)
-	}
-	return c.myEventsModel
 }
 
 // MyEventsMetrics is a process-local snapshot of the realtime event stream.
@@ -109,8 +103,10 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 //
 // Authorization:
 //   - Room events (live.sync.room.> and deliverable live.evt.room.>) are
-//     delivered only for rooms where the user is a member. The membership set
-//     is pre-loaded across both kinds (channel + dm) and updated as
+//     delivered only for rooms where the user is a member. Message-bearing
+//     durable facts and typing indicators in channel rooms also require
+//     message.read. DM membership authorizes DM delivery. The membership set is
+//     pre-loaded across both kinds (channel + dm) and updated as
 //     join/leave/room-deleted events arrive.
 //   - User/config/member subjects are filtered by isAuthorizedForLiveEvent.
 //   - Presence updates from the per-process PresenceHub are deployment-wide;
@@ -129,7 +125,7 @@ func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan 
 
 // StreamMyEventsWithOptions creates a myEvents stream with explicit compatibility options.
 func (c *ChattoCore) StreamMyEventsWithOptions(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
-	return c.myEvents().StreamMyEvents(ctx, userID, options)
+	return c.myEventsModel.StreamMyEvents(ctx, userID, options)
 }
 
 func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, options StreamMyEventsOptions) (<-chan EventEnvelope, error) {
@@ -296,7 +292,7 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 }
 
 func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.LiveEvent) (EventEnvelope, bool) {
-	return c.myEvents().filterLiveSyncEvent(ctx, userID, memberRooms, msg, event)
+	return c.myEventsModel.filterLiveSyncEvent(ctx, userID, memberRooms, msg, event)
 }
 
 func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *corev1.LiveEvent) (EventEnvelope, bool) {
@@ -320,6 +316,19 @@ func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, 
 
 		if !isMember {
 			return nil, false
+		}
+		if event.GetUserTyping() != nil {
+			typing := event.GetUserTyping()
+			var canRead bool
+			var err error
+			if typing.GetThreadRootEventId() != "" {
+				canRead, err = s.core.CanReadThreadMessages(ctx, userID, RoomKind(kind), roomID, typing.GetThreadRootEventId())
+			} else {
+				canRead, err = s.core.CanReadMessages(ctx, userID, RoomKind(kind), roomID)
+			}
+			if err != nil || !canRead {
+				return nil, false
+			}
 		}
 		return NewLiveEventEnvelope(event), true
 	}
@@ -381,11 +390,30 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(userID string, memberRoom
 		if e.RoomMemberBanned.GetUserId() == userID {
 			delete(memberRooms, roomID)
 		}
+	case *corev1.Event_RoomMemberAdded:
+		if e.RoomMemberAdded.GetUserId() == userID {
+			memberRooms[roomID] = struct{}{}
+			isMember = true
+		}
+	case *corev1.Event_RoomMemberRemoved:
+		if e.RoomMemberRemoved.GetUserId() == userID {
+			delete(memberRooms, roomID)
+		}
 	case *corev1.Event_RoomDeleted:
 		delete(memberRooms, roomID)
 	}
 	if !isMember {
 		return nil, false
+	}
+	if protectedRoomID, protected := s.core.MessageReadProtectedEventRoomID(event); protected {
+		kind, err := s.core.FindRoomKind(context.Background(), protectedRoomID)
+		if err != nil {
+			return nil, false
+		}
+		canRead, err := s.core.CanReadMessageEvent(context.Background(), userID, kind, protectedRoomID, event)
+		if err != nil || !canRead {
+			return nil, false
+		}
 	}
 	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
 }
@@ -397,31 +425,62 @@ func (s *MyEventsModel) filterReadyEVTAssetSubjectEvent(userID string, memberRoo
 	if _, isMember := memberRooms[roomID]; !isMember {
 		return nil, false
 	}
+	kind, err := s.core.FindRoomKind(context.Background(), roomID)
+	if err != nil {
+		return nil, false
+	}
+	canRead, err := s.core.CanReadMessageEvent(context.Background(), userID, kind, roomID, event)
+	if err != nil || !canRead {
+		return nil, false
+	}
 	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
 }
 
 func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
 	pos := events.SubjectPosition(subject, seq)
-	if err := s.core.rooms().waitForLiveEVTEvent(ctx, pos, event); err != nil {
+	if err := s.core.roomModel.waitForLiveEVTEvent(ctx, pos, event); err != nil {
 		return err
 	}
 
 	if eventNeedsCallStateProjection(event) {
-		if err := s.core.CallStateProjector.WaitFor(ctx, pos); err != nil {
+		if err := s.core.callModel.waitFor(ctx, pos); err != nil {
 			return err
 		}
 	}
 
 	if isAssetLifecycleEvent(event) {
-		if err := s.core.assetLifecycle().waitForAssets(ctx, pos); err != nil {
+		if err := s.core.assetModel.waitForAssets(ctx, pos); err != nil {
 			return err
 		}
 	}
-	return nil
+	return s.waitForLiveMessageAuthorization(ctx, event)
 }
 
-func (s *MyEventsModel) waitForLiveEVTAssetEvent(ctx context.Context, subject string, seq uint64) error {
-	return s.core.assetLifecycle().waitForAssets(ctx, events.SubjectPosition(subject, seq))
+func (s *MyEventsModel) waitForLiveEVTAssetEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
+	if err := s.core.assetModel.waitForAssets(ctx, events.SubjectPosition(subject, seq)); err != nil {
+		return err
+	}
+	return s.waitForLiveMessageAuthorization(ctx, event)
+}
+
+func (s *MyEventsModel) waitForLiveMessageAuthorization(ctx context.Context, event *corev1.Event) error {
+	roomID, protected := s.core.MessageReadProtectedEventRoomID(event)
+	if !protected {
+		return nil
+	}
+	messageEventID, hasSource := s.core.MessageEventSourceMessageID(roomID, event)
+	if !hasSource {
+		return nil
+	}
+	entry, ok := s.core.roomModel.timelineEntry(messageEventID)
+	if !ok || entry == nil || entry.Event == nil || entry.StreamSeq == 0 {
+		return fmt.Errorf("message authorization source %q is not projected", messageEventID)
+	}
+	position := events.SubjectPosition(evtstream.RoomAggregate(roomID).SubjectFor(entry.Event), entry.StreamSeq)
+	if err := s.core.roomModel.waitForThreads(ctx, position); err != nil {
+		return fmt.Errorf("wait for message authorization source %q: %w", messageEventID, err)
+	}
+	return nil
 }
 
 func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject string, seq uint64) error {
@@ -431,7 +490,7 @@ func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject str
 // isAuthorizedForLiveEvent checks whether a user can receive a non-room
 // transient live event based on its live.sync subject.
 func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subject string) bool {
-	return c.myEvents().isAuthorizedForLiveEvent(ctx, userID, subject)
+	return c.myEventsModel.isAuthorizedForLiveEvent(ctx, userID, subject)
 }
 
 func (s *MyEventsModel) isAuthorizedForLiveEvent(_ context.Context, userID, subject string) bool {

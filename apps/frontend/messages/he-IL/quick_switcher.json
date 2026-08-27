@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "ללכת לאנשהו, או להקליד ? לחפש הודעות...",
+    "no_results": "אין תוצאות",
+    "recent": "לאחרונה",
+    "kind": {
+      "destination": "עבור אל",
+      "server": "שרת",
+      "room": "חדר",
+      "dm": "הודעה ישירה",
+      "user": "משתמש",
+      "message": "הודעה"
+    },
+    "message_search": {
+      "prompt": "סוג אחרי ? כדי לחפש הודעות בשרתים שלך",
+      "no_results": "לא נמצאו הודעות"
+    }
+  }
+}

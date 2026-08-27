@@ -13,11 +13,10 @@ Shows matching room members when typing @username in chat input.
 <script lang="ts">
   import type { RoomMember } from '$lib/state/room';
   import { fuzzyMatch } from '$lib/fuzzyMatch';
-  import { getAvatarInitials } from '$lib/utils/initials';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import AutocompletePopup from './AutocompletePopup.svelte';
   import type { MentionRole } from './autocomplete.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type MentionResult =
     | { type: 'user'; handle: string; member: RoomMember; score: number; priority: number }
@@ -50,8 +49,8 @@ Shows matching room members when typing @username in chat input.
     }
 
     for (const target of [
-      { handle: 'all' as const, label: m['composer.mention.all_room_members']() },
-      { handle: 'here' as const, label: m['composer.mention.members_here']() }
+      { handle: 'all' as const, label: m('composer.mention.all_room_members') },
+      { handle: 'here' as const, label: m('composer.mention.members_here') }
     ]) {
       const score = fuzzyMatch(query, target.handle);
       if (score && score > 0) {
@@ -96,38 +95,25 @@ Shows matching room members when typing @username in chat input.
 >
   {#snippet item({ item: result })}
     {#if result.type === 'user'}
-      {#if result.member.avatarUrl}
-        <SkeletonImg
-          loading="lazy"
-          src={result.member.avatarUrl}
-          alt={result.member.login}
-          class="h-6 w-6 shrink-0 rounded-full object-cover"
-        />
-      {:else}
-        <div
-          class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
-        >
-          {getAvatarInitials(result.member.displayName, result.member.login)}
-        </div>
-      {/if}
-      <span class="min-w-0 truncate text-sm text-text">{result.member.displayName}</span>
-      <span class="min-w-0 truncate text-sm text-muted">@{result.member.login}</span>
+      <UserAvatar user={result.member} size="xs" class="h-6 w-6" useLiveProfile={false} />
+      <bdi class="min-w-0 truncate text-sm text-text">{result.member.displayName}</bdi>
+      <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.member.login}</bdi>
     {:else if result.type === 'virtual'}
       <div
         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
-        <span class="iconify h-4 w-4 uil--megaphone"></span>
+        <span class="iconify icon-[uil--megaphone] h-4 w-4"></span>
       </div>
-      <span class="min-w-0 truncate text-sm text-text">{result.label}</span>
-      <span class="min-w-0 truncate text-sm text-muted">@{result.handle}</span>
+      <bdi class="min-w-0 truncate text-sm text-text">{result.label}</bdi>
+      <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.handle}</bdi>
     {:else}
       <div
         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
-        <span class="iconify h-4 w-4 uil--users-alt"></span>
+        <span class="iconify icon-[uil--users-alt] h-4 w-4"></span>
       </div>
-      <span class="min-w-0 truncate text-sm text-text">{m['composer.mention.role']()}</span>
-      <span class="min-w-0 truncate text-sm text-muted">@{result.role.name}</span>
+      <span class="min-w-0 truncate text-sm text-text">{m('composer.mention.role')}</span>
+      <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.role.name}</bdi>
     {/if}
   {/snippet}
 </AutocompletePopup>

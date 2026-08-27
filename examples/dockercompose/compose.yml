@@ -1,17 +1,14 @@
 services:
   nats:
     image: nats:latest
+    restart: unless-stopped
     command: ["--jetstream", "--store_dir=/data", "--auth=${NATS_TOKEN}"]
     volumes:
       - nats_data:/data
-    healthcheck:
-      test: ["CMD", "nats-server", "--help"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
 
   livekit:
     image: livekit/livekit-server:latest
+    restart: unless-stopped
     command:
       - --config
       - /etc/livekit.yaml
@@ -23,28 +20,22 @@ services:
       - "7880"  # WebSocket signaling (proxied through Caddy)
     volumes:
       - ${LIVEKIT_CONFIG_FILE:-./livekit.yaml}:/etc/livekit.yaml:ro
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7880"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
 
   chatto:
     image: ghcr.io/chattocorp/chatto:latest
+    restart: unless-stopped
     env_file: .env
     environment:
       PUID: "${PUID:-1000}"
       PGID: "${PGID:-1000}"
     depends_on:
-      nats:
-        condition: service_healthy
-      livekit:
-        condition: service_healthy
+      - nats
     expose:
       - "4000"
 
   caddy:
     image: caddy:latest
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
@@ -54,9 +45,6 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on:
-      - chatto
-      - livekit
 
 volumes:
   nats_data:

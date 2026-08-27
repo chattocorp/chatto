@@ -454,7 +454,8 @@ type AdminEventLogEntry struct {
 	ActorId string `protobuf:"bytes,7,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
 	// Event creation timestamp.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Pretty-printed JSON representation of the event payload.
+	// Pretty-printed, sanitized JSON representation of the event payload.
+	// Password verifiers are omitted.
 	PayloadJson   string `protobuf:"bytes,9,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -1,10 +1,12 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -143,8 +145,12 @@ func TestChattoCore_ExternalIdentityWithoutEmailCreatesVerifiedAccount(t *testin
 func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "link-start-user", "Link Start User", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
 
-	token, err := core.CreatePendingExternalIdentityLinkStart(ctx, "github-main", "/chat/-/settings/account", "U1")
+	token, err := core.CreatePendingExternalIdentityLinkStart(ctx, "github-main", "/chat/-/settings/account", user.GetId())
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityLinkStart: %v", err)
 	}
@@ -160,7 +166,7 @@ func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ConsumePendingExternalIdentityLinkStart: %v", err)
 	}
-	if start.ProviderID != "github-main" || start.BoundUserID != "U1" || start.RedirectPath != "/chat/-/settings/account" {
+	if start.ProviderID != "github-main" || start.BoundUserID != user.GetId() || start.RedirectPath != "/chat/-/settings/account" {
 		t.Fatalf("link start = %+v", start)
 	}
 	if _, err := core.ConsumePendingExternalIdentityLinkStart(ctx, token); !errors.Is(err, ErrExternalIdentityFlowNotFound) {
@@ -367,5 +373,209 @@ func TestChattoCore_PendingExternalIdentityFlowExpiresByCreatedAt(t *testing.T) 
 	}
 	if _, err := core.storage.runtimeStateKV.Get(ctx, core.externalIdentityCreateTokenKey(token)); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
 		t.Fatalf("expired flow still present in RUNTIME_STATE: %v", err)
+	}
+}
+
+func TestChattoCore_LinkExternalIdentity(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "externaluser", "External User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	other, err := core.CreateUser(ctx, "system", "externalother", "External Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity idempotent: %v", err)
+	}
+
+	found, err := core.GetUserByExternalIdentity(ctx, "github-main", "12345")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity: %v", err)
+	}
+	if found == nil || found.Id != user.Id {
+		t.Fatalf("GetUserByExternalIdentity = %v, want %s", found, user.Id)
+	}
+
+	err = core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", other.Id)
+	if !errors.Is(err, ErrExternalIdentityAlreadyClaimed) {
+		t.Fatalf("LinkExternalIdentity conflict error = %v, want ErrExternalIdentityAlreadyClaimed", err)
+	}
+}
+
+func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "disconnectuser", "Disconnect User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	authenticatedUser, authGeneration, err := core.GetUserByExternalIdentityForAuthentication(ctx, "github-main", "12345")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentityForAuthentication: %v", err)
+	}
+	if authenticatedUser == nil || authenticatedUser.GetId() != user.GetId() {
+		t.Fatalf("authentication lookup user = %v, want %s", authenticatedUser, user.GetId())
+	}
+	token, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration: %v", err)
+	}
+	sessionID, _, err := core.CreateCookieSessionForGeneration(ctx, user.Id, "external_identity_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateCookieSessionForGeneration: %v", err)
+	}
+	identities, err := core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser: %v", err)
+	}
+	if len(identities) != 1 || identities[0].SubjectHash == "" {
+		t.Fatalf("identities = %+v", identities)
+	}
+
+	if err := core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash); err != nil {
+		t.Fatalf("DisconnectExternalIdentity: %v", err)
+	}
+	found, err := core.GetUserByExternalIdentity(ctx, "github-main", "12345")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity: %v", err)
+	}
+	if found != nil {
+		t.Fatalf("GetUserByExternalIdentity after disconnect = %v, want nil", found)
+	}
+	identities, err = core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser after disconnect: %v", err)
+	}
+	if len(identities) != 0 {
+		t.Fatalf("identities after disconnect = %+v, want empty", identities)
+	}
+	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken after disconnect err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.ValidateCookieCredential(ctx, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieCredential after disconnect err = %v, want ErrCookieSessionNotFound", err)
+	}
+	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration old generation err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.NewCookieSessionDataForGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("NewCookieSessionDataForGeneration old generation err = %v, want ErrCookieSessionNotFound", err)
+	}
+	afterGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration after disconnect: %v", err)
+	}
+	if afterGeneration == authGeneration {
+		t.Fatal("auth generation should advance after external identity disconnect")
+	}
+
+	err = core.DisconnectExternalIdentity(ctx, user.Id, "missing-subject-hash")
+	if !errors.Is(err, ErrExternalIdentityNotFound) {
+		t.Fatalf("DisconnectExternalIdentity missing error = %v, want ErrExternalIdentityNotFound", err)
+	}
+}
+
+func TestChattoCore_DisconnectExternalIdentityRejectsLastPasswordlessMethod(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "passwordless-disconnect", "Passwordless Disconnect", "")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	identities, err := core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser: %v", err)
+	}
+
+	err = core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash)
+	if !errors.Is(err, ErrExternalIdentityLastMethod) {
+		t.Fatalf("DisconnectExternalIdentity last method error = %v, want ErrExternalIdentityLastMethod", err)
+	}
+
+	if err := core.LinkExternalIdentity(ctx, "discord-main", "discord", "discord-main", "abc123", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity second: %v", err)
+	}
+	if err := core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash); err != nil {
+		t.Fatalf("DisconnectExternalIdentity with second identity: %v", err)
+	}
+	identities, err = core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser final: %v", err)
+	}
+	if len(identities) != 1 || identities[0].ProviderID != "discord-main" {
+		t.Fatalf("identities final = %+v, want discord only", identities)
+	}
+}
+
+func TestChattoCore_DisconnectExternalIdentityConcurrentDuplicate(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "disconnectrace", "Disconnect Race", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	identities, err := core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser: %v", err)
+	}
+	if len(identities) != 1 || identities[0].SubjectHash == "" {
+		t.Fatalf("identities = %+v", identities)
+	}
+
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			errs <- core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash)
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	var successes, notFound int
+	for err := range errs {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, ErrExternalIdentityNotFound):
+			notFound++
+		default:
+			t.Fatalf("DisconnectExternalIdentity concurrent error = %v", err)
+		}
+	}
+	if successes != 1 || notFound != 1 {
+		t.Fatalf("concurrent disconnect results: successes=%d notFound=%d, want 1 each", successes, notFound)
+	}
+	identities, err = core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser after concurrent disconnect: %v", err)
+	}
+	if len(identities) != 0 {
+		t.Fatalf("identities after concurrent disconnect = %+v, want empty", identities)
 	}
 }

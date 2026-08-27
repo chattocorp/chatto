@@ -1,0 +1,57 @@
+---
+title: PushSubscriptionCleanupService
+description: Public capability-authenticated cleanup for exact browser push subscriptions.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-auth-v1-PushSubscriptionCleanupService"></a>
+
+## PushSubscriptionCleanupService
+
+Public capability-authenticated cleanup for browser push subscriptions.
+
+<a id="chatto-auth-v1-PushSubscriptionCleanupService-DeleteSubscription"></a>
+
+### DeleteSubscription
+
+Removes the exact current subscription when its Push API auth secret and
+per-save cleanup token match. This public RPC requires those capabilities,
+not an authenticated account session, and does not reveal whether a match
+existed.
+
+```http
+POST /api/connect/chatto.auth.v1.PushSubscriptionCleanupService/DeleteSubscription
+```
+
+<a id="chatto-auth-v1-DeleteSubscriptionRequest"></a>
+
+#### Input: DeleteSubscriptionRequest
+
+Capability-authenticated request to remove an exact push subscription.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `endpoint` | `string` | Complete push service endpoint URL. Its opaque path identifies the exact browser subscription; a provider host alone is not unique. |
+| `auth` | `string` | Authentication secret from the same browser PushSubscription. |
+| `cleanup_token` | `string` | Per-save capability supplied with the original Subscribe request. Cleanup is a no-op after any later save replaces this token. |
+
+
+<a id="chatto-auth-v1-DeleteSubscriptionResponse"></a>
+
+#### Result: DeleteSubscriptionResponse
+
+Response from capability-authenticated subscription cleanup.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `completed` | `bool` | True when the idempotent cleanup request completed. It does not reveal whether a matching subscription existed. |

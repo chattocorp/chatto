@@ -7,17 +7,18 @@ import (
 	"fmt"
 
 	"golang.org/x/crypto/chacha20poly1305"
+	"hmans.de/chatto/pkg/datacrypto"
 )
 
 const (
 	// KeySize is the size of ChaCha20-Poly1305 keys (256 bits).
-	KeySize = chacha20poly1305.KeySize // 32 bytes
+	KeySize = datacrypto.KeySize // 32 bytes
 
 	// NonceSize is the size of the nonce (96 bits).
 	NonceSize = chacha20poly1305.NonceSize // 12 bytes
 
 	// XNonceSize is the size of the XChaCha20-Poly1305 nonce (192 bits).
-	XNonceSize = chacha20poly1305.NonceSizeX // 24 bytes
+	XNonceSize = datacrypto.NonceSize // 24 bytes
 
 	// EnvelopeVersionV2 identifies the content-key epoch message body format.
 	EnvelopeVersionV2 int32 = 2
@@ -91,82 +92,32 @@ func Decrypt(key, ciphertext, nonce []byte) ([]byte, error) {
 
 // WrapContentKey encrypts a content key with a key encryption key.
 func WrapContentKey(kek, contentKey, aad []byte) (*WrappedContentKey, error) {
-	if len(kek) != KeySize {
-		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(kek))
-	}
-	if len(contentKey) != KeySize {
-		return nil, fmt.Errorf("%w: expected content key size %d, got %d", ErrInvalidKeySize, KeySize, len(contentKey))
-	}
-	wrapAEAD, err := chacha20poly1305.NewX(kek)
+	wrapped, err := datacrypto.WrapKey(kek, contentKey, aadForContentKey(aad))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create key wrap AEAD cipher: %w", err)
+		return nil, err
 	}
-	nonce, err := randomBytes(XNonceSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate content key nonce: %w", err)
-	}
-	encryptedContentKey := wrapAEAD.Seal(nil, nonce, contentKey, aadForContentKey(aad))
-	return &WrappedContentKey{EncryptedContentKey: encryptedContentKey, Nonce: nonce}, nil
+	return &WrappedContentKey{EncryptedContentKey: wrapped.Ciphertext, Nonce: wrapped.Nonce}, nil
 }
 
 // UnwrapContentKey decrypts a content key with a key encryption key.
 func UnwrapContentKey(kek, encryptedContentKey, nonce, aad []byte) ([]byte, error) {
-	if len(kek) != KeySize {
-		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(kek))
-	}
-	if len(nonce) != XNonceSize {
-		return nil, fmt.Errorf("%w: expected %d-byte XChaCha nonces", ErrInvalidNonceSize, XNonceSize)
-	}
-	wrapAEAD, err := chacha20poly1305.NewX(kek)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create key wrap AEAD cipher: %w", err)
-	}
-	contentKey, err := wrapAEAD.Open(nil, nonce, encryptedContentKey, aadForContentKey(aad))
-	if err != nil {
-		return nil, ErrDecryptionFailed
-	}
-	if len(contentKey) != KeySize {
-		return nil, fmt.Errorf("%w: expected content key size %d, got %d", ErrInvalidKeySize, KeySize, len(contentKey))
-	}
-	return contentKey, nil
+	return datacrypto.UnwrapKey(kek, encryptedContentKey, nonce, aadForContentKey(aad))
 }
 
 // EncryptXChaCha20Poly1305 encrypts plaintext with XChaCha20-Poly1305.
 // aad is authenticated as supplied by the caller.
 func EncryptXChaCha20Poly1305(key, plaintext, aad []byte) (*EncryptedData, error) {
-	if len(key) != KeySize {
-		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(key))
-	}
-	bodyAEAD, err := chacha20poly1305.NewX(key)
+	sealed, err := datacrypto.Seal(key, plaintext, aad)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create body AEAD cipher: %w", err)
+		return nil, err
 	}
-	nonce, err := randomBytes(XNonceSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate body nonce: %w", err)
-	}
-	ciphertext := bodyAEAD.Seal(nil, nonce, plaintext, aad)
-	return &EncryptedData{Ciphertext: ciphertext, Nonce: nonce}, nil
+	return &EncryptedData{Ciphertext: sealed.Ciphertext, Nonce: sealed.Nonce}, nil
 }
 
 // DecryptXChaCha20Poly1305 decrypts ciphertext with XChaCha20-Poly1305.
 // aad must match the encryption context exactly.
 func DecryptXChaCha20Poly1305(key, ciphertext, nonce, aad []byte) ([]byte, error) {
-	if len(key) != KeySize {
-		return nil, fmt.Errorf("%w: expected %d, got %d", ErrInvalidKeySize, KeySize, len(key))
-	}
-	if len(nonce) != XNonceSize {
-		return nil, fmt.Errorf("%w: expected %d-byte XChaCha nonces", ErrInvalidNonceSize, XNonceSize)
-	}
-	bodyAEAD, err := chacha20poly1305.NewX(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create body AEAD cipher: %w", err)
-	}
-	plaintext, err := bodyAEAD.Open(nil, nonce, ciphertext, aad)
-	if err != nil {
-		return nil, ErrDecryptionFailed
-	}
-	return plaintext, nil
+	return datacrypto.Open(key, ciphertext, nonce, aad)
 }
 
 // EncryptWithContentKey encrypts plaintext with an already-selected content
@@ -182,7 +133,7 @@ func DecryptWithContentKey(contentKey, ciphertext, nonce, aad []byte) ([]byte, e
 
 // GenerateKey generates a cryptographically secure random key.
 func GenerateKey() ([]byte, error) {
-	key, err := randomBytes(KeySize)
+	key, err := datacrypto.GenerateKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key: %w", err)
 	}

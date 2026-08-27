@@ -4,16 +4,20 @@ import (
 	"context"
 	"fmt"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/pkg/events"
 )
 
 type projectionRegistration struct {
-	key             string
-	name            string
-	projector       *events.Projector
-	subjects        []string
-	snapshotEnabled bool
-	estimate        func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)
+	key              string
+	name             string
+	projector        *events.Projector
+	subjects         []string
+	snapshotPolicy   projectionSnapshotPolicy
+	snapshotEnabled  bool
+	streamName       string
+	identityResolver events.StreamIdentityResolver
+	estimate         func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)
 }
 
 type projectionWaitTarget struct {
@@ -43,7 +47,7 @@ func waitForCurrentAll(ctx context.Context, targets ...projectionWaitTarget) err
 	return nil
 }
 
-func waitForProjectionSubjectsCurrent(ctx context.Context, publisher *events.Publisher, name string, projector *events.Projector, subjects ...string) error {
+func waitForProjectionSubjectsCurrent(ctx context.Context, publisher *evtstream.Publisher, name string, projector *events.Projector, subjects ...string) error {
 	var target events.StreamPosition
 	for _, subject := range subjects {
 		pos, err := publisher.LastSubjectPosition(ctx, subject)

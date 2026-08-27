@@ -1,13 +1,11 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { NotificationLevel, PresenceStatus } from '$lib/render/types';
-import { NotificationItemKind } from '$lib/api-client/notifications';
+
+import { NotificationSignalKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
-import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
-import { RoomEventKind } from '$lib/render/eventKinds';
 
 const { mocks } = vi.hoisted(() => {
-  const eventHandlers: EventHandler[] = [];
   return {
     mocks: {
       getAuthenticatedServerState: vi.fn(),
@@ -17,20 +15,14 @@ const { mocks } = vi.hoisted(() => {
       goto: vi.fn(),
       pushState: vi.fn(),
       markNavigationServerAsRead: vi.fn().mockResolvedValue(true),
+      startRemoteReauthentication: vi.fn(),
+      beginOriginReauthentication: vi.fn(),
+      isOriginServer: vi.fn(() => false),
+      writeClipboardText: vi.fn(),
+      toastError: vi.fn(),
+      toastSuccess: vi.fn(),
       appUi: {
         disableRoomCallWideFor: vi.fn()
-      },
-      eventHandlers,
-      registrar: {
-        onEvent: vi.fn((handler: EventHandler) => {
-          eventHandlers.push(handler);
-          return () => {
-            const index = eventHandlers.indexOf(handler);
-            if (index >= 0) eventHandlers.splice(index, 1);
-          };
-        }),
-        onRoomMarkedAsRead: vi.fn(() => vi.fn()),
-        onNotificationLevelChanged: vi.fn(() => vi.fn())
       },
       showConnectionLostIcon: false,
       server: {
@@ -43,18 +35,20 @@ const { mocks } = vi.hoisted(() => {
         userLogin: 'alice',
         userDisplayName: 'Alice',
         userAvatarUrl: null,
-        reauthRequiredAt: null,
+        reauthRequiredAt: null as number | null,
         addedAt: 0
       },
       store: {
         isAuthenticated: true,
+        projection: { viewer: {} as object | null },
         notifications: {
           fetch: vi.fn().mockResolvedValue(undefined),
           setUnreadNotificationCount: vi.fn(),
           unreadNotificationCount: 0,
-          getSpaceNotification: vi.fn().mockReturnValue(null),
+          importantUnreadNotificationCount: 0,
+          getNonDMNotification: vi.fn().mockReturnValue(null),
           getDMNotification: vi.fn().mockReturnValue(null),
-          dismiss: vi.fn(),
+          markRead: vi.fn(),
           getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
         },
         roomUnread: {
@@ -68,12 +62,6 @@ const { mocks } = vi.hoisted(() => {
           setRoomUnread: vi.fn(),
           getFirstUnreadRoomId: vi.fn().mockReturnValue(null)
         },
-        notificationLevels: {
-          setServerPreference: vi.fn(),
-          setRoomPreference: vi.fn(),
-          isRoomMuted: vi.fn().mockReturnValue(false),
-          isServerMuted: vi.fn().mockReturnValue(false)
-        },
         pendingHighlights: { set: vi.fn() },
         serverInfo: {
           name: 'Chatto',
@@ -81,8 +69,7 @@ const { mocks } = vi.hoisted(() => {
           version: '0.5.0',
           compatibility: {
             status: 'supported',
-            reason: 'capabilities-confirmed',
-            missingCapabilities: [] as string[]
+            reason: 'version-confirmed'
           }
         },
         setPermissions: vi.fn(),
@@ -121,10 +108,6 @@ vi.mock('$lib/state/appUi.svelte', () => ({
   getAppUiState: () => mocks.appUi
 }));
 
-vi.mock('$lib/eventBus.svelte', () => ({
-  createEventBusHandlerRegistrar: vi.fn(() => mocks.registrar)
-}));
-
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
     getClient: vi.fn(() => ({
@@ -139,7 +122,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    isOriginServer: vi.fn(() => false),
+    isOriginServer: mocks.isOriginServer,
     getServer: vi.fn(() => mocks.server),
     getStore: vi.fn(() => mocks.store)
   }
@@ -170,6 +153,15 @@ vi.mock('$lib/navigation/readActions', () => ({
   markNavigationServerAsRead: mocks.markNavigationServerAsRead
 }));
 
+vi.mock('$lib/auth/reauth', () => ({
+  startRemoteReauthentication: mocks.startRemoteReauthentication,
+  beginOriginReauthentication: mocks.beginOriginReauthentication
+}));
+
+vi.mock('$lib/ui/toast', () => ({
+  toast: { error: mocks.toastError, success: mocks.toastSuccess }
+}));
+
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
 function serverState(overrides: Record<string, unknown> = {}) {
@@ -187,7 +179,7 @@ function viewerState(overrides: Record<string, unknown> = {}) {
       id: 'user-1',
       login: 'alice',
       displayName: 'Alice',
-      presenceStatus: PresenceStatus.Online,
+      presenceStatus: PresenceStatus.ONLINE,
       hasVerifiedEmail: true
     },
     canViewAdmin: false,
@@ -199,25 +191,8 @@ function viewerState(overrides: Record<string, unknown> = {}) {
     canAdminManageRoles: false,
     canAdminViewSystem: false,
     canAdminViewAudit: false,
-    serverNotificationPreference: {
-      level: NotificationLevel.Default,
-      effectiveLevel: NotificationLevel.Normal
-    },
-    roomNotificationPreferences: [],
     ...overrides
   };
-}
-
-function dispatchServerEvent(event: Record<string, unknown>, actorId = 'other-user') {
-  const handler = mocks.eventHandlers[0];
-  if (!handler) throw new Error('ServerSidebarEntry event handler was not registered');
-  handler({
-    id: 'event-1',
-    createdAt: new Date().toISOString(),
-    actorId,
-    actor: null,
-    event
-  } as EventEnvelope);
 }
 
 describe('ServerSidebarEntry', () => {
@@ -238,11 +213,22 @@ describe('ServerSidebarEntry', () => {
     mocks.pushState.mockClear();
     mocks.markNavigationServerAsRead.mockClear();
     mocks.markNavigationServerAsRead.mockResolvedValue(true);
+    mocks.startRemoteReauthentication.mockReset();
+    mocks.startRemoteReauthentication.mockResolvedValue(undefined);
+    mocks.beginOriginReauthentication.mockReset();
+    mocks.isOriginServer.mockReset();
+    mocks.isOriginServer.mockReturnValue(false);
+    mocks.server.url = 'https://remote.example.com';
+    mocks.server.reauthRequiredAt = null;
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: mocks.writeClipboardText },
+      configurable: true
+    });
+    mocks.writeClipboardText.mockReset();
+    mocks.writeClipboardText.mockResolvedValue(undefined);
+    mocks.toastError.mockReset();
+    mocks.toastSuccess.mockReset();
     mocks.appUi.disableRoomCallWideFor.mockClear();
-    mocks.eventHandlers.length = 0;
-    mocks.registrar.onEvent.mockClear();
-    mocks.registrar.onRoomMarkedAsRead.mockClear();
-    mocks.registrar.onNotificationLevelChanged.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
     mocks.store.isAuthenticated = true;
@@ -252,9 +238,10 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.fetch.mockResolvedValue(undefined);
     mocks.store.notifications.setUnreadNotificationCount.mockClear();
     mocks.store.notifications.unreadNotificationCount = 0;
-    mocks.store.notifications.getSpaceNotification.mockReturnValue(null);
+    mocks.store.notifications.importantUnreadNotificationCount = 0;
+    mocks.store.notifications.getNonDMNotification.mockReturnValue(null);
     mocks.store.notifications.getDMNotification.mockReturnValue(null);
-    mocks.store.notifications.dismiss.mockClear();
+    mocks.store.notifications.markRead.mockClear();
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/remote.example.com/room-1');
     mocks.store.roomUnread.clear.mockClear();
     mocks.store.roomUnread.captureSnapshotRevision.mockClear();
@@ -264,17 +251,15 @@ describe('ServerSidebarEntry', () => {
     mocks.store.roomUnread.resolveUnknownUnread.mockClear();
     mocks.store.roomUnread.setServerHasUnread.mockClear();
     mocks.store.roomUnread.setRoomUnread.mockClear();
-    mocks.store.notificationLevels.setServerPreference.mockClear();
-    mocks.store.notificationLevels.setRoomPreference.mockClear();
     mocks.store.setPermissions.mockClear();
     mocks.store.serverIndicator.mockReturnValue(null);
-    mocks.store.serverInfo.name = 'Chatto';
+    mocks.store.projection.viewer = {};
+    mocks.store.serverInfo.name = 'Loaded Remote';
     mocks.store.serverInfo.iconUrl = null;
     mocks.store.serverInfo.version = '0.5.0';
     mocks.store.serverInfo.compatibility = {
       status: 'supported',
-      reason: 'capabilities-confirmed',
-      missingCapabilities: []
+      reason: 'version-confirmed'
     };
   });
 
@@ -293,13 +278,24 @@ describe('ServerSidebarEntry', () => {
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
     );
     await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+    expect(q(document.body, '[data-testid="server-name"]')?.textContent?.trim()).toBe(
+      'Loaded Remote'
+    );
+    expect(q(document.body, '[data-testid="server-hostname"]')?.textContent?.trim()).toBe(
+      'remote.example.com'
+    );
 
     const markRead = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Mark as read'
     );
+    const remove = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Remove server'
+    );
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
-    await expect.element(q(document.body, '[role="separator"]')).toBeInTheDocument();
+    await expect.element(remove ?? null).toBeInTheDocument();
+    expect(markRead?.closest('.menu-section')).not.toBe(remove?.closest('.menu-section'));
+    expect(q(document.body, '[role="separator"]')).toBeNull();
     markRead!.click();
 
     expect(mocks.markNavigationServerAsRead).toHaveBeenCalledWith('remote');
@@ -320,6 +316,44 @@ describe('ServerSidebarEntry', () => {
     await expect
       .element(q(document.body, '[role="menu"]'))
       .toHaveAttribute('aria-label', 'Actions for Loaded Remote');
+  });
+
+  it('shows Copy Server Hostname last and copies the displayed host', async () => {
+    mocks.server.url = 'https://remote.example.com:8443/chat';
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+
+    icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="copy-server-hostname"]')).not.toBeNull()
+    );
+
+    const copyHostname = q(
+      document.body,
+      '[data-testid="copy-server-hostname"]'
+    ) as HTMLButtonElement;
+    await expect.element(copyHostname).toHaveTextContent('Copy Server Hostname');
+    const menuItems = copyHostname
+      .closest('[role="menu"]')
+      ?.querySelectorAll('[role="menuitem"]');
+    expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyHostname);
+
+    const remove = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Remove server'
+    );
+    expect(remove?.closest('.menu-section')).not.toBe(copyHostname.closest('.menu-section'));
+
+    copyHostname.click();
+
+    await vi.waitFor(() =>
+      expect(mocks.writeClipboardText).toHaveBeenCalledWith('remote.example.com:8443')
+    );
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Copied to clipboard');
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="copy-server-hostname"]')).toBeNull()
+    );
   });
 
   it('opens the remove-server confirmation for the selected server', async () => {
@@ -351,9 +385,8 @@ describe('ServerSidebarEntry', () => {
   it('shows the server version and warns when the server is too old', async () => {
     mocks.store.serverInfo.version = '0.4.12';
     mocks.store.serverInfo.compatibility = {
-      status: 'degraded',
-      reason: 'server-too-old',
-      missingCapabilities: []
+      status: 'unsupported',
+      reason: 'server-too-old'
     };
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote', currentUserId: 'user-1' }
@@ -364,6 +397,12 @@ describe('ServerSidebarEntry', () => {
       .toBeInTheDocument();
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    await expect
+      .element(icon)
+      .toHaveAttribute(
+        'title',
+        'Loaded Remote — This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
+      );
     icon.dispatchEvent(
       new MouseEvent('contextmenu', {
         bubbles: true,
@@ -375,18 +414,82 @@ describe('ServerSidebarEntry', () => {
 
     await vi.waitFor(() =>
       expect(document.body.textContent).toContain(
-        'This server is running an older version. Some features may not work as expected.'
+        'This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
       )
     );
     expect(document.body.textContent).toContain('Version 0.4.12');
 
-    const compatibilitySection = q(
-      document.body,
-      '[data-testid="server-compatibility-section"]'
-    );
+    const compatibilitySection = q(document.body, '[data-testid="server-compatibility-section"]');
     expect(compatibilitySection!.classList).toContain('text-sm');
     expect(compatibilitySection!.querySelector('.text-xs')).toBeNull();
     expect(compatibilitySection!.closest('.w-80')).not.toBeNull();
+  });
+
+  it('warns when the server version cannot establish compatibility', async () => {
+    mocks.store.serverInfo.version = 'custom-build';
+    mocks.store.serverInfo.compatibility = {
+      status: 'unknown',
+      reason: 'server-version-unknown'
+    };
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .toBeInTheDocument();
+
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    await expect
+      .element(icon)
+      .toHaveAttribute(
+        'title',
+        'Loaded Remote — This app cannot determine compatibility from the server version.'
+      );
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 36
+      })
+    );
+
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain(
+        'This app cannot determine compatibility from the server version.'
+      )
+    );
+    expect(document.body.textContent).toContain('Version custom-build');
+  });
+
+  it('shows an unreachable status instead of an unknown version and hides read actions', async () => {
+    mocks.store.projection.viewer = null;
+    mocks.store.serverInfo.version = '';
+    mocks.store.serverInfo.compatibility = {
+      status: 'unreachable',
+      reason: 'unreachable'
+    };
+    mocks.showConnectionLostIcon = true;
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Server unreachable');
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 36
+      })
+    );
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Server unreachable'));
+    expect(document.body.textContent).not.toContain('Version unknown');
+    expect(document.body.textContent).not.toContain('Mark as read');
+    expect(q(document.body, '[role="separator"]')).toBeNull();
   });
 
   it('renders an unauthenticated server without loading private sidebar state', async () => {
@@ -411,8 +514,105 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
   });
 
+  it('starts sign-in when an unauthenticated synchronized server is clicked', async () => {
+    mocks.store.isAuthenticated = false;
+
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+
+    await expect.element(icon).toHaveClass('opacity-40');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
+    await expect
+      .element(q(container, '[data-testid="server-reauth-required"]'))
+      .not.toBeInTheDocument();
+    icon.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(mocks.server);
+      expect(mocks.goto).not.toHaveBeenCalled();
+    });
+  });
+
+  it('marks a server that requires reauthentication and prioritises it over compatibility', async () => {
+    mocks.server.reauthRequiredAt = 123;
+    mocks.store.isAuthenticated = false;
+    mocks.store.serverInfo.compatibility = {
+      status: 'unsupported',
+      reason: 'server-too-old'
+    };
+
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]');
+
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
+    await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
+    const reauthMarker = q(container, '[data-testid="server-reauth-required"]');
+    await expect.element(reauthMarker).toBeInTheDocument();
+    expect(
+      reauthMarker?.querySelector('[class~="icon-[uil--exclamation-circle]"]')
+    ).not.toBeNull();
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .not.toBeInTheDocument();
+  });
+
+  it('uses the origin sign-in flow for an unauthenticated origin server', async () => {
+    mocks.store.isAuthenticated = false;
+    mocks.isOriginServer.mockReturnValue(true);
+
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote' }
+    });
+    q(container, '[data-testid="server-icon"]')?.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.beginOriginReauthentication).toHaveBeenCalledOnce();
+      expect(mocks.startRemoteReauthentication).not.toHaveBeenCalled();
+    });
+  });
+
+  it('does not start a second sign-in while the first attempt is pending', async () => {
+    mocks.store.isAuthenticated = false;
+    mocks.startRemoteReauthentication.mockReturnValueOnce(new Promise(() => {}));
+
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]');
+    icon?.click();
+    icon?.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledOnce();
+    });
+  });
+
+  it('shows an error and permits retry after sign-in fails', async () => {
+    mocks.store.isAuthenticated = false;
+    mocks.startRemoteReauthentication
+      .mockRejectedValueOnce(new Error('discovery failed'))
+      .mockResolvedValueOnce(undefined);
+
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]');
+    icon?.click();
+    await vi.waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+
+    icon?.click();
+    await vi.waitFor(() => {
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('keeps a failed server in the gutter as a dimmed icon', async () => {
-    mocks.getAuthenticatedServerState.mockRejectedValue(new Error('connection refused'));
+    mocks.store.projection.viewer = null;
+    mocks.showConnectionLostIcon = true;
 
     const { container } = render(ServerSidebarEntry, {
       props: {
@@ -421,45 +621,15 @@ describe('ServerSidebarEntry', () => {
       }
     });
 
-    await vi.waitFor(() => {
-      expect(mocks.getAuthenticatedServerState).toHaveBeenCalled();
-    });
-
     const icon = q(container, '[data-testid="server-icon"]');
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).toHaveClass('opacity-40');
-    await expect.element(icon).toHaveAttribute('title', 'Remote Chatto (connection unavailable)');
-    expect(container.textContent).toContain('R');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote (connection unavailable)');
+    expect(container.textContent).toContain('L');
   });
 
-  it('removes the dimmed state after sidebar init succeeds', async () => {
+  it('renders projected private server branding without sidebar bootstrap reads', async () => {
     mocks.store.serverInfo.iconUrl = 'https://remote.example.com/assets/server/public-logo.webp';
-    mocks.store.notifications.fetch.mockImplementationOnce(async () => {
-      mocks.store.notifications.setUnreadNotificationCount(3);
-    });
-    mocks.getAuthenticatedServerState.mockResolvedValue(
-      serverState({
-        logoUrl: 'https://remote.example.com/assets/server/private-logo.webp',
-        viewerHasUnreadRooms: true
-      })
-    );
-    mocks.getViewerStateViaConnect.mockResolvedValue(
-      viewerState({
-        canViewAdmin: true,
-        serverNotificationPreference: {
-          level: NotificationLevel.AllMessages,
-          effectiveLevel: NotificationLevel.AllMessages
-        },
-        roomNotificationPreferences: [
-          {
-            roomId: 'dm-1',
-            level: NotificationLevel.Muted,
-            effectiveLevel: NotificationLevel.Muted
-          }
-        ]
-      })
-    );
-    mocks.listRooms.mockResolvedValue([{ id: 'dm-1', kind: 2, hasUnread: true }]);
 
     const { container } = render(ServerSidebarEntry, {
       props: {
@@ -475,41 +645,14 @@ describe('ServerSidebarEntry', () => {
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
     await expect
       .element(image)
-      .toHaveAttribute('src', 'https://remote.example.com/assets/server/private-logo.webp');
-    await vi.waitFor(() => {
-      expect(mocks.store.notifications.setUnreadNotificationCount).toHaveBeenLastCalledWith(3);
-    });
-    expect(mocks.store.notifications.fetch).toHaveBeenCalled();
-    expect(mocks.getAuthenticatedServerState).toHaveBeenCalledWith({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.com/api/connect',
-      bearerToken: 'token'
-    });
-    expect(mocks.getViewerStateViaConnect).toHaveBeenCalledWith({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.com/api/connect',
-      bearerToken: 'token'
-    });
-    expect(mocks.store.setPermissions).toHaveBeenCalledWith(
-      expect.objectContaining({ canViewAdmin: true, canStartDMs: true })
-    );
-    expect(mocks.store.notificationLevels.setServerPreference).toHaveBeenCalledWith(
-      NotificationLevel.AllMessages,
-      NotificationLevel.AllMessages
-    );
-    expect(mocks.store.notificationLevels.setRoomPreference).toHaveBeenCalledWith(
-      'dm-1',
-      NotificationLevel.Muted,
-      NotificationLevel.Muted
-    );
-    expect(mocks.store.roomUnread.initRooms).toHaveBeenCalledWith(
-      [{ id: 'dm-1', kind: 2, hasUnread: true }],
-      true,
-      0
-    );
+      .toHaveAttribute('src', 'https://remote.example.com/assets/server/public-logo.webp');
+    expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
+    expect(mocks.getAuthenticatedServerState).not.toHaveBeenCalled();
+    expect(mocks.getViewerStateViaConnect).not.toHaveBeenCalled();
+    expect(mocks.listRooms).not.toHaveBeenCalled();
   });
 
-  it('keeps sidebar init usable when notification fetch returns no count changes', async () => {
+  it('uses an already-hydrated projection without a loading state', async () => {
     const { container } = render(ServerSidebarEntry, {
       props: {
         serverId: 'remote',
@@ -521,23 +664,23 @@ describe('ServerSidebarEntry', () => {
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).not.toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
-    await vi.waitFor(() => {
-      expect(mocks.store.notifications.fetch).toHaveBeenCalled();
-    });
+    expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
     expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
 
   it('reveals the target room before navigating from a server notification indicator', async () => {
     const notification = {
       id: 'mention-1',
-      kind: NotificationItemKind.Mention,
-      mentionRoom: { id: 'room-1', name: 'general' },
-      mentionEventId: 'event-1',
-      mentionInThread: 'thread-1'
+      signalKind: NotificationSignalKind.DIRECT_MENTION,
+      targetSupported: true,
+      room: { id: 'room-1', name: 'general' },
+      eventId: 'event-1',
+      threadRootId: 'thread-1'
     };
     mocks.store.serverIndicator.mockReturnValue('notification');
     mocks.store.notifications.unreadNotificationCount = 1;
-    mocks.store.notifications.getSpaceNotification.mockReturnValue(notification);
+    mocks.store.notifications.importantUnreadNotificationCount = 1;
+    mocks.store.notifications.getNonDMNotification.mockReturnValue(notification);
     mocks.store.notifications.getCleanPath.mockReturnValue(
       '/chat/remote.example.com/room-1/thread-1'
     );
@@ -551,6 +694,7 @@ describe('ServerSidebarEntry', () => {
 
     const badge = q(container, '[data-testid="server-notification-badge"]');
     await expect.element(badge).toBeInTheDocument();
+    await expect.element(badge).toHaveClass('bg-attention');
     (badge?.closest('button') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
@@ -561,31 +705,56 @@ describe('ServerSidebarEntry', () => {
       expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
         'room-1',
         'thread-1',
-        'event-1'
+        'event-1',
+        'mention-1'
       );
-      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com/room-1/thread-1');
     });
   });
 
-  it('marks remote rooms unread from local message event kind', async () => {
-    render(ServerSidebarEntry, {
+  it('opens notifications instead of navigating an unsupported future target', async () => {
+    mocks.store.serverIndicator.mockReturnValue('notification');
+    mocks.store.notifications.unreadNotificationCount = 1;
+    mocks.store.notifications.importantUnreadNotificationCount = 1;
+    mocks.store.notifications.getNonDMNotification.mockReturnValue({
+      id: 'future-target',
+      signalKind: NotificationSignalKind.UNSUPPORTED,
+      targetSupported: false,
+      createdAt: new Date().toISOString(),
+      actor: null
+    });
+
+    const { container } = render(ServerSidebarEntry, {
       props: {
         serverId: 'remote',
         currentUserId: 'user-1'
       }
     });
 
+    const badge = q(container, '[data-testid="server-notification-badge"]');
+    (badge?.closest('button') as HTMLButtonElement).click();
+
     await vi.waitFor(() => {
-      expect(mocks.eventHandlers).toHaveLength(1);
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/notifications');
+    });
+    expect(mocks.appUi.disableRoomCallWideFor).not.toHaveBeenCalled();
+  });
+
+  it('uses a neutral server badge when only ambient notifications are unread', async () => {
+    mocks.store.serverIndicator.mockReturnValue('notification');
+    mocks.store.notifications.unreadNotificationCount = 2;
+    mocks.store.notifications.importantUnreadNotificationCount = 0;
+
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
     });
 
-    dispatchServerEvent({
-      kind: RoomEventKind.MessagePosted,
-      roomId: 'room-1',
-      threadRootEventId: null
-    });
-
-    expect(mocks.store.roomUnread.setRoomUnread).toHaveBeenCalledWith('room-1', true);
+    const badge = q(container, '[data-testid="server-notification-badge"]');
+    await expect.element(badge).toHaveClass('bg-text');
+    await expect.element(badge).not.toHaveClass('bg-attention');
   });
 });

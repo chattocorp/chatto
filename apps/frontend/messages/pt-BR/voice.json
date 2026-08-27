@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Conectando...",
     "joining": "Entrando...",
@@ -11,6 +10,15 @@
     "leave": "Sair da ligação",
     "share_screen": "Compartilhar tela",
     "stop_share_screen": "Parar de compartilhar tela",
+    "applications": "Aplicativos",
+    "entire_screen": "Tela inteira",
+    "share_source": "Fonte do compartilhamento",
+    "main_display": "Tela principal",
+    "display_number": "Tela {number}",
+    "video_only": "Somente vídeo",
+    "share_sources_failed": "Não foi possível carregar as fontes compartilháveis.",
+    "no_share_windows": "Nenhuma janela de aplicativo compartilhável encontrada.",
+    "no_share_displays": "Nenhuma tela encontrada.",
     "user_settings": "Configurações do usuário",
     "speaking": "Falando",
     "muted": "Silenciado",
@@ -54,6 +62,13 @@
     "screen_share_failed": "Não foi possível iniciar o compartilhamento de tela.",
     "speaker_switch_failed": "Não foi possível trocar os alto-falantes. Este navegador ou dispositivo pode não suportar a seleção de alto-falantes.",
     "device_switch_failed": "Não foi possível mudar para esse dispositivo.",
-    "media_device_failed": "Não foi possível acessar um dispositivo de mídia."
+    "media_device_failed": "Não foi possível acessar um dispositivo de mídia.",
+    "stream_game": "Transmitir um jogo",
+    "stream_game_description": "Escolha a janela do jogo que você quer compartilhar com todos na chamada.",
+    "game_windows": "Janelas de jogos",
+    "no_game_windows": "Nenhuma janela compartilhável foi encontrada. Abra um jogo no modo janela ou sem bordas e tente novamente.",
+    "game_windows_failed": "Não foi possível carregar as janelas compartilháveis.",
+    "untitled_window": "Janela sem título",
+    "game_window_selected": "{name} selecionado"
   }
 }

@@ -15,22 +15,20 @@ vi.mock('$lib/api-client/readState', () => ({
   createReadStateAPI: () => ({ markRoomAsRead: mocks.markRoomAsRead })
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    serverId: 'server-1',
-    connectBaseUrl: '/api/connect',
-    bearerToken: 'token'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    store: {
+      get roomUnread() {
+        return mocks.roomUnread;
+      }
+    },
+    connection: {
+      serverId: 'server-1',
+      connectBaseUrl: '/api/connect',
+      bearerToken: 'token',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
-}));
-
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'server-1'
-}));
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => ({ roomUnread: mocks.roomUnread })
-  }
 }));
 
 function deferred<T>() {
@@ -77,6 +75,20 @@ describe('useRoomUnread', () => {
 
     request.reject(new Error('network down'));
     await vi.waitFor(() => expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true));
+    rendered.unmount();
+  });
+
+  it('does not update read state without permission to read messages', async () => {
+    mocks.roomUnread!.setRoomUnread('room-1', true);
+
+    const rendered = render(Harness, {
+      props: { roomId: 'room-1', canReadMessages: false, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true);
     rendered.unmount();
   });
 

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Växla sidofältet",
     "notifications": "Aviseringar",
@@ -32,6 +31,19 @@
     "tooltip": {
       "more_information": "Mer information",
       "about": "Om {subject}"
+    },
+    "easter_egg": {
+      "fire": "Avfyra en redo laser mot Chatto",
+      "points": "{count} poäng",
+      "laser_guns_count": {
+        "one": "{count} laserkanon",
+        "other": "{count} laserkanoner"
+      },
+      "laser_ready": "Laser {number}, styrka {power}, redo",
+      "laser_cooldown": "Laser {number}, styrka {power}: {seconds} sekunders nedkylning återstår",
+      "upgrade_power": "Uppgradera laser {number} till styrkenivå {level} för {cost} poäng",
+      "buy_laser": "Köp laserkanon {number} för {cost} poäng",
+      "maximum_lasers": "Maxgränsen på {count} laserkanoner är nådd"
     },
     "pane_header": {
       "back": "Tillbaka"
