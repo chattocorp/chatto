@@ -317,6 +317,15 @@ func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 	if tokenResp.Msg.GetConfirmationToken() == "" {
 		t.Fatal("confirmation token is empty after grant")
 	}
+	deleteResp, err := env.account.DeleteMyAccount(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteMyAccountRequest{
+		ConfirmationToken: tokenResp.Msg.GetConfirmationToken(),
+	}))
+	if err != nil {
+		t.Fatalf("DeleteMyAccount after grant: %v", err)
+	}
+	if !deleteResp.Msg.GetDeleted() {
+		t.Fatal("Deleted = false, want true")
+	}
 }
 
 func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
