@@ -104,7 +104,7 @@
       "presence": {
         "button": "プレゼンス: {status}",
         "title": "プレゼンス",
-        "auto": "オンライン",
+        "online": "オンライン",
         "away": "離れています",
         "do_not_disturb": "邪魔しないでください",
         "offline": "オフライン",

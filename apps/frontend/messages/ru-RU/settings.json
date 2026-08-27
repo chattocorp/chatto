@@ -104,7 +104,7 @@
       "presence": {
         "button": "Присутствие: {status}",
         "title": "Присутствие",
-        "auto": "Онлайн",
+        "online": "Онлайн",
         "away": "В гостях",
         "do_not_disturb": "Не беспокоить",
         "offline": "Оффлайн",

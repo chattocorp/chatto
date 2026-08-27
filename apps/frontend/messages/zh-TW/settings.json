@@ -104,7 +104,7 @@
       "presence": {
         "button": "上線狀態：{status}",
         "title": "上線狀態",
-        "auto": "上線",
+        "online": "上線",
         "away": "離開",
         "do_not_disturb": "請勿打擾",
         "offline": "離線",

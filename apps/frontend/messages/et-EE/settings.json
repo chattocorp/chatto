@@ -104,7 +104,7 @@
       "presence": {
         "button": "Kohalolek: {status}",
         "title": "Kohalolek",
-        "auto": "Internetis",
+        "online": "Internetis",
         "away": "Eemal",
         "do_not_disturb": "Mitte segada",
         "offline": "Võrguühenduseta",

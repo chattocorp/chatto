@@ -104,7 +104,7 @@
       "presence": {
         "button": "在线状态：{status}",
         "title": "在线状态",
-        "auto": "在线",
+        "online": "在线",
         "away": "离开",
         "do_not_disturb": "请勿打扰",
         "offline": "离线",

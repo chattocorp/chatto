@@ -104,7 +104,7 @@
       "presence": {
         "button": "Presencia: {status}",
         "title": "Presencia",
-        "auto": "En línea",
+        "online": "En línea",
         "away": "Ausente",
         "do_not_disturb": "No molestar",
         "offline": "Sin conexión",

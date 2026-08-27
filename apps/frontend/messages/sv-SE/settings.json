@@ -104,7 +104,7 @@
       "presence": {
         "button": "Närvaro: {status}",
         "title": "Närvaro",
-        "auto": "Online",
+        "online": "Online",
         "away": "Borta",
         "do_not_disturb": "Stör ej",
         "offline": "Offline",

@@ -104,7 +104,7 @@
       "presence": {
         "button": "الحضور: {status}",
         "title": "التواجد",
-        "auto": "على الانترنت",
+        "online": "على الانترنت",
         "away": "بعيدًا",
         "do_not_disturb": "عدم الإزعاج",
         "offline": "غير متصل",

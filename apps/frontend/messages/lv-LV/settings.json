@@ -104,7 +104,7 @@
       "presence": {
         "button": "Klātbūtne: {status}",
         "title": "Klātbūtne",
-        "auto": "Tiešsaistē",
+        "online": "Tiešsaistē",
         "away": "Prom",
         "do_not_disturb": "Netraucēt",
         "offline": "Bezsaistē",

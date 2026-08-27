@@ -104,7 +104,7 @@
       "presence": {
         "button": "Aanwezigheid: {status}",
         "title": "Aanwezigheid",
-        "auto": "Online",
+        "online": "Online",
         "away": "Weg",
         "do_not_disturb": "Niet storen",
         "offline": "Offline",

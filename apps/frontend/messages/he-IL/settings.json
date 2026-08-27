@@ -104,7 +104,7 @@
       "presence": {
         "button": "נוכחות: {status}",
         "title": "נוכחות",
-        "auto": "באינטרנט",
+        "online": "באינטרנט",
         "away": "לא נמצא/ת",
         "do_not_disturb": "נא לא להפריע",
         "offline": "במצב לא מקוון",

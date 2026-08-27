@@ -104,7 +104,7 @@
       "presence": {
         "button": "Mevcudiyet: {status}",
         "title": "Mevcudiyet",
-        "auto": "Çevrimiçi",
+        "online": "Çevrimiçi",
         "away": "uzakta",
         "do_not_disturb": "Rahatsız Etmeyin",
         "offline": "Çevrimdışı",

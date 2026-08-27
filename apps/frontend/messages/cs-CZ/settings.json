@@ -104,7 +104,7 @@
       "presence": {
         "button": "Přítomnost: {status}",
         "title": "Přítomnost",
-        "auto": "Online",
+        "online": "Online",
         "away": "Pryč",
         "do_not_disturb": "Nerušit",
         "offline": "Offline",
