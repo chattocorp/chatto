@@ -43,6 +43,8 @@ export const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
 });
 
 const markdownAutolinkAttribute = 'markdownAutolink';
+const closedMarkdownAutolink = 'closed';
+const unclosedMarkdownAutolink = 'unclosed';
 
 function isMarkdownAutolinkToken(token: MarkdownToken): boolean {
   const raw = token.raw ?? '';
@@ -66,7 +68,7 @@ export const ComposerLink = Link.extend({
     return helpers.applyMark('link', helpers.parseInline(token.tokens ?? []), {
       href: token.href,
       title: token.title || null,
-      [markdownAutolinkAttribute]: isMarkdownAutolinkToken(token)
+      [markdownAutolinkAttribute]: isMarkdownAutolinkToken(token) ? closedMarkdownAutolink : false
     });
   },
 
@@ -75,9 +77,11 @@ export const ComposerLink = Link.extend({
     const title = node.attrs?.title ?? '';
     const text = helpers.renderChildren(node);
 
-    if (node.attrs?.[markdownAutolinkAttribute] && !title) {
+    if (node.attrs?.[markdownAutolinkAttribute] === closedMarkdownAutolink && !title) {
       return `<${text}>`;
     }
+
+    if (node.attrs?.[markdownAutolinkAttribute] === unclosedMarkdownAutolink && !title) return text;
 
     return title ? `[${text}](${href} "${title}")` : `[${text}](${href})`;
   }
@@ -250,7 +254,7 @@ export const MarkdownAutolinkInputRule = Extension.create({
           tr.addMark(
             from,
             from + href.length,
-            linkType.create({ href, [markdownAutolinkAttribute]: true })
+            linkType.create({ href, [markdownAutolinkAttribute]: closedMarkdownAutolink })
           );
           tr.removeStoredMark(linkType);
         }
@@ -275,25 +279,48 @@ export const NormalizeMarkdownAutolinks = Extension.create({
           const tr = newState.tr;
           let changed = false;
 
+          const hasUnescapedOpeningAngleBefore = (position: number) => {
+            const textBefore = newState.doc.textBetween(Math.max(0, position - 64), position);
+            if (!textBefore.endsWith('<')) return false;
+
+            let precedingBackslashes = 0;
+            for (
+              let index = textBefore.length - 2;
+              index >= 0 && textBefore[index] === '\\';
+              index -= 1
+            ) {
+              precedingBackslashes += 1;
+            }
+            return precedingBackslashes % 2 === 0;
+          };
+
           newState.doc.descendants((node, position) => {
             if (!node.isText) return;
 
-            const autolink = node.marks.find(
-              (mark) => mark.type === linkType && mark.attrs[markdownAutolinkAttribute]
-            );
-            if (!autolink) return;
+            const link = node.marks.find((mark) => mark.type === linkType);
+            if (!link) return;
 
-            const isUnmodifiedAutolink =
-              node.text === autolink.attrs.href && node.marks.length === 1;
-            if (isUnmodifiedAutolink) return;
+            const currentAutolink = link.attrs[markdownAutolinkAttribute];
+            const isPlainURLLink =
+              node.text === link.attrs.href && node.marks.length === 1 && !link.attrs.title;
+            let nextAutolink:
+              false | typeof closedMarkdownAutolink | typeof unclosedMarkdownAutolink = false;
 
-            tr.removeMark(position, position + node.nodeSize, autolink);
+            if (currentAutolink === closedMarkdownAutolink && isPlainURLLink) {
+              nextAutolink = closedMarkdownAutolink;
+            } else if (isPlainURLLink && hasUnescapedOpeningAngleBefore(position)) {
+              nextAutolink = unclosedMarkdownAutolink;
+            }
+
+            if (currentAutolink === nextAutolink) return;
+
+            tr.removeMark(position, position + node.nodeSize, link);
             tr.addMark(
               position,
               position + node.nodeSize,
               linkType.create({
-                ...autolink.attrs,
-                [markdownAutolinkAttribute]: false
+                ...link.attrs,
+                [markdownAutolinkAttribute]: nextAutolink
               })
             );
             changed = true;

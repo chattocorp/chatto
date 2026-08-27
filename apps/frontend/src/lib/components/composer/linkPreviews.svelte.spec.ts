@@ -40,6 +40,7 @@ describe('LinkPreviewState', () => {
       '```\nhttps://example.com\n```',
       '> https://example.com',
       '<https://example.com>',
+      '<https://example.com',
       'mail user@example.com',
       'ftp://example.com/file'
     ]) {

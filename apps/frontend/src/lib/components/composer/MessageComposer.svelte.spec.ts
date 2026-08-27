@@ -766,7 +766,7 @@ describe('MessageComposer', () => {
 
   describe('angle-bracket link preview suppression', () => {
     it('suppresses previews and posts the autolink from the visual editor', async () => {
-      const body = '<https://example.com/visual>';
+      const body = '<https://example.com/visual';
       const { container, roomId } = renderMessageComposer({ roomId: 'visual-autolink' });
       const editor = await findEditor(container);
 
@@ -785,7 +785,7 @@ describe('MessageComposer', () => {
 
     it('suppresses previews and posts the autolink from the Markdown editor', async () => {
       userPreferences.composerEditor = 'markdown';
-      const body = '<https://example.com/markdown>';
+      const body = '<https://example.com/markdown';
       const { container, roomId } = renderMessageComposer({ roomId: 'markdown-autolink' });
       const editor = await findEditor(container);
 

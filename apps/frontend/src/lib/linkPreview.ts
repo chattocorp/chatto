@@ -21,6 +21,17 @@ const markdown = new MarkdownIt({
 markdown.linkify.tlds(tlds);
 markdown.disable(['escape']);
 
+function endsWithUnescapedOpeningAngle(text: string): boolean {
+  if (!text.endsWith('<')) return false;
+
+  let precedingBackslashes = 0;
+  for (let index = text.length - 2; index >= 0 && text[index] === '\\'; index -= 1) {
+    precedingBackslashes += 1;
+  }
+
+  return precedingBackslashes % 2 === 0;
+}
+
 /**
  * Extracts unique URLs from text, including bare-domain URLs (e.g. www.hmans.dev).
  * Returns at most maxURLs URLs, in the order they appear.
@@ -74,7 +85,14 @@ export function extractURLs(text: string, maxURLs = 1): string[] {
       const href = child.attrGet('href');
       if (!href) continue;
 
-      const rawText = child.markup === 'linkify' ? (children[i + 1]?.content ?? '') : '';
+      const linkText = children[i + 1]?.content ?? '';
+      const hasUnclosedAutolinkPrefix =
+        endsWithUnescapedOpeningAngle(children[i - 1]?.content ?? '') &&
+        /^https?:\/\//i.test(linkText) &&
+        linkText === href;
+      if (hasUnclosedAutolinkPrefix) continue;
+
+      const rawText = child.markup === 'linkify' ? linkText : '';
       addURL(href, rawText);
     }
   }

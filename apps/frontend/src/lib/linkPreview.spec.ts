@@ -127,6 +127,20 @@ describe('extractURLs', () => {
       expect(extractURLs('<http://suppressed.example/story>')).toEqual([]);
     });
 
+    it('ignores HTTP(S) links after an unmatched opening angle bracket', () => {
+      expect(
+        extractURLs(
+          'Skip <https://suppressed.example/story and preview https://shown.example/story'
+        )
+      ).toEqual(['https://shown.example/story']);
+      expect(extractURLs('<http://suppressed.example/story')).toEqual([]);
+    });
+
+    it('does not suppress escaped or bare-domain unmatched angle syntax', () => {
+      expect(extractURLs('\\<https://example.com/story')).toEqual(['https://example.com/story']);
+      expect(extractURLs('<example.com')).toEqual(['https://example.com']);
+    });
+
     it('does not treat angle-wrapped bare domains as suppressed autolinks', () => {
       expect(extractURLs('<example.com>')).toEqual(['https://example.com']);
       expect(extractURLs('<www.example.com>')).toEqual(['https://www.example.com']);

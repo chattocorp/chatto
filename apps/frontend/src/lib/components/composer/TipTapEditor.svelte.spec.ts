@@ -203,6 +203,45 @@ describe('TipTapEditor Markdown autolinks', () => {
     await expect.element(editor).toHaveTextContent('https://example.com/story');
   });
 
+  it('preserves a typed autolink when the closing angle bracket is missing', async () => {
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    const editor = page.getByRole('textbox', { name: 'Write a message' });
+
+    await userEvent.click(editor);
+    await userEvent.type(editor, '<https://example.com/unclosed');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/unclosed'));
+  });
+
+  it('preserves a restored autolink with no closing angle bracket', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+
+    api.setContent('<https://example.com/unclosed');
+    api.focus('end');
+    api.insertText(' after');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/unclosed after'));
+    expect(container.querySelector('a')?.getAttribute('href')).toBe(
+      'https://example.com/unclosed'
+    );
+  });
+
   it('preserves an angle-bracket URL pasted into the visual editor', async () => {
     const updates: string[] = [];
     render(TipTapEditor, {
