@@ -24,8 +24,12 @@ export type UserSummary = {
 };
 
 /**
- * Map a generated user to its summary. Returns `undefined`-tolerant callers
- * should guard before calling; see `mapOptionalUserSummary`.
+ * Map a generated user to its summary.
+ *
+ * Normalization contract: an unset or empty-string protobuf avatar URL maps
+ * to `null` (proto3 strings default to `''`, so "unset" and "empty" are the
+ * same fact). Callers that previously emitted `''` (`?? null`) now emit
+ * `null`; consumers treat both as no-avatar through truthiness checks.
  */
 export function mapUserSummary(user: APIUser): UserSummary {
   return {

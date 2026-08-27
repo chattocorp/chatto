@@ -184,8 +184,8 @@ async function batchTimelineUsers(
     const summaries = await createUserAPI(config).batchGetUsers(userIds);
     const users: Record<string, User> = {};
     for (const summary of summaries) {
-      // `UserSummary` is structurally the generated `User` shape the timeline
-      // view helpers read; normalize `avatarUrl` to keep the record uniform.
+      // The view helpers read generated `User` values; the only difference
+      // from a stored summary is `avatarUrl` (`string | undefined` vs `null`).
       users[summary.id] = {
         id: summary.id,
         login: summary.login,
@@ -228,11 +228,11 @@ function messageUserIds(messages: Message[]): string[] {
 }
 
 function primeTimelineUserIncludes(config: RoomTimelineAPIConfig, users: Record<string, User>) {
-	notifyUserSummaries(
-		config.serverId,
-		Object.values(users).map(mapUserSummary),
-		config.onUserSummaries
-	);
+  notifyUserSummaries(
+    config.serverId,
+    Object.values(users).map(mapUserSummary),
+    config.onUserSummaries
+  );
 }
 
 function emptyEventConnectionPage(): EventConnectionPage {

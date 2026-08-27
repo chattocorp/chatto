@@ -1,4 +1,4 @@
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Empty } from '@bufbuild/protobuf';
 import { authHeaders, createChattoClient } from './connect.js';
 import {
