@@ -30,7 +30,10 @@
     ],
     "ignoredBuiltDependencies": [
       "@tailwindcss/oxide"
-    ]
+    ],
+    "patchedDependencies": {
+      "@tiptap/core@3.30.2": "patches/@tiptap__core@3.30.2.patch"
+    }
   },
   "devDependencies": {
     "knip": "^6.22.0"
