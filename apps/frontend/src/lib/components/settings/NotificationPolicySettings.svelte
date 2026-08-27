@@ -79,11 +79,6 @@ Rows are notification causes. Columns follow the current navigation layout.
       hint: m('settings.notifications.policy.reason_hint.followed_thread')
     },
     {
-      field: 'followedRooms',
-      label: m('settings.notifications.policy.reason.followed_room'),
-      hint: m('settings.notifications.policy.reason_hint.followed_room')
-    },
-    {
       field: 'reactions',
       label: m('settings.notifications.policy.reason.reaction'),
       hint: m('settings.notifications.policy.reason_hint.reaction')

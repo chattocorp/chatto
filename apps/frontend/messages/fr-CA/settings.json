@@ -305,7 +305,6 @@
           "here": "Mentions @here",
           "all": "Mentions @all",
           "followed_thread": "Fils suivis",
-          "followed_room": "Salons suivis",
           "reaction": "Réactions à vos messages",
           "activity": "Activité",
           "room_invitation": "Invitations à des salons"
@@ -319,7 +318,6 @@
           "here": "Messages qui utilisent @here lorsque votre présence n’est pas hors ligne.",
           "all": "Messages qui utilisent @all dans un salon dont vous êtes membre.",
           "followed_thread": "Nouvelles réponses dans les fils que vous suivez.",
-          "followed_room": "Messages de premier niveau dans les salons que vous suivez.",
           "reaction": "Réactions ajoutées à vos messages par d’autres membres."
         }
       }

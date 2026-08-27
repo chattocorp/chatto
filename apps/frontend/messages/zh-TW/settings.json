@@ -305,7 +305,6 @@
           "here": "@here 提及",
           "all": "@all 提及",
           "followed_thread": "已關注的討論串",
-          "followed_room": "已關注的房間",
           "reaction": "對你訊息的回應",
           "activity": "動態",
           "room_invitation": "房間邀請"
@@ -319,7 +318,6 @@
           "here": "當你的上線狀態不是離線時使用 @here 的訊息。",
           "all": "在你已加入的房間中使用 @all 的訊息。",
           "followed_thread": "你所關注討論串中的新回覆。",
-          "followed_room": "你所關注房間中不屬於討論串的訊息。",
           "reaction": "其他成員新增到你訊息上的回應。"
         }
       }

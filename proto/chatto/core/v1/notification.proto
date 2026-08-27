@@ -130,7 +130,8 @@ message NotificationDeliveryModes {
   optional NotificationDeliveryMode here_mentions = 5;
   optional NotificationDeliveryMode all_mentions = 6;
   optional NotificationDeliveryMode followed_threads = 7;
-  optional NotificationDeliveryMode followed_rooms = 8;
+  // Deprecated compatibility slot. Current code does not derive this cause.
+  optional NotificationDeliveryMode followed_rooms = 8 [deprecated = true];
   optional NotificationDeliveryMode reactions = 9;
   // Root messages posted directly to joined channel rooms. Thread messages
   // and direct messages use their own signal classes.
@@ -184,6 +185,8 @@ message FollowedThreadActivity {
 }
 
 message FollowedRoomActivity {
+  option deprecated = true;
+
   NotificationMessageReference message = 1;
 }
 
@@ -208,7 +211,7 @@ message NotificationSignal {
     HereMentionReceived here_mention_received = 5;
     AllMentionReceived all_mention_received = 6;
     FollowedThreadActivity followed_thread_activity = 7;
-    FollowedRoomActivity followed_room_activity = 8;
+    FollowedRoomActivity followed_room_activity = 8 [deprecated = true];
     ReactionReceived reaction_received = 9;
     RoomMessageReceived room_message_received = 10;
   }

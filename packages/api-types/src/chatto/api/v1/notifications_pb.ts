@@ -156,9 +156,10 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
   followedThreads?: NotificationDeliveryMode;
 
   /**
-   * Delivery mode for top-level activity in rooms followed by the viewer.
+   * Deprecated compatibility slot. Use room_messages at room scope.
    *
-   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode followed_rooms = 8;
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode followed_rooms = 8 [deprecated = true];
+   * @deprecated
    */
   followedRooms?: NotificationDeliveryMode;
 
@@ -552,9 +553,10 @@ export class FollowedThreadActivity extends Message<FollowedThreadActivity> {
 }
 
 /**
- * Top-level activity in a room explicitly followed by the viewer.
+ * Deprecated compatibility payload. Chatto does not derive this signal.
  *
  * @generated from message chatto.api.v1.FollowedRoomActivity
+ * @deprecated
  */
 export class FollowedRoomActivity extends Message<FollowedRoomActivity> {
   /**
@@ -731,7 +733,8 @@ export class NotificationSignal extends Message<NotificationSignal> {
     case: "followedThreadActivity";
   } | {
     /**
-     * @generated from field: chatto.api.v1.FollowedRoomActivity followed_room_activity = 8;
+     * @generated from field: chatto.api.v1.FollowedRoomActivity followed_room_activity = 8 [deprecated = true];
+     * @deprecated
      */
     value: FollowedRoomActivity;
     case: "followedRoomActivity";

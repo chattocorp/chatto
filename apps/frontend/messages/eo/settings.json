@@ -305,7 +305,6 @@
           "here": "@here-mencioj",
           "all": "@all-mencioj",
           "followed_thread": "Sekvataj fadenoj",
-          "followed_room": "Sekvataj ĉambroj",
           "reaction": "Reagoj al viaj mesaĝoj",
           "activity": "Aktiveco",
           "room_invitation": "Invitoj al ĉambroj"
@@ -319,7 +318,6 @@
           "here": "Mesaĝoj, kiuj uzas @here kiam via ĉeesto ne estas eksterreta.",
           "all": "Mesaĝoj, kiuj uzas @all en ĉambro, al kiu vi apartenas.",
           "followed_thread": "Novaj respondoj en fadenoj, kiujn vi sekvas.",
-          "followed_room": "Ĉefnivelaj mesaĝoj en ĉambroj, kiujn vi sekvas.",
           "reaction": "Reagoj, kiujn aliaj membroj aldonas al viaj mesaĝoj."
         }
       }

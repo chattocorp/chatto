@@ -305,7 +305,6 @@
           "here": "@here-omnämnanden",
           "all": "@all-omnämnanden",
           "followed_thread": "Följda trådar",
-          "followed_room": "Följda rum",
           "reaction": "Reaktioner på dina meddelanden",
           "activity": "Aktivitet",
           "room_invitation": "Inbjudningar till rum"
@@ -319,7 +318,6 @@
           "here": "Meddelanden som använder @here när din närvaro inte är offline.",
           "all": "Meddelanden som använder @all i ett rum som du är medlem i.",
           "followed_thread": "Nya svar i trådar som du följer.",
-          "followed_room": "Meddelanden utanför trådar i rum som du följer.",
           "reaction": "Reaktioner som andra medlemmar lägger till i dina meddelanden."
         }
       }

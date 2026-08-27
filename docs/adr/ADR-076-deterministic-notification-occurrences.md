@@ -59,10 +59,12 @@ coordinates, source-time delivery and attention decisions, and a rich
 `NotificationSignal` oneof. The
 projection constructs `NotificationOccurrence` current-state resources from
 that fact and later lifecycle facts; the event never embeds its projection.
-Current variants are direct message, root channel-room message, direct mention,
-reply, role mention, `@here`, `@all`, followed-thread activity, followed-room
-activity, and reaction received. Each variant owns the typed data needed to
-authorize, render, and navigate that signal; reaction signals carry their
+Current producers use direct message, root channel-room message, direct
+mention, reply, role mention, `@here`, `@all`, followed-thread activity, and
+reaction received. The wire contract also retains a deprecated followed-room
+compatibility branch that current code does not derive. Each supported variant
+owns the typed data needed to authorize, render, and navigate that signal;
+reaction signals carry their
 emoji, and a consolidated role-mention signal carries the sorted source-time
 role handles that selected the recipient. The record
 references source resources but does not copy message bodies, room names,
@@ -113,9 +115,10 @@ The same existing `MessagePostedEvent` is the source for ordinary root-message
 attention. At that exact event sequence, the materializer selects current room
 members who have `message.read` and resolves each member's Room messages policy.
 Thread messages and direct messages use their existing separate causes.
-Joined-room activity does not produce followed-room activity; that cause
-remains inactive until durable room-follow state exists. No
-notification-specific source event or marker is added to `EVT`.
+Joined-room activity does not produce followed-room activity. That branch is a
+deprecated compatibility slot; Room messages at room scope provide the
+supported control. No notification-specific source event or marker is added to
+`EVT`.
 
 For compatibility, `MessagePostedEvent.mentioned_user_ids` remains a flattened
 view of recipients selected by direct, role, `@here`, and `@all` handles. It
@@ -296,11 +299,17 @@ existing public `has_unread` field, which older clients already understand.
 
 An older server does not derive new Room messages decisions. Thus, the default
 Badge output and future occurrences are temporarily inactive during rollback
-instead of being interpreted as Followed rooms. If an upgraded server already
+instead of being interpreted as another cause. If an upgraded server already
 persisted a Room-message occurrence for Notification or Push notification, the
 older server's notification occurrence RPCs return `Unimplemented` until a
 supporting binary serves the occurrence again. The older server does not
 reinterpret or discard the unsupported signal.
+
+The public and persisted field 8 followed-room policy and signal contracts are
+deprecated compatibility slots. Current code accepts and preserves the policy
+field but does not derive the signal. Existing stored values remain inert.
+Keeping the field and branch prevents older data or clients from being
+reinterpreted as another notification cause.
 
 Room-group policy changes use the separate persisted
 `UserRoomGroupNotificationPolicyChangedEvent` variant. An older binary ignores

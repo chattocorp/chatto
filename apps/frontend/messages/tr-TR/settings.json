@@ -305,7 +305,6 @@
           "here": "@here bahsetmeleri",
           "all": "@all bahsetmeleri",
           "followed_thread": "Takip edilen ileti dizileri",
-          "followed_room": "Takip edilen odalar",
           "reaction": "Mesajlarınıza verilen tepkiler",
           "activity": "Etkinlik",
           "room_invitation": "Oda davetleri"
@@ -319,7 +318,6 @@
           "here": "Durumunuz çevrimdışı değilken @here kullanan mesajlar.",
           "all": "Üyesi olduğunuz bir odada @all kullanan mesajlar.",
           "followed_thread": "Takip ettiğiniz ileti dizilerindeki yeni yanıtlar.",
-          "followed_room": "Takip ettiğiniz odalarda ileti dizisi dışında gönderilen mesajlar.",
           "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler."
         }
       }

@@ -165,7 +165,9 @@ type NotificationDeliveryModes struct {
 	HereMentions    *NotificationDeliveryMode `protobuf:"varint,5,opt,name=here_mentions,json=hereMentions,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"here_mentions,omitempty"`
 	AllMentions     *NotificationDeliveryMode `protobuf:"varint,6,opt,name=all_mentions,json=allMentions,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"all_mentions,omitempty"`
 	FollowedThreads *NotificationDeliveryMode `protobuf:"varint,7,opt,name=followed_threads,json=followedThreads,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"followed_threads,omitempty"`
-	// Delivery mode for top-level activity in rooms followed by the viewer.
+	// Deprecated compatibility slot. Use room_messages at room scope.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/notifications.proto.
 	FollowedRooms *NotificationDeliveryMode `protobuf:"varint,8,opt,name=followed_rooms,json=followedRooms,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"followed_rooms,omitempty"`
 	Reactions     *NotificationDeliveryMode `protobuf:"varint,9,opt,name=reactions,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"reactions,omitempty"`
 	// Delivery mode for root messages posted directly to joined channel rooms.
@@ -254,6 +256,7 @@ func (x *NotificationDeliveryModes) GetFollowedThreads() NotificationDeliveryMod
 	return NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 }
 
+// Deprecated: Marked as deprecated in chatto/api/v1/notifications.proto.
 func (x *NotificationDeliveryModes) GetFollowedRooms() NotificationDeliveryMode {
 	if x != nil && x.FollowedRooms != nil {
 		return *x.FollowedRooms
@@ -664,7 +667,9 @@ func (x *FollowedThreadActivity) GetMessage() *NotificationMessageReference {
 	return nil
 }
 
-// Top-level activity in a room explicitly followed by the viewer.
+// Deprecated compatibility payload. Chatto does not derive this signal.
+//
+// Deprecated: Marked as deprecated in chatto/api/v1/notifications.proto.
 type FollowedRoomActivity struct {
 	state         protoimpl.MessageState        `protogen:"open.v1"`
 	Message       *NotificationMessageReference `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
@@ -930,6 +935,7 @@ func (x *NotificationSignal) GetFollowedThreadActivity() *FollowedThreadActivity
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/api/v1/notifications.proto.
 func (x *NotificationSignal) GetFollowedRoomActivity() *FollowedRoomActivity {
 	if x != nil {
 		if x, ok := x.Kind.(*NotificationSignal_FollowedRoomActivity); ok {
@@ -990,6 +996,7 @@ type NotificationSignal_FollowedThreadActivity struct {
 }
 
 type NotificationSignal_FollowedRoomActivity struct {
+	// Deprecated: Marked as deprecated in chatto/api/v1/notifications.proto.
 	FollowedRoomActivity *FollowedRoomActivity `protobuf:"bytes,8,opt,name=followed_room_activity,json=followedRoomActivity,proto3,oneof"`
 }
 
@@ -2608,7 +2615,7 @@ var File_chatto_api_v1_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x19chatto/api/v1/users.proto\x1a google/protobuf/descriptor.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x86\b\n" +
+	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x19chatto/api/v1/users.proto\x1a google/protobuf/descriptor.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\b\n" +
 	"\x19NotificationDeliveryModes\x12U\n" +
 	"\x0fdirect_messages\x18\x01 \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x00R\x0edirectMessages\x88\x01\x01\x12U\n" +
 	"\x0fdirect_mentions\x18\x02 \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x01R\x0edirectMentions\x88\x01\x01\x12F\n" +
@@ -2616,8 +2623,8 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\rrole_mentions\x18\x04 \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x03R\froleMentions\x88\x01\x01\x12Q\n" +
 	"\rhere_mentions\x18\x05 \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x04R\fhereMentions\x88\x01\x01\x12O\n" +
 	"\fall_mentions\x18\x06 \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x05R\vallMentions\x88\x01\x01\x12W\n" +
-	"\x10followed_threads\x18\a \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x06R\x0ffollowedThreads\x88\x01\x01\x12S\n" +
-	"\x0efollowed_rooms\x18\b \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\aR\rfollowedRooms\x88\x01\x01\x12J\n" +
+	"\x10followed_threads\x18\a \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x06R\x0ffollowedThreads\x88\x01\x01\x12W\n" +
+	"\x0efollowed_rooms\x18\b \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeB\x02\x18\x01H\aR\rfollowedRooms\x88\x01\x01\x12J\n" +
 	"\treactions\x18\t \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\bR\treactions\x88\x01\x01\x12Q\n" +
 	"\rroom_messages\x18\n" +
 	" \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\tR\froomMessages\x88\x01\x01B\x12\n" +
@@ -2653,14 +2660,14 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x12AllMentionReceived\x12E\n" +
 	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage\"_\n" +
 	"\x16FollowedThreadActivity\x12E\n" +
-	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage\"]\n" +
+	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage\"a\n" +
 	"\x14FollowedRoomActivity\x12E\n" +
-	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage\"\\\n" +
+	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage:\x02\x18\x01\"\\\n" +
 	"\x13RoomMessageReceived\x12E\n" +
 	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage\"o\n" +
 	"\x10ReactionReceived\x12E\n" +
 	"\amessage\x18\x01 \x01(\v2+.chatto.api.v1.NotificationMessageReferenceR\amessage\x12\x14\n" +
-	"\x05emoji\x18\x02 \x01(\tR\x05emoji\"\x98\a\n" +
+	"\x05emoji\x18\x02 \x01(\tR\x05emoji\"\x9c\a\n" +
 	"\x12NotificationSignal\x12^\n" +
 	"\x17direct_message_received\x18\x01 \x01(\v2$.chatto.api.v1.DirectMessageReceivedH\x00R\x15directMessageReceived\x12^\n" +
 	"\x17direct_mention_received\x18\x02 \x01(\v2$.chatto.api.v1.DirectMentionReceivedH\x00R\x15directMentionReceived\x12E\n" +
@@ -2668,8 +2675,8 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x15role_mention_received\x18\x04 \x01(\v2\".chatto.api.v1.RoleMentionReceivedH\x00R\x13roleMentionReceived\x12X\n" +
 	"\x15here_mention_received\x18\x05 \x01(\v2\".chatto.api.v1.HereMentionReceivedH\x00R\x13hereMentionReceived\x12U\n" +
 	"\x14all_mention_received\x18\x06 \x01(\v2!.chatto.api.v1.AllMentionReceivedH\x00R\x12allMentionReceived\x12a\n" +
-	"\x18followed_thread_activity\x18\a \x01(\v2%.chatto.api.v1.FollowedThreadActivityH\x00R\x16followedThreadActivity\x12[\n" +
-	"\x16followed_room_activity\x18\b \x01(\v2#.chatto.api.v1.FollowedRoomActivityH\x00R\x14followedRoomActivity\x12N\n" +
+	"\x18followed_thread_activity\x18\a \x01(\v2%.chatto.api.v1.FollowedThreadActivityH\x00R\x16followedThreadActivity\x12_\n" +
+	"\x16followed_room_activity\x18\b \x01(\v2#.chatto.api.v1.FollowedRoomActivityB\x02\x18\x01H\x00R\x14followedRoomActivity\x12N\n" +
 	"\x11reaction_received\x18\t \x01(\v2\x1f.chatto.api.v1.ReactionReceivedH\x00R\x10reactionReceived\x12X\n" +
 	"\x15room_message_received\x18\n" +
 	" \x01(\v2\".chatto.api.v1.RoomMessageReceivedH\x00R\x13roomMessageReceivedB\x06\n" +

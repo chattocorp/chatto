@@ -305,7 +305,6 @@
           "here": "@here-Erwähnungen",
           "all": "@all-Erwähnungen",
           "followed_thread": "Verfolgte Threads",
-          "followed_room": "Verfolgte Räume",
           "reaction": "Reaktionen auf deine Nachrichten",
           "activity": "Aktivität",
           "room_invitation": "Raumeinladungen"
@@ -319,7 +318,6 @@
           "here": "Nachrichten mit @here, wenn dein Anwesenheitsstatus nicht offline ist.",
           "all": "Nachrichten mit @all in einem Raum, dem du angehörst.",
           "followed_thread": "Neue Antworten in Threads, denen du folgst.",
-          "followed_room": "Nachrichten auf oberster Ebene in Räumen, denen du folgst.",
           "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen."
         }
       }

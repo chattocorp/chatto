@@ -553,7 +553,7 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
 		t.Fatal(err)
 	}
-	// Followed rooms is intentionally inert until room-follow state exists.
+	// The deprecated followed-room compatibility slot remains inert.
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalFollowedRoom, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
 		t.Fatal(err)
 	}

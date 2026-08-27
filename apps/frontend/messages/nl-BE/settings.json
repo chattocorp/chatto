@@ -305,7 +305,6 @@
           "here": "@here-vermeldingen",
           "all": "@all-vermeldingen",
           "followed_thread": "Gevolgde threads",
-          "followed_room": "Gevolgde ruimtes",
           "reaction": "Reacties op je berichten",
           "activity": "Activiteit",
           "room_invitation": "Uitnodigingen voor ruimtes"
@@ -319,7 +318,6 @@
           "here": "Berichten met @here wanneer je aanwezigheidsstatus niet offline is.",
           "all": "Berichten met @all in een ruimte waarvan je lid bent.",
           "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
-          "followed_room": "Berichten buiten threads in ruimtes die je volgt.",
           "reaction": "Reacties die andere leden aan je berichten toevoegen."
         }
       }

@@ -305,7 +305,6 @@
           "here": "Zmínky @here",
           "all": "Zmínky @all",
           "followed_thread": "Sledovaná vlákna",
-          "followed_room": "Sledované místnosti",
           "reaction": "Reakce na vaše zprávy",
           "activity": "Aktivita",
           "room_invitation": "Pozvánky do místností"
@@ -319,7 +318,6 @@
           "here": "Zprávy, které používají @here, když váš stav není offline.",
           "all": "Zprávy, které používají @all v místnosti, jejímž jste členem.",
           "followed_thread": "Nové odpovědi ve vláknech, která sledujete.",
-          "followed_room": "Zprávy nejvyšší úrovně v místnostech, které sledujete.",
           "reaction": "Reakce, které ostatní členové přidají k vašim zprávám."
         }
       }

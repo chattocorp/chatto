@@ -305,7 +305,6 @@
           "here": "@here pieminējumi",
           "all": "@all pieminējumi",
           "followed_thread": "Sekotie pavedieni",
-          "followed_room": "Sekotās telpas",
           "reaction": "Reakcijas uz jūsu ziņojumiem",
           "activity": "Aktivitāte",
           "room_invitation": "Uzaicinājumi uz telpām"
@@ -319,7 +318,6 @@
           "here": "Ziņojumi, kuros izmantots @here, kad jūsu klātbūtnes statuss nav bezsaistē.",
           "all": "Ziņojumi ar @all telpā, kuras dalībnieks esat.",
           "followed_thread": "Jaunas atbildes pavedienos, kuriem sekojat.",
-          "followed_room": "Augstākā līmeņa ziņojumi telpās, kurām sekojat.",
           "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem."
         }
       }

@@ -137,9 +137,8 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 		for _, userID := range snapshot.roomMemberIDs(roomID) {
 			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &corev1.RoomMessageReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}
-		// FollowedRoomActivity intentionally has no joined-room fallback.
-		// Room follows do not exist yet (#2112); when they do, derive that
-		// separate signal only for the source-time follower set.
+		// FollowedRoomActivity is a deprecated compatibility branch. Root room
+		// activity uses RoomMessageReceived and its per-room delivery policy.
 	}
 
 	if parentEventID := message.GetInReplyTo(); parentEventID != "" {

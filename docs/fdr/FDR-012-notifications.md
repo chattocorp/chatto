@@ -9,7 +9,7 @@ Notifications and Badge indicators are user-scoped ways to show activity that
 deserves attention. Notifications form a persistent list of exact activity.
 Badge indicators add only neutral unread dots. Both forms cover direct
 messages, root messages in channel rooms, replies, direct and role mentions,
-`@here`, `@all`, followed conversations, and reactions. Notification
+`@here`, `@all`, followed threads, and reactions. Notification
 occurrences use a small lifecycle: Unread, Read, or explicitly Deleted. Badge
 attention uses a latest-value marker that becomes inactive through read,
 visibility, and expiry boundaries.
@@ -63,9 +63,8 @@ targets, unread counts, read state, or deletion semantics.
 activity, and notification cause. List and notification totals count exact unread
 occurrences, independently of pagination and presentation grouping. The bundled
 frontend groups DMs by conversation, root room messages by room, reactions by
-reacted-to target, followed activity by thread or room, and leaves mentions and
-replies separate because they have distinct jump targets. Root-room and
-followed-room groups stay separate.
+reacted-to target, and followed activity by thread. It leaves mentions and
+replies separate because they have distinct jump targets.
 
 **Why:** Exact server resources preserve identity, triage, navigation, and
 integration semantics. Client-side grouping can evolve without a migration or
@@ -116,7 +115,6 @@ server value.
 | `@here`                        | Push notification |
 | `@all`                         | Push notification |
 | Followed thread activity       | Notification      |
-| Followed room activity         | Off               |
 | Reaction to the user's message | Notification      |
 
 Attention level controls presentation separately: reactions are Ambient and all
@@ -133,7 +131,7 @@ modes.
 **Tradeoff:** More than one policy dimension exists conceptually, although the
 current product exposes only delivery-mode preferences.
 
-The notification settings page shows the ten signal classes as matrix rows.
+The notification settings page shows the nine supported causes as matrix rows.
 It shows the server, visible room groups, current-member channel rooms, and
 current-member direct-message rooms as columns. Each group column is followed
 by its room columns. A server cell always shows a concrete value. When no user
@@ -183,16 +181,16 @@ another user's state or grant access to the deleted scope.
 
 **Decision:** Notification recipients and effective source-time policy are
 derived asynchronously from committed domain facts. Later membership,
-preference, or follow changes do not rewrite that historical decision. A user's
-own activity does not notify them. One source activity produces at most one
-delivery decision per recipient and cause. For example, a root message that
-contains `@all` and a direct mention can produce room-message, `@all`, and
-direct-mention decisions for one recipient. If these decisions use a
-notification mode, they create separate occurrences. Badge decisions coalesce
-into one latest-value marker for the applicable room or thread. Channel-room
-recipients must have `message.read` at that same source sequence. A direct
-mention also permits its recipient when `message.read.interactions` applies,
-because the same message fact creates the interaction relationship.
+preference, or thread-follow changes do not rewrite that historical decision.
+A user's own activity does not notify them. One source activity produces at
+most one delivery decision per recipient and cause. For example, a root
+message that contains `@all` and a direct mention can produce room-message,
+`@all`, and direct-mention decisions for one recipient. If these decisions use
+a notification mode, they create separate occurrences. Badge decisions
+coalesce into one latest-value marker for the applicable room or thread.
+Channel-room recipients must have `message.read` at that same source sequence.
+A direct mention also permits its recipient when `message.read.interactions`
+applies, because the same message fact creates the interaction relationship.
 
 **Why:** Notifications describe what happened under the policy and visibility
 that applied at that moment. Deriving from committed facts makes retries
@@ -260,24 +258,24 @@ their owning feature.
 navigate it. Older servers reject operations on variants they cannot safely
 validate rather than guessing.
 
-### 8. Conversation subscriptions are distinct from notification rows
+### 8. Thread subscriptions are distinct from notification rows
 
 **Decision:** Posting in a thread attempts to follow it, even after an earlier
 unfollow. A delivered direct username mention in a thread attempts to follow it
-unless the recipient previously opted out; role, `@here`, and `@all` mentions do not. Following a thread or room
-creates an activity source whose delivery is still controlled by notification
-policy. Follow controls belong to rooms and threads, not to notification rows.
-The followed-room policy is reserved until room-follow state exists. Joined
-room activity uses the separate Room messages cause and never acts as an
-implicit room follow.
+unless the recipient previously opted out. Role, `@here`, and `@all` mentions
+do not. Following a thread creates an activity source whose delivery is still
+controlled by notification policy. Follow controls belong to threads, not to
+notification rows. Root channel-room activity uses the Room messages cause.
+A room-specific Room messages policy supplies the required opt-in control
+without a separate room-follow state.
 
 **Why:** A subscription describes future interest in a conversation; a
 notification occurrence describes one past activity. Keeping them separate
 avoids giving list triage surprising subscription side effects.
 
-**Tradeoff:** Automatic follow is best-effort after the source message commits;
-failure can omit later followed-activity notifications until the user follows
-explicitly.
+**Tradeoff:** Automatic thread follow is best-effort after the source message
+commits. Failure can omit later followed-thread notifications until the user
+follows the thread explicitly.
 
 ### 9. Client-rendered sounds remain server-specific
 
@@ -329,11 +327,18 @@ existing public `has_unread` field.
 
 An older server does not derive new Room messages decisions. Thus, the default
 Badge output and future occurrences are temporarily inactive during rollback
-instead of becoming Followed rooms. If an upgraded server already persisted a
-Room-message occurrence for Notification or Push notification, the older
+instead of using another policy cause. If an upgraded server already persisted
+a Room-message occurrence for Notification or Push notification, the older
 server's notification occurrence RPCs return `Unimplemented` until a supporting
 binary serves the occurrence again. The older server does not reinterpret or
 discard the unsupported signal.
+
+The public and persisted `followed_rooms` policy field and
+`followed_room_activity` signal branch remain as deprecated compatibility
+slots. Current code does not derive this signal. Existing overrides stay inert.
+Clients use Room messages at room scope to control ordinary root-message
+activity. Keeping field number 8 prevents older stored data or clients from
+being reinterpreted as another cause.
 
 Room-group changes use a new
 `UserRoomGroupNotificationPolicyChangedEvent`. They do not add a room-group ID

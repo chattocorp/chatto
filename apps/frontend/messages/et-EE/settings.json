@@ -305,7 +305,6 @@
           "here": "@here mainimised",
           "all": "@all mainimised",
           "followed_thread": "Jälgitavad lõimed",
-          "followed_room": "Jälgitavad ruumid",
           "reaction": "Reaktsioonid sinu sõnumitele",
           "activity": "Tegevus",
           "room_invitation": "Ruumide kutsed"
@@ -319,7 +318,6 @@
           "here": "Sõnumid, mis kasutavad @here, kui sinu olek ei ole võrguühenduseta.",
           "all": "Sõnumid, mis kasutavad @all ruumis, mille liige sa oled.",
           "followed_thread": "Uued vastused lõimedes, mida jälgid.",
-          "followed_room": "Lõimedesse mittekuuluvad sõnumid ruumides, mida jälgid.",
           "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele."
         }
       }

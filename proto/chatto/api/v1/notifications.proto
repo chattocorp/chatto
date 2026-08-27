@@ -42,8 +42,8 @@ message NotificationDeliveryModes {
   optional NotificationDeliveryMode here_mentions = 5;
   optional NotificationDeliveryMode all_mentions = 6;
   optional NotificationDeliveryMode followed_threads = 7;
-  // Delivery mode for top-level activity in rooms followed by the viewer.
-  optional NotificationDeliveryMode followed_rooms = 8;
+  // Deprecated compatibility slot. Use room_messages at room scope.
+  optional NotificationDeliveryMode followed_rooms = 8 [deprecated = true];
   optional NotificationDeliveryMode reactions = 9;
   // Delivery mode for root messages posted directly to joined channel rooms.
   // Thread messages and direct messages use their own signal classes.
@@ -109,8 +109,10 @@ message FollowedThreadActivity {
   NotificationMessageReference message = 1;
 }
 
-// Top-level activity in a room explicitly followed by the viewer.
+// Deprecated compatibility payload. Chatto does not derive this signal.
 message FollowedRoomActivity {
+  option deprecated = true;
+
   NotificationMessageReference message = 1;
 }
 
@@ -138,7 +140,7 @@ message NotificationSignal {
     HereMentionReceived here_mention_received = 5;
     AllMentionReceived all_mention_received = 6;
     FollowedThreadActivity followed_thread_activity = 7;
-    FollowedRoomActivity followed_room_activity = 8;
+    FollowedRoomActivity followed_room_activity = 8 [deprecated = true];
     ReactionReceived reaction_received = 9;
     RoomMessageReceived room_message_received = 10;
   }

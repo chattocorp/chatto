@@ -305,7 +305,6 @@
           "here": "@here-omtaler",
           "all": "@all-omtaler",
           "followed_thread": "Fulgte tråder",
-          "followed_room": "Fulgte rom",
           "reaction": "Reaksjoner på meldingene dine",
           "activity": "Aktivitet",
           "room_invitation": "Invitasjoner til rom"
@@ -319,7 +318,6 @@
           "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
           "all": "Meldinger som bruker @all i et rom du er medlem av.",
           "followed_thread": "Nye svar i tråder du følger.",
-          "followed_room": "Meldinger på toppnivå i rom du følger.",
           "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
         }
       }

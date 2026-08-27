@@ -305,7 +305,6 @@
           "here": "Menções @here",
           "all": "Menções @all",
           "followed_thread": "Tópicos seguidos",
-          "followed_room": "Salas seguidas",
           "reaction": "Reações às suas mensagens",
           "activity": "Atividade",
           "room_invitation": "Convites para salas"
@@ -319,7 +318,6 @@
           "here": "Mensagens que usam @here quando a sua presença não está offline.",
           "all": "Mensagens que usam @all numa sala da qual faz parte.",
           "followed_thread": "Novas respostas nos tópicos que segue.",
-          "followed_room": "Mensagens fora de tópicos nas salas que segue.",
           "reaction": "Reações que outros membros adicionam às suas mensagens."
         }
       }

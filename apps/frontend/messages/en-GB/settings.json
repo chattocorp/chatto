@@ -305,7 +305,6 @@
           "here": "@here mentions",
           "all": "@all mentions",
           "followed_thread": "Followed threads",
-          "followed_room": "Followed rooms",
           "reaction": "Reactions to your messages",
           "activity": "Activity",
           "room_invitation": "Room invitations"
@@ -319,7 +318,6 @@
           "here": "Messages that use @here while your presence is not offline.",
           "all": "Messages that use @all in a room you belong to.",
           "followed_thread": "New replies in threads that you follow.",
-          "followed_room": "Top-level messages in rooms that you follow.",
           "reaction": "Reactions that other members add to your messages."
         }
       }
