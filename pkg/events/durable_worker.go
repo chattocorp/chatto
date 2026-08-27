@@ -103,10 +103,9 @@ func TerminateDelivery(reason string, err error) error {
 	return &terminateDeliveryError{err: err, reason: reason}
 }
 
-// Options returns the effective options this worker was configured with.
-// Zero-valued durations reflect deferred-to-default settings; call it before
-// Run. It exists so applications can assert their own option-mapping helpers
-// pass delivery knobs through unchanged.
+// Options returns the worker's effective, default-resolved options as fixed
+// at construction. It exists so applications can assert their own
+// option-mapping helpers pass delivery knobs through unchanged.
 func (w *DurableWorker) Options() DurableWorkerOptions {
 	return w.opts
 }

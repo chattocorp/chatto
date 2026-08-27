@@ -52,6 +52,9 @@ func newUserKeyShreddingModel(ctx context.Context, core *ChattoCore, logger *log
 		MaxAckPending:  userKeyShreddingMaxPending,
 		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("create user-key shredding consumer: %w", err)
+	}
 	m := &UserKeyShreddingModel{
 		core:               core,
 		appendRequestAtFn:  core.EventPublisher.AppendAtFilter,

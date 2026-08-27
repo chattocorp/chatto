@@ -62,6 +62,9 @@ func newPushSubscriptionCleanupModel(
 		MaxAckPending:  pushSubscriptionCleanupMaxPending,
 		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("create user push-subscription cleanup consumer: %w", err)
+	}
 	model := &pushSubscriptionCleanupModel{
 		core:           core,
 		reconcileLease: reconcileLease,

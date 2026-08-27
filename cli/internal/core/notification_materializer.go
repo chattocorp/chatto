@@ -108,8 +108,7 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		AckTimeout:        notificationWorkerAckTimeout,
 		HeartbeatInterval: notificationWorkerHeartbeat,
 		Logger:            m.core.logger.WithPrefix("NotificationWorker"),
-	},
-	)
+	})
 	if err != nil {
 		return fmt.Errorf("configure notification worker: %w", err)
 	}

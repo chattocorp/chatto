@@ -115,6 +115,70 @@ func TestCreateEffectConsumerSupportsCreationBoundaryStart(t *testing.T) {
 	}
 }
 
+// TestCreateEffectConsumerUpdatePathStable re-applies identical configs to an
+// existing consumer, covering both filter-field representations. CreateOrUpdate
+// must not flip a historical singular-filter consumer to plural representation
+// (or vice versa) when an upgraded binary reproduces its contract.
+func TestCreateEffectConsumerUpdatePathStable(t *testing.T) {
+	ctx, stream := newEffectTestStream(t)
+
+	singular := EffectConsumerConfig{
+		Name:           "update-singular",
+		Description:    "update path",
+		FilterSubjects: []string{"evt.room.*.message_posted"},
+		AckWait:        time.Minute,
+		MaxAckPending:  2,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
+	}
+	if _, err := CreateEffectConsumer(ctx, stream, singular); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		consumer, err := stream.Consumer(ctx, "update-singular")
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := consumer.Info(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Config.FilterSubject != "evt.room.*.message_posted" || len(info.Config.FilterSubjects) != 0 {
+			t.Fatalf("pass %d: singular consumer drifted: %+v", i, info.Config)
+		}
+		if _, err := CreateEffectConsumer(ctx, stream, singular); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	plural := EffectConsumerConfig{
+		Name:           "update-plural",
+		Description:    "update path",
+		FilterSubjects: []string{"evt.room.*.message_posted", "evt.room.*.message_edited"},
+		AckWait:        time.Minute,
+		MaxAckPending:  2,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
+	}
+	if _, err := CreateEffectConsumer(ctx, stream, plural); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		consumer, err := stream.Consumer(ctx, "update-plural")
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := consumer.Info(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(info.Config.FilterSubjects) != 2 || info.Config.FilterSubject != "" {
+			t.Fatalf("pass %d: plural consumer drifted: %+v", i, info.Config)
+		}
+		if _, err := CreateEffectConsumer(ctx, stream, plural); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestCreateEffectConsumerRejectsInvalidContracts(t *testing.T) {
 	ctx, stream := newEffectTestStream(t)
 
@@ -137,6 +201,10 @@ func TestCreateEffectConsumerRejectsInvalidContracts(t *testing.T) {
 		{
 			name:   "zero max ack pending",
 			config: EffectConsumerConfig{Name: "nomaxpending", FilterSubjects: []string{"evt.x"}, AckWait: time.Minute, DeliverPolicy: jetstream.DeliverAllPolicy},
+		},
+		{
+			name:   "empty filter subject entry",
+			config: EffectConsumerConfig{Name: "emptysubject", FilterSubjects: []string{"evt.x", ""}, AckWait: time.Minute, MaxAckPending: 1, DeliverPolicy: jetstream.DeliverAllPolicy},
 		},
 	}
 	for _, tc := range cases {
