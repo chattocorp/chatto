@@ -338,6 +338,7 @@ message ProjectedUserProfileSnapshot {
   repeated ProjectedVerifiedEmailSnapshot verified_emails = 9;
   ServerUserPreferences preferences = 10;
   google.protobuf.Timestamp login_changed_at = 11;
+  ProjectedEncryptedUserStringSnapshot bio = 12;
 }
 
 message ProjectedEncryptedUserStringSnapshot {

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   listBots: vi.fn(),
   getBot: vi.fn(),
   createBot: vi.fn(),
+  updateBot: vi.fn(),
   rotateBotApiKey: vi.fn(),
   reassignBotOwner: vi.fn()
 }));
@@ -29,6 +30,7 @@ describe('createBotAPI', () => {
       listBots: mocks.listBots,
       getBot: mocks.getBot,
       createBot: mocks.createBot,
+      updateBot: mocks.updateBot,
       rotateBotApiKey: mocks.rotateBotApiKey,
       reassignBotOwner: mocks.reassignBotOwner
     });
@@ -43,7 +45,9 @@ describe('createBotAPI', () => {
             id: 'U-bot',
             login: 'helper_bot',
             displayName: 'Helper',
-            avatarUrl: ''
+            avatarUrl: '',
+            bio: 'Build helper',
+            timezone: 'Europe/Berlin'
           },
           ownerUserId: 'U-owner',
           createdAt: Timestamp.fromDate(createdAt),
@@ -63,6 +67,8 @@ describe('createBotAPI', () => {
           login: 'helper_bot',
           displayName: 'Helper',
           avatarUrl: '',
+          bio: 'Build helper',
+          timezone: 'Europe/Berlin',
           ownerUserId: 'U-owner',
           createdAt,
           apiKeyCreatedAt: createdAt,
@@ -113,6 +119,25 @@ describe('createBotAPI', () => {
 
     await expect(api.getBot('one', { signal })).resolves.toMatchObject({ id: 'one' });
     expect(mocks.getBot).toHaveBeenCalledWith({ botUserId: 'one' }, { headers: undefined, signal });
+  });
+
+  it('updates a bot bio as a sparse public-profile patch', async () => {
+    mocks.updateBot.mockResolvedValue({
+      bot: {
+        user: { id: 'one', login: 'one_bot', displayName: 'One', bio: 'Build helper' },
+        ownerUserId: 'U-owner'
+      }
+    });
+    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    await expect(api.updateBot({ botUserId: 'one', bio: 'Build helper' })).resolves.toMatchObject({
+      id: 'one',
+      bio: 'Build helper'
+    });
+    expect(mocks.updateBot).toHaveBeenCalledWith(
+      { botUserId: 'one', profile: { bio: 'Build helper' } },
+      { headers: { Authorization: 'Bearer token' } }
+    );
   });
 
   it('reassigns a bot owner and returns the updated bot', async () => {

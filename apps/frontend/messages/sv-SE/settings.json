@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Appinställningar",
       "subtitle": "Val för den här appen som gäller för alla dina registrerade servrar",
-      "appearance": { "title": "Utseende" },
-      "composer": { "title": "Skriva meddelanden" }
+      "appearance": {
+        "title": "Utseende"
+      },
+      "composer": {
+        "title": "Skriva meddelanden"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profilen har uppdaterats",
       "save_failed": "Det gick inte att spara profilen",
-      "save_button": "Spara ändringar"
+      "save_button": "Spara ändringar",
+      "bio": {
+        "label": "Bio",
+        "description": "Upp till {max} tecken, syns i din profil.",
+        "placeholder": "Berätta lite om dig själv",
+        "too_long": "Biografin får vara högst {max} tecken."
+      }
     },
     "preferences": {
       "title": "Tid och region",

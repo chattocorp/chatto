@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "Användarprofil",
       "send_message": "Skicka meddelande",
-      "copy_user_id": "Kopiera användar-ID"
+      "copy_user_id": "Kopiera användar-ID",
+      "view_profile": "Visa profil"
     },
     "server_gutter": {
       "add_server": "Lägg till server",
@@ -66,6 +67,13 @@
       "message_missing": "Meddelandet är inte längre tillgängligt",
       "in_room": "in",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Användaren hittades inte",
+      "bot": "Bot",
+      "local_time": "{time} lokal tid ({zone})"
     }
   }
 }

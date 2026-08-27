@@ -253,14 +253,14 @@ func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, erro
 // UpdateBot changes a bot's public identity as one aggregate mutation. An OCC
 // conflict is returned to the interactive caller instead of replaying stale
 // edit intent after an intervening write.
-func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, login, displayName *string) (*Bot, error) {
-	if login == nil && displayName == nil {
+func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, login, displayName, bio *string) (*Bot, error) {
+	if login == nil && displayName == nil && bio == nil {
 		return nil, fmt.Errorf("%w: at least one field is required", ErrInvalidArgument)
 	}
 	if _, err := c.requireBotManager(ctx, actorID, botID); err != nil {
 		return nil, err
 	}
-	user, err := c.updateUserProfileAs(ctx, actorID, botID, login, displayName, false)
+	user, err := c.updateUserProfileAs(ctx, actorID, botID, login, displayName, bio, false)
 	if err != nil {
 		return nil, err
 	}

@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "Lietotāja profils",
       "send_message": "Nosūtīt ziņu",
-      "copy_user_id": "Kopēt lietotāja ID"
+      "copy_user_id": "Kopēt lietotāja ID",
+      "view_profile": "Skatīt profilu"
     },
     "server_gutter": {
       "add_server": "Pievienot serveri",
@@ -66,6 +67,13 @@
       "message_missing": "Ziņa vairs nav pieejama",
       "in_room": "iekšā",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "Profils",
+      "fallback_title": "Profils",
+      "not_found": "Lietotājs nav atrasts",
+      "bot": "Bots",
+      "local_time": "{time} vietējais laiks ({zone})"
     }
   }
 }

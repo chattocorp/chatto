@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "App Preferences",
       "subtitle": "Choices for this app that apply across all your registered servers",
-      "appearance": { "title": "Appearance" },
-      "composer": { "title": "Composer" }
+      "appearance": {
+        "title": "Appearance"
+      },
+      "composer": {
+        "title": "Composer"
+      }
     },
     "profile": {
       "title": "Profile",
@@ -112,7 +116,13 @@
       },
       "saved": "Profile updated successfully",
       "save_failed": "Failed to save profile",
-      "save_button": "Save Changes"
+      "save_button": "Save Changes",
+      "bio": {
+        "label": "Bio",
+        "description": "Up to {max} characters, shown on your profile.",
+        "placeholder": "Tell others a little about yourself",
+        "too_long": "Bio must be {max} characters or fewer."
+      }
     },
     "preferences": {
       "title": "Time & region",

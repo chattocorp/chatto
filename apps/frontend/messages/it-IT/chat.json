@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "Profilo utente",
       "send_message": "Invia messaggio",
-      "copy_user_id": "Copia ID utente"
+      "copy_user_id": "Copia ID utente",
+      "view_profile": "Visualizza profilo"
     },
     "server_gutter": {
       "add_server": "Aggiungi server",
@@ -66,6 +67,13 @@
       "message_missing": "Messaggio non più disponibile",
       "in_room": "dentro",
       "in_room_capitalized": "Dentro"
+    },
+    "profile": {
+      "title": "Profilo",
+      "fallback_title": "Profilo",
+      "not_found": "Utente non trovato",
+      "bot": "Bot",
+      "local_time": "{time} ora locale ({zone})"
     }
   }
 }

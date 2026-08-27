@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "Kullanıcı profili",
       "send_message": "Mesaj Gönder",
-      "copy_user_id": "Kullanıcı kimliğini kopyala"
+      "copy_user_id": "Kullanıcı kimliğini kopyala",
+      "view_profile": "Profili görüntüle"
     },
     "server_gutter": {
       "add_server": "Sunucu Ekle",
@@ -66,6 +67,13 @@
       "message_missing": "Mesaj artık kullanılamıyor",
       "in_room": "içinde",
       "in_room_capitalized": "içinde"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Kullanıcı bulunamadı",
+      "bot": "Bot",
+      "local_time": "{time} yerel saat ({zone})"
     }
   }
 }

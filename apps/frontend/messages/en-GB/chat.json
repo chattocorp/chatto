@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "User profile",
       "send_message": "Send Message",
-      "copy_user_id": "Copy User ID"
+      "copy_user_id": "Copy User ID",
+      "view_profile": "View profile"
     },
     "server_gutter": {
       "add_server": "Add Server",
@@ -66,6 +67,13 @@
       "message_missing": "Message no longer available",
       "in_room": "in",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "Profile",
+      "fallback_title": "Profile",
+      "not_found": "User not found",
+      "bot": "Bot",
+      "local_time": "{time} local time ({zone})"
     }
   }
 }

@@ -23,6 +23,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'server-1',
     store: {
       serverInfo: { supportsFeature: () => true },
+      currentUser: { user: { settings: null } },
       projection: { viewer: {} }
     },
     connection: {
@@ -81,6 +82,8 @@ describe('Bot administration page', () => {
           login: 'helper_bot',
           displayName: 'Helper Bot',
           avatarUrl: null,
+          bio: 'Build helper',
+          timezone: null,
           ownerUserId: 'owner-user-id',
           createdAt: null,
           apiKeyCreatedAt: null,
@@ -111,8 +114,6 @@ describe('Bot administration page', () => {
     expect(container.textContent).not.toContain('owner-user-id');
     expect(container.querySelectorAll('[data-testid="user-identity"]')).toHaveLength(2);
     expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
-    expect(
-      container.querySelector('a[href$="/manage/server/bots/bot-user-id"]')
-    ).not.toBeNull();
+    expect(container.querySelector('a[href$="/manage/server/bots/bot-user-id"]')).not.toBeNull();
   });
 });

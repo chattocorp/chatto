@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
+import { UpdateProfileRequest } from "./account_pb.js";
 
 /**
  * A managed bot account. The API key itself is returned only by creation and
@@ -457,18 +458,11 @@ export class UpdateBotRequest extends Message<UpdateBotRequest> {
   botUserId = "";
 
   /**
-   * New bot login. Must end in `_bot`.
+   * Profile fields to update. A bot login must end in `_bot`.
    *
-   * @generated from field: optional string login = 2;
+   * @generated from field: chatto.api.v1.UpdateProfileRequest profile = 5;
    */
-  login?: string;
-
-  /**
-   * New public display name.
-   *
-   * @generated from field: optional string display_name = 3;
-   */
-  displayName?: string;
+  profile?: UpdateProfileRequest;
 
   constructor(data?: PartialMessage<UpdateBotRequest>) {
     super();
@@ -479,8 +473,7 @@ export class UpdateBotRequest extends Message<UpdateBotRequest> {
   static readonly typeName = "chatto.api.v1.UpdateBotRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "bot_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "profile", kind: "message", T: UpdateProfileRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBotRequest {

@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Preferências do aplicativo",
       "subtitle": "Opções deste aplicativo que se aplicam a todos os seus servidores registrados",
-      "appearance": { "title": "Aparência" },
-      "composer": { "title": "Composição" }
+      "appearance": {
+        "title": "Aparência"
+      },
+      "composer": {
+        "title": "Composição"
+      }
     },
     "profile": {
       "title": "Perfil",
@@ -112,7 +116,13 @@
       },
       "saved": "Perfil atualizado com sucesso",
       "save_failed": "Falha ao salvar perfil",
-      "save_button": "Salvar alterações"
+      "save_button": "Salvar alterações",
+      "bio": {
+        "label": "Bio",
+        "description": "Até {max} caracteres, visível no seu perfil.",
+        "placeholder": "Conte um pouco sobre você",
+        "too_long": "A bio deve ter no máximo {max} caracteres."
+      }
     },
     "preferences": {
       "title": "Hora e região",

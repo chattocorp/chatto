@@ -97,6 +97,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+    getLiveBio: () => null,
+    getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, avatarUrl: string | null) => avatarUrl,
   getLiveCustomStatus: () => null
 }));

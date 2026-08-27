@@ -517,10 +517,8 @@ type UpdateBotRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required bot user ID.
 	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
-	// New bot login. Must end in `_bot`.
-	Login *string `protobuf:"bytes,2,opt,name=login,proto3,oneof" json:"login,omitempty"`
-	// New public display name.
-	DisplayName   *string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
+	// Profile fields to update. A bot login must end in `_bot`.
+	Profile       *UpdateProfileRequest `protobuf:"bytes,5,opt,name=profile,proto3" json:"profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -562,18 +560,11 @@ func (x *UpdateBotRequest) GetBotUserId() string {
 	return ""
 }
 
-func (x *UpdateBotRequest) GetLogin() string {
-	if x != nil && x.Login != nil {
-		return *x.Login
+func (x *UpdateBotRequest) GetProfile() *UpdateProfileRequest {
+	if x != nil {
+		return x.Profile
 	}
-	return ""
-}
-
-func (x *UpdateBotRequest) GetDisplayName() string {
-	if x != nil && x.DisplayName != nil {
-		return *x.DisplayName
-	}
-	return ""
+	return nil
 }
 
 // Result of updating a bot.
@@ -922,7 +913,7 @@ var File_chatto_api_v1_bots_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\n" +
-	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\x02\n" +
+	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1bchatto/api/v1/account.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\x02\n" +
 	"\x03Bot\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12\"\n" +
 	"\rowner_user_id\x18\x02 \x01(\tR\vownerUserId\x129\n" +
@@ -952,13 +943,10 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 R\vdisplayName\"R\n" +
 	"\x11CreateBotResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\x12\x17\n" +
-	"\aapi_key\x18\x02 \x01(\tR\x06apiKey\"\xad\x01\n" +
+	"\aapi_key\x18\x02 \x01(\tR\x06apiKey\"\xa2\x01\n" +
 	"\x10UpdateBotRequest\x12'\n" +
-	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12$\n" +
-	"\x05login\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x02\x18 H\x00R\x05login\x88\x01\x01\x12/\n" +
-	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 H\x01R\vdisplayName\x88\x01\x01B\b\n" +
-	"\x06_loginB\x0f\n" +
-	"\r_display_name\"9\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12E\n" +
+	"\aprofile\x18\x05 \x01(\v2#.chatto.api.v1.UpdateProfileRequestB\x06\xbaH\x03\xc8\x01\x01R\aprofileJ\x04\b\x02\x10\x05R\x05loginR\fdisplay_nameR\x03bio\"9\n" +
 	"\x11UpdateBotResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\";\n" +
 	"\x10DeleteBotRequest\x12'\n" +
@@ -1022,6 +1010,7 @@ var file_chatto_api_v1_bots_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil),    // 18: google.protobuf.Timestamp
 	(*PageRequest)(nil),              // 19: chatto.api.v1.PageRequest
 	(*PageInfo)(nil),                 // 20: chatto.api.v1.PageInfo
+	(*UpdateProfileRequest)(nil),     // 21: chatto.api.v1.UpdateProfileRequest
 }
 var file_chatto_api_v1_bots_proto_depIdxs = []int32{
 	17, // 0: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
@@ -1034,30 +1023,31 @@ var file_chatto_api_v1_bots_proto_depIdxs = []int32{
 	0,  // 7: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
 	0,  // 8: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
 	0,  // 9: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 10: chatto.api.v1.UpdateBotResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 11: chatto.api.v1.RotateBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
-	0,  // 12: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 13: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
-	3,  // 14: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
-	5,  // 15: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
-	7,  // 16: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
-	9,  // 17: chatto.api.v1.BotService.UpdateBot:input_type -> chatto.api.v1.UpdateBotRequest
-	11, // 18: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
-	13, // 19: chatto.api.v1.BotService.RotateBotApiKey:input_type -> chatto.api.v1.RotateBotApiKeyRequest
-	15, // 20: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
-	2,  // 21: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
-	4,  // 22: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
-	6,  // 23: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
-	8,  // 24: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
-	10, // 25: chatto.api.v1.BotService.UpdateBot:output_type -> chatto.api.v1.UpdateBotResponse
-	12, // 26: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
-	14, // 27: chatto.api.v1.BotService.RotateBotApiKey:output_type -> chatto.api.v1.RotateBotApiKeyResponse
-	16, // 28: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
-	21, // [21:29] is the sub-list for method output_type
-	13, // [13:21] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	21, // 10: chatto.api.v1.UpdateBotRequest.profile:type_name -> chatto.api.v1.UpdateProfileRequest
+	0,  // 11: chatto.api.v1.UpdateBotResponse.bot:type_name -> chatto.api.v1.Bot
+	0,  // 12: chatto.api.v1.RotateBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
+	0,  // 13: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
+	1,  // 14: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
+	3,  // 15: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
+	5,  // 16: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
+	7,  // 17: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
+	9,  // 18: chatto.api.v1.BotService.UpdateBot:input_type -> chatto.api.v1.UpdateBotRequest
+	11, // 19: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
+	13, // 20: chatto.api.v1.BotService.RotateBotApiKey:input_type -> chatto.api.v1.RotateBotApiKeyRequest
+	15, // 21: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
+	2,  // 22: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
+	4,  // 23: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
+	6,  // 24: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
+	8,  // 25: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
+	10, // 26: chatto.api.v1.BotService.UpdateBot:output_type -> chatto.api.v1.UpdateBotResponse
+	12, // 27: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
+	14, // 28: chatto.api.v1.BotService.RotateBotApiKey:output_type -> chatto.api.v1.RotateBotApiKeyResponse
+	16, // 29: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
+	22, // [22:30] is the sub-list for method output_type
+	14, // [14:22] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_bots_proto_init() }
@@ -1065,10 +1055,10 @@ func file_chatto_api_v1_bots_proto_init() {
 	if File_chatto_api_v1_bots_proto != nil {
 		return
 	}
+	file_chatto_api_v1_account_proto_init()
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_bots_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_api_v1_bots_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "ユーザープロフィール",
       "send_message": "メッセージを送信",
-      "copy_user_id": "ユーザーIDをコピー"
+      "copy_user_id": "ユーザーIDをコピー",
+      "view_profile": "プロフィールを見る"
     },
     "server_gutter": {
       "add_server": "サーバーの追加",
@@ -66,6 +67,13 @@
       "message_missing": "メッセージは利用できなくなりました",
       "in_room": "で",
       "in_room_capitalized": "で"
+    },
+    "profile": {
+      "title": "プロフィール",
+      "fallback_title": "プロフィール",
+      "not_found": "ユーザーが見つかりません",
+      "bot": "ボット",
+      "local_time": "現地時間 {time}（{zone}）"
     }
   }
 }

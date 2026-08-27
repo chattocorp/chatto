@@ -29,6 +29,7 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			Login:       snapshotProjectedUserPII(u.login),
 			LoginHash:   u.loginHash,
 			DisplayName: snapshotProjectedUserPII(u.displayName),
+			Bio:         snapshotProjectedUserPII(u.bio),
 			Deleted:     u.deleted,
 			Shredded:    u.shredded,
 		}
@@ -38,6 +39,7 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			// Clear defensively so a regression cannot leak plaintext to storage.
 			entry.User.Login = ""
 			entry.User.DisplayName = ""
+			entry.User.Bio = ""
 		}
 		if u.avatar != nil {
 			entry.Avatar = proto.Clone(u.avatar).(*corev1.AssetRecord)
@@ -139,7 +141,7 @@ func (p *UserProjection) Restore(data []byte) error {
 		if _, duplicate := restored.users[userID]; duplicate {
 			return fmt.Errorf("user profile snapshot repeats user %q", userID)
 		}
-		if entry.GetUser() != nil && (entry.GetUser().GetId() != userID || entry.GetUser().GetLogin() != "" || entry.GetUser().GetDisplayName() != "") {
+		if entry.GetUser() != nil && (entry.GetUser().GetId() != userID || entry.GetUser().GetLogin() != "" || entry.GetUser().GetDisplayName() != "" || entry.GetUser().GetBio() != "") {
 			return fmt.Errorf("user profile snapshot has invalid or plaintext user %q", userID)
 		}
 		login, err := restoreProjectedUserPII(entry.GetLogin())
@@ -150,6 +152,10 @@ func (p *UserProjection) Restore(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("user profile snapshot display name for %q: %w", userID, err)
 		}
+		bio, err := restoreProjectedUserPII(entry.GetBio())
+		if err != nil {
+			return fmt.Errorf("user profile snapshot bio for %q: %w", userID, err)
+		}
 		if (login == nil) != (entry.GetLoginHash() == "") {
 			return fmt.Errorf("user profile snapshot has inconsistent login for %q", userID)
 		}
@@ -157,16 +163,16 @@ func (p *UserProjection) Restore(data []byte) error {
 		if active && (entry.GetUser() == nil || login == nil || displayName == nil) {
 			return fmt.Errorf("user profile snapshot has incomplete active user %q", userID)
 		}
-		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
+		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || bio != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
 			return fmt.Errorf("user profile snapshot has profile state on inactive user %q", userID)
 		}
-		for name, pii := range map[string]*projectedUserPII{"login": login, "display name": displayName} {
+		for name, pii := range map[string]*projectedUserPII{"login": login, "display name": displayName, "bio": bio} {
 			if pii != nil && !restored.hasUserPIIKeyLocked(userID, pii.encrypted.GetContentKeyEpoch()) {
 				return fmt.Errorf("user profile snapshot %s for %q has no matching DEK", name, userID)
 			}
 		}
 		u := &projectedUser{
-			login: login, loginHash: entry.GetLoginHash(), displayName: displayName,
+			login: login, loginHash: entry.GetLoginHash(), displayName: displayName, bio: bio,
 			deleted: entry.GetDeleted(), shredded: entry.GetShredded(), verifiedEmail: make(map[string]projectedVerifiedEmail),
 		}
 		if entry.GetUser() != nil {

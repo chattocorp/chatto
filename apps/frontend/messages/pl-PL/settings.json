@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Preferencje aplikacji",
       "subtitle": "Opcje tej aplikacji dotyczące wszystkich zarejestrowanych serwerów",
-      "appearance": { "title": "Wygląd" },
-      "composer": { "title": "Tworzenie wiadomości" }
+      "appearance": {
+        "title": "Wygląd"
+      },
+      "composer": {
+        "title": "Tworzenie wiadomości"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profil został pomyślnie zaktualizowany",
       "save_failed": "Nie udało się zapisać profilu",
-      "save_button": "Zapisz zmiany"
+      "save_button": "Zapisz zmiany",
+      "bio": {
+        "label": "Bio",
+        "description": "Do {max} znaków, widoczne w Twoim profilu.",
+        "placeholder": "Napisz coś krótko o sobie",
+        "too_long": "Bio może mieć najwyżej {max} znaków."
+      }
     },
     "preferences": {
       "title": "Czas i region",

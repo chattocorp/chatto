@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "Uživatelský profil",
       "send_message": "Odeslat zprávu",
-      "copy_user_id": "Zkopírovat ID uživatele"
+      "copy_user_id": "Zkopírovat ID uživatele",
+      "view_profile": "Zobrazit profil"
     },
     "server_gutter": {
       "add_server": "Přidat server",
@@ -66,6 +67,13 @@
       "message_missing": "Zpráva již není dostupná",
       "in_room": "v",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Uživatel nenalezen",
+      "bot": "Bot",
+      "local_time": "{time} místního času ({zone})"
     }
   }
 }

@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "Gebruikersprofiel",
       "send_message": "Bericht verzenden",
-      "copy_user_id": "Gebruikers-ID kopiëren"
+      "copy_user_id": "Gebruikers-ID kopiëren",
+      "view_profile": "Profiel bekijken"
     },
     "server_gutter": {
       "add_server": "Server toevoegen",
@@ -66,6 +67,13 @@
       "message_missing": "Bericht niet langer beschikbaar",
       "in_room": "binnen",
       "in_room_capitalized": "Binnen"
+    },
+    "profile": {
+      "title": "Profiel",
+      "fallback_title": "Profiel",
+      "not_found": "Gebruiker niet gevonden",
+      "bot": "Bot",
+      "local_time": "{time} lokale tijd ({zone})"
     }
   }
 }

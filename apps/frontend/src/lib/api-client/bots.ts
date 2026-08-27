@@ -13,6 +13,8 @@ export type Bot = {
   login: string;
   displayName: string;
   avatarUrl: string | null;
+  bio: string | null;
+  timezone: string | null;
   ownerUserId: string;
   createdAt: Date | null;
   apiKeyCreatedAt: Date | null;
@@ -64,8 +66,10 @@ export function createBotAPI(config: BotAPIConfig) {
       botUserId: string;
       login?: string;
       displayName?: string;
+      bio?: string;
     }): Promise<Bot> {
-      const response = await client.updateBot(input, { headers: headers() });
+      const { botUserId, ...profile } = input;
+      const response = await client.updateBot({ botUserId, profile }, { headers: headers() });
       return botFromAPI(requiredBot(response.bot));
     },
     async deleteBot(botUserId: string): Promise<boolean> {
@@ -100,6 +104,8 @@ function botFromAPI(bot: APIBot): Bot {
     login: user.login,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? null,
+    bio: user.bio ?? null,
+    timezone: user.timezone ?? null,
     ownerUserId: bot.ownerUserId,
     createdAt: bot.createdAt?.toDate() ?? null,
     apiKeyCreatedAt: bot.apiKeyCreatedAt?.toDate() ?? null,

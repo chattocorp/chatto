@@ -15,22 +15,34 @@ ContextMenu, which handles both modes automatically.
 - `canBanFromRoom` - Whether to show the room-ban action
 - `banningFromRoom` - Whether the room-ban action is currently running
 - `onBanFromRoom` - Callback when "Ban from room" is clicked
+- `viewerSettings` - Optional viewer preferences for the user's local-time display
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import { page } from '$app/state';
+  import { resolve } from '$app/paths';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
+  import UserBio from '$lib/components/users/UserBio.svelte';
+  import Interval from '$lib/lifecycle/Interval.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import {
+    getLiveBio,
     getLiveCustomStatus,
     getLiveDisplayName,
     getLiveLogin,
+    getLiveTimezone,
     type CustomUserStatus
   } from '$lib/state/userProfiles.svelte';
   import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
+  import {
+    formatMessageTime,
+    timeFormatSettingsFor,
+    type ViewerTimeSettings
+  } from '$lib/utils/formatTime';
 
   let {
     user,
@@ -40,6 +52,7 @@ ContextMenu, which handles both modes automatically.
     canSendMessage = false,
     canBanFromRoom = false,
     banningFromRoom = false,
+    viewerSettings,
     onSendMessage,
     onBanFromRoom,
     onClose
@@ -49,6 +62,8 @@ ContextMenu, which handles both modes automatically.
       login: string;
       displayName: string;
       avatarUrl?: string | null;
+      bio?: string | null;
+      timezone?: string | null;
       presenceStatus: PresenceStatus;
       customStatus?: CustomUserStatus | null;
     };
@@ -58,6 +73,7 @@ ContextMenu, which handles both modes automatically.
     canSendMessage?: boolean;
     canBanFromRoom?: boolean;
     banningFromRoom?: boolean;
+    viewerSettings?: ViewerTimeSettings | null;
     onSendMessage?: () => void;
     onBanFromRoom?: () => void;
     onClose?: () => void;
@@ -65,7 +81,22 @@ ContextMenu, which handles both modes automatically.
 
   const displayName = $derived(getLiveDisplayName(user.id, user.displayName || user.login));
   const customStatus = $derived(getLiveCustomStatus(user.id, user.customStatus));
-
+  const bio = $derived(getLiveBio(user.id, user.bio ?? null));
+  const timezone = $derived(getLiveTimezone(user.id, user.timezone ?? null));
+  const viewerTimeSettings = $derived(timeFormatSettingsFor(viewerSettings));
+  // Re-render the local-time line once a minute while the card is open.
+  let now = $state(Date.now());
+  const localTime = $derived.by(() => {
+    if (!timezone) return null;
+    try {
+      return formatMessageTime(new Date(now), {
+        ...viewerTimeSettings,
+        effectiveTimezone: timezone
+      });
+    } catch {
+      return null;
+    }
+  });
   function handleSendMessage() {
     onSendMessage?.();
     onClose?.();
@@ -105,13 +136,40 @@ ContextMenu, which handles both modes automatically.
     </div>
   </div>
 
-  {#if canSendMessage || canBanFromRoom}
+  {#if bio || localTime}
+    <div class="space-y-1 menu-section px-3 py-2">
+      {#if bio}
+        <UserBio bio={bio} class="max-h-40 overflow-y-auto text-sm" />
+      {/if}
+      {#if timezone && localTime}
+        <p class="flex items-center gap-1.5 text-sm text-muted">
+          <span class="iconify icon-[uil--clock-three] shrink-0"></span>
+          <span>{localTime}</span>
+          <span class="truncate" dir="ltr">({timezone})</span>
+        </p>
+      {/if}
+    </div>
+    <Interval milliseconds={60_000} ontick={() => (now = Date.now())} />
+  {/if}
+
+  {#if canSendMessage || canBanFromRoom || page.params.serverId}
     <div class="menu-section">
       <nav class="sidebar-nav">
         {#if canSendMessage}
           <button type="button" class="sidebar-item" onclick={handleSendMessage}>
             {m('chat.user_menu.send_message')}
           </button>
+        {/if}
+        {#if page.params.serverId}
+          <a
+            class="sidebar-item cursor-pointer"
+            href={resolve('/chat/[serverId]/users/[userId]', {
+              serverId: page.params.serverId,
+              userId: user.id
+            })}
+          >
+            {m('chat.user_menu.view_profile')}
+          </a>
         {/if}
         {#if canBanFromRoom}
           <button

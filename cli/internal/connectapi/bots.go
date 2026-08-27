@@ -110,7 +110,11 @@ func (s *botService) UpdateBot(ctx context.Context, req *connect.Request[apiv1.U
 	if err != nil {
 		return nil, err
 	}
-	bot, err := s.api.core.UpdateBot(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.Login, req.Msg.DisplayName)
+	profile := req.Msg.GetProfile()
+	if profile == nil {
+		return nil, invalidArgument("profile must be provided")
+	}
+	bot, err := s.api.core.UpdateBot(ctx, caller.UserID, req.Msg.GetBotUserId(), profile.Login, profile.DisplayName, profile.Bio)
 	if err != nil {
 		return nil, connectError(err)
 	}

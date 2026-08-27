@@ -271,8 +271,10 @@
                   avatarUrl: bot.avatarUrl,
                   deleted: false,
                   isBot: true,
+                  bio: bot.bio,
                   presenceStatus: PresenceStatus.OFFLINE
                 }}
+                viewerSettings={serverScope.store.currentUser.user?.settings}
               />
             </td>
             <td class="px-4 py-3">
@@ -284,7 +286,10 @@
             </td>
             <td class="px-4 py-3">
               {#if owner}
-                <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
+                <UserIdentity
+                  user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }}
+                  viewerSettings={serverScope.store.currentUser.user?.settings}
+                />
               {:else if ownersQuery.isPending}
                 <span
                   class="skeleton block h-8 w-32 rounded-md"

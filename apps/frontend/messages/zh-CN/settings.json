@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "应用偏好设置",
       "subtitle": "此应用中适用于所有已注册服务器的选项",
-      "appearance": { "title": "外观" },
-      "composer": { "title": "消息编辑" }
+      "appearance": {
+        "title": "外观"
+      },
+      "composer": {
+        "title": "消息编辑"
+      }
     },
     "profile": {
       "title": "个人资料",
@@ -112,7 +116,13 @@
       },
       "saved": "个人资料更新成功",
       "save_failed": "个人资料保存失败",
-      "save_button": "保存更改"
+      "save_button": "保存更改",
+      "bio": {
+        "label": "个人简介",
+        "description": "最多 {max} 个字符，显示在你的个人资料中。",
+        "placeholder": "简单介绍一下自己",
+        "too_long": "简介不能超过 {max} 个字符。"
+      }
     },
     "preferences": {
       "title": "时间和地区",

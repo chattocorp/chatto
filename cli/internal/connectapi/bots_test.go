@@ -34,6 +34,19 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err != nil || got.Msg.GetBot().GetUser().GetLogin() != "connect_bot" {
 		t.Fatalf("GetBot = %+v, %v", got, err)
 	}
+	updated, err := service.UpdateBot(ctx, connect.NewRequest(&apiv1.UpdateBotRequest{
+		BotUserId: bot.GetUser().GetId(),
+		Profile: &apiv1.UpdateProfileRequest{
+			DisplayName: stringPtr("Updated Connect Bot"),
+			Bio:         stringPtr("**Build helper**"),
+		},
+	}))
+	if err != nil {
+		t.Fatalf("UpdateBot: %v", err)
+	}
+	if user := updated.Msg.GetBot().GetUser(); user.GetDisplayName() != "Updated Connect Bot" || user.GetBio() != "**Build helper**" {
+		t.Fatalf("updated bot user = %+v", user)
+	}
 	recipient, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-recipient", "Connect Recipient", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser recipient: %v", err)

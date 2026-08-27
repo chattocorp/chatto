@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -83,6 +84,31 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	}
 	if _, err := c.SetUserCustomStatus(ctx, bot.User.GetId(), "🤖", "online", nil); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetUserCustomStatus(bot) err = %v, want ErrHumanAccountRequired", err)
+	}
+	bio := "Automates helpful tasks."
+	updated, err := c.UpdateBot(ctx, owner.GetId(), bot.User.GetId(), nil, nil, &bio)
+	if err != nil {
+		t.Fatalf("UpdateBot bio: %v", err)
+	}
+	if got := updated.User.GetBio(); got != bio {
+		t.Fatalf("updated bot bio = %q, want %q", got, bio)
+	}
+	bioEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventUserBioChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents bot bio: %v", err)
+	}
+	if len(bioEvents) != 1 {
+		t.Fatalf("bot bio events = %d, want 1", len(bioEvents))
+	}
+	if _, err := c.UpdateBot(ctx, owner.GetId(), bot.User.GetId(), nil, nil, &bio); err != nil {
+		t.Fatalf("UpdateBot bio no-op: %v", err)
+	}
+	bioEvents, _, err = c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventUserBioChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents bot bio after no-op: %v", err)
+	}
+	if len(bioEvents) != 1 {
+		t.Fatalf("bot bio events after no-op = %d, want 1", len(bioEvents))
 	}
 
 	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
@@ -1057,7 +1083,7 @@ func TestHumanAndBotUsernameSuffixRules(t *testing.T) {
 		t.Fatalf("case-insensitive suffix CreateBot: %v", err)
 	}
 	invalidLogin := "lost-suffix"
-	if _, err := c.UpdateBot(ctx, owner.GetId(), uppercase.User.GetId(), &invalidLogin, nil); !errors.Is(err, ErrBotLoginSuffixRequired) {
+	if _, err := c.UpdateBot(ctx, owner.GetId(), uppercase.User.GetId(), &invalidLogin, nil, nil); !errors.Is(err, ErrBotLoginSuffixRequired) {
 		t.Fatalf("bot rename without suffix err = %v, want ErrBotLoginSuffixRequired", err)
 	}
 }

@@ -193,6 +193,7 @@ message Event {
     BotApiKeyCreatedEvent bot_api_key_created = 719;
     BotApiKeyRotatedEvent bot_api_key_rotated = 720;
     BotOwnerReassignedEvent bot_owner_reassigned = 721;
+    UserBioChangedEvent user_bio_changed = 722;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

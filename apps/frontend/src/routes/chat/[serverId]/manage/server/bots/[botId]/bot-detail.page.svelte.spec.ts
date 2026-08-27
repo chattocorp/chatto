@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
 		login: 'helper_bot',
 		displayName: 'Helper Bot',
 		avatarUrl: null,
+		bio: 'Initial bot bio',
+		timezone: null,
 		ownerUserId: 'owner-user-id',
 		createdAt: null,
 		apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
@@ -71,7 +73,7 @@ vi.mock('$lib/ui/toast', () => ({
 
 import BotDetailPage from './+page.svelte';
 
-function setInput(input: HTMLInputElement, value: string): void {
+function setInput(input: HTMLInputElement | HTMLTextAreaElement, value: string): void {
 	input.value = value;
 	input.dispatchEvent(new Event('input', { bubbles: true }));
 	flushSync();
@@ -99,18 +101,39 @@ describe('Bot detail page', () => {
 		mocks.getBot.mockResolvedValue(mocks.bot);
 		mocks.batchGetUsers.mockResolvedValue([]);
 		mocks.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
-		mocks.updateBot.mockImplementation((input: { login?: string; displayName?: string }) =>
-			Promise.resolve({
-				...mocks.bot,
-				login: input.login ?? mocks.bot.login,
-				displayName: input.displayName ?? mocks.bot.displayName
-			})
+		mocks.updateBot.mockImplementation(
+			(input: { login?: string; displayName?: string; bio?: string }) =>
+				Promise.resolve({
+					...mocks.bot,
+					login: input.login ?? mocks.bot.login,
+					displayName: input.displayName ?? mocks.bot.displayName,
+					bio: input.bio ?? mocks.bot.bio
+				})
 		);
 		mocks.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
 			Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
 		);
 		await loadLocaleMessages('en-GB');
 		setReactiveLocale('en-GB');
+	});
+
+	it('sends a trimmed bot bio without overwriting other profile fields', async () => {
+		const rendered = render(BotDetailPage);
+		await settle();
+
+		buttonByText(rendered.container, 'Edit').click();
+		flushSync();
+		setInput(
+			rendered.container.querySelector('#edit-bot-bio') as HTMLTextAreaElement,
+			'  Answers build questions.  '
+		);
+		buttonByText(rendered.container, 'Save').click();
+		await vi.waitFor(() => expect(mocks.updateBot).toHaveBeenCalledOnce());
+
+		expect(mocks.updateBot).toHaveBeenCalledWith({
+			botUserId: 'bot-user-id',
+			bio: 'Answers build questions.'
+		});
 	});
 
 	it('shows the bot user ID and hydrates its owner as a reusable user identity', async () => {

@@ -63,6 +63,7 @@ const user = {
   login: 'alice',
   displayName: 'Alice',
   avatarUrl: null,
+  bio: null,
   presenceStatus: 'ONLINE',
   hasVerifiedEmail: true,
   settings: { timezone: 'UTC', timeFormat: '24h' }

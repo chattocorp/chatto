@@ -18,6 +18,7 @@ export type AccountUser = {
   login: string;
   displayName: string;
   avatarUrl?: string | null;
+  bio: string | null;
 };
 
 export type AccountUserSettings = {
@@ -28,6 +29,7 @@ export type AccountUserSettings = {
 export type UpdateProfileInput = {
   displayName?: string;
   login?: string;
+  bio?: string;
 };
 
 export type UpdateSettingsInput = {
@@ -117,7 +119,8 @@ function accountUser(user: APIUser | undefined): AccountUser {
     id: user.id,
     login: user.login,
     displayName: user.displayName,
-    avatarUrl: user.avatarUrl ?? null
+    avatarUrl: user.avatarUrl ?? null,
+    bio: user.bio ?? null
   };
 }
 

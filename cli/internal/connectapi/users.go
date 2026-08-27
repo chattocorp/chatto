@@ -37,6 +37,17 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *corev1.User, a
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 		IsBot:          user.GetIsBot(),
 	}
+	if user.GetBio() != "" {
+		bio := user.GetBio()
+		summary.Bio = &bio
+	}
+	timezone := ""
+	if settings, err := api.core.GetUserSettings(ctx, user.GetId()); err == nil && settings != nil {
+		timezone = settings.GetTimezone()
+	}
+	if timezone != "" {
+		summary.Timezone = &timezone
+	}
 	avatarURL, err := userAvatarURL(ctx, api, user.GetId(), avatar)
 	if err != nil {
 		return nil, err

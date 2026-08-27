@@ -7,6 +7,8 @@ import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
 import UserIdentity from './UserIdentity.svelte';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+    getLiveBio: () => null,
+    getLiveTimezone: () => null,
 	getLiveDisplayName: (_userId: string, fallback: string) => fallback,
 	getLiveLogin: (_userId: string, fallback: string) => fallback,
 	getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,

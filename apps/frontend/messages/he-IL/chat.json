@@ -40,7 +40,8 @@
     "user_menu": {
       "profile": "פרופיל משתמש",
       "send_message": "שלח הודעה",
-      "copy_user_id": "העתקת מזהה המשתמש"
+      "copy_user_id": "העתקת מזהה המשתמש",
+      "view_profile": "הצגת פרופיל"
     },
     "server_gutter": {
       "add_server": "הוסף שרת",
@@ -66,6 +67,13 @@
       "message_missing": "ההודעה אינה זמינה עוד",
       "in_room": "in",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "פרופיל",
+      "fallback_title": "פרופיל",
+      "not_found": "המשתמש לא נמצא",
+      "bot": "בוט",
+      "local_time": "{time} שעון מקומי ({zone})"
     }
   }
 }

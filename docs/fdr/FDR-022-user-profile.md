@@ -5,7 +5,7 @@
 
 ## Overview
 
-A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced User Preferences (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. The profile does not contain App Preferences, such as appearance, language, editor, and send-key behavior. The app applies these choices to its registered servers. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
+A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. The profile does not contain App Preferences, such as appearance, language, editor, and send-key behavior. The app applies these choices to its registered servers. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
 
 ## Behavior
 
@@ -16,11 +16,14 @@ A human user's profile carries the public identity they present to the rest of t
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
-- **User Preferences** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). The server stores these choices and syncs them across devices. If a choice is not set, the frontend uses the browser timezone and locale time-format default. The unified Settings sidebar puts these personal choices in the Your account group. Permission-gated Server configuration remains separate.
+- **User Preferences** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). The server stores these choices and syncs them across devices. If a choice is not set, the frontend uses the browser timezone and locale time-format default. The web client reports the device timezone to the server once when no explicit timezone is set; an explicitly chosen zone is never overwritten by a later device report. The unified Settings sidebar puts these personal choices in the Your account group. Permission-gated Server configuration remains separate.
+- **Bio** — human users (and, through `BotService`, bots) can set a self-authored Markdown bio of up to 1,000 characters. The bio is shown on the profile card and the user's profile page. The client disables source HTML and sanitizes rendered output.
+- **Public time zone** — a user's stored timezone doubles as the shareable zone on their public profile: user reads hydrate `User.timezone` from the user's User Preferences, and clients render current local time in that zone on profile surfaces. Users who never set a zone simply have no public timezone.
+- **Profile page** — each user (human or bot) has a full profile page at `/chat/{serverId}/users/{userId}` showing the avatar, display name, login, custom status, bio, bot marker, and local time; it is reachable from "View profile" in the profile card. The popup card shows the identity, bio snippet, live local time in the user's shared zone, message/moderation actions, and "Copy User ID".
 - **App Preferences** — users can select System, Light, or Dark appearance, a language, a message editor, and send-key behavior. System appearance follows the browser or OS colour-scheme preference. The app applies these choices to every registered server. The Application Header gear opens Appearance for the active authenticated server. The unified Settings sidebar puts Appearance, Language, and Composer in an App preferences group. If no authenticated server is available, the same pages use a separate App Preferences sidebar. App Preferences do not sync to another browser or device.
 - **Profile menu** — opening a user's profile popup or touch sheet shows their public identity and any available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
 - **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
-- **Bot identity management** — a bot owner or human user with `bot.manage` can update a bot's login and display name through `BotService`. Bot API keys cannot edit identity, and bot avatar, custom-status, and personal-settings management are not supported in this slice.
+- **Bot identity management** — a bot owner or human user with `bot.manage` can update a bot's login, display name, and bio through `BotService`. Bot API keys cannot edit identity. Bot avatar, custom-status, and personal-settings management are not supported in this slice.
 
 ## Design Decisions
 
@@ -62,7 +65,7 @@ A human user's profile carries the public identity they present to the rest of t
 
 ### 7. Cross-user edits gated by `user.manage-accounts`
 
-**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human self-edits bypass that permission because they're privilege-neutral identity edits. Bot login and display-name changes instead follow BotService ownership or `bot.manage` authorization and remain bounded to those two fields.
+**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human self-edits bypass that permission because they're privilege-neutral identity edits. Bot profile changes instead follow BotService ownership or `bot.manage` authorization and remain bounded to the public profile fields. `UpdateBotRequest` identifies the target bot and contains the same `UpdateProfileRequest` patch that the self-service API uses.
 **Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
 **Tradeoff:** A user with `user.manage-accounts` can edit any target human user's profile, while bot identity management has a separate, deliberately narrower authority path.
 
@@ -83,6 +86,18 @@ A human user's profile carries the public identity they present to the rest of t
 **Decision:** Built-in templates use the same persisted `CustomUserStatus` shape as custom statuses. The emoji is stored normally, while the text field stores a reserved token such as `chatto:status:out_for_lunch`. Clients that understand the token render a localized label; unknown/custom text is rendered literally.
 **Why:** This keeps the durable EVT model simple and preserves the "any emoji plus any text" API while allowing built-in statuses to be localized for each viewer.
 **Tradeoff:** Older clients that do not know the reserved tokens may display the raw token. This is acceptable during early development and avoids a protobuf shape change solely for UI presets.
+
+### 11. Bio is encrypted PII with change-detection
+
+**Decision:** Bio edits validate a 1,000-character cap, compare against the projected value, and append a durable encrypted `bio_changed` fact only when the value actually changes. Clearing stores an empty payload. Projected state keeps only ciphertext; reads decrypt transiently like display names. Clients render bios as Markdown through the same audited HTML boundary as message Markdown. Source HTML stays disabled.
+**Why:** Free-form user text is PII under Chatto's crypto-shredding model, so it follows the display-name pattern. Change detection prevents idle autosaves or repeated submits from appending meaningless facts to EVT. An unchanged update returns success without a write.
+**Tradeoff:** Unchanged-write no-ops mean clients cannot distinguish "saved" from "nothing changed"; both return the current profile, which is what UIs need.
+
+### 12. Timezone setting is single-source for formatting and public profile
+
+**Decision:** There is one stored timezone per account. It formats the user's own timestamps, drives device self-report at connect time, and hydrates the public `User.timezone`. Clients show the IANA name plus derived local time rather than only an offset.
+**Why:** Duplicating a private formatting preference and a public profile field would invite drift between the two. Derived local time stays correct across DST without leaking more than the zone itself.
+**Tradeoff:** A user who wants timestamps formatted in their zone but hidden publicly cannot split the two today.
 
 ## Permissions
 

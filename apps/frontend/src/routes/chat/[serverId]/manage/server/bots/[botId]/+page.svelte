@@ -28,7 +28,7 @@
     PaneContent,
     PaneHeader
   } from '$lib/ui';
-  import { Button, TextInput, validate, z } from '$lib/ui/form';
+  import { Button, TextArea, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { onDestroy } from 'svelte';
@@ -87,8 +87,10 @@
   let editVisible = $state(false);
   let editLogin = $state('');
   let editDisplayName = $state('');
+  let editBio = $state('');
   let initialEditLogin = $state('');
   let initialEditDisplayName = $state('');
+  let initialEditBio = $state('');
   let editLoading = $state(false);
   let editError = $state<{ targetKey: string; message: string } | null>(null);
   let apiKeyVisible = $state(false);
@@ -116,8 +118,11 @@
     .refine((value) => value.toLowerCase().endsWith('_bot'), m('settings.bots.username_hint'));
   const normalizedEditLogin = $derived(editLogin.trim());
   const normalizedEditDisplayName = $derived(editDisplayName.trim());
+  const normalizedEditBio = $derived(editBio.trim());
   const editDirty = $derived(
-    normalizedEditLogin !== initialEditLogin || normalizedEditDisplayName !== initialEditDisplayName
+    normalizedEditLogin !== initialEditLogin ||
+      normalizedEditDisplayName !== initialEditDisplayName ||
+      normalizedEditBio !== initialEditBio
   );
   const editLoginError = $derived(
     normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
@@ -150,8 +155,10 @@
     if (!bot) return;
     editLogin = bot.login;
     editDisplayName = bot.displayName;
+    editBio = bot.bio ?? '';
     initialEditLogin = bot.login;
     initialEditDisplayName = bot.displayName;
+    initialEditBio = bot.bio ?? '';
     editError = null;
     editVisible = true;
   }
@@ -167,7 +174,8 @@
         ...(normalizedEditLogin !== initialEditLogin ? { login: normalizedEditLogin } : {}),
         ...(normalizedEditDisplayName !== initialEditDisplayName
           ? { displayName: normalizedEditDisplayName }
-          : {})
+          : {}),
+        ...(normalizedEditBio !== initialEditBio ? { bio: normalizedEditBio } : {})
       });
       if (!isCurrentTarget(mutationTarget)) return;
       cacheBot(updated);
@@ -340,7 +348,10 @@
             <dt class="text-muted">{m('settings.bots.owner')}</dt>
             <dd class="mt-1">
               {#if owner}
-                <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
+                <UserIdentity
+                  user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }}
+                  viewerSettings={serverScope.store.currentUser.user?.settings}
+                />
               {:else if ownerQuery.isPending}
                 <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
                 ></span>
@@ -394,6 +405,14 @@
     maxlength={32}
     required
     bind:value={editDisplayName}
+  />
+  <TextArea
+    id="edit-bot-bio"
+    label={m('settings.profile.bio.label')}
+    description={m('settings.profile.bio.description', { max: 1000 })}
+    maxlength={1000}
+    rows={4}
+    bind:value={editBio}
   />
 </FormDialog>
 

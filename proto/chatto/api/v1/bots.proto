@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/account.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/descriptor.proto";
@@ -86,12 +87,13 @@ message CreateBotResponse {
 
 // Patch request for a bot's public identity.
 message UpdateBotRequest {
+  reserved 2 to 4;
+  reserved "login", "display_name", "bio";
+
   // Required bot user ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New bot login. Must end in `_bot`.
-  optional string login = 2 [(buf.validate.field).string = {min_len: 2, max_len: 32}];
-  // New public display name.
-  optional string display_name = 3 [(buf.validate.field).string.max_len = 32];
+  // Profile fields to update. A bot login must end in `_bot`.
+  UpdateProfileRequest profile = 5 [(buf.validate.field).required = true];
 }
 
 // Result of updating a bot.

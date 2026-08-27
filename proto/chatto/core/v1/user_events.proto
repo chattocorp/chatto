@@ -32,7 +32,8 @@ message UserDeletedEvent {
 }
 
 // UserProfileUpdatedEvent is published when a user's profile changes.
-// This includes avatar uploads/deletions, display name changes, and login changes.
+// This includes avatar uploads/deletions, display name changes, login changes,
+// bio changes, and shareable time zone changes.
 // Allows other users to see profile changes in real-time.
 message UserProfileUpdatedEvent {
   string user_id = 1;
@@ -41,6 +42,10 @@ message UserProfileUpdatedEvent {
   string avatar_url = 3;
   // The user's current login/username.
   string login = 4;
+  // The user's current public bio, or empty when unset.
+  string bio = 5;
+  // The user's shared IANA time zone, or empty when none is shared.
+  string timezone = 6;
 }
 
 // ============================================================================
@@ -105,6 +110,14 @@ message UserLoginChangedEvent {
 message UserDisplayNameChangedEvent {
   string user_id = 1;
   EncryptedUserString encrypted_display_name = 10;
+}
+
+// UserBioChangedEvent records a change to a user's self-authored bio. An empty
+// encrypted value clears the bio. Bio text is user PII and stays encrypted at
+// rest.
+message UserBioChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_bio = 10;
 }
 
 message UserAvatarSetEvent {

@@ -17,6 +17,7 @@ export type CurrentUser = {
   login: string;
   displayName: string;
   avatarUrl?: string | null;
+  bio?: string | null;
   customStatus?: {
     emoji: string;
     text: string;
@@ -99,6 +100,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       login: user.login,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl ?? null,
+      bio: user.bio ?? null,
       customStatus: user.customStatus
         ? {
             emoji: user.customStatus.emoji,
