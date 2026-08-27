@@ -266,10 +266,10 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.config.{subject}.server_logo_cleared`                   | `ServerLogoClearedEvent`                            |
 | `evt.config.{subject}.server_banner_set`                     | `ServerBannerSetEvent`                              |
 | `evt.config.{subject}.server_banner_cleared`                 | `ServerBannerClearedEvent`                          |
-| `evt.config.{subject}.user_timezone_changed`                 | `UserTimezoneChangedEvent`                          |
-| `evt.config.{subject}.user_timezone_cleared`                 | `UserTimezoneClearedEvent`                          |
-| `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent`                        |
-| `evt.config.{subject}.user_time_format_cleared`              | `UserTimeFormatClearedEvent`                        |
+| `evt.config.{subject}.user_timezone_changed`                 | `UserTimezoneChangedEvent` (historical decode only; ignored by current projections) |
+| `evt.config.{subject}.user_timezone_cleared`                 | `UserTimezoneClearedEvent` (historical decode only; ignored by current projections) |
+| `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent` (historical decode only; ignored by current projections) |
+| `evt.config.{subject}.user_time_format_cleared`              | `UserTimeFormatClearedEvent` (historical decode only; ignored by current projections) |
 | `evt.config.{subject}.user_server_notification_level_set`    | `UserServerNotificationLevelSetEvent` (historical decode only; ignored by current projections) |
 | `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent` (historical decode only; ignored by current projections) |
 | `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent` (historical decode only; ignored by current projections) |
@@ -377,7 +377,6 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; triggers an authoritative occurrence/count replacement and can carry a best-effort local-sound candidate |
 | `live.sync.user.{userId}.notification_unread`            | Badge attention changed; triggers authoritative room viewer-state replacement and, for a thread marker, complete followed-thread viewer-state replacement |
 | `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
-| `live.sync.user.{userId}.settings_updated`               | User preferences changed     |
 | `live.sync.user.{userId}.room_read`                      | Room marked as read          |
 | `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
