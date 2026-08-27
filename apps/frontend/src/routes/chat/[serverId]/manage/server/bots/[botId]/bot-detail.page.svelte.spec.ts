@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
 	listUsers: vi.fn(),
 	updateBot: vi.fn(),
 	reassignBotOwner: vi.fn(),
+	enableBotIncomingWebhook: vi.fn(),
+	rotateBotIncomingWebhook: vi.fn(),
+	disableBotIncomingWebhook: vi.fn(),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
 	settings: null as { timezone: string; timeFormat: TimeFormat } | null,
@@ -26,7 +29,8 @@ const mocks = vi.hoisted(() => ({
 		ownerUserId: 'owner-user-id',
 		createdAt: null,
 		apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
-		apiKeyRotatedAt: null
+		apiKeyRotatedAt: null,
+		incomingWebhook: null
 	}
 }));
 
@@ -54,7 +58,10 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 				batchGetUsers: mocks.batchGetUsers,
 				listUsers: mocks.listUsers,
 				updateBot: mocks.updateBot,
-				reassignBotOwner: mocks.reassignBotOwner
+				reassignBotOwner: mocks.reassignBotOwner,
+				enableBotIncomingWebhook: mocks.enableBotIncomingWebhook,
+				rotateBotIncomingWebhook: mocks.rotateBotIncomingWebhook,
+				disableBotIncomingWebhook: mocks.disableBotIncomingWebhook
 			})
 		},
 		isCurrent: () => true
@@ -109,8 +116,31 @@ describe('Bot detail page', () => {
 		mocks.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
 			Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
 		);
+		mocks.enableBotIncomingWebhook.mockResolvedValue({
+			bot: { ...mocks.bot, incomingWebhook: { createdAt: new Date(), rotatedAt: null } },
+			webhookUrl: 'https://chat.example/webhooks/incoming/secret'
+		});
+		mocks.rotateBotIncomingWebhook.mockResolvedValue({
+			bot: { ...mocks.bot, incomingWebhook: { createdAt: new Date(), rotatedAt: new Date() } },
+			webhookUrl: 'https://chat.example/webhooks/incoming/rotated'
+		});
+		mocks.disableBotIncomingWebhook.mockResolvedValue({ ...mocks.bot, incomingWebhook: null });
 		await loadLocaleMessages('en-GB');
 		setReactiveLocale('en-GB');
+	});
+
+	it('enables the incoming webhook and shows its URL once', async () => {
+		const { container } = render(BotDetailPage);
+		await settle();
+
+		buttonByText(container, 'Enable Webhook').click();
+		await vi.waitFor(() =>
+			expect(mocks.enableBotIncomingWebhook).toHaveBeenCalledWith('bot-user-id')
+		);
+		flushSync();
+
+		expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret');
+		expect(container.textContent).toContain('This URL is shown only once');
 	});
 
 	it('shows the bot user ID and hydrates its owner as a reusable user identity', async () => {

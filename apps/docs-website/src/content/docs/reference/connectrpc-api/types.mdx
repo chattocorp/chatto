@@ -541,6 +541,19 @@ rotation responses.
 | `created_at` | `google.protobuf.Timestamp` | Account creation time. |
 | `api_key_created_at` | `google.protobuf.Timestamp` | Time the initial API key was created. |
 | `api_key_rotated_at` | `optional google.protobuf.Timestamp` | Most recent API-key rotation time, when it has been rotated. |
+| `incoming_webhook` | [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Incoming webhook credential metadata. Absent when the webhook is disabled. |
+
+<a id="chatto-api-v1-BotIncomingWebhook"></a>
+
+### BotIncomingWebhook
+
+Safe metadata for a bot's optional incoming webhook credential. The webhook
+URL is returned only when the credential is enabled or rotated.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `created_at` | `google.protobuf.Timestamp` | Time the incoming webhook credential was enabled. |
+| `rotated_at` | `optional google.protobuf.Timestamp` | Most recent credential rotation time, when it has been rotated. |
 
 <a id="chatto-api-v1-DirectoryMember"></a>
 

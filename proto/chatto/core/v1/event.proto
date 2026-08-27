@@ -193,6 +193,9 @@ message Event {
     BotApiKeyCreatedEvent bot_api_key_created = 719;
     BotApiKeyRotatedEvent bot_api_key_rotated = 720;
     BotOwnerReassignedEvent bot_owner_reassigned = 721;
+    BotIncomingWebhookEnabledEvent bot_incoming_webhook_enabled = 722;
+    BotIncomingWebhookRotatedEvent bot_incoming_webhook_rotated = 723;
+    BotIncomingWebhookDisabledEvent bot_incoming_webhook_disabled = 724;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

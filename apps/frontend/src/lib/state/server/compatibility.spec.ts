@@ -76,6 +76,7 @@ describe('server compatibility evaluation', () => {
     expect(supportsServerFeature('0.5.0-beta.1', 'realtimeProjection')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'messageSearch')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'botOwnerReassignment')).toBe(true);
+    expect(supportsServerFeature('0.5.0', 'botIncomingWebhooks')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'roomManagement')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'serverInvitations')).toBe(true);
     expect(supportsServerFeature('0.4.19', 'messageSearch')).toBe(false);

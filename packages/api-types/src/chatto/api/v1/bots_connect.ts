@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, DisableBotIncomingWebhookRequest, DisableBotIncomingWebhookResponse, EnableBotIncomingWebhookRequest, EnableBotIncomingWebhookResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, RotateBotIncomingWebhookRequest, RotateBotIncomingWebhookResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -93,6 +93,41 @@ export const BotService = {
       I: RotateBotApiKeyRequest,
       O: RotateBotApiKeyResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Enables the bot's sole incoming webhook credential.
+     *
+     * @generated from rpc chatto.api.v1.BotService.EnableBotIncomingWebhook
+     */
+    enableBotIncomingWebhook: {
+      name: "EnableBotIncomingWebhook",
+      I: EnableBotIncomingWebhookRequest,
+      O: EnableBotIncomingWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Rotates the active incoming webhook credential and immediately invalidates
+     * the old credential.
+     *
+     * @generated from rpc chatto.api.v1.BotService.RotateBotIncomingWebhook
+     */
+    rotateBotIncomingWebhook: {
+      name: "RotateBotIncomingWebhook",
+      I: RotateBotIncomingWebhookRequest,
+      O: RotateBotIncomingWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Disables the incoming webhook and immediately invalidates its credential.
+     *
+     * @generated from rpc chatto.api.v1.BotService.DisableBotIncomingWebhook
+     */
+    disableBotIncomingWebhook: {
+      name: "DisableBotIncomingWebhook",
+      I: DisableBotIncomingWebhookRequest,
+      O: DisableBotIncomingWebhookResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
     /**
      * Reassigns a bot to another active human owner. Requires bot.manage. The

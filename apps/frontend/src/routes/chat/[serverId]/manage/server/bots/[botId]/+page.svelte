@@ -9,6 +9,7 @@
   import { createUserAPI } from '$lib/api-client/users';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { CopyId, Panel } from '$lib/components/admin';
+  import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
@@ -19,15 +20,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import {
-    ConfirmDialog,
-    Dialog,
-    FormDialog,
-    Hint,
-    PageTitle,
-    PaneContent,
-    PaneHeader
-  } from '$lib/ui';
+  import { ConfirmDialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -36,6 +29,9 @@
   const serverScope = useServerScope();
   const botId = $derived(page.params.botId!);
   const supportsBots = $derived(serverScope.store.serverInfo.supportsFeature('botAccounts'));
+  const supportsIncomingWebhooks = $derived(
+    serverScope.store.serverInfo.supportsFeature('botIncomingWebhooks')
+  );
   const supportsOwnerReassignment = $derived(
     serverScope.store.serverInfo.supportsFeature('botOwnerReassignment')
   );
@@ -95,6 +91,13 @@
   let apiKey = $state('');
   let rotateVisible = $state(false);
   let rotateLoading = $state(false);
+  let webhookURLVisible = $state(false);
+  let webhookURL = $state('');
+  let enableWebhookLoading = $state(false);
+  let rotateWebhookVisible = $state(false);
+  let rotateWebhookLoading = $state(false);
+  let disableWebhookVisible = $state(false);
+  let disableWebhookLoading = $state(false);
   let deleteVisible = $state(false);
   let deleteLoading = $state(false);
   let reassignVisible = $state(false);
@@ -212,6 +215,72 @@
     }
   }
 
+  async function enableWebhook() {
+    if (!bot) return;
+    const mutationTarget = targetKey;
+    enableWebhookLoading = true;
+    try {
+      const enabled = await botAPI().enableBotIncomingWebhook(bot.id);
+      if (!isCurrentTarget(mutationTarget)) return;
+      cacheBot(enabled.bot);
+      webhookURL = enabled.webhookUrl;
+      webhookURLVisible = true;
+      toast.success(m('settings.bots.webhook_enabled'));
+    } catch (error) {
+      if (isCurrentTarget(mutationTarget)) {
+        toast.error(
+          error instanceof Error ? error.message : m('settings.bots.webhook_enable_failed')
+        );
+      }
+    } finally {
+      if (isCurrentTarget(mutationTarget)) enableWebhookLoading = false;
+    }
+  }
+
+  async function rotateWebhook() {
+    if (!bot) return;
+    const mutationTarget = targetKey;
+    rotateWebhookLoading = true;
+    try {
+      const rotated = await botAPI().rotateBotIncomingWebhook(bot.id);
+      if (!isCurrentTarget(mutationTarget)) return;
+      cacheBot(rotated.bot);
+      rotateWebhookVisible = false;
+      webhookURL = rotated.webhookUrl;
+      webhookURLVisible = true;
+      toast.success(m('settings.bots.webhook_rotated'));
+    } catch (error) {
+      if (isCurrentTarget(mutationTarget)) {
+        toast.error(
+          error instanceof Error ? error.message : m('settings.bots.webhook_rotate_failed')
+        );
+      }
+    } finally {
+      if (isCurrentTarget(mutationTarget)) rotateWebhookLoading = false;
+    }
+  }
+
+  async function disableWebhook() {
+    if (!bot) return;
+    const mutationTarget = targetKey;
+    disableWebhookLoading = true;
+    try {
+      const updated = await botAPI().disableBotIncomingWebhook(bot.id);
+      if (!isCurrentTarget(mutationTarget)) return;
+      cacheBot(updated);
+      disableWebhookVisible = false;
+      toast.success(m('settings.bots.webhook_disabled'));
+    } catch (error) {
+      if (isCurrentTarget(mutationTarget)) {
+        toast.error(
+          error instanceof Error ? error.message : m('settings.bots.webhook_disable_failed')
+        );
+      }
+    } finally {
+      if (isCurrentTarget(mutationTarget)) disableWebhookLoading = false;
+    }
+  }
+
   function openReassignOwner() {
     reassignOwnerUserId = '';
     reassignOwnerText = '';
@@ -274,16 +343,6 @@
     } finally {
       if (isCurrentTarget(mutationTarget)) deleteLoading = false;
     }
-  }
-
-  async function copyAPIKey() {
-    await navigator.clipboard.writeText(apiKey);
-    toast.success(m('settings.bots.key_copied'));
-  }
-
-  function closeAPIKey() {
-    apiKeyVisible = false;
-    apiKey = '';
   }
 
   function formatDate(value: Date | null): string {
@@ -360,6 +419,49 @@
         </dl>
       </Panel>
 
+      {#if supportsIncomingWebhooks}
+        <Panel
+          title={m('settings.bots.webhook_title')}
+          subtitle={m('settings.bots.webhook_description')}
+        >
+          {#snippet actions()}
+            {#if bot.incomingWebhook}
+              <Button size="sm" variant="warning" onclick={() => (rotateWebhookVisible = true)}>
+                <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
+                {m('settings.bots.webhook_rotate')}
+              </Button>
+              <Button
+                size="sm"
+                variant="danger-secondary"
+                onclick={() => (disableWebhookVisible = true)}
+              >
+                <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
+                {m('settings.bots.webhook_disable')}
+              </Button>
+            {:else}
+              <Button size="sm" loading={enableWebhookLoading} onclick={enableWebhook}>
+                <span class="iconify icon-[uil--link-add]" aria-hidden="true"></span>
+                {m('settings.bots.webhook_enable')}
+              </Button>
+            {/if}
+          {/snippet}
+          {#if bot.incomingWebhook}
+            <dl class="grid gap-4 text-sm sm:grid-cols-2">
+              <div>
+                <dt class="text-muted">{m('settings.bots.webhook_created')}</dt>
+                <dd class="mt-1">{formatDate(bot.incomingWebhook.createdAt)}</dd>
+              </div>
+              <div>
+                <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
+                <dd class="mt-1">{formatDate(bot.incomingWebhook.rotatedAt)}</dd>
+              </div>
+            </dl>
+          {:else}
+            <p class="text-muted">{m('settings.bots.webhook_disabled_description')}</p>
+          {/if}
+        </Panel>
+      {/if}
+
       <UserPermissionsMatrix
         userId={bot.id}
         subjectKind={m('settings.bots.singular')}
@@ -419,28 +521,21 @@
   />
 </FormDialog>
 
-<Dialog
+<ShowOnceCredentialDialog
   bind:visible={apiKeyVisible}
+  bind:value={apiKey}
   title={m('settings.bots.api_key_title')}
-  size="lg"
-  onclose={closeAPIKey}
->
-  <div class="flex flex-col gap-4">
-    <Hint tone="warning">{m('settings.bots.api_key_warning')}</Hint>
-    <div class="flex items-center gap-3 surface-box p-3">
-      <code class="min-w-0 flex-1 overflow-x-auto text-sm whitespace-nowrap select-all"
-        >{apiKey}</code
-      >
-      <Button size="sm" variant="secondary" onclick={copyAPIKey}>
-        <span class="iconify icon-[uil--copy]" aria-hidden="true"></span>
-        {m('common.copy_to_clipboard')}
-      </Button>
-    </div>
-    <div class="flex justify-end">
-      <Button defaultAction onclick={closeAPIKey}>{m('common.got_it')}</Button>
-    </div>
-  </div>
-</Dialog>
+  warning={m('settings.bots.api_key_warning')}
+  copiedMessage={m('settings.bots.key_copied')}
+/>
+
+<ShowOnceCredentialDialog
+  bind:visible={webhookURLVisible}
+  bind:value={webhookURL}
+  title={m('settings.bots.webhook_url_title')}
+  warning={m('settings.bots.webhook_url_warning')}
+  copiedMessage={m('settings.bots.webhook_url_copied')}
+/>
 
 <ConfirmDialog
   bind:visible={rotateVisible}
@@ -453,6 +548,30 @@
   onclose={() => (rotateVisible = false)}
 >
   {m('settings.bots.rotate_warning')}
+</ConfirmDialog>
+
+<ConfirmDialog
+  bind:visible={rotateWebhookVisible}
+  title={m('settings.bots.webhook_rotate_title')}
+  tone="warning"
+  actionLabel={m('settings.bots.webhook_rotate')}
+  actionIcon="iconify icon-[uil--refresh]"
+  loading={rotateWebhookLoading}
+  onconfirm={rotateWebhook}
+  onclose={() => (rotateWebhookVisible = false)}
+>
+  {m('settings.bots.webhook_rotate_warning')}
+</ConfirmDialog>
+
+<ConfirmDialog
+  bind:visible={disableWebhookVisible}
+  title={m('settings.bots.webhook_disable_title')}
+  actionLabel={m('settings.bots.webhook_disable')}
+  loading={disableWebhookLoading}
+  onconfirm={disableWebhook}
+  onclose={() => (disableWebhookVisible = false)}
+>
+  {m('settings.bots.webhook_disable_warning')}
 </ConfirmDialog>
 
 <ConfirmDialog

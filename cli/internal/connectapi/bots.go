@@ -149,6 +149,66 @@ func (s *botService) RotateBotApiKey(ctx context.Context, req *connect.Request[a
 	return connect.NewResponse(&apiv1.RotateBotApiKeyResponse{Bot: mapped, ApiKey: bot.APIKey}), nil
 }
 
+func (s *botService) EnableBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.EnableBotIncomingWebhookRequest]) (*connect.Response[apiv1.EnableBotIncomingWebhookResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := s.api.core.EnableBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	mapped, err := apiBot(ctx, s.api, bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.EnableBotIncomingWebhookResponse{
+		Bot: mapped, WebhookUrl: s.incomingWebhookURL(ctx, bot.IncomingWebhookCredential),
+	}), nil
+}
+
+func (s *botService) RotateBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.RotateBotIncomingWebhookRequest]) (*connect.Response[apiv1.RotateBotIncomingWebhookResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := s.api.core.RotateBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	mapped, err := apiBot(ctx, s.api, bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.RotateBotIncomingWebhookResponse{
+		Bot: mapped, WebhookUrl: s.incomingWebhookURL(ctx, bot.IncomingWebhookCredential),
+	}), nil
+}
+
+func (s *botService) DisableBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.DisableBotIncomingWebhookRequest]) (*connect.Response[apiv1.DisableBotIncomingWebhookResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := s.api.core.DisableBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	mapped, err := apiBot(ctx, s.api, bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.DisableBotIncomingWebhookResponse{Bot: mapped}), nil
+}
+
+func (s *botService) incomingWebhookURL(ctx context.Context, credential string) string {
+	baseURL := strings.TrimRight(requestBaseURLFromContext(ctx), "/")
+	if baseURL == "" {
+		baseURL = strings.TrimRight(s.api.config.Webserver.URL, "/")
+	}
+	return baseURL + "/webhooks/incoming/" + credential
+}
+
 func (s *botService) ReassignBotOwner(ctx context.Context, req *connect.Request[apiv1.ReassignBotOwnerRequest]) (*connect.Response[apiv1.ReassignBotOwnerResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -173,6 +233,14 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 	out := &apiv1.Bot{User: user, OwnerUserId: bot.OwnerUserID, CreatedAt: bot.User.GetCreatedAt(), ApiKeyCreatedAt: timestamppb.New(bot.APIKeyCreatedAt)}
 	if !bot.APIKeyRotatedAt.IsZero() {
 		out.ApiKeyRotatedAt = timestamppb.New(bot.APIKeyRotatedAt)
+	}
+	if !bot.IncomingWebhookCredentialCreatedAt.IsZero() {
+		out.IncomingWebhook = &apiv1.BotIncomingWebhook{
+			CreatedAt: timestamppb.New(bot.IncomingWebhookCredentialCreatedAt),
+		}
+		if !bot.IncomingWebhookCredentialRotatedAt.IsZero() {
+			out.IncomingWebhook.RotatedAt = timestamppb.New(bot.IncomingWebhookCredentialRotatedAt)
+		}
 	}
 	return out, nil
 }

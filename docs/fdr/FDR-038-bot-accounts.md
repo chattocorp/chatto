@@ -37,6 +37,17 @@ exercise more authority than its human owner currently possesses.
   visual indicator.
 - A bot has one active API key. The key is returned only when the bot is
   created or the key is rotated; it cannot be retrieved later.
+- A bot can have one optional incoming webhook. Enabling or rotating the
+  webhook shows its complete URL once. Disabling it immediately invalidates
+  the current URL.
+- An incoming webhook can post plain-text messages as the bot. It accepts
+  Slack-compatible `text` and `channel` fields, Chatto `body` and `room_id`
+  aliases, an optional `room_id` query parameter, and the Chatto
+  `create_thread` extension. All specified destinations and bodies must agree.
+- An incoming webhook uses stable room IDs. It can select any channel room
+  where the bot is a member and has the normal posting permissions. It can
+  select an existing human-started DM that contains the bot. It cannot create
+  or find a DM, and it cannot create a thread in a DM.
 - Newly issued keys use a 128-bit random secret to remain compact enough for
   copy-and-paste workflows. Previously issued 256-bit keys remain valid until
   they are rotated.
@@ -260,6 +271,22 @@ want one action for each source message. The current realtime replacement
 contains only the newest finite page; longer recovery uses the paginated
 notification API.
 
+### 11. Incoming webhooks use a separate action credential
+
+**Decision:** A bot can have zero or one active incoming webhook credential.
+The credential can call only the incoming webhook HTTP endpoint. The endpoint
+posts through the normal message operation as the bot. One credential can
+select a room through the request URL or JSON payload.
+
+**Why:** An external system can post a message without receiving the bot's
+complete API authority. Dynamic room selection keeps one automation usable
+across the rooms that the bot can already access.
+
+**Tradeoff:** The credential is in the webhook URL and needs the same secret
+handling as an API key. The first version has no idempotency key. A retry after
+a lost response can create a duplicate message. Multiple credentials, rich
+Slack payloads, and replies to existing threads are deferred.
+
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
@@ -293,6 +320,12 @@ override, but bots themselves cannot exercise bot-management operations.
   are additive changes in the unreleased 0.5.0 train. Older clients continue
   to work, and the bundled client gates the action through its server feature
   table.
+- Incoming webhook management RPCs and metadata are additive public API
+  changes. The enable and rotate responses show the URL once. Older clients
+  ignore the metadata and do not call the new methods.
+- Incoming webhook lifecycle facts are additive persisted events. Complete a
+  rolling upgrade before you enable or rotate a webhook. A replica that does
+  not know these events cannot authenticate the credential after replay.
 - The existing `AdminPermissionService` user-permission operations accept bot
   user IDs. `PermissionMatrixCell.allow_permitted` is additive and reports when
   a target-specific delegation ceiling prevents an explicit allow.
@@ -331,7 +364,7 @@ override, but bots themselves cannot exercise bot-management operations.
   runtime credentials), ADR-051 (resumable client projection), ADR-052
   (subject-specific RBAC), ADR-076 (deterministic notification occurrences),
   ADR-077 (persistent notification list), ADR-080 (explicit message-read
-  permissions)
+  permissions), ADR-083 (action-limited bot incoming webhooks)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
   (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018
   (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &

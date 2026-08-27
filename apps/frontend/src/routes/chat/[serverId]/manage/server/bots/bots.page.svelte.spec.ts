@@ -84,7 +84,8 @@ describe('Bot administration page', () => {
           ownerUserId: 'owner-user-id',
           createdAt: null,
           apiKeyCreatedAt: null,
-          apiKeyRotatedAt: null
+          apiKeyRotatedAt: null,
+          incomingWebhook: null
         }
       ],
       totalCount: 1,
@@ -111,8 +112,6 @@ describe('Bot administration page', () => {
     expect(container.textContent).not.toContain('owner-user-id');
     expect(container.querySelectorAll('[data-testid="user-identity"]')).toHaveLength(2);
     expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
-    expect(
-      container.querySelector('a[href$="/manage/server/bots/bot-user-id"]')
-    ).not.toBeNull();
+    expect(container.querySelector('a[href$="/manage/server/bots/bot-user-id"]')).not.toBeNull();
   });
 });

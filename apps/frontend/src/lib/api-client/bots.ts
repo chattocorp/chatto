@@ -17,6 +17,10 @@ export type Bot = {
   createdAt: Date | null;
   apiKeyCreatedAt: Date | null;
   apiKeyRotatedAt: Date | null;
+  incomingWebhook: {
+    createdAt: Date | null;
+    rotatedAt: Date | null;
+  } | null;
 };
 
 export type BotPage = {
@@ -75,6 +79,21 @@ export function createBotAPI(config: BotAPIConfig) {
       const response = await client.rotateBotApiKey({ botUserId }, { headers: headers() });
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
     },
+    async enableBotIncomingWebhook(botUserId: string): Promise<{ bot: Bot; webhookUrl: string }> {
+      const response = await client.enableBotIncomingWebhook({ botUserId }, { headers: headers() });
+      return { bot: botFromAPI(requiredBot(response.bot)), webhookUrl: response.webhookUrl };
+    },
+    async rotateBotIncomingWebhook(botUserId: string): Promise<{ bot: Bot; webhookUrl: string }> {
+      const response = await client.rotateBotIncomingWebhook({ botUserId }, { headers: headers() });
+      return { bot: botFromAPI(requiredBot(response.bot)), webhookUrl: response.webhookUrl };
+    },
+    async disableBotIncomingWebhook(botUserId: string): Promise<Bot> {
+      const response = await client.disableBotIncomingWebhook(
+        { botUserId },
+        { headers: headers() }
+      );
+      return botFromAPI(requiredBot(response.bot));
+    },
     async reassignBotOwner(botUserId: string, ownerUserId: string): Promise<Bot> {
       const response = await client.reassignBotOwner(
         { botUserId, ownerUserId },
@@ -103,6 +122,12 @@ function botFromAPI(bot: APIBot): Bot {
     ownerUserId: bot.ownerUserId,
     createdAt: bot.createdAt?.toDate() ?? null,
     apiKeyCreatedAt: bot.apiKeyCreatedAt?.toDate() ?? null,
-    apiKeyRotatedAt: bot.apiKeyRotatedAt?.toDate() ?? null
+    apiKeyRotatedAt: bot.apiKeyRotatedAt?.toDate() ?? null,
+    incomingWebhook: bot.incomingWebhook
+      ? {
+          createdAt: bot.incomingWebhook.createdAt?.toDate() ?? null,
+          rotatedAt: bot.incomingWebhook.rotatedAt?.toDate() ?? null
+        }
+      : null
   };
 }

@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   getBot: vi.fn(),
   createBot: vi.fn(),
   rotateBotApiKey: vi.fn(),
+  enableBotIncomingWebhook: vi.fn(),
+  rotateBotIncomingWebhook: vi.fn(),
+  disableBotIncomingWebhook: vi.fn(),
   reassignBotOwner: vi.fn()
 }));
 
@@ -30,6 +33,9 @@ describe('createBotAPI', () => {
       getBot: mocks.getBot,
       createBot: mocks.createBot,
       rotateBotApiKey: mocks.rotateBotApiKey,
+      enableBotIncomingWebhook: mocks.enableBotIncomingWebhook,
+      rotateBotIncomingWebhook: mocks.rotateBotIncomingWebhook,
+      disableBotIncomingWebhook: mocks.disableBotIncomingWebhook,
       reassignBotOwner: mocks.reassignBotOwner
     });
   });
@@ -66,7 +72,8 @@ describe('createBotAPI', () => {
           ownerUserId: 'U-owner',
           createdAt,
           apiKeyCreatedAt: createdAt,
-          apiKeyRotatedAt: null
+          apiKeyRotatedAt: null,
+          incomingWebhook: null
         }
       ],
       totalCount: 1,
@@ -76,6 +83,32 @@ describe('createBotAPI', () => {
       { search: 'helper', page: { limit: 20, offset: 40 } },
       { headers: { Authorization: 'Bearer token' }, signal }
     );
+  });
+
+  it('manages an incoming webhook and maps its safe metadata', async () => {
+    const createdAt = new Date('2026-08-27T10:00:00Z');
+    const apiBot = {
+      user: { id: 'one', login: 'one_bot', displayName: 'One' },
+      ownerUserId: 'U-owner',
+      incomingWebhook: { createdAt: Timestamp.fromDate(createdAt) }
+    };
+    mocks.enableBotIncomingWebhook.mockResolvedValue({
+      bot: apiBot,
+      webhookUrl: 'https://chat.example/webhooks/incoming/secret'
+    });
+    mocks.disableBotIncomingWebhook.mockResolvedValue({
+      bot: { ...apiBot, incomingWebhook: undefined }
+    });
+    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    await expect(api.enableBotIncomingWebhook('one')).resolves.toMatchObject({
+      bot: { id: 'one', incomingWebhook: { createdAt, rotatedAt: null } },
+      webhookUrl: 'https://chat.example/webhooks/incoming/secret'
+    });
+    await expect(api.disableBotIncomingWebhook('one')).resolves.toMatchObject({
+      id: 'one',
+      incomingWebhook: null
+    });
   });
 
   it('returns pagination metadata without eagerly loading later pages', async () => {

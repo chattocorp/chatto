@@ -255,6 +255,107 @@ retrieved later.
 | `api_key` | `string` | Newly issued API key. |
 
 
+<a id="chatto-api-v1-BotService-EnableBotIncomingWebhook"></a>
+
+### EnableBotIncomingWebhook
+
+Enables the bot's sole incoming webhook credential.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/EnableBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-EnableBotIncomingWebhookRequest"></a>
+
+#### Input: EnableBotIncomingWebhookRequest
+
+Request enablement of the bot's incoming webhook.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-EnableBotIncomingWebhookResponse"></a>
+
+#### Result: EnableBotIncomingWebhookResponse
+
+Result of enabling an incoming webhook. webhook_url is shown once and
+cannot be retrieved later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
+| `webhook_url` | `string` | Newly issued incoming webhook URL. |
+
+
+<a id="chatto-api-v1-BotService-RotateBotIncomingWebhook"></a>
+
+### RotateBotIncomingWebhook
+
+Rotates the active incoming webhook credential and immediately invalidates
+the old credential.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RotateBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-RotateBotIncomingWebhookRequest"></a>
+
+#### Input: RotateBotIncomingWebhookRequest
+
+Request rotation of the bot's active incoming webhook credential.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-RotateBotIncomingWebhookResponse"></a>
+
+#### Result: RotateBotIncomingWebhookResponse
+
+Result of rotating an incoming webhook. webhook_url is shown once and
+cannot be retrieved later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
+| `webhook_url` | `string` | Newly issued incoming webhook URL. |
+
+
+<a id="chatto-api-v1-BotService-DisableBotIncomingWebhook"></a>
+
+### DisableBotIncomingWebhook
+
+Disables the incoming webhook and immediately invalidates its credential.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DisableBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-DisableBotIncomingWebhookRequest"></a>
+
+#### Input: DisableBotIncomingWebhookRequest
+
+Request disablement of the bot's active incoming webhook.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-DisableBotIncomingWebhookResponse"></a>
+
+#### Result: DisableBotIncomingWebhookResponse
+
+Result of disabling an incoming webhook.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
+
+
 <a id="chatto-api-v1-BotService-ReassignBotOwner"></a>
 
 ### ReassignBotOwner

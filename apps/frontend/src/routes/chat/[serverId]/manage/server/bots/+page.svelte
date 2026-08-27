@@ -7,6 +7,7 @@
   import { createUserAPI } from '$lib/api-client/users';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { DataTable, Panel } from '$lib/components/admin';
+  import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { m } from '$lib/i18n/messages';
@@ -14,7 +15,7 @@
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Dialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { SvelteSet } from 'svelte/reactivity';
@@ -98,9 +99,7 @@
     },
     () => queryClient
   );
-  const ownersById = $derived(
-    new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner]))
-  );
+  const ownersById = $derived(new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner])));
 
   let createVisible = $state(false);
   let createLogin = $state('');
@@ -135,13 +134,6 @@
   async function loadMore() {
     if (botsQuery.isPending || botsQuery.isFetchingNextPage || !botsQuery.hasNextPage) return;
     await botsQuery.fetchNextPage();
-  }
-
-  function botHref(botId: string) {
-    return resolve('/chat/[serverId]/manage/server/bots/[botId]', {
-      serverId: serverIdToSegment(serverScope.serverId),
-      botId
-    });
   }
 
   function openCreate() {
@@ -184,11 +176,6 @@
     } finally {
       if (componentActive) createLoading = false;
     }
-  }
-
-  async function copyAPIKey() {
-    await navigator.clipboard.writeText(apiKey);
-    toast.success(m('settings.bots.key_copied'));
   }
 
   function closeAPIKey() {
@@ -253,7 +240,13 @@
           loadingMore={botsQuery.isFetchingNextPage}
           onLoadMore={loadMore}
           loadMoreRoot={scrollContainer}
-          onRowClick={(bot) => goto(botHref(bot.id))}
+          onRowClick={(bot) =>
+            goto(
+              resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                serverId: serverIdToSegment(serverScope.serverId),
+                botId: bot.id
+              })
+            )}
         >
           {#snippet header()}
             <th class="table-header-cell">{m('settings.bots.singular')}</th>
@@ -278,7 +271,10 @@
             <td class="px-4 py-3">
               <a
                 class="link text-muted"
-                href={botHref(bot.id)}
+                href={resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                  serverId: serverIdToSegment(serverScope.serverId),
+                  botId: bot.id
+                })}
                 onclick={(event) => event.stopPropagation()}>@{bot.login}</a
               >
             </td>
@@ -286,9 +282,7 @@
               {#if owner}
                 <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
               {:else if ownersQuery.isPending}
-                <span
-                  class="skeleton block h-8 w-32 rounded-md"
-                  aria-label={m('common.loading')}
+                <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
                 ></span>
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
@@ -331,25 +325,11 @@
   />
 </FormDialog>
 
-<Dialog
+<ShowOnceCredentialDialog
   bind:visible={apiKeyVisible}
+  bind:value={apiKey}
   title={m('settings.bots.api_key_title')}
-  size="lg"
+  warning={m('settings.bots.api_key_warning')}
+  copiedMessage={m('settings.bots.key_copied')}
   onclose={closeAPIKey}
->
-  <div class="flex flex-col gap-4">
-    <Hint tone="warning">{m('settings.bots.api_key_warning')}</Hint>
-    <div class="flex items-center gap-3 surface-box p-3">
-      <code class="min-w-0 flex-1 overflow-x-auto text-sm whitespace-nowrap select-all"
-        >{apiKey}</code
-      >
-      <Button size="sm" variant="secondary" onclick={copyAPIKey}>
-        <span class="iconify icon-[uil--copy]" aria-hidden="true"></span>
-        {m('common.copy_to_clipboard')}
-      </Button>
-    </div>
-    <div class="flex justify-end">
-      <Button defaultAction onclick={closeAPIKey}>{m('common.got_it')}</Button>
-    </div>
-  </div>
-</Dialog>
+/>

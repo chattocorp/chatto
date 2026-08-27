@@ -8,6 +8,7 @@ import (
 	"time"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
@@ -27,6 +28,24 @@ func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
 	legacyKey := botAPIKeyPrefix + botID + "." + base64.RawURLEncoding.EncodeToString(legacySecret)
 	if parsedID, ok := parseBotAPIKey(legacyKey); !ok || parsedID != botID {
 		t.Fatalf("parseBotAPIKey(legacy) = %q, %v", parsedID, ok)
+	}
+}
+
+func TestBotIncomingWebhookCredentialFormatIsCompact(t *testing.T) {
+	botID := NewUserID()
+	credential, err := NewBotIncomingWebhookCredential(botID)
+	if err != nil {
+		t.Fatalf("NewBotIncomingWebhookCredential: %v", err)
+	}
+	if got, want := len(credential), len(botIncomingWebhookPrefix)+len(botID)+1+base64.RawURLEncoding.EncodedLen(botAPIKeySecretBytes); got != want {
+		t.Fatalf("credential length = %d, want %d", got, want)
+	}
+	if parsedID, ok := parseBotIncomingWebhookCredential(credential); !ok || parsedID != botID {
+		t.Fatalf("parseBotIncomingWebhookCredential = %q, %v", parsedID, ok)
+	}
+	legacySecret := base64.RawURLEncoding.EncodeToString(make([]byte, legacyBotAPIKeySecretBytes))
+	if _, ok := parseBotIncomingWebhookCredential(botIncomingWebhookPrefix + botID + "." + legacySecret); ok {
+		t.Fatal("incoming webhook parser accepted an unsupported legacy secret length")
 	}
 }
 
@@ -105,6 +124,123 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	}
 	if _, err := c.ValidateBotAPIKey(ctx, rotated.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("deleted key err = %v, want ErrAuthTokenNotFound", err)
+	}
+}
+
+func TestBotIncomingWebhookCredentialLifecycleIsIndependentFromAPIKey(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-owner", "Webhook Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "webhook_bot", "Webhook Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if bot.IncomingWebhookCredential != "" || !bot.IncomingWebhookCredentialCreatedAt.IsZero() {
+		t.Fatalf("new bot incoming webhook = %+v, want disabled", bot)
+	}
+
+	enabled, err := c.EnableBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("EnableBotIncomingWebhook: %v", err)
+	}
+	if !strings.HasPrefix(enabled.IncomingWebhookCredential, botIncomingWebhookPrefix+bot.User.GetId()+".") || enabled.IncomingWebhookCredentialCreatedAt.IsZero() {
+		t.Fatalf("enabled incoming webhook = %+v", enabled)
+	}
+	if authenticated, err := c.ValidateBotIncomingWebhookCredential(ctx, enabled.IncomingWebhookCredential); err != nil || authenticated.GetId() != bot.User.GetId() {
+		t.Fatalf("ValidateBotIncomingWebhookCredential = %+v, %v", authenticated, err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, enabled.IncomingWebhookCredential); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("webhook credential used as API key error = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := c.ValidateBotIncomingWebhookCredential(ctx, bot.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("API key used as webhook credential error = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := c.EnableBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId()); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("second enable error = %v, want ErrInvalidArgument", err)
+	}
+
+	rotated, err := c.RotateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("RotateBotIncomingWebhook: %v", err)
+	}
+	if rotated.IncomingWebhookCredential == enabled.IncomingWebhookCredential || rotated.IncomingWebhookCredentialRotatedAt.IsZero() {
+		t.Fatalf("rotated incoming webhook = %+v", rotated)
+	}
+	if _, err := c.ValidateBotIncomingWebhookCredential(ctx, enabled.IncomingWebhookCredential); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("old webhook credential error = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, bot.APIKey); err != nil {
+		t.Fatalf("webhook rotation changed bot API key: %v", err)
+	}
+
+	disabled, err := c.DisableBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("DisableBotIncomingWebhook: %v", err)
+	}
+	if !disabled.IncomingWebhookCredentialCreatedAt.IsZero() {
+		t.Fatalf("disabled webhook metadata = %+v, want absent", disabled)
+	}
+	if _, err := c.ValidateBotIncomingWebhookCredential(ctx, rotated.IncomingWebhookCredential); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("disabled webhook credential error = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := c.DisableBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("idempotent DisableBotIncomingWebhook: %v", err)
+	}
+	if _, err := c.RotateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId()); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("rotate disabled webhook error = %v, want ErrInvalidArgument", err)
+	}
+}
+
+func TestConcurrentBotIncomingWebhookRotationsReturnOneActiveCredential(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-race-owner", "Webhook Race Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "webhook_race_bot", "Webhook Race Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if _, err := c.EnableBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("EnableBotIncomingWebhook: %v", err)
+	}
+
+	start := make(chan struct{})
+	type result struct {
+		bot *Bot
+		err error
+	}
+	results := make(chan result, 2)
+	for range 2 {
+		go func() {
+			<-start
+			rotated, err := c.RotateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId())
+			results <- result{bot: rotated, err: err}
+		}()
+	}
+	close(start)
+	active := ""
+	conflicts := 0
+	for range 2 {
+		got := <-results
+		if errors.Is(got.err, events.ErrConflict) {
+			conflicts++
+			continue
+		}
+		if got.err != nil {
+			t.Fatalf("RotateBotIncomingWebhook: %v", got.err)
+		}
+		active = got.bot.IncomingWebhookCredential
+	}
+	if conflicts != 1 || active == "" {
+		t.Fatalf("concurrent rotations conflicts=%d active=%q, want one of each", conflicts, active)
+	}
+	if _, err := c.ValidateBotIncomingWebhookCredential(ctx, active); err != nil {
+		t.Fatalf("winning credential: %v", err)
 	}
 }
 
