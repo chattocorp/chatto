@@ -108,7 +108,7 @@
       "presence": {
         "button": "Presence: {status}",
         "title": "Presence",
-        "auto": "Online",
+        "online": "Online",
         "away": "Away",
         "do_not_disturb": "Do Not Disturb",
         "offline": "Offline",

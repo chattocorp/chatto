@@ -14,19 +14,9 @@ const mocks = vi.hoisted(() => ({
 	updatePresence: vi.fn()
 }));
 
-let documentTarget: EventTarget;
 let windowTarget: EventTarget;
-let visibilityState: DocumentVisibilityState;
 let cleanup: (() => void) | null;
 let onStatusChange: Mock<PresenceStatusHandler>;
-
-function dispatchDocumentEvent(type: string) {
-	documentTarget.dispatchEvent(new Event(type));
-}
-
-function dispatchWindowEvent(type: string) {
-	windowTarget.dispatchEvent(new Event(type));
-}
 
 function dispatchStorageMode(mode: string) {
 	const event = new Event('storage') as StorageEvent;
@@ -35,11 +25,6 @@ function dispatchStorageMode(mode: string) {
 		newValue: { value: mode }
 	});
 	windowTarget.dispatchEvent(event);
-}
-
-function setVisibility(next: DocumentVisibilityState) {
-	visibilityState = next;
-	dispatchDocumentEvent('visibilitychange');
 }
 
 function startTracking() {
@@ -62,9 +47,7 @@ describe('initPresenceTracking', () => {
 	beforeEach(() => {
 		vi.useFakeTimers({ now: 0 });
 		mocks.updatePresence = vi.fn<UpdatePresence>((status) => Promise.resolve(status));
-		documentTarget = new EventTarget();
 		windowTarget = new EventTarget();
-		visibilityState = 'visible';
 		cleanup = null;
 
 		const storage = new Map<string, string>();
@@ -76,14 +59,6 @@ describe('initPresenceTracking', () => {
 			removeItem: vi.fn((key: string) => {
 				storage.delete(key);
 			})
-		});
-		vi.stubGlobal('document', {
-			addEventListener: documentTarget.addEventListener.bind(documentTarget),
-			removeEventListener: documentTarget.removeEventListener.bind(documentTarget),
-			dispatchEvent: documentTarget.dispatchEvent.bind(documentTarget),
-			get visibilityState() {
-				return visibilityState;
-			}
 		});
 		vi.stubGlobal('window', {
 			addEventListener: windowTarget.addEventListener.bind(windowTarget),
@@ -98,31 +73,66 @@ describe('initPresenceTracking', () => {
 		vi.useRealTimers();
 	});
 
-	it('reports online immediately and does not report away while activity continues', () => {
+	it('reports online as the default explicit status', () => {
 		startTracking();
 
 		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
+		expect(sentUserSelectedFlags()).toEqual([true]);
+	});
 
-		vi.advanceTimersByTime(4 * 60 * 1000 + 59 * 1000);
-		dispatchDocumentEvent('pointermove');
-		vi.advanceTimersByTime(4 * 60 * 1000 + 59 * 1000);
+	it('reports away only when the user explicitly selects it and never returns automatically', () => {
+		startTracking();
 
-		expect(sentStatuses()).not.toContain(APIPresenceStatus.AWAY);
-		expect(onStatusChange).not.toHaveBeenCalledWith(PresenceStatus.AWAY);
+		setPresenceMode('away');
+
+		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.AWAY);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
+
+		vi.advanceTimersByTime(10 * 60 * 1000);
+
+		// The idle/hidden detectors are gone; only the 30s refresh keeps away alive.
+		const statuses = sentStatuses();
+		for (const status of statuses.slice(1)) {
+			expect(status).toBe(APIPresenceStatus.AWAY);
+		}
+		// The initial online report plus the explicit away transition; activity
+		// never returns the status to Online.
+		expect(onStatusChange.mock.calls.flat().filter((s) => s === PresenceStatus.ONLINE)).toHaveLength(
+			1
+		);
+	});
+
+	it('normalizes a legacy stored auto mode to explicit online', () => {
+		localStorage.setItem(__presenceTrackingTest.PRESENCE_MODE_STORAGE_KEY, 'auto');
+
+		startTracking();
+
+		expect(presencePreference.mode).toBe('online');
+		expect(localStorage.getItem(__presenceTrackingTest.PRESENCE_MODE_STORAGE_KEY)).toBe('online');
+		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
+	});
+
+	it('refreshes the chosen status so server-side presence TTLs do not expire', () => {
+		startTracking();
+		setPresenceMode('doNotDisturb');
+
+		vi.advanceTimersByTime(30_000);
+
+		expect(sentStatuses()).toEqual([
+			APIPresenceStatus.ONLINE,
+			APIPresenceStatus.DO_NOT_DISTURB,
+			APIPresenceStatus.DO_NOT_DISTURB
+		]);
+		expect(sentUserSelectedFlags()).toEqual([true, true, true]);
 	});
 
 	it('reconciles local status to the server-accepted presence', async () => {
-		mocks.updatePresence.mockImplementation((status, userSelected) =>
-			Promise.resolve(
-				status === APIPresenceStatus.ONLINE && !userSelected
-					? APIPresenceStatus.DO_NOT_DISTURB
-					: status
-			)
+		mocks.updatePresence.mockImplementationOnce(() =>
+			Promise.resolve(APIPresenceStatus.DO_NOT_DISTURB)
 		);
 
 		startTracking();
 
-		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
 
 		await Promise.resolve();
@@ -136,103 +146,20 @@ describe('initPresenceTracking', () => {
 			APIPresenceStatus.ONLINE,
 			APIPresenceStatus.DO_NOT_DISTURB
 		]);
-		expect(sentUserSelectedFlags()).toEqual([false, false]);
 	});
 
-	it('returns online when broad activity resumes after idle', () => {
-		startTracking();
-
-		vi.advanceTimersByTime(5 * 60 * 1000);
-		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.AWAY);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
-
-		dispatchDocumentEvent('pointermove');
-
-		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.ONLINE);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
-	});
-
-	it('reports away after the hidden delay and returns online when visible again in auto mode', () => {
-		startTracking();
-
-		setVisibility('hidden');
-		vi.advanceTimersByTime(9_999);
-		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
-
-		vi.advanceTimersByTime(1);
-		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE, APIPresenceStatus.AWAY]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
-
-		setVisibility('visible');
-
-		expect(sentStatuses()).toEqual([
-			APIPresenceStatus.ONLINE,
-			APIPresenceStatus.AWAY,
-			APIPresenceStatus.ONLINE
-		]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
-	});
-
-	it('does not auto-return from explicit away on activity', () => {
-		startTracking();
-		setPresenceMode('away');
-
-		dispatchDocumentEvent('pointermove');
-		dispatchWindowEvent('focus');
-		vi.advanceTimersByTime(5 * 60 * 1000);
-
-		expect(sentStatuses()).toContain(APIPresenceStatus.AWAY);
-		expect(sentStatuses().slice(1)).not.toContain(APIPresenceStatus.ONLINE);
-		expect(sentUserSelectedFlags().at(1)).toBe(true);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
-	});
-
-	it('returns online when another tab clears explicit away while this tab is hidden', () => {
-		startTracking();
-		setVisibility('hidden');
-		vi.advanceTimersByTime(10_000);
-		dispatchStorageMode('away');
-
-		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.AWAY);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
-
-		dispatchStorageMode('auto');
-
-		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.ONLINE);
-		expect(sentUserSelectedFlags().at(-1)).toBe(true);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
-		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.ONLINE);
-	});
-
-	it('keeps do not disturb through activity and refreshes it', () => {
-		startTracking();
-		setPresenceMode('doNotDisturb');
-
-		dispatchDocumentEvent('pointermove');
-		vi.advanceTimersByTime(30_000);
-
-		expect(sentStatuses()).toEqual([
-			APIPresenceStatus.ONLINE,
-			APIPresenceStatus.DO_NOT_DISTURB,
-			APIPresenceStatus.DO_NOT_DISTURB
-		]);
-		expect(sentUserSelectedFlags()).toEqual([false, true, true]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.DO_NOT_DISTURB);
-	});
-
-	it('does not update presence while invisible and returns online when automatic mode resumes', () => {
+	it('does not update presence while invisible and resumes when online is selected again', () => {
 		startTracking();
 		setPresenceMode('invisible');
 		vi.advanceTimersByTime(60_000);
-		dispatchDocumentEvent('pointermove');
 
 		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.OFFLINE);
 
-		setPresenceMode('auto');
+		setPresenceMode('online');
 
 		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE, APIPresenceStatus.ONLINE]);
-		expect(sentUserSelectedFlags()).toEqual([false, true]);
+		expect(sentUserSelectedFlags()).toEqual([true, true]);
 	});
 
 	it('starts without reporting presence when look offline was persisted', () => {
@@ -243,5 +170,29 @@ describe('initPresenceTracking', () => {
 
 		expect(sentStatuses()).toEqual([]);
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.OFFLINE);
+	});
+
+	it('follows another tab switching between explicit modes without rewriting shared state', () => {
+		startTracking();
+
+		dispatchStorageMode('away');
+
+		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.AWAY);
+		expect(presencePreference.mode).toBe('away');
+
+		dispatchStorageMode('online');
+
+		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.ONLINE);
+		expect(sentUserSelectedFlags().at(-1)).toBe(true);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
+		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.ONLINE);
+
+		// Applying another tab's mode must not rewrite the shared storage value;
+		// identical writes can surface as spurious storage events in other tabs.
+		const localSetItem = vi.mocked(localStorage.setItem);
+		const modeWrites = localSetItem.mock.calls.filter(
+			([key]) => key === __presenceTrackingTest.PRESENCE_MODE_STORAGE_KEY
+		);
+		expect(modeWrites).toHaveLength(0);
 	});
 });

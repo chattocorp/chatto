@@ -168,7 +168,8 @@
     });
   }
 
-  // Initialize presence tracking (idle detection → AWAY, active → ONLINE).
+  // Initialize presence tracking (reports the user's explicit status choice
+  // and refreshes it so server-side presence TTLs do not expire).
   // This works across all instances, not just origin.
   const stopPresenceTracking = initPresenceTracking(
     () =>

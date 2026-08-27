@@ -158,7 +158,7 @@ describe('CurrentUserBar', () => {
       hasVerifiedEmail: true,
       settings: null
     };
-    presencePreference.mode = 'auto';
+    presencePreference.mode = 'online';
     presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
