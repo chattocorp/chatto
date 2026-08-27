@@ -28,8 +28,10 @@ const (
 	notificationWorkerRetryDelay   = 10 * time.Second
 	notificationWorkerAckTimeout   = 5 * time.Second
 	// Badge writes use distinct per-user keys. Bounded pipelining prevents a
-	// large room post from serializing one broker round trip per recipient.
-	notificationUnreadMarkerWriteConcurrency = 32
+	// large room post from serializing one broker round trip per recipient. The
+	// limit keeps 2,048-member fanout inside the realtime delivery budget on
+	// slower runners without allowing an unbounded broker burst.
+	notificationUnreadMarkerWriteConcurrency = 128
 	// Notification lifecycle is causal: one shared in-flight delivery keeps a
 	// later leave/retraction/removal behind the source it supersedes, including
 	// when several Chatto replicas share the consumer.
