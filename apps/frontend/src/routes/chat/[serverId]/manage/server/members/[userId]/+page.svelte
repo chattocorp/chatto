@@ -89,8 +89,7 @@
   // Self-deletion stays in the account settings danger zone; bots cascade with
   // their owner and cannot be deleted directly.
   const canDeleteHere = $derived(
-    !isSelf && !isBot && canAdminManageAccounts &&
-      !!member && !member.deleted && member.viewerCanDeleteAccount
+    !isSelf && !isBot && !!member && !member.deleted && member.viewerCanDeleteAccount
   );
   const memberTargetKey = $derived(
     `${activeServerId}:${serverScope.connection.queryScope}:${userId}`

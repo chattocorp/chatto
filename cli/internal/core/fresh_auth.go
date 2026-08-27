@@ -35,9 +35,8 @@ func freshAuthMethodForSource(source string) string {
 // completed an interactive proof of the user's identity, so the new session
 // may start inside the fresh-auth window. The OAuth authorization-code
 // exchange is intentionally absent: silent re-consent over a stale ambient
-// cookie completes without user interaction, so delegated sessions only start
-// fresh when the authorization code itself was minted by a fresh authorizing
-// session (AuthCodeData.IssuedFresh).
+// cookie completes without user interaction, so delegated sessions retain the
+// authorizing session's exact fresh-authentication time from the code.
 func sourceGrantsInitialFreshAuth(source string) bool {
 	if source == "oauth_code_exchange" || source == "unknown" {
 		return false
@@ -46,14 +45,6 @@ func sourceGrantsInitialFreshAuth(source string) bool {
 		source == "registration" ||
 		source == "registration_complete" ||
 		strings.HasSuffix(source, "_login")
-}
-
-// IsFreshAuthAt reports whether the given instant lies inside the standard
-// fresh-auth window ending at now. HTTP handlers use it to judge whether the
-// credential presented to an OAuth authorize request may hand its freshness to
-// the issued authorization code.
-func IsFreshAuthAt(at time.Time, now time.Time) bool {
-	return isFreshAuthAt(at, now)
 }
 
 func isFreshAuthAt(at time.Time, now time.Time) bool {

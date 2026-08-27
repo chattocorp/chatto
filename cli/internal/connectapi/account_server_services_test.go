@@ -158,7 +158,6 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 }
 
-
 // mintBornFreshOAuthCredential simulates a remote-server connection: a full
 // interactive authorization-code exchange whose authorizing session was fresh,
 // yielding an OAuth-kind bearer credential inside the fresh-auth window.
@@ -172,7 +171,7 @@ func mintBornFreshOAuthCredential(t *testing.T, env *connectAPITestEnv, userID s
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
-	code, err := env.core.CreateAuthCodeForClientGeneration(env.ctx, userID, clientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation, true)
+	code, err := env.core.CreateAuthCodeForClientGeneration(env.ctx, userID, clientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation, time.Now())
 	if err != nil {
 		t.Fatalf("CreateAuthCodeForClientGeneration: %v", err)
 	}
@@ -518,11 +517,6 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if _, err := env.adminUsers.DeleteUser(adminCtx, connect.NewRequest(&adminv1.DeleteUserRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty DeleteUser code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.DeleteUser(adminCtx, connect.NewRequest(&adminv1.DeleteUserRequest{
-		UserId: admin.Id,
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("self DeleteUser code = %v, want permission_denied", connect.CodeOf(err))
-	}
 	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "short",
@@ -621,6 +615,28 @@ func TestAdminUserServiceDeleteUserWorksWithOAuthExchangeSession(t *testing.T) {
 	}
 	if _, err := env.core.GetUser(env.ctx, target.Id); !errors.Is(err, core.ErrNotFound) {
 		t.Fatalf("GetUser after DeleteUser err = %v, want not found", err)
+	}
+}
+
+func TestAdminUserServiceDeleteUserPreservesSelfTargetContract(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	token, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+	}
+
+	deleteResp, err := env.adminUsers.DeleteUser(
+		withBearerCredential(env.ctx, env.viewer, token),
+		connect.NewRequest(&adminv1.DeleteUserRequest{UserId: env.viewer.Id}),
+	)
+	if err != nil {
+		t.Fatalf("self DeleteUser: %v", err)
+	}
+	if !deleteResp.Msg.GetDeleted() {
+		t.Fatal("Deleted = false, want true")
+	}
+	if _, err := env.core.GetUser(env.ctx, env.viewer.Id); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("GetUser after self DeleteUser err = %v, want not found", err)
 	}
 }
 

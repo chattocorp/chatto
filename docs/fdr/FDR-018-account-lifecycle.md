@@ -28,8 +28,19 @@ This FDR covers human accounts from registration through deletion: signup, email
 ### Account deletion
 
 - A human user requests their own deletion via Account Settings.
-- Self-service deletion is gated on the `user.delete-self` permission, enforced server-side at both confirmation-token issuance (core) and token redemption (`DeleteMyAccount`). Revoking the permission therefore disables self-service deletion for that user immediately, including redemption of any token issued before revocation.
-- An administrator with `user.delete-any` can delete another human member from the member detail page in Server Administration. The entry point links to a full-page confirmation that states what will happen to the account, requires the administrator to type the member's login, and may require the administrator's current password when the session needs a fresh credential check. Remote-server sessions whose interactive authorization exchange completed while the server-side sign-in session was still inside its own fresh-auth window are themselves born fresh, so remote-server connections can perform this operation without a local password round-trip. Administrators cannot use this page on their own account or on bot accounts; self-deletion stays in Account Settings, and bots follow FDR-038. The admin `DeleteUser` RPC rejects self-targeted requests server-side as well, so the account-settings-only rule does not depend on client UI.
+- Self-service deletion requires `user.delete-self` when the user requests a
+  confirmation token and when they use it. If an operator revokes the
+  permission, the user cannot use a token that was created before revocation.
+- An administrator with `admin.view-users` and `user.delete-any` can delete
+  another human member from the member detail page in Server Administration.
+  The entry point links to a full-page confirmation that states what deletion
+  does. The administrator must type the member's login. Chatto can also require
+  the administrator's current password when the session is not fresh.
+  Remote-server sessions retain the original fresh-authentication time from
+  the authorizing session. Thus, a remote administrator can use this operation
+  while that time remains in the fresh-authentication window. The admin page
+  does not offer this action for the administrator's own account or for a bot.
+  Self-deletion stays in Account Settings, and bots follow FDR-038.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.

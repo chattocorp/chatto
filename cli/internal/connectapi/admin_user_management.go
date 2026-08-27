@@ -242,12 +242,6 @@ func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connec
 	if req.Msg.GetUserId() == "" {
 		return nil, invalidArgument("user_id is required")
 	}
-	// Self-deletion goes through MyAccountService's two-step confirmation flow
-	// only (FDR-018). Administrators never delete their own account here, even
-	// when they hold user.delete-self.
-	if req.Msg.GetUserId() == caller.UserID {
-		return nil, connectError(core.ErrPermissionDenied)
-	}
 	canDelete, err := s.api.core.CanDeleteUser(ctx, caller.UserID, req.Msg.GetUserId())
 	if err != nil {
 		return nil, connectError(err)
@@ -292,7 +286,7 @@ func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member
 		Login:          member.Login,
 		DisplayName:    member.DisplayName,
 		Deleted:        member.Deleted,
-		IsBot:    member.IsBot,
+		IsBot:          member.IsBot,
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(member.CustomStatus),
 	}

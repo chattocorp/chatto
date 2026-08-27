@@ -97,16 +97,17 @@ A member deletes their own account through Account Settings. Chatto checks the
 when it is used. If you revoke that permission, deletion stops working for that
 member, including codes that were already created.
 
-An administrator with `user.delete-any` deletes another member from the member
-detail page in Server Administration. That page shows what deletion does, and
-the administrator must type the member's login name. Administrators cannot
-delete their own account on that page; they use Account Settings instead.
-Bots do not use either flow. See FDR-038 in the server documentation set.
+An administrator with `admin.view-users` and `user.delete-any` deletes another
+member from the member detail page in Server Administration. That page shows
+what deletion does, and the administrator must type the member's login name.
+The page does not offer this action for the administrator's own account. The
+administrator uses Account Settings for that action. Bots do not use either
+flow. See FDR-038 in the server documentation set.
 
-Remote-server connections sign in through the interactive OAuth authorization
-flow. When that flow finishes while the sign-in session is inside its own
-fresh-authentication window, administrators can manage members over the remote
-connection without entering their password again.
+Remote-server connections sign in through OAuth authorization. A delegated
+session retains the original authentication time of a fresh authorizing
+session. An administrator can manage members over the remote connection while
+that time remains in the fresh-authentication window.
 
 The account-deletion path attempts to:
 

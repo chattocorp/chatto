@@ -170,6 +170,44 @@ describe('server member delete page', () => {
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 
+  it('discards a delete result after the route target changes', async () => {
+    const deletion = deferred<void>();
+    mocks.deleteUser.mockReturnValueOnce(deletion.promise);
+    const rendered = renderPage();
+    await settle();
+
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    submit.click();
+    await vi.waitFor(() => expect(mocks.deleteUser).toHaveBeenCalledOnce());
+
+    memberDetailPageTestState.userId = 'bob';
+    flushSync();
+    await vi.waitFor(() => expect(mocks.getMember).toHaveBeenCalledWith('bob', expect.anything()));
+    await settle();
+
+    const bobKey = adminQueryKeys.member(
+      'server-1',
+      { queryScope: 'session-1' },
+      'bob'
+    );
+    expect(queryClient.getQueryData(bobKey)).toEqual(details(member('bob')));
+
+    deletion.resolve();
+    await settle();
+
+    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(bobKey)).toEqual(details(member('bob')));
+  });
+
   it('blocks deleting the viewer account through this page', async () => {
     memberDetailPageTestState.userId = 'viewer';
     memberDetailPageTestState.viewerId = 'viewer';

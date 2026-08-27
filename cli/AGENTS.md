@@ -279,9 +279,10 @@ authorization, live events, backup and restore, and backend tests.
   owner-only.
 - Fresh-authentication (step-up) semantics are a typed-credential concern, not
   a source-string concern. Operations that require fresh auth must work for
-  delegated OAuth sessions whose authorization exchange completed inside the
-  fresh-auth window (remote-server support; see ADR-046), must never let such
-  sessions re-acquire freshness, and need coverage for both first-party and
+  delegated OAuth sessions whose authorizing session was inside the fresh-auth
+  window (remote-server support; see ADR-046). Transfer the original
+  authentication time; do not restart the window at code exchange. Never let
+  delegated sessions re-acquire freshness. Add coverage for first-party and
   delegated credentials.
 - Authorization-sensitive event writes must evaluate authorization inside the
   target aggregate's OCC retry. Request-time authorization is the default: a

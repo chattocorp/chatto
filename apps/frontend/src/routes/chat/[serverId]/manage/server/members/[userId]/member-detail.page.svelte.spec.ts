@@ -27,7 +27,8 @@ const mocks = vi.hoisted(() => ({
   revokeRole: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-  scopeCurrent: true
+  scopeCurrent: true,
+  canAdminManageAccounts: true
 }));
 
 vi.mock('$app/state', () => ({ page: memberDetailTestPage }));
@@ -56,7 +57,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         currentUser: { user: { id: 'viewer', settings: null } },
         permissions: {
           canAdminViewUsers: true,
-          canAdminManageAccounts: true
+          canAdminManageAccounts: mocks.canAdminManageAccounts
         }
       };
     },
@@ -167,6 +168,7 @@ describe('server member detail queries', () => {
     vi.clearAllMocks();
     memberDetailPageTestState.reset();
     mocks.scopeCurrent = true;
+    mocks.canAdminManageAccounts = true;
     mocks.getMember.mockImplementation((userId: string) =>
       Promise.resolve(details(member(userId)))
     );
@@ -277,10 +279,14 @@ describe('server member detail queries', () => {
   });
 
   it('offers account deletion only to authorised viewers of other human members', async () => {
+    // user.delete-any is independent from user.manage-accounts. The backend
+    // expresses the former through viewerCanDeleteAccount.
+    mocks.canAdminManageAccounts = false;
     const rendered = render(MemberDetailPage);
     await settle();
     expect(rendered.container.textContent).toContain('Danger Zone');
     expect(rendered.container.textContent).toContain('Delete Account');
+    expect(rendered.container.textContent).not.toContain('Identity Settings');
 
     mocks.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
     memberDetailPageTestState.userId = 'helper_bot';

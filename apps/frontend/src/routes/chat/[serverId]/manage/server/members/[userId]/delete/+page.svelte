@@ -63,12 +63,6 @@
       userId
     })
   );
-  const membersHref = $derived(
-    resolve('/chat/[serverId]/manage/server/members', {
-      serverId: serverIdToSegment(activeServerId)
-    })
-  );
-
   // Shares the member-detail page's cache entry, so data is fresh if the
   // viewer came straight from there and stays consistent while they type.
   const memberQuery = createQuery(
@@ -97,29 +91,55 @@
     !!member && !member.deleted && !member.isBot && !isSelf && member.viewerCanDeleteAccount
   );
 
-  async function handleDelete(currentPassword?: string): Promise<void> {
-    // Bind the request to the current privacy generation so a purge (for
-    // example from an authentication change mid-flight) discards its result.
-    const generation = privacyGeneration;
+  type DeletionTarget = {
+    serverId: string;
+    connection: typeof serverScope.connection;
+    userId: string;
+    privacyGeneration: number;
+  };
 
-    await serverScope.connection.getAPI(createAdminUserManagementAPI).deleteUser({
+  function isCurrentTarget(target: DeletionTarget): boolean {
+    return (
+      serverScope.isCurrent() &&
+      target.serverId === activeServerId &&
+      target.connection.queryScope === serverScope.connection.queryScope &&
+      target.userId === userId &&
+      target.privacyGeneration === privacyGeneration
+    );
+  }
+
+  async function handleDelete(currentPassword?: string): Promise<void> {
+    // Bind the request and all completion effects to the route target. SvelteKit
+    // can reuse this component when the user or server parameter changes.
+    const target: DeletionTarget = {
+      serverId: activeServerId,
+      connection: serverScope.connection,
       userId,
+      privacyGeneration
+    };
+
+    await target.connection.getAPI(createAdminUserManagementAPI).deleteUser({
+      userId: target.userId,
       ...(currentPassword ? { currentPassword } : {})
     });
-    if (generation !== privacyGeneration) return;
+    if (!isCurrentTarget(target)) return;
 
     toast.success(m('admin.member_delete.success'));
     // The realtime ServerMemberDeletedEvent purge
     // (removeRegisteredAdminUserQueries) fences other admin caches that embed
     // this user; here we only refresh the list and drop this page's entry.
     void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.membersRoot(activeServerId, serverScope.connection)
+      queryKey: adminQueryKeys.membersRoot(target.serverId, target.connection)
     });
     queryClient.removeQueries({
-      queryKey: adminQueryKeys.member(activeServerId, serverScope.connection, userId),
+      queryKey: adminQueryKeys.member(target.serverId, target.connection, target.userId),
       exact: true
     });
-    await goto(membersHref);
+    await goto(
+      resolve('/chat/[serverId]/manage/server/members', {
+        serverId: serverIdToSegment(target.serverId)
+      })
+    );
   }
 </script>
 

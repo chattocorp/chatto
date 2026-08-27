@@ -270,8 +270,8 @@ func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, us
 
 // CreateOAuthAccessTokenForClient creates a bearer token bound to the public
 // OAuth client that completed the authorization-code flow.
-func (c *ChattoCore) CreateOAuthAccessTokenForClient(ctx context.Context, userID, clientID string, authGeneration uint64, bornFresh bool) (string, error) {
-	credentials, err := c.CreateOAuthBearerSessionForClient(ctx, userID, clientID, authGeneration, bornFresh)
+func (c *ChattoCore) CreateOAuthAccessTokenForClient(ctx context.Context, userID, clientID string, authGeneration uint64, freshAuthAt time.Time) (string, error) {
+	credentials, err := c.CreateOAuthBearerSessionForClient(ctx, userID, clientID, authGeneration, freshAuthAt)
 	if err != nil {
 		return "", err
 	}

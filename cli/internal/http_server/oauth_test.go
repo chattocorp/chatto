@@ -515,7 +515,7 @@ func TestOAuthToken_RejectsClientBlockedAfterCodeIssuance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, admin.Id, testOAuthClientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation, false)
+	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, admin.Id, testOAuthClientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -929,8 +929,8 @@ func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing
 // the authorize and consent endpoints, that a code minted for a remembered
 // client while the authorizing cookie session sits inside the fresh-auth
 // window yields a delegated token that can perform step-up operations.
-// The corresponding stale-authorizer behavior (IssuedFresh=false must stay
-// step-up-incapable) is pinned at the core exchange layer, because cookie
+// The corresponding stale-authorizer behavior (an expired FreshAuthAt must
+// stay step-up-incapable) is pinned at the core exchange layer, because cookie
 // sessions have no non-granting interactive creation path to fixture here:
 // freshness lapses only through window expiry, which requires a clock seam
 // the production code deliberately lacks.
@@ -1432,7 +1432,7 @@ func TestOAuthAuthorizeDoesNotMintCodeForStaleGeneration(t *testing.T) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		s.completeOAuthAuthorize(c, user.Id, authGeneration, false)
+		s.completeOAuthAuthorize(c, user.Id, authGeneration, time.Time{})
 	})
 
 	req := httptest.NewRequest("GET", "/test/complete-stale-oauth", nil)
@@ -1466,7 +1466,7 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
-	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, user.Id, testOAuthClientID, redirectURI, challenge, "S256", authGeneration, false)
+	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, user.Id, testOAuthClientID, redirectURI, challenge, "S256", authGeneration, time.Time{})
 	if err != nil {
 		t.Fatalf("Failed to create auth code: %v", err)
 	}

@@ -163,16 +163,16 @@ func (c *ChattoCore) CreateBearerSessionWithSource(ctx context.Context, userID, 
 // CreateBearerSessionWithSourceGeneration creates a renewable first-party
 // bearer session for credentials proven against authGeneration.
 func (c *ChattoCore) CreateBearerSessionWithSourceGeneration(ctx context.Context, userID, source string, authGeneration uint64) (BearerSessionCredentials, error) {
-	return c.createBearerSession(ctx, userID, "", source, authGeneration, false)
+	return c.createBearerSession(ctx, userID, "", source, authGeneration, time.Time{})
 }
 
 // CreateOAuthBearerSessionForClient creates a renewable delegated bearer
 // session bound to the public OAuth client that completed authorization.
-func (c *ChattoCore) CreateOAuthBearerSessionForClient(ctx context.Context, userID, clientID string, authGeneration uint64, bornFresh bool) (BearerSessionCredentials, error) {
+func (c *ChattoCore) CreateOAuthBearerSessionForClient(ctx context.Context, userID, clientID string, authGeneration uint64, freshAuthAt time.Time) (BearerSessionCredentials, error) {
 	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
 		return BearerSessionCredentials{}, err
 	}
-	credentials, err := c.createBearerSession(ctx, userID, clientID, "oauth_code_exchange", authGeneration, bornFresh)
+	credentials, err := c.createBearerSession(ctx, userID, clientID, "oauth_code_exchange", authGeneration, freshAuthAt)
 	if err != nil {
 		return BearerSessionCredentials{}, err
 	}
@@ -183,7 +183,7 @@ func (c *ChattoCore) CreateOAuthBearerSessionForClient(ctx context.Context, user
 	return credentials, nil
 }
 
-func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, source string, authGeneration uint64, bornFresh bool) (BearerSessionCredentials, error) {
+func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, source string, authGeneration uint64, freshAuthAt time.Time) (BearerSessionCredentials, error) {
 	if userID == "" {
 		return BearerSessionCredentials{}, ErrAuthTokenNotFound
 	}
@@ -213,9 +213,11 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 		AuthGeneration:    authGeneration,
 		CurrentGeneration: 0,
 	}
-	bornFresh = bornFresh || sourceGrantsInitialFreshAuth(source)
-	if bornFresh {
-		session.FreshAuthAt = now
+	if sourceGrantsInitialFreshAuth(source) {
+		freshAuthAt = now
+	}
+	if isFreshAuthAt(freshAuthAt, now) {
+		session.FreshAuthAt = freshAuthAt
 		session.FreshAuthMethod = freshAuthMethodForSource(source)
 		session.FreshAuthSource = source
 	}

@@ -133,7 +133,7 @@ func TestChattoCore_OAuthExchangeSessionStartsFreshButCannotReacquire(t *testing
 	const redirectURI = "https://client.example/callback"
 	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 
-	code, err := core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration, true)
+	code, err := core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
