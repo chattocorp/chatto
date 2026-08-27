@@ -42,9 +42,14 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if wantPrefix := "https://chat.example/webhooks/incoming/cht_IW_"; len(webhook.Msg.GetWebhookUrl()) < len(wantPrefix) || webhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
 		t.Fatalf("webhook URL = %q, want prefix %q", webhook.Msg.GetWebhookUrl(), wantPrefix)
 	}
-	rotatedWebhook, err := service.RotateBotIncomingWebhook(webhookCtx, connect.NewRequest(&apiv1.RotateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId()}))
+	env.api.config.Webserver.URL = "https://configured.example"
+	spoofedRequestCtx := WithRequestBaseURL(ctx, "https://spoofed.example")
+	rotatedWebhook, err := service.RotateBotIncomingWebhook(spoofedRequestCtx, connect.NewRequest(&apiv1.RotateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId()}))
 	if err != nil || rotatedWebhook.Msg.GetWebhookUrl() == webhook.Msg.GetWebhookUrl() || rotatedWebhook.Msg.GetBot().GetIncomingWebhook().GetRotatedAt() == nil {
 		t.Fatalf("RotateBotIncomingWebhook = %+v, %v", rotatedWebhook, err)
+	}
+	if wantPrefix := "https://configured.example/webhooks/incoming/cht_IW_"; len(rotatedWebhook.Msg.GetWebhookUrl()) < len(wantPrefix) || rotatedWebhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
+		t.Fatalf("rotated webhook URL = %q, want prefix %q", rotatedWebhook.Msg.GetWebhookUrl(), wantPrefix)
 	}
 	disabledWebhook, err := service.DisableBotIncomingWebhook(ctx, connect.NewRequest(&apiv1.DisableBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId()}))
 	if err != nil || disabledWebhook.Msg.GetBot().GetIncomingWebhook() != nil {

@@ -65,7 +65,7 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 		s.router.ServeHTTP(recorder, req)
 		return recorder
 	}
-	response := post(path+"?room_id="+room.GetId(), `{"text":"from Slack","channel":"`+room.GetId()+`","create_thread":true}`)
+	response := post(path+"?room_id="+room.GetId(), `{"text":"  from Slack  ","channel":"`+room.GetId()+`","create_thread":true}`)
 	if response.Code != http.StatusOK || response.Body.String() != "ok" {
 		t.Fatalf("channel webhook = %d %q", response.Code, response.Body.String())
 	}
@@ -73,7 +73,7 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	if err != nil || len(events) != 1 {
 		t.Fatalf("message events = %d, %v", len(events), err)
 	}
-	if body, err := s.core.GetMessageBody(ctx, events[0].GetId()); err != nil || body != "from Slack" {
+	if body, err := s.core.GetMessageBody(ctx, events[0].GetId()); err != nil || body != "  from Slack  " {
 		t.Fatalf("message body = %q, %v", body, err)
 	}
 	if metadata, err := s.core.GetThreadMetadata(ctx, core.KindChannel, room.GetId(), events[0].GetId()); err != nil || !metadata.Exists {

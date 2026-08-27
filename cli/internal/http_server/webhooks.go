@@ -92,7 +92,6 @@ func (s *HTTPServer) handleIncomingWebhook(c *gin.Context) {
 func matchingIncomingWebhookValue(values ...string) (string, bool) {
 	selected := ""
 	for _, value := range values {
-		value = strings.TrimSpace(value)
 		if value == "" {
 			continue
 		}

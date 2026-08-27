@@ -20,7 +20,14 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { ConfirmDialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import {
+    ConfirmDialog,
+    FormDialog,
+    Hint,
+    PageTitle,
+    PaneContent,
+    PaneHeader
+  } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';

@@ -202,11 +202,7 @@ func (s *botService) DisableBotIncomingWebhook(ctx context.Context, req *connect
 }
 
 func (s *botService) incomingWebhookURL(ctx context.Context, credential string) string {
-	baseURL := strings.TrimRight(requestBaseURLFromContext(ctx), "/")
-	if baseURL == "" {
-		baseURL = strings.TrimRight(s.api.config.Webserver.URL, "/")
-	}
-	return baseURL + "/webhooks/incoming/" + credential
+	return s.api.absolutizeServerURL(ctx, "/webhooks/incoming/"+credential)
 }
 
 func (s *botService) ReassignBotOwner(ctx context.Context, req *connect.Request[apiv1.ReassignBotOwnerRequest]) (*connect.Response[apiv1.ReassignBotOwnerResponse], error) {

@@ -99,7 +99,9 @@
     },
     () => queryClient
   );
-  const ownersById = $derived(new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner])));
+  const ownersById = $derived(
+    new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner]))
+  );
 
   let createVisible = $state(false);
   let createLogin = $state('');
@@ -134,6 +136,13 @@
   async function loadMore() {
     if (botsQuery.isPending || botsQuery.isFetchingNextPage || !botsQuery.hasNextPage) return;
     await botsQuery.fetchNextPage();
+  }
+
+  function botHref(botId: string) {
+    return resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+      serverId: serverIdToSegment(serverScope.serverId),
+      botId
+    });
   }
 
   function openCreate() {
@@ -240,13 +249,7 @@
           loadingMore={botsQuery.isFetchingNextPage}
           onLoadMore={loadMore}
           loadMoreRoot={scrollContainer}
-          onRowClick={(bot) =>
-            goto(
-              resolve('/chat/[serverId]/manage/server/bots/[botId]', {
-                serverId: serverIdToSegment(serverScope.serverId),
-                botId: bot.id
-              })
-            )}
+          onRowClick={(bot) => goto(botHref(bot.id))}
         >
           {#snippet header()}
             <th class="table-header-cell">{m('settings.bots.singular')}</th>
@@ -271,10 +274,7 @@
             <td class="px-4 py-3">
               <a
                 class="link text-muted"
-                href={resolve('/chat/[serverId]/manage/server/bots/[botId]', {
-                  serverId: serverIdToSegment(serverScope.serverId),
-                  botId: bot.id
-                })}
+                href={botHref(bot.id)}
                 onclick={(event) => event.stopPropagation()}>@{bot.login}</a
               >
             </td>
@@ -282,7 +282,9 @@
               {#if owner}
                 <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
               {:else if ownersQuery.isPending}
-                <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
+                <span
+                  class="skeleton block h-8 w-32 rounded-md"
+                  aria-label={m('common.loading')}
                 ></span>
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
