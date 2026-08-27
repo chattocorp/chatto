@@ -265,7 +265,8 @@ current notification policy can suppress that request.
 notification replacement as a human account. Direct messages, direct mentions,
 replies, and followed-thread activity are the supported activation causes for
 bot integrations. Chatto does not create a separate bot-interaction event or
-realtime subscription.
+realtime subscription. Other notification causes can be present in the shared
+replacement. An integration must filter the replacement by cause.
 
 **Why:** The occurrence already contains the source-time cause, stable identity,
 exact message target, current visibility checks, and bounded durable history.

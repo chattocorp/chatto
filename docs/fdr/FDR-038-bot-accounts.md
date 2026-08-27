@@ -52,6 +52,8 @@ exercise more authority than its human owner currently possesses.
 - Direct-message, direct-mention, reply, and followed-thread occurrences are
   the supported activation causes for bot integrations. The bot uses the
   message reference in the occurrence to fetch context through the normal API.
+  Other notification causes can be present, so the integration must filter by
+  cause.
 - A delivered direct mention in a channel-room root or reply attempts to
   follow that thread if the bot has no prior follow state. Later replies can
   then create followed-thread occurrences for the bot.

@@ -65,14 +65,18 @@ bot's visible notification occurrences in
 `notification_occurrences_replace`. Chatto does not use a bot-only realtime
 channel or a separate bot-interaction event.
 
-Use these notification causes to activate an integration:
+Filter the replacement by cause. Use these notification causes to activate an
+integration:
 
 | Cause | When Chatto creates it |
 | ----- | ---------------------- |
-| `direct_message_received` | A human sends a message in a DM that a human started with the bot. |
+| `direct_message_received` | Another account sends a message in a DM that a human started with the bot. |
 | `direct_mention_received` | Another account directly mentions the bot in a channel-room root or reply. |
 | `reply_received` | Another account replies to a message from the bot. |
 | `followed_thread_activity` | Another account posts in a thread that the bot follows. |
+
+The replacement can also contain other notification causes that apply to the
+account. Ignore causes that the integration does not use.
 
 A delivered direct mention in a channel-room root or reply also attempts to
 follow that thread. Thus, a root mention can activate the bot immediately and
@@ -103,8 +107,8 @@ cannot change the rule.
 
 A human can start a DM that includes the bot. DM membership then lets the bot
 read the complete DM. Grant `message.post` if the bot must send messages in
-that DM. The owner must also have `message.post`. Messages from the human create
-normal `direct_message_received` occurrences for the bot.
+that DM. The owner must also have `message.post`. Messages from another
+participant create normal `direct_message_received` occurrences for the bot.
 
 ## Authenticate requests
 
