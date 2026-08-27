@@ -208,12 +208,6 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 		values++
 	}
 	for _, u := range p.users {
-		if u.timezone != nil {
-			values++
-		}
-		if u.timeFormat != nil {
-			values++
-		}
 		serverPolicyValues := notificationDeliveryModeFieldCount(u.serverModes)
 		values += serverPolicyValues
 		notificationPolicyValues += serverPolicyValues
@@ -633,9 +627,6 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 			if email.pii != nil {
 				userBytes += int64(len(email.pii.eventID)+len(email.pii.eventType)+len(email.pii.purpose)) + int64(proto.Size(email.pii.encrypted))
 			}
-		}
-		if user.preferences != nil {
-			userBytes += int64(proto.Size(user.preferences))
 		}
 		bytes += userBytes
 	}

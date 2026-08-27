@@ -45,9 +45,6 @@ const (
 	// MyAccountServiceUpdatePasswordProcedure is the fully-qualified name of the MyAccountService's
 	// UpdatePassword RPC.
 	MyAccountServiceUpdatePasswordProcedure = "/chatto.api.v1.MyAccountService/UpdatePassword"
-	// MyAccountServiceUpdateSettingsProcedure is the fully-qualified name of the MyAccountService's
-	// UpdateSettings RPC.
-	MyAccountServiceUpdateSettingsProcedure = "/chatto.api.v1.MyAccountService/UpdateSettings"
 	// MyAccountServiceListExternalIdentitiesProcedure is the fully-qualified name of the
 	// MyAccountService's ListExternalIdentities RPC.
 	MyAccountServiceListExternalIdentitiesProcedure = "/chatto.api.v1.MyAccountService/ListExternalIdentities"
@@ -84,8 +81,6 @@ type MyAccountServiceClient interface {
 	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 	// Updates or adds the authenticated user's password.
 	UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error)
-	// Updates the authenticated user's display preferences.
-	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
 	// Lists configured external identity providers and identities linked to the
 	// authenticated account.
 	ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error)
@@ -147,12 +142,6 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(myAccountServiceMethods.ByName("UpdatePassword")),
 			connect.WithClientOptions(opts...),
 		),
-		updateSettings: connect.NewClient[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse](
-			httpClient,
-			baseURL+MyAccountServiceUpdateSettingsProcedure,
-			connect.WithSchema(myAccountServiceMethods.ByName("UpdateSettings")),
-			connect.WithClientOptions(opts...),
-		),
 		listExternalIdentities: connect.NewClient[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse](
 			httpClient,
 			baseURL+MyAccountServiceListExternalIdentitiesProcedure,
@@ -211,7 +200,6 @@ type myAccountServiceClient struct {
 	uploadAvatar               *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
 	deleteAvatar               *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
 	updatePassword             *connect.Client[v1.UpdatePasswordRequest, v1.UpdatePasswordResponse]
-	updateSettings             *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
 	listExternalIdentities     *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
 	startExternalIdentityLink  *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
 	disconnectExternalIdentity *connect.Client[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse]
@@ -240,11 +228,6 @@ func (c *myAccountServiceClient) DeleteAvatar(ctx context.Context, req *connect.
 // UpdatePassword calls chatto.api.v1.MyAccountService.UpdatePassword.
 func (c *myAccountServiceClient) UpdatePassword(ctx context.Context, req *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error) {
 	return c.updatePassword.CallUnary(ctx, req)
-}
-
-// UpdateSettings calls chatto.api.v1.MyAccountService.UpdateSettings.
-func (c *myAccountServiceClient) UpdateSettings(ctx context.Context, req *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
-	return c.updateSettings.CallUnary(ctx, req)
 }
 
 // ListExternalIdentities calls chatto.api.v1.MyAccountService.ListExternalIdentities.
@@ -297,8 +280,6 @@ type MyAccountServiceHandler interface {
 	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 	// Updates or adds the authenticated user's password.
 	UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error)
-	// Updates the authenticated user's display preferences.
-	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
 	// Lists configured external identity providers and identities linked to the
 	// authenticated account.
 	ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error)
@@ -354,12 +335,6 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		MyAccountServiceUpdatePasswordProcedure,
 		svc.UpdatePassword,
 		connect.WithSchema(myAccountServiceMethods.ByName("UpdatePassword")),
-		connect.WithHandlerOptions(opts...),
-	)
-	myAccountServiceUpdateSettingsHandler := connect.NewUnaryHandler(
-		MyAccountServiceUpdateSettingsProcedure,
-		svc.UpdateSettings,
-		connect.WithSchema(myAccountServiceMethods.ByName("UpdateSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
 	myAccountServiceListExternalIdentitiesHandler := connect.NewUnaryHandler(
@@ -421,8 +396,6 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 			myAccountServiceDeleteAvatarHandler.ServeHTTP(w, r)
 		case MyAccountServiceUpdatePasswordProcedure:
 			myAccountServiceUpdatePasswordHandler.ServeHTTP(w, r)
-		case MyAccountServiceUpdateSettingsProcedure:
-			myAccountServiceUpdateSettingsHandler.ServeHTTP(w, r)
 		case MyAccountServiceListExternalIdentitiesProcedure:
 			myAccountServiceListExternalIdentitiesHandler.ServeHTTP(w, r)
 		case MyAccountServiceStartExternalIdentityLinkProcedure:
@@ -462,10 +435,6 @@ func (UnimplementedMyAccountServiceHandler) DeleteAvatar(context.Context, *conne
 
 func (UnimplementedMyAccountServiceHandler) UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdatePassword is not implemented"))
-}
-
-func (UnimplementedMyAccountServiceHandler) UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdateSettings is not implemented"))
 }
 
 func (UnimplementedMyAccountServiceHandler) ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error) {

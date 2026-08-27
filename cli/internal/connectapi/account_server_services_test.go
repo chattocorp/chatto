@@ -14,7 +14,6 @@ import (
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
@@ -26,14 +25,6 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 	if err := env.core.AddVerifiedEmailDirect(env.ctx, env.viewer.Id, "viewer-connect@example.com"); err != nil {
 		t.Fatalf("AddVerifiedEmailDirect: %v", err)
-	}
-	tz := "Europe/Berlin"
-	tf := corev1.TimeFormat_TIME_FORMAT_24H
-	if _, err := env.core.UpdateUserSettings(env.ctx, env.viewer.Id, core.UserSettingsInput{
-		Timezone:   &tz,
-		TimeFormat: &tf,
-	}); err != nil {
-		t.Fatalf("UpdateUserSettings: %v", err)
 	}
 	offlineResp, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {
@@ -67,9 +58,6 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 	if profile.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("PresenceStatus = %v, want AWAY", profile.GetPresenceStatus())
-	}
-	if settings := user.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
-		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
 	}
 	if caps := resp.Msg.GetCapabilities(); !apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAssignRoles) || apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAdminManageUsers) {
 		t.Fatalf("viewer capabilities = %+v, want role.assign true and account management false", caps.GetGrants())
@@ -109,7 +97,7 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 }
 
-func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
+func TestMyAccountServiceUpdatesSelfProfile(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -131,29 +119,6 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 	if user := profileResp.Msg.GetUser(); user.GetId() != env.viewer.Id || user.GetDisplayName() != "Connect Profile" || user.GetLogin() != "connect-profile" {
 		t.Fatalf("updated profile = %+v, want renamed viewer", user)
-	}
-
-	tz := "Europe/Berlin"
-	settingsResp, err := env.account.UpdateSettings(ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{
-		Timezone:   &tz,
-		TimeFormat: apiv1.TimeFormat_TIME_FORMAT_24_HOUR.Enum(),
-	}))
-	if err != nil {
-		t.Fatalf("UpdateSettings: %v", err)
-	}
-	if settings := settingsResp.Msg.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
-		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
-	}
-
-	clear := ""
-	clearResp, err := env.account.UpdateSettings(ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{
-		Timezone: &clear,
-	}))
-	if err != nil {
-		t.Fatalf("UpdateSettings clear timezone: %v", err)
-	}
-	if clearResp.Msg.GetSettings().Timezone != nil {
-		t.Fatalf("cleared timezone = %q, want nil", clearResp.Msg.GetSettings().GetTimezone())
 	}
 }
 

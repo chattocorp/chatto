@@ -3,14 +3,14 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
+import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
 
 /**
- * Self-service account, profile, avatar, display preference, presence,
+ * Self-service account, profile, avatar, presence,
  * custom-status, external identity, and account lifecycle commands for the
  * authenticated user.
  *
@@ -62,17 +62,6 @@ export const MyAccountService = {
       name: "UpdatePassword",
       I: UpdatePasswordRequest,
       O: UpdatePasswordResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Updates the authenticated user's display preferences.
-     *
-     * @generated from rpc chatto.api.v1.MyAccountService.UpdateSettings
-     */
-    updateSettings: {
-      name: "UpdateSettings",
-      I: UpdateSettingsRequest,
-      O: UpdateSettingsResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -140,10 +140,6 @@ const (
 	EventServerLogoCleared                      = "server_logo_cleared"
 	EventServerBannerSet                        = "server_banner_set"
 	EventServerBannerCleared                    = "server_banner_cleared"
-	EventUserTimezoneChanged                    = "user_timezone_changed"
-	EventUserTimezoneCleared                    = "user_timezone_cleared"
-	EventUserTimeFormatChanged                  = "user_time_format_changed"
-	EventUserTimeFormatCleared                  = "user_time_format_cleared"
 	EventUserServerNotificationLevelSet         = "user_server_notification_level_set"
 	EventUserServerNotificationLevelCleared     = "user_server_notification_level_cleared"
 	EventUserRoomNotificationLevelSet           = "user_room_notification_level_set"
@@ -341,14 +337,6 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventServerBannerSet
 	case *corev1.Event_ServerBannerCleared:
 		return EventServerBannerCleared
-	case *corev1.Event_UserTimezoneChanged:
-		return EventUserTimezoneChanged
-	case *corev1.Event_UserTimezoneCleared:
-		return EventUserTimezoneCleared
-	case *corev1.Event_UserTimeFormatChanged:
-		return EventUserTimeFormatChanged
-	case *corev1.Event_UserTimeFormatCleared:
-		return EventUserTimeFormatCleared
 	case *corev1.Event_UserServerNotificationLevelSet:
 		return EventUserServerNotificationLevelSet
 	case *corev1.Event_UserServerNotificationLevelCleared:

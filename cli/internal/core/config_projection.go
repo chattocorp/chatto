@@ -8,10 +8,8 @@ import (
 
 const ConfigSubjectServer = "server"
 
-// ConfigProjection consumes first-party configuration/preference events from
-// EVT and keeps the current server/user settings in memory. It also understands
-// legacy UserServerPreferencesChangedEvent events so older EVT streams keep
-// projecting correctly.
+// ConfigProjection consumes first-party configuration events from EVT and
+// keeps the current server and notification-policy state in memory.
 type ConfigProjection struct {
 	events.MemoryProjection
 	server serverConfigState
@@ -29,8 +27,6 @@ type serverConfigState struct {
 }
 
 type userConfigState struct {
-	timezone              *string
-	timeFormat            *corev1.TimeFormat
 	serverModes           *corev1.NotificationDeliveryModes
 	roomGroupModesByGroup map[string]*corev1.NotificationDeliveryModes
 	roomModesByRoom       map[string]*corev1.NotificationDeliveryModes
@@ -43,7 +39,6 @@ func NewConfigProjection() *ConfigProjection {
 func (p *ConfigProjection) Subjects() []string {
 	return []string{
 		evtstream.ConfigSubjectFilter(),
-		evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 	}
 }
@@ -75,18 +70,6 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.server.banner = cloneAssetRecord(e.ServerBannerSet.GetAsset())
 	case *corev1.Event_ServerBannerCleared:
 		p.server.banner = nil
-	case *corev1.Event_UserTimezoneChanged:
-		u := p.ensureUserLocked(e.UserTimezoneChanged.GetUserId())
-		tz := e.UserTimezoneChanged.GetTimezone()
-		u.timezone = &tz
-	case *corev1.Event_UserTimezoneCleared:
-		p.ensureUserLocked(e.UserTimezoneCleared.GetUserId()).timezone = nil
-	case *corev1.Event_UserTimeFormatChanged:
-		u := p.ensureUserLocked(e.UserTimeFormatChanged.GetUserId())
-		tf := e.UserTimeFormatChanged.GetTimeFormat()
-		u.timeFormat = &tf
-	case *corev1.Event_UserTimeFormatCleared:
-		p.ensureUserLocked(e.UserTimeFormatCleared.GetUserId()).timeFormat = nil
 	case *corev1.Event_UserNotificationPolicyChanged:
 		policy := e.UserNotificationPolicyChanged
 		u := p.ensureUserLocked(policy.GetUserId())
@@ -117,8 +100,6 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		} else {
 			u.roomGroupModesByGroup[groupID] = modes
 		}
-	case *corev1.Event_UserServerPreferencesChanged:
-		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:
 		delete(p.users, e.UserAccountDeleted.GetUserId())
 	}
@@ -135,25 +116,4 @@ func (p *ConfigProjection) ensureUserLocked(userID string) *userConfigState {
 		p.users[userID] = u
 	}
 	return u
-}
-
-func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *corev1.UserServerPreferencesChangedEvent) {
-	if e == nil || e.GetUserId() == "" {
-		return
-	}
-	u := p.ensureUserLocked(e.GetUserId())
-	prefs := e.GetPreferences()
-	if prefs == nil {
-		u.timezone = nil
-		u.timeFormat = nil
-		return
-	}
-	if prefs.GetTimezone() != "" {
-		tz := prefs.GetTimezone()
-		u.timezone = &tz
-	} else {
-		u.timezone = nil
-	}
-	tf := prefs.GetTimeFormat()
-	u.timeFormat = &tf
 }

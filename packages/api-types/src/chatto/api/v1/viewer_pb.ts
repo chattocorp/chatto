@@ -9,99 +9,7 @@ import { User } from "./users_pb.js";
 import { CapabilityGrant, PermissionGrant } from "./permissions_pb.js";
 
 /**
- * User preference for rendering times in clients.
- *
- * @generated from enum chatto.api.v1.TimeFormat
- */
-export enum TimeFormat {
-  /**
-   * No explicit preference was stored.
-   *
-   * @generated from enum value: TIME_FORMAT_UNSPECIFIED = 0;
-   */
-  TIME_FORMAT_UNSPECIFIED = 0,
-
-  /**
-   * Let the client choose based on locale and browser settings.
-   *
-   * @generated from enum value: TIME_FORMAT_AUTO = 1;
-   */
-  TIME_FORMAT_AUTO = 1,
-
-  /**
-   * Render times using a 12-hour clock.
-   *
-   * @generated from enum value: TIME_FORMAT_12_HOUR = 2;
-   */
-  TIME_FORMAT_12_HOUR = 2,
-
-  /**
-   * Render times using a 24-hour clock.
-   *
-   * @generated from enum value: TIME_FORMAT_24_HOUR = 3;
-   */
-  TIME_FORMAT_24_HOUR = 3,
-}
-// Retrieve enum metadata with: proto3.getEnumType(TimeFormat)
-proto3.util.setEnumType(TimeFormat, "chatto.api.v1.TimeFormat", [
-  { no: 0, name: "TIME_FORMAT_UNSPECIFIED" },
-  { no: 1, name: "TIME_FORMAT_AUTO" },
-  { no: 2, name: "TIME_FORMAT_12_HOUR" },
-  { no: 3, name: "TIME_FORMAT_24_HOUR" },
-]);
-
-/**
- * Server-level display settings for the authenticated user.
- *
- * @generated from message chatto.api.v1.UserSettings
- */
-export class UserSettings extends Message<UserSettings> {
-  /**
-   * Optional IANA timezone override. Absent means the client should use the
-   * browser's local timezone.
-   *
-   * @generated from field: optional string timezone = 1;
-   */
-  timezone?: string;
-
-  /**
-   * Preferred time format.
-   *
-   * @generated from field: chatto.api.v1.TimeFormat time_format = 2;
-   */
-  timeFormat = TimeFormat.TIME_FORMAT_UNSPECIFIED;
-
-  constructor(data?: PartialMessage<UserSettings>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UserSettings";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(TimeFormat) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserSettings {
-    return new UserSettings().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserSettings {
-    return new UserSettings().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserSettings {
-    return new UserSettings().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UserSettings | PlainMessage<UserSettings> | undefined, b: UserSettings | PlainMessage<UserSettings> | undefined): boolean {
-    return proto3.util.equals(UserSettings, a, b);
-  }
-}
-
-/**
- * Current authenticated user's public profile plus self-only settings.
+ * Current authenticated user's public profile plus self-only state.
  *
  * @generated from message chatto.api.v1.ViewerUser
  */
@@ -112,13 +20,6 @@ export class ViewerUser extends Message<ViewerUser> {
    * @generated from field: bool has_verified_email = 7;
    */
   hasVerifiedEmail = false;
-
-  /**
-   * Current user's display settings.
-   *
-   * @generated from field: chatto.api.v1.UserSettings settings = 8;
-   */
-  settings?: UserSettings;
 
   /**
    * Whether the authenticated user may delete this account.
@@ -157,7 +58,6 @@ export class ViewerUser extends Message<ViewerUser> {
   static readonly typeName = "chatto.api.v1.ViewerUser";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 7, name: "has_verified_email", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 8, name: "settings", kind: "message", T: UserSettings },
     { no: 9, name: "viewer_can_delete_account", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "last_login_change", kind: "message", T: Timestamp },
     { no: 11, name: "profile", kind: "message", T: User },

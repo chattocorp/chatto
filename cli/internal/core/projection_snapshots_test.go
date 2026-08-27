@@ -227,12 +227,9 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		{"server_config", func() snapshotProjection { return NewConfigProjection() }, func(raw snapshotProjection) {
 			p := raw.(*ConfigProjection)
 			blocked := "admin"
-			timezone := "Europe/Berlin"
-			format := corev1.TimeFormat_TIME_FORMAT_24H
 			p.server.serverName = "Chatto"
 			p.server.blockedUsernames = &blocked
 			p.users["U1"] = &userConfigState{
-				timezone: &timezone, timeFormat: &format,
 				serverModes: &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
 				roomModesByRoom: map[string]*corev1.NotificationDeliveryModes{
 					"R1": {DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},

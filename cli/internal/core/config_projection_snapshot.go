@@ -23,14 +23,6 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 	for _, userID := range sortedMapKeys(p.users) {
 		user := p.users[userID]
 		row := &corev1.UserConfigSnapshot{UserId: userID}
-		if user.timezone != nil {
-			value := *user.timezone
-			row.Timezone = &value
-		}
-		if user.timeFormat != nil {
-			value := *user.timeFormat
-			row.TimeFormat = &value
-		}
 		row.ServerNotificationModes = cloneNotificationDeliveryModes(user.serverModes)
 		for _, groupID := range sortedMapKeys(user.roomGroupModesByGroup) {
 			row.RoomGroupNotificationModes = append(row.RoomGroupNotificationModes, &corev1.RoomGroupNotificationModesSnapshot{
@@ -72,14 +64,6 @@ func (p *ConfigProjection) Restore(data []byte) error {
 		user := &userConfigState{
 			roomGroupModesByGroup: make(map[string]*corev1.NotificationDeliveryModes),
 			roomModesByRoom:       make(map[string]*corev1.NotificationDeliveryModes),
-		}
-		if row.Timezone != nil {
-			value := row.GetTimezone()
-			user.timezone = &value
-		}
-		if row.TimeFormat != nil {
-			value := row.GetTimeFormat()
-			user.timeFormat = &value
 		}
 		user.serverModes = cloneNotificationDeliveryModes(row.GetServerNotificationModes())
 		for _, group := range row.GetRoomGroupNotificationModes() {

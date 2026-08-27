@@ -292,12 +292,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomGroupsReplace{
 				RoomGroupsReplace: &realtimev1.RealtimeProjectionRoomGroupsReplace{Groups: groups},
 			}})
-		case *corev1.LiveEvent_ServerUserPreferencesUpdated:
-			viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, viewerID)
-			if err != nil {
-				return nil, false, err
-			}
-			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
 		case *corev1.LiveEvent_NotificationOccurrencesInvalidated:
 			invalidation := payload.NotificationOccurrencesInvalidated
 			if err := s.core.NotificationOccurrences().Resync(ctx); err != nil {

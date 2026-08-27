@@ -87,7 +87,6 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 func viewerUser(ctx context.Context, api *API, user *corev1.User) (*apiv1.ViewerUser, error) {
 	var (
 		hasVerifiedEmail bool
-		settings         *corev1.ServerUserPreferences
 		apiUser          *apiv1.User
 		canDeleteAccount bool
 		lastLoginChange  time.Time
@@ -97,11 +96,6 @@ func viewerUser(ctx context.Context, api *API, user *corev1.User) (*apiv1.Viewer
 	group.Go(func() error {
 		var err error
 		hasVerifiedEmail, err = api.core.HasVerifiedEmail(groupCtx, user.GetId())
-		return connectError(err)
-	})
-	group.Go(func() error {
-		var err error
-		settings, err = api.core.GetUserSettings(groupCtx, user.GetId())
 		return connectError(err)
 	})
 	group.Go(func() error {
@@ -131,7 +125,6 @@ func viewerUser(ctx context.Context, api *API, user *corev1.User) (*apiv1.Viewer
 	response := &apiv1.ViewerUser{
 		HasVerifiedEmail:       hasVerifiedEmail,
 		HasPassword:            hasPassword,
-		Settings:               coreUserSettingsToAPI(settings),
 		ViewerCanDeleteAccount: canDeleteAccount,
 		Profile:                apiUser,
 	}
@@ -233,29 +226,6 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 		},
 		HasUnreadFollowedThreads: hasUnreadFollowedThreads,
 	}, nil
-}
-
-func coreUserSettingsToAPI(settings *corev1.ServerUserPreferences) *apiv1.UserSettings {
-	response := &apiv1.UserSettings{TimeFormat: apiv1.TimeFormat_TIME_FORMAT_AUTO}
-	if settings == nil {
-		return response
-	}
-	if settings.Timezone != nil {
-		response.Timezone = settings.Timezone
-	}
-	response.TimeFormat = coreTimeFormatToAPI(settings.GetTimeFormat())
-	return response
-}
-
-func coreTimeFormatToAPI(format corev1.TimeFormat) apiv1.TimeFormat {
-	switch format {
-	case corev1.TimeFormat_TIME_FORMAT_12H:
-		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
-	case corev1.TimeFormat_TIME_FORMAT_24H:
-		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
-	default:
-		return apiv1.TimeFormat_TIME_FORMAT_AUTO
-	}
 }
 
 func stringPtr(value string) *string {

@@ -42,9 +42,6 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 		if u.avatar != nil {
 			entry.Avatar = proto.Clone(u.avatar).(*corev1.AssetRecord)
 		}
-		if u.preferences != nil {
-			entry.Preferences = proto.Clone(u.preferences).(*corev1.ServerUserPreferences)
-		}
 		if !u.loginChanged.IsZero() {
 			entry.LoginChangedAt = timestamppb.New(u.loginChanged)
 		}
@@ -171,9 +168,6 @@ func (p *UserProjection) Restore(data []byte) error {
 		}
 		if entry.GetUser() != nil {
 			u.user = proto.Clone(entry.GetUser()).(*corev1.User)
-		}
-		if entry.GetPreferences() != nil {
-			u.preferences = proto.Clone(entry.GetPreferences()).(*corev1.ServerUserPreferences)
 		}
 		if entry.GetLoginChangedAt() != nil {
 			if err := entry.GetLoginChangedAt().CheckValid(); err != nil {

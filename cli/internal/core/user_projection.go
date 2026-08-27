@@ -45,7 +45,6 @@ type projectedUser struct {
 	shredded      bool
 	avatar        *corev1.AssetRecord
 	verifiedEmail map[string]projectedVerifiedEmail
-	preferences   *corev1.ServerUserPreferences
 	loginChanged  time.Time
 }
 
@@ -136,8 +135,6 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyAssetDeleted(e.AssetDeleted)
 	case *corev1.Event_UserVerifiedEmailAdded:
 		return p.applyVerifiedEmailAdded(event.GetId(), e.UserVerifiedEmailAdded, event.GetCreatedAt())
-	case *corev1.Event_UserServerPreferencesChanged:
-		p.applyServerPreferencesChanged(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserLoginCooldownStarted:
 		p.applyLoginCooldownStarted(e.UserLoginCooldownStarted, event.GetCreatedAt())
 	case *corev1.Event_UserLoginCooldownCleared:
@@ -345,18 +342,6 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserV
 	return nil
 }
 
-func (p *UserProjection) applyServerPreferencesChanged(e *corev1.UserServerPreferencesChangedEvent) {
-	if e == nil || e.GetUserId() == "" {
-		return
-	}
-	u := p.ensureUserLocked(e.GetUserId())
-	if e.GetPreferences() == nil {
-		u.preferences = nil
-		return
-	}
-	u.preferences = proto.Clone(e.GetPreferences()).(*corev1.ServerUserPreferences)
-}
-
 func (p *UserProjection) applyLoginCooldownStarted(e *corev1.UserLoginCooldownStartedEvent, envelopeCreatedAt *timestamppb.Timestamp) {
 	if e == nil || e.GetUserId() == "" || envelopeCreatedAt == nil {
 		return
@@ -410,7 +395,6 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent) 
 		}
 	}
 	p.replaceAvatarLocked(u, nil)
-	u.preferences = nil
 	if u.user != nil {
 		u.user.CustomStatus = nil
 	}
@@ -442,7 +426,6 @@ func (p *UserProjection) applyKeyShredded(userID string) {
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
-	u.preferences = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.loginChanged = time.Time{}
 }
@@ -908,16 +891,6 @@ func assetRecordKeys(asset *corev1.AssetRecord) map[string]struct{} {
 		}
 	}
 	return keys
-}
-
-func (p *UserProjection) Preferences(userID string) (*corev1.ServerUserPreferences, bool) {
-	p.RLock()
-	defer p.RUnlock()
-	u := p.users[userID]
-	if u == nil || u.deleted || u.preferences == nil {
-		return nil, false
-	}
-	return proto.Clone(u.preferences).(*corev1.ServerUserPreferences), true
 }
 
 func (p *UserProjection) VerifiedEmailsContext(ctx context.Context, userID string) ([]VerifiedEmail, error) {

@@ -6,36 +6,13 @@ import "chatto/api/v1/permissions.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
-// User preference for rendering times in clients.
-enum TimeFormat {
-  // No explicit preference was stored.
-  TIME_FORMAT_UNSPECIFIED = 0;
-  // Let the client choose based on locale and browser settings.
-  TIME_FORMAT_AUTO = 1;
-  // Render times using a 12-hour clock.
-  TIME_FORMAT_12_HOUR = 2;
-  // Render times using a 24-hour clock.
-  TIME_FORMAT_24_HOUR = 3;
-}
-
-// Server-level display settings for the authenticated user.
-message UserSettings {
-  // Optional IANA timezone override. Absent means the client should use the
-  // browser's local timezone.
-  optional string timezone = 1;
-  // Preferred time format.
-  TimeFormat time_format = 2;
-}
-
-// Current authenticated user's public profile plus self-only settings.
+// Current authenticated user's public profile plus self-only state.
 message ViewerUser {
-  reserved 1 to 6;
-  reserved "id", "login", "display_name", "avatar_url", "custom_status", "presence_status";
+  reserved 1 to 6, 8;
+  reserved "id", "login", "display_name", "avatar_url", "custom_status", "presence_status", "settings";
 
   // Whether the account has at least one verified email address.
   bool has_verified_email = 7;
-  // Current user's display settings.
-  UserSettings settings = 8;
   // Whether the authenticated user may delete this account.
   bool viewer_can_delete_account = 9;
   // Last time a login credential changed, when known.

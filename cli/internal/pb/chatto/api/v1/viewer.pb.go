@@ -22,126 +22,11 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// User preference for rendering times in clients.
-type TimeFormat int32
-
-const (
-	// No explicit preference was stored.
-	TimeFormat_TIME_FORMAT_UNSPECIFIED TimeFormat = 0
-	// Let the client choose based on locale and browser settings.
-	TimeFormat_TIME_FORMAT_AUTO TimeFormat = 1
-	// Render times using a 12-hour clock.
-	TimeFormat_TIME_FORMAT_12_HOUR TimeFormat = 2
-	// Render times using a 24-hour clock.
-	TimeFormat_TIME_FORMAT_24_HOUR TimeFormat = 3
-)
-
-// Enum value maps for TimeFormat.
-var (
-	TimeFormat_name = map[int32]string{
-		0: "TIME_FORMAT_UNSPECIFIED",
-		1: "TIME_FORMAT_AUTO",
-		2: "TIME_FORMAT_12_HOUR",
-		3: "TIME_FORMAT_24_HOUR",
-	}
-	TimeFormat_value = map[string]int32{
-		"TIME_FORMAT_UNSPECIFIED": 0,
-		"TIME_FORMAT_AUTO":        1,
-		"TIME_FORMAT_12_HOUR":     2,
-		"TIME_FORMAT_24_HOUR":     3,
-	}
-)
-
-func (x TimeFormat) Enum() *TimeFormat {
-	p := new(TimeFormat)
-	*p = x
-	return p
-}
-
-func (x TimeFormat) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (TimeFormat) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_api_v1_viewer_proto_enumTypes[0].Descriptor()
-}
-
-func (TimeFormat) Type() protoreflect.EnumType {
-	return &file_chatto_api_v1_viewer_proto_enumTypes[0]
-}
-
-func (x TimeFormat) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use TimeFormat.Descriptor instead.
-func (TimeFormat) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{0}
-}
-
-// Server-level display settings for the authenticated user.
-type UserSettings struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional IANA timezone override. Absent means the client should use the
-	// browser's local timezone.
-	Timezone *string `protobuf:"bytes,1,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
-	// Preferred time format.
-	TimeFormat    TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat" json:"time_format,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UserSettings) Reset() {
-	*x = UserSettings{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UserSettings) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UserSettings) ProtoMessage() {}
-
-func (x *UserSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UserSettings.ProtoReflect.Descriptor instead.
-func (*UserSettings) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *UserSettings) GetTimezone() string {
-	if x != nil && x.Timezone != nil {
-		return *x.Timezone
-	}
-	return ""
-}
-
-func (x *UserSettings) GetTimeFormat() TimeFormat {
-	if x != nil {
-		return x.TimeFormat
-	}
-	return TimeFormat_TIME_FORMAT_UNSPECIFIED
-}
-
-// Current authenticated user's public profile plus self-only settings.
+// Current authenticated user's public profile plus self-only state.
 type ViewerUser struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether the account has at least one verified email address.
 	HasVerifiedEmail bool `protobuf:"varint,7,opt,name=has_verified_email,json=hasVerifiedEmail,proto3" json:"has_verified_email,omitempty"`
-	// Current user's display settings.
-	Settings *UserSettings `protobuf:"bytes,8,opt,name=settings,proto3" json:"settings,omitempty"`
 	// Whether the authenticated user may delete this account.
 	ViewerCanDeleteAccount bool `protobuf:"varint,9,opt,name=viewer_can_delete_account,json=viewerCanDeleteAccount,proto3" json:"viewer_can_delete_account,omitempty"`
 	// Last time a login credential changed, when known.
@@ -156,7 +41,7 @@ type ViewerUser struct {
 
 func (x *ViewerUser) Reset() {
 	*x = ViewerUser{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -168,7 +53,7 @@ func (x *ViewerUser) String() string {
 func (*ViewerUser) ProtoMessage() {}
 
 func (x *ViewerUser) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -181,7 +66,7 @@ func (x *ViewerUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ViewerUser.ProtoReflect.Descriptor instead.
 func (*ViewerUser) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ViewerUser) GetHasVerifiedEmail() bool {
@@ -189,13 +74,6 @@ func (x *ViewerUser) GetHasVerifiedEmail() bool {
 		return x.HasVerifiedEmail
 	}
 	return false
-}
-
-func (x *ViewerUser) GetSettings() *UserSettings {
-	if x != nil {
-		return x.Settings
-	}
-	return nil
 }
 
 func (x *ViewerUser) GetViewerCanDeleteAccount() bool {
@@ -239,7 +117,7 @@ type ViewerCapabilities struct {
 
 func (x *ViewerCapabilities) Reset() {
 	*x = ViewerCapabilities{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -251,7 +129,7 @@ func (x *ViewerCapabilities) String() string {
 func (*ViewerCapabilities) ProtoMessage() {}
 
 func (x *ViewerCapabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -264,7 +142,7 @@ func (x *ViewerCapabilities) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ViewerCapabilities.ProtoReflect.Descriptor instead.
 func (*ViewerCapabilities) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ViewerCapabilities) GetGrants() []*CapabilityGrant {
@@ -292,7 +170,7 @@ type ServerViewerPermissions struct {
 
 func (x *ServerViewerPermissions) Reset() {
 	*x = ServerViewerPermissions{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -304,7 +182,7 @@ func (x *ServerViewerPermissions) String() string {
 func (*ServerViewerPermissions) ProtoMessage() {}
 
 func (x *ServerViewerPermissions) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -317,7 +195,7 @@ func (x *ServerViewerPermissions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerViewerPermissions.ProtoReflect.Descriptor instead.
 func (*ServerViewerPermissions) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ServerViewerPermissions) GetPermissions() []*PermissionGrant {
@@ -338,7 +216,7 @@ type ServerViewerState struct {
 
 func (x *ServerViewerState) Reset() {
 	*x = ServerViewerState{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -350,7 +228,7 @@ func (x *ServerViewerState) String() string {
 func (*ServerViewerState) ProtoMessage() {}
 
 func (x *ServerViewerState) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -363,7 +241,7 @@ func (x *ServerViewerState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerViewerState.ProtoReflect.Descriptor instead.
 func (*ServerViewerState) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ServerViewerState) GetHasUnreadRooms() bool {
@@ -382,7 +260,7 @@ type GetViewerRequest struct {
 
 func (x *GetViewerRequest) Reset() {
 	*x = GetViewerRequest{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -394,7 +272,7 @@ func (x *GetViewerRequest) String() string {
 func (*GetViewerRequest) ProtoMessage() {}
 
 func (x *GetViewerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -407,7 +285,7 @@ func (x *GetViewerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetViewerRequest.ProtoReflect.Descriptor instead.
 func (*GetViewerRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{4}
 }
 
 // Authenticated viewer snapshot needed by application shells.
@@ -427,7 +305,7 @@ type GetViewerResponse struct {
 
 func (x *GetViewerResponse) Reset() {
 	*x = GetViewerResponse{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -439,7 +317,7 @@ func (x *GetViewerResponse) String() string {
 func (*GetViewerResponse) ProtoMessage() {}
 
 func (x *GetViewerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -452,7 +330,7 @@ func (x *GetViewerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetViewerResponse.ProtoReflect.Descriptor instead.
 func (*GetViewerResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetViewerResponse) GetUser() *ViewerUser {
@@ -487,22 +365,16 @@ var File_chatto_api_v1_viewer_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
-	"\fUserSettings\x12\x1f\n" +
-	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
-	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
-	"timeFormatB\v\n" +
-	"\t_timezone\"\x93\x03\n" +
+	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xea\x02\n" +
 	"\n" +
 	"ViewerUser\x12,\n" +
-	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x127\n" +
-	"\bsettings\x18\b \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\x129\n" +
+	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x129\n" +
 	"\x19viewer_can_delete_account\x18\t \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12-\n" +
 	"\aprofile\x18\v \x01(\v2\x13.chatto.api.v1.UserR\aprofile\x12!\n" +
-	"\fhas_password\x18\f \x01(\bR\vhasPasswordJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
-	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8b\x01\n" +
+	"\fhas_password\x18\f \x01(\bR\vhasPasswordJ\x04\b\x01\x10\aJ\x04\b\b\x10\tR\x02idR\x05loginR\fdisplay_nameR\n" +
+	"avatar_urlR\rcustom_statusR\x0fpresence_statusR\bsettings\"\x8b\x01\n" +
 	"\x12ViewerCapabilities\x126\n" +
 	"\x06grants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CapabilityGrantR\x06grants\x12=\n" +
 	"\x1bhas_unread_followed_threads\x18\x02 \x01(\bR\x18hasUnreadFollowedThreads\"[\n" +
@@ -515,13 +387,7 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\x04user\x18\x01 \x01(\v2\x19.chatto.api.v1.ViewerUserR\x04user\x12E\n" +
 	"\fcapabilities\x18\x02 \x01(\v2!.chatto.api.v1.ViewerCapabilitiesR\fcapabilities\x12U\n" +
 	"\x12viewer_permissions\x18\x05 \x01(\v2&.chatto.api.v1.ServerViewerPermissionsR\x11viewerPermissions\x12C\n" +
-	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ServerViewerStateR\vviewerStateJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x1eserver_notification_preferenceR\x1droom_notification_preferences*q\n" +
-	"\n" +
-	"TimeFormat\x12\x1b\n" +
-	"\x17TIME_FORMAT_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10TIME_FORMAT_AUTO\x10\x01\x12\x17\n" +
-	"\x13TIME_FORMAT_12_HOUR\x10\x02\x12\x17\n" +
-	"\x13TIME_FORMAT_24_HOUR\x10\x032_\n" +
+	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ServerViewerStateR\vviewerStateJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x1eserver_notification_preferenceR\x1droom_notification_preferences2_\n" +
 	"\rViewerService\x12N\n" +
 	"\tGetViewer\x12\x1f.chatto.api.v1.GetViewerRequest\x1a .chatto.api.v1.GetViewerResponseB\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vViewerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -538,40 +404,35 @@ func file_chatto_api_v1_viewer_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_viewer_proto_rawDescData
 }
 
-var file_chatto_api_v1_viewer_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_viewer_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chatto_api_v1_viewer_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_viewer_proto_goTypes = []any{
-	(TimeFormat)(0),                 // 0: chatto.api.v1.TimeFormat
-	(*UserSettings)(nil),            // 1: chatto.api.v1.UserSettings
-	(*ViewerUser)(nil),              // 2: chatto.api.v1.ViewerUser
-	(*ViewerCapabilities)(nil),      // 3: chatto.api.v1.ViewerCapabilities
-	(*ServerViewerPermissions)(nil), // 4: chatto.api.v1.ServerViewerPermissions
-	(*ServerViewerState)(nil),       // 5: chatto.api.v1.ServerViewerState
-	(*GetViewerRequest)(nil),        // 6: chatto.api.v1.GetViewerRequest
-	(*GetViewerResponse)(nil),       // 7: chatto.api.v1.GetViewerResponse
-	(*timestamppb.Timestamp)(nil),   // 8: google.protobuf.Timestamp
-	(*User)(nil),                    // 9: chatto.api.v1.User
-	(*CapabilityGrant)(nil),         // 10: chatto.api.v1.CapabilityGrant
-	(*PermissionGrant)(nil),         // 11: chatto.api.v1.PermissionGrant
+	(*ViewerUser)(nil),              // 0: chatto.api.v1.ViewerUser
+	(*ViewerCapabilities)(nil),      // 1: chatto.api.v1.ViewerCapabilities
+	(*ServerViewerPermissions)(nil), // 2: chatto.api.v1.ServerViewerPermissions
+	(*ServerViewerState)(nil),       // 3: chatto.api.v1.ServerViewerState
+	(*GetViewerRequest)(nil),        // 4: chatto.api.v1.GetViewerRequest
+	(*GetViewerResponse)(nil),       // 5: chatto.api.v1.GetViewerResponse
+	(*timestamppb.Timestamp)(nil),   // 6: google.protobuf.Timestamp
+	(*User)(nil),                    // 7: chatto.api.v1.User
+	(*CapabilityGrant)(nil),         // 8: chatto.api.v1.CapabilityGrant
+	(*PermissionGrant)(nil),         // 9: chatto.api.v1.PermissionGrant
 }
 var file_chatto_api_v1_viewer_proto_depIdxs = []int32{
-	0,  // 0: chatto.api.v1.UserSettings.time_format:type_name -> chatto.api.v1.TimeFormat
-	1,  // 1: chatto.api.v1.ViewerUser.settings:type_name -> chatto.api.v1.UserSettings
-	8,  // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
-	9,  // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.User
-	10, // 4: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
-	11, // 5: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
-	2,  // 6: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
-	3,  // 7: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 8: chatto.api.v1.GetViewerResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	5,  // 9: chatto.api.v1.GetViewerResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
-	6,  // 10: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
-	7,  // 11: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	6, // 0: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
+	7, // 1: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.User
+	8, // 2: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
+	9, // 3: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
+	0, // 4: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
+	1, // 5: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	2, // 6: chatto.api.v1.GetViewerResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	3, // 7: chatto.api.v1.GetViewerResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
+	4, // 8: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
+	5, // 9: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_viewer_proto_init() }
@@ -581,20 +442,18 @@ func file_chatto_api_v1_viewer_proto_init() {
 	}
 	file_chatto_api_v1_permissions_proto_init()
 	file_chatto_api_v1_users_proto_init()
-	file_chatto_api_v1_viewer_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_viewer_proto_rawDesc), len(file_chatto_api_v1_viewer_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   7,
+			NumEnums:      0,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_chatto_api_v1_viewer_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_viewer_proto_depIdxs,
-		EnumInfos:         file_chatto_api_v1_viewer_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_viewer_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_viewer_proto = out.File

@@ -30,7 +30,6 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 		{Id: "E2", Event: &corev1.Event_UserPasswordHashChanged{UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{UserId: "U1", PasswordHash: []byte("password-hash-secret")}}},
 		{Id: "E3", Event: &corev1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{UserId: "U1", Issuer: "https://private-issuer.example", Subject: "private-provider-subject", ProviderId: "private-provider"}}},
 		{Id: "E4", Event: &corev1.Event_OauthConsentGranted{OauthConsentGranted: &corev1.OAuthConsentGrantedEvent{UserId: "U1", RedirectOrigin: "https://private-client.example"}}},
-		userEvent("E5", createdAt.Add(time.Minute), &corev1.Event{Event: &corev1.Event_UserServerPreferencesChanged{UserServerPreferencesChanged: &corev1.UserServerPreferencesChangedEvent{UserId: "U1", Preferences: &corev1.ServerUserPreferences{Timezone: proto.String("Europe/Berlin")}}}}),
 	}
 	for i, event := range eventsToApply {
 		require.NoError(t, original.Apply(event, uint64(i+1)))
@@ -52,9 +51,6 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 	require.True(t, ok)
 	require.Equal(t, "alice-private", user.GetLogin())
 	require.Equal(t, "Alice Private", user.GetDisplayName())
-	preferences, ok := restored.Preferences("U1")
-	require.True(t, ok)
-	require.Equal(t, "Europe/Berlin", preferences.GetTimezone())
 	_, ok = restored.PasswordHash("U1")
 	require.False(t, ok, "password credentials must not be restored from a profile snapshot")
 	require.Empty(t, restored.ExternalIdentities("U1"), "external identities must not be restored from a profile snapshot")

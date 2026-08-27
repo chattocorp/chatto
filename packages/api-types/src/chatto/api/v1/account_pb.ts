@@ -7,7 +7,6 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { ImageUpload } from "./common_pb.js";
-import { TimeFormat, UserSettings } from "./viewer_pb.js";
 
 /**
  * Request to update the authenticated user's profile. At least one field must
@@ -347,97 +346,6 @@ export class UpdatePasswordResponse extends Message<UpdatePasswordResponse> {
 
   static equals(a: UpdatePasswordResponse | PlainMessage<UpdatePasswordResponse> | undefined, b: UpdatePasswordResponse | PlainMessage<UpdatePasswordResponse> | undefined): boolean {
     return proto3.util.equals(UpdatePasswordResponse, a, b);
-  }
-}
-
-/**
- * Request to update the authenticated user's display preferences. Omitted
- * fields are left unchanged. An empty timezone clears the explicit timezone.
- *
- * @generated from message chatto.api.v1.UpdateSettingsRequest
- */
-export class UpdateSettingsRequest extends Message<UpdateSettingsRequest> {
-  /**
-   * IANA timezone override. Empty clears the override.
-   *
-   * @generated from field: optional string timezone = 1;
-   */
-  timezone?: string;
-
-  /**
-   * Preferred time format.
-   *
-   * @generated from field: optional chatto.api.v1.TimeFormat time_format = 2;
-   */
-  timeFormat?: TimeFormat;
-
-  constructor(data?: PartialMessage<UpdateSettingsRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdateSettingsRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(TimeFormat), opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateSettingsRequest {
-    return new UpdateSettingsRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateSettingsRequest {
-    return new UpdateSettingsRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateSettingsRequest {
-    return new UpdateSettingsRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UpdateSettingsRequest | PlainMessage<UpdateSettingsRequest> | undefined, b: UpdateSettingsRequest | PlainMessage<UpdateSettingsRequest> | undefined): boolean {
-    return proto3.util.equals(UpdateSettingsRequest, a, b);
-  }
-}
-
-/**
- * Result of updating display preferences.
- *
- * @generated from message chatto.api.v1.UpdateSettingsResponse
- */
-export class UpdateSettingsResponse extends Message<UpdateSettingsResponse> {
-  /**
-   * Stored settings after merging the request.
-   *
-   * @generated from field: chatto.api.v1.UserSettings settings = 1;
-   */
-  settings?: UserSettings;
-
-  constructor(data?: PartialMessage<UpdateSettingsResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdateSettingsResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "settings", kind: "message", T: UserSettings },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateSettingsResponse {
-    return new UpdateSettingsResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateSettingsResponse {
-    return new UpdateSettingsResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateSettingsResponse {
-    return new UpdateSettingsResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UpdateSettingsResponse | PlainMessage<UpdateSettingsResponse> | undefined, b: UpdateSettingsResponse | PlainMessage<UpdateSettingsResponse> | undefined): boolean {
-    return proto3.util.equals(UpdateSettingsResponse, a, b);
   }
 }
 

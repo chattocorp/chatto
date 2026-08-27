@@ -54,7 +54,6 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			got:  NewConfigProjection().Subjects(),
 			want: []string{
 				evtstream.ConfigSubjectFilter(),
-				evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
 				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 			},
 		},

@@ -185,10 +185,6 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.logger.Warn("Failed to revoke runtime credentials during deletion", "user_id", userID, "error", err)
 		// Continue - this is best-effort
 	}
-	if err := c.deleteUserSettings(ctx, userID); err != nil {
-		c.logger.Warn("Failed to delete user settings during deletion", "user_id", userID, "error", err)
-	}
-
 	// Clean per-kind user artifacts AFTER the user projection marks the
 	// account deleted, so ServerMemberDeletedEvent refetches already see
 	// "Deleted User".

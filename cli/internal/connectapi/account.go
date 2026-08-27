@@ -126,30 +126,6 @@ func (s *accountService) UpdatePassword(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&apiv1.UpdatePasswordResponse{User: responseUser}), nil
 }
 
-func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Request[apiv1.UpdateSettingsRequest]) (*connect.Response[apiv1.UpdateSettingsResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	input := core.UserSettingsInput{}
-	if req.Msg.Timezone != nil {
-		timezone := req.Msg.GetTimezone()
-		input.Timezone = &timezone
-	}
-	if req.Msg.TimeFormat != nil {
-		timeFormat := apiTimeFormatToCore(req.Msg.GetTimeFormat())
-		input.TimeFormat = &timeFormat
-	}
-	settings, err := s.api.core.UpdateUserSettings(ctx, caller.UserID, input)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.UpdateSettingsResponse{
-		Settings: coreUserSettingsToAPI(settings),
-	}), nil
-}
-
 func (s *accountService) RequestAccountDeletion(ctx context.Context, _ *connect.Request[apiv1.RequestAccountDeletionRequest]) (*connect.Response[apiv1.RequestAccountDeletionResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -181,15 +157,4 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{Deleted: true}), nil
-}
-
-func apiTimeFormatToCore(format apiv1.TimeFormat) corev1.TimeFormat {
-	switch format {
-	case apiv1.TimeFormat_TIME_FORMAT_12_HOUR:
-		return corev1.TimeFormat_TIME_FORMAT_12H
-	case apiv1.TimeFormat_TIME_FORMAT_24_HOUR:
-		return corev1.TimeFormat_TIME_FORMAT_24H
-	default:
-		return corev1.TimeFormat_TIME_FORMAT_UNSPECIFIED
-	}
 }
