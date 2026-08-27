@@ -9,6 +9,7 @@ import type {
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { adminQueryKeys } from '$lib/query/admin';
+import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import {
   memberDetailPageTestState,
@@ -112,6 +113,20 @@ describe('server member delete page', () => {
   function renderPage() {
     return render(DeletePage);
   }
+
+  it('stops the flow when a realtime removal of the member arrives', async () => {
+    const rendered = renderPage();
+    await settle();
+    expect(rendered.container.textContent).toContain('Danger Zone');
+
+    removeRegisteredAdminUserQueries('server-1', 'alice');
+    flushSync();
+    await settle();
+
+    expect(rendered.container.textContent).toContain('Member not found');
+    expect(rendered.container.textContent).not.toContain('Danger Zone');
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+  });
 
   it('blocks deleting the viewer account through this page', async () => {
     memberDetailPageTestState.userId = 'viewer';

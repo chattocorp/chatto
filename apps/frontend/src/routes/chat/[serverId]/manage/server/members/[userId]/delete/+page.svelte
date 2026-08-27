@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -8,6 +9,7 @@
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
+  import { registerAdminUserRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, PaneContent, PageTitle } from '$lib/ui';
@@ -20,6 +22,21 @@
   const currentUser = $derived(serverScope.store.currentUser);
   const userId = $derived(page.params.userId!);
   const isSelf = $derived(currentUser.user?.id === userId);
+
+  // Privacy fence: once a removal of this member is observed (for example by
+  // another admin), stop rendering and refetching the deletion flow. The
+  // realtime purge listener also owns cache invalidation for any other admin
+  // queries embedding this user; success below only extends it.
+  let removedMember = $state<{ serverId: string; userId: string } | null>(null);
+  const removeRemovalListener = registerAdminUserRemovalListener((serverId, removedUserId) => {
+    if (serverId !== activeServerId || removedUserId !== userId) return;
+    queryClient.removeQueries({
+      queryKey: adminQueryKeys.member(serverId, serverScope.connection, userId),
+      exact: true
+    });
+    removedMember = { serverId, userId: removedUserId };
+  });
+  onDestroy(() => removeRemovalListener());
 
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/members/[userId]', {
@@ -43,7 +60,10 @@
         queryKey: adminQueryKeys.member(serverId, connection, userId),
         queryFn: ({ signal }) =>
           connection.getAPI(createAdminUserManagementAPI).getMember(userId, { signal }),
-        enabled: !!serverId && !!userId
+        enabled:
+          !!serverId &&
+          !!userId &&
+          !(removedMember?.serverId === serverId && removedMember.userId === userId)
       };
     },
     () => queryClient
@@ -79,6 +99,9 @@
         ...(password ? { currentPassword: password } : {})
       });
       toast.success(m('admin.member_delete.success'));
+      // The realtime ServerMemberDeletedEvent purge
+      // (removeRegisteredAdminUserQueries) fences other admin caches that embed
+      // this user; here we only refresh the list and drop this page's entry.
       void queryClient.invalidateQueries({
         queryKey: adminQueryKeys.membersRoot(activeServerId, serverScope.connection)
       });
@@ -89,6 +112,8 @@
       await goto(membersHref);
     } catch (err) {
       error = err instanceof Error ? err.message : m('admin.member_delete.failed');
+      // Keep the typed confirmation and password so a retry (for example after
+      // supplying the missing fresh-credential password) needs no retyping.
       deleting = false;
     }
   }
