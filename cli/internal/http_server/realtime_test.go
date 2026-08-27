@@ -1399,6 +1399,13 @@ func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testi
 	if err != nil {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
+	// Resume at the current boundary because this test covers post-bootstrap
+	// hydration admission. Other tests cover compacted snapshot delivery.
+	boundary, err := env.core.PlanRealtimeReplay(env.ctx, viewer.Id, "")
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	resumeCursor := boundary.BoundaryCursor
 
 	conn := env.dialRealtime(t)
 	t.Cleanup(func() { conn.Close() })
@@ -1409,7 +1416,7 @@ func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testi
 		t.Fatal("did not receive realtime hello")
 	}
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive realtime subscribed")
