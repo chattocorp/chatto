@@ -62,6 +62,7 @@ const config = {
           'sveltekit-trusted-url',
           'lit-html',
           'tiptap-html',
+          'chatto-service-worker-url',
           'ProseMirrorClipboard'
         ]
       }

@@ -208,7 +208,28 @@ function waitForRegistrationId(devtools: CDPSession, expectedScopeURL: string): 
 
 async function registerScopedWorker(page: Page, scopePath: string): Promise<string> {
   return page.evaluate(async (scope) => {
-    const registration = await navigator.serviceWorker.register('/service-worker.js', {
+    type TrustedTypesPage = typeof globalThis & {
+      trustedTypes?: {
+        createPolicy(
+          name: string,
+          policy: { createScriptURL(url: string): string }
+        ): { createScriptURL(url: string): string | { toString(): string } };
+      };
+      __chattoServiceWorkerTrustedTypesPolicy?: {
+        createScriptURL(url: string): string | { toString(): string };
+      };
+    };
+
+    const trustedTypesPage = globalThis as TrustedTypesPage;
+    trustedTypesPage.__chattoServiceWorkerTrustedTypesPolicy ??=
+      trustedTypesPage.trustedTypes?.createPolicy('chatto-service-worker-url', {
+        createScriptURL: (url) => url
+      });
+    const scriptUrl =
+      trustedTypesPage.__chattoServiceWorkerTrustedTypesPolicy?.createScriptURL(
+        '/service-worker.js'
+      ) ?? '/service-worker.js';
+    const registration = await navigator.serviceWorker.register(scriptUrl as string, {
       scope,
       type: 'module'
     });

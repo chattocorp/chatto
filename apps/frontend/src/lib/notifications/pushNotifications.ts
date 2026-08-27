@@ -9,6 +9,7 @@
 import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
 import type { PushNotificationAPI } from '$lib/api-client/pushNotifications';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
+import { trustedServiceWorkerScriptUrl } from '$lib/security/trustedScriptUrl';
 import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
   NOTIFICATION_CLICK_MESSAGE_TYPE
@@ -142,10 +143,13 @@ async function lookupServiceWorkerRegistration(
       new URL(scope, window.location.origin).toString()
     );
   }
-  const registration = await navigator.serviceWorker.register(serviceWorkerScriptPath, {
-    scope,
-    type: 'module'
-  });
+  const registration = await navigator.serviceWorker.register(
+    trustedServiceWorkerScriptUrl(serviceWorkerScriptPath) as string,
+    {
+      scope,
+      type: 'module'
+    }
+  );
   await waitForActiveWorker(registration);
   return registration;
 }
