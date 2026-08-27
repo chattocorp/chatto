@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   threadPaneWidthSlot,
   THREAD_PANE_DEFAULT_WIDTH,
@@ -20,6 +20,8 @@ vi.stubGlobal('localStorage', {
 
 describe('thread pane width storage', () => {
   beforeEach(() => localStorage.clear());
+
+  afterAll(() => vi.unstubAllGlobals());
 
   it('uses the default for missing or unsupported stored widths', () => {
     expect(threadPaneWidthSlot.get()).toBe(THREAD_PANE_DEFAULT_WIDTH);

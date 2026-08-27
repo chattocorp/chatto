@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { paneWidthSlot } from '$lib/storage/paneWidth';
 import { PaneWidthState } from './paneWidth.svelte';
 
@@ -14,11 +14,6 @@ function specSlot() {
 
 describe('pane width state', () => {
   beforeEach(() => localStorage.removeItem(SLOT_KEY));
-
-  // The reactive value is rendered through `.value`; verify updates settle.
-  afterEach(async () => {
-    await Promise.resolve();
-  });
 
   it('starts from the stored or default width', () => {
     expect(new PaneWidthState(specSlot()).value).toBe(300);
@@ -39,8 +34,9 @@ describe('pane width state', () => {
   });
 
   it('keeps the clamped value when browser storage is unavailable', () => {
-    const original = localStorage;
-    Object.defineProperty(window, 'localStorage', { configurable: true, get: () => undefined });
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    expect(descriptor).toBeDefined();
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: undefined });
     try {
       const state = new PaneWidthState(specSlot());
       state.set(380);
@@ -48,7 +44,7 @@ describe('pane width state', () => {
       state.reset();
       expect(state.value).toBe(300);
     } finally {
-      Object.defineProperty(window, 'localStorage', { configurable: true, get: () => original });
+      Object.defineProperty(window, 'localStorage', descriptor as PropertyDescriptor);
     }
   });
 });
