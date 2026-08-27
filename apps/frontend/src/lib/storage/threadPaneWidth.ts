@@ -9,11 +9,3 @@ export const threadPaneWidthSlot = paneWidthSlot('threadPaneWidth', {
   minWidth: THREAD_PANE_MIN_WIDTH,
   maxWidth: THREAD_PANE_MAX_WIDTH
 });
-
-export function getThreadPaneWidth(): number {
-  return threadPaneWidthSlot.get();
-}
-
-export function setThreadPaneWidth(width: number): void {
-  threadPaneWidthSlot.set(width);
-}

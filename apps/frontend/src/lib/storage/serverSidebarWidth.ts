@@ -9,11 +9,3 @@ export const serverSidebarWidthSlot = paneWidthSlot('serverSidebarWidth', {
   minWidth: SERVER_SIDEBAR_MIN_WIDTH,
   maxWidth: SERVER_SIDEBAR_MAX_WIDTH
 });
-
-export function getServerSidebarWidth(): number {
-  return serverSidebarWidthSlot.get();
-}
-
-export function setServerSidebarWidth(width: number): void {
-  serverSidebarWidthSlot.set(width);
-}

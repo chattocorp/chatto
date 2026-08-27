@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { paneWidthSlot } from './paneWidth';
 
 const storage = new Map<string, string>();
@@ -15,6 +15,8 @@ vi.stubGlobal('localStorage', {
 
 describe('pane width slot', () => {
   beforeEach(() => localStorage.clear());
+
+  afterAll(() => vi.unstubAllGlobals());
 
   it('clamps writes into bounds and returns the clamped value', () => {
     const slot = paneWidthSlot('paneWidthSlotSpecClamp', {
