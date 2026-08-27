@@ -14,6 +14,7 @@ import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import { createUserAPI } from './users.js';
+import { mapUserSummary } from './userSummary.js';
 import { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
 import { MessageVideoProcessingStatus } from '@chatto/api-types/api/v1/message_types_pb';
@@ -183,6 +184,8 @@ async function batchTimelineUsers(
     const summaries = await createUserAPI(config).batchGetUsers(userIds);
     const users: Record<string, User> = {};
     for (const summary of summaries) {
+      // `UserSummary` is structurally the generated `User` shape the timeline
+      // view helpers read; normalize `avatarUrl` to keep the record uniform.
       users[summary.id] = {
         id: summary.id,
         login: summary.login,
@@ -192,7 +195,7 @@ async function batchTimelineUsers(
         avatarUrl: summary.avatarUrl ?? undefined
       } as User;
     }
-    primeTimelineUserIncludes(config, users);
+    notifyUserSummaries(config.serverId, summaries, config.onUserSummaries);
     return users;
   } catch {
     return {};
@@ -225,18 +228,11 @@ function messageUserIds(messages: Message[]): string[] {
 }
 
 function primeTimelineUserIncludes(config: RoomTimelineAPIConfig, users: Record<string, User>) {
-  notifyUserSummaries(
-    config.serverId,
-    Object.values(users).map((user) => ({
-      id: user.id,
-      login: user.login,
-      displayName: user.displayName,
-      deleted: user.deleted,
-      isBot: user.isBot,
-      avatarUrl: user.avatarUrl || null
-    })),
-    config.onUserSummaries
-  );
+	notifyUserSummaries(
+		config.serverId,
+		Object.values(users).map(mapUserSummary),
+		config.onUserSummaries
+	);
 }
 
 function emptyEventConnectionPage(): EventConnectionPage {
