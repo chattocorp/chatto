@@ -350,7 +350,7 @@ func waitRealtimeRoomUpsert(t testing.TB, conn *websocket.Conn, timeout time.Dur
 func readRealtimeCaughtUp(t testing.TB, conn *websocket.Conn) *realtimev1.RealtimeCaughtUp {
 	t.Helper()
 	for {
-		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, conn, realtimeCatchUpDefaultTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for realtime caught_up")
 		}
