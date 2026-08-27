@@ -18,7 +18,7 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## MyAccountService
 
-Self-service account, profile, avatar, display preference, presence,
+Self-service account, profile, avatar, presence,
 custom-status, external identity, and account lifecycle commands for the
 authenticated user.
 
@@ -147,40 +147,6 @@ Result of updating or adding the authenticated account password.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user` | [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Current authenticated user profile after the password update. |
-
-
-<a id="chatto-api-v1-MyAccountService-UpdateSettings"></a>
-
-### UpdateSettings
-
-Updates the authenticated user's display preferences.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
-```
-
-<a id="chatto-api-v1-UpdateSettingsRequest"></a>
-
-#### Input: UpdateSettingsRequest
-
-Request to update the authenticated user's display preferences. Omitted
-fields are left unchanged. An empty timezone clears the explicit timezone.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `timezone` | `optional string` | IANA timezone override. Empty clears the override. |
-| `time_format` | optional [`TimeFormat`](/reference/connectrpc-api/types/#chatto-api-v1-TimeFormat) | Preferred time format. |
-
-
-<a id="chatto-api-v1-UpdateSettingsResponse"></a>
-
-#### Result: UpdateSettingsResponse
-
-Result of updating display preferences.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `settings` | [`UserSettings`](/reference/connectrpc-api/types/#chatto-api-v1-UserSettings) | Stored settings after merging the request. |
 
 
 <a id="chatto-api-v1-MyAccountService-ListExternalIdentities"></a>

@@ -127,100 +127,6 @@ Public user fields.
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 | `is_bot` | `bool` | True when this identity represents an automated bot. |
 
-<a id="chatto-api-v1-CapabilityGrant"></a>
-
-### CapabilityGrant
-
-Effective decision for one capability key.
-
-Built-in keys currently include:
-- admin.view
-- dm.start
-- admin.view-users
-- user.manage-accounts
-- user.invite
-- role.assign
-- role.view
-- role.manage
-- admin.view-system
-- admin.view-audit
-- user.manage-permissions
-
-Clients should ignore unknown keys so servers can add capabilities over time.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
-| `granted` | `bool` | Whether the capability is currently available. |
-
-<a id="chatto-api-v1-PermissionGrant"></a>
-
-### PermissionGrant
-
-Effective decision for one permission key.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permission` | `string` | Stable permission key, such as "server.manage". |
-| `granted` | `bool` | Whether the permission is currently granted. |
-
-<a id="chatto-api-v1-ServerViewerPermissions"></a>
-
-### ServerViewerPermissions
-
-Effective server/channel permission decisions for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
-
-<a id="chatto-api-v1-ServerViewerState"></a>
-
-### ServerViewerState
-
-Non-permission server state for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
-
-<a id="chatto-api-v1-UserSettings"></a>
-
-### UserSettings
-
-Server-level display settings for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `timezone` | `optional string` | Optional IANA timezone override. Absent means the client should use the browser's local timezone. |
-| `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
-
-<a id="chatto-api-v1-ViewerCapabilities"></a>
-
-### ViewerCapabilities
-
-Permission-derived capabilities for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
-| `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
-
-<a id="chatto-api-v1-ViewerUser"></a>
-
-### ViewerUser
-
-Current authenticated user's public profile plus self-only settings.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
-| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
-| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
-| `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
-| `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
-| `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
-
 <a id="chatto-api-v1-LinkPreview"></a>
 
 ### LinkPreview
@@ -949,6 +855,43 @@ One policy together with the explicit scope that produced it.
 | `scope` | [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Exact policy scope. |
 | `policy` | [`NotificationPolicy`](#chatto-api-v1-NotificationPolicy) | Explicit and effective modes for the scope. |
 
+<a id="chatto-api-v1-CapabilityGrant"></a>
+
+### CapabilityGrant
+
+Effective decision for one capability key.
+
+Built-in keys currently include:
+- admin.view
+- dm.start
+- admin.view-users
+- user.manage-accounts
+- user.invite
+- role.assign
+- role.view
+- role.manage
+- admin.view-system
+- admin.view-audit
+- user.manage-permissions
+
+Clients should ignore unknown keys so servers can add capabilities over time.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
+| `granted` | `bool` | Whether the capability is currently available. |
+
+<a id="chatto-api-v1-PermissionGrant"></a>
+
+### PermissionGrant
+
+Effective decision for one permission key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission key, such as "server.manage". |
+| `granted` | `bool` | Whether the permission is currently granted. |
+
 <a id="chatto-api-v1-Role"></a>
 
 ### Role
@@ -1104,6 +1047,51 @@ Current follow state for one thread and viewer.
 | `room_id` | `string` | Room containing the thread. |
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `following` | `bool` | True when the current user follows the thread. |
+
+<a id="chatto-api-v1-ServerViewerPermissions"></a>
+
+### ServerViewerPermissions
+
+Effective server/channel permission decisions for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
+
+<a id="chatto-api-v1-ServerViewerState"></a>
+
+### ServerViewerState
+
+Non-permission server state for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
+
+<a id="chatto-api-v1-ViewerCapabilities"></a>
+
+### ViewerCapabilities
+
+Permission-derived capabilities for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
+| `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
+
+<a id="chatto-api-v1-ViewerUser"></a>
+
+### ViewerUser
+
+Current authenticated user's public profile plus self-only state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
+| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
+| `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
+| `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
+| `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
 <a id="chatto-api-v1-ActiveCall"></a>
 
@@ -1684,19 +1672,6 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
-
-<a id="chatto-api-v1-TimeFormat"></a>
-
-### TimeFormat
-
-User preference for rendering times in clients.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `TIME_FORMAT_UNSPECIFIED` | `0` | No explicit preference was stored. |
-| `TIME_FORMAT_AUTO` | `1` | Let the client choose based on locale and browser settings. |
-| `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
-| `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
 
 <a id="chatto-api-v1-MessageVideoProcessingStatus"></a>
 
