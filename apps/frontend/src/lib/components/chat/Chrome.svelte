@@ -47,6 +47,11 @@
 
   const userPreferenceNavItems = $derived([
     {
+      href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
+      label: m('settings.nav.account'),
+      icon: 'iconify icon-[uil--setting]'
+    },
+    {
       href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
       label: m('settings.nav.profile'),
       icon: 'iconify icon-[uil--user]'
@@ -60,11 +65,6 @@
       href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
       label: m('settings.nav.notifications'),
       icon: 'iconify icon-[uil--bell]'
-    },
-    {
-      href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
-      label: m('settings.nav.account'),
-      icon: 'iconify icon-[uil--setting]'
     }
   ]);
 
