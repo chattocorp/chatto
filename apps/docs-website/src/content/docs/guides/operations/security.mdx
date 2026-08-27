@@ -259,11 +259,6 @@ interactive controls create runtime styles. It permits images, media, and
 connections from HTTP and HTTPS origins because one frontend can connect to
 operator-selected Chatto and LiveKit servers.
 
-On browsers that support Trusted Types, the policy requires Trusted Types for
-script injection sinks. It allows only the named policies that the bundled
-SvelteKit, Svelte, markdown, media, and editor code uses. Browsers without
-Trusted Types still enforce the other CSP directives.
-
 Original attachment responses also set `X-Content-Type-Options: nosniff`. Uploaded active document formats such as HTML, XHTML, SVG, and XML are served with `Content-Security-Policy: sandbox`; S3-backed files of those types stream through Chatto instead of redirecting directly to object storage so that policy is preserved.
 
 Add HSTS at your TLS reverse proxy when the deployment uses HTTPS. Preserve the

@@ -34,23 +34,9 @@ requireValues('style-src', ["'self'", "'unsafe-inline'"]);
 requireValues('worker-src', ["'self'"]);
 requireValues('frame-src', ['https://www.youtube-nocookie.com']);
 requireValues('connect-src', ["'self'", 'http:', 'https:', 'ws:', 'wss:']);
-requireValues('require-trusted-types-for', ["'script'"]);
-requireValues('trusted-types', [
-  'chatto-markdown-html',
-  'svelte-trusted-html',
-  'sveltekit-trusted-url',
-  'lit-html',
-  'vidstack-html',
-  'tiptap-html',
-  'chatto-service-worker-url',
-  'ProseMirrorClipboard'
-]);
 
 if (directives.get('script-src').includes("'unsafe-inline'")) {
   throw new Error("CSP script-src must not contain 'unsafe-inline'");
-}
-if (directives.get('trusted-types').includes('default')) {
-  throw new Error('CSP must not allow a default Trusted Types policy');
 }
 
 for (const [, script] of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) {
@@ -60,4 +46,4 @@ for (const [, script] of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\
   }
 }
 
-console.log('csp      enforcing policy and Trusted Types allowlist  PASS');
+console.log('csp      enforcing resource policy  PASS');

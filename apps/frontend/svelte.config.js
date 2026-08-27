@@ -54,18 +54,7 @@ const config = {
         // LiveKit servers, including HTTP development instances.
         'connect-src': ['self', 'http:', 'https:', 'ws:', 'wss:'],
         'frame-src': ['https://www.youtube-nocookie.com'],
-        'worker-src': ['self'],
-        'require-trusted-types-for': ['script'],
-        'trusted-types': [
-          'chatto-markdown-html',
-          'svelte-trusted-html',
-          'sveltekit-trusted-url',
-          'lit-html',
-          'vidstack-html',
-          'tiptap-html',
-          'chatto-service-worker-url',
-          'ProseMirrorClipboard'
-        ]
+        'worker-src': ['self']
       }
     },
     version: {

@@ -96,9 +96,8 @@ revocation, and expiry contract.
 - Remote-server bearer credentials in `localStorage` are vulnerable to XSS
   (origin cookie auth is not)
 - This makes XSS prevention part of the auth boundary. The shipped frontend
-  enforces a CSP and requires Trusted Types for script injection sinks. The
-  policy allows only the reviewed SvelteKit, Svelte, markdown, media, and editor
-  policies. It uses build-time hashes for inline bootstrap scripts.
+  enforces a CSP. It uses build-time hashes for inline bootstrap scripts and
+  does not allow general inline scripts.
 - All public HTTP and realtime entry points permit browser transport from any syntactically valid origin without credentialed CORS. Cross-origin clients must present bearer tokens; ambient cookie credentials remain same-origin only.
 - Separately hosted frontends publish a CIMD document and send its URL as `client_id`. Chatto validates the exact callback from that document, while Desktop uses its fixed built-in registration.
 - Users approve the first OAuth authorization for each client; Chatto remembers consent per user + stable client ID without an operator-managed registration table.

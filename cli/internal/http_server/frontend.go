@@ -33,9 +33,9 @@ const (
 	cacheControlRevalidate = "no-cache, must-revalidate"
 	// Hashed assets (in _app/) are immutable - cache for 1 year
 	cacheControlImmutable = "public, max-age=31536000, immutable"
-	// SvelteKit puts the resource and Trusted Types policy in the static SPA
-	// document with build-specific script hashes. frame-ancestors is not valid in
-	// a CSP meta element, so each frontend response enforces it in an HTTP header.
+	// SvelteKit puts the resource policy in the static SPA document with
+	// build-specific script hashes. frame-ancestors is not valid in a CSP meta
+	// element, so each frontend response enforces it in an HTTP header.
 	contentSecurityPolicyHeader = "frame-ancestors 'none'"
 )
 

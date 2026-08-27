@@ -1,6 +1,6 @@
 import { expect, test } from './setup';
 
-test('production frontend enforces CSP and Trusted Types', async ({ page }) => {
+test('production frontend enforces its content security policy', async ({ page }) => {
   const response = await page.goto('/');
 
   expect(response).not.toBeNull();
@@ -8,31 +8,14 @@ test('production frontend enforces CSP and Trusted Types', async ({ page }) => {
   expect(response?.headers()['content-security-policy-report-only']).toBeUndefined();
   await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
-  const enforcement = await page.evaluate(() => {
-    const result = {
-      stringHtmlRejected: false,
-      unknownPolicyRejected: false
-    };
-
-    try {
-      document.createElement('div').innerHTML = '<p>untrusted</p>';
-    } catch (error) {
-      result.stringHtmlRejected = error instanceof TypeError;
-    }
-
-    try {
-      globalThis.trustedTypes?.createPolicy('chatto-e2e-unknown', {
-        createHTML: (value) => value
-      });
-    } catch (error) {
-      result.unknownPolicyRejected = error instanceof TypeError;
-    }
-
-    return result;
+  const unauthorizedInlineScriptRan = await page.evaluate(async () => {
+    const marker = '__chattoUnauthorizedInlineScriptRan';
+    const script = document.createElement('script');
+    script.textContent = `globalThis.${marker} = true`;
+    document.head.append(script);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return Reflect.get(globalThis, marker) === true;
   });
 
-  expect(enforcement).toEqual({
-    stringHtmlRejected: true,
-    unknownPolicyRejected: true
-  });
+  expect(unauthorizedInlineScriptRan).toBe(false);
 });
