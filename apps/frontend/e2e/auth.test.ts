@@ -46,7 +46,7 @@ test.describe('Return URL after login', () => {
     const testPassword = 'testpassword123';
 
     // Try to access a protected route directly (unauthenticated)
-    await page.goto(routes.admin);
+    await page.goto(routes.serverAdminGeneral);
 
     // The [serverId] layout detects no auth and redirects to /login,
     // saving the returnUrl in sessionStorage
@@ -56,7 +56,7 @@ test.describe('Return URL after login', () => {
     await authPage.register(testLogin, testEmail, testPassword);
 
     // Should be redirected to the original URL, not /chat
-    await page.waitForURL(routes.admin);
+    await page.waitForURL(routes.serverAdminGeneral);
   });
 
   test('redirects to original URL after OAuth login', async ({ page, authPage }) => {

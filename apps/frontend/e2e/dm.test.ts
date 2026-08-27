@@ -34,8 +34,8 @@ test.describe('Direct Messages (room-shaped)', () => {
     await withServerUser(browser, serverURL, async ({ page: pageB, user: userB }) => {
       const roomB = await new DMPage(pageB).startConversation(userA.login);
 
-      await page.goto(routes.browseRooms);
-      await page.waitForURL(routes.browseRooms);
+      await page.goto(routes.serverOverview);
+      await page.waitForURL(routes.serverOverview);
       const conversation = new DMPage(page).getConversation(userB.displayName);
       await expect(conversation).not.toBeVisible();
 
@@ -148,8 +148,8 @@ test.describe('Direct Messages (room-shaped)', () => {
         const aToB = await dmA.startConversation(userB.login);
         await aToB.sendMessage('seed B');
 
-        await page.goto(routes.browseRooms);
-        await page.waitForURL(routes.browseRooms);
+        await page.goto(routes.serverOverview);
+        await page.waitForURL(routes.serverOverview);
         await expect(page.getByRole('button', { name: /direct messages/i })).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
@@ -212,8 +212,8 @@ test.describe('Direct Messages (room-shaped)', () => {
         await aToC.sendMessage('seed C');
         // C is now most-recent.
 
-        await page.goto(routes.browseRooms);
-        await page.waitForURL(routes.browseRooms);
+        await page.goto(routes.serverOverview);
+        await page.waitForURL(routes.serverOverview);
         const dmRows = () =>
           page.locator('nav a.sidebar-item').filter({
             has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
@@ -250,8 +250,8 @@ test.describe('Direct Messages (room-shaped)', () => {
 
     await withServerUser(browser, serverURL, async ({ page: pageB }) => {
       // User A on Overview with no DMs yet — server icon has no indicator.
-      await page.goto(routes.browseRooms);
-      await page.waitForURL(routes.browseRooms);
+      await page.goto(routes.serverOverview);
+      await page.waitForURL(routes.serverOverview);
       // Scope to the Server Gutter so we don't collide with notification
       // buttons rendered inside the Server Sidebar.
       const serverIconWrapper = page
@@ -297,8 +297,8 @@ test.describe('Direct Messages (room-shaped)', () => {
         const aToC = await dmA.startConversation(userC.login);
         await aToC.sendMessage('seed C');
 
-        await page.goto(routes.browseRooms);
-        await page.waitForURL(routes.browseRooms);
+        await page.goto(routes.serverOverview);
+        await page.waitForURL(routes.serverOverview);
 
         const groupHeader = page.getByRole('button', { name: /direct messages/i });
         const dmRow = (displayName: string) =>

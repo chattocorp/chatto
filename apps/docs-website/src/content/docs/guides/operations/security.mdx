@@ -245,15 +245,25 @@ such as Chatto Desktop. See [Connections From Other Chatto Clients](/guides/oper
 
 Every frontend response sets:
 
-| Header                    | Value                              |
-| ------------------------- | ---------------------------------- |
-| `X-Content-Type-Options`  | `nosniff`                          |
-| `X-Frame-Options`         | `DENY`                             |
-| `Referrer-Policy`         | `strict-origin-when-cross-origin`  |
+| Header                    | Value                             |
+| ------------------------- | --------------------------------- |
+| `X-Content-Type-Options`  | `nosniff`                         |
+| `X-Frame-Options`         | `DENY`                            |
+| `Referrer-Policy`         | `strict-origin-when-cross-origin` |
+| `Content-Security-Policy` | `frame-ancestors 'none'`          |
+
+The generated SPA document also contains an enforcing CSP meta element. The
+policy uses build-time hashes for the inline startup scripts. It does not allow
+general inline scripts. It allows inline styles because Svelte transitions and
+interactive controls create runtime styles. It permits images, media, and
+connections from HTTP and HTTPS origins because one frontend can connect to
+operator-selected Chatto and LiveKit servers.
 
 Original attachment responses also set `X-Content-Type-Options: nosniff`. Uploaded active document formats such as HTML, XHTML, SVG, and XML are served with `Content-Security-Policy: sandbox`; S3-backed files of those types stream through Chatto instead of redirecting directly to object storage so that policy is preserved.
 
-For HSTS, CSP, and other policy headers, add them at your reverse proxy.
+Add HSTS at your TLS reverse proxy when the deployment uses HTTPS. Preserve the
+frontend CSP header and the CSP meta element. A proxy can add more restrictive
+directives, but these directives can stop multi-server connections or media.
 
 ## Secret and key storage
 

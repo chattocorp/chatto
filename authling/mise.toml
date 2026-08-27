@@ -92,6 +92,14 @@ run = [
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
+[tasks.lint]
+description = "Vet Authling standalone and in the repository workspace"
+depends = ["deps-go", "codegen-templates", "build-web"]
+run = [
+    "GOWORK=off go vet ./...",
+    "go vet ./...",
+]
+
 [tasks.test-e2e]
 description = "Run Authling browser end-to-end tests with isolated processes"
 depends = ["build"]

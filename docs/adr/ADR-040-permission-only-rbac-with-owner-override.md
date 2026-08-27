@@ -2,6 +2,8 @@
 
 **Date:** 2026-06-15
 
+**Status:** Partially superseded
+
 > **Amended 2026-08-11:** Configured owner emails now converge on the durable
 > `owner` role instead of acting as a separate permission-time fallback. This
 > keeps live authorization and event-time visibility on one representation.

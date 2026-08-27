@@ -250,8 +250,8 @@ export class MessagesStore {
   /** Apply a successful local message delete without querying around a now-hidden echo. */
   applyLocalMessageDeletion(messageEventId: string): void {
     // The committed realtime retraction replaces this client timestamp with
-    // the server event time. This provisional value lets the local tombstone
-    // enter the grace period immediately after the mutation succeeds.
+    // the server event time. This provisional value marks a confirmed local
+    // deletion so context-free filtering applies as soon as the mutation succeeds.
     this.applyDeletion(messageEventId, new SvelteDate().toISOString());
   }
 

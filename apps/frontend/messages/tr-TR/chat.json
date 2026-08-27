@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Kullanıcı profili",
       "send_message": "Mesaj Gönder",
+      "view_in_admin": "Sunucu yönetiminde görüntüle",
       "copy_user_id": "Kullanıcı kimliğini kopyala"
     },
     "server_gutter": {

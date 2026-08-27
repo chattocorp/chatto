@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Kasutajaprofiil",
       "send_message": "Saada sõnum",
+      "view_in_admin": "Vaata serveri halduses",
       "copy_user_id": "Kopeeri kasutaja ID"
     },
     "server_gutter": {

@@ -187,8 +187,8 @@ starts that projection's ordered consumer at one greater than its cutoff. A
 missing, invalid, or unavailable snapshot cold-replays only its owning
 projection. Projections without matching EVT history have no state to
 accelerate and do not publish zero-cutoff generations. Credential-bearing user
-state is owned by `UserAuthProjection` and cold-replays from eight focused user
-event families.
+state is owned by `UserAuthProjection` and cold-replays from focused user event
+families.
 
 The projector framework atomically captures each projection's explicit
 protobuf state with its latest applied logical EVT sequence. Room Timeline
@@ -249,11 +249,12 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 
 | Projection | Contract | Payload store | Pointer store | Publication |
 | ---------- | -------- | ------------- | ------------- | ----------- |
-| Room Directory, Notification Decisions, Notifications, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours. Notification Decisions caps restore and publication at the notification worker's full acknowledged EVT floor. Notifications binds its snapshots to the independent `NOTIFICATIONS` stream identity and sequence |
+| Room Directory, Notification Decisions, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours. Notification Decisions caps restore and publication at the notification worker's full acknowledged EVT floor |
+| Notifications | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Binds snapshots to the independent `NOTIFICATIONS` stream identity and sequence |
 | Threads, Mentionables | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Threads restores channel-room identity, canonical message-to-thread mappings, and post-time interaction causes. The key-shredding request boundary invalidates pre-request snapshot contracts |
 | Room Timeline | `v7` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Restores call lifecycle and Threading Mode change rows plus active pin associations, and rebuilds Slow Mode's latest-original-post index; earlier contracts remain isolated |
 | Assets | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Restores explicit exclusive attachments while retaining first uploader-authored message-reference ownership for older histories; earlier snapshots remain independently addressable during rollout and rollback |
-| Users (profile state only) | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | The key-shredding request boundary invalidates `v2` snapshots |
+| Users (profile state only) | `v4` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | The key-shredding request boundary invalidates `v2` and `v3` snapshots |
 
 ## Registered projections
 

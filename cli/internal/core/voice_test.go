@@ -128,7 +128,6 @@ type fakeLiveKitRoomService struct {
 	participants    map[string][]string
 	metadata        map[string]string
 	participantErrs map[string]error
-	removed         []livekit.RoomParticipantIdentity
 	removeErr       error
 }
 
@@ -152,11 +151,10 @@ func (f fakeLiveKitRoomService) ListParticipants(_ context.Context, req *livekit
 	return &livekit.ListParticipantsResponse{Participants: participants}, nil
 }
 
-func (f *fakeLiveKitRoomService) RemoveParticipant(_ context.Context, req *livekit.RoomParticipantIdentity) (*livekit.RemoveParticipantResponse, error) {
+func (f *fakeLiveKitRoomService) RemoveParticipant(_ context.Context, _ *livekit.RoomParticipantIdentity) (*livekit.RemoveParticipantResponse, error) {
 	if f.removeErr != nil {
 		return nil, f.removeErr
 	}
-	f.removed = append(f.removed, *req)
 	return &livekit.RemoveParticipantResponse{}, nil
 }
 

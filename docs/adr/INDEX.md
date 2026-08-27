@@ -11,7 +11,8 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 
 Status describes whether a decision still governs the current architecture.
 Partially superseded records retain a current foundation while later ADRs
-replace part of their original design.
+replace part of their original design. Completed records describe a one-time
+rollout decision whose implementation and cleanup are finished.
 
 | # | Decision | Status | Date |
 |---|----------|--------|------|
@@ -25,7 +26,7 @@ replace part of their original design.
 | [ADR-008](ADR-008-protobuf-for-event-serialization.md) | Protobuf for Event Serialization | Accepted | 2026-03-01 |
 | [ADR-009](ADR-009-webhook-driven-voice-call-state.md) | Durable LiveKit Call State | Accepted | 2026-03-01 |
 | [ADR-010](ADR-010-svelte5-reactive-cache-whitelisting.md) | Svelte 5 Reactive Cache Whitelisting | Accepted | 2026-03-01 |
-| [ADR-011](ADR-011-message-body-event-split.md) | Message Body / Event Split | Accepted | 2026-03-01 |
+| [ADR-011](ADR-011-message-body-event-split.md) | Message Body / Event Split | Partially superseded | 2026-03-01 |
 | [ADR-012](ADR-012-two-tier-realtime-events.md) | Two-Tier Real-Time Event System | Accepted | 2026-03-01 |
 | [ADR-013](ADR-013-per-space-stream-sharding.md) | Per-Space JetStream Stream Sharding with Lazy Initialization | Superseded | 2026-03-01 |
 | [ADR-014](ADR-014-single-subscription-per-space.md) | Single GraphQL Subscription Per Space | Superseded | 2026-03-01 |
@@ -42,25 +43,25 @@ replace part of their original design.
 | [ADR-025](ADR-025-multi-instance-client-architecture.md) | Multi-Server Client Architecture | Partially superseded | 2026-03-20 |
 | [ADR-026](ADR-026-event-identity-via-nanoid.md) | Event Identity via NanoID, Not JetStream Sequence Numbers | Accepted | 2026-03-26 |
 | [ADR-027](ADR-027-instance-space-server-consolidation.md) | Consolidate Instance + Space into a Single "Server" Concept | Accepted | 2026-05-04 |
-| [ADR-028](ADR-028-event-id-keyed-read-state.md) | Event-ID-Keyed Read State | Accepted | 2026-05-06 |
+| [ADR-028](ADR-028-event-id-keyed-read-state.md) | Event-ID-Keyed Read State | Partially superseded | 2026-05-06 |
 | [ADR-029](ADR-029-instance-to-server-rename.md) | Rename `Instance` → `Server` across the codebase | Accepted | 2026-05-11 |
 | [ADR-030](ADR-030-space-tier-retirement.md) | Retire the Space tier | Accepted | 2026-05-11 |
-| [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | Accepted | 2026-05-13 |
+| [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | Partially superseded | 2026-05-13 |
 | [ADR-032](ADR-032-signed-attachment-locator-urls.md) | Self-Describing Signed Attachment URLs | Superseded | 2026-05-23 |
 | [ADR-033](ADR-033-event-sourced-state-with-projections.md) | Event-Sourced State with Derived Projections | Accepted | 2026-05-24 |
 | [ADR-034](ADR-034-single-event-stream.md) | Single Domain Event Stream with Event-Type Subject Lanes | Accepted | 2026-05-24 |
-| [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | Accepted | 2026-05-24 |
-| [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | Accepted | 2026-05-27 |
+| [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | Completed | 2026-05-24 |
+| [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | Partially superseded | 2026-05-27 |
 | [ADR-037](ADR-037-dm-access-via-membership.md) | DM Access via Membership, Not a Read Permission | Partially superseded | 2026-05-31 |
 | [ADR-038](ADR-038-room-owned-thread-state.md) | Room-Owned Thread State | Accepted | 2026-06-05 |
 | [ADR-039](ADR-039-service-worker-virtual-asset-urls.md) | Service Worker Virtual Asset URLs with Ticketed Fallback | Superseded | 2026-06-08 |
-| [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md) | Permission-Only RBAC with Owner Override | Accepted | 2026-06-15 |
+| [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md) | Permission-Only RBAC with Owner Override | Partially superseded | 2026-06-15 |
 | [ADR-041](ADR-041-runtime-units.md) | Runtime Units for Optional Chatto Processes | Accepted | 2026-06-21 |
 | [ADR-042](ADR-042-protobuf-first-public-api.md) | Protobuf-First Public API with ConnectRPC and Realtime WebSocket | Accepted | 2026-06-22 |
 | [ADR-043](ADR-043-client-shell-internationalization.md) | Client-Shell Internationalization | Superseded | 2026-06-22 |
 | [ADR-044](ADR-044-connectrpc-service-conventions.md) | ConnectRPC Service Conventions | Accepted | 2026-06-25 |
 | [ADR-045](ADR-045-public-api-stability-tiers.md) | Public API Stability Tiers | Accepted | 2026-06-28 |
-| [ADR-046](ADR-046-typed-runtime-credentials.md) | Typed Runtime Credentials | Accepted | 2026-06-30 |
+| [ADR-046](ADR-046-typed-runtime-credentials.md) | Typed Runtime Credentials | Partially superseded | 2026-06-30 |
 | [ADR-047](ADR-047-direct-ticketed-asset-urls.md) | Direct Ticketed Asset URLs for Browser Media | Accepted | 2026-07-05 |
 | [ADR-048](ADR-048-frontend-optimistic-ui.md) | Frontend Optimistic UI Uses Scoped Provisional Patches | Accepted | 2026-07-09 |
 | [ADR-049](ADR-049-process-wide-realtime-event-hub.md) | Process-Wide Realtime Event Hub | Accepted | 2026-07-14 |
@@ -93,7 +94,7 @@ replace part of their original design.
 | [ADR-076](ADR-076-deterministic-notification-occurrences.md) | Store Notification Lifecycle Facts in a Bounded Event Stream | Accepted | 2026-08-10 |
 | [ADR-077](ADR-077-persistent-notification-list.md) | Present Notifications as One Persistent Occurrence List | Accepted | 2026-08-10 |
 | [ADR-078](ADR-078-portless-native-development-stack.md) | Route the Native Development Stack with Portless | Accepted | 2026-08-21 |
-| [ADR-079](ADR-079-renewable-bearer-sessions.md) | Renewable Bearer Sessions with Rotating Refresh Credentials | Accepted | 2026-08-22 |
+| [ADR-079](ADR-079-renewable-bearer-sessions.md) | Renewable Bearer Sessions with Rotating Refresh Credentials | Partially superseded | 2026-08-22 |
 | [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Accepted | 2026-08-23 |
 | [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
 | [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Accepted | 2026-08-25 |

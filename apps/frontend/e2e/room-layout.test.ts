@@ -325,7 +325,7 @@ async function getRoomArchivedViaAPI(page: Page, roomId: string): Promise<boolea
 // ============================================================================
 
 async function navigateToSpace(page: Page): Promise<void> {
-  await page.goto(routes.space());
+  await page.goto(routes.chat);
   await expect(page.locator('.room-list')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 }
 
@@ -884,7 +884,7 @@ test.describe('Room Layout', () => {
       // User B opens the server
       await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
         // Navigate to the Overview page (where the room directory now lives)
-        await page2.goto(routes.browseRooms);
+        await page2.goto(routes.serverOverview);
         await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible();
 
         // The non-archived room should be visible in the directory (not yet
@@ -1047,7 +1047,7 @@ test.describe('Room Layout', () => {
         serverURL,
         async ({ page: page2 }) => {
           // Go to the server Overview (which hosts the room directory).
-          await page2.goto(routes.browseRooms);
+          await page2.goto(routes.serverOverview);
           await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible({
             timeout: TIMEOUTS.UI_STANDARD
           });

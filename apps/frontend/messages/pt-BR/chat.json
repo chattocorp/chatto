@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Perfil do usuário",
       "send_message": "Enviar mensagem",
+      "view_in_admin": "Ver na administração do servidor",
       "copy_user_id": "Copiar ID do usuário"
     },
     "server_gutter": {

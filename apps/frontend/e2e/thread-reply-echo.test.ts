@@ -778,7 +778,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
   });
 
-  test('deleting thread original tombstones both thread original and echo', async ({
+  test('deleting thread original removes both context-free rows', async ({
     page,
     chatPage,
     roomPage
@@ -805,27 +805,19 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       const threadReply = roomPage.getThreadMessage(replyMessage);
       replyEventId = await threadReply.getEventId();
       expect(replyEventId).not.toBeNull();
-      await page.clock.install({ time: Date.now() });
       await threadReply.delete();
     });
 
-    await test.step('Verify thread reply shows the deleted tombstone', async () => {
+    await test.step('Verify the context-free thread reply disappears', async () => {
       await expect(roomPage.threadPane.getByText(replyMessage)).not.toBeVisible();
-      await expect(
-        roomPage.threadPane.getByText('This message has been deleted').first()
-      ).toBeVisible();
+      await expect(roomPage.getMessageByEventId(replyEventId!).locator).toHaveCount(0);
     });
 
-    await test.step('Close thread and verify echo in main room also shows tombstone', async () => {
+    await test.step('Close thread and verify the context-free echo is absent', async () => {
       await roomPage.closeThread();
       await roomPage.expectThreadRouteClosed();
 
       await expect(page.getByText(replyMessage)).not.toBeVisible();
-      await expect(page.getByText('This message has been deleted').first()).toBeVisible();
-    });
-
-    await test.step('Natural expiry removes both the channel echo and thread reply', async () => {
-      await page.clock.fastForward(61 * 60 * 1000);
       await expect(page.getByText('This message has been deleted')).toHaveCount(0);
       await expect(page.getByText(rootMessage)).toBeVisible();
 

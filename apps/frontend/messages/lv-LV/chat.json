@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Lietotāja profils",
       "send_message": "Nosūtīt ziņu",
+      "view_in_admin": "Skatīt servera administrēšanā",
       "copy_user_id": "Kopēt lietotāja ID"
     },
     "server_gutter": {

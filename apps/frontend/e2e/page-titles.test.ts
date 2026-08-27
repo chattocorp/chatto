@@ -73,7 +73,7 @@ test.describe('Page titles', () => {
 
     await withServerUser(browser, serverURL, async ({ page: page2 }) => {
       // Navigate second user to Browse Rooms (accessible to all users)
-      await page2.goto(routes.browseRooms);
+      await page2.goto(routes.serverOverview);
       // The instance name is fetched asynchronously via server discovery, so wait for it
       await expect(page2).toHaveTitle('Overview | Initial Server', {
         timeout: TIMEOUTS.UI_STANDARD

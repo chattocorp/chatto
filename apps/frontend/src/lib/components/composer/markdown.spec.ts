@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { Schema } from '@tiptap/pm/model';
-import { buildQuoteContent, createClipboardContent, prepareMarkdownForEditor } from './markdown';
+import {
+  buildQuoteContent,
+  createClipboardContent,
+  isHttpMarkdownAutolink,
+  prepareMarkdownForEditor
+} from './markdown';
+
+describe('isHttpMarkdownAutolink', () => {
+  it('accepts only complete angle-bracket HTTP(S) URLs', () => {
+    expect(isHttpMarkdownAutolink('<https://example.com/story>')).toBe(true);
+    expect(isHttpMarkdownAutolink('<HTTP://example.com/story>')).toBe(true);
+    expect(isHttpMarkdownAutolink('<example.com>')).toBe(false);
+    expect(isHttpMarkdownAutolink('<https://example.com/story')).toBe(false);
+    expect(isHttpMarkdownAutolink('See <https://example.com/story>')).toBe(false);
+  });
+});
 
 describe('prepareMarkdownForEditor', () => {
   it('escapes HTML-looking prose without changing link destinations', () => {

@@ -1,6 +1,10 @@
 # Runtime Component Inventory
 
-Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go), [`apps/desktop/main.mjs`](../../apps/desktop/main.mjs), [`apps/desktop/preload.cjs`](../../apps/desktop/preload.cjs), [`apps/desktop/frontend_protocol.mjs`](../../apps/desktop/frontend_protocol.mjs), [`apps/desktop/native/macos-capture-probe`](../../apps/desktop/native/macos-capture-probe), [`apps/frontend/src/lib/desktop/nativeScreenShare.ts`](../../apps/frontend/src/lib/desktop/nativeScreenShare.ts), [`apps/frontend/src/lib/components/voice/ScreenShareControlButton.svelte`](../../apps/frontend/src/lib/components/voice/ScreenShareControlButton.svelte), [`apps/frontend/src/lib/oauth/authorizationWindow.ts`](../../apps/frontend/src/lib/oauth/authorizationWindow.ts)
+Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go),
+[`cli/internal/core/core.go`](../../cli/internal/core/core.go),
+[`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go),
+[`cli/internal/evtstream/effects.go`](../../cli/internal/evtstream/effects.go), and
+[`apps/desktop/main.mjs`](../../apps/desktop/main.mjs)
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
@@ -30,6 +34,7 @@ static SvelteKit build and intercepts the fixed secure origin
 `chatto://desktop` without opening a TCP listener; ordinary HTTP and HTTPS
 traffic remains on Chromium's normal network path. The existing standalone
 frontend owns server registration, authentication, and routing.
+
 Electron's default persistent session stores browser state in the application's
 user-data directory. Browser and desktop deployments use the same popup-based
 OAuth flow and return the same-origin callback through `BroadcastChannel`.
@@ -46,8 +51,10 @@ temporary opaque window/display sources with static JPEG previews and controls
 a publish-only native LiveKit companion. Preview bytes cross Electron as
 structured-clone data and remain in memory; captured media stays in the
 helper's native WebRTC path, so only credentials and acknowledged lifecycle
-control cross IPC during publication. Window capture includes isolated
-owning-application audio. Display capture is video-only because system audio
+control cross IPC during publication.
+
+Window capture includes isolated owning-application audio. Display capture is
+video-only because system audio
 would include remote call playback. The companion publishes an H.264 simulcast
 ladder and enables dynacast so LiveKit can select receiver-appropriate
 qualities and pause unused layers.
@@ -82,6 +89,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `evtstream.Publisher`           | [`publisher.go`](../../cli/internal/evtstream/publisher.go), [`subjects.go`](../../cli/internal/evtstream/subjects.go)                                           | Chatto adapter that owns the stable EVT subject vocabulary, validates durable `corev1.Event` values, preserves their stable IDs, and protobuf-encodes/decodes them above `EncodedEventLog` |
 | `events.ProjectionHandle` / `events.Projector` | [`projector.go`](../../pkg/events/projector.go), [`projector.go`](../../cli/internal/evtstream/projector.go)                             | Envelope-neutral typed projection ownership plus ordered replay, readiness, failure, snapshot, and checkpoint lifecycle; `evtstream` supplies Chatto's unchanged `corev1.Event` decoder and typed constructors |
 | `events.DurableWorker`         | [`durable_worker.go`](../../pkg/events/durable_worker.go)                                                                                 | Application-neutral bounded, at-least-once execution from an application-owned JetStream pull consumer; transient fetches retry, deleted consumers return control to application lifecycle, and callers own decoding, projection barriers, idempotency, retry classification, and terminal facts |
+| `evtstream` effect adapter | [`effects.go`](../../cli/internal/evtstream/effects.go) | Chatto-owned consumer creation and standard `events.DurableWorker` wiring. Effect sites retain durable names, filters, acknowledgement policy, decoding, barriers, idempotency, and retry decisions |
 | `ConfigModel`                    | [`config_model.go`](../../cli/internal/core/config_model.go), [`server_config_model.go`](../../cli/internal/core/server_config_model.go)                        | Sole core boundary for semantic server/user config reads and event writes, including `ConfigProjection` readiness                              |
 | `NotificationPolicyModel` / `NotificationOccurrenceModel` / `NotificationProjection` / `NotificationMaterializer` / `NotificationDecisionProjection` / `NotificationAlertDelivery` | [`notification_policy.go`](../../cli/internal/core/notification_policy.go), [`notification_occurrence_model.go`](../../cli/internal/core/notification_occurrence_model.go), [`notification_unread_marker.go`](../../cli/internal/core/notification_unread_marker.go), [`notification_projection.go`](../../cli/internal/core/notification_projection.go), [`notification_materializer.go`](../../cli/internal/core/notification_materializer.go), [`notification_decision_projection.go`](../../cli/internal/core/notification_decision_projection.go), [`notification_alert_delivery.go`](../../cli/internal/core/notification_alert_delivery.go), [`stream.go`](../../cli/internal/notificationstream/stream.go) | Projection-fenced field-based server/room-group/room policy for each built-in signal class; source-time Ambient/Important classification independent from delivery mode; deterministic recipient/source/signal identity; source-time rich mention causes; root channel-message delivery to exact source-time members with `message.read`; bounded concurrent Badge marker writes with one applied-revision barrier; a sequence-faithful compact decision projection; direct double-ack derivation from existing EVT facts into bounded Badge markers or `NOTIFICATIONS`; lifecycle facts and encrypted snapshots over `NOTIFICATIONS`; secure deletion of rich signals after projected removal; best-effort local-sound hints for notification modes; and direct durable push consumption from `notifications.signalled` with an immutable deadline and current policy, visibility, DND, and subscription revalidation |
 | `MessageModel`                   | [`message_model.go`](../../cli/internal/core/message_model.go), [`messages.go`](../../cli/internal/core/messages.go)                                              | Operation-level message posting and mutation API with preflight validation, Slow Mode and Threading Mode enforcement in preflight and room-OCC commit authorization, narrow authorization-fence plus room-OCC edits, room-scoped retractions, projection waits, atomic edit-driven echo reconciliation, read-marker side effects, and atomic author-created root-thread writes |
