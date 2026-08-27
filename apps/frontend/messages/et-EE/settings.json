@@ -9,6 +9,8 @@
       "account": "konto",
       "bots": "Botid",
       "user_preferences": "Kasutaja eelistused",
+      "app_preferences": "Rakenduse eelistused",
+      "your_account": "Sinu konto",
       "server_configuration": "Serveri konfiguratsioon"
     },
     "app_preferences": {

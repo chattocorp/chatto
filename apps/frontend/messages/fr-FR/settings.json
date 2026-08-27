@@ -9,6 +9,8 @@
       "account": "Compte",
       "bots": "Robots",
       "user_preferences": "Préférences utilisateur",
+      "app_preferences": "Préférences de l’application",
+      "your_account": "Votre compte",
       "server_configuration": "Configuration du serveur"
     },
     "app_preferences": {

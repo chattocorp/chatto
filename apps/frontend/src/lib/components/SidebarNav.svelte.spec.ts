@@ -26,8 +26,17 @@ describe('SidebarNav', () => {
         backHref: '/chat/test',
         groups: [
           {
-            label: 'User Preferences',
-            persistKey: 'test:sidebar-nav:user-preferences',
+            label: 'App preferences',
+            persistKey: 'test:sidebar-nav:app-preferences',
+            items: [
+              { href: '/settings/app', label: 'Appearance', icon: 'icon-appearance' },
+              { href: '/settings/language', label: 'Language', icon: 'icon-language' },
+              { href: '/settings/composer', label: 'Composer', icon: 'icon-composer' }
+            ]
+          },
+          {
+            label: 'Your account',
+            persistKey: 'test:sidebar-nav:your-account',
             items: [
               { href: '/settings', label: 'Profile', icon: 'icon-profile' },
               { href: '/settings/preferences', label: 'Time & region', icon: 'icon-time' }
@@ -42,9 +51,16 @@ describe('SidebarNav', () => {
       }
     });
 
-    expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(2);
+    const groups = container.querySelectorAll('[data-testid="room-group-section"]');
+    expect(groups).toHaveLength(3);
+    expect(groups[0]?.textContent).toContain('App preferences');
+    expect(groups[1]?.textContent).toContain('Your account');
+    expect(groups[2]?.textContent).toContain('Server Configuration');
     expect(container.querySelector('nav a[href="/manage/general"]')).not.toBeNull();
-    await expect.element(getByText('User Preferences')).toBeVisible();
+    await expect.element(getByText('App preferences')).toBeVisible();
+    await expect.element(getByText('Appearance')).toBeVisible();
+    await expect.element(getByText('Language')).toBeVisible();
+    await expect.element(getByText('Composer')).toBeVisible();
     await expect
       .element(container.querySelector<HTMLElement>('a[href="/settings/preferences"]'))
       .toHaveAttribute('aria-current', 'page');
