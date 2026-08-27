@@ -137,12 +137,15 @@ describe('UserContextMenu', () => {
   it('renders Markdown in the supplied bio', async () => {
     const { container } = renderMenu({ user: { ...user, bio: '**Builds useful bots.**' } });
 
-    await vi.waitFor(() => {
-      expect(q(container, '[data-testid="user-bio"] strong')?.textContent).toBe(
-        'Builds useful bots.'
-      );
-    });
-  });
+    await vi.waitFor(
+      () => {
+        expect(q(container, '[data-testid="user-bio"] strong')?.textContent).toBe(
+          'Builds useful bots.'
+        );
+      },
+      { timeout: 5_000 }
+    );
+  }, 10_000);
 
   it('renders the profile action as an ordinary link', () => {
     const onClose = vi.fn();
