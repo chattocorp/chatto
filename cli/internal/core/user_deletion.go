@@ -35,9 +35,19 @@ type AccountDeletionToken struct {
 
 // CreateAccountDeletionToken generates a confirmation token for account deletion.
 // The token is stored in RUNTIME_STATE and must be provided to DeleteUser within the TTL.
+// Issuance enforces the human-account check and the caller's user.delete-self
+// permission, so revoking that permission disables self-service deletion: no
+// valid confirmation token can be issued or redeemed without it.
 func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID string) (string, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return "", err
+	}
+	canDeleteSelf, err := c.CanDeleteUser(ctx, userID, userID)
+	if err != nil {
+		return "", err
+	}
+	if !canDeleteSelf {
+		return "", ErrPermissionDenied
 	}
 	token := NewAccountDeletionToken()
 	createdAt := time.Now()

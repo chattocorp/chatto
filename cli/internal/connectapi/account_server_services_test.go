@@ -289,6 +289,36 @@ func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
 	}
 }
 
+func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	// Revoking user.delete-self must disable the whole self-service flow:
+	// token issuance and redemption both refuse to act (FDR-018 kill-switch).
+	if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserDeleteSelf); err != nil {
+		t.Fatalf("DenyUserPermission user.delete-self: %v", err)
+	}
+
+	if _, err := env.account.RequestAccountDeletion(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RequestAccountDeletionRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied RequestAccountDeletion code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.account.DeleteMyAccount(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteMyAccountRequest{
+		ConfirmationToken: "irrelevant-without-permission",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied DeleteMyAccount code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserDeleteSelf); err != nil {
+		t.Fatalf("GrantUserPermission user.delete-self: %v", err)
+	}
+	tokenResp, err := env.account.RequestAccountDeletion(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RequestAccountDeletionRequest{}))
+	if err != nil {
+		t.Fatalf("RequestAccountDeletion after grant: %v", err)
+	}
+	if tokenResp.Msg.GetConfirmationToken() == "" {
+		t.Fatal("confirmation token is empty after grant")
+	}
+}
+
 func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-target", "Admin User Target", "password")
@@ -443,6 +473,11 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 	if _, err := env.adminUsers.DeleteUser(adminCtx, connect.NewRequest(&adminv1.DeleteUserRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty DeleteUser code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := env.adminUsers.DeleteUser(adminCtx, connect.NewRequest(&adminv1.DeleteUserRequest{
+		UserId: admin.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("self DeleteUser code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
