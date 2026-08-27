@@ -6,8 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && pnpm check:bundle",
+    "build": "vite build && pnpm check:bundle && pnpm check:csp",
     "check:bundle": "node scripts/check-bundle-size.mjs",
+    "check:csp": "node scripts/check-csp.mjs",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
     "check": "pnpm run check:design-system && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

@@ -18,15 +18,11 @@ describe('extractURLs', () => {
     });
 
     it('strips trailing punctuation from protocol URLs', () => {
-      expect(extractURLs('See https://example.com/path!!')).toEqual([
-        'https://example.com/path'
-      ]);
+      expect(extractURLs('See https://example.com/path!!')).toEqual(['https://example.com/path']);
     });
 
     it('strips wrapper closing parentheses but keeps balanced URL parentheses', () => {
-      expect(extractURLs('See (https://example.com/path)')).toEqual([
-        'https://example.com/path'
-      ]);
+      expect(extractURLs('See (https://example.com/path)')).toEqual(['https://example.com/path']);
       expect(extractURLs('See https://example.com/path_(v1)')).toEqual([
         'https://example.com/path_(v1)'
       ]);
@@ -122,6 +118,34 @@ describe('extractURLs', () => {
   });
 
   describe('markdown boundaries', () => {
+    it('ignores angle-bracket autolinks and continues to the next URL', () => {
+      expect(
+        extractURLs(
+          'Skip <https://suppressed.example/story> and preview https://shown.example/story'
+        )
+      ).toEqual(['https://shown.example/story']);
+      expect(extractURLs('<http://suppressed.example/story>')).toEqual([]);
+    });
+
+    it('ignores HTTP(S) links after an unmatched opening angle bracket', () => {
+      expect(
+        extractURLs(
+          'Skip <https://suppressed.example/story and preview https://shown.example/story'
+        )
+      ).toEqual(['https://shown.example/story']);
+      expect(extractURLs('<http://suppressed.example/story')).toEqual([]);
+    });
+
+    it('does not suppress escaped or bare-domain unmatched angle syntax', () => {
+      expect(extractURLs('\\<https://example.com/story')).toEqual(['https://example.com/story']);
+      expect(extractURLs('<example.com')).toEqual(['https://example.com']);
+    });
+
+    it('does not treat angle-wrapped bare domains as suppressed autolinks', () => {
+      expect(extractURLs('<example.com>')).toEqual(['https://example.com']);
+      expect(extractURLs('<www.example.com>')).toEqual(['https://www.example.com']);
+    });
+
     it('ignores URLs inside inline code', () => {
       expect(extractURLs('Run `curl https://example.com` first')).toEqual([]);
     });
@@ -168,19 +192,13 @@ describe('extractURLs', () => {
 
 describe('parseYouTubeVideoID', () => {
   it('extracts valid YouTube video IDs from supported URL forms', () => {
-    expect(parseYouTubeVideoID('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(
-      'dQw4w9WgXcQ'
-    );
+    expect(parseYouTubeVideoID('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
     expect(parseYouTubeVideoID('https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ')).toBe(
       'dQw4w9WgXcQ'
     );
-    expect(parseYouTubeVideoID('https://www.youtube.com/embed/dQw4w9WgXcQ')).toBe(
-      'dQw4w9WgXcQ'
-    );
+    expect(parseYouTubeVideoID('https://www.youtube.com/embed/dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
     expect(parseYouTubeVideoID('https://youtu.be/dQw4w9WgXcQ?t=42')).toBe('dQw4w9WgXcQ');
-    expect(parseYouTubeVideoID('https://m.youtube.com/shorts/dQw4w9WgXcQ')).toBe(
-      'dQw4w9WgXcQ'
-    );
+    expect(parseYouTubeVideoID('https://m.youtube.com/shorts/dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
   });
 
   it('rejects non-YouTube hosts and invalid video URL forms', () => {

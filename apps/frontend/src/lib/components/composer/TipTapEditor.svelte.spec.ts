@@ -164,3 +164,130 @@ describe('TipTapEditor wrapping', () => {
     expect(getComputedStyle(item, '::before').textAlign).toBe('end');
   });
 });
+
+describe('TipTapEditor Markdown autolinks', () => {
+  it('preserves a restored angle-bracket autolink after a later edit', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+
+    api.setContent('<https://example.com/?a=1&b=2>');
+    api.focus('end');
+    api.insertText(' after');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/?a=1&b=2> after'));
+  });
+
+  it('converts a typed angle-bracket URL into a preserved Markdown autolink', async () => {
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    const editor = page.getByRole('textbox', { name: 'Write a message' });
+
+    await userEvent.click(editor);
+    await userEvent.type(editor, '<https://example.com/story>');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/story>'));
+    await expect.element(editor).toHaveTextContent('https://example.com/story');
+  });
+
+  it('preserves a typed autolink when the closing angle bracket is missing', async () => {
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    const editor = page.getByRole('textbox', { name: 'Write a message' });
+
+    await userEvent.click(editor);
+    await userEvent.type(editor, '<https://example.com/unclosed');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/unclosed'));
+  });
+
+  it('preserves a restored autolink with no closing angle bracket', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+
+    api.setContent('<https://example.com/unclosed');
+    api.focus('end');
+    api.insertText(' after');
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/unclosed after'));
+    expect(container.querySelector('a')?.getAttribute('href')).toBe(
+      'https://example.com/unclosed'
+    );
+  });
+
+  it('preserves an angle-bracket URL pasted into the visual editor', async () => {
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    const editor = page.getByRole('textbox', { name: 'Write a message' }).element();
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', '<https://example.com/pasted>');
+
+    editor.dispatchEvent(
+      new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: dataTransfer
+      })
+    );
+
+    await vi.waitFor(() => expect(updates.at(-1)).toBe('<https://example.com/pasted>'));
+    expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://example.com/pasted');
+  });
+
+  it('uses a regular Markdown link after its destination changes', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const updates: string[] = [];
+    render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api),
+        onUpdate: (markdown: string) => updates.push(markdown)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+
+    api.setContent('<https://example.com/original>');
+    api.focus('end');
+    const linkInput = page.getByRole('textbox', { name: 'Link URL' });
+    await expect.element(linkInput).toBeVisible();
+    await userEvent.fill(linkInput, 'https://example.com/changed');
+    await userEvent.tab();
+
+    await vi.waitFor(() =>
+      expect(updates.at(-1)).toBe('[https://example.com/original](https://example.com/changed)')
+    );
+  });
+});

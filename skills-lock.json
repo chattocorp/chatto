@@ -6,14 +6,14 @@
       "ref": "main",
       "sourceType": "github",
       "skillPath": "tools/skills/svelte-code-writer/SKILL.md",
-      "computedHash": "c0e2cce9855f8e312cbb0a05aef164b4659c672d7723e4e598ffa6bc94890542"
+      "computedHash": "6f78193a79906175595ce8e4ca8d726da350eb99035a9544b6553620df5673a1"
     },
     "svelte-core-bestpractices": {
       "source": "sveltejs/ai-tools",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "tools/skills/svelte-core-bestpractices/SKILL.md",
-      "computedHash": "bec11e369679027edf9d4acbe6d9788f8da33dc14b48b874f231d3ba13705324"
+      "computedHash": "98b4ee346ac45e13740c9f3353b604d5c6e844c96cdc8867052fa961cbdb525d"
     }
   }
 }

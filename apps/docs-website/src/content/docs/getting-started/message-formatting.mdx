@@ -57,3 +57,14 @@ Chatto formats:
 ```
 
 Chatto displays source HTML, horizontal rules, reference-style links, and setext headings as literal text. Markdown image syntax does not embed remote images; upload an attachment instead. Label a fenced code block with a supported language, such as `js`, `go`, or `ruby`, to highlight its programming syntax while composing and after sending.
+
+## Prevent a link preview
+
+Put a complete HTTP or HTTPS URL in angle brackets to keep the link clickable without a preview attachment:
+
+```md
+<https://example.com>
+```
+
+You can use this syntax in the Markdown editor and the visual editor. If the message contains a later URL without angle brackets, Chatto can use that URL for the preview instead.
+Chatto also prevents the preview if you omit the closing angle bracket.

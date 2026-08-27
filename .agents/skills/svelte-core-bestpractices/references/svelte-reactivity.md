@@ -17,7 +17,7 @@ If `start` returns a cleanup function, it will be called when the effect is dest
 If `subscribe` is called in multiple effects, `start` will only be called once as long as the effects
 are active, and the returned teardown function will only be called when all effects are destroyed.
 
-It's best understood with an example. Here's an implementation of [`MediaQuery`](/docs/svelte/svelte-reactivity#MediaQuery):
+It's best understood with an example. Here's an implementation of [`MediaQuery`](https://svelte.dev/docs/svelte/svelte-reactivity/llms.txt#MediaQuery):
 
 ```js
 // @errors: 7031
