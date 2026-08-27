@@ -135,6 +135,55 @@
     return root.innerHTML;
   }
 
+  // Concealed spoilers are focusable reveal controls: Enter and Space activate
+  // them like buttons (Space must not scroll the timeline).
+  function handleContentKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const concealedSpoiler = (event.target as HTMLElement).closest(
+      'span.spoiler[data-spoiler]:not(.spoiler-revealed)'
+    );
+    if (!concealedSpoiler) return;
+    event.preventDefault();
+    event.stopPropagation();
+    revealSpoiler(concealedSpoiler);
+  }
+
+  function enhanceSpoilerRegions(html: string): string {
+    if (!html.includes('data-spoiler')) return html;
+
+    const doc = parseTrustedMarkdownHtml(html);
+    const spoilers = doc.body.querySelectorAll('span.spoiler[data-spoiler]');
+    for (const spoiler of spoilers) {
+      // Concealed region exposes itself as an explicit reveal control. The
+      // wrapped body is excluded from selection and assistive tech until
+      // reveal; see the .spoiler rules in prose.css.
+      spoiler.setAttribute('role', 'button');
+      spoiler.setAttribute('tabindex', '0');
+      spoiler.setAttribute('aria-label', m('room.message.spoiler.reveal'));
+
+      const body = doc.createElement('span');
+      body.className = 'spoiler-body';
+      body.setAttribute('aria-hidden', 'true');
+      while (spoiler.firstChild) body.appendChild(spoiler.firstChild);
+      spoiler.appendChild(body);
+
+      const hint = doc.createElement('span');
+      hint.className = 'spoiler-hint iconify icon-[mdi--eye-outline]';
+      hint.setAttribute('aria-hidden', 'true');
+      spoiler.appendChild(hint);
+    }
+    return doc.body.innerHTML;
+  }
+
+  function revealSpoiler(spoiler: Element | null | undefined): void {
+    if (!spoiler || spoiler.classList.contains('spoiler-revealed')) return;
+    spoiler.classList.add('spoiler-revealed');
+    spoiler.removeAttribute('role');
+    spoiler.removeAttribute('tabindex');
+    spoiler.removeAttribute('aria-label');
+    spoiler.querySelector('.spoiler-body')?.removeAttribute('aria-hidden');
+  }
+
   // Render markdown then wrap valid mentions
   async function render(
     body: string,
@@ -153,14 +202,23 @@
       timestampSettings,
       timestampLocale ?? getLocale()
     );
+    const withSpoilers = enhanceSpoilerRegions(withTimestamps);
     return edited || echoedToChannel
-      ? injectMessageStateMarkers(withTimestamps, { edited, echoedToChannel })
-      : withTimestamps;
+      ? injectMessageStateMarkers(withSpoilers, { edited, echoedToChannel })
+      : withSpoilers;
   }
 
-  // Handle clicks on links (open in system browser) and mentions (trigger callback).
+  // Handle clicks on links (open in system browser), reveals of concealed
+  // spoilers, and mentions (trigger callback).
   function handleContentClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
+
+    const concealedSpoiler = target.closest('span.spoiler[data-spoiler]:not(.spoiler-revealed)');
+    if (concealedSpoiler) {
+      event.preventDefault();
+      revealSpoiler(concealedSpoiler);
+      return;
+    }
 
     const timestamp = target.closest('.message-timestamp') as HTMLButtonElement | null;
     if (timestamp) {
@@ -208,7 +266,7 @@
   }
 </script>
 
-<div class="prose max-w-none min-w-0" dir="auto" role="presentation" onclick={handleContentClick}>
+<div class="prose max-w-none min-w-0" dir="auto" role="presentation" onclick={handleContentClick} onkeydown={handleContentKeydown}>
   {#await render(
     body,
     members,

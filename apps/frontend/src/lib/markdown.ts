@@ -3,6 +3,7 @@ import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import type StateCore from 'markdown-it/lib/rules_core/state_core.mjs';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
+import { isSpace } from 'markdown-it/lib/common/utils.mjs';
 import tlds from 'tlds';
 import { classifyMessageBodyChatLink } from '$lib/messageLinks';
 
@@ -27,6 +28,15 @@ const DISABLED_RULES = [
 ] as const;
 
 const ALPHANUMERIC = /[a-zA-Z0-9]/;
+
+/**
+ * Spoiler syntax (`||text||`) limits. Spoilers are presentation-only and never
+ * a security boundary, but adversarial bodies must not be able to create huge
+ * numbers of spoiler regions.
+ */
+const SPOILER_MARKER = 0x7c; // '|'
+const MAX_SPOILERS_PER_MESSAGE = 100;
+const spoilerCountKey = Symbol('spoilerCount');
 const MAX_TABLE_COLUMNS = 64;
 const MAX_TABLE_ROWS = 256;
 const MAX_TABLE_CELLS = 4_096;
@@ -45,16 +55,71 @@ function getBlockLine(state: StateBlock, line: number): string {
   return state.src.slice(start, state.eMarks[line]);
 }
 
-function splitEscapedTableRow(row: string): string[] {
-  const cells: string[] = [];
+/**
+ * Marks every pipe character that belongs to a paired spoiler delimiter run
+ * (`||...||`) in one line of text. Shared by the forked GFM table rule and its
+ * cell splitter so spoiler delimiters inside cells stay cell content instead
+ * of being treated as column separators.
+ *
+ * Pairing mirrors the inline tokenizer's whole-run delimiter semantics:
+ * maximal runs of two or more pipes, openers followed by non-whitespace,
+ * closers preceded by non-whitespace, nearest-opener-first matching, and no
+ * empty spans.
+ */
+function markSpoilerDelimiterPipes(text: string): boolean[] {
+  const masked = new Array<boolean>(text.length).fill(false);
+  type PipeRun = { start: number; end: number; canOpen: boolean; canClose: boolean };
+  const runs: PipeRun[] = [];
+
+  let index = 0;
+  while (index < text.length) {
+    if (text.charCodeAt(index) !== SPOILER_MARKER) { index++; continue; }
+    let end = index;
+    while (end < text.length && text.charCodeAt(end) === SPOILER_MARKER) end++;
+    if (end - index >= 2) {
+      const previous = index > 0 ? text[index - 1] : '';
+      const next = end < text.length ? text[end] : '';
+      runs.push({
+        start: index,
+        end,
+        canOpen: next !== '' && !/\s/.test(next),
+        canClose: previous !== '' && !/\s/.test(previous)
+      });
+    }
+    index = end;
+  }
+
+  const openerStack: PipeRun[] = [];
+  for (const run of runs) {
+    const top = openerStack[openerStack.length - 1];
+    if (run.canClose && top && top.end < run.start) {
+      // Accepted pair: mask every pipe of both delimiter runs.
+      for (let i = top.start; i < top.end; i++) masked[i] = true;
+      for (let i = run.start; i < run.end; i++) masked[i] = true;
+      openerStack.pop();
+    } else if (run.canOpen) {
+      openerStack.push(run);
+    }
+  }
+  return masked;
+}
+
+/**
+ * Splits one table row into cells. Same contract as markdown-it's internal
+ * `escapedSplit`, plus: pipe characters belonging to paired spoiler delimiter
+ * runs are kept verbatim as cell content rather than acting as separators.
+ */
+function splitTableRowWithSpoilers(row: string): string[] {
+  const masked = markSpoilerDelimiterPipes(row);
+  const result: string[] = [];
   let lastPosition = 0;
   let current = '';
   let escaped = false;
 
   for (let position = 0; position < row.length; position++) {
     const char = row[position];
-    if (char === '|' && !escaped) {
-      cells.push(current + row.slice(lastPosition, position));
+    if (char === '|' && !escaped && !masked[position]) {
+      result.push(current + row.slice(lastPosition, position));
       current = '';
       lastPosition = position + 1;
     } else if (char === '|' && escaped) {
@@ -64,9 +129,9 @@ function splitEscapedTableRow(row: string): string[] {
 
     escaped = char === '\\';
   }
-  cells.push(current + row.slice(lastPosition));
+  result.push(current + row.slice(lastPosition));
 
-  return cells;
+  return result;
 }
 
 function tableColumnCount(state: StateBlock, startLine: number, endLine: number): number | null {
@@ -85,7 +150,7 @@ function tableColumnCount(state: StateBlock, startLine: number, endLine: number)
   const headerLine = getBlockLine(state, startLine).trim();
   if (!headerLine.includes('|')) return null;
 
-  const headers = splitEscapedTableRow(headerLine);
+  const headers = splitTableRowWithSpoilers(headerLine);
   if (headers[0] === '') headers.shift();
   if (headers.at(-1) === '') headers.pop();
 
@@ -135,6 +200,175 @@ function boundedTableRule(tableRule: MarkdownBlockRule): MarkdownBlockRule {
     if (parsed && !silent) state.env[tableCellCountKey] = renderedCellCount + cellCount;
     return parsed;
   };
+}
+
+// Limit on empty autocompleted cells from upstream markdown-it's GFM table
+// rule; kept identical while the fork below adds spoiler-aware cell splits.
+const MAX_AUTOCOMPLETED_CELLS = 0x10000;
+
+/**
+ * Fork of markdown-it's built-in GFM table block rule.
+ *
+ * Identical to upstream except that row splitting goes through
+ * `splitTableRowWithSpoilers`, so pipes inside paired `||...||` spoiler
+ * delimiters remain part of a cell instead of acting as column separators.
+ * Must be re-checked when bumping markdown-it versions.
+ */
+function chattoTableRule(
+  state: StateBlock,
+  startLine: number,
+  endLine: number,
+  silent: boolean
+): boolean {
+  if (startLine + 2 > endLine) return false;
+
+  let nextLine = startLine + 1;
+  if (state.sCount[nextLine] < state.blkIndent) return false;
+  if (state.sCount[nextLine] - state.blkIndent >= 4) return false;
+
+  let pos = state.bMarks[nextLine] + state.tShift[nextLine];
+  if (pos >= state.eMarks[nextLine]) return false;
+
+  const firstCh = state.src.charCodeAt(pos++);
+  if (firstCh !== 0x7c/* | */ && firstCh !== 0x2d/* - */ && firstCh !== 0x3a/* : */) return false;
+  if (pos >= state.eMarks[nextLine]) return false;
+
+  const secondCh = state.src.charCodeAt(pos++);
+  if (
+    secondCh !== 0x7c/* | */ &&
+    secondCh !== 0x2d/* - */ &&
+    secondCh !== 0x3a/* : */ &&
+    !isSpace(secondCh)
+  ) {
+    return false;
+  }
+  if (firstCh === 0x2d/* - */ && isSpace(secondCh)) return false;
+
+  while (pos < state.eMarks[nextLine]) {
+    const ch = state.src.charCodeAt(pos);
+    if (ch !== 0x7c/* | */ && ch !== 0x2d/* - */ && ch !== 0x3a/* : */ && !isSpace(ch)) return false;
+    pos++;
+  }
+
+  let lineText = getBlockLine(state, startLine + 1);
+  let columns = lineText.split('|');
+  const aligns: string[] = [];
+  for (let i = 0; i < columns.length; i++) {
+    const t = columns[i].trim();
+    if (!t) {
+      // allow empty columns before and after table, but not in between columns
+      if (i === 0 || i === columns.length - 1) continue;
+      return false;
+    }
+    if (!/^:?-+:?$/.test(t)) return false;
+    if (t.charCodeAt(t.length - 1) === 0x3a/* : */) {
+      aligns.push(t.charCodeAt(0) === 0x3a/* : */ ? 'center' : 'right');
+    } else if (t.charCodeAt(0) === 0x3a/* : */) {
+      aligns.push('left');
+    } else {
+      aligns.push('');
+    }
+  }
+
+  lineText = getBlockLine(state, startLine).trim();
+  if (!lineText.includes('|')) return false;
+  if (state.sCount[startLine] - state.blkIndent >= 4) return false;
+  columns = splitTableRowWithSpoilers(lineText);
+  if (columns.length && columns[0] === '') columns.shift();
+  if (columns.length && columns[columns.length - 1] === '') columns.pop();
+
+  const columnCount = columns.length;
+  if (columnCount === 0 || columnCount !== aligns.length) return false;
+
+  if (silent) return true;
+
+  const oldParentType = state.parentType;
+  state.parentType = 'table';
+
+  const terminatorRules = state.md.block.ruler.getRules('blockquote');
+
+  const tokenTo = state.push('table_open', 'table', 1);
+  const tableLines = [startLine, 0];
+  tokenTo.map = tableLines;
+
+  const tokenTho = state.push('thead_open', 'thead', 1);
+  tokenTho.map = [startLine, startLine + 1];
+
+  const tokenHtro = state.push('tr_open', 'tr', 1);
+  tokenHtro.map = [startLine, startLine + 1];
+
+  for (let i = 0; i < columns.length; i++) {
+    const tokenHo = state.push('th_open', 'th', 1);
+    if (aligns[i]) tokenHo.attrs = [['style', 'text-align:' + aligns[i]]];
+
+    const tokenIl = state.push('inline', '', 0);
+    tokenIl.content = columns[i].trim();
+    tokenIl.children = [];
+
+    state.push('th_close', 'th', -1);
+  }
+
+  state.push('tr_close', 'tr', -1);
+  state.push('thead_close', 'thead', -1);
+
+  let tbodyLines: [number, number] | undefined;
+  let autocompletedCells = 0;
+
+  for (nextLine = startLine + 2; nextLine < endLine; nextLine++) {
+    if (state.sCount[nextLine] < state.blkIndent) break;
+
+    let terminate = false;
+    for (let i = 0; i < terminatorRules.length; i++) {
+      if (terminatorRules[i](state, nextLine, endLine, true)) {
+        terminate = true;
+        break;
+      }
+    }
+    if (terminate) break;
+
+    lineText = getBlockLine(state, nextLine).trim();
+    if (!lineText) break;
+    if (state.sCount[nextLine] - state.blkIndent >= 4) break;
+
+    columns = splitTableRowWithSpoilers(lineText);
+    if (columns.length && columns[0] === '') columns.shift();
+    if (columns.length && columns[columns.length - 1] === '') columns.pop();
+
+    autocompletedCells += columnCount - columns.length;
+    if (autocompletedCells > MAX_AUTOCOMPLETED_CELLS) break;
+
+    if (nextLine === startLine + 2) {
+      const tokenTbo = state.push('tbody_open', 'tbody', 1);
+      tokenTbo.map = tbodyLines = [startLine + 2, 0];
+    }
+
+    const tokenTro = state.push('tr_open', 'tr', 1);
+    tokenTro.map = [nextLine, nextLine + 1];
+
+    for (let i = 0; i < columnCount; i++) {
+      const tokenTd = state.push('td_open', 'td', 1);
+      if (aligns[i]) tokenTd.attrs = [['style', 'text-align:' + aligns[i]]];
+
+      const tokenIl = state.push('inline', '', 0);
+      tokenIl.content = columns[i] ? columns[i].trim() : '';
+      tokenIl.children = [];
+
+      state.push('td_close', 'td', -1);
+    }
+    state.push('tr_close', 'tr', -1);
+  }
+
+  if (tbodyLines) {
+    state.push('tbody_close', 'tbody', -1);
+    tbodyLines[1] = nextLine;
+  }
+
+  state.push('table_close', 'table', -1);
+  tableLines[1] = nextLine;
+
+  state.parentType = oldParentType;
+  state.line = nextLine;
+  return true;
 }
 
 /**
@@ -199,6 +433,203 @@ function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
   }
 
   return false;
+}
+
+/**
+ * Copy of markdown-it's default inline text rule with one change: `|`
+ * (0x7c) terminates plain-text runs so the spoiler tokenizer can claim pipe
+ * runs. Without this, the default rule swallows whole runs of pipes before
+ * any extension rule can see them.
+ */
+function isTextTerminator(ch: number): boolean {
+  switch (ch) {
+    case 0x0a/* \n */:
+    case 0x21/* ! */:
+    case 0x23/* # */:
+    case 0x24/* $ */:
+    case 0x25/* % */:
+    case 0x26/* & */:
+    case 0x2a/* * */:
+    case 0x2b/* + */:
+    case 0x2d/* - */:
+    case 0x3a/* : */:
+    case 0x3c/* < */:
+    case 0x3d/* = */:
+    case 0x3e/* > */:
+    case 0x40/* @ */:
+    case 0x5b/* [ */:
+    case 0x5c/* \ */:
+    case 0x5d/* ] */:
+    case 0x5e/* ^ */:
+    case 0x5f/* _ */:
+    case 0x60/* ` */:
+    case 0x7b/* { */:
+    case 0x7c/* | */:
+    case 0x7d/* } */:
+    case 0x7e/* ~ */:
+      return true;
+    default:
+      return false;
+  }
+}
+
+function chattoText(state: StateInline, silent: boolean): boolean {
+  let pos = state.pos;
+
+  while (pos < state.posMax && !isTextTerminator(state.src.charCodeAt(pos))) {
+    pos++;
+  }
+
+  if (pos === state.pos) return false;
+
+  if (!silent) state.pending += state.src.slice(state.pos, pos);
+
+  state.pos = pos;
+
+  return true;
+}
+
+/**
+ * Inline rule that consumes maximal runs of `|` characters. Each run of two or
+ * more pipes registers one candidate spoiler delimiter in `state.delimiters`
+ * (carrying absolute source offsets alongside the standard fields); single
+ * pipes stay literal text. The resolution pass below validates and converts
+ * paired runs once `balance_pairs` has linked them up.
+ *
+ * Delimiter rules, per FDR-032:
+ * - an opener's run must be followed by a non-whitespace character;
+ * - a closer's run must be preceded by a non-whitespace character;
+ * - empty and unmatched runs stay literal.
+ */
+function spoilerTokenizer(state: StateInline, silent: boolean): boolean {
+  const start = state.pos;
+  if (state.src.charCodeAt(start) !== SPOILER_MARKER) return false;
+  let end = start;
+  while (end < state.posMax && state.src.charCodeAt(end) === SPOILER_MARKER) end++;
+  const runLength = end - start;
+
+  const previous = start > 0 ? state.src[start - 1] : '';
+  const next = end < state.posMax ? state.src[end] : '';
+  const spaceBefore = previous === '' || /\s/.test(previous);
+  const spaceAfter = next === '' || /\s/.test(next);
+
+  if (!silent) {
+    // One token per whole run: the resolver converts these into
+    // spoiler_open/spoiler_close pairs (or leaves them literal).
+    state.push('text', '', 0).content = state.src.slice(start, end);
+    if (runLength >= 2) {
+      state.delimiters.push({
+        marker: SPOILER_MARKER,
+        // Disables the emphasis "rule of 3" length checks in balance_pairs.
+        length: 0,
+        token: state.tokens.length - 1,
+        end: -1,
+        open: !spaceAfter,
+        close: !spaceBefore,
+        spoilerSrcStart: start,
+        spoilerSrcEnd: end
+      } as any);
+    }
+  }
+
+  state.pos = end;
+  return true;
+}
+
+/**
+ * Resolution pass for spoiler delimiters, mirroring the emphasis/strikethrough
+ * post-processing contract. `balance_pairs` has already paired up same-marker
+ * delimiters nearest-opener-first and recorded the partner index in
+ * `delimiters[i].end`; this pass validates each pipe pair against FDR-032
+ * semantics and converts accepted pairs into spoiler_open/spoiler_close
+ * tokens so enclosed inline Markdown keeps rendering normally.
+ *
+ * A pair is rejected (both markers revert to literal text) when its content
+ * is empty, when it would nest one spoiler inside another one, or when the
+ * message already hit the spoiler limit. Spans are validated innermost-first,
+ * so in `||a ||b|| c||` only `b` stays spoiled; rejected outer markers stay
+ * literal.
+ *
+ * Crossing paragraph/block boundaries is impossible by construction because
+ * every inline chunk carries its own delimiter set.
+ */
+type SpoilerDelimiter = {
+  open: boolean;
+  close: boolean;
+  end: number;
+  token: number;
+  spoilerSrcStart: number;
+  spoilerSrcEnd: number;
+};
+
+function resolveSpoilerDelimiters(
+  state: StateInline,
+  delimiters: SpoilerDelimiter[]
+): void {
+  const candidatePairs: Array<[SpoilerDelimiter, SpoilerDelimiter]> = [];
+  for (const delimiter of delimiters) {
+    if (delimiter.marker !== SPOILER_MARKER) continue;
+    if (typeof delimiter.spoilerSrcStart !== 'number') continue;
+    // balance_pairs marks a matched OPENER by setting its `end` to the
+    // closer's index in this array.
+    if (delimiter.end < 0) continue;
+    const closer = delimiters[delimiter.end];
+    if (closer?.marker === SPOILER_MARKER) candidatePairs.push([delimiter, closer]);
+    delimiter.end = -1; // consume, in case resolve runs again for this array
+  }
+  if (candidatePairs.length === 0) return;
+
+  // Innermost pairs first: shorter spans sorted before ones they could contain.
+  candidatePairs.sort(
+    ([openA, closeA], [openB, closeB]) =>
+      closeA.spoilerSrcStart - openA.spoilerSrcStart -
+      (closeB.spoilerSrcStart - openB.spoilerSrcStart)
+  );
+
+  const acceptedSpans: Array<[number, number]> = [];
+  let converted = 0;
+  const previousSpoilers = (state.env[spoilerCountKey] as number | undefined) ?? 0;
+
+  for (const [opener, closer] of candidatePairs) {
+    if (closer.spoilerSrcStart <= opener.spoilerSrcEnd) continue; // empty or overlapping content
+    const spanStart = opener.spoilerSrcStart;
+    const spanEnd = closer.spoilerSrcEnd;
+    // Forbid nesting: a previously accepted spoiler must not lie inside.
+    if (acceptedSpans.some(([start, end]) => spanStart <= start && end <= spanEnd)) continue;
+    if (previousSpoilers + converted >= MAX_SPOILERS_PER_MESSAGE) break;
+
+    acceptedSpans.push([spanStart, spanEnd]);
+    converted++;
+
+    const openToken = state.tokens[opener.token];
+    const closeToken = state.tokens[closer.token];
+    openToken.type = 'spoiler_open';
+    openToken.tag = 'span';
+    openToken.content = '';
+    openToken.markup = '||';
+    openToken.nesting = 1;
+    closeToken.type = 'spoiler_close';
+    closeToken.tag = 'span';
+    closeToken.content = '';
+    closeToken.markup = '||';
+    closeToken.nesting = -1;
+  }
+
+  if (converted > 0) {
+    state.env[spoilerCountKey] = previousSpoilers + converted;
+  }
+}
+
+function spoilerResolve(state: StateInline): void {
+  resolveSpoilerDelimiters(state, state.delimiters as SpoilerDelimiter[]);
+  const metas = (state as StateInline & { tokens_meta?: Array<{ delimiters?: any } | null> }).tokens_meta;
+  if (metas) {
+    for (const meta of metas) {
+      if (meta?.delimiters) {
+        resolveSpoilerDelimiters(state, meta.delimiters as SpoilerDelimiter[]);
+      }
+    }
+  }
 }
 
 let md: MarkdownIt | null = null;
@@ -428,15 +859,7 @@ function initialize(): void {
   // (.dev, .app, .io, etc.) are auto-linked
   md.linkify.tlds(tlds);
 
-  // markdown-it pads short table rows to the header width. Without a guard, a
-  // tiny table source can therefore expand into hundreds of thousands of DOM
-  // nodes. Resolve the built-in rule through the public ruler API, then bound
-  // it before token allocation while preserving its normal parsing behavior.
-  const tableRules = new MarkdownIt().block.ruler;
-  tableRules.enableOnly(['table']);
-  const tableRule = tableRules.getRules('')[0] as MarkdownBlockRule | undefined;
-  if (!tableRule) throw new Error('markdown-it table rule is unavailable');
-  md.block.ruler.at('table', boundedTableRule(tableRule), {
+  md.block.ruler.at('table', boundedTableRule(chattoTableRule), {
     alt: ['paragraph', 'reference']
   });
 
@@ -449,6 +872,12 @@ function initialize(): void {
   // as italics. Inserted before the `emphasis` rule so non-boundary marker
   // runs are consumed as literal text.
   md.inline.ruler.before('emphasis', 'word_boundary_emphasis', wordBoundaryEmphasis);
+
+  md.inline.ruler.at('text', chattoText);
+  md.inline.ruler.before('backticks', 'chatto_spoiler', spoilerTokenizer);
+
+  // Pair up spoiler delimiter runs after other inline constructs balanced.
+  md.inline.ruler2.after('balance_pairs', 'chatto_spoiler_resolve', spoilerResolve);
 
   // CommonMark decodes entities in prose but leaves them literal in code. Turn
   // decoded NBSPs into collapsible spaces only in ordinary inline text so long
@@ -498,6 +927,9 @@ function initialize(): void {
 
     return defaultLinkRender(tokens, idx, options, env, self);
   };
+
+  md.renderer.rules.spoiler_open = () => '<span class="spoiler" data-spoiler>';
+  md.renderer.rules.spoiler_close = () => '</span>';
 }
 
 /**
