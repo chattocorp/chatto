@@ -8,26 +8,17 @@ import {
 import { UserService } from '@chatto/api-types/api/v1/member_directory_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { presenceStatusOrOffline } from './enumDefaults.js';
-
+import {
+  mapUserPresenceView,
+  mapUserSummary,
+  type UserPresenceView,
+  type UserSummary
+} from './userSummary.js';
 export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js';
 
 export type MemberDirectoryAPIConfig = ConnectAPIConfig;
 
-export type DirectoryMember = {
-  id: string;
-  login: string;
-  displayName: string;
-  deleted: boolean;
-  isBot?: boolean;
-  avatarUrl: string | null;
-  presenceStatus: PresenceStatus;
-  customStatus: {
-    emoji: string;
-    text: string;
-    expiresAt: string | null;
-  } | null;
+export type DirectoryMember = UserSummary & UserPresenceView & {
   roles: string[];
   createdAt: string | null;
 };
@@ -153,21 +144,15 @@ export type MemberDirectoryAPI = ReturnType<typeof createMemberDirectoryAPI>;
 
 export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember {
   const user = member.user;
+  // The directory contract renders a blank, offline member when the response
+  // omits the user instead of dropping the row, and never leaves `isBot`
+  // unset.
+  const summary: UserSummary = user
+    ? { ...mapUserSummary(user), isBot: user.isBot ?? false }
+    : { id: '', login: '', displayName: '', deleted: false, isBot: false, avatarUrl: null };
   return {
-    id: user?.id ?? '',
-    login: user?.login ?? '',
-    displayName: user?.displayName ?? '',
-    deleted: user?.deleted ?? false,
-    isBot: user?.isBot ?? false,
-    avatarUrl: user?.avatarUrl ?? null,
-    presenceStatus: presenceStatusOrOffline(user?.presenceStatus ?? PresenceStatus.UNSPECIFIED),
-    customStatus: user?.customStatus
-      ? {
-          emoji: user.customStatus.emoji,
-          text: user.customStatus.text,
-          expiresAt: user.customStatus.expiresAt?.toDate().toISOString() ?? null
-        }
-      : null,
+    ...summary,
+    ...mapUserPresenceView(user),
     roles: [...member.roles],
     createdAt: member.createdAt?.toDate().toISOString() ?? null
   };

@@ -1,4 +1,4 @@
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Empty } from '@bufbuild/protobuf';
 import { authHeaders, createChattoClient } from './connect.js';
 import {
@@ -19,25 +19,20 @@ import {
   NotificationDeliveryMode
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
-import { presenceStatusOrOffline } from './enumDefaults.js';
+import { mapUserPresenceView, mapUserSummary, type UserSummary } from './userSummary.js';
 export type NotificationAPIConfig = {
   baseUrl: string;
   bearerToken: string | null;
   onAuthenticationRequired?: (serverId: string) => void;
 };
 
-export type NotificationActor = {
-  id: string;
-  login: string;
-  displayName: string;
-  deleted: boolean;
-  isBot?: boolean;
-  avatarUrl?: string | null;
+/** The acting user behind one notification occurrence. */
+export type NotificationActor = UserSummary & {
   presenceStatus: PresenceStatus;
   customStatus?: {
     emoji: string;
     text: string;
-    expiresAt?: string | null;
+    expiresAt: string | null;
   } | null;
 };
 
@@ -584,19 +579,7 @@ function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem
 function notificationActor(actor: APIUser | undefined): NotificationActor | null {
   if (!actor) return null;
   return {
-    id: actor.id,
-    login: actor.login,
-    displayName: actor.displayName,
-    deleted: actor.deleted,
-    isBot: actor.isBot,
-    avatarUrl: actor.avatarUrl ?? null,
-    presenceStatus: presenceStatusOrOffline(actor.presenceStatus),
-    customStatus: actor.customStatus
-      ? {
-          emoji: actor.customStatus.emoji,
-          text: actor.customStatus.text,
-          expiresAt: actor.customStatus.expiresAt?.toDate().toISOString() ?? null
-        }
-      : null
+    ...mapUserSummary(actor),
+    ...mapUserPresenceView(actor)
   };
 }
