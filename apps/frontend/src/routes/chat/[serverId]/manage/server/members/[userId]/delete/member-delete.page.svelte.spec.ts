@@ -1,0 +1,226 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushSync } from 'svelte';
+import { render } from 'vitest-browser-svelte';
+import type {
+  AdminMember,
+  AdminMemberDetails,
+  AdminUserManagementAPI
+} from '$lib/api-client/adminUsers';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { adminQueryKeys } from '$lib/query/admin';
+import { queryClient } from '$lib/query/client';
+import {
+  memberDetailPageTestState,
+  memberDetailTestPage
+} from '../MemberDetailPageTestState.svelte';
+
+const mocks = vi.hoisted(() => ({
+  getMember: vi.fn(),
+  deleteUser: vi.fn(),
+  toastSuccess: vi.fn(),
+  goto: vi.fn()
+}));
+
+vi.mock('$app/state', () => ({ page: memberDetailTestPage }));
+
+vi.mock('$app/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$app/navigation')>()),
+  goto: mocks.goto
+}));
+
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    get serverId() {
+      return memberDetailPageTestState.serverId;
+    },
+    get connection() {
+      return {
+        queryScope: memberDetailPageTestState.sessionId,
+        getAPI: () =>
+          ({
+            getMember: mocks.getMember,
+            deleteUser: mocks.deleteUser
+          }) as unknown as AdminUserManagementAPI
+      };
+    },
+    get store() {
+      return {
+        currentUser: { user: { id: memberDetailPageTestState.viewerId, settings: null } },
+        permissions: {
+          canAdminViewUsers: true,
+          canAdminManageAccounts: true
+        }
+      };
+    },
+    isCurrent: () => true
+  })
+}));
+
+vi.mock('$lib/ui/toast', () => ({
+  toast: { success: mocks.toastSuccess, error: vi.fn() }
+}));
+
+import DeletePage from './+page.svelte';
+
+function member(id: string, overrides: Partial<AdminMember> = {}): AdminMember {
+  return {
+    id,
+    login: id,
+    displayName: id.toUpperCase(),
+    avatarUrl: null,
+    roles: ['everyone'],
+    createdAt: '2026-01-01T12:00:00Z',
+    deleted: false,
+    hasVerifiedEmail: false,
+    verifiedEmails: [],
+    viewerCanDeleteAccount: true,
+    lastLoginChange: null,
+    ...overrides
+  };
+}
+
+function details(value: AdminMember): AdminMemberDetails {
+  return {
+    member: value,
+    roles: [],
+    availablePermissions: [],
+    viewerCanAssignRoles: false,
+    viewerCanManageRoles: false,
+    viewerCanManageUserPermissions: false,
+    assignableRoleNames: null,
+    revocableRoleNames: null
+  };
+}
+
+async function settle(): Promise<void> {
+  await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  flushSync();
+}
+
+describe('server member delete page', () => {
+  beforeEach(async () => {
+    queryClient.clear();
+    vi.clearAllMocks();
+    memberDetailPageTestState.reset();
+    mocks.getMember.mockImplementation((userId: string) => Promise.resolve(details(member(userId))));
+    mocks.deleteUser.mockResolvedValue(true);
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
+  });
+
+  function renderPage() {
+    return render(DeletePage);
+  }
+
+  it('blocks deleting the viewer account through this page', async () => {
+    memberDetailPageTestState.userId = 'viewer';
+    memberDetailPageTestState.viewerId = 'viewer';
+    const rendered = renderPage();
+    await settle();
+
+    expect(rendered.container.textContent).toContain('You cannot delete this account.');
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('blocks deletion when the viewer cannot delete the account', async () => {
+    mocks.getMember.mockResolvedValueOnce(
+      details(member('alice', { viewerCanDeleteAccount: false }))
+    );
+    const rendered = renderPage();
+    await settle();
+
+    expect(rendered.container.textContent).toContain('You cannot delete this account.');
+    expect(rendered.container.querySelector('#member-delete-confirm')).toBeNull();
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('keeps the submit button disabled until the login matches', async () => {
+    const rendered = renderPage();
+    await settle();
+
+    const form = rendered.container.querySelector('form') as HTMLFormElement;
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'ali';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...form.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(submit.disabled).toBe(false);
+  });
+
+  it('deletes the member and returns to the members list', async () => {
+    const rendered = renderPage();
+    await settle();
+
+    const membersKey = adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice');
+    queryClient.setQueryData(membersKey, details(member('alice')));
+
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const password = rendered.container.querySelector(
+      '#member-delete-password'
+    ) as HTMLInputElement;
+    password.value = 'hunter2';
+    password.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    submit.click();
+    await settle();
+
+    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice', currentPassword: 'hunter2' });
+    expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+    expect(queryClient.getQueryData(membersKey)).toBeUndefined();
+    expect(mocks.goto).toHaveBeenCalledOnce();
+  });
+
+  it('omits the password field when left empty', async () => {
+    const rendered = renderPage();
+    await settle();
+
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    submit.click();
+    await settle();
+
+    expect(mocks.deleteUser).toHaveBeenCalledWith({ userId: 'alice' });
+  });
+
+  it('shows a failure without navigating away', async () => {
+    mocks.deleteUser.mockRejectedValueOnce(new Error('permission denied'));
+    const rendered = renderPage();
+    await settle();
+
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    submit.click();
+    await settle();
+
+    expect(rendered.container.textContent).toContain('permission denied');
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+});

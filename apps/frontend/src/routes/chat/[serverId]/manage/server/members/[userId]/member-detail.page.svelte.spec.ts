@@ -276,6 +276,19 @@ describe('server member detail queries', () => {
     expect(mocks.getMember).toHaveBeenCalledOnce();
   });
 
+  it('offers account deletion only to authorised viewers of other human members', async () => {
+    const rendered = render(MemberDetailPage);
+    await settle();
+    expect(rendered.container.textContent).toContain('Danger Zone');
+    expect(rendered.container.textContent).toContain('Delete Account');
+
+    mocks.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
+    memberDetailPageTestState.userId = 'helper_bot';
+    flushSync();
+    await settle();
+    expect(rendered.container.textContent).not.toContain('Danger Zone');
+  });
+
   it('updates identity and related cached member details', async () => {
     const rendered = render(MemberDetailPage);
     await settle();

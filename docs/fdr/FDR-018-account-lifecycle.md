@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -28,6 +28,7 @@ This FDR covers human accounts from registration through deletion: signup, email
 ### Account deletion
 
 - A human user requests their own deletion via Account Settings.
+- An administrator with `user.delete-any` can delete another human member from the member detail page in Server Administration. The entry point links to a full-page confirmation that states what will happen to the account, requires the administrator to type the member's login, and may require the administrator's current password when the session needs a fresh credential check. Administrators cannot use this page on their own account or on bot accounts; self-deletion stays in Account Settings, and bots follow FDR-038.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
