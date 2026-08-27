@@ -26,11 +26,19 @@ const (
 
 func testNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID string) []*corev1.NotificationOccurrence {
 	t.Helper()
+	waitForNotificationMaterializer(t, chattoCore)
 	items, err := chattoCore.NotificationOccurrences().List(testContext(t), userID)
 	if err != nil {
 		t.Fatalf("List notification occurrences: %v", err)
 	}
 	return items
+}
+
+func waitForNotificationMaterializer(t *testing.T, chattoCore *ChattoCore) {
+	t.Helper()
+	if err := chattoCore.notificationMaterializer.WaitCurrent(testContext(t)); err != nil {
+		t.Fatalf("wait for notification materializer: %v", err)
+	}
 }
 
 func testOccurrenceHasKind(occurrence *corev1.NotificationOccurrence, kind notificationTestSignalKind) bool {

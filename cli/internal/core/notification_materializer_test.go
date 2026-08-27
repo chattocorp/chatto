@@ -9,6 +9,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
@@ -252,8 +253,17 @@ func TestBadgeMarkerRejectsAnOlderReplicaWrite(t *testing.T) {
 }
 
 func TestBadgeMaterializationPipelinesHighFanoutMarkers(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
+	chattoCore, nc := setupTestCore(t)
 	ctx := testContext(t)
+	invalidationSub, err := nc.SubscribeSync("live.sync.user.*.notification_unread")
+	if err != nil {
+		t.Fatalf("subscribe to Badge invalidations: %v", err)
+	}
+	defer invalidationSub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("flush Badge invalidation subscription: %v", err)
+	}
+
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-fanout-author", "Badge Fanout Author", "password")
 	if err != nil {
 		t.Fatal(err)
@@ -288,12 +298,24 @@ func TestBadgeMaterializationPipelinesHighFanoutMarkers(t *testing.T) {
 	if err := chattoCore.notificationMaterializer.materializeInputs(ctx, inputs, entry.StreamSeq); err != nil {
 		t.Fatalf("materialize high-fanout Badge markers: %v", err)
 	}
+	invalidationsBySubject := make(map[string]int, len(inputs))
+	for range inputs {
+		message, err := invalidationSub.NextMsg(time.Second)
+		if err != nil {
+			t.Fatalf("receive high-fanout Badge invalidation: %v", err)
+		}
+		invalidationsBySubject[message.Subject]++
+	}
 	for _, input := range inputs {
 		marker, _, exists, err := chattoCore.notificationBoundaries.unreadMarker(ctx, notificationReadBoundaryScope{
 			userID: input.RecipientID, roomID: room.Id,
 		})
 		if err != nil || !exists || marker.GetSourceEventId() != posted.Id {
 			t.Fatalf("marker for %s = (%+v, %v, %v), want source %s", input.RecipientID, marker, exists, err, posted.Id)
+		}
+		invalidationSubject := subjects.LiveSyncUserEvent(input.RecipientID, "notification_unread")
+		if invalidationsBySubject[invalidationSubject] != 1 {
+			t.Fatalf("Badge invalidations for %s = %d, want 1", input.RecipientID, invalidationsBySubject[invalidationSubject])
 		}
 	}
 }

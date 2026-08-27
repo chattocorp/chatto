@@ -195,15 +195,37 @@ func (m *NotificationOccurrenceModel) purgeNotificationUnreadMarkers(ctx context
 // NotifyNotificationUnreadChanged publishes a content-free, user-scoped
 // invalidation after authoritative Badge state changes.
 func (c *ChattoCore) NotifyNotificationUnreadChanged(ctx context.Context, userID, actorID, roomID, threadRootEventID string) {
-	event := newLiveEvent(actorID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_NotificationUnreadChanged{
-			NotificationUnreadChanged: &corev1.NotificationUnreadChangedEvent{
-				RoomId: roomID, ThreadRootEventId: threadRootEventID,
-			},
-		},
-	})
-	if err := c.publishLiveEvent(ctx, subjects.LiveSyncUserEvent(userID, "notification_unread"), event); err != nil {
-		c.logger.Warn("Failed to publish notification unread invalidation", "user_id", userID, "room_id", roomID, "error", err)
+	c.publishNotificationUnreadInvalidations(ctx, []notificationUnreadInvalidation{{
+		userID: userID, actorID: actorID, roomID: roomID, threadRootEventID: threadRootEventID,
+	}})
+}
+
+type notificationUnreadInvalidation struct {
+	userID            string
+	actorID           string
+	roomID            string
+	threadRootEventID string
+}
+
+// publishNotificationUnreadInvalidations publishes one related Badge fanout
+// with one final NATS flush. The invalidations are best-effort convergence
+// hints; the unread markers remain authoritative across a lost publication.
+func (c *ChattoCore) publishNotificationUnreadInvalidations(ctx context.Context, invalidations []notificationUnreadInvalidation) {
+	publications := make([]liveEventPublication, 0, len(invalidations))
+	for _, invalidation := range invalidations {
+		publications = append(publications, liveEventPublication{
+			subject: subjects.LiveSyncUserEvent(invalidation.userID, "notification_unread"),
+			event: newLiveEvent(invalidation.actorID, &corev1.LiveEvent{
+				Event: &corev1.LiveEvent_NotificationUnreadChanged{
+					NotificationUnreadChanged: &corev1.NotificationUnreadChangedEvent{
+						RoomId: invalidation.roomID, ThreadRootEventId: invalidation.threadRootEventID,
+					},
+				},
+			}),
+		})
+	}
+	if err := c.publishLiveEvents(ctx, publications); err != nil {
+		c.logger.Warn("Failed to publish notification unread invalidations", "count", len(publications), "error", err)
 	}
 }
 

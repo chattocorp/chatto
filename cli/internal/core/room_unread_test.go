@@ -247,6 +247,7 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User2 should have unread (hasn't read the room yet)
 	hasUnread, err := core.HasUnread(ctx, KindChannel, user2.Id, room.Id)
@@ -372,6 +373,7 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User1 should have unread (someone else posted)
 	hasUnread, err := core.HasUnread(ctx, KindChannel, user1.Id, room.Id)
@@ -411,6 +413,7 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post second message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User1 should have unread again (user2 posted new message)
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user1.Id, room.Id)
@@ -469,6 +472,7 @@ func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post to room1: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// Room1 should have unread for user1 (user2 posted)
 	hasUnread, err := core.HasUnread(ctx, KindChannel, user1.Id, room1.Id)
@@ -524,6 +528,7 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message 2: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// Now user2 joins (after messages already exist)
 	core.JoinRoom(ctx, user2.Id, KindChannel, user2.Id, room.Id)
@@ -543,6 +548,7 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post new message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user2.Id, room.Id)
 	if err != nil {
@@ -641,6 +647,7 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post root message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User2 reads the room (marks as read up to root message)
 	lastID, _, _, err := core.GetRoomLastEvent(ctx, KindChannel, room.Id)
@@ -665,6 +672,7 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post thread reply: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User2 should still NOT have unread — thread replies don't affect room-level unread
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user2.Id, room.Id)
@@ -680,6 +688,7 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post second root message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user2.Id, room.Id)
 	if err != nil {

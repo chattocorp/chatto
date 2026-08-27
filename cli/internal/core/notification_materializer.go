@@ -28,10 +28,8 @@ const (
 	notificationWorkerRetryDelay   = 10 * time.Second
 	notificationWorkerAckTimeout   = 5 * time.Second
 	// Badge writes use distinct per-user keys. Bounded pipelining prevents a
-	// large room post from serializing one broker round trip per recipient. The
-	// limit keeps 2,048-member fanout inside the realtime delivery budget on
-	// slower runners without allowing an unbounded broker burst.
-	notificationUnreadMarkerWriteConcurrency = 128
+	// large room post from serializing one broker round trip per recipient.
+	notificationUnreadMarkerWriteConcurrency = 32
 	// Notification lifecycle is causal: one shared in-flight delivery keeps a
 	// later leave/retraction/removal behind the source it supersedes, including
 	// when several Chatto replicas share the consumer.
@@ -770,15 +768,18 @@ func (m *NotificationMaterializer) materializeInputs(ctx context.Context, inputs
 			return fmt.Errorf("wait for notification unread markers: %w", err)
 		}
 	}
+	invalidations := make([]notificationUnreadInvalidation, 0, len(writes))
 	for index, write := range writes {
 		if write.changed {
 			input := badgeInputs[index]
 			message := notificationSignalMessage(input.Signal)
-			m.core.NotifyNotificationUnreadChanged(
-				ctx, input.RecipientID, input.ActorID, message.GetRoomId(), message.GetThreadRootEventId(),
-			)
+			invalidations = append(invalidations, notificationUnreadInvalidation{
+				userID: input.RecipientID, actorID: input.ActorID,
+				roomID: message.GetRoomId(), threadRootEventID: message.GetThreadRootEventId(),
+			})
 		}
 	}
+	m.core.publishNotificationUnreadInvalidations(ctx, invalidations)
 	if err := m.core.notificationOccurrences.CreateMany(ctx, eligible); err != nil {
 		return fmt.Errorf("create notification occurrences: %w", err)
 	}

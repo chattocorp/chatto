@@ -722,6 +722,7 @@ func TestDMUnreadStatus(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to post message: %v", err)
 		}
+		waitForNotificationMaterializer(t, core)
 
 		// user2 should have unread
 		hasUnread, err := core.HasUnread(ctx, KindDM, user2.Id, room.Id)
