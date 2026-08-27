@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-10
 
-**Updated:** 2026-08-26
+**Updated:** 2026-08-27
 
 ## Context
 
@@ -288,18 +288,19 @@ Badge adds wire value 4. Older binaries preserve that value and fail closed by
 producing neither a notification occurrence nor push delivery. The new scoped
 policy service is additive and leaves the legacy server/room methods unchanged.
 
-Room messages adds policy field 10 and signal branch 10. Older clients preserve
-the additive policy field when they update other fields. If they receive a
-Room-message occurrence, they show the existing generic dismissible row and do
-not infer navigation. The default Badge mode uses the existing public
-`has_unread` field, which older clients already understand. An older server
-does not derive new Room messages decisions. Thus, the default Badge output and
-future occurrences are temporarily inactive during rollback instead of being
-interpreted as Followed rooms. If an upgraded server already persisted a
-Room-message occurrence for Notification or Push notification, the older
-server's notification occurrence RPCs return `Unimplemented` until a supporting
-binary serves the occurrence again. The older server does not reinterpret or
-discard the unsupported signal.
+Room messages adds policy field 10 and signal branch 10. Sparse field masks let
+older clients update known policy fields without changing the additive field.
+If they receive a Room-message occurrence, they show the existing generic
+dismissible row and do not infer navigation. The default Badge mode uses the
+existing public `has_unread` field, which older clients already understand.
+
+An older server does not derive new Room messages decisions. Thus, the default
+Badge output and future occurrences are temporarily inactive during rollback
+instead of being interpreted as Followed rooms. If an upgraded server already
+persisted a Room-message occurrence for Notification or Push notification, the
+older server's notification occurrence RPCs return `Unimplemented` until a
+supporting binary serves the occurrence again. The older server does not
+reinterpret or discard the unsupported signal.
 
 Room-group policy changes use the separate persisted
 `UserRoomGroupNotificationPolicyChangedEvent` variant. An older binary ignores

@@ -738,6 +738,20 @@ func (s *notificationDecisionSnapshot) notificationVisibilityExistsForSignal(use
 	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageReadInteractions)
 }
 
+// notificationInteractionVisibilityExists reports whether interaction-scoped
+// message reads can keep an exact notification target visible at this event
+// boundary. The caller must still verify the target's thread relationship.
+func (s *notificationDecisionSnapshot) notificationInteractionVisibilityExists(userID, roomID string) bool {
+	if !s.membershipExists(userID, roomID) {
+		return false
+	}
+	kind, exists := s.roomKind(roomID)
+	if !exists || kind == KindDM {
+		return exists
+	}
+	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageReadInteractions)
+}
+
 func (s *notificationDecisionSnapshot) roomPermissionAllowed(userID, roomID, groupID string, permission Permission) bool {
 	if s.rbac.HasRole(userID, RoleOwner) {
 		return true

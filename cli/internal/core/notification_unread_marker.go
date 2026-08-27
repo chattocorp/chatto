@@ -176,6 +176,40 @@ func (m *NotificationOccurrenceModel) notificationSignalCoveredByBoundary(signal
 	return sourceSequence <= boundary.targetSequence
 }
 
+// deleteNotificationUnreadMarkerBefore removes an inaccessible Badge marker
+// without deleting a newer source that another replica has already committed.
+func (m *NotificationOccurrenceModel) deleteNotificationUnreadMarkerBefore(ctx context.Context, scope notificationReadBoundaryScope, sequence uint64) (bool, error) {
+	key := notificationUnreadMarkerKey(scope.userID, scope.roomID, scope.threadRootEventID)
+	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
+		entry, err := m.kv.Get(ctx, key)
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return false, nil
+		}
+		if err != nil {
+			return false, fmt.Errorf("read notification unread marker for deletion: %w", err)
+		}
+		var marker corev1.NotificationUnreadMarker
+		if err := proto.Unmarshal(entry.Value(), &marker); err != nil {
+			return false, fmt.Errorf("decode notification unread marker for deletion: %w", err)
+		}
+		if marker.GetSourceStreamSequence() >= sequence {
+			return false, nil
+		}
+		if err := m.kv.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err == nil {
+			if err := m.core.notificationBoundaries.waitForRevisionAfter(ctx, key, entry.Revision()); err != nil {
+				return false, err
+			}
+			return true, nil
+		} else if !jetstreamutil.IsSequenceConflict(err) {
+			return false, fmt.Errorf("delete notification unread marker: %w", err)
+		}
+		if err := m.core.notificationBoundaries.waitForRevisionAfter(ctx, key, entry.Revision()); err != nil {
+			return false, err
+		}
+	}
+	return false, fmt.Errorf("delete notification unread marker after %d attempts", maxNotificationStateWriteRetries)
+}
+
 func (m *NotificationOccurrenceModel) purgeNotificationUnreadMarkers(ctx context.Context, userID string) error {
 	lister, err := m.kv.ListKeysFiltered(ctx, notificationUnreadMarkerFilter(userID))
 	if errors.Is(err, jetstream.ErrNoKeysFound) {

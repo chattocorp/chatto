@@ -564,7 +564,23 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		recipientID string
 		roomID      string
 	}
-	entriesByPair := make(map[recipientRoom][]*corev1.NotificationOccurrence)
+	type unreadMarkerCandidate struct {
+		scope  notificationReadBoundaryScope
+		marker *corev1.NotificationUnreadMarker
+	}
+	type visibilityCandidates struct {
+		occurrences []*corev1.NotificationOccurrence
+		markers     []unreadMarkerCandidate
+	}
+	candidatesByPair := make(map[recipientRoom]*visibilityCandidates)
+	candidatesFor := func(pair recipientRoom) *visibilityCandidates {
+		candidates := candidatesByPair[pair]
+		if candidates == nil {
+			candidates = &visibilityCandidates{}
+			candidatesByPair[pair] = candidates
+		}
+		return candidates
+	}
 	for _, occurrence := range entries {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		if message == nil {
@@ -576,15 +592,22 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 			continue
 		}
 		pair := recipientRoom{recipientID: occurrence.GetRecipientId(), roomID: targetRoomID}
-		entriesByPair[pair] = append(entriesByPair[pair], occurrence)
+		candidates := candidatesFor(pair)
+		candidates.occurrences = append(candidates.occurrences, occurrence)
 	}
 	for _, scope := range m.core.notificationBoundaries.unreadMarkerScopes(userID, roomID, streamSequence) {
-		pair := recipientRoom{recipientID: scope.userID, roomID: scope.roomID}
-		if _, exists := entriesByPair[pair]; !exists {
-			entriesByPair[pair] = nil
+		marker, _, exists, err := m.core.notificationBoundaries.unreadMarker(ctx, scope)
+		if err != nil {
+			return err
 		}
+		if !exists || marker == nil {
+			continue
+		}
+		pair := recipientRoom{recipientID: scope.userID, roomID: scope.roomID}
+		candidates := candidatesFor(pair)
+		candidates.markers = append(candidates.markers, unreadMarkerCandidate{scope: scope, marker: marker})
 	}
-	if len(entriesByPair) == 0 {
+	if len(candidatesByPair) == 0 {
 		return nil
 	}
 	snapshot, err := m.decisions.Projection().Boundary(streamSequence, visibilityAt)
@@ -593,21 +616,55 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	}
 
 	toRemove := make([]*corev1.NotificationOccurrence, 0)
-	for pair, pairEntries := range entriesByPair {
-		if snapshot.notificationVisibilityExists(pair.recipientID, pair.roomID) {
+	unreadInvalidations := make([]notificationUnreadInvalidation, 0)
+	for pair, candidates := range candidatesByPair {
+		broadVisibility := snapshot.notificationVisibilityExists(pair.recipientID, pair.roomID)
+		interactionVisibility := snapshot.notificationInteractionVisibilityExists(pair.recipientID, pair.roomID)
+		if !broadVisibility && !interactionVisibility {
+			if err := m.recordVisibilityBoundary(ctx, pair.recipientID, pair.roomID, streamSequence); err != nil {
+				return err
+			}
+		}
+		for _, occurrence := range candidates.occurrences {
+			if broadVisibility || (interactionVisibility && m.notificationTargetHasInteraction(pair.recipientID, pair.roomID, occurrence.GetSignal())) {
+				continue
+			}
+			toRemove = append(toRemove, occurrence)
+		}
+		if !interactionVisibility || broadVisibility {
 			continue
 		}
-		if err := m.recordVisibilityBoundary(ctx, pair.recipientID, pair.roomID, streamSequence); err != nil {
-			return err
+		for _, candidate := range candidates.markers {
+			if m.notificationTargetHasInteraction(pair.recipientID, pair.roomID, candidate.marker.GetSignal()) {
+				continue
+			}
+			deleted, err := m.core.notificationOccurrences.deleteNotificationUnreadMarkerBefore(ctx, candidate.scope, streamSequence)
+			if err != nil {
+				return err
+			}
+			if deleted {
+				unreadInvalidations = append(unreadInvalidations, notificationUnreadInvalidation{
+					userID: pair.recipientID, roomID: pair.roomID, threadRootEventID: candidate.scope.threadRootEventID,
+				})
+			}
 		}
-		toRemove = append(toRemove, pairEntries...)
 	}
 	if len(toRemove) > 0 {
 		if _, err := m.core.notificationOccurrences.deleteOccurrences(ctx, toRemove); err != nil {
 			return err
 		}
 	}
+	m.core.publishNotificationUnreadInvalidations(ctx, unreadInvalidations)
 	return nil
+}
+
+func (m *NotificationMaterializer) notificationTargetHasInteraction(userID, roomID string, signal *corev1.NotificationSignal) bool {
+	message := notificationSignalMessage(signal)
+	if message == nil {
+		return false
+	}
+	rootID, exists := m.core.roomModel.threadRootForMessage(roomID, message.GetEventId())
+	return exists && m.core.roomModel.hasThreadInteraction(userID, roomID, rootID)
 }
 
 func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionRemovedEvent, streamSequence uint64) error {

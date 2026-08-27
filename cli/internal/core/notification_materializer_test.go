@@ -741,6 +741,51 @@ func TestDirectMentionOccurrenceVisibleWithInteractionScopedRead(t *testing.T) {
 	if len(visible) != 1 || visible[0].GetId() != occurrences[0].GetId() {
 		t.Fatalf("visible interaction occurrences = %+v, want mention occurrence", visible)
 	}
+	if _, err := chattoCore.CreateServerRole(ctx, SystemActorID, "interaction-observer", "Interaction observer", "Unassigned visibility test role"); err != nil {
+		t.Fatalf("CreateServerRole: %v", err)
+	}
+	if err := chattoCore.GrantServerPermission(ctx, SystemActorID, "interaction-observer", PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantServerPermission message.read.interactions: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent after unrelated permission change: %v", err)
+	}
+	occurrences = testNotificationOccurrences(t, chattoCore, recipient.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetId() != visible[0].GetId() {
+		t.Fatalf("interaction occurrence after unrelated permission change = %+v, want retained occurrence %s", occurrences, visible[0].GetId())
+	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
+		ctx,
+		recipient.GetId(),
+		room.GetId(),
+		notificationTestSignalDirectMention,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+	); err != nil {
+		t.Fatalf("set direct-mention Badge policy: %v", err)
+	}
+	if _, err := chattoCore.PostMessage(
+		ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-notify-recipient Badge review", nil, root.GetId(), "", nil, false,
+	); err != nil {
+		t.Fatalf("PostMessage Badge mention: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent after Badge mention: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, recipient.GetId(), room.GetId()); err != nil || !unread {
+		t.Fatalf("interaction Badge before unrelated permission change = (%v, %v), want (true, nil)", unread, err)
+	}
+	if _, err := chattoCore.CreateServerRole(ctx, SystemActorID, "interaction-auditor", "Interaction auditor", "Second unassigned visibility test role"); err != nil {
+		t.Fatalf("CreateServerRole second role: %v", err)
+	}
+	if err := chattoCore.GrantServerPermission(ctx, SystemActorID, "interaction-auditor", PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantServerPermission second message.read.interactions: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent after second unrelated permission change: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, recipient.GetId(), room.GetId()); err != nil || !unread {
+		t.Fatalf("interaction Badge after unrelated permission change = (%v, %v), want (true, nil)", unread, err)
+	}
 }
 
 func TestDirectMessagesRemainExactOccurrences(t *testing.T) {

@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -9,9 +9,10 @@ Notifications and Badge indicators are user-scoped ways to show activity that
 deserves attention. Notifications form a persistent list of exact activity.
 Badge indicators add only neutral unread dots. Both forms cover direct
 messages, root messages in channel rooms, replies, direct and role mentions,
-`@here`, `@all`, followed conversations, and reactions. They borrow GitHub's
-durable-history idea but use a smaller lifecycle: Unread, Read, or explicitly
-Deleted.
+`@here`, `@all`, followed conversations, and reactions. Notification
+occurrences use a small lifecycle: Unread, Read, or explicitly Deleted. Badge
+attention uses a latest-value marker that becomes inactive through read,
+visibility, and expiry boundaries.
 
 The server records occurrences individually. The bundled frontend may
 consolidate them for presentation without changing occurrence identity, jump
@@ -44,6 +45,9 @@ targets, unread counts, read state, or deletion semantics.
   source activity. Reading or deleting it does not extend that lifetime.
   Physical cleanup may continue during ADR-076's 24-hour grace period without
   extending user-visible retention.
+- A Badge marker expires 90 days after its latest source activity. A read,
+  visibility loss, target removal, or reaction removal can make it inactive
+  sooner.
 - The combined multi-server list preserves healthy results when another server
   fails and exposes the failure as partial.
 - Notification delivery rules and client sound choices are User Preferences.
@@ -227,8 +231,9 @@ success.
 **Decision:** Realtime notification updates tell clients to replace their
 finite notification view from authoritative server state. Badge updates tell
 clients to replace the affected room state and, when applicable, the complete
-followed-thread viewer state. Unread totals remain
-exact even when rows are grouped. The client also performs quiet periodic
+followed-thread viewer state. Followed-thread Badge attention also contributes
+to the My Threads navigation indicator. Unread totals remain exact even when
+rows are grouped. The client also performs quiet periodic
 reconciliation so a lost transient update cannot leave counts stale
 indefinitely.
 
@@ -296,9 +301,11 @@ current notification policy can suppress that request.
 Notifications 2.0 supersedes Notifications 1.0 at the 0.5.0 pre-1.0 boundary.
 Legacy records and coarse Muted/Normal/All Messages preferences are not migrated
 or interpreted. Historical persisted event variants remain replay-decodable,
-but current code adds no notification facts to `EVT`. Older clients cannot use
-the replacement notification API on an upgraded server. After the 0.5.0
-contract ships, new signal variants are additive.
+but current code adds no notification occurrences, triggers, or Badge markers
+to `EVT`. Notification policy changes remain user-configuration facts in
+`EVT`. Older clients cannot use the replacement notification API on an
+upgraded server. After the 0.5.0 contract ships, new signal variants are
+additive.
 
 The legacy `NotificationService` server and room policy RPCs keep their current
 request and response behavior. `NotificationPolicyService` adds explicit
@@ -314,10 +321,12 @@ preference but treats it as no notification output. Thus, Badge attention is
 temporarily inactive during rollback instead of becoming a notification or
 push.
 
-Room messages adds policy field 10 and notification-signal branch 10. Older
-clients preserve the policy field when they update other fields. They show an
-unknown Room-message occurrence as a generic dismissible row and do not infer
-navigation. The default Badge mode uses the existing public `has_unread` field.
+Room messages adds policy field 10 and notification-signal branch 10. Sparse
+field masks let older clients update known policy fields without changing this
+new field. Older clients show an unknown Room-message occurrence as a generic
+dismissible row and do not infer navigation. The default Badge mode uses the
+existing public `has_unread` field.
+
 An older server does not derive new Room messages decisions. Thus, the default
 Badge output and future occurrences are temporarily inactive during rollback
 instead of becoming Followed rooms. If an upgraded server already persisted a

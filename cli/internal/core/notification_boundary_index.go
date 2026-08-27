@@ -397,6 +397,26 @@ func (i *notificationBoundaryIndex) waitForRevision(ctx context.Context, key str
 	}
 }
 
+func (i *notificationBoundaryIndex) waitForRevisionAfter(ctx context.Context, key string, revision uint64) error {
+	if err := i.waitReady(ctx); err != nil {
+		return err
+	}
+	for {
+		i.mu.RLock()
+		current := i.revisionForKeyLocked(key)
+		changed := i.changed
+		i.mu.RUnlock()
+		if current > revision {
+			return nil
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (i *notificationBoundaryIndex) revisionForKeyLocked(key string) uint64 {
 	if _, _, ok := parseNotificationVisibilityBoundaryKey(key); ok {
 		return i.visibility[key].revision
