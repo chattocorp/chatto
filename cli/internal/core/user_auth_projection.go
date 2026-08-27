@@ -49,7 +49,6 @@ type projectedBotIncomingWebhook struct {
 	name      string
 	verifier  []byte
 	createdAt time.Time
-	rotatedAt time.Time
 }
 
 func newUserAuthProjection() *UserAuthProjection {
@@ -111,7 +110,7 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_BotIncomingWebhookCreated:
 		p.applyBotIncomingWebhookCreated(e.BotIncomingWebhookCreated, event.GetCreatedAt())
 	case *corev1.Event_BotIncomingWebhookRotated:
-		p.applyBotIncomingWebhookRotated(e.BotIncomingWebhookRotated, event.GetCreatedAt())
+		p.applyBotIncomingWebhookRotated(e.BotIncomingWebhookRotated)
 	case *corev1.Event_BotIncomingWebhookRevoked:
 		p.applyBotIncomingWebhookRevoked(e.BotIncomingWebhookRevoked)
 	case *corev1.Event_UserPasswordHashChanged:
@@ -345,7 +344,9 @@ func (p *UserAuthProjection) applyBotIncomingWebhookCreated(e *corev1.BotIncomin
 	}
 }
 
-func (p *UserAuthProjection) applyBotIncomingWebhookRotated(e *corev1.BotIncomingWebhookRotatedEvent, createdAt *timestamppb.Timestamp) {
+// applyBotIncomingWebhookRotated preserves replay of verifier replacements
+// written by an unreleased implementation. Current commands do not emit it.
+func (p *UserAuthProjection) applyBotIncomingWebhookRotated(e *corev1.BotIncomingWebhookRotatedEvent) {
 	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
 		return
 	}
@@ -356,7 +357,6 @@ func (p *UserAuthProjection) applyBotIncomingWebhookRotated(e *corev1.BotIncomin
 		return
 	}
 	webhook.verifier = append(webhook.verifier[:0], e.GetVerifier()...)
-	webhook.rotatedAt = timestampTime(createdAt)
 	u.botIncomingWebhooks[webhookID] = webhook
 }
 
@@ -406,7 +406,6 @@ type BotIncomingWebhookCredential struct {
 	Name      string
 	Verifier  []byte
 	CreatedAt time.Time
-	RotatedAt time.Time
 }
 
 func (p *UserAuthProjection) BotIncomingWebhookCredential(userID, webhookID string) (BotIncomingWebhookCredential, bool) {
@@ -423,7 +422,7 @@ func (p *UserAuthProjection) BotIncomingWebhookCredential(userID, webhookID stri
 	}
 	return BotIncomingWebhookCredential{
 		ID: webhookID, Name: webhook.name, Verifier: append([]byte(nil), webhook.verifier...),
-		CreatedAt: webhook.createdAt, RotatedAt: webhook.rotatedAt,
+		CreatedAt: webhook.createdAt,
 	}, true
 }
 
@@ -438,7 +437,7 @@ func (p *UserAuthProjection) BotIncomingWebhookCredentials(userID string) []BotI
 	for id, webhook := range u.botIncomingWebhooks {
 		result = append(result, BotIncomingWebhookCredential{
 			ID: id, Name: webhook.name, Verifier: append([]byte(nil), webhook.verifier...),
-			CreatedAt: webhook.createdAt, RotatedAt: webhook.rotatedAt,
+			CreatedAt: webhook.createdAt,
 		})
 	}
 	sort.Slice(result, func(i, j int) bool {

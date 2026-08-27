@@ -684,7 +684,8 @@ func (x *BotIncomingWebhookCreatedEvent) GetName() string {
 	return ""
 }
 
-// BotIncomingWebhookRotatedEvent replaces one incoming webhook verifier.
+// BotIncomingWebhookRotatedEvent replays a replacement verifier written by an
+// unreleased implementation. Current servers do not write this event.
 // webhook_id is empty only in a legacy singular event.
 type BotIncomingWebhookRotatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`

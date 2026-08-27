@@ -48,7 +48,6 @@ type BotIncomingWebhook struct {
 	ID                string
 	Name              string
 	CreatedAt         time.Time
-	RotatedAt         time.Time
 	LastUsedAt        time.Time
 	LastUsedAvailable bool
 }
@@ -280,7 +279,7 @@ func (c *ChattoCore) botFromUser(ctx context.Context, user *corev1.User) (*Bot, 
 	lastUsed, lastUsedAvailable := c.credentialUsage.LastUsed(ctx, user.GetId())
 	for _, webhook := range c.userModel.botIncomingWebhookCredentials(user.GetId()) {
 		bot.IncomingWebhooks = append(bot.IncomingWebhooks, BotIncomingWebhook{
-			ID: webhook.ID, Name: webhook.Name, CreatedAt: webhook.CreatedAt, RotatedAt: webhook.RotatedAt,
+			ID: webhook.ID, Name: webhook.Name, CreatedAt: webhook.CreatedAt,
 			LastUsedAt: lastUsed[incomingWebhookUsageKey(webhook.ID)], LastUsedAvailable: lastUsedAvailable,
 		})
 	}
@@ -444,7 +443,6 @@ type botIncomingWebhookMutation int
 
 const (
 	botIncomingWebhookCreate botIncomingWebhookMutation = iota
-	botIncomingWebhookRotate
 	botIncomingWebhookRevoke
 )
 
@@ -456,13 +454,6 @@ func (c *ChattoCore) CreateBotIncomingWebhook(ctx context.Context, actorID, botI
 		return nil, invalidArgument("incoming webhook name must contain 1 to 64 characters")
 	}
 	return c.mutateBotIncomingWebhook(ctx, actorID, botID, "", name, botIncomingWebhookCreate)
-}
-
-// RotateBotIncomingWebhook replaces one verifier. Concurrent rotations of the
-// same bot conflict so two callers cannot both receive an apparently active
-// secret from one aggregate generation.
-func (c *ChattoCore) RotateBotIncomingWebhook(ctx context.Context, actorID, botID, webhookID string) (*BotIncomingWebhookIssue, error) {
-	return c.mutateBotIncomingWebhook(ctx, actorID, botID, webhookID, "", botIncomingWebhookRotate)
 }
 
 // RevokeBotIncomingWebhook irreversibly invalidates one credential. Repeated
@@ -483,7 +474,7 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	}
 	credential := ""
 	var err error
-	if mutation != botIncomingWebhookRevoke {
+	if mutation == botIncomingWebhookCreate {
 		credential, err = NewBotIncomingWebhookCredentialForID(botID, webhookID)
 		if err != nil {
 			return nil, err
@@ -521,9 +512,6 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	if mutation == botIncomingWebhookCreate && len(webhooks) >= maxBotIncomingWebhooks {
 		return nil, invalidArgument("a bot can have at most 20 active incoming webhooks")
 	}
-	if mutation == botIncomingWebhookRotate && !exists {
-		return nil, ErrNotFound
-	}
 	if mutation == botIncomingWebhookRevoke && !exists {
 		bot, err := c.botFromUser(ctx, user)
 		return &BotIncomingWebhookIssue{Bot: bot, WebhookID: webhookID}, err
@@ -535,12 +523,6 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookCreated{
 			BotIncomingWebhookCreated: &corev1.BotIncomingWebhookCreatedEvent{
 				UserId: botID, WebhookId: webhookID, Name: name, Verifier: c.botIncomingWebhookVerifier(credential),
-			},
-		}})
-	case botIncomingWebhookRotate:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookRotated{
-			BotIncomingWebhookRotated: &corev1.BotIncomingWebhookRotatedEvent{
-				UserId: botID, WebhookId: webhookID, Verifier: c.botIncomingWebhookVerifier(credential),
 			},
 		}})
 	case botIncomingWebhookRevoke:

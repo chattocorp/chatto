@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   createBot: vi.fn(),
   rotateBotApiKey: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
-  rotateBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
   reassignBotOwner: vi.fn()
 }));
@@ -35,7 +34,6 @@ describe('createBotAPI', () => {
       createBot: mocks.createBot,
       rotateBotApiKey: mocks.rotateBotApiKey,
       createBotIncomingWebhook: mocks.createBotIncomingWebhook,
-      rotateBotIncomingWebhook: mocks.rotateBotIncomingWebhook,
       revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
       reassignBotOwner: mocks.reassignBotOwner
     });
@@ -117,7 +115,6 @@ describe('createBotAPI', () => {
             id: 'W-one',
             name: 'Production',
             createdAt,
-            rotatedAt: null,
             lastUsedState: 'never',
             lastUsedAt: null
           }

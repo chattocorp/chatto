@@ -292,7 +292,6 @@ func TestUserAuthProjectionReplaysBotIncomingWebhookLifecycle(t *testing.T) {
 	credential, ok = p.BotIncomingWebhookCredential("U-bot", legacyBotIncomingWebhookID)
 	require.True(t, ok)
 	require.Equal(t, []byte("second"), credential.Verifier)
-	require.Equal(t, createdAt.Add(2*time.Minute), credential.RotatedAt)
 
 	require.NoError(t, p.Apply(userEvent("W4", createdAt.Add(3*time.Minute), &corev1.Event{Event: &corev1.Event_BotIncomingWebhookRevoked{
 		BotIncomingWebhookRevoked: &corev1.BotIncomingWebhookRevokedEvent{UserId: "U-bot"},

@@ -38,16 +38,17 @@ enum CredentialLastUsedState {
 }
 
 // Safe metadata for one active bot incoming webhook. The webhook URL is
-// returned only when the credential is created or rotated.
+// returned only when the credential is created.
 message BotIncomingWebhook {
+  reserved 4;
+  reserved "rotated_at";
+
   // Stable webhook credential ID.
   string id = 1;
   // Manager-defined name for the credential.
   string name = 2;
   // Time the incoming webhook credential was created.
   google.protobuf.Timestamp created_at = 3;
-  // Most recent credential rotation time, when it has been rotated.
-  optional google.protobuf.Timestamp rotated_at = 4;
   // Availability of best-effort last-use telemetry.
   CredentialLastUsedState last_used_state = 5;
   // Most recent recorded successful authentication time.
@@ -166,26 +167,9 @@ message CreateBotIncomingWebhookRequest {
   string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
 }
 
-// Result of creating an incoming webhook. webhook_url is shown once and
-// cannot be retrieved later.
+// Result of creating an incoming webhook. webhook_url is shown once and cannot
+// be retrieved later.
 message CreateBotIncomingWebhookResponse {
-  // Updated bot metadata.
-  Bot bot = 1;
-  // Newly issued incoming webhook URL.
-  string webhook_url = 2;
-}
-
-// Request rotation of one active incoming webhook credential.
-message RotateBotIncomingWebhookRequest {
-  // Required bot user ID.
-  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required webhook credential ID.
-  string webhook_id = 2 [(buf.validate.field).string.min_len = 1];
-}
-
-// Result of rotating an incoming webhook. webhook_url is shown once and
-// cannot be retrieved later.
-message RotateBotIncomingWebhookResponse {
   // Updated bot metadata.
   Bot bot = 1;
   // Newly issued incoming webhook URL.
@@ -244,9 +228,6 @@ service BotService {
   // Creates a named incoming webhook. A bot can have at most 20 active
   // incoming webhooks.
   rpc CreateBotIncomingWebhook(CreateBotIncomingWebhookRequest) returns (CreateBotIncomingWebhookResponse);
-  // Rotates one incoming webhook credential and immediately invalidates its
-  // old URL without changing other webhooks.
-  rpc RotateBotIncomingWebhook(RotateBotIncomingWebhookRequest) returns (RotateBotIncomingWebhookResponse);
   // Revokes one incoming webhook without changing other webhooks.
   rpc RevokeBotIncomingWebhook(RevokeBotIncomingWebhookRequest) returns (RevokeBotIncomingWebhookResponse) {
     option idempotency_level = IDEMPOTENT;

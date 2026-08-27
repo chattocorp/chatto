@@ -22,13 +22,14 @@ credential has a manager-defined name and authorizes only
 realtime request. Names do not have to be unique. This lets a manager create a
 replacement before the manager revokes an old credential with the same name.
 
-Chatto shows the complete webhook URL only when a human manager creates or
-rotates the credential. Each URL contains the bot ID, a stable webhook ID, and
-a random secret. The webhook ID selects one verifier without a scan. Chatto
-stores the name, webhook ID, HMAC verifier, and lifecycle timestamps in the
-bot's user aggregate. It projects these values, but it never stores the raw
-secret. Rotation or revocation invalidates only the selected credential. Bot
-deletion and owner deletion invalidate all credentials for the bot.
+Chatto shows the complete webhook URL only when a human manager creates the
+credential. Each URL contains the bot ID, a stable webhook ID, and a random
+secret. The webhook ID selects one verifier without a scan. Chatto stores the
+name, webhook ID, HMAC verifier, and creation time in the bot's user aggregate.
+It projects these values, but it never stores the raw secret. A manager creates
+a new named credential before the manager moves a caller and revokes the old
+credential. Revocation invalidates only the selected credential. Bot deletion
+and owner deletion invalidate all credentials for the bot.
 
 The request uses a Slack-compatible plain-text JSON subset. `text` and `channel`
 are the Slack field names. `body` and `room_id` are Chatto aliases. The optional
@@ -66,10 +67,11 @@ The lifecycle event field numbers and the EVT subject tokens from the first
 unreleased implementation remain stable. A credential from that implementation
 has no webhook ID in its stored event or URL. Updated servers project it as a
 synthetic legacy credential and continue to accept its two-part URL until it is
-rotated or revoked. New credentials use the three-part URL format. Operators
-must complete a rolling upgrade before they create, rotate, or revoke
-credentials. A rollback must use a binary that understands the new lifecycle
-fields after these writes occur.
+revoked. New credentials use the three-part URL format. Updated servers also
+replay verifier-replacement events that the unreleased implementation wrote,
+but current servers do not write these events. Operators must complete a
+rolling upgrade before they create or revoke credentials. A rollback must use
+a binary that understands the new lifecycle fields after these writes occur.
 
 ## Consequences
 

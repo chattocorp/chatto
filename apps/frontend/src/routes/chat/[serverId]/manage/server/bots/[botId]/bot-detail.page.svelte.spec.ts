@@ -15,7 +15,6 @@ const mocks = vi.hoisted(() => ({
   updateBot: vi.fn(),
   reassignBotOwner: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
-  rotateBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -60,7 +59,6 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         updateBot: mocks.updateBot,
         reassignBotOwner: mocks.reassignBotOwner,
         createBotIncomingWebhook: mocks.createBotIncomingWebhook,
-        rotateBotIncomingWebhook: mocks.rotateBotIncomingWebhook,
         revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook
       })
     },
@@ -124,17 +122,12 @@ describe('Bot detail page', () => {
             id: 'webhook-id',
             name: 'Production',
             createdAt: new Date(),
-            rotatedAt: null,
             lastUsedState: 'never' as const,
             lastUsedAt: null
           }
         ]
       },
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
-    });
-    mocks.rotateBotIncomingWebhook.mockResolvedValue({
-      bot: mocks.bot,
-      webhookUrl: 'https://chat.example/webhooks/incoming/rotated'
     });
     mocks.revokeBotIncomingWebhook.mockResolvedValue({ ...mocks.bot, incomingWebhooks: [] });
     await loadLocaleMessages('en-GB');
@@ -170,7 +163,6 @@ describe('Bot detail page', () => {
           id: 'first',
           name: 'Production',
           createdAt: new Date('2026-08-27T10:00:00Z'),
-          rotatedAt: null,
           lastUsedState: 'never',
           lastUsedAt: null
         },
@@ -178,7 +170,6 @@ describe('Bot detail page', () => {
           id: 'second',
           name: 'Monitoring',
           createdAt: new Date('2026-08-27T11:00:00Z'),
-          rotatedAt: null,
           lastUsedState: 'recorded',
           lastUsedAt: recordedAt
         },
@@ -186,7 +177,6 @@ describe('Bot detail page', () => {
           id: 'third',
           name: 'Unavailable',
           createdAt: new Date('2026-08-27T12:00:00Z'),
-          rotatedAt: null,
           lastUsedState: 'unavailable',
           lastUsedAt: null
         }

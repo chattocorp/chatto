@@ -54,7 +54,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Bot API key** — A bot account's sole non-expiring bearer credential, shown only at creation or rotation. Chatto stores its verifier as a durable EVT fact, never the raw key. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
-**Bot incoming webhook** — Named HTTP credential that allows an external system to post a message as a bot. A bot can have multiple incoming webhooks. Chatto shows each action-limited URL only when it creates or rotates that webhook. Each webhook has independent rotation, revocation, and last-use metadata. It cannot authenticate the normal API or realtime connection. See [FDR-038](fdr/FDR-038-bot-accounts.md) and [ADR-083](adr/ADR-083-action-limited-bot-incoming-webhooks.md).
+**Bot incoming webhook** — Named HTTP credential that allows an external system to post a message as a bot. A bot can have multiple incoming webhooks. Chatto shows each action-limited URL only when it creates that webhook. A manager replaces a webhook when the manager creates a new one, moves the caller, and revokes the old one. Each webhook has independent revocation and last-use metadata. It cannot authenticate the normal API or realtime connection. See [FDR-038](fdr/FDR-038-bot-accounts.md) and [ADR-083](adr/ADR-083-action-limited-bot-incoming-webhooks.md).
 
 **Invite Link** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. See [FDR-036](fdr/FDR-036-invite-links.md).
 

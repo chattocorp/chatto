@@ -21,7 +21,6 @@ export type Bot = {
     id: string;
     name: string;
     createdAt: Date | null;
-    rotatedAt: Date | null;
     lastUsedState: 'never' | 'recorded' | 'unavailable';
     lastUsedAt: Date | null;
   }[];
@@ -93,16 +92,6 @@ export function createBotAPI(config: BotAPIConfig) {
       );
       return { bot: botFromAPI(requiredBot(response.bot)), webhookUrl: response.webhookUrl };
     },
-    async rotateBotIncomingWebhook(
-      botUserId: string,
-      webhookId: string
-    ): Promise<{ bot: Bot; webhookUrl: string }> {
-      const response = await client.rotateBotIncomingWebhook(
-        { botUserId, webhookId },
-        { headers: headers() }
-      );
-      return { bot: botFromAPI(requiredBot(response.bot)), webhookUrl: response.webhookUrl };
-    },
     async revokeBotIncomingWebhook(botUserId: string, webhookId: string): Promise<Bot> {
       const response = await client.revokeBotIncomingWebhook(
         { botUserId, webhookId },
@@ -143,7 +132,6 @@ function botFromAPI(bot: APIBot): Bot {
       id: webhook.id,
       name: webhook.name,
       createdAt: webhook.createdAt?.toDate() ?? null,
-      rotatedAt: webhook.rotatedAt?.toDate() ?? null,
       lastUsedState:
         webhook.lastUsedState === CredentialLastUsedState.RECORDED
           ? 'recorded'

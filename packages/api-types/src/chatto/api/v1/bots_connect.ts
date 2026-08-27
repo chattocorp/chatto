@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, RotateBotIncomingWebhookRequest, RotateBotIncomingWebhookResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -104,18 +104,6 @@ export const BotService = {
       name: "CreateBotIncomingWebhook",
       I: CreateBotIncomingWebhookRequest,
       O: CreateBotIncomingWebhookResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Rotates one incoming webhook credential and immediately invalidates its
-     * old URL without changing other webhooks.
-     *
-     * @generated from rpc chatto.api.v1.BotService.RotateBotIncomingWebhook
-     */
-    rotateBotIncomingWebhook: {
-      name: "RotateBotIncomingWebhook",
-      I: RotateBotIncomingWebhookRequest,
-      O: RotateBotIncomingWebhookResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -548,14 +548,13 @@ rotation responses.
 ### BotIncomingWebhook
 
 Safe metadata for one active bot incoming webhook. The webhook URL is
-returned only when the credential is created or rotated.
+returned only when the credential is created.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable webhook credential ID. |
 | `name` | `string` | Manager-defined name for the credential. |
 | `created_at` | `google.protobuf.Timestamp` | Time the incoming webhook credential was created. |
-| `rotated_at` | `optional google.protobuf.Timestamp` | Most recent credential rotation time, when it has been rotated. |
 | `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
 | `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
 

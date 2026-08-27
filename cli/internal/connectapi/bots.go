@@ -167,24 +167,6 @@ func (s *botService) CreateBotIncomingWebhook(ctx context.Context, req *connect.
 	}), nil
 }
 
-func (s *botService) RotateBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.RotateBotIncomingWebhookRequest]) (*connect.Response[apiv1.RotateBotIncomingWebhookResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	issued, err := s.api.core.RotateBotIncomingWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	mapped, err := apiBot(ctx, s.api, issued.Bot)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&apiv1.RotateBotIncomingWebhookResponse{
-		Bot: mapped, WebhookUrl: s.incomingWebhookURL(ctx, issued.Credential),
-	}), nil
-}
-
 func (s *botService) RevokeBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.RevokeBotIncomingWebhookRequest]) (*connect.Response[apiv1.RevokeBotIncomingWebhookResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -241,9 +223,6 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 		} else {
 			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_RECORDED
 			mapped.LastUsedAt = timestamppb.New(webhook.LastUsedAt)
-		}
-		if !webhook.RotatedAt.IsZero() {
-			mapped.RotatedAt = timestamppb.New(webhook.RotatedAt)
 		}
 		out.IncomingWebhooks = append(out.IncomingWebhooks, mapped)
 	}

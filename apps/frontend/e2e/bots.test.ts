@@ -293,18 +293,21 @@ test.describe('Bot account lifecycle', () => {
     await expect(productionWebhook).not.toContainText('Never used');
     await expect(backupWebhook).toContainText('Never used');
 
-    await productionWebhook.getByRole('button', { name: 'Rotate Webhook', exact: true }).click();
-    const rotateWebhookDialog = page.getByRole('dialog', { name: 'Rotate Incoming Webhook' });
-    await rotateWebhookDialog.getByRole('button', { name: 'Rotate Webhook', exact: true }).click();
-    const rotatedWebhookURL = await captureShowOnceWebhookURL(page);
-    if (rotatedWebhookURL === originalWebhookURL) {
-      throw new Error('Rotating the incoming webhook did not issue a new credential');
-    }
     await expect(
-      postIncomingWebhook(originalWebhookURL, webhookRoomId, 'Rejected stale webhook message')
-    ).resolves.toEqual({ status: 401, body: 'invalid_token' });
+      webhookList.getByRole('button', { name: 'Rotate Webhook', exact: true })
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
+    await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Replacement');
+    await createWebhookDialog
+      .getByRole('button', { name: 'Create Webhook', exact: true })
+      .click();
+    const replacementWebhookURL = await captureShowOnceWebhookURL(page);
     await expect(
-      postIncomingWebhook(rotatedWebhookURL, webhookRoomId, 'Rotated incoming webhook message')
+      postIncomingWebhook(
+        replacementWebhookURL,
+        webhookRoomId,
+        'Replacement incoming webhook message'
+      )
     ).resolves.toEqual({ status: 200, body: 'ok' });
     await expect(
       postIncomingWebhook(backupWebhookURL, webhookRoomId, 'Independent backup webhook message')
@@ -315,8 +318,11 @@ test.describe('Bot account lifecycle', () => {
     await revokeWebhookDialog.getByRole('button', { name: 'Revoke Webhook', exact: true }).click();
     await expect(revokeWebhookDialog).toBeHidden();
     await expect(
-      postIncomingWebhook(rotatedWebhookURL, webhookRoomId, 'Rejected revoked webhook message')
+      postIncomingWebhook(originalWebhookURL, webhookRoomId, 'Rejected revoked webhook message')
     ).resolves.toEqual({ status: 401, body: 'invalid_token' });
+    await expect(
+      postIncomingWebhook(replacementWebhookURL, webhookRoomId, 'Replacement after revocation')
+    ).resolves.toEqual({ status: 200, body: 'ok' });
     await expect(
       postIncomingWebhook(backupWebhookURL, webhookRoomId, 'Backup webhook after revocation')
     ).resolves.toEqual({ status: 200, body: 'ok' });

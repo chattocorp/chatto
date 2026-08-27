@@ -134,7 +134,7 @@ export class Bot extends Message<Bot> {
 
 /**
  * Safe metadata for one active bot incoming webhook. The webhook URL is
- * returned only when the credential is created or rotated.
+ * returned only when the credential is created.
  *
  * @generated from message chatto.api.v1.BotIncomingWebhook
  */
@@ -161,13 +161,6 @@ export class BotIncomingWebhook extends Message<BotIncomingWebhook> {
   createdAt?: Timestamp;
 
   /**
-   * Most recent credential rotation time, when it has been rotated.
-   *
-   * @generated from field: optional google.protobuf.Timestamp rotated_at = 4;
-   */
-  rotatedAt?: Timestamp;
-
-  /**
    * Availability of best-effort last-use telemetry.
    *
    * @generated from field: chatto.api.v1.CredentialLastUsedState last_used_state = 5;
@@ -192,7 +185,6 @@ export class BotIncomingWebhook extends Message<BotIncomingWebhook> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "created_at", kind: "message", T: Timestamp },
-    { no: 4, name: "rotated_at", kind: "message", T: Timestamp, opt: true },
     { no: 5, name: "last_used_state", kind: "enum", T: proto3.getEnumType(CredentialLastUsedState) },
     { no: 6, name: "last_used_at", kind: "message", T: Timestamp, opt: true },
   ]);
@@ -896,8 +888,8 @@ export class CreateBotIncomingWebhookRequest extends Message<CreateBotIncomingWe
 }
 
 /**
- * Result of creating an incoming webhook. webhook_url is shown once and
- * cannot be retrieved later.
+ * Result of creating an incoming webhook. webhook_url is shown once and cannot
+ * be retrieved later.
  *
  * @generated from message chatto.api.v1.CreateBotIncomingWebhookResponse
  */
@@ -942,105 +934,6 @@ export class CreateBotIncomingWebhookResponse extends Message<CreateBotIncomingW
 
   static equals(a: CreateBotIncomingWebhookResponse | PlainMessage<CreateBotIncomingWebhookResponse> | undefined, b: CreateBotIncomingWebhookResponse | PlainMessage<CreateBotIncomingWebhookResponse> | undefined): boolean {
     return proto3.util.equals(CreateBotIncomingWebhookResponse, a, b);
-  }
-}
-
-/**
- * Request rotation of one active incoming webhook credential.
- *
- * @generated from message chatto.api.v1.RotateBotIncomingWebhookRequest
- */
-export class RotateBotIncomingWebhookRequest extends Message<RotateBotIncomingWebhookRequest> {
-  /**
-   * Required bot user ID.
-   *
-   * @generated from field: string bot_user_id = 1;
-   */
-  botUserId = "";
-
-  /**
-   * Required webhook credential ID.
-   *
-   * @generated from field: string webhook_id = 2;
-   */
-  webhookId = "";
-
-  constructor(data?: PartialMessage<RotateBotIncomingWebhookRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RotateBotIncomingWebhookRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "bot_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "webhook_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RotateBotIncomingWebhookRequest {
-    return new RotateBotIncomingWebhookRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RotateBotIncomingWebhookRequest {
-    return new RotateBotIncomingWebhookRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RotateBotIncomingWebhookRequest {
-    return new RotateBotIncomingWebhookRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RotateBotIncomingWebhookRequest | PlainMessage<RotateBotIncomingWebhookRequest> | undefined, b: RotateBotIncomingWebhookRequest | PlainMessage<RotateBotIncomingWebhookRequest> | undefined): boolean {
-    return proto3.util.equals(RotateBotIncomingWebhookRequest, a, b);
-  }
-}
-
-/**
- * Result of rotating an incoming webhook. webhook_url is shown once and
- * cannot be retrieved later.
- *
- * @generated from message chatto.api.v1.RotateBotIncomingWebhookResponse
- */
-export class RotateBotIncomingWebhookResponse extends Message<RotateBotIncomingWebhookResponse> {
-  /**
-   * Updated bot metadata.
-   *
-   * @generated from field: chatto.api.v1.Bot bot = 1;
-   */
-  bot?: Bot;
-
-  /**
-   * Newly issued incoming webhook URL.
-   *
-   * @generated from field: string webhook_url = 2;
-   */
-  webhookUrl = "";
-
-  constructor(data?: PartialMessage<RotateBotIncomingWebhookResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RotateBotIncomingWebhookResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "bot", kind: "message", T: Bot },
-    { no: 2, name: "webhook_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RotateBotIncomingWebhookResponse {
-    return new RotateBotIncomingWebhookResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RotateBotIncomingWebhookResponse {
-    return new RotateBotIncomingWebhookResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RotateBotIncomingWebhookResponse {
-    return new RotateBotIncomingWebhookResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RotateBotIncomingWebhookResponse | PlainMessage<RotateBotIncomingWebhookResponse> | undefined, b: RotateBotIncomingWebhookResponse | PlainMessage<RotateBotIncomingWebhookResponse> | undefined): boolean {
-    return proto3.util.equals(RotateBotIncomingWebhookResponse, a, b);
   }
 }
 

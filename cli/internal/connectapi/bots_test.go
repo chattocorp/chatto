@@ -34,7 +34,8 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err != nil || got.Msg.GetBot().GetUser().GetLogin() != "connect_bot" {
 		t.Fatalf("GetBot = %+v, %v", got, err)
 	}
-	webhookCtx := WithRequestBaseURL(ctx, "https://chat.example")
+	env.api.config.Webserver.URL = "https://configured.example"
+	webhookCtx := WithRequestBaseURL(ctx, "https://spoofed.example")
 	webhook, err := service.CreateBotIncomingWebhook(webhookCtx, connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "CI"}))
 	if err != nil || len(webhook.Msg.GetBot().GetIncomingWebhooks()) != 1 || webhook.Msg.GetWebhookUrl() == "" {
 		t.Fatalf("CreateBotIncomingWebhook = %+v, %v", webhook, err)
@@ -43,17 +44,8 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if got := webhook.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); got != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NEVER_USED {
 		t.Fatalf("new webhook last-used state = %v", got)
 	}
-	if wantPrefix := "https://chat.example/webhooks/incoming/cht_IW_"; len(webhook.Msg.GetWebhookUrl()) < len(wantPrefix) || webhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
+	if wantPrefix := "https://configured.example/webhooks/incoming/cht_IW_"; len(webhook.Msg.GetWebhookUrl()) < len(wantPrefix) || webhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
 		t.Fatalf("webhook URL = %q, want prefix %q", webhook.Msg.GetWebhookUrl(), wantPrefix)
-	}
-	env.api.config.Webserver.URL = "https://configured.example"
-	spoofedRequestCtx := WithRequestBaseURL(ctx, "https://spoofed.example")
-	rotatedWebhook, err := service.RotateBotIncomingWebhook(spoofedRequestCtx, connect.NewRequest(&apiv1.RotateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), WebhookId: webhookID}))
-	if err != nil || rotatedWebhook.Msg.GetWebhookUrl() == webhook.Msg.GetWebhookUrl() || rotatedWebhook.Msg.GetBot().GetIncomingWebhooks()[0].GetRotatedAt() == nil {
-		t.Fatalf("RotateBotIncomingWebhook = %+v, %v", rotatedWebhook, err)
-	}
-	if wantPrefix := "https://configured.example/webhooks/incoming/cht_IW_"; len(rotatedWebhook.Msg.GetWebhookUrl()) < len(wantPrefix) || rotatedWebhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
-		t.Fatalf("rotated webhook URL = %q, want prefix %q", rotatedWebhook.Msg.GetWebhookUrl(), wantPrefix)
 	}
 	revokedWebhook, err := service.RevokeBotIncomingWebhook(ctx, connect.NewRequest(&apiv1.RevokeBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), WebhookId: webhookID}))
 	if err != nil || len(revokedWebhook.Msg.GetBot().GetIncomingWebhooks()) != 0 {

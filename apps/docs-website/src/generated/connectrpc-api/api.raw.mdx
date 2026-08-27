@@ -1005,44 +1005,8 @@ Request creation of one named incoming webhook for a bot.
 
 #### Result: CreateBotIncomingWebhookResponse
 
-Result of creating an incoming webhook. webhook_url is shown once and
-cannot be retrieved later.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
-| `webhook_url` | `string` | Newly issued incoming webhook URL. |
-
-
-<a id="chatto-api-v1-BotService-RotateBotIncomingWebhook"></a>
-
-### RotateBotIncomingWebhook
-
-Rotates one incoming webhook credential and immediately invalidates its
-old URL without changing other webhooks.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/RotateBotIncomingWebhook
-```
-
-<a id="chatto-api-v1-RotateBotIncomingWebhookRequest"></a>
-
-#### Input: RotateBotIncomingWebhookRequest
-
-Request rotation of one active incoming webhook credential.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `webhook_id` | `string` | Required webhook credential ID. |
-
-
-<a id="chatto-api-v1-RotateBotIncomingWebhookResponse"></a>
-
-#### Result: RotateBotIncomingWebhookResponse
-
-Result of rotating an incoming webhook. webhook_url is shown once and
-cannot be retrieved later.
+Result of creating an incoming webhook. webhook_url is shown once and cannot
+be retrieved later.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -4621,14 +4585,13 @@ rotation responses.
 ### BotIncomingWebhook
 
 Safe metadata for one active bot incoming webhook. The webhook URL is
-returned only when the credential is created or rotated.
+returned only when the credential is created.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable webhook credential ID. |
 | `name` | `string` | Manager-defined name for the credential. |
 | `created_at` | `google.protobuf.Timestamp` | Time the incoming webhook credential was created. |
-| `rotated_at` | `optional google.protobuf.Timestamp` | Most recent credential rotation time, when it has been rotated. |
 | `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
 | `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
 

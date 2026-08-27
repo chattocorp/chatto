@@ -96,9 +96,6 @@
   let createWebhookVisible = $state(false);
   let createWebhookName = $state('');
   let createWebhookLoading = $state(false);
-  let rotateWebhookVisible = $state(false);
-  let rotateWebhookId = $state('');
-  let rotateWebhookLoading = $state(false);
   let revokeWebhookVisible = $state(false);
   let revokeWebhookId = $state('');
   let revokeWebhookLoading = $state(false);
@@ -245,34 +242,6 @@
       }
     } finally {
       if (isCurrentTarget(mutationTarget)) createWebhookLoading = false;
-    }
-  }
-
-  function openRotateWebhook(webhookId: string) {
-    rotateWebhookId = webhookId;
-    rotateWebhookVisible = true;
-  }
-
-  async function rotateWebhook() {
-    if (!bot || !rotateWebhookId) return;
-    const mutationTarget = targetKey;
-    rotateWebhookLoading = true;
-    try {
-      const rotated = await botAPI().rotateBotIncomingWebhook(bot.id, rotateWebhookId);
-      if (!isCurrentTarget(mutationTarget)) return;
-      cacheBot(rotated.bot);
-      rotateWebhookVisible = false;
-      webhookURL = rotated.webhookUrl;
-      webhookURLVisible = true;
-      toast.success(m('settings.bots.webhook_rotated'));
-    } catch (error) {
-      if (isCurrentTarget(mutationTarget)) {
-        toast.error(
-          error instanceof Error ? error.message : m('settings.bots.webhook_rotate_failed')
-        );
-      }
-    } finally {
-      if (isCurrentTarget(mutationTarget)) rotateWebhookLoading = false;
     }
   }
 
@@ -476,14 +445,10 @@
                     <div class="font-medium text-text-top">
                       <bdi>{webhook.name || m('settings.bots.webhook_title')}</bdi>
                     </div>
-                    <dl class="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+                    <dl class="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                       <div>
                         <dt class="text-muted">{m('settings.bots.webhook_created_at')}</dt>
                         <dd>{formatDate(webhook.createdAt)}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
-                        <dd>{formatDate(webhook.rotatedAt)}</dd>
                       </div>
                       <div>
                         <dt class="text-muted">{m('settings.bots.webhook_last_used')}</dt>
@@ -492,14 +457,6 @@
                     </dl>
                   </div>
                   <div class="flex shrink-0 justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="warning"
-                      onclick={() => openRotateWebhook(webhook.id)}
-                    >
-                      <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
-                      {m('settings.bots.webhook_rotate')}
-                    </Button>
                     <Button
                       size="sm"
                       variant="danger-secondary"
@@ -627,19 +584,6 @@
   onclose={() => (rotateVisible = false)}
 >
   {m('settings.bots.rotate_warning')}
-</ConfirmDialog>
-
-<ConfirmDialog
-  bind:visible={rotateWebhookVisible}
-  title={m('settings.bots.webhook_rotate_title')}
-  tone="warning"
-  actionLabel={m('settings.bots.webhook_rotate')}
-  actionIcon="iconify icon-[uil--refresh]"
-  loading={rotateWebhookLoading}
-  onconfirm={rotateWebhook}
-  onclose={() => (rotateWebhookVisible = false)}
->
-  {m('settings.bots.webhook_rotate_warning')}
 </ConfirmDialog>
 
 <ConfirmDialog

@@ -37,11 +37,11 @@ exercise more authority than its human owner currently possesses.
   visual indicator.
 - A bot has one active API key. The key is returned only when the bot is
   created or the key is rotated; it cannot be retrieved later.
-- A bot can have at most 20 active, named incoming webhooks. Creating or
-  rotating one webhook shows its complete URL once. Rotation and revocation
-  affect only the selected webhook.
-- The bot detail page shows when each incoming webhook was created, when it was
-  last rotated, and approximately when it was last used. A successful
+- A bot can have at most 20 active, named incoming webhooks. Creating one
+  webhook shows its complete URL once. A manager can create a replacement
+  before the manager revokes an old webhook.
+- The bot detail page shows when each incoming webhook was created and
+  approximately when it was last used. A successful
   credential authentication counts as use, even if the request subsequently
   fails. If Chatto cannot read this optional telemetry, the page shows that it
   is temporarily unavailable instead of showing "never used."
@@ -282,9 +282,10 @@ notification API.
 credentials. Each credential can call only the incoming webhook HTTP endpoint.
 The endpoint posts through the normal message operation as the bot. Each
 credential can select a room through the request URL or JSON payload. Chatto
-shows each raw URL only when it creates or rotates the selected credential.
-The bot detail page shows lifecycle metadata and an approximate last-use time
-for each credential.
+shows each raw URL only when it creates the selected credential. A manager
+creates a replacement before the manager moves a caller and revokes the old
+credential. The bot detail page shows creation metadata and an approximate
+last-use time for each credential.
 
 **Why:** An external system can post a message without receiving the bot's
 complete API authority. Dynamic room selection keeps one automation usable
@@ -330,13 +331,14 @@ override, but bots themselves cannot exercise bot-management operations.
   to work, and the bundled client gates the action through its server feature
   table.
 - Incoming webhook management RPCs and metadata are additive public API
-  changes. The create and rotate responses show the URL once. Older clients
-  ignore the metadata and do not call the new methods.
+  changes. The create response shows the URL once. Older clients ignore the
+  metadata and do not call the new methods.
 - Incoming webhook lifecycle facts are additive persisted events. Their
   original subject tokens and protobuf field numbers remain stable. Complete
-  a rolling upgrade before you create, rotate, or revoke a webhook. A replica
-  that does not know the new lifecycle fields cannot project multiple
-  credentials correctly after replay.
+  a rolling upgrade before you create or revoke a webhook. A replica that does
+  not know the new lifecycle fields cannot project multiple credentials
+  correctly after replay. Current servers do not write the rotation fact from
+  the unreleased implementation, but they continue to read it.
 - The existing `AdminPermissionService` user-permission operations accept bot
   user IDs. `PermissionMatrixCell.allow_permitted` is additive and reports when
   a target-specific delegation ceiling prevents an explicit allow.
@@ -384,8 +386,8 @@ override, but bots themselves cannot exercise bot-management operations.
 
 ## Open Questions
 
-- Multiple independently rotatable and revocable bot API keys, named keys,
-  last-use telemetry, and key expiry are deferred. A future design should
+- Multiple named bot API keys, independent revocation, last-use telemetry, and
+  key expiry are deferred. A future design should
   reuse the incoming-webhook credential lifecycle and usage-recording patterns
   where they apply. It must also define compatibility for the current
   two-part bot API key format.
