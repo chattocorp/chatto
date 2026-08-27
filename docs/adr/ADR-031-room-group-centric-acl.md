@@ -2,6 +2,12 @@
 
 **Date:** 2026-05-13
 
+**Status:** Partially superseded
+
+**Storage evolution:** ADR-033, ADR-034, and ADR-035 replaced the original KV
+and `RoomLayout` storage model with event-sourced group and layout aggregates.
+The room-group permission-container decision remains current.
+
 ## Context
 
 The post-#330 RBAC model resolves room-scope permissions through a single hierarchy walker rooted in server-scope grants, with room-scope decisions overlaid on top via room-level allow/deny keys. The walker is uniform and tightened (see ADR-005, and the `hmans/rbac-review` work that closed self-grant escalation and dropped `admin.bypass`), but the underlying *shape* of the model produces several awkward edges:
@@ -37,7 +43,12 @@ implicitly carries `everyone`.
 
 **DMs are out of scope for this ADR.** DM rooms are not part of any room group; their permission shape is captured separately in ADR-037. Room groups are a feature on top of channel rooms only.
 
-This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`proto/chatto/core/v1/models.proto`) — sections become groups. The atomic-OCC update pattern in `UpdateRoomLayout` and the live `RoomLayoutUpdatedEvent` are preserved; what changes is the section type's fields (gains `displayName`, `description`) and the disappearance of `unsorted_room_ids` (every channel room is now in a group).
+The current implementation stores group lifecycle and ordered room membership
+as facts on `evt.group.{groupId}` aggregates. The singleton
+`evt.layout.default` aggregate stores the operator-defined group order.
+`RoomGroupProjection`, `RoomLayoutProjection`, and `RoomCatalogProjection`
+compose the current read model. The earlier `RoomLayout` API and
+`room_group.*` / `room_layout` KV records are no longer read or written.
 
 ### Membership and structural invariants
 
@@ -45,9 +56,12 @@ This work evolves the existing `RoomLayout` / `RoomLayoutSection` storage (`prot
 - **Room groups are operator-managed, not system-protected.** On first boot, one group named "Lobby" is seeded; the auto-created `announcements` and `general` channels go into it. The operator can rename, reorder, or delete this group like any other.
 - **Room group deletion is rejected while rooms exist.** Operators must move all rooms out first. No "delete and reassign" cascade — the rejection is deliberate to avoid surprise.
 - **Room creation requires a group.** When no room group is implied by UI context, the public room-creation API requires one explicitly. Lower-level bootstrap/import paths may still use the seed "Lobby" group while constructing first-boot state.
-- **Room group membership is stored on the room record** (one `groupID` field per room).
+- **Room group membership is part of the group's durable event history** and
+  appears in the composed room-group projection.
 - **Moving a room between groups requires `room.manage` in BOTH the source and target group.** The action changes the room's effective ACL overnight, so the caller must be authorized in both ends of the move.
-- **Room groups are ordered.** Room group order, like room order within a group, is captured in the layout proto (same atomic-OCC pattern as today's `RoomLayout`).
+- **Room groups are ordered.** The layout aggregate stores group order, and
+  each group aggregate stores room order within that group. Mutations use EVT
+  optimistic concurrency control.
 
 ### Resolution
 

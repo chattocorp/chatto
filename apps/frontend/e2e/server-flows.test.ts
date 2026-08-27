@@ -51,7 +51,7 @@ test.describe('Landing Page', () => {
     await withFreshPage(browser, async ({ page }) => {
       await page.goto(routes.login);
 
-      // Sidebar nav icons for DMs, Browse Spaces, and Create Space should not be present
+      // Retired DM browse and Space creation navigation must not be present.
       await expect(page.getByTestId('dm-icon')).not.toBeVisible();
       await expect(page.getByRole('link', { name: 'Explore Spaces' })).not.toBeVisible();
       await expect(page.getByRole('link', { name: 'Create Space' })).not.toBeVisible();
@@ -188,7 +188,7 @@ test.describe('Last-Room Memory', () => {
 
       // Navigating directly to the Overview URL should stay on Overview,
       // not bounce to the last room.
-      await page2.goto(routes.browseRooms);
+      await page2.goto(routes.serverOverview);
       await expect(page2).toHaveURL(/\/chat\/-\/overview$/);
       await expect(page2.getByRole('heading', { name: 'Overview' })).toBeVisible();
     });
@@ -484,7 +484,7 @@ test.describe('/chat backward compatibility', () => {
     await createAndLoginTestUser(page);
     await page.goto('/chat');
 
-    // / then redirects to /chat/spaces for authenticated users
+    // / redirects to the home server for authenticated users.
     await page.waitForURL((url) => url.pathname === '/' || url.pathname.startsWith('/chat/'));
   });
 });

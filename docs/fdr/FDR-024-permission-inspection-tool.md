@@ -1,16 +1,22 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-07-19
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
-Admins can inspect why a specific user has (or doesn't have) a permission, at server or room scope. The tool surfaces each direct-user and role decision that contributes to the check, with the winning decision highlighted. It's the only way to debug "why can this user post in #announcements?" without reading code.
+Administrative API clients can inspect why a specific user has or does not
+have each permission at server or room scope. The response surfaces the
+direct-user, named-role, and `everyone` decisions that contribute to the check,
+with the winning decision highlighted. Chatto does not currently include a
+bundled permission-explainer UI.
 
 ## Behavior
 
-- The admin UI exposes a "Permission Explainer" tool: pick a user, optionally pick a room, pick a permission, and see the full resolution trace.
-- The ConnectRPC permission-inspection API keeps the inspector in the RBAC tooling namespace while preserving its admin/tooling-only authorization gate.
+- `AdminPermissionService.ExplainPermissions` accepts a target user and an
+  optional room. It returns every permission that applies at that scope.
+- The ConnectRPC permission-inspection API keeps inspection in the RBAC
+  administration namespace and requires `role.manage`.
 - The trace lists the nearest applicable (subject, scope) entry for the direct user and each assigned named role. It also includes the nearest `everyone` baseline entry.
 - Denies win across direct-user and named-role entries. A named/direct allow wins over an `everyone` deny only at the same or a nearer scope; otherwise the nearer baseline row is marked as winning.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
@@ -26,15 +32,19 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ### 2. Admin-only, no self-inspection
 
-**Decision:** Role inspection requires RBAC-editor authority (`role.manage`). User-level inspection requires `user.manage-permissions`. Regular users can't run the inspector unless they have one of those admin capabilities.
+**Decision:** Every explanation requires RBAC-editor authority (`role.manage`).
+The target cannot inspect itself through this administrative operation.
 **Why:** The trace would leak which roles a user holds and the structure of the permission tree. Useful information to a malicious actor probing what they're up against. Restricting to admins keeps that surface inside the trust boundary.
-**Tradeoff:** Users who legitimately wonder "why can't I post here?" have to ask an admin. Acceptable; the failure mode is rare and the leak is real.
+**Tradeoff:** A delegated user-permission editor who lacks `role.manage` cannot
+inspect the full resolver trace. Users who need an explanation must ask an
+RBAC editor.
 
 ### 3. Probe-resistant error responses
 
 **Decision:** When inspecting a room scope, a missing or inaccessible room returns `ErrPermissionDenied`, not a 404 "room not found".
 **Why:** A 404 leaks the existence-or-not of room IDs to anyone with access to the inspector. The permission-denied response is identical for "no such room" and "you can't see this room", so admins can't accidentally enumerate rooms via the tool.
-**Tradeoff:** Slightly more confusing UX in the rare case where the admin actually mistyped a room ID. The admin UI suppresses this by populating the room ID from a dropdown of rooms they can see.
+**Tradeoff:** API clients cannot distinguish a mistyped room ID from an
+inaccessible room. They should select room IDs from an authorized room list.
 
 ### 4. Same resolver code path as runtime permission checks
 
@@ -42,11 +52,14 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 **Why:** A separate "documentation" version of the resolver would drift from the real one. Anytime the real resolver gets a new short-circuit, optimization, or scope, the documentation version would be wrong until someone remembered to update it. Shared code = the trace is always the truth.
 **Tradeoff:** The resolver has to support a "trace mode" that adds branching. The branching is small and well-isolated.
 
-### 5. Trace surfaces scope tokens that match the UI
+### 5. Trace surfaces stable scope tokens
 
-**Decision:** Trace entries label scopes as `SERVER`, `GROUP`, and `ROOM`, mirroring what the admin UI displays and the `PermissionScope` constants used by the resolver.
-**Why:** Operators reading the trace shouldn't have to translate between internal vocabulary (e.g., "phase 2 of the resolver", "object ID 'any'") and what they see in the admin UI. The labels match the buttons.
-**Tradeoff:** None — the API enum, the Go `Level*` constants, and the inspector UI use the same three tokens.
+**Decision:** Trace entries label scopes as `SERVER`, `GROUP`, and `ROOM`,
+matching the public API's permission-level vocabulary.
+**Why:** API clients should not have to translate internal resolver phases or
+storage identifiers into operator-facing scope names.
+**Tradeoff:** A future UI must use the same vocabulary or translate these
+stable API values explicitly.
 
 ## Permissions
 
