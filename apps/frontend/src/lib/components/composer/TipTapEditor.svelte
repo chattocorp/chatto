@@ -35,6 +35,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     createClipboardContent,
     getSerializedMarkdown,
     hasDefaultEmptyDocument,
+    isHttpMarkdownAutolink,
     prepareMarkdownForEditor
   } from './markdown';
   import { normalizeQuoteInsertionContent } from './quotes';
@@ -486,7 +487,18 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               if (onPaste?.(event)) return true;
 
               const text = event.clipboardData?.getData('text/plain');
+              const normalizedText = text?.replace(/\r\n?/g, '\n');
               const html = event.clipboardData?.getData('text/html');
+              if (
+                normalizedText &&
+                isHttpMarkdownAutolink(normalizedText) &&
+                !editor?.isActive('codeBlock')
+              ) {
+                editor?.commands.insertContent(prepareMarkdownForEditor(normalizedText), {
+                  contentType: 'markdown'
+                });
+                return true;
+              }
               if (!text || !html || editor?.isActive('codeBlock')) return false;
 
               // Prefer and Markdown-parse the textual representation when the clipboard also

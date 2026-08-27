@@ -36,11 +36,7 @@ export function extractURLs(text: string, maxURLs = 1): string[] {
     if (result.length >= maxURLs) return;
 
     let url = rawUrl;
-    if (
-      rawText &&
-      !/^[a-z][a-z0-9+.-]*:/i.test(rawText) &&
-      /^http:\/\//i.test(url)
-    ) {
+    if (rawText && !/^[a-z][a-z0-9+.-]*:/i.test(rawText) && /^http:\/\//i.test(url)) {
       // linkify-it adds http:// to bare domains; upgrade those to https://.
       url = url.replace(/^http:\/\//i, 'https://');
     }
@@ -73,6 +69,7 @@ export function extractURLs(text: string, maxURLs = 1): string[] {
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
       if (child.type !== 'link_open') continue;
+      if (child.markup === 'autolink') continue;
 
       const href = child.attrGet('href');
       if (!href) continue;
