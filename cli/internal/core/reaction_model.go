@@ -48,7 +48,7 @@ func (s *ReactionModel) authorizeReaction(ctx context.Context, input ReactionMut
 		return KindChannel, err
 	}
 
-	room, kind, err := s.core.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
+	room, kind, err := s.core.requireMessageReader(ctx, input.ActorID, input.RoomID, input.MessageEventID)
 	if err != nil {
 		return KindChannel, err
 	}

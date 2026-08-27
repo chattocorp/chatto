@@ -461,7 +461,7 @@ func (s *MessageModel) slowModeNextPostAt(room *corev1.Room, actorID string, byp
 // channel echo state is author-only and, when enabling the echo, additionally
 // requires message.echo and message.post.
 func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) (*corev1.Event, RoomKind, error) {
-	room, kind, err := s.core.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
+	room, kind, err := s.core.requireMessageReader(ctx, input.ActorID, input.RoomID, input.EventID)
 	if err != nil {
 		return nil, KindChannel, err
 	}

@@ -296,8 +296,8 @@ func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStre
 	return m.timeline.Projection().VisibleRoomTimelineAfter(roomID, limit, afterStreamSeq, visible)
 }
 
-func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int) ([]*TimelineEntry, int, bool, bool, bool) {
-	return m.timeline.Projection().VisibleRoomTimelineAround(roomID, eventID, limit)
+func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int, visible func(*corev1.Event) bool) ([]*TimelineEntry, int, bool, bool, bool) {
+	return m.timeline.Projection().VisibleRoomTimelineAround(roomID, eventID, limit, visible)
 }
 
 func (m *RoomModel) threadExists(rootEventID string) bool {
@@ -337,6 +337,14 @@ func (m *RoomModel) threadFollowers(roomID, threadRootEventID string) []string {
 
 func (m *RoomModel) followedThreadsForUser(userID string) []threadFollowRef {
 	return m.threads.Projection().FollowedThreadsForUser(userID)
+}
+
+func (m *RoomModel) threadRootForMessage(roomID, eventID string) (string, bool) {
+	return m.threads.Projection().ThreadRootForMessage(roomID, eventID)
+}
+
+func (m *RoomModel) hasThreadInteraction(userID, roomID, threadRootEventID string) bool {
+	return m.threads.Projection().HasInteraction(userID, roomID, threadRootEventID)
 }
 
 func (m *RoomModel) reactionsForMessage(messageEventID string) []ReactionSummary {

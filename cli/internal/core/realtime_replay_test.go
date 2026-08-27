@@ -453,13 +453,16 @@ func TestPlanRealtimeReplayResetsAfterViewerLosesRoomVisibility(t *testing.T) {
 	}
 }
 
-func TestPlanRealtimeReplayOmitsMessagesWithoutMessageRead(t *testing.T) {
+func TestPlanRealtimeReplayOmitsMessagesWithoutAReadMode(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, room, _ := setupReactionTest(t, chatto, ctx)
 
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
 	}
 	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, "")
 	if err != nil {
@@ -480,6 +483,90 @@ func TestPlanRealtimeReplayOmitsMessagesWithoutMessageRead(t *testing.T) {
 		if event.EVTEvent().GetMessagePosted() != nil {
 			t.Fatalf("PlanRealtimeReplay delivered message without message.read: %+v", event.EVTEvent())
 		}
+	}
+}
+
+func TestPlanRealtimeReplayIncludesOnlyRelatedThreadMessages(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "replay-interaction-viewer", "Replay Interaction Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "replay-interaction-author", "Replay Interaction Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "replay-interactions", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.GetId(), author.GetId()} {
+		if _, err := chatto.JoinRoom(ctx, userID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	root, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "replay target root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "earlier context", nil, root.GetId(), "", nil, false); err != nil {
+		t.Fatalf("PostMessage earlier reply: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.GetId(), "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	mention, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "ping @replay-interaction-viewer", nil, root.GetId(), "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage mention: %v", err)
+	}
+	unrelated, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated new root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage unrelated: %v", err)
+	}
+	future, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "future related reply", nil, root.GetId(), "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage future reply: %v", err)
+	}
+	if added, err := chatto.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: author.GetId(), RoomID: room.GetId(), MessageEventID: future.GetId(), Emoji: "heart",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction related reply = %v, %v", added, err)
+	}
+	if added, err := chatto.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: author.GetId(), RoomID: room.GetId(), MessageEventID: unrelated.GetId(), Emoji: "thumbsup",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction unrelated root = %v, %v", added, err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, viewer.GetId(), boundary.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay interactions: %v", err)
+	}
+	if plan.Reset {
+		t.Fatal("PlanRealtimeReplay reset = true, want incremental replay")
+	}
+	posted := make(map[string]bool)
+	reactions := make(map[string]bool)
+	for _, envelope := range plan.Events {
+		if event := envelope.EVTEvent(); event != nil && event.GetMessagePosted() != nil {
+			posted[event.GetId()] = true
+		} else if event != nil && event.GetReactionAdded() != nil {
+			reactions[event.GetReactionAdded().GetMessageEventId()] = true
+		}
+	}
+	if !posted[mention.GetId()] || !posted[future.GetId()] || posted[unrelated.GetId()] {
+		t.Fatalf("replayed message IDs = %v; want mention and future only", posted)
+	}
+	if !reactions[future.GetId()] || reactions[unrelated.GetId()] {
+		t.Fatalf("replayed reaction targets = %v; want related reply only", reactions)
 	}
 }
 

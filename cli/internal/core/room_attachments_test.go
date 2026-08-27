@@ -22,6 +22,9 @@ func TestAuthorizedRoomAttachmentReadsRequireMessageRead(t *testing.T) {
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
 
 	reads := map[string]func() error{
 		"room list": func() error {
@@ -86,6 +89,68 @@ func TestAuthorizedDMAttachmentReadsIgnoreMessageRead(t *testing.T) {
 	}
 	if sets, err := chatto.BatchMessageAttachments(ctx, BatchMessageAttachmentsInput{ActorID: reader.GetId(), RoomID: dm.GetId(), EventIDs: []string{message.GetId()}}); err != nil || len(sets) != 1 || len(sets[0].Attachments) != 1 {
 		t.Fatalf("BatchMessageAttachments after DM denial = %+v, %v; want one attachment set", sets, err)
+	}
+}
+
+func TestAuthorizedRoomAttachmentReadsUseThreadInteractions(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, author := setupRoomAttachmentTest(t, chatto, ctx)
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "interaction-attachment-reader", "Interaction Attachment Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	if _, err := chatto.JoinRoom(ctx, reader.GetId(), KindChannel, reader.GetId(), room.GetId()); err != nil {
+		t.Fatalf("JoinRoom reader: %v", err)
+	}
+	visibleAsset := uploadRoomAttachment(t, chatto, ctx, author.GetId(), room.GetId(), "visible-thread.png")
+	visibleRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "visible attachment root", []string{visibleAsset.GetId()}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage visible root: %v", err)
+	}
+	hiddenAsset := uploadRoomAttachment(t, chatto, ctx, author.GetId(), room.GetId(), "hidden-thread.png")
+	hiddenRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "hidden attachment root", []string{hiddenAsset.GetId()}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage hidden root: %v", err)
+	}
+	pendingAsset := uploadRoomAttachment(t, chatto, ctx, author.GetId(), room.GetId(), "pending.png")
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "attachment ping @interaction-attachment-reader", nil, visibleRoot.GetId(), "", nil, false); err != nil {
+		t.Fatalf("PostMessage mention: %v", err)
+	}
+
+	page, err := chatto.ListRoomAttachments(ctx, ListRoomAttachmentsInput{ActorID: reader.GetId(), RoomID: room.GetId(), Limit: 20})
+	if err != nil || len(page.Items) != 1 || page.Items[0].Attachment.GetId() != visibleAsset.GetId() {
+		t.Fatalf("ListRoomAttachments = %+v, %v; want visible thread asset", page, err)
+	}
+	if _, err := chatto.GetRoomAsset(ctx, RoomAssetInput{ActorID: reader.GetId(), RoomID: room.GetId(), AssetID: visibleAsset.GetId()}); err != nil {
+		t.Fatalf("GetRoomAsset visible: %v", err)
+	}
+	for name, assetID := range map[string]string{"hidden": hiddenAsset.GetId(), "pending": pendingAsset.GetId()} {
+		if _, err := chatto.GetRoomAsset(ctx, RoomAssetInput{ActorID: reader.GetId(), RoomID: room.GetId(), AssetID: assetID}); !errors.Is(err, ErrPermissionDenied) {
+			t.Errorf("GetRoomAsset %s error = %v, want ErrPermissionDenied", name, err)
+		}
+	}
+	assets, err := chatto.BatchGetRoomAssets(ctx, BatchRoomAssetsInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), AssetIDs: []string{hiddenAsset.GetId(), visibleAsset.GetId(), pendingAsset.GetId()},
+	})
+	if err != nil || len(assets) != 1 || assets[0].GetId() != visibleAsset.GetId() {
+		t.Fatalf("BatchGetRoomAssets = %+v, %v; want only visible asset", assets, err)
+	}
+	attachments, err := chatto.MessageAttachments(ctx, MessageAttachmentsInput{ActorID: reader.GetId(), RoomID: room.GetId(), EventID: visibleRoot.GetId()})
+	if err != nil || len(attachments) != 1 || attachments[0].GetId() != visibleAsset.GetId() {
+		t.Fatalf("MessageAttachments visible root = %+v, %v", attachments, err)
+	}
+	sets, err := chatto.BatchMessageAttachments(ctx, BatchMessageAttachmentsInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), EventIDs: []string{hiddenRoot.GetId(), visibleRoot.GetId()},
+	})
+	if err != nil || len(sets) != 1 || sets[0].EventID != visibleRoot.GetId() {
+		t.Fatalf("BatchMessageAttachments = %+v, %v; want only visible root", sets, err)
 	}
 }
 

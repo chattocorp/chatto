@@ -430,7 +430,7 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 		t.Fatalf("CreateBot: %v", err)
 	}
 
-	for _, permission := range []Permission{PermMessageRead, PermMessagePost} {
+	for _, permission := range []Permission{PermMessageRead, PermMessageReadInteractions, PermMessagePost} {
 		if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", permission); err != nil || decision != DecisionDeny {
 			t.Fatalf("unconfigured bot %s = %s, %v; want deny", permission, decision, err)
 		}
@@ -463,6 +463,12 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageRead); err != nil || decision != DecisionAllow {
 		t.Fatalf("configured bot message.read = %s, %v; want allow", decision, err)
 	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessageReadInteractions, PermissionStateAllow); err != nil {
+		t.Fatalf("SetUserPermissionState message.read.interactions allow: %v", err)
+	}
+	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageReadInteractions); err != nil || decision != DecisionAllow {
+		t.Fatalf("configured bot message.read.interactions = %s, %v; want allow", decision, err)
+	}
 
 	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
 		t.Fatalf("deny owner permission: %v", err)
@@ -475,6 +481,12 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageRead); err != nil || decision != DecisionDeny {
 		t.Fatalf("owner-capped bot message.read = %s, %v; want deny", decision, err)
+	}
+	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("deny owner message.read.interactions: %v", err)
+	}
+	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageReadInteractions); err != nil || decision != DecisionDeny {
+		t.Fatalf("owner-capped bot message.read.interactions = %s, %v; want deny", decision, err)
 	}
 	matrix, err := c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil {
@@ -492,6 +504,53 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	}
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrBotOwnerPermissionCeiling) {
 		t.Fatalf("over-ceiling grant err = %v, want ErrBotOwnerPermissionCeiling", err)
+	}
+}
+
+func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
+	tests := []struct {
+		name            string
+		slug            string
+		botPermission   Permission
+		ownerNarrowOnly bool
+		wantBroad       DecisionKind
+	}{
+		{name: "bot broad and owner narrow", slug: "broad_owner_narrow", botPermission: PermMessageRead, ownerNarrowOnly: true, wantBroad: DecisionDeny},
+		{name: "bot narrow and owner broad", slug: "narrow_owner_broad", botPermission: PermMessageReadInteractions, wantBroad: DecisionDeny},
+		{name: "bot broad and owner broad", slug: "broad_owner_broad", botPermission: PermMessageRead, wantBroad: DecisionAllow},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			core, _ := setupTestCore(t)
+			ctx := testContext(t)
+			owner, err := core.CreateUser(ctx, SystemActorID, "owner-"+test.slug, "Permission Owner", "password123")
+			if err != nil {
+				t.Fatalf("CreateUser: %v", err)
+			}
+			bot, err := core.CreateBot(ctx, owner.GetId(), test.slug+"_bot", "Permission Bot")
+			if err != nil {
+				t.Fatalf("CreateBot: %v", err)
+			}
+			if err := core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, test.botPermission, PermissionStateAllow); err != nil {
+				t.Fatalf("grant bot %s: %v", test.botPermission, err)
+			}
+			if test.ownerNarrowOnly {
+				if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+					t.Fatalf("deny owner parent permission: %v", err)
+				}
+				if err := core.GrantUserPermission(ctx, SystemActorID, owner.GetId(), PermMessageReadInteractions); err != nil {
+					t.Fatalf("grant owner child permission: %v", err)
+				}
+			}
+
+			if got, err := core.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageReadInteractions); err != nil || got != DecisionAllow {
+				t.Fatalf("interaction read = %s, %v; want allow", got, err)
+			}
+			if got, err := core.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageRead); err != nil || got != test.wantBroad {
+				t.Fatalf("broad read = %s, %v; want %s", got, err, test.wantBroad)
+			}
+		})
 	}
 }
 

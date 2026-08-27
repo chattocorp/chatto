@@ -134,6 +134,38 @@ describe('PermissionMatrix', () => {
     ).toEqual(['room.manage', 'server.manage', 'user.delete-any', 'user.delete-self']);
   });
 
+  it('shows that message.read includes the nested interaction permission', async () => {
+    nextTierRoles = {
+      applicablePermissions: ['message.read', 'message.read.interactions'],
+      roles: [
+        {
+          roleName: 'reader',
+          displayName: 'Reader',
+          description: '',
+          isSystem: false,
+          position: 1,
+          override: {
+            permissions: ['message.read'],
+            permissionDenials: ['message.read.interactions']
+          },
+          inheritedAllows: [],
+          inheritedDenials: []
+        }
+      ]
+    };
+    const { container } = render(PermissionMatrix);
+    await settle();
+
+    const rowName = [
+      ...container.querySelectorAll<HTMLElement>('[data-testid="permission-name"]')
+    ].find((permission) => permission.textContent === 'message.read.interactions');
+    const cell = container.querySelector<HTMLButtonElement>(
+      'td[data-role="reader"][data-permission="message.read.interactions"] button'
+    );
+    expect(rowName?.parentElement?.className).toContain('ml-4');
+    expect(cell?.title).toContain('Effective Allow (included by message.read)');
+  });
+
   it('filters permission names as the query changes', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
@@ -295,11 +327,11 @@ describe('PermissionMatrix', () => {
 
     expect(intersection.className).toContain('bg-action/15');
     expect(sameRow.className).toContain('bg-action/8');
-		expect(sameColumn.className).toContain('bg-action/8');
-		expect(unrelated.className).not.toContain('bg-action/');
-		expect(columnHeader.className).toContain('bg-action/10');
-		expect(columnHeader.querySelector('span.text-action, button.text-action')).not.toBeNull();
-		expect(rowLabel.className).toContain('bg-action/8');
+    expect(sameColumn.className).toContain('bg-action/8');
+    expect(unrelated.className).not.toContain('bg-action/');
+    expect(columnHeader.className).toContain('bg-action/10');
+    expect(columnHeader.querySelector('span.text-action, button.text-action')).not.toBeNull();
+    expect(rowLabel.className).toContain('bg-action/8');
     expect(rowLabel.querySelector('[data-testid="permission-name"]')!.className).toContain(
       'text-action'
     );

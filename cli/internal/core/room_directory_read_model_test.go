@@ -241,6 +241,7 @@ func TestRoomDirectoryReadModelKeepsActiveDMsWhenMessageReadIsDenied(t *testing.
 	if _, err := chattoCore.PostMessage(ctx, KindDM, dmA.Id, otherA.Id, "activity visible to DM member", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
+	waitForNotificationMaterializer(t, chattoCore)
 	list(dmA.Id)
 	room, err := chattoCore.RoomDirectoryReads().GetRoom(ctx, actor.Id, dmA.Id)
 	if err != nil {

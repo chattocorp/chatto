@@ -1,6 +1,8 @@
 package core
 
-import "context"
+import (
+	"context"
+)
 
 // ThreadFollows returns the operation-level model for user-facing thread
 // follow state changes.
@@ -40,7 +42,7 @@ func (s *ThreadFollowModel) ListFollowedThreadViewerStates(ctx context.Context, 
 }
 
 func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
-	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
+	room, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
 	if err != nil {
 		return err
 	}
@@ -51,7 +53,7 @@ func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, t
 }
 
 func (s *ThreadFollowModel) UnfollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
-	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
+	room, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
 	if err != nil {
 		return err
 	}

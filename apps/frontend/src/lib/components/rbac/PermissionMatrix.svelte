@@ -33,7 +33,7 @@ focusing a cell highlights its permission row and role column.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import { getPermissionDescription } from '$lib/permissions';
+  import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
@@ -215,10 +215,24 @@ focusing a cell highlights its permission row and role column.
     return 'neutral';
   }
 
-  function inheritedState(role: TierRole, permission: string): State {
+  function exactInheritedState(role: TierRole, permission: string): State {
     if (role.inheritedAllows.includes(permission)) return 'allow';
     if (role.inheritedDenials.includes(permission)) return 'deny';
     return 'neutral';
+  }
+
+  function includingPermission(role: TierRole, permission: string): string | null {
+    const including = getIncludedByPermission(permission);
+    if (!including) return null;
+    const includingOverride = overrideState(role, including);
+    if (includingOverride === 'allow') return including;
+    if (includingOverride === 'deny') return null;
+    return exactInheritedState(role, including) === 'allow' ? including : null;
+  }
+
+  function inheritedState(role: TierRole, permission: string): State {
+    if (includingPermission(role, permission)) return 'allow';
+    return exactInheritedState(role, permission);
   }
 
   function roleIsVirtualOwner(role: TierRole): boolean {
@@ -398,9 +412,15 @@ focusing a cell highlights its permission row and role column.
         {/if}
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        <div class="flex items-center gap-2">
+        {@const includedBy = getIncludedByPermission(permission)}
+        <div class={['flex items-center gap-2', includedBy ? 'ml-4' : '']}>
           <HelpTooltip label={`About ${permission}`}>
             {getPermissionDescription(permission)}
+            {#if includedBy}
+              <span class="mt-1 block">
+                {m('rbac.permissions.included_by', { permission: includedBy })}
+              </span>
+            {/if}
           </HelpTooltip>
           <code data-testid="permission-name" class={['text-sm', highlighted ? 'text-action' : '']}
             >{permission}</code
@@ -410,6 +430,7 @@ focusing a cell highlights its permission row and role column.
       {#snippet cell(permission, role)}
         {@const ov = overrideState(role, permission)}
         {@const inh = inheritedState(role, permission)}
+        {@const includedBy = includingPermission(role, permission)}
         {@const virtualOwner = roleIsVirtualOwner(role)}
         {@const displayOverride = virtualOwner ? 'allow' : ov}
         {@const displayInherited = virtualOwner ? 'neutral' : inh}
@@ -436,6 +457,7 @@ focusing a cell highlights its permission row and role column.
               inh !== 'neutral' && inheritedFromLabel
                 ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
                 : null,
+              includedBy ? `Effective Allow (included by ${includedBy})` : null,
               ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
             ].filter(Boolean)}
         <MatrixCell

@@ -492,6 +492,9 @@ func TestRealtimeProjectionOmitsMessageStateWithoutMessageRead(t *testing.T) {
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
 
 	snapshot, err := env.httpServer.connectAPI.BuildRealtimeProjectionSnapshot(env.ctx, viewer.Id, []string{room.Id})
 	if err != nil {

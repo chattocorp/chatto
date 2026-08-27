@@ -80,6 +80,43 @@ func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind RoomKind, roomID
 	return ev.GetId(), createdAt, true, nil
 }
 
+// GetRoomLastReadableEvent returns the most recent room-visible message that
+// userID can currently read. Channel echoes use the interaction relationship
+// of their canonical thread root.
+func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind, userID, roomID string) (eventID string, ts time.Time, exists bool, err error) {
+	broad, err := c.CanReadMessages(ctx, userID, kind, roomID)
+	if err != nil {
+		return "", time.Time{}, false, err
+	}
+	interactions := false
+	if !broad && kind != KindDM {
+		interactions, err = c.CanReadMessageInteractions(ctx, userID, kind, roomID)
+		if err != nil {
+			return "", time.Time{}, false, err
+		}
+	}
+	visible := func(event *corev1.Event) bool {
+		message := event.GetMessagePosted()
+		if message == nil || message.GetInThread() != "" {
+			return false
+		}
+		if broad || kind == KindDM {
+			return true
+		}
+		rootID, ok := c.roomModel.threadRootForMessage(roomID, event.GetId())
+		return ok && interactions && c.roomModel.hasThreadInteraction(userID, roomID, rootID)
+	}
+	entry, ok := c.roomModel.lastVisibleRoomEntry(roomID, visible)
+	if !ok || entry == nil || entry.Event == nil {
+		return "", time.Time{}, false, nil
+	}
+	createdAt := time.Time{}
+	if entry.Event.GetCreatedAt() != nil {
+		createdAt = entry.Event.GetCreatedAt().AsTime()
+	}
+	return entry.Event.GetId(), createdAt, true, nil
+}
+
 // roomReadEventKey returns the RUNTIME_STATE key for tracking the user's
 // last-read root event ID in a room.
 func roomReadEventKey(userID, roomID string) string {
@@ -104,7 +141,7 @@ func (c *ChattoCore) GetLastReadEventID(ctx context.Context, kind RoomKind, user
 
 	// No marker yet — initialize to the room's current last root event so the
 	// user starts caught up rather than seeing a wall of unreads.
-	lastID, _, exists, err := c.GetRoomLastEvent(ctx, kind, roomID)
+	lastID, _, exists, err := c.GetRoomLastReadableEvent(ctx, kind, userID, roomID)
 	if err != nil {
 		return "", err
 	}

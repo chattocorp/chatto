@@ -154,6 +154,9 @@ func TestReactionModel_AuthorizationAndValidation(t *testing.T) {
 		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
 			t.Fatalf("DenyRoomPermission: %v", err)
 		}
+		if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+			t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+		}
 
 		_, err := service.AddReaction(ctx, ReactionMutationInput{
 			ActorID:        user.Id,
@@ -166,6 +169,9 @@ func TestReactionModel_AuthorizationAndValidation(t *testing.T) {
 		}
 		if err := core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
 			t.Fatalf("ClearRoomPermissionState: %v", err)
+		}
+		if err := core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+			t.Fatalf("ClearRoomPermissionState message.read.interactions: %v", err)
 		}
 	})
 

@@ -200,7 +200,7 @@ func notificationVisibilityBoundaryEvent(event *corev1.Event) bool {
 }
 
 func notificationVisibilityPermission(permission string) bool {
-	return permission == string(PermRoomJoin) || permission == string(PermMessageRead)
+	return permission == string(PermRoomJoin) || permission == string(PermMessageRead) || permission == string(PermMessageReadInteractions)
 }
 
 func (*NotificationDecisionProjection) SnapshotContractID() string {
@@ -719,6 +719,23 @@ func (s *notificationDecisionSnapshot) notificationVisibilityExists(userID, room
 		return exists
 	}
 	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageRead)
+}
+
+// notificationVisibilityExistsForSignal also accepts interaction-scoped read
+// access for a direct mention. The source message establishes that interaction
+// relationship, so the recipient can read the target at the same event boundary.
+func (s *notificationDecisionSnapshot) notificationVisibilityExistsForSignal(userID, roomID string, signal *corev1.NotificationSignal) bool {
+	if s.notificationVisibilityExists(userID, roomID) {
+		return true
+	}
+	if signal.GetDirectMentionReceived() == nil || !s.membershipExists(userID, roomID) {
+		return false
+	}
+	kind, exists := s.roomKind(roomID)
+	if !exists || kind == KindDM {
+		return exists
+	}
+	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageReadInteractions)
 }
 
 func (s *notificationDecisionSnapshot) roomPermissionAllowed(userID, roomID, groupID string, permission Permission) bool {

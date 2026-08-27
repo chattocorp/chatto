@@ -13,8 +13,9 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 - Hovering a pill shows a tooltip with up to 5 reactor names plus an overflow count.
 - Clicking a pill toggles the current user's reaction.
 - Adding or removing a reaction requires room membership and `message.react`.
-  In a channel room, it also requires `message.read`. DM membership authorizes
-  the read.
+  In a channel room, it also requires broad `message.read`, or
+  `message.read.interactions` with a relationship to the message's thread. DM
+  membership authorizes the read.
 - Another user's reaction to your message creates one exact Ambient
   notification occurrence when the reaction preference resolves to
   Notification or Push notification. Your own reactions do not notify you.
@@ -84,7 +85,7 @@ sync without requiring clients to infer echo linkage from a reaction signal.
 
 **Decision:** Every user-facing add/remove attempt captures the room aggregate
 tail, waits the projections used by membership, applicable channel-room
-`message.read`, `message.react`, room state, message aliasing, and
+message-read authority, `message.react`, room state, message aliasing, and
 reaction-limit decisions, and evaluates the complete operation-level gate. A concurrent room change
 rejects the append and reruns the decision. A cross-aggregate authorization
 change does not retroactively cancel an already-authorized, otherwise
@@ -104,10 +105,13 @@ into a narrow commit-time authorization fence instead.
 ## Permissions
 
 - `message.react` — add or remove a reaction on a message. Scoped at server, group, and room.
-- `message.read` — read the target channel-room message and the aggregate
-  reaction state. DM membership authorizes the read.
+- `message.read` — read any target channel-room message and its aggregate
+  reaction state.
+- `message.read.interactions` — read the target and reaction state when its
+  thread has an interaction relationship. DM membership authorizes DM reads
+  without either permission.
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection), ADR-068 (selectable event mutation consistency boundaries), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection), ADR-068 (selectable event mutation consistency boundaries), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
 - **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)

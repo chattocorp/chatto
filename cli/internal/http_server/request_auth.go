@@ -82,6 +82,15 @@ func (s *HTTPServer) requestIsSameOrigin(r *http.Request) bool {
 	if presentedOrigin == directRequestOrigin(r) {
 		return true
 	}
+	for _, allowed := range s.config.Webserver.AllowedOrigins {
+		if allowed == "*" {
+			continue
+		}
+		allowedOrigin, ok := parseBrowserOrigin(allowed)
+		if ok && presentedOrigin == canonicalOrigin(allowedOrigin) {
+			return true
+		}
+	}
 	base, err := url.Parse(s.requestBaseURL(r))
 	if err != nil || base.Scheme == "" || base.Host == "" {
 		return false

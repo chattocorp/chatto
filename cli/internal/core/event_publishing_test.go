@@ -249,7 +249,6 @@ func TestStreamMyEvents_DoesNotDeliverMessageBodyEvent(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom viewer: %v", err)
 	}
-
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	eventChan, err := core.StreamMyEvents(subCtx, viewer.Id)
@@ -468,11 +467,14 @@ func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
 
 	service := NewMyEventsModel(chatto)
 	memberRooms := map[string]struct{}{room.Id: {}}
 	if delivered, ok := service.filterReadyEVTRoomSubjectEvent(viewer.Id, memberRooms, room.Id, message, 123); ok || delivered != nil {
-		t.Fatalf("message event delivered %T/%v without message.read, want dropped", delivered, ok)
+		t.Fatalf("message event delivered %T/%v without a message read mode, want dropped", delivered, ok)
 	}
 
 	assetEvent := &corev1.Event{
@@ -482,7 +484,7 @@ func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T
 		}},
 	}
 	if delivered, ok := service.filterReadyEVTAssetSubjectEvent(viewer.Id, memberRooms, room.Id, assetEvent, 124); ok || delivered != nil {
-		t.Fatalf("asset event delivered %T/%v without message.read, want dropped", delivered, ok)
+		t.Fatalf("asset event delivered %T/%v without a message read mode, want dropped", delivered, ok)
 	}
 }
 
@@ -689,6 +691,10 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom viewer: %v", err)
 	}
+	target, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "raw EVT target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage target: %v", err)
+	}
 
 	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -702,7 +708,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 		Event: &corev1.Event_MessageEdited{
 			MessageEdited: &corev1.MessageEditedEvent{
 				RoomId:  room.Id,
-				EventId: "E-raw-evt",
+				EventId: target.GetId(),
 			},
 		},
 	})
@@ -718,8 +724,8 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 			if edited == nil {
 				continue
 			}
-			if edited.EventId != "E-raw-evt" {
-				t.Errorf("EventId = %q, want E-raw-evt", edited.EventId)
+			if edited.EventId != target.GetId() {
+				t.Errorf("EventId = %q, want %s", edited.EventId, target.GetId())
 			}
 			return
 		case <-timeout:

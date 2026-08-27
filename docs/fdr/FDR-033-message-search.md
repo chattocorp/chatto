@@ -70,9 +70,10 @@ does not expose the dedicated page's filters or pagination.
 ### 2. Current visibility is authoritative
 
 **Decision:** Results are limited to rooms where the viewer is a current
-member. Channel-room results also require `message.read`. DM membership
-authorizes DM results. Each result is checked again against current message
-state before delivery.
+member. Channel-room results also require broad `message.read`, or
+`message.read.interactions` with a relationship to the result's thread. DM
+membership authorizes DM results. Each result is checked again against current
+message state before delivery.
 **Why:** A derived search index must never preserve access after membership or
 content visibility changes. Search cannot become an alternative path around
 the room privacy boundary.
@@ -166,8 +167,9 @@ independent transient query state.
 ## Permissions
 
 Channel-room search requires `message.read` at the applicable server,
-room-group, or room scope. DM membership authorizes DM search. Search omits
-rooms where the viewer does not have current read authority.
+room-group, or room scope, or `message.read.interactions` with a relationship
+to each result's thread. DM membership authorizes DM search. Search omits each
+result where the viewer does not have current read authority.
 
 ## Related
 
@@ -175,7 +177,8 @@ rooms where the viewer does not have current read authority.
   (event-sourced state with projections), ADR-041 (runtime units), ADR-045
   (public API stability tiers), ADR-053 (versioned NATS service namespaces),
   ADR-054 (optional projection persistence), ADR-055 (pluggable message search
-  over NATS), ADR-080 (explicit message-read permissions)
+  over NATS), ADR-080 (explicit message-read permissions), ADR-082 (derived
+  thread interactions)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-014 (Jump to Present),
   FDR-015 (Quick Switcher), FDR-019 (Room Lifecycle), FDR-032 (Message
   Formatting), FDR-039 (Message Access & Interactions)

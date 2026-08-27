@@ -99,8 +99,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   <ReleaseFeatureCard title="A more practical permission baseline">
     The `everyone` role now acts as a scoped default that named roles and direct-user
     decisions can override at the same or a narrower scope. Fresh announcement rooms also
-    give admins an explicit room-level posting grant. The new `message.read` permission
-    separates channel-room membership from access to channel-room message content.
+    give admins an explicit room-level posting grant. The new `message.read` and
+    `message.read.interactions` permissions separate broad and relationship-scoped
+    channel-room message access from membership. Broad read access includes the narrower
+    interaction permission.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Visible cleanup health" size="small">
@@ -135,13 +137,14 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   UUID version 4 `refresh_request_id` for each rotation, and keep that same value
   across a lost-response retry.
 - Before or during the upgrade, grant `message.read` to every existing role or
-  account that must keep channel-room message access. A server-level `everyone`
-  grant preserves the previous channel-room membership-based behavior. Chatto
-  never migrates, backfills, or reconciles existing RBAC state, while fresh
-  servers receive the grant during empty-stream bootstrap. DM membership
-  continues to authorize DM reads. Upgrade every replica before you rely on a
-  channel-room deny or missing grant because older replicas enforce membership
-  only.
+  account that must keep broad channel-room message access. Grant
+  `message.read.interactions` where an account or bot must read only related
+  threads. A server-level `everyone` grant for `message.read` preserves broad
+  access and includes the narrow mode. Chatto never migrates, backfills, or
+  reconciles existing RBAC state. Fresh servers receive only the broad grant
+  during empty-stream bootstrap. DM membership continues to authorize DM
+  reads. Upgrade every replica before you rely on a channel-room deny, missing
+  grant, or narrow-read availability.
 - Bot integrations must not call `RoomService.StartDM`. Chatto 0.5 denies this
   operation to every bot, including when the DM already exists. A human must
   start the DM before the bot can read or post in it. Upgrade every replica

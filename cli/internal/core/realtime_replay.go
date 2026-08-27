@@ -207,22 +207,6 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
-		if protectedRoomID, protected := c.MessageReadProtectedEventRoomID(&event); protected {
-			kind, err := c.FindRoomKind(ctx, protectedRoomID)
-			if errors.Is(err, ErrNotFound) {
-				continue
-			}
-			if err != nil {
-				return RealtimeReplayPlan{}, fmt.Errorf("resolve replay message room %s: %w", protectedRoomID, err)
-			}
-			canRead, err := c.CanReadMessages(ctx, userID, kind, protectedRoomID)
-			if err != nil {
-				return RealtimeReplayPlan{}, fmt.Errorf("authorize replay message room %s: %w", protectedRoomID, err)
-			}
-			if !canRead {
-				continue
-			}
-		}
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
 		assetID, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
@@ -264,7 +248,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				continue
 			}
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
-			err = c.myEventsModel.waitForLiveEVTAssetEvent(waitCtx, msg.Subject, seq)
+			err = c.myEventsModel.waitForLiveEVTAssetEvent(waitCtx, msg.Subject, &event, seq)
 			cancel()
 			if err != nil {
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
@@ -288,6 +272,22 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			}
 		default:
 			continue
+		}
+		if protectedRoomID, protected := c.MessageReadProtectedEventRoomID(&event); protected {
+			kind, err := c.FindRoomKind(ctx, protectedRoomID)
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return RealtimeReplayPlan{}, fmt.Errorf("resolve replay message room %s: %w", protectedRoomID, err)
+			}
+			canRead, err := c.CanReadMessageEvent(ctx, userID, kind, protectedRoomID, &event)
+			if err != nil {
+				return RealtimeReplayPlan{}, fmt.Errorf("authorize replay message room %s: %w", protectedRoomID, err)
+			}
+			if !canRead {
+				continue
+			}
 		}
 		plan.Events = append(plan.Events, NewEVTEventEnvelopeWithDeliverySeq(&event, seq))
 		if len(plan.Events) > realtimeReplayMaxEvents {

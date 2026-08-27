@@ -48,4 +48,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
 | [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-08-23 |
 | [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-08-25 |
-| [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-08-25 |
+| [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-08-26 |

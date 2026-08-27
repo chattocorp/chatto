@@ -54,6 +54,27 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 		return nil, invalidArgument("DM rooms do not support pinned messages")
 	}
 	pins, latestPinEventID := s.core.roomModel.pinnedMessagesWithLatest(room.GetId())
+	broad, err := s.core.CanReadMessages(ctx, input.ActorID, kind, room.GetId())
+	if err != nil {
+		return nil, err
+	}
+	readablePins := make([]PinnedMessageState, 0, len(pins))
+	for _, pin := range pins {
+		allowed, err := s.core.CanReadMessage(ctx, input.ActorID, kind, room.GetId(), pin.MessageEventID)
+		if err != nil {
+			return nil, err
+		}
+		if allowed {
+			readablePins = append(readablePins, pin)
+		}
+	}
+	pins = readablePins
+	if !broad {
+		latestPinEventID = ""
+		if len(pins) > 0 {
+			latestPinEventID = pins[0].PinEventID
+		}
+	}
 	total := len(pins)
 	start := min(max(input.Offset, 0), total)
 	end := total
@@ -116,7 +137,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 				return ErrRoomArchived
 			}
 			if create {
-				canRead, readErr := s.core.CanReadMessages(ctx, input.ActorID, memberKind, room.GetId())
+				canRead, readErr := s.core.CanReadMessage(ctx, input.ActorID, memberKind, room.GetId(), input.MessageEventID)
 				if readErr != nil {
 					return readErr
 				}

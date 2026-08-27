@@ -141,26 +141,41 @@ func (c *ChattoCore) AssetEventTimelineTarget(event *corev1.Event) (roomID, mess
 	case *corev1.Event_AssetProcessingFailed:
 		messageEventID = payload.AssetProcessingFailed.GetMessageEventId()
 	case *corev1.Event_AssetDeleted:
-		if ownerRoomID, ownerMessageEventID, found := c.assetModel.AssetMessageOwner(assetID); found {
-			return ownerRoomID, ownerMessageEventID, true
-		}
-		for _, owner := range c.assetModel.MessageAssetOwners() {
-			manifest, found := c.assetModel.VideoAttachmentManifest(owner.AssetID)
-			if !found || manifest == nil || manifest.Succeeded == nil || manifest.Succeeded.GetVideo() == nil {
-				continue
-			}
-			video := manifest.Succeeded.GetVideo()
-			if video.GetThumbnailAssetId() == assetID {
-				return owner.RoomID, owner.MessageEventID, true
-			}
-			for _, variant := range video.GetVariants() {
-				if variant.GetAssetId() == assetID {
-					return owner.RoomID, owner.MessageEventID, true
-				}
-			}
-		}
+		return c.AssetMessageTarget(assetID)
 	default:
 		return "", "", false
 	}
 	return roomID, messageEventID, messageEventID != ""
+}
+
+// AssetMessageTarget resolves the durable message that owns an original or
+// processed derivative asset.
+func (c *ChattoCore) AssetMessageTarget(assetID string) (roomID, messageEventID string, ok bool) {
+	if c == nil || c.assetModel == nil || assetID == "" {
+		return "", "", false
+	}
+	if ownerRoomID, ownerMessageEventID, found := c.assetModel.AssetMessageOwner(assetID); found {
+		return ownerRoomID, ownerMessageEventID, true
+	}
+	for _, owner := range c.assetModel.MessageAssetOwners() {
+		manifest, found := c.assetModel.VideoAttachmentManifest(owner.AssetID)
+		if !found || manifest == nil || manifest.Succeeded == nil || manifest.Succeeded.GetVideo() == nil {
+			continue
+		}
+		video := manifest.Succeeded.GetVideo()
+		if video.GetThumbnailAssetId() == assetID {
+			return owner.RoomID, owner.MessageEventID, true
+		}
+		for _, variant := range video.GetVariants() {
+			if variant.GetAssetId() == assetID {
+				return owner.RoomID, owner.MessageEventID, true
+			}
+		}
+		for _, hlsAssetID := range hlsDerivativeAssetIDs(video.GetHls()) {
+			if hlsAssetID == assetID {
+				return owner.RoomID, owner.MessageEventID, true
+			}
+		}
+	}
+	return "", "", false
 }

@@ -50,7 +50,7 @@ message ProjectionSnapshotPointer {
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the
-// Threads v1 projection snapshot contract. Repeated fields are emitted in
+// Threads projection snapshot contract. Repeated fields are emitted in
 // deterministic key order by the codec.
 message ThreadProjectionSnapshot {
   repeated ThreadSnapshot threads = 1;
@@ -58,6 +58,9 @@ message ThreadProjectionSnapshot {
   repeated ThreadFollowSnapshot follows = 3;
   repeated string shredded_user_ids = 4;
   ProjectionReplayGuardSnapshot replay_guard = 5;
+  repeated string channel_room_ids = 6;
+  repeated ThreadMessageSnapshot messages = 7;
+  repeated ThreadInteractionSnapshot interactions = 8;
 }
 
 message ThreadSnapshot {
@@ -83,6 +86,21 @@ message ThreadFollowSnapshot {
   string room_id = 2;
   string thread_root_event_id = 3;
   string state = 4;
+}
+
+message ThreadMessageSnapshot {
+  string event_id = 1;
+  string room_id = 2;
+  string thread_root_event_id = 3;
+}
+
+message ThreadInteractionSnapshot {
+  string user_id = 1;
+  string room_id = 2;
+  string thread_root_event_id = 3;
+  string cause = 4;
+  string source_event_id = 5;
+  google.protobuf.Timestamp created_at = 6;
 }
 
 message ProjectionReplayGuardSnapshot {

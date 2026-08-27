@@ -1,6 +1,7 @@
 package core
 
 import (
+	"slices"
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -35,6 +36,42 @@ type threadFollowRef struct {
 	threadRootEventID string
 }
 
+// ThreadInteractionCauseKind identifies the durable fact that established one
+// account's relationship with a channel-room thread.
+type ThreadInteractionCauseKind string
+
+const (
+	ThreadInteractionCauseRootAuthored  ThreadInteractionCauseKind = "root-authored"
+	ThreadInteractionCauseDirectMention ThreadInteractionCauseKind = "direct-mention"
+)
+
+// ThreadInteractionCause is one immutable post-time reason that an account is
+// related to a channel-room thread.
+type ThreadInteractionCause struct {
+	Kind          ThreadInteractionCauseKind
+	SourceEventID string
+	CreatedAt     time.Time
+}
+
+// ThreadInteraction is one account-to-thread relationship derived from
+// durable message facts.
+type ThreadInteraction struct {
+	RoomID            string
+	ThreadRootEventID string
+	Causes            []ThreadInteractionCause
+}
+
+type threadMessageRef struct {
+	roomID            string
+	threadRootEventID string
+}
+
+type projectedThreadInteraction struct {
+	roomID            string
+	threadRootEventID string
+	causes            map[string]ThreadInteractionCause
+}
+
 type ThreadTimelineEntry struct {
 	EventID   string
 	StreamSeq uint64
@@ -63,6 +100,9 @@ type ThreadProjection struct {
 	events.MemoryProjection
 	byThread        map[string][]ThreadTimelineEntry
 	messageToThread map[string]string // reply event_id → thread root event_id
+	channelRooms    map[string]struct{}
+	messageThreads  map[string]threadMessageRef
+	interactions    map[string]map[string]*projectedThreadInteraction
 	replySummaries  map[string]*threadReplySummary
 	summaryByThread map[string]*threadSummary
 	followState     map[string]ThreadFollowState
@@ -77,6 +117,9 @@ func NewThreadProjection() *ThreadProjection {
 	return &ThreadProjection{
 		byThread:        make(map[string][]ThreadTimelineEntry),
 		messageToThread: make(map[string]string),
+		channelRooms:    make(map[string]struct{}),
+		messageThreads:  make(map[string]threadMessageRef),
+		interactions:    make(map[string]map[string]*projectedThreadInteraction),
 		replySummaries:  make(map[string]*threadReplySummary),
 		summaryByThread: make(map[string]*threadSummary),
 		followState:     make(map[string]ThreadFollowState),
@@ -87,11 +130,13 @@ func NewThreadProjection() *ThreadProjection {
 	}
 }
 
-// Subjects implements evtstream.Projection. Threads only need thread lifecycle
-// and message mutation families, plus user key-shred events that can hide
-// replies during crypto-shredding.
+// Subjects implements evtstream.Projection. Room lifecycle and every message
+// post supply the channel and relationship indexes. Thread lifecycle, message
+// mutation, and user key-shred facts supply the existing thread views.
 func (p *ThreadProjection) Subjects() []string {
 	return []string{
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomCreated),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed),
@@ -141,6 +186,23 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	switch e := event.GetEvent().(type) {
+	case *corev1.Event_RoomCreated:
+		room := e.RoomCreated
+		if room.GetRoomId() == "" || room.GetKind() != corev1.RoomKind_ROOM_KIND_CHANNEL {
+			return nil
+		}
+		p.channelRooms[room.GetRoomId()] = struct{}{}
+		markApplied()
+
+	case *corev1.Event_RoomDeleted:
+		roomID := e.RoomDeleted.GetRoomId()
+		if _, ok := p.channelRooms[roomID]; !ok {
+			return nil
+		}
+		delete(p.channelRooms, roomID)
+		p.removeRoomInteractionStateLocked(roomID)
+		markApplied()
+
 	case *corev1.Event_UserKeyShreddingRequested:
 		p.applyUserKeyShreddedLocked(e.UserKeyShreddingRequested.GetUserId(), markApplied)
 	case *corev1.Event_UserKeyShredded:
@@ -171,8 +233,14 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 
 	case *corev1.Event_MessagePosted:
 		m := e.MessagePosted
+		if _, channel := p.channelRooms[m.GetRoomId()]; channel {
+			p.applyMessageInteractionStateLocked(event, m)
+		}
 		threadRoot := m.GetInThread()
 		if threadRoot == "" {
+			if _, channel := p.channelRooms[m.GetRoomId()]; channel {
+				markApplied()
+			}
 			return nil // root-level message; not in any thread bucket
 		}
 		replyID := event.GetId()
@@ -217,6 +285,84 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		markApplied()
 	}
 	return nil
+}
+
+func (p *ThreadProjection) applyMessageInteractionStateLocked(event *corev1.Event, message *corev1.MessagePostedEvent) {
+	if event == nil || message == nil || event.GetId() == "" || message.GetRoomId() == "" {
+		return
+	}
+	rootID := message.GetInThread()
+	if rootID == "" {
+		rootID = message.GetEchoFromThreadRootEventId()
+	}
+	if rootID == "" {
+		rootID = event.GetId()
+	}
+	p.messageThreads[event.GetId()] = threadMessageRef{roomID: message.GetRoomId(), threadRootEventID: rootID}
+
+	// Either echo field identifies derived channel-echo state. Malformed or
+	// partially upgraded echo facts must not create interaction causes.
+	if message.GetEchoOfEventId() != "" || message.GetEchoFromThreadRootEventId() != "" {
+		return
+	}
+	if message.GetInThread() == "" {
+		p.addInteractionCauseLocked(event.GetActorId(), message.GetRoomId(), rootID, ThreadInteractionCause{
+			Kind: ThreadInteractionCauseRootAuthored, SourceEventID: event.GetId(), CreatedAt: eventCreatedAt(event),
+		})
+	}
+	for _, mention := range message.GetMentions() {
+		if mention == nil || mention.GetUserId() == "" || mention.GetUserId() == event.GetActorId() {
+			continue
+		}
+		if _, direct := mention.GetCause().(*corev1.MessageMention_Direct); !direct {
+			continue
+		}
+		p.addInteractionCauseLocked(mention.GetUserId(), message.GetRoomId(), rootID, ThreadInteractionCause{
+			Kind: ThreadInteractionCauseDirectMention, SourceEventID: event.GetId(), CreatedAt: eventCreatedAt(event),
+		})
+	}
+}
+
+func (p *ThreadProjection) addInteractionCauseLocked(userID, roomID, rootID string, cause ThreadInteractionCause) {
+	if userID == "" || roomID == "" || rootID == "" || cause.Kind == "" || cause.SourceEventID == "" {
+		return
+	}
+	byThread := p.interactions[userID]
+	if byThread == nil {
+		byThread = make(map[string]*projectedThreadInteraction)
+		p.interactions[userID] = byThread
+	}
+	key := threadFollowKeyPart(roomID, rootID)
+	interaction := byThread[key]
+	if interaction == nil {
+		interaction = &projectedThreadInteraction{
+			roomID: roomID, threadRootEventID: rootID,
+			causes: make(map[string]ThreadInteractionCause),
+		}
+		byThread[key] = interaction
+	}
+	causeKey := string(cause.Kind) + "\x00" + cause.SourceEventID
+	if _, exists := interaction.causes[causeKey]; !exists {
+		interaction.causes[causeKey] = cause
+	}
+}
+
+func (p *ThreadProjection) removeRoomInteractionStateLocked(roomID string) {
+	for eventID, ref := range p.messageThreads {
+		if ref.roomID == roomID {
+			delete(p.messageThreads, eventID)
+		}
+	}
+	for userID, byThread := range p.interactions {
+		for key, interaction := range byThread {
+			if interaction != nil && interaction.roomID == roomID {
+				delete(byThread, key)
+			}
+		}
+		if len(byThread) == 0 {
+			delete(p.interactions, userID)
+		}
+	}
 }
 
 func (p *ThreadProjection) applyUserKeyShreddedLocked(userID string, markApplied func()) {
@@ -431,6 +577,67 @@ func (p *ThreadProjection) FollowedThreadsForUser(userID string) []threadFollowR
 		refs = append(refs, ref)
 	}
 	return refs
+}
+
+// ThreadRootForMessage returns the canonical thread root for one projected
+// channel-room message, including roots, replies, and channel echoes.
+func (p *ThreadProjection) ThreadRootForMessage(roomID, eventID string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	ref, ok := p.messageThreads[eventID]
+	if !ok || ref.roomID != roomID || ref.threadRootEventID == "" {
+		return "", false
+	}
+	return ref.threadRootEventID, true
+}
+
+// HasInteraction reports whether userID has a derived relationship with one
+// channel-room thread.
+func (p *ThreadProjection) HasInteraction(userID, roomID, threadRootEventID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	interaction := p.interactions[userID][threadFollowKeyPart(roomID, threadRootEventID)]
+	return interaction != nil && len(interaction.causes) > 0
+}
+
+// Interaction returns a detached relationship for one account and thread.
+func (p *ThreadProjection) Interaction(userID, roomID, threadRootEventID string) (*ThreadInteraction, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	interaction := p.interactions[userID][threadFollowKeyPart(roomID, threadRootEventID)]
+	if interaction == nil || len(interaction.causes) == 0 {
+		return nil, false
+	}
+	return cloneThreadInteraction(interaction), true
+}
+
+func cloneThreadInteraction(interaction *projectedThreadInteraction) *ThreadInteraction {
+	if interaction == nil {
+		return nil
+	}
+	causes := make([]ThreadInteractionCause, 0, len(interaction.causes))
+	for _, cause := range interaction.causes {
+		causes = append(causes, cause)
+	}
+	slices.SortFunc(causes, func(a, b ThreadInteractionCause) int {
+		if byTime := a.CreatedAt.Compare(b.CreatedAt); byTime != 0 {
+			return byTime
+		}
+		if a.Kind < b.Kind {
+			return -1
+		}
+		if a.Kind > b.Kind {
+			return 1
+		}
+		if a.SourceEventID < b.SourceEventID {
+			return -1
+		}
+		if a.SourceEventID > b.SourceEventID {
+			return 1
+		}
+		return 0
+	})
+	return &ThreadInteraction{RoomID: interaction.roomID, ThreadRootEventID: interaction.threadRootEventID, Causes: causes}
 }
 
 // ThreadCount returns how many threads are currently in the

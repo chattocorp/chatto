@@ -30,6 +30,8 @@ type postedOpts struct {
 	inThread                  string
 	echoOfEventID             string
 	echoFromThreadRootEventID string
+	mentionedUserIDs          []string
+	mentions                  []*corev1.MessageMention
 	at                        int
 }
 
@@ -49,6 +51,8 @@ func postedEvent(o postedOpts) *corev1.Event {
 				InThread:                  o.inThread,
 				EchoOfEventId:             o.echoOfEventID,
 				EchoFromThreadRootEventId: o.echoFromThreadRootEventID,
+				MentionedUserIds:          o.mentionedUserIDs,
+				Mentions:                  o.mentions,
 			},
 		},
 	}

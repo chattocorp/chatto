@@ -25,11 +25,12 @@ Reads, marks read, and deletes notifications for the authenticated viewer.
 ### GetNotificationOccurrence
 
 Gets one exact visible occurrence. Message-derived occurrences require
-current room membership. Channel-room occurrences also require
-message.read. DM membership authorizes DM occurrences. Returns NOT_FOUND
-when the occurrence is absent, deleted, expired, or no longer visible to
-the authenticated viewer. Returns UNIMPLEMENTED when this server cannot
-validate its signal kind.
+current room membership. Channel-room occurrences also require message.read
+or a matching thread relationship with message.read.interactions. DM
+membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
+is absent, deleted, expired, or no longer visible to the authenticated
+viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
+kind.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/GetNotificationOccurrence
@@ -98,9 +99,9 @@ Exact visible notification occurrences requested by stable ID.
 
 Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 presentation groups without changing occurrence identity or counts.
-Message-derived occurrences require current room membership.
-Channel-room occurrences also require message.read. DM membership
-authorizes DM occurrences.
+Message-derived occurrences require current room membership. Channel-room
+occurrences also require message.read or a matching thread relationship
+with message.read.interactions. DM membership authorizes DM occurrences.
 Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
 signal kind this server version cannot validate and assemble.
 

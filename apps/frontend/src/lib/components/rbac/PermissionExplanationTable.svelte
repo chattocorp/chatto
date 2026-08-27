@@ -16,6 +16,7 @@
 
   type Explanation = {
     permission: string;
+    includedByPermission?: string;
     state: DecisionKind;
     decidedAt?: Level | null;
     decidedByRole?: string | null;
@@ -92,6 +93,11 @@
       {:else}
         <Pill tone="muted">{levelLabel(exp.decidedAt)}</Pill>
         <span class="font-medium">{exp.decidedByRole}</span>
+        {#if exp.includedByPermission}
+          <span class="text-muted">
+            {m('rbac.permissions.included_by', { permission: exp.includedByPermission })}
+          </span>
+        {/if}
       {/if}
     </div>
 

@@ -1989,6 +1989,9 @@ func TestAsset_RevokedMessageReadRevokesStableURL(t *testing.T) {
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
 	after, err := plainClient.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("GET after denial: %v", err)
@@ -1996,5 +1999,64 @@ func TestAsset_RevokedMessageReadRevokesStableURL(t *testing.T) {
 	after.Body.Close()
 	if after.StatusCode != http.StatusForbidden {
 		t.Fatalf("status after denial = %d, want 403", after.StatusCode)
+	}
+}
+
+func TestAsset_InteractionReaderCanFetchStableURL(t *testing.T) {
+	env := setupAssetTestServerWithS3(t)
+
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "asset-interaction-author", "Asset Interaction Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reader, err := env.core.CreateUser(env.ctx, core.SystemActorID, "asset-interaction-reader", "Asset Interaction Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, author.GetId(), core.KindChannel, "", "asset-interaction-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.GetId(), reader.GetId()} {
+		if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.GetId(), core.RoleEveryone, core.PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.GetId(), reader.GetId(), core.PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+
+	env.login(t, "asset-interaction-author", "password123")
+	messageID, _ := env.postAssetMessageWithAttachment(
+		t, room.GetId(), "@asset-interaction-reader related attachment", createAssetTestPNG(t, 64, 64), "related.png",
+	)
+
+	env.login(t, "asset-interaction-reader", "password123")
+	messages := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
+	message, err := messages.GetMessage(env.ctx, connect.NewRequest(&apiv1.GetMessageRequest{
+		RoomId: room.GetId(), EventId: messageID,
+	}))
+	if err != nil {
+		t.Fatalf("GetMessage as interaction reader: %v", err)
+	}
+	attachments := message.Msg.GetMessage().GetAttachments()
+	if len(attachments) != 1 {
+		t.Fatalf("interaction-scoped message attachments = %d, want 1", len(attachments))
+	}
+	attachmentURL := attachments[0].GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("interaction-scoped attachment URL is empty")
+	}
+	plainClient := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
+	response, err := plainClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("GET interaction-scoped attachment: %v", err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("interaction-scoped attachment status = %d, want 200", response.StatusCode)
 	}
 }

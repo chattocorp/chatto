@@ -48,6 +48,69 @@ func TestPermissionResolver_HasServerPermission(t *testing.T) {
 
 }
 
+func TestPermissionResolver_MessageReadInclusionTruthTable(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "read-inclusion", "Read Inclusion", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		parent PermissionState
+		child  PermissionState
+		want   DecisionKind
+	}{
+		{name: "no decisions", parent: PermissionStateNone, child: PermissionStateNone, want: DecisionNone},
+		{name: "parent allow", parent: PermissionStateAllow, child: PermissionStateNone, want: DecisionAllow},
+		{name: "parent allow beats child deny", parent: PermissionStateAllow, child: PermissionStateDeny, want: DecisionAllow},
+		{name: "child allow is independent of parent deny", parent: PermissionStateDeny, child: PermissionStateAllow, want: DecisionAllow},
+		{name: "parent deny does not become child deny", parent: PermissionStateDeny, child: PermissionStateNone, want: DecisionNone},
+		{name: "child deny applies without parent allow", parent: PermissionStateNone, child: PermissionStateDeny, want: DecisionDeny},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			apply := func(permission Permission, state PermissionState) {
+				t.Helper()
+				var err error
+				switch state {
+				case PermissionStateAllow:
+					err = core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, permission)
+				case PermissionStateDeny:
+					err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, permission)
+				default:
+					err = core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, permission)
+				}
+				if err != nil {
+					t.Fatalf("set %s to %s: %v", permission, state, err)
+				}
+			}
+			apply(PermMessageRead, test.parent)
+			apply(PermMessageReadInteractions, test.child)
+
+			got, err := core.PermResolver().Resolve(ctx, user.GetId(), KindChannel, "", PermMessageReadInteractions)
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			if got != test.want {
+				t.Fatalf("decision = %s, want %s", got, test.want)
+			}
+		})
+	}
+
+	if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("clear parent: %v", err)
+	}
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("grant child: %v", err)
+	}
+	if got, err := core.PermResolver().Resolve(ctx, user.GetId(), KindChannel, "", PermMessageRead); err != nil || got != DecisionNone {
+		t.Fatalf("child must not include parent: decision = %s, err = %v", got, err)
+	}
+}
+
 func TestPermissionResolver_HasServerPermission_MultiRoleDenyWins(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

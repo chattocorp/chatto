@@ -128,8 +128,8 @@ idempotent operations:
 - lightweight state for every room visible to the viewer and the complete
   visible room-group layout; DM participant references remain eager;
 - complete channel membership and the latest 50 renderable timeline events for
-  retained DMs and for retained channel rooms where the viewer has
-  `message.read`;
+  retained DMs. For a retained channel room, it includes all roots with
+  `message.read`, or only related roots with `message.read.interactions`;
 - the newest finite Notifications 2.0 occurrences, exact total and Important
   unread-occurrence counts, and complete per-room counterparts;
 - every active call visible to the viewer; and
@@ -217,8 +217,9 @@ projection through normal operations, then marks it ready only at `caught_up`.
 
 For a valid short gap, the handler subscribes to the process-wide live hub,
 captures an EVT cutoff, waits until every registered projection is current
-before reading membership, applicable `message.read`, or compacted state, and
-performs bounded JetStream point reads for the sequences after the cursor. It
+before reading membership, applicable message-read permissions, interaction
+relationships, or compacted state, and performs bounded JetStream point reads
+for the sequences after the cursor. It
 does not create a JetStream consumer. Each
 deliverable room, asset, or user fact waits for its owning projection and is
 converted to current public resource operations. The handler sends `caught_up`
@@ -239,9 +240,16 @@ This lets new browsers refetch transient hydrated search plaintext without
 materialising room timelines, while older projection-v1 clients safely reapply
 the familiar state and advance their cursor.
 
-Effective membership and channel-room `message.read` changes are authoritative
-timeline boundaries. DM membership is the complete DM read boundary. When a
-viewer gains room access through a join, Universal membership, or unarchive,
+Effective membership and channel-room message-read permission changes are
+authoritative timeline boundaries. DM membership is the complete DM read
+boundary. An interaction-scoped timeline contains only related roots, and each
+durable message-derived operation is authorized against its canonical thread
+root. A direct-mention post waits for the Threads projection before delivery,
+so the source operation can establish and use the relationship in order.
+Reactions, pins, and asset lifecycle facts also wait for the Threads projection
+at their source message. This prevents an authorized event from being omitted
+when the relationship projection has processing delay. When a viewer gains
+room access through a join, Universal membership, or unarchive,
 live mapping pairs the current room and any retained timeline with
 authoritative active-call and notification replacements. Newly visible calls
 therefore appear without a compacted reset or page reload.

@@ -1345,9 +1345,12 @@ type PermissionExplanation struct {
 	// Role name, user ID, or policy marker that produced the winning decision.
 	DecidedByRole string `protobuf:"bytes,4,opt,name=decided_by_role,json=decidedByRole,proto3" json:"decided_by_role,omitempty"`
 	// Ordered decision trace. The first entry is the winning decision.
-	Trace         []*PermissionTraceEntry `protobuf:"bytes,5,rep,name=trace,proto3" json:"trace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Trace []*PermissionTraceEntry `protobuf:"bytes,5,rep,name=trace,proto3" json:"trace,omitempty"`
+	// Permission whose effective allow includes this permission. Empty when the
+	// permission was resolved directly.
+	IncludedByPermission string `protobuf:"bytes,6,opt,name=included_by_permission,json=includedByPermission,proto3" json:"included_by_permission,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *PermissionExplanation) Reset() {
@@ -1413,6 +1416,13 @@ func (x *PermissionExplanation) GetTrace() []*PermissionTraceEntry {
 		return x.Trace
 	}
 	return nil
+}
+
+func (x *PermissionExplanation) GetIncludedByPermission() string {
+	if x != nil {
+		return x.IncludedByPermission
+	}
+	return ""
 }
 
 // Request permission explanations for a user at server or room scope.
@@ -1924,7 +1934,7 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\x05level\x18\x01 \x01(\x0e2(.chatto.admin.v1.PermissionDecisionLevelR\x05level\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12?\n" +
 	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\bdecision\x12\x18\n" +
-	"\aapplied\x18\x04 \x01(\bR\aapplied\"\xa0\x02\n" +
+	"\aapplied\x18\x04 \x01(\bR\aapplied\"\xd6\x02\n" +
 	"\x15PermissionExplanation\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
@@ -1933,7 +1943,8 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\n" +
 	"decided_at\x18\x03 \x01(\x0e2(.chatto.admin.v1.PermissionDecisionLevelR\tdecidedAt\x12&\n" +
 	"\x0fdecided_by_role\x18\x04 \x01(\tR\rdecidedByRole\x12;\n" +
-	"\x05trace\x18\x05 \x03(\v2%.chatto.admin.v1.PermissionTraceEntryR\x05trace\"V\n" +
+	"\x05trace\x18\x05 \x03(\v2%.chatto.admin.v1.PermissionTraceEntryR\x05trace\x124\n" +
+	"\x16included_by_permission\x18\x06 \x01(\tR\x14includedByPermission\"V\n" +
 	"\x19ExplainPermissionsRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"h\n" +

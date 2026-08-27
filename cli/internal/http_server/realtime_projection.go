@@ -241,7 +241,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if !isMember {
 			return realtimeProjectionServerFrame(projection), true, nil
 		}
-		canRead, err := s.core.CanReadMessages(ctx, viewerID, kind, roomID)
+		canRead, err := s.core.CanReadMessageEvent(ctx, viewerID, kind, roomID, evt)
 		if err != nil {
 			return nil, false, err
 		}

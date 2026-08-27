@@ -59,7 +59,7 @@ func (s *messageService) reactionSummary(ctx context.Context, viewerID, roomID, 
 	if err != nil || !member {
 		return nil
 	}
-	canRead, err := s.api.core.CanReadMessages(ctx, viewerID, core.KindOfRoom(room), roomID)
+	canRead, err := s.api.core.CanReadMessage(ctx, viewerID, core.KindOfRoom(room), roomID, messageEventID)
 	if err != nil || !canRead {
 		return nil
 	}

@@ -176,6 +176,49 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 	}
 }
 
+func TestDirectMentionAllowsInteractionScopedSourceVisibility(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	const (
+		roomID      = "R1"
+		recipientID = "U1"
+	)
+	events := []*corev1.Event{
+		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: recipientID}}},
+		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "interaction-read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, recipientID, PermMessageReadInteractions)}},
+		{Id: "join", ActorId: recipientID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
+	}
+	for index, event := range events {
+		if err := p.Apply(event, uint64(index+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", index+1, err)
+		}
+	}
+	source := &corev1.Event{
+		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+			RoomId: roomID,
+			Mentions: []*corev1.MessageMention{{
+				UserId: recipientID,
+				Cause:  &corev1.MessageMention_Direct{Direct: &corev1.DirectUserMention{}},
+			}},
+		}},
+	}
+	if err := p.Apply(source, 5); err != nil {
+		t.Fatalf("Apply source: %v", err)
+	}
+	snapshot, err := p.Boundary(5, source.GetCreatedAt().AsTime())
+	if err != nil {
+		t.Fatalf("Boundary: %v", err)
+	}
+	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
+	if err != nil {
+		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
+	}
+	if len(decisions) != 1 || decisions[0].recipientID != recipientID || notificationSignalIdentity(decisions[0].signal) != string(notificationTestSignalDirectMention) {
+		t.Fatalf("interaction-scoped decisions = %+v, want direct mention for %s", decisions, recipientID)
+	}
+}
+
 func TestRootChannelMessageFansOutToExactSourceTimeMembers(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	const (

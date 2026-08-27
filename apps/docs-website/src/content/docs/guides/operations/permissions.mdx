@@ -66,13 +66,21 @@ Permissions can be configured at different scopes:
 
 Each setting can be **Allow**, **Deny**, or **Inherit**. Inherit means "use the next broader setting for this same user or role". For example, a room set to Inherit checks the room group, then the server. It never inherits a setting from another role.
 
-Room-relevant permissions such as `message.read`, `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
+Room-relevant permissions such as `message.read`, `message.read.interactions`, `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
+
+Permission identifiers contain two or more dot-separated components. A dotted
+prefix does not automatically grant a longer permission. Chatto defines one
+explicit inclusion: an effective `message.read` allow also allows
+`message.read.interactions`. The reverse is not true. A deny for the narrower
+permission cannot restrict broad read access, and a deny for broad read access
+does not restrict a separate narrow allow.
 
 ## Important permissions
 
 | Permission                | Meaning                                                                                                                                                                         |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `message.read`            | Read channel-room message and thread content, attachments, message search results, typing indicators, and message-derived activity. Channel-room membership is also required. DM membership authorizes DM reads. Fresh servers allow this for `everyone`; existing servers are never backfilled. |
+| `message.read`            | Read channel-room message and thread content, attachments, message search results, typing indicators, and message-derived activity. It includes `message.read.interactions`. Channel-room membership is also required. DM membership authorizes DM reads. Fresh servers allow this for `everyone`; existing servers are never backfilled. |
+| `message.read.interactions` | Read a complete channel-room thread when the account authored its root or another account directly mentioned it in that thread. This includes messages from before the relationship started. Role mentions, broadcast mentions, self-mentions, and authored replies do not create access. Channel-room membership is also required. Fresh servers get this authority through the `message.read` grant; existing servers are never backfilled. |
 | `message.post`            | Post root messages. A human with this permission can also start DMs. A bot cannot start a DM. Explicitly establishing a channel-room root as a thread also requires `message.post-in-thread`. |
 | `message.post-in-thread`  | Post messages inside channel-room threads and, together with `message.post`, explicitly establish a root as a thread.                                                          |
 | `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
@@ -94,13 +102,14 @@ Room-relevant permissions such as `message.read`, `message.post`, `message.attac
 
 The full list is visible in the admin UI.
 
-<Aside type="caution" title="Existing servers need an explicit read grant">
+<Aside type="caution" title="Existing servers need explicit read grants">
   Chatto applies defaults only when it bootstraps an empty RBAC stream. Before
   or during an upgrade to 0.5, grant `message.read` to each role or account
   that must keep channel-room message access. Grant it to `everyone` at server
-  scope to preserve the previous channel-room membership-based behavior.
-  Chatto does not migrate, backfill, or reconcile existing RBAC state. This
-  permission does not control DM reads.
+  scope to preserve the previous broad membership-based behavior. Grant
+  `message.read.interactions` where accounts or bots must read only related
+  threads. Chatto does not migrate, backfill, or reconcile existing RBAC
+  state. These permissions do not control DM reads.
 </Aside>
 
 Slow Mode is room configuration rather than a permission. It paces new
@@ -188,9 +197,9 @@ Use `owners.emails` in `chatto.toml` to recover owner access if needed. The user
 
 DMs use the same permission names where they make sense, but private conversations have extra protection. For non-owners, Chatto always blocks channel management actions in DMs, including `message.manage`, `message.echo`, `room.manage`, `room.ban-member`, `room.create`, and `message.post-in-thread`. Role grants cannot enable them.
 
-Each participant can read the complete DM. `message.read` grants and denials do
-not change DM access. Owners cannot read or moderate a DM that they are not
-part of.
+Each participant can read the complete DM. `message.read` and
+`message.read.interactions` grants and denials do not change DM access. Owners
+cannot read or moderate a DM that they are not part of.
 
 Only a human can start a DM. A bot cannot use `RoomService.StartDM`, even when
 it has `message.post` or the DM already exists. A human must start the DM. The

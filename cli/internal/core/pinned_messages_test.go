@@ -179,6 +179,9 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
 	if _, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: room.Id, Limit: 50}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("ListPinnedMessages without message.read error = %v, want permission denied", err)
 	}
@@ -216,5 +219,70 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 	}
 	if _, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: dm.Id, Limit: 50}); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("ListPinnedMessages DM error = %v, want invalid argument", err)
+	}
+}
+
+func TestPinnedMessagesAndReactionsUseThreadInteractions(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chatto.CreateUser(ctx, SystemActorID, "interaction-pin-author", "Interaction Pin Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "interaction-pin-reader", "Interaction Pin Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "interaction-pins", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.GetId(), reader.GetId()} {
+		if _, err := chatto.JoinRoom(ctx, userID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), author.GetId(), PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+	visibleRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "visible pin root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage visible root: %v", err)
+	}
+	hiddenRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "hidden pin root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage hidden root: %v", err)
+	}
+	visiblePin, err := chatto.RoomCommands().CreatePinnedMessage(ctx, PinnedMessageMutationInput{ActorID: author.GetId(), RoomID: room.GetId(), MessageEventID: visibleRoot.GetId()})
+	if err != nil {
+		t.Fatalf("CreatePinnedMessage visible: %v", err)
+	}
+	hiddenPin, err := chatto.RoomCommands().CreatePinnedMessage(ctx, PinnedMessageMutationInput{ActorID: author.GetId(), RoomID: room.GetId(), MessageEventID: hiddenRoot.GetId()})
+	if err != nil {
+		t.Fatalf("CreatePinnedMessage hidden: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "pin ping @interaction-pin-reader", nil, visibleRoot.GetId(), "", nil, false); err != nil {
+		t.Fatalf("PostMessage mention: %v", err)
+	}
+
+	page, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: reader.GetId(), RoomID: room.GetId(), Limit: 20})
+	if err != nil || len(page.Items) != 1 || page.Items[0].Event.GetId() != visibleRoot.GetId() || page.LatestPinEventID != visiblePin.PinEventID || page.LatestPinEventID == hiddenPin.PinEventID {
+		t.Fatalf("interaction-scoped pins = %+v, %v; want only visible pin and marker", page, err)
+	}
+	if added, err := chatto.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), MessageEventID: visibleRoot.GetId(), Emoji: "thumbsup",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction visible root = %v, %v; want added", added, err)
+	}
+	if _, err := chatto.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), MessageEventID: hiddenRoot.GetId(), Emoji: "thumbsup",
+	}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("AddReaction hidden root error = %v, want ErrPermissionDenied", err)
 	}
 }

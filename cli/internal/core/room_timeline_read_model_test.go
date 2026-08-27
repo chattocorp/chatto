@@ -86,6 +86,9 @@ func TestRoomTimelineReadModelRequiresMessageReadWithoutGrantingWrite(t *testing
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
 
 	for name, read := range map[string]func() error{
 		"room timeline": func() error {
@@ -120,6 +123,137 @@ func TestRoomTimelineReadModelRequiresMessageReadWithoutGrantingWrite(t *testing
 	}
 	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, member.Id, room.Id, message.Id); err != nil {
 		t.Fatalf("GetMessage after direct room grant: %v", err)
+	}
+}
+
+func TestRoomTimelineReadModelInteractionScopedAccess(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := chatto.CreateUser(ctx, SystemActorID, "interaction-author", "Interaction Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "interaction-reader", "Interaction Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "interaction-access", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.GetId(), reader.GetId()} {
+		if _, err := chatto.JoinRoom(ctx, userID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+
+	mentionedRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "mentioned thread", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage mentioned root: %v", err)
+	}
+	earlierReply, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "earlier reply", nil, mentionedRoot.GetId(), "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage earlier reply: %v", err)
+	}
+	unrelatedRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated thread", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage unrelated root: %v", err)
+	}
+	readerReply, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), reader.GetId(), "reply authored by reader", nil, unrelatedRoot.GetId(), "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reader reply: %v", err)
+	}
+	readerRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), reader.GetId(), "reader-authored root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reader root: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+
+	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, reader.GetId(), room.GetId(), mentionedRoot.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("GetMessage before mention error = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, reader.GetId(), room.GetId(), readerReply.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("GetMessage for authored reply error = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, reader.GetId(), room.GetId(), readerRoot.GetId()); err != nil {
+		t.Fatalf("GetMessage for authored root: %v", err)
+	}
+
+	mentionReply, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "hello @interaction-reader", nil, mentionedRoot.GetId(), "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage mention reply: %v", err)
+	}
+	thread, err := chatto.RoomTimelineReads().GetThreadEvents(ctx, ThreadTimelineEventsInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), ThreadRootEventID: mentionedRoot.GetId(), Limit: 20,
+	})
+	if err != nil {
+		t.Fatalf("GetThreadEvents after mention: %v", err)
+	}
+	if thread.Root.GetId() != mentionedRoot.GetId() || len(thread.Replies.Events) != 2 ||
+		thread.Replies.Events[0].GetId() != earlierReply.GetId() || thread.Replies.Events[1].GetId() != mentionReply.GetId() {
+		t.Fatalf("interaction thread = root %v replies %+v; want root and both replies", thread.Root, thread.Replies.Events)
+	}
+
+	page, err := chatto.RoomTimelineReads().GetRoomEvents(ctx, RoomTimelineEventsInput{ActorID: reader.GetId(), RoomID: room.GetId(), Limit: 20})
+	if err != nil {
+		t.Fatalf("GetRoomEvents after mention: %v", err)
+	}
+	visibleRoots := make(map[string]bool)
+	for _, event := range page.Page.Events {
+		visibleRoots[event.GetId()] = true
+	}
+	if !visibleRoots[mentionedRoot.GetId()] || !visibleRoots[readerRoot.GetId()] || visibleRoots[unrelatedRoot.GetId()] {
+		t.Fatalf("interaction-scoped room roots = %v", visibleRoots)
+	}
+
+	withoutMention := "mention removed by edit"
+	if _, _, err := chatto.Messages().UpdateMessage(ctx, MessageUpdateInput{
+		ActorID: author.GetId(), RoomID: room.GetId(), EventID: mentionReply.GetId(), Body: &withoutMention,
+	}); err != nil {
+		t.Fatalf("UpdateMessage mention source: %v", err)
+	}
+	if err := chatto.DeleteMessage(ctx, author.GetId(), KindChannel, room.GetId(), mentionReply.GetId()); err != nil {
+		t.Fatalf("DeleteMessage mention source: %v", err)
+	}
+	if allowed, err := chatto.CanReadThreadMessages(ctx, reader.GetId(), KindChannel, room.GetId(), mentionedRoot.GetId()); err != nil || !allowed {
+		t.Fatalf("CanReadThreadMessages after edit and retraction = %v, %v; want true", allowed, err)
+	}
+
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read.interactions: %v", err)
+	}
+	if _, err := chatto.RoomTimelineReads().roomTimelineVisibility(ctx, reader.GetId(), KindChannel, room.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("roomTimelineVisibility after permission loss error = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := chatto.RoomTimelineReads().GetThreadEvents(ctx, ThreadTimelineEventsInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), ThreadRootEventID: mentionedRoot.GetId(),
+	}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("GetThreadEvents after permission loss error = %v, want ErrPermissionDenied", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+	if err := chatto.LeaveRoom(ctx, reader.GetId(), KindChannel, reader.GetId(), room.GetId()); err != nil {
+		t.Fatalf("LeaveRoom: %v", err)
+	}
+	if _, err := chatto.RoomTimelineReads().GetThreadEvents(ctx, ThreadTimelineEventsInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), ThreadRootEventID: mentionedRoot.GetId(),
+	}); !errors.Is(err, ErrNotRoomMember) {
+		t.Fatalf("GetThreadEvents after membership loss error = %v, want ErrNotRoomMember", err)
+	}
+	if _, err := chatto.JoinRoom(ctx, reader.GetId(), KindChannel, reader.GetId(), room.GetId()); err != nil {
+		t.Fatalf("JoinRoom after leave: %v", err)
+	}
+	if _, err := chatto.RoomTimelineReads().GetThreadEvents(ctx, ThreadTimelineEventsInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), ThreadRootEventID: mentionedRoot.GetId(),
+	}); err != nil {
+		t.Fatalf("GetThreadEvents after permission and membership restoration: %v", err)
 	}
 }
 

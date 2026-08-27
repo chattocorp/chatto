@@ -28,8 +28,9 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   participants. Exhaustive authenticated state also retains membership-derived
   room metadata for routing.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
-- A user can read a DM only when they are a participant. `message.read` does
-  not apply to DMs, and there is no `dm.*` read permission.
+- A user can read a DM only when they are a participant. `message.read` and
+  `message.read.interactions` do not apply to DMs, and there is no `dm.*` read
+  permission.
 - Operators can prevent a human user from starting DMs, or any user from
   sending messages in existing DMs, by revoking `message.post`.
 - Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
@@ -48,16 +49,16 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 ### 2. Membership authorizes DM reads
 
 **Decision:** DM membership authorizes complete DM reads for humans and bots.
-`message.read` grants and denials do not change DM access. A human needs
-`message.post` to start a DM. All users need `message.post` to post messages in
-an existing DM. Reply attribution does not change that permission, and thread
-posting does not apply to DMs.
+`message.read` and `message.read.interactions` grants and denials do not change
+DM access. A human needs `message.post` to start a DM. All users need
+`message.post` to post messages in an existing DM. Reply attribution does not
+change that permission, and thread posting does not apply to DMs.
 **Why:** Membership is the fixed private participant boundary. Chatto has no
 permission UI for one DM, and hiding a DM from its participant is surprising.
 See ADR-037 and ADR-080.
-**Tradeoff:** Operators cannot use `message.read` to hide an existing DM from
-one of its participants. They can revoke posting authority or suspend the
-account.
+**Tradeoff:** Operators cannot use a message-read permission to hide an
+existing DM from one of its participants. They can revoke posting authority or
+suspend the account.
 
 ### 3. Threads are channel-room-only
 

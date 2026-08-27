@@ -77,11 +77,12 @@ const (
 // NotificationServiceClient is a client for the chatto.api.v1.NotificationService service.
 type NotificationServiceClient interface {
 	// Gets one exact visible occurrence. Message-derived occurrences require
-	// current room membership. Channel-room occurrences also require
-	// message.read. DM membership authorizes DM occurrences. Returns NOT_FOUND
-	// when the occurrence is absent, deleted, expired, or no longer visible to
-	// the authenticated viewer. Returns UNIMPLEMENTED when this server cannot
-	// validate its signal kind.
+	// current room membership. Channel-room occurrences also require message.read
+	// or a matching thread relationship with message.read.interactions. DM
+	// membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
+	// is absent, deleted, expired, or no longer visible to the authenticated
+	// viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
+	// kind.
 	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
 	// Gets an explicit bounded set of visible occurrences. Missing or
 	// inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
@@ -90,9 +91,9 @@ type NotificationServiceClient interface {
 	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
 	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 	// presentation groups without changing occurrence identity or counts.
-	// Message-derived occurrences require current room membership.
-	// Channel-room occurrences also require message.read. DM membership
-	// authorizes DM occurrences.
+	// Message-derived occurrences require current room membership. Channel-room
+	// occurrences also require message.read or a matching thread relationship
+	// with message.read.interactions. DM membership authorizes DM occurrences.
 	// Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
 	// signal kind this server version cannot validate and assemble.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
@@ -257,11 +258,12 @@ func (c *notificationServiceClient) UpdateNotificationPolicy(ctx context.Context
 // NotificationServiceHandler is an implementation of the chatto.api.v1.NotificationService service.
 type NotificationServiceHandler interface {
 	// Gets one exact visible occurrence. Message-derived occurrences require
-	// current room membership. Channel-room occurrences also require
-	// message.read. DM membership authorizes DM occurrences. Returns NOT_FOUND
-	// when the occurrence is absent, deleted, expired, or no longer visible to
-	// the authenticated viewer. Returns UNIMPLEMENTED when this server cannot
-	// validate its signal kind.
+	// current room membership. Channel-room occurrences also require message.read
+	// or a matching thread relationship with message.read.interactions. DM
+	// membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
+	// is absent, deleted, expired, or no longer visible to the authenticated
+	// viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
+	// kind.
 	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
 	// Gets an explicit bounded set of visible occurrences. Missing or
 	// inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
@@ -270,9 +272,9 @@ type NotificationServiceHandler interface {
 	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
 	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 	// presentation groups without changing occurrence identity or counts.
-	// Message-derived occurrences require current room membership.
-	// Channel-room occurrences also require message.read. DM membership
-	// authorizes DM occurrences.
+	// Message-derived occurrences require current room membership. Channel-room
+	// occurrences also require message.read or a matching thread relationship
+	// with message.read.interactions. DM membership authorizes DM occurrences.
 	// Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
 	// signal kind this server version cannot validate and assemble.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)

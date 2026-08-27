@@ -1,150 +1,179 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-25
-
-> Slice 1 implements broad access through `message.read`. Interaction-scoped
-> access remains design work in
-> [#2089](https://github.com/chattocorp/chatto/issues/2089).
+**Last reviewed:** 2026-08-26
 
 ## Overview
 
-Message access controls which channel-room message content Chatto can give to
-a human or bot. The first slice makes broad channel-room access explicit. DM
-membership continues to authorize complete DM reads. A later slice can add
-narrow channel-room access for direct interactions after its life cycle and
-inspection model are complete.
+Message access controls which message content Chatto can give to a human or
+bot. Channel rooms use explicit broad or interaction-scoped read permissions.
+DM membership continues to authorize complete DM reads.
 
 ## Behavior
 
-- Channel-room membership remains necessary for message access. It is not
+- Channel-room membership is always necessary for message access. It is not
   sufficient.
-- Every human and bot needs `message.read` to read channel-room message content
-  in the first slice.
-- `message.read` applies at server, room-group, and room scope.
-- A DM participant can read the complete DM. `message.read` decisions do not
-  restrict DM reads.
-- Fresh servers grant `message.read` to `everyone` at server scope when they
-  bootstrap an empty RBAC stream.
-- Existing servers receive no automatic grant. Operators decide how to update
-  their RBAC state.
-- Bots do not inherit `everyone`. A bot needs an explicit `message.read` grant
-  for channel-room reads.
-- A bot's grant is effective only while its owner has `message.read` at the
-  same applicable scope.
-- Message-read authority does not grant write authority. An account needs the
-  normal permission for each post, upload, reaction, or moderation action.
-- Channel-room operations that read a current message or aggregate message
-  state while they mutate it, such as editing, reacting, creating a hydrated
-  pin, and changing thread-follow state, also require `message.read`. Posting
-  and deletion remain independently authorized and do not return surrounding
-  message state.
-- A denied account can still see channel-room metadata that normal
-  room-visibility rules allow. It cannot receive channel-room message bodies or
-  message-specific metadata.
-- The same channel-room decision applies to public timeline and thread APIs,
-  pinned-message reads, search, attachment metadata and bytes, message-derived
-  notifications, followed-thread state, unread message state, typing
-  indicators, and realtime message delivery. DM versions of these surfaces use
-  membership.
-- The normal realtime protocol carries authorized message updates for human
-  and bot clients.
-- Old server replicas do not enforce `message.read` in channel rooms. Operators
-  must complete the rollout before they rely on denial.
-- A new client connected to an old server treats the absent room-permission row
-  as unsupported and keeps the former membership-based navigation behavior.
+- `message.read` gives broad access to message content in a channel room and
+  includes `message.read.interactions`.
+- `message.read.interactions` gives access only to channel-room threads where
+  the account has an interaction relationship.
+- The same permissions and rules apply to human and bot accounts.
+- A direct mention from another account creates an interaction relationship.
+  The mention can be in a root message or a reply.
+- Authoring a channel-room root message creates an interaction relationship
+  with that thread.
+- A self-mention, role mention, `@all`, `@here`, or authored reply does not
+  create an interaction relationship.
+- A relationship gives access to the complete thread. This includes the root,
+  replies from before the relationship started, and future replies.
+- A relationship is a post-time fact. Editing or retracting the message that
+  caused it does not remove the relationship. Current edited content and
+  retraction tombstones still apply.
+- This slice has no action to end a relationship. Permission loss or room
+  membership loss closes current access. Permission restoration or room
+  re-entry opens an existing relationship again.
+- A DM participant can read the complete DM. `message.read` and
+  `message.read.interactions` decisions do not restrict DM reads.
+- Message-read authority does not grant write authority. Each post, upload,
+  reaction, edit, or moderation action needs its normal permission.
+- A channel-room operation that reads or returns an existing message also
+  needs access to that message's thread. Deletion remains independently
+  authorized and does not return surrounding message state.
+- The same access decision protects timelines, individual messages, thread
+  reads, pins, search, attachments and file bytes, message-derived
+  notifications, unread state, thread-follow state, typing indicators, and
+  realtime delivery.
+- A room timeline for an account with only interaction-scoped access contains
+  the roots of threads that the account can read. The account can then read
+  each complete thread through the thread API.
+- Main-room typing indicators require broad access. A thread typing indicator
+  is visible when the account can read that thread.
+- The normal realtime protocol carries authorized updates for retained room
+  timelines. A client that knows a thread root can use the thread API to get
+  complete context.
+- The public API does not list or inspect interaction relationships. A thread
+  read succeeds or fails after the server applies the current access rules.
+- This slice does not add interaction-specific bot pings. Realtime delivery for
+  bot pings is a separate feature decision.
+- Fresh servers grant only `message.read` to `everyone` at server scope when
+  they initialize an empty RBAC stream. That effective allow includes the
+  interaction permission.
+- Existing servers receive no automatic grant. Operators must review and
+  update existing RBAC state.
+- Bots do not inherit `everyone`. A bot needs an explicit grant for each read
+  mode that it uses.
+- A bot read grant is effective only while its owner has sufficient effective
+  read authority at the applicable scope. `message.read` can satisfy the
+  narrower requirement for the bot or its owner.
+- Old replicas know only broad `message.read`. During a mixed rollout, they
+  deny interaction-scoped reads instead of giving broad access. Operators must
+  complete the rollout before they depend on interaction-scoped availability.
 
 ## Design Decisions
 
-### 1. All accounts use one explicit broad-read permission
+### 1. Broad and interaction-scoped access use separate permissions
 
-**Decision:** Require `message.read` for broad channel-room message access by
-humans and bots. Keep channel-room membership as a separate required boundary.
-Keep DM reads membership-based under ADR-037.
-**Why:** Operators can inspect and remove message access directly. Humans and
-bots use the same permission vocabulary.
-**Tradeoff:** Each channel-room message-content boundary needs one more
-authorization decision. Operators cannot use this permission to hide a DM from
-one of its participants.
+**Decision:** Use `message.read` for broad channel-room access and
+`message.read.interactions` for relationship-scoped channel-room access. Keep
+membership as a separate required boundary. Make the broad permission
+explicitly include the narrower permission. Do not infer other inclusions from
+dotted names. The child does not include the parent. A child deny cannot
+restrict an effective parent allow, and a parent deny cannot restrict a
+separate child allow.
+**Why:** Operators can inspect the difference between broad and narrow access.
+An absent broad permission does not cause an implicit privacy mode.
+**Tradeoff:** Each narrow read checks both RBAC and the requested thread
+relationship. The resolver and inspection surfaces must explain the explicit
+inclusion.
 
-### 2. Bootstrap defaults do not change existing RBAC
+### 2. Direct mentions and authored roots create relationships
 
-**Decision:** Grant `message.read` to `everyone` only when Chatto initializes an
-empty RBAC stream. Do not migrate, backfill, or reconcile existing servers.
-**Why:** An absent permission decision is operator-owned state. Startup must
-not replace it with a new code default.
-**Tradeoff:** Operators must grant `message.read` during an upgrade if they
-want to preserve existing channel-room access.
+**Decision:** Create a relationship when another account directly mentions the
+account or when the account authors a channel-room root. Do not use broad,
+role, self, or authored-reply causes.
+**Why:** These causes show an intentional interaction with one account or a
+thread that the account started. Broadcast causes do not show the same intent.
+**Tradeoff:** A bot that authors only a reply does not gain read access from
+that reply.
 
-### 3. Bot delegation uses the existing exact owner ceiling
+### 3. One relationship gives the complete thread
 
-**Decision:** A bot's direct `message.read` grant for channel-room access is
-effective only when its owner has the same permission at the applicable scope.
-**Why:** This uses the existing bot security model. It does not need special
-intersection rules.
-**Tradeoff:** Removing `message.read` from an owner also removes channel-room
-read access from bots that the owner controls.
+**Decision:** Give access to the root and all replies when a relationship
+exists.
+**Why:** A mention without earlier context is often not useful. A full thread
+is also a clear resource boundary for APIs and realtime filtering.
+**Tradeoff:** A user can give the mentioned account access to earlier content
+in that thread. The user interface and documentation must make this rule
+clear.
 
-### 4. Read and write permissions remain separate
+### 4. Relationships are immutable post-time facts in this slice
 
-**Decision:** `message.read` does not grant any message action. A channel-room
-mutation that reads or returns existing message state also needs `message.read`
-in addition to its normal write authority. DM mutations use membership and the
-normal action permission.
-**Why:** Read-only accounts and posting-only automation accounts are valid
-configurations. Mutation responses must not bypass the content boundary.
-**Tradeoff:** Editing, reacting, creating hydrated pins, and changing
-thread-follow state need both read and write authority.
+**Decision:** Keep a relationship after an edit or retraction. Do not add an
+end action in this slice.
+**Why:** A mention already occurred, and source message facts keep typed
+mention provenance. This rule also matches the post-time notification model.
+**Tradeoff:** Permission restoration or room re-entry can open an old
+relationship again. A later explicit end feature will need a durable end fact.
 
-### 5. Message-derived surfaces share the same boundary
+### 5. All message-derived surfaces use one thread boundary
 
-**Decision:** Enforce the current `message.read` decision across channel-room
-request reads, search, attachment delivery, notifications, unread state,
-thread-follow state, typing indicators, and realtime delivery. Use membership
-for the same DM surfaces.
-**Why:** A secondary surface must not reveal content or metadata that the
-primary timeline rejects.
-**Tradeoff:** Permission changes can remove notification, unread, and followed
-thread presentation while room metadata remains visible.
+**Decision:** Apply broad or interaction-scoped access to every surface that
+can expose channel-room message content or message-specific metadata. Keep DM
+versions membership-based.
+**Why:** Search, notifications, files, typing, or realtime must not bypass the
+primary timeline boundary.
+**Tradeoff:** List and room-wide surfaces must filter their results instead of
+using one room-level allow decision.
 
-### 6. Interaction-scoped access is a separate slice
+### 6. New-server defaults do not change existing RBAC
 
-**Decision:** Do not add a narrow read permission or implicit exception in
-Slice 1.
-**Why:** Mentions and authored roots are useful channel-room access causes, but
-their end conditions, durable state, inspection, and removal need a complete
-design. DM membership already authorizes DM access.
-**Tradeoff:** A bot that only needs one channel-room interaction still needs
-broad `message.read` at the applicable scope for now.
+**Decision:** Grant only `message.read` to `everyone` during empty-RBAC
+bootstrap. Its effective allow includes `message.read.interactions`. Do not
+migrate, backfill, or reconcile an existing server.
+**Why:** Existing RBAC state belongs to the operator. Startup must not replace
+an absent decision with a code default.
+**Tradeoff:** Operators must add the new grant during an upgrade when they want
+interaction-scoped reads.
 
-### 7. Bots use the normal realtime protocol
+### 7. Bots use the existing owner ceiling
 
-**Decision:** Deliver authorized bot message events through the same
-authenticated realtime protocol that human clients use.
-**Why:** One transport keeps the existing authentication, resume, reset, and
-cursor rules.
-**Tradeoff:** A small bot can receive more non-message projection state than it
-needs.
+**Decision:** Use the same permissions for human and bot accounts. Apply the
+explicit read inclusion independently to the bot allowlist and to the owner's
+effective authority.
+**Why:** This keeps one permission vocabulary and one delegation rule.
+**Tradeoff:** Removing broad read access from an owner does not remove a bot's
+narrow read mode when the owner still has the narrow permission. A bot still
+needs its own broad or narrow grant.
+
+### 8. Relationships are not public resources
+
+**Decision:** Do not add public operations that list or inspect interaction
+relationships. A client supplies a known thread root to the normal thread API,
+which applies the current access rules.
+**Why:** A relationship is an authorization input, not a user-managed resource.
+This keeps internal cause metadata out of the public API.
+**Tradeoff:** Clients cannot enumerate related threads. A separate bot-ping
+feature must define how a bot learns about a direct mention.
 
 ## Permissions
 
-- `message.read` — read channel-room message content and message-specific
-  metadata that normal room visibility makes available at the configured
-  scope.
-- `message.post` — post root messages and send messages in an existing direct
-  message.
-- `message.post-in-thread` — post replies in an authorized channel-room
-  thread.
+- `message.read` — read all message content and message-specific metadata in a
+  channel room at the configured scope. It includes
+  `message.read.interactions`.
+- `message.read.interactions` — read message content and message-specific
+  metadata only in channel-room threads with a current interaction
+  relationship.
+- `message.post` — post root messages and send messages in an existing DM.
+- `message.post-in-thread` — post replies in a channel-room thread.
 
-Fresh servers grant `message.read` to `everyone` at server scope. Existing
-servers are not changed. Bots do not inherit the fresh-server grant.
+DM membership, not a message-read permission, authorizes DM reads.
 
 ## Related
 
 - **ADRs:** ADR-031 (room-group permission scopes), ADR-037 (DM access through
   membership), ADR-040 (permission-only RBAC with owner override), ADR-045
   (public API stability), ADR-051 (resumable client projection), ADR-080
-  (`message.read`)
+  (`message.read`), ADR-082 (derived interaction relationships)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-004
   (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions),
   FDR-007 (Direct Messages), FDR-008 (File Attachments & Video Processing),
@@ -153,15 +182,6 @@ servers are not changed. Bots do not inherit the fresh-server grant.
 
 ## Open Questions
 
-- Select the permission name for interaction-scoped access.
-- Define which actions start access. Candidates are a direct mention and an
-  authored thread root.
-- Define when interaction access ends and who can end it.
-- Define a durable boundary that prevents removed access from returning after
-  permission restoration or room re-entry.
-- Define the result when an author edits or deletes an access-causing mention.
-- Define how attachments, reactions, deleted-message placeholders, previews,
-  search results, and referenced messages follow the interaction boundary.
-- Define how profiles and threads show active access and its cause.
-- Define realtime resume, reset, pagination, duplicate removal, and
-  acknowledgment behavior for unattended bots.
+- Define an explicit end action and the accounts that can use it.
+- Define profile and administration views that show active relationships.
+- Define realtime delivery and recovery for direct-mention bot pings.

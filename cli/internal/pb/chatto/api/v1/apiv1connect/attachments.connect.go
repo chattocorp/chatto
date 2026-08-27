@@ -43,15 +43,17 @@ const (
 // AssetServiceClient is a client for the chatto.api.v1.AssetService service.
 type AssetServiceClient interface {
 	// Reads one asset. Authentication and room membership are required.
-	// Channel-room assets also require message.read. DM membership authorizes DM
+	// Channel-room assets also require message.read or a matching thread
+	// relationship with message.read.interactions. DM membership authorizes DM
 	// assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
 	// different room.
 	GetAsset(context.Context, *connect.Request[v1.GetAssetRequest]) (*connect.Response[v1.GetAssetResponse], error)
 	// Reads many assets in one room. Authentication and room membership are
-	// required. Channel-room assets also require message.read. DM membership
-	// authorizes DM assets. Missing, deleted, and wrong-room asset IDs are
-	// omitted. Results preserve first-seen request order, and repeated asset IDs
-	// are de-duplicated.
+	// required. Channel-room assets also require message.read or a matching
+	// thread relationship with message.read.interactions. DM membership
+	// authorizes DM assets. Missing, deleted, wrong-room, and inaccessible asset
+	// IDs are omitted. Results preserve first-seen request order, and repeated
+	// asset IDs are de-duplicated.
 	BatchGetAssets(context.Context, *connect.Request[v1.BatchGetAssetsRequest]) (*connect.Response[v1.BatchGetAssetsResponse], error)
 }
 
@@ -100,15 +102,17 @@ func (c *assetServiceClient) BatchGetAssets(ctx context.Context, req *connect.Re
 // AssetServiceHandler is an implementation of the chatto.api.v1.AssetService service.
 type AssetServiceHandler interface {
 	// Reads one asset. Authentication and room membership are required.
-	// Channel-room assets also require message.read. DM membership authorizes DM
+	// Channel-room assets also require message.read or a matching thread
+	// relationship with message.read.interactions. DM membership authorizes DM
 	// assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
 	// different room.
 	GetAsset(context.Context, *connect.Request[v1.GetAssetRequest]) (*connect.Response[v1.GetAssetResponse], error)
 	// Reads many assets in one room. Authentication and room membership are
-	// required. Channel-room assets also require message.read. DM membership
-	// authorizes DM assets. Missing, deleted, and wrong-room asset IDs are
-	// omitted. Results preserve first-seen request order, and repeated asset IDs
-	// are de-duplicated.
+	// required. Channel-room assets also require message.read or a matching
+	// thread relationship with message.read.interactions. DM membership
+	// authorizes DM assets. Missing, deleted, wrong-room, and inaccessible asset
+	// IDs are omitted. Results preserve first-seen request order, and repeated
+	// asset IDs are de-duplicated.
 	BatchGetAssets(context.Context, *connect.Request[v1.BatchGetAssetsRequest]) (*connect.Response[v1.BatchGetAssetsResponse], error)
 }
 

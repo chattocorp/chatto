@@ -268,6 +268,25 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 	}
 }
 
+func TestPermissionKeyPartsAllowAdditionalComponents(t *testing.T) {
+	parts := PermMessageReadInteractions.KeyParts()
+	if parts.ObjectType != "message" || parts.Verb != "read.interactions" {
+		t.Fatalf("message.read.interactions key parts = %+v", parts)
+	}
+	if got := ReconstructPermission(parts.Verb, parts.ObjectType); got != PermMessageReadInteractions {
+		t.Fatalf("reconstructed permission = %q, want %q", got, PermMessageReadInteractions)
+	}
+}
+
+func TestMessageReadExplicitlyIncludesInteractions(t *testing.T) {
+	if got := directlyIncludingPermissions(PermMessageReadInteractions); !slices.Equal(got, []Permission{PermMessageRead}) {
+		t.Fatalf("including permissions = %v, want [%s]", got, PermMessageRead)
+	}
+	if got := directlyIncludingPermissions(PermMessageRead); len(got) != 0 {
+		t.Fatalf("message.read must not be included by its child: %v", got)
+	}
+}
+
 func TestDefaultModeratorPermissions(t *testing.T) {
 	want := []Permission{
 		PermMessageManage,

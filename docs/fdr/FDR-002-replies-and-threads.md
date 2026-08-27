@@ -101,12 +101,15 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 ## Permissions
 
 - `message.read` — read channel-room and thread timelines. Channel-room
-  membership is also required. DM membership authorizes historical DM thread
-  reads.
+  membership is also required.
+- `message.read.interactions` — read a complete channel-room thread when the
+  account authored its root or another account directly mentioned it in that
+  thread. Channel-room membership is also required. DM membership authorizes
+  historical DM thread reads without either read permission.
 - `message.post` — post a root message (with or without `inReplyTo`) in a room. Explicitly establishing that root as a thread also requires `message.post-in-thread`; automatic root-thread creation in Required rooms does not.
 - `message.post-in-thread` — post a message inside a channel-room thread (with or without `inReplyTo`), and—together with `message.post`—explicitly establish a root as a thread. This permission does not make threads available in DMs.
 
 ## Related
 
-- **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-050 (ephemeral encrypted projection snapshots), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-050 (ephemeral encrypted projection snapshots), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
 - **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)

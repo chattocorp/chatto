@@ -186,7 +186,9 @@ contains `@all` and a direct mention can produce room-message, `@all`, and
 direct-mention decisions for one recipient. If these decisions use a
 notification mode, they create separate occurrences. Badge decisions coalesce
 into one latest-value marker for the applicable room or thread. Channel-room
-recipients must have `message.read` at that same source sequence.
+recipients must have `message.read` at that same source sequence. A direct
+mention also permits its recipient when `message.read.interactions` applies,
+because the same message fact creates the interaction relationship.
 
 **Why:** Notifications describe what happened under the policy and visibility
 that applied at that moment. Deriving from committed facts makes retries
@@ -202,7 +204,8 @@ and the bounded notification lifecycle. ADR-076 defines that architecture.
 **Decision:** An occurrence may be listed, opened, mutated, or delivered only
 while the recipient still exists and can currently see its room and exact
 target. Channel-room message-derived occurrences also require current
-`message.read`. DM membership authorizes DM occurrences. Without applicable
+`message.read`, or `message.read.interactions` with a relationship to the
+target's thread. DM membership authorizes DM occurrences. Without applicable
 access, Chatto hides the occurrence. Removed reactions, retracted targets,
 deleted rooms, and lost room access remove the corresponding occurrence.
 Durable visibility-loss boundaries prevent old queued activity from
@@ -336,14 +339,14 @@ boundary.
 ## Permissions
 
 Notification policy and triage are user-scoped. Current account, room,
-applicable channel-room `message.read`, message/thread target, and exact
-reaction visibility govern whether an occurrence may be listed, opened,
+applicable channel-room message-read authority, message/thread target, and
+exact reaction visibility govern whether an occurrence may be listed, opened,
 mutated, or delivered. DM membership authorizes DM occurrences. There is no
 separate permission to manage another user's notification list.
 
 ## Related
 
 - **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-076,
-  ADR-077, ADR-080
+  ADR-077, ADR-080, ADR-082
 - **FDRs:** FDR-001, FDR-002, FDR-004, FDR-005, FDR-006, FDR-007, FDR-011,
   FDR-013, FDR-018, FDR-019, FDR-027, FDR-039

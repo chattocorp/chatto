@@ -14,7 +14,8 @@ export type PermissionMetadata = {
  * Map of permission IDs to their metadata.
  * Keep in sync with cli/internal/core/permission.go
  *
- * Permission IDs follow the "{objectType}.{verb}" convention, matching the KV key format.
+ * Permission IDs contain at least two dot-separated components. Additional
+ * components can make an explicit inclusion relationship visible in the name.
  */
 export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Server permissions
@@ -42,6 +43,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Message permissions
   'message.read': {
     description: () => m('rbac.permission_descriptions.message_read')
+  },
+  'message.read.interactions': {
+    description: () => m('rbac.permission_descriptions.message_read_interactions')
   },
   'message.post': {
     description: () => m('rbac.permission_descriptions.message_post')
@@ -95,6 +99,15 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
     description: () => m('rbac.permission_descriptions.user_manage_permissions')
   }
 };
+
+const INCLUDED_BY_PERMISSION: Readonly<Record<string, string>> = {
+  'message.read.interactions': 'message.read'
+};
+
+/** Return the permission whose effective allow includes this permission. */
+export function getIncludedByPermission(id: string): string | null {
+  return INCLUDED_BY_PERMISSION[id] ?? null;
+}
 
 /**
  * Get the description for a permission.

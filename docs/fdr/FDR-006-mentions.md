@@ -30,6 +30,10 @@ the message body.
   mentions any role or room-wide virtual handle (`@all` or `@here`).
 - Mentions are resolved when a message is first posted. Editing a message later does not add, remove, dismiss, or re-send mention notifications.
 - A delivered direct `@username` mention inside a thread attempts to follow that thread for the mentioned user if they have no prior follow state for it. Role mentions, `@all`, and `@here` do not auto-follow recipients.
+- A direct mention from another account creates a durable interaction
+  relationship with the message's channel-room thread. With
+  `message.read.interactions`, that relationship authorizes the complete
+  thread. Self, role, `@all`, and `@here` mentions do not create this access.
 
 ## Design Decisions
 
@@ -53,7 +57,7 @@ the message body.
 
 ### 4. Mentions are post-time facts
 
-**Decision:** Mention delivery is decided when the message is posted. Later edits may change the visible message body, but they do not re-resolve mentions or change who was notified by the original post.
+**Decision:** Mention delivery is decided when the message is posted. Later edits may change the visible message body, but they do not re-resolve mentions, change who was notified, or remove a derived thread interaction relationship.
 **Why:** A mention notification is an attention event that already happened. Re-resolving mentions on edit would allow quiet retroactive pings, would make notifications depend on mutable usernames and edited body text, and would complicate replay now that message bodies are private payload facts.
 **Tradeoff:** An author who forgot to mention someone must send a new message rather than editing the old one to ping them. Removing an `@name` from the edited body also does not revoke an already-created notification.
 
@@ -118,5 +122,5 @@ No dedicated mention permission. Anyone who can post in a room can mention any u
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-039 (Message Access & Interactions)

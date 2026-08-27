@@ -18,9 +18,10 @@ export const ThreadService = {
   methods: {
     /**
      * Returns followed threads in rooms where the current user is a member.
-     * Channel-room threads also require message.read. Historical DM threads use
-     * DM membership. The result includes enough root-message data for clients to
-     * render the list without extra per-field fetches.
+     * Channel-room threads also require message.read or an active relationship
+     * with message.read.interactions. Historical DM threads use DM membership.
+     * The result includes enough root-message data for clients to render the
+     * list without extra per-field fetches.
      *
      * @generated from rpc chatto.api.v1.ThreadService.ListFollowedThreads
      */
@@ -31,8 +32,9 @@ export const ThreadService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Follows a thread for the current user. Room membership and channel-room
-     * message.read are required. DMs do not support current thread actions.
+     * Follows a thread for the current user. Room membership plus message.read or
+     * an active relationship with message.read.interactions are required. DMs do
+     * not support current thread actions.
      * Followed threads can be surfaced in clients and can participate in thread
      * notification behavior.
      *
@@ -45,10 +47,10 @@ export const ThreadService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Stops following a thread for the current user. Room membership and
-     * channel-room message.read are required. DMs do not support current thread
-     * actions. The response reports the resulting follow state so clients can
-     * update local UI immediately.
+     * Stops following a thread for the current user. Room membership plus
+     * message.read or an active relationship with message.read.interactions are
+     * required. DMs do not support current thread actions. The response reports
+     * the resulting follow state so clients can update local UI immediately.
      *
      * @generated from rpc chatto.api.v1.ThreadService.UnfollowThread
      */
@@ -60,9 +62,10 @@ export const ThreadService = {
     },
     /**
      * Returns one page of events in a message thread. Room membership is
-     * required. Channel-room reads also require message.read. Historical DM
-     * threads use DM membership. Initial pages include the thread root message;
-     * cursor pages return replies in the requested direction.
+     * required. Channel-room reads also require message.read or an active
+     * relationship with message.read.interactions. Historical DM threads use DM
+     * membership. Initial pages include the thread root message; cursor pages
+     * return replies in the requested direction.
      *
      * @generated from rpc chatto.api.v1.ThreadService.GetThreadEvents
      */
@@ -76,9 +79,9 @@ export const ThreadService = {
      * Returns a thread timeline window centered around a specific event. Use this
      * to open a reply from a notification or search result in context. Returns
      * NOT_FOUND when the thread root or anchor event is missing or hidden.
-     * Returns PERMISSION_DENIED when room membership is missing or when
-     * channel-room message.read is missing. Historical DM threads use DM
-     * membership.
+     * Returns PERMISSION_DENIED when room membership is missing, both read modes
+     * are missing, or an interaction-scoped account has no relationship with the
+     * thread. Historical DM threads use DM membership.
      *
      * @generated from rpc chatto.api.v1.ThreadService.GetThreadEventsAround
      */
@@ -90,8 +93,9 @@ export const ThreadService = {
     },
     /**
      * Marks a thread timeline as read through the supplied event without changing
-     * the room-level read marker. Room membership and channel-room message.read
-     * are required. DMs do not support current thread actions.
+     * the room-level read marker. Room membership plus message.read or an active
+     * relationship with message.read.interactions are required. DMs do not
+     * support current thread actions.
      *
      * @generated from rpc chatto.api.v1.ThreadService.MarkThreadAsRead
      */

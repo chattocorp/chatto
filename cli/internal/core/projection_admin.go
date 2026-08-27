@@ -513,9 +513,30 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 			followedByUserBytes += projectionMapEntryOverhead + int64(len(key)+len(ref.roomID)+len(ref.threadRootEventID))
 		}
 	}
+	channelRoomBytes := estimateStringSetBytes(p.channelRooms)
+	var messageThreadBytes int64
+	for eventID, ref := range p.messageThreads {
+		messageThreadBytes += projectionMapEntryOverhead + int64(len(eventID)+len(ref.roomID)+len(ref.threadRootEventID))
+	}
+	var interactionBytes, interactionRefs, interactionCauses int64
+	for userID, byThread := range p.interactions {
+		interactionBytes += projectionMapEntryOverhead + int64(len(userID))
+		for key, interaction := range byThread {
+			interactionRefs++
+			interactionBytes += projectionMapEntryOverhead + int64(len(key))
+			if interaction == nil {
+				continue
+			}
+			interactionBytes += int64(len(interaction.roomID) + len(interaction.threadRootEventID))
+			for causeKey, cause := range interaction.causes {
+				interactionCauses++
+				interactionBytes += projectionMapEntryOverhead + int64(len(causeKey)+len(cause.Kind)+len(cause.SourceEventID)) + 24
+			}
+		}
+	}
 	followBytes := followStateBytes + followerBytes + followedByUserBytes
-	totalEntries := entries + int64(len(p.followState))
-	totalBytes := rawBytes + indexBytes + replySummaryBytes + threadSummaryBytes + appliedEventIDsBytes + shreddedUserBytes + followBytes
+	totalEntries := entries + int64(len(p.followState)) + int64(len(p.messageThreads)) + interactionCauses
+	totalBytes := rawBytes + indexBytes + replySummaryBytes + threadSummaryBytes + appliedEventIDsBytes + shreddedUserBytes + followBytes + channelRoomBytes + messageThreadBytes + interactionBytes
 	return totalEntries, totalBytes, []ProjectionAdminMetric{
 		{Name: "threads", Value: int64(len(p.byThread)), Bytes: 0},
 		{Name: "thread_entries", Value: entries, Bytes: rawBytes},
@@ -527,6 +548,10 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 		{Name: "follow_states", Value: int64(len(p.followState)), Bytes: followStateBytes},
 		{Name: "follower_refs", Value: followerRefs, Bytes: followerBytes},
 		{Name: "followed_thread_refs", Value: followedRefs, Bytes: followedByUserBytes},
+		{Name: "channel_rooms", Value: int64(len(p.channelRooms)), Bytes: channelRoomBytes},
+		{Name: "message_thread_refs", Value: int64(len(p.messageThreads)), Bytes: messageThreadBytes},
+		{Name: "interaction_refs", Value: interactionRefs, Bytes: interactionBytes},
+		{Name: "interaction_causes", Value: interactionCauses, Bytes: 0},
 		{Name: "applied_event_ids", Value: int64(len(retainedEventIDs)), Bytes: appliedEventIDsBytes},
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 		{Name: "shredded_users", Value: int64(len(p.shreddedUsers)), Bytes: shreddedUserBytes},

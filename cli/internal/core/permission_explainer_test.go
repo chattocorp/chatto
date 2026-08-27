@@ -158,6 +158,61 @@ func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
 	}
 }
 
+func TestPermissionExplainer_ReportsIncludedPermission(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "included-explanation", "Included Explanation", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.DenyUserPermission(ctx, SystemActorID, user.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserPermission: %v", err)
+	}
+
+	explanation, err := core.PermResolver().ExplainServerPermission(ctx, user.GetId(), PermMessageReadInteractions)
+	if err != nil {
+		t.Fatalf("ExplainServerPermission: %v", err)
+	}
+	if explanation.State != DecisionAllow || explanation.IncludedBy != PermMessageRead {
+		t.Fatalf("explanation = %+v, want allow included by %s", explanation, PermMessageRead)
+	}
+	if explanation.DecidedByRole != RoleEveryone {
+		t.Fatalf("decided by = %q, want %q", explanation.DecidedByRole, RoleEveryone)
+	}
+}
+
+func TestPermissionExplainer_AgreesWithBotReadInclusion(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := core.CreateUser(ctx, SystemActorID, "explanation_bot_owner", "Explanation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := core.CreateBot(ctx, owner.GetId(), "explanation_reader_bot", "Explanation Reader Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	explanation, err := core.PermResolver().ExplainServerPermission(ctx, bot.User.GetId(), PermMessageReadInteractions)
+	if err != nil {
+		t.Fatalf("ExplainServerPermission before grant: %v", err)
+	}
+	if explanation.State != DecisionDeny || explanation.DecidedByRole != "@bot-allowlist" {
+		t.Fatalf("unconfigured bot explanation = %+v", explanation)
+	}
+
+	if err := core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessageRead, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.read: %v", err)
+	}
+	explanation, err = core.PermResolver().ExplainServerPermission(ctx, bot.User.GetId(), PermMessageReadInteractions)
+	if err != nil {
+		t.Fatalf("ExplainServerPermission after grant: %v", err)
+	}
+	if explanation.State != DecisionAllow || explanation.IncludedBy != PermMessageRead || explanation.DecidedByRole != bot.User.GetId() {
+		t.Fatalf("configured bot explanation = %+v", explanation)
+	}
+}
+
 func TestPermissionExplainer_NearerEveryoneDenyBeatsNamedAllow(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

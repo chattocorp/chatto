@@ -297,6 +297,10 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 		stopFirst()
 		t.Fatalf("clear message.read before restart: %v", err)
 	}
+	if err := first.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
+		stopFirst()
+		t.Fatalf("clear message.read.interactions before restart: %v", err)
+	}
 	eventsAfterFirstBoot := eventStreamMsgCount(t, first)
 	stopFirst()
 
@@ -316,6 +320,9 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 	}
 	if got := second.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessageRead); got != DecisionNone {
 		t.Fatalf("message.read after restart = %s, want no reconciled decision", got)
+	}
+	if got := second.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessageReadInteractions); got != DecisionNone {
+		t.Fatalf("message.read.interactions after restart = %s, want no reconciled decision", got)
 	}
 }
 
@@ -847,6 +854,62 @@ func TestFilterLiveSyncEvent_DropsTypingWithoutMessageRead(t *testing.T) {
 	}, live)
 	if ok || event != nil {
 		t.Fatalf("typing event = %+v, delivered=%v; want denied", event, ok)
+	}
+}
+
+func TestFilterLiveSyncEventAllowsRelatedThreadTyping(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "typing-interaction-viewer", "Typing Interaction Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "typing-interaction-author", "Typing Interaction Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "typing-interactions", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.GetId(), author.GetId()} {
+		if _, err := chatto.JoinRoom(ctx, userID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	root, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "typing target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	unrelated, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "typing unrelated", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage unrelated root: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "typing ping @typing-interaction-viewer", nil, root.GetId(), "", nil, false); err != nil {
+		t.Fatalf("PostMessage mention: %v", err)
+	}
+	memberRooms := map[string]struct{}{room.GetId(): {}}
+	typing := func(threadRootEventID string) (EventEnvelope, bool) {
+		live := newLiveEvent(author.GetId(), &corev1.LiveEvent{Event: &corev1.LiveEvent_UserTyping{
+			UserTyping: &corev1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
+		}})
+		return chatto.filterLiveSyncEvent(ctx, viewer.GetId(), memberRooms, &nats.Msg{
+			Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
+		}, live)
+	}
+	if event, ok := typing(root.GetId()); !ok || event == nil {
+		t.Fatalf("related thread typing = %+v, %v; want delivered", event, ok)
+	}
+	for name, threadRootEventID := range map[string]string{"main room": "", "unrelated thread": unrelated.GetId()} {
+		if event, ok := typing(threadRootEventID); ok || event != nil {
+			t.Errorf("%s typing = %+v, %v; want denied", name, event, ok)
+		}
 	}
 }
 

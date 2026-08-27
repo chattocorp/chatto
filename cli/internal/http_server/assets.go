@@ -348,7 +348,7 @@ func (s *HTTPServer) resolveAttachmentForViewer(c *gin.Context, ctx context.Cont
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: not a member of the room"})
 		return nil, false
 	}
-	canRead, err := s.core.CanReadMessages(ctx, userID, kind, roomID)
+	canRead, err := s.core.CanReadRoomAsset(ctx, userID, kind, roomID, assetID)
 	if err != nil {
 		s.logger.Error("Failed to check stable attachment message-read permission", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})

@@ -33,6 +33,7 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	_, err = chattoCore.ArchiveRoom(ctx, SystemActorID, KindChannel, archived.Id)
 	require.NoError(t, err)
 	require.NoError(t, chattoCore.DenyRoomPermission(ctx, SystemActorID, archived.Id, RoleEveryone, PermMessageRead))
+	require.NoError(t, chattoCore.DenyRoomPermission(ctx, SystemActorID, archived.Id, RoleEveryone, PermMessageReadInteractions))
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
@@ -90,6 +91,45 @@ func TestMessageSearchReadModelHydratesThreadMessages(t *testing.T) {
 	require.Equal(t, KindChannel, results[0].Kind)
 	require.Equal(t, root.Id, results[0].Event.GetMessagePosted().GetInThread())
 	require.Equal(t, 3.25, results[0].Score)
+}
+
+func TestMessageSearchReadModelFiltersInteractionScopedHits(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	reader, err := chattoCore.CreateUser(ctx, SystemActorID, "search-interaction-reader", "Search Interaction Reader", "password")
+	require.NoError(t, err)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "search-interaction-author", "Search Interaction Author", "password")
+	require.NoError(t, err)
+	room, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "search-interaction-room", "")
+	require.NoError(t, err)
+	for _, userID := range []string{reader.GetId(), author.GetId()} {
+		_, err = chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.GetId())
+		require.NoError(t, err)
+	}
+	visibleRoot, err := chattoCore.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "visible interaction root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	unrelatedRoot, err := chattoCore.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated search root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	require.NoError(t, chattoCore.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageRead))
+	require.NoError(t, chattoCore.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions))
+	mention, err := chattoCore.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "search this @search-interaction-reader", nil, visibleRoot.GetId(), "", nil, false)
+	require.NoError(t, err)
+
+	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: reader.GetId()})
+	require.NoError(t, err)
+	require.Contains(t, scope.RoomIDs, room.GetId())
+	hit := func(eventID string) MessageSearchHit {
+		body, retracted, ok := chattoCore.roomModel.latestBody(eventID)
+		require.True(t, ok)
+		require.False(t, retracted)
+		return MessageSearchHit{MessageID: eventID, RoomID: room.GetId(), BodyEventID: body.GetBodyEventId()}
+	}
+	results, err := chattoCore.MessageSearchReads().HydrateHits(ctx, reader.GetId(), scope, []MessageSearchHit{
+		hit(unrelatedRoot.GetId()), hit(visibleRoot.GetId()), hit(mention.GetId()),
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	require.Equal(t, []string{visibleRoot.GetId(), mention.GetId()}, []string{results[0].Event.GetId(), results[1].Event.GetId()})
 }
 
 func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {

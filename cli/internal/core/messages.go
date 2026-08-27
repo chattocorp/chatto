@@ -1214,8 +1214,8 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	// Mark the room as read for the poster. For root posts, the just-
 	// published event is the new last root. For thread replies, we look up
-	// the room's current last root so the read marker tracks a real root
-	// event ID (HasUnread expects root events).
+	// the room's current last root so the Message Read Cursor tracks a real
+	// root event ID for the New messages separator.
 	var posterReadEventID string
 	if inThread == "" {
 		posterReadEventID = event.Id
@@ -1359,7 +1359,7 @@ func (c *ChattoCore) authorizeMessageMutation(
 		return ErrNotRoomMember
 	}
 	if policy.requireMessageRead {
-		canRead, err := c.CanReadMessages(ctx, actorID, kind, roomID)
+		canRead, err := c.CanReadMessage(ctx, actorID, kind, roomID, eventID)
 		if err != nil {
 			return err
 		}
