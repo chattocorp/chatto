@@ -43,7 +43,7 @@ describe('SidebarNav', () => {
             ]
           },
           {
-            label: 'Server Configuration',
+            label: 'Server',
             persistKey: 'test:sidebar-nav:server-configuration',
             items: [{ href: '/manage/general', label: 'General', icon: 'icon-general' }]
           }
@@ -55,7 +55,7 @@ describe('SidebarNav', () => {
     expect(groups).toHaveLength(3);
     expect(groups[0]?.textContent).toContain('App preferences');
     expect(groups[1]?.textContent).toContain('Your account');
-    expect(groups[2]?.textContent).toContain('Server Configuration');
+    expect(groups[2]?.textContent).toContain('Server');
     expect(container.querySelector('nav a[href="/manage/general"]')).not.toBeNull();
     await expect.element(getByText('App preferences')).toBeVisible();
     await expect.element(getByText('Appearance')).toBeVisible();
