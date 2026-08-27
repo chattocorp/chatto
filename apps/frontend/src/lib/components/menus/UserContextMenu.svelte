@@ -5,6 +5,9 @@ Shows a user's profile card. On desktop, renders as a floating popover anchored 
 element. On mobile (touch devices), renders as a bottom sheet. This dual behavior comes from
 ContextMenu, which handles both modes automatically.
 
+When the current viewer can open Server Admin user pages, the menu links to the selected user's
+page on the active server.
+
 **Props:**
 - `user` - The user to display (must include id, login, displayName, presenceStatus)
 - `anchorRect` - Bounding rect of the trigger element (used for desktop positioning)
@@ -18,10 +21,13 @@ ContextMenu, which handles both modes automatically.
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import {
     getLiveCustomStatus,
@@ -63,8 +69,17 @@ ContextMenu, which handles both modes automatically.
     onClose?: () => void;
   } = $props();
 
+  const serverScope = useServerScope();
   const displayName = $derived(getLiveDisplayName(user.id, user.displayName || user.login));
   const customStatus = $derived(getLiveCustomStatus(user.id, user.customStatus));
+  const adminUserHref = $derived(
+    serverScope.store.permissions.loaded && serverScope.store.permissions.canAdminViewUsers
+      ? resolve('/chat/[serverId]/manage/server/members/[userId]', {
+          serverId: serverIdToSegment(serverScope.serverId),
+          userId: user.id
+        })
+      : null
+  );
 
   function handleSendMessage() {
     onSendMessage?.();
@@ -105,13 +120,23 @@ ContextMenu, which handles both modes automatically.
     </div>
   </div>
 
-  {#if canSendMessage || canBanFromRoom}
+  {#if canSendMessage || adminUserHref || canBanFromRoom}
     <div class="menu-section">
       <nav class="sidebar-nav">
         {#if canSendMessage}
           <button type="button" class="sidebar-item" onclick={handleSendMessage}>
             {m('chat.user_menu.send_message')}
           </button>
+        {/if}
+        {#if adminUserHref}
+          <a
+            class="sidebar-item"
+            href={adminUserHref}
+            onclick={() => onClose?.()}
+            data-testid="view-user-admin"
+          >
+            {m('chat.user_menu.view_in_admin')}
+          </a>
         {/if}
         {#if canBanFromRoom}
           <button

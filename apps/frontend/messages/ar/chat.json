@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "الملف الشخصي للمستخدم",
       "send_message": "أرسل رسالة",
+      "view_in_admin": "عرض في إدارة الخادم",
       "copy_user_id": "نسخ معرّف المستخدم"
     },
     "server_gutter": {

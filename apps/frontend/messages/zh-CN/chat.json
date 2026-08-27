@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "用户个人资料",
       "send_message": "发送消息",
+      "view_in_admin": "在服务器管理中查看",
       "copy_user_id": "复制用户 ID"
     },
     "server_gutter": {

@@ -6,6 +6,25 @@ import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import UserContextMenu from './UserContextMenu.svelte';
 
+const serverScopeMock = vi.hoisted(() => ({
+  serverId: 'server-1',
+  permissions: {
+    loaded: true,
+    canAdminViewUsers: false
+  }
+}));
+
+vi.mock('$lib/navigation', () => ({
+  serverIdToSegment: (serverId: string) => `${serverId}.example.test`
+}));
+
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: serverScopeMock.serverId,
+    store: { permissions: serverScopeMock.permissions }
+  })
+}));
+
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveLogin: (_userId: string, fallback: string) => fallback,
@@ -39,6 +58,14 @@ function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement
   );
 }
 
+function linkWithText(container: HTMLElement, text: string): HTMLAnchorElement | null {
+  return (
+    Array.from(container.querySelectorAll('a')).find(
+      (link) => link.textContent?.trim() === text
+    ) ?? null
+  );
+}
+
 function renderMenu(props: Record<string, unknown> = {}) {
   return render(UserContextMenu, {
     props: {
@@ -62,6 +89,9 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  serverScopeMock.serverId = 'server-1';
+  serverScopeMock.permissions.loaded = true;
+  serverScopeMock.permissions.canAdminViewUsers = false;
   toast.clear();
   writeClipboardText.mockReset();
   writeClipboardText.mockResolvedValue(undefined);
@@ -109,15 +139,53 @@ describe('UserContextMenu', () => {
     await expect.element(buttonWithText(visible.container, 'Send Message')).toBeInTheDocument();
   });
 
+  it('shows the selected user admin page only when its permission is loaded and granted', async () => {
+    serverScopeMock.permissions.loaded = false;
+    serverScopeMock.permissions.canAdminViewUsers = true;
+    const loading = renderMenu();
+    expect(linkWithText(loading.container, 'View in Server Admin')).toBeNull();
+    loading.unmount();
+
+    serverScopeMock.permissions.loaded = true;
+    serverScopeMock.permissions.canAdminViewUsers = false;
+    const denied = renderMenu();
+    expect(linkWithText(denied.container, 'View in Server Admin')).toBeNull();
+    denied.unmount();
+
+    serverScopeMock.permissions.canAdminViewUsers = true;
+    const allowed = renderMenu();
+    const adminLink = linkWithText(allowed.container, 'View in Server Admin');
+
+    await expect.element(adminLink).toBeInTheDocument();
+    expect(adminLink?.getAttribute('href')).toBe(
+      '/chat/server-1.example.test/manage/server/members/user-1'
+    );
+  });
+
+  it('closes when opening the selected user in Server Admin', () => {
+    serverScopeMock.permissions.canAdminViewUsers = true;
+    const onClose = vi.fn();
+    const { container } = renderMenu({ onClose });
+    const adminLink = linkWithText(container, 'View in Server Admin')!;
+    adminLink.addEventListener('click', (event) => event.preventDefault());
+
+    adminLink.click();
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('separates the profile and actions with sibling menu surfaces', () => {
+    serverScopeMock.permissions.canAdminViewUsers = true;
     const { container } = renderMenu({ canSendMessage: true, canBanFromRoom: true });
     const dialog = q(container, '[role="dialog"]')!;
     const sections = dialog.querySelectorAll('.menu-section');
+    const actionLabels = Array.from(sections[1]!.querySelectorAll('button, a')).map((action) =>
+      action.textContent?.trim()
+    );
 
     expect(sections).toHaveLength(3);
     expect(sections[0]?.textContent).toContain('Alice Example');
-    expect(sections[1]?.textContent).toContain('Send Message');
-    expect(sections[1]?.textContent).toContain('Ban from room');
+    expect(actionLabels).toEqual(['Send Message', 'View in Server Admin', 'Ban from room']);
     expect(sections[2]?.textContent).toContain('Copy User ID');
     expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);
     expect(sections[1]?.parentElement).toBe(sections[2]?.parentElement);

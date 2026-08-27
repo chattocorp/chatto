@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Uživatelský profil",
       "send_message": "Odeslat zprávu",
+      "view_in_admin": "Zobrazit ve správě serveru",
       "copy_user_id": "Zkopírovat ID uživatele"
     },
     "server_gutter": {
