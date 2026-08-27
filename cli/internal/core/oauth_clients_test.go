@@ -122,7 +122,7 @@ func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 	}
 
 	generation := mustCurrentAuthGeneration(t, c, member.Id)
-	token, err := c.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation)
+	token, err := c.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation, false)
 	if err != nil {
 		t.Fatalf("CreateOAuthAccessTokenForClient: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 	if _, err := c.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("ValidateAuthToken after block = %v, want not found", err)
 	}
-	if _, err := c.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation); !errors.Is(err, ErrOAuthClientBlocked) {
+	if _, err := c.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation, false); !errors.Is(err, ErrOAuthClientBlocked) {
 		t.Fatalf("CreateOAuthAccessTokenForClient after block = %v, want blocked", err)
 	}
 	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); !errors.Is(err, ErrOAuthClientBlocked) {
@@ -173,7 +173,7 @@ func TestOAuthClientAuthorizationCodeFailureDoesNotRecordClient(t *testing.T) {
 
 	publisher := c.EventPublisher
 	c.EventPublisher = nil // Fail the durable auth-code issuance audit append.
-	if code, err := c.CreateOAuthClientAuthorizationCode(ctx, request, "https://code-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id)); err == nil || code != "" {
+	if code, err := c.CreateOAuthClientAuthorizationCode(ctx, request, "https://code-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id), false); err == nil || code != "" {
 		t.Fatalf("CreateOAuthClientAuthorizationCode = %q, %v; want failed issuance", code, err)
 	}
 	c.EventPublisher = publisher
@@ -208,7 +208,7 @@ func TestOAuthClientAuthorizationRecordFailureDiscardsCode(t *testing.T) {
 		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED,
 	}
 
-	if code, err := c.CreateOAuthClientAuthorizationCode(ctx, request, "https://record-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id)); !errors.Is(err, ErrInvalidArgument) || code != "" {
+	if code, err := c.CreateOAuthClientAuthorizationCode(ctx, request, "https://record-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id), false); !errors.Is(err, ErrInvalidArgument) || code != "" {
 		t.Fatalf("CreateOAuthClientAuthorizationCode = %q, %v; want invalid record", code, err)
 	}
 	if clients, err := c.ListOAuthClients(ctx, admin); err != nil || len(clients) != 0 {
@@ -242,7 +242,7 @@ func TestOAuthClientAuthorizationPostCommitWaitFailureKeepsCode(t *testing.T) {
 	}
 	waitErr := errors.New("forced post-commit projection wait failure")
 
-	code, err := c.createOAuthClientAuthorizationCode(ctx, request, "https://wait-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id), func(context.Context, events.StreamPosition) error {
+	code, err := c.createOAuthClientAuthorizationCode(ctx, request, "https://wait-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id), false, func(context.Context, events.StreamPosition) error {
 		return waitErr
 	})
 	if err != nil || code == "" {
@@ -307,7 +307,7 @@ func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *t
 		t.Fatalf("record OAuth client authorization: %v", err)
 	}
 	generation := mustCurrentAuthGeneration(t, first, member.Id)
-	token, err := first.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation)
+	token, err := first.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation, false)
 	if err != nil {
 		t.Fatalf("create OAuth access token: %v", err)
 	}

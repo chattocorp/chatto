@@ -785,7 +785,10 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 		// in the browser session.
 		session.Delete("oauth_redirect")
 		_ = session.Save()
-		s.continueOAuthAuthorize(c, userID, authGeneration)
+		// The provider callback just completed an interactive external login,
+		// whose first-party session is born fresh; the authorization code may
+		// carry that freshness to the delegated client.
+		s.continueOAuthAuthorize(c, userID, authGeneration, true)
 		return nil
 	}
 

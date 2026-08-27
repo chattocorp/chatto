@@ -86,12 +86,12 @@ func (c *ChattoCore) WatchOAuthClientAccessDenied(clientID string) (<-chan struc
 // records the successful client authorization. If the durable record cannot be
 // committed, the undisclosed code is removed so callers cannot complete an
 // authorization that is absent from the administrator inventory.
-func (c *ChattoCore) CreateOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
-	return c.createOAuthClientAuthorizationCode(ctx, authorization, redirectURI, codeChallenge, codeChallengeMethod, authGeneration, c.oauthClientModel.projection.Projector().WaitFor)
+func (c *ChattoCore) CreateOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64, issuedFresh bool) (string, error) {
+	return c.createOAuthClientAuthorizationCode(ctx, authorization, redirectURI, codeChallenge, codeChallengeMethod, authGeneration, issuedFresh, c.oauthClientModel.projection.Projector().WaitFor)
 }
 
-func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64, waitFor func(context.Context, events.StreamPosition) error) (string, error) {
-	code, err := c.CreateAuthCodeForClientGeneration(ctx, authorization.UserID, authorization.ClientID, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
+func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64, issuedFresh bool, waitFor func(context.Context, events.StreamPosition) error) (string, error) {
+	code, err := c.CreateAuthCodeForClientGeneration(ctx, authorization.UserID, authorization.ClientID, redirectURI, codeChallenge, codeChallengeMethod, authGeneration, issuedFresh)
 	if err != nil {
 		return "", err
 	}

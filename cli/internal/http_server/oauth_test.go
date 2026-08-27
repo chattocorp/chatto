@@ -515,7 +515,7 @@ func TestOAuthToken_RejectsClientBlockedAfterCodeIssuance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, admin.Id, testOAuthClientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation)
+	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, admin.Id, testOAuthClientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1353,7 +1353,7 @@ func TestOAuthAuthorizeDoesNotMintCodeForStaleGeneration(t *testing.T) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		s.completeOAuthAuthorize(c, user.Id, authGeneration)
+		s.completeOAuthAuthorize(c, user.Id, authGeneration, false)
 	})
 
 	req := httptest.NewRequest("GET", "/test/complete-stale-oauth", nil)
@@ -1387,7 +1387,7 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
-	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, user.Id, testOAuthClientID, redirectURI, challenge, "S256", authGeneration)
+	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, user.Id, testOAuthClientID, redirectURI, challenge, "S256", authGeneration, false)
 	if err != nil {
 		t.Fatalf("Failed to create auth code: %v", err)
 	}

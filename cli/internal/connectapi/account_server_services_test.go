@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -157,6 +158,38 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 }
 
+
+// mintBornFreshOAuthCredential simulates a remote-server connection: a full
+// interactive authorization-code exchange whose authorizing session was fresh,
+// yielding an OAuth-kind bearer credential inside the fresh-auth window.
+func mintBornFreshOAuthCredential(t *testing.T, env *connectAPITestEnv, userID string) context.Context {
+	t.Helper()
+	const clientID = "https://client.example/oauth/metadata.json"
+	const redirectURI = "https://client.example/callback"
+	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+	generation, err := env.core.CurrentAuthGeneration(env.ctx, userID)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	code, err := env.core.CreateAuthCodeForClientGeneration(env.ctx, userID, clientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation, true)
+	if err != nil {
+		t.Fatalf("CreateAuthCodeForClientGeneration: %v", err)
+	}
+	token, _, err := env.core.ExchangeAuthCodeForClient(env.ctx, code, verifier, redirectURI, clientID)
+	if err != nil {
+		t.Fatalf("ExchangeAuthCodeForClient: %v", err)
+	}
+	user, err := env.core.GetUser(env.ctx, userID)
+	if err != nil {
+		t.Fatalf("GetUser: %v", err)
+	}
+	if err := env.core.RequireFreshAuthForBearerToken(env.ctx, token); err != nil {
+		t.Fatalf("minted OAuth credential is not fresh: %v", err)
+	}
+	return withBearerCredential(env.ctx, user, token)
+}
+
 func TestMyAccountServiceSetsPassword(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	passwordless, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-passwordless", "Connect Passwordless", "")
@@ -169,11 +202,7 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 		t.Fatalf("CreateAuthTokenWithSource: %v", err)
 	}
 	freshCtx := withBearerCredential(env.ctx, passwordless, freshToken)
-	oauthToken, err := env.core.CreateAuthTokenWithSource(env.ctx, passwordless.Id, "oauth_code_exchange")
-	if err != nil {
-		t.Fatalf("CreateAuthTokenWithSource oauth: %v", err)
-	}
-	oauthCtx := withBearerCredential(env.ctx, passwordless, oauthToken)
+	oauthCtx := mintBornFreshOAuthCredential(t, env, passwordless.Id)
 
 	if _, err := env.account.UpdatePassword(env.ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "newpassword456",
@@ -577,13 +606,9 @@ func TestAdminUserServiceDeleteUserWorksWithOAuthExchangeSession(t *testing.T) {
 	if err := env.core.AssignAdminRole(env.ctx, admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	// Simulates a remote-server connection: a bearer credential born from an
-	// interactive authorization-code exchange.
-	oauthToken, err := env.core.CreateAuthTokenWithSource(env.ctx, admin.Id, "oauth_code_exchange")
-	if err != nil {
-		t.Fatalf("CreateAuthTokenWithSource oauth admin: %v", err)
-	}
-	oauthCtx := withBearerCredential(env.ctx, admin, oauthToken)
+	// Simulates a remote-server connection: a full interactive authorization
+	// exchange whose authorizing session was fresh.
+	oauthCtx := mintBornFreshOAuthCredential(t, env, admin.Id)
 
 	deleteResp, err := env.adminUsers.DeleteUser(oauthCtx, connect.NewRequest(&adminv1.DeleteUserRequest{
 		UserId: target.Id,

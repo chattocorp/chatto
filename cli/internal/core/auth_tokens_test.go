@@ -121,24 +121,35 @@ func TestChattoCore_OAuthExchangeSessionStartsFreshButCannotReacquire(t *testing
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	user, err := core.CreateUser(ctx, SystemActorID, "oauth-access-token-user", "OAuth Access Token User", "password123")
+	user, err := core.CreateUser(ctx, "", "oauth-access-token-user", "OAuth Access Token User", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	token, err := core.CreateAuthTokenWithSource(ctx, user.Id, "oauth_code_exchange")
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
-		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+		t.Fatal(err)
+	}
+	const clientID = "https://client.example/oauth/metadata.json"
+	const redirectURI = "https://client.example/callback"
+	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+	code, err := core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := core.ExchangeAuthCodeForClient(ctx, code, verifier, redirectURI, clientID)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if data := readAuthTokenData(t, core, token); data.Kind != AuthTokenKindOAuthAccessToken || data.Presentation != AuthTokenPresentationBearer {
 		t.Fatalf("auth token kind/presentation = %q/%q, want %q/%q", data.Kind, data.Presentation, AuthTokenKindOAuthAccessToken, AuthTokenPresentationBearer)
 	}
-	// The authorization-code exchange is an interactive authentication, so the
-	// new session starts inside the fresh-auth window (remote-server support).
+	// The authorizing session was fresh, so the delegated session starts
+	// inside the fresh-auth window (remote-server step-up support).
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
-		t.Fatalf("new oauth exchange session should be fresh: %v", err)
+		t.Fatalf("born-fresh exchanged token err = %v, want fresh", err)
 	}
 
-	// Age the session past the fresh-auth window.
 	if err := staleOAuthFreshAuth(ctx, core, token); err != nil {
 		t.Fatalf("age oauth session past window: %v", err)
 	}
@@ -160,8 +171,6 @@ func TestChattoCore_OAuthExchangeSessionStartsFreshButCannotReacquire(t *testing
 	}
 }
 
-// staleOAuthFreshAuth rewrites the renewable session behind an OAuth access
-// token so its FreshAuthAt lies outside the window, simulating window expiry.
 func staleOAuthFreshAuth(ctx context.Context, core *ChattoCore, token string) error {
 	data, _, err := core.authTokenData(ctx, token)
 	if err != nil {

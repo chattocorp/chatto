@@ -386,11 +386,7 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("ConfirmExternalIdentityLink relink: %v", err)
 	}
-	oauthViewerToken, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "oauth_code_exchange")
-	if err != nil {
-		t.Fatalf("CreateAuthTokenWithSource oauth viewer: %v", err)
-	}
-	oauthCredentialCtx := withBearerCredential(env.ctx, env.viewer, oauthViewerToken)
+	oauthCredentialCtx := mintBornFreshOAuthCredential(t, env, env.viewer.Id)
 	disconnectedViaOauth, err := env.account.DisconnectExternalIdentity(oauthCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
 		SubjectHash: linked.Msg.LinkedIdentity.GetSubjectHash(),
 	}))

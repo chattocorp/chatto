@@ -143,10 +143,43 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	if data := readAuthTokenData(t, core, token); data.Kind != AuthTokenKindOAuthAccessToken {
 		t.Fatalf("exchanged auth token kind = %q, want %q", data.Kind, AuthTokenKindOAuthAccessToken)
 	}
-	// The exchange completes an interactive authorization, so the exchanged
-	// token starts inside the fresh-auth window (remote-server support).
+	// A plain exchange whose authorizing credential carried no freshness must
+	// not mint a step-up-capable token (silent-consent protection).
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("exchanged token fresh auth err = %v, want ErrFreshAuthRequired", err)
+	}
+}
+
+func TestChattoCore_ExchangeAuthCodeTransfersFreshness(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "fresh-transfer-user", "Fresh Transfer User", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const clientID = "https://client.example/oauth/metadata.json"
+	const redirectURI = "https://client.example/callback"
+	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := GenerateCodeChallenge(verifier)
+
+	code, err := core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, challenge, "S256", authGeneration, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := core.ExchangeAuthCodeForClient(ctx, code, verifier, redirectURI, clientID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The authorizing session was fresh, so the delegated session starts
+	// inside the fresh-auth window (remote-server step-up support).
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
-		t.Fatalf("exchanged token fresh auth err = %v, want fresh", err)
+		t.Fatalf("born-fresh exchanged token err = %v, want fresh", err)
 	}
 }
 
@@ -165,7 +198,7 @@ func TestChattoCore_ExchangeAuthCodeBindsClientID(t *testing.T) {
 	const redirectURI = "https://client.example/callback"
 	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 
-	code, err := core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration)
+	code, err := core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +209,7 @@ func TestChattoCore_ExchangeAuthCodeBindsClientID(t *testing.T) {
 		t.Fatalf("consumed code exchange err = %v", err)
 	}
 
-	code, err = core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration)
+	code, err = core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration, false)
 	if err != nil {
 		t.Fatal(err)
 	}

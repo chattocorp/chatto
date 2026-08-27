@@ -59,6 +59,11 @@ type AuthCodeData struct {
 	CodeChallengeMethod string    `json:"code_challenge_method"`
 	CreatedAt           time.Time `json:"created_at"`
 	AuthGeneration      uint64    `json:"auth_generation,omitempty"`
+	// IssuedFresh records whether the authorizing session was inside the
+	// fresh-auth window when this code was created. The exchange transfers
+	// that freshness to the issued OAuth bearer session so silent re-consent
+	// over a stale ambient cookie can never mint a step-up-capable token.
+	IssuedFresh bool `json:"issued_fresh,omitempty"`
 }
 
 // ============================================================================
@@ -80,12 +85,12 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 // CreateAuthCodeForGeneration creates an OAuth authorization code for an
 // already-authenticated session that proved authGeneration.
 func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
-	return c.CreateAuthCodeForClientGeneration(ctx, userID, "", redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
+	return c.CreateAuthCodeForClientGeneration(ctx, userID, "", redirectURI, codeChallenge, codeChallengeMethod, authGeneration, false)
 }
 
 // CreateAuthCodeForClientGeneration creates an OAuth authorization code bound
 // to the validated public client and authenticated account generation.
-func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, userID, clientID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, userID, clientID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64, issuedFresh bool) (string, error) {
 	if userID == "" {
 		return "", ErrAuthCodeNotFound
 	}
@@ -114,6 +119,7 @@ func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, user
 		CodeChallengeMethod: codeChallengeMethod,
 		CreatedAt:           createdAt,
 		AuthGeneration:      authGeneration,
+		IssuedFresh:         issuedFresh,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth code: %w", err)
@@ -223,7 +229,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientSession(ctx context.Context, code,
 	codeData.AuthGeneration = validation.AuthGeneration
 
 	// Issue a renewable bearer session.
-	credentials, err := c.CreateOAuthBearerSessionForClient(ctx, validation.UserID, codeData.ClientID, validation.AuthGeneration)
+	credentials, err := c.CreateOAuthBearerSessionForClient(ctx, validation.UserID, codeData.ClientID, validation.AuthGeneration, codeData.IssuedFresh)
 	if err != nil {
 		return BearerSessionCredentials{}, "", fmt.Errorf("failed to create bearer session: %w", err)
 	}

@@ -34,20 +34,26 @@ func freshAuthMethodForSource(source string) string {
 // sourceGrantsInitialFreshAuth reports whether the authentication source just
 // completed an interactive proof of the user's identity, so the new session
 // may start inside the fresh-auth window. The OAuth authorization-code
-// exchange qualifies: Chatto only issues such a session after its own
-// authorization UI authenticated the user interactively (password, passkey,
-// or external provider). The window expires as usual, and unlike first-party
-// sessions an OAuth-kind credential cannot later re-acquire freshness through
-// a current-password check — a new authorization is required instead.
+// exchange is intentionally absent: silent re-consent over a stale ambient
+// cookie completes without user interaction, so delegated sessions only start
+// fresh when the authorization code itself was minted by a fresh authorizing
+// session (AuthCodeData.IssuedFresh).
 func sourceGrantsInitialFreshAuth(source string) bool {
-	if source == "unknown" {
+	if source == "oauth_code_exchange" || source == "unknown" {
 		return false
 	}
 	return source == "external_identity_create" ||
-		source == "oauth_code_exchange" ||
 		source == "registration" ||
 		source == "registration_complete" ||
 		strings.HasSuffix(source, "_login")
+}
+
+// IsFreshAuthAt reports whether the given instant lies inside the standard
+// fresh-auth window ending at now. HTTP handlers use it to judge whether the
+// credential presented to an OAuth authorize request may hand its freshness to
+// the issued authorization code.
+func IsFreshAuthAt(at time.Time, now time.Time) bool {
+	return isFreshAuthAt(at, now)
 }
 
 func isFreshAuthAt(at time.Time, now time.Time) bool {

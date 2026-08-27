@@ -421,7 +421,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read auth generation: " + err.Error()})
 			return
 		}
-		code, err := s.core.CreateAuthCodeForClientGeneration(ctx, req.UserID, req.ClientID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod, authGeneration)
+		code, err := s.core.CreateAuthCodeForClientGeneration(ctx, req.UserID, req.ClientID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod, authGeneration, false)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create auth code: " + err.Error()})
 			return
