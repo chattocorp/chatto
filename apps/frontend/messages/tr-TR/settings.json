@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Uygulama tercihleri",
       "subtitle": "Kayıtlı tüm sunucularınızda geçerli olan bu uygulamaya ait seçimler",
-      "appearance": { "title": "Görünüm" },
-      "composer": { "title": "Mesaj yazma" }
+      "appearance": {
+        "title": "Görünüm"
+      },
+      "composer": {
+        "title": "Mesaj yazma"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Saat ve bölge",
-      "subtitle": "Bu sunucunun tarihleri ve saatleri size nasıl göstereceğini seçin",
+      "subtitle": "Chatto'nun tarih ve saatleri sizin için nasıl görüntüleyeceğini seçin",
       "browser_scope": "Bu seçim, bu tarayıcıdaki tüm Chatto sunucuları için geçerlidir.",
       "theme": {
         "title": "Tema",
@@ -185,10 +189,7 @@
           "label": "24 saat",
           "description": "örneğin 14:30"
         }
-      },
-      "save_button": "Saat ayarlarını kaydet",
-      "saved": "Saat ayarları kaydedildi",
-      "save_failed": "Saat ayarları kaydedilemedi"
+      }
     },
     "notifications": {
       "title": "Bildirimler",

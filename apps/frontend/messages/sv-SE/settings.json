@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Appinställningar",
       "subtitle": "Val för den här appen som gäller för alla dina registrerade servrar",
-      "appearance": { "title": "Utseende" },
-      "composer": { "title": "Skriva meddelanden" }
+      "appearance": {
+        "title": "Utseende"
+      },
+      "composer": {
+        "title": "Skriva meddelanden"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Tid och region",
-      "subtitle": "Välj hur den här servern visar datum och tider för dig",
+      "subtitle": "Välj hur Chatto visar datum och tider för dig",
       "browser_scope": "Det här valet gäller för alla Chatto-servrar i den här webbläsaren.",
       "theme": {
         "title": "Tema",
@@ -185,10 +189,7 @@
           "label": "24 timmar",
           "description": "t.ex. 14:30"
         }
-      },
-      "save_button": "Spara tidsinställningar",
-      "saved": "Tidsinställningarna har sparats",
-      "save_failed": "Det gick inte att spara tidsinställningarna"
+      }
     },
     "notifications": {
       "title": "Aviseringar",

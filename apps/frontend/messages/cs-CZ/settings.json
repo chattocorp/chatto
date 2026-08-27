@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Předvolby aplikace",
       "subtitle": "Volby této aplikace, které platí pro všechny vaše registrované servery",
-      "appearance": { "title": "Vzhled" },
-      "composer": { "title": "Editor zpráv" }
+      "appearance": {
+        "title": "Vzhled"
+      },
+      "composer": {
+        "title": "Editor zpráv"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Čas a oblast",
-      "subtitle": "Zvolte, jak tento server zobrazuje data a časy",
+      "subtitle": "Zvolte, jak Chatto zobrazuje data a časy",
       "browser_scope": "Tato volba platí pro všechny servery Chatto v tomto prohlížeči.",
       "theme": {
         "title": "téma",
@@ -185,10 +189,7 @@
           "label": "24 hodin",
           "description": "např. 14:30"
         }
-      },
-      "save_button": "Uložit nastavení času",
-      "saved": "Nastavení času uloženo",
-      "save_failed": "Nastavení času se nepodařilo uložit"
+      }
     },
     "notifications": {
       "title": "Oznámení",

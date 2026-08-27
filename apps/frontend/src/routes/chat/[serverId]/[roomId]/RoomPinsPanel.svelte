@@ -16,7 +16,7 @@ message presentation. Each message row itself opens the original message.
   import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
   import type { UserSummary } from '$lib/api-client/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDateTime, timeDisplaySettings } from '$lib/utils/formatTime';
   import { EmptyState, ScrollFader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import ClampedMessagePreview from './ClampedMessagePreview.svelte';
@@ -32,9 +32,7 @@ message presentation. Each message row itself opens the original message.
   const serverScope = useServerScope();
   const userSummaries = getUserSummaryCache(serverScope.serverId);
   const members = $derived(getRoomMembers());
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeDisplaySettings())
   const activeLocale = $derived(getLocale());
 
   function user(userId: string): RoomMember | UserSummary | null {

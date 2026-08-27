@@ -20,6 +20,11 @@
       icon: 'iconify icon-[uil--palette]'
     },
     {
+      href: resolve('/chat/preferences/time-region'),
+      label: m('settings.preferences.title'),
+      icon: 'iconify icon-[uil--clock]'
+    },
+    {
       href: resolve('/chat/preferences/language'),
       label: m('settings.preferences.language.title'),
       icon: 'iconify icon-[uil--language]'
@@ -43,7 +48,9 @@
       ? '/language'
       : page.url.pathname.endsWith('/composer')
         ? '/composer'
-        : '/app';
+        : page.url.pathname.endsWith('/time-region')
+          ? '/time-region'
+          : '/app';
     const settingsPath = resolve('/chat/[serverId]/settings', {
       serverId: serverIdToSegment(authenticatedServerId)
     });

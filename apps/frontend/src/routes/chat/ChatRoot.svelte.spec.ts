@@ -199,8 +199,7 @@ const originUser: CurrentUser = {
   hasVerifiedEmail: true,
   hasPassword: true,
   viewerCanDeleteAccount: true,
-  lastLoginChange: null,
-  settings: null
+  lastLoginChange: null
 };
 
 const children = createRawSnippet(() => ({

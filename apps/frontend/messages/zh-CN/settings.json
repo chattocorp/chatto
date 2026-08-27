@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "应用偏好设置",
       "subtitle": "此应用中适用于所有已注册服务器的选项",
-      "appearance": { "title": "外观" },
-      "composer": { "title": "消息编辑" }
+      "appearance": {
+        "title": "外观"
+      },
+      "composer": {
+        "title": "消息编辑"
+      }
     },
     "profile": {
       "title": "个人资料",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "时间和地区",
-      "subtitle": "选择此服务器为你显示日期和时间的方式",
+      "subtitle": "选择 Chatto 显示日期和时间的方式",
       "browser_scope": "此选择适用于本浏览器中的所有 Chatto 服务器。",
       "theme": {
         "title": "主题",
@@ -185,10 +189,7 @@
           "label": "24 小时制",
           "description": "例如：14:30"
         }
-      },
-      "save_button": "保存时间设置",
-      "saved": "时间设置已保存",
-      "save_failed": "无法保存时间设置"
+      }
     },
     "notifications": {
       "title": "通知",

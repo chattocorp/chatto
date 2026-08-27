@@ -12,7 +12,7 @@
   import { Button } from '$lib/ui/form';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UnbanRoomMemberModal from '$lib/components/moderation/UnbanRoomMemberModal.svelte';
-  import { formatDate as formatDateUtil, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDate as formatDateUtil, timeDisplaySettings } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { toast } from '$lib/ui/toast';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -25,9 +25,7 @@
   const activeLocale = $derived(getLocale());
   const serverScope = useServerScope();
   const PAGE_SIZE = 20;
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeDisplaySettings())
 
   let scrollContainer = $state<HTMLDivElement>();
   let unbanDialogBan = $state<RoomBanSummary | null>(null);

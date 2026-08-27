@@ -11,7 +11,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { formatDate as formatDateUtil, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDate as formatDateUtil, timeDisplaySettings } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { SvelteSet } from 'svelte/reactivity';
@@ -21,9 +21,7 @@
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeDisplaySettings())
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 

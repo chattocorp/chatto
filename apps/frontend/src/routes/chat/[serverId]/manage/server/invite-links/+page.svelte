@@ -12,13 +12,11 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, Select, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDateTime, timeDisplaySettings } from '$lib/utils/formatTime';
 
   const PAGE_SIZE = 20;
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeDisplaySettings())
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
   let maxUses = $state('1');

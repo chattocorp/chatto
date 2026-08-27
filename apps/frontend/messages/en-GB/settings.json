@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "App Preferences",
       "subtitle": "Choices for this app that apply across all your registered servers",
-      "appearance": { "title": "Appearance" },
-      "composer": { "title": "Composer" }
+      "appearance": {
+        "title": "Appearance"
+      },
+      "composer": {
+        "title": "Composer"
+      }
     },
     "profile": {
       "title": "Profile",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Time & region",
-      "subtitle": "Choose how this server displays dates and times for you",
+      "subtitle": "Choose how Chatto displays dates and times for you",
       "browser_scope": "This choice applies to every Chatto server in this browser.",
       "theme": {
         "title": "Theme",
@@ -185,10 +189,7 @@
           "label": "24-hour",
           "description": "e.g., 14:30"
         }
-      },
-      "save_button": "Save Time Settings",
-      "saved": "Time settings saved",
-      "save_failed": "Failed to save time settings"
+      }
     },
     "notifications": {
       "title": "Notifications",

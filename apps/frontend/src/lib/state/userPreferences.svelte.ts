@@ -17,12 +17,16 @@ import { Codecs, globalSlot } from '$lib/storage/slot';
 export type DisplayTheme = 'system' | 'light' | 'dark';
 export type ComposerEditorKind = 'visual' | 'markdown';
 export type ComposerSendMode = 'enter' | 'modifier-enter';
+export type DisplayClockFormat = 'device' | '12h' | '24h';
 type EffectiveTheme = 'light' | 'dark';
 
 interface AppPreferences {
   displayTheme: DisplayTheme;
   composerEditor: ComposerEditorKind;
   composerSendMode: ComposerSendMode;
+  /** IANA timezone name, or '' to follow the device timezone. */
+  timeZone: string;
+  clockFormat: DisplayClockFormat;
 }
 
 export interface LegacyNotificationSoundPreferences {
@@ -35,7 +39,9 @@ interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPrefe
 const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
   composerEditor: 'markdown',
-  composerSendMode: 'enter'
+  composerSendMode: 'enter',
+  timeZone: '',
+  clockFormat: 'device'
 };
 
 const defaultStoredPreferences: StoredPreferences = {
@@ -66,6 +72,20 @@ function isComposerEditorKind(value: unknown): value is ComposerEditorKind {
 
 function isComposerSendMode(value: unknown): value is ComposerSendMode {
   return value === 'enter' || value === 'modifier-enter';
+}
+
+function isDisplayClockFormat(value: unknown): value is DisplayClockFormat {
+  return value === 'device' || value === '12h' || value === '24h';
+}
+
+function isValidTimeZoneName(value: unknown): value is string {
+  if (typeof value !== 'string' || value === '') return false;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getLegacyDisplayTheme(): DisplayTheme | null {
@@ -134,7 +154,11 @@ function loadAppPreferences(): AppPreferences {
       : defaultAppPreferences.composerEditor,
     composerSendMode: isComposerSendMode(stored.composerSendMode)
       ? stored.composerSendMode
-      : defaultAppPreferences.composerSendMode
+      : defaultAppPreferences.composerSendMode,
+    timeZone: isValidTimeZoneName(stored.timeZone) ? stored.timeZone : '',
+    clockFormat: isDisplayClockFormat(stored.clockFormat)
+      ? stored.clockFormat
+      : defaultAppPreferences.clockFormat
   };
 }
 
@@ -191,6 +215,28 @@ export class UserPreferencesState {
     this.#preferences.composerSendMode = isComposerSendMode(value)
       ? value
       : defaultAppPreferences.composerSendMode;
+    this.#persist();
+  }
+
+  /** IANA timezone used for time display; '' means the device timezone. */
+  get timeZone(): string {
+    return this.#preferences.timeZone;
+  }
+
+  set timeZone(value: string) {
+    this.#preferences.timeZone = isValidTimeZoneName(value) ? value : '';
+    this.#persist();
+  }
+
+  /** 12/24-hour clock preference for time display; 'device' follows the locale. */
+  get clockFormat(): DisplayClockFormat {
+    return this.#preferences.clockFormat;
+  }
+
+  set clockFormat(value: DisplayClockFormat) {
+    this.#preferences.clockFormat = isDisplayClockFormat(value)
+      ? value
+      : defaultAppPreferences.clockFormat;
     this.#persist();
   }
 

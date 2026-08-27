@@ -13,7 +13,7 @@
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getRoomMembersStore, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-  import { timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { timeDisplaySettings } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import {
     formatSlowModeCountdown,
@@ -108,7 +108,7 @@
     return () => window.clearTimeout(timeout);
   });
 
-  const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
+  const userSettings = $derived(timeDisplaySettings());
   const composerContext = getComposerContext();
   const composer = new MessageComposerState({
     getRoomId: () => roomId,

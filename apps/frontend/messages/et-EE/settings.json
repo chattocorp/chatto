@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Rakenduse eelistused",
       "subtitle": "Selle rakenduse valikud, mis kehtivad kõigis sinu registreeritud serverites",
-      "appearance": { "title": "Välimus" },
-      "composer": { "title": "Sõnumi koostamine" }
+      "appearance": {
+        "title": "Välimus"
+      },
+      "composer": {
+        "title": "Sõnumi koostamine"
+      }
     },
     "profile": {
       "title": "Profiil",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Aeg ja piirkond",
-      "subtitle": "Vali, kuidas see server sulle kuupäevi ja kellaaegu kuvab",
+      "subtitle": "Valige, kuidas Chatto kuvab teie jaoks kuupäevi ja kellaaegu",
       "browser_scope": "See valik kehtib selles brauseris kõigile Chatto serveritele.",
       "theme": {
         "title": "Teema",
@@ -185,10 +189,7 @@
           "label": "24-tunnine",
           "description": "nt 14:30"
         }
-      },
-      "save_button": "Salvesta ajaseaded",
-      "saved": "Ajaseaded salvestatud",
-      "save_failed": "Ajaseadete salvestamine ebaõnnestus"
+      }
     },
     "notifications": {
       "title": "Märguanded",

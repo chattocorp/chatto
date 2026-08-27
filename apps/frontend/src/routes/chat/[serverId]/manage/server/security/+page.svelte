@@ -26,14 +26,12 @@
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDateTime, timeDisplaySettings } from '$lib/utils/formatTime';
 
   const PAGE_SIZE = 20;
 
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeDisplaySettings())
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
   let privacyGeneration = 0;

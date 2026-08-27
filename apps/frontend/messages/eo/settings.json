@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Aplikaj preferoj",
       "subtitle": "Elektoj de ĉi tiu aplikaĵo, kiuj validas por ĉiuj viaj registritaj serviloj",
-      "appearance": { "title": "Aspekto" },
-      "composer": { "title": "Mesaĝverkilo" }
+      "appearance": {
+        "title": "Aspekto"
+      },
+      "composer": {
+        "title": "Mesaĝverkilo"
+      }
     },
     "profile": {
       "title": "Profilo",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Tempo kaj regiono",
-      "subtitle": "Elektu kiel ĉi tiu servilo montras datojn kaj horojn al vi",
+      "subtitle": "Elektu kiel Chatto montras datojn kaj tempojn por vi",
       "browser_scope": "Ĉi tiu elekto validas por ĉiuj Chatto-serviloj en ĉi tiu retumilo.",
       "theme": {
         "title": "Temo",
@@ -185,10 +189,7 @@
           "label": "24-horo",
           "description": "ekz., 14:30"
         }
-      },
-      "save_button": "Konservi horajn agordojn",
-      "saved": "Horaj agordoj konservitaj",
-      "save_failed": "Ne eblis konservi horajn agordojn"
+      }
     },
     "notifications": {
       "title": "Sciigoj",

@@ -57,11 +57,6 @@
       icon: 'iconify icon-[uil--user]'
     },
     {
-      href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
-      label: m('settings.preferences.title'),
-      icon: 'iconify icon-[uil--clock]'
-    },
-    {
       href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
       label: m('settings.nav.notifications'),
       icon: 'iconify icon-[uil--bell]'
@@ -72,6 +67,11 @@
       href: resolve('/chat/[serverId]/settings/app', { serverId: serverSegment }),
       label: m('settings.app_preferences.appearance.title'),
       icon: 'iconify icon-[uil--palette]'
+    },
+    {
+      href: resolve('/chat/[serverId]/settings/time-region', { serverId: serverSegment }),
+      label: m('settings.preferences.title'),
+      icon: 'iconify icon-[uil--clock]'
     },
     {
       href: resolve('/chat/[serverId]/settings/language', { serverId: serverSegment }),

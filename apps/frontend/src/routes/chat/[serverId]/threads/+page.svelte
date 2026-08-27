@@ -19,7 +19,7 @@
   import { EmptyState, Hint, PaneHeader, SegmentedControl } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import RoomEvent from '../[roomId]/RoomEvent.svelte';
-  import { formatDate, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDate, timeDisplaySettings } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import {
@@ -41,7 +41,7 @@
   createComposerContext();
   createMentionRoles(() => serverStore.mentionRoles.roles);
 
-  const userSettings = $derived(timeFormatSettingsFor(serverStore.currentUser.user?.settings));
+  const userSettings = $derived(timeDisplaySettings());
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 

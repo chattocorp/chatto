@@ -8,8 +8,8 @@ import {
   NotificationSignalKind,
   type NotificationOccurrenceItem
 } from '$lib/api-client/notifications';
-import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getToasts, toast } from '$lib/ui/toast';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { NotificationStore } from '$lib/state/server/notifications.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -32,14 +32,7 @@ const { mocks } = vi.hoisted(() => ({
     },
     store: {
       isAuthenticated: true,
-      currentUser: {
-        user: {
-          settings: null as {
-            timezone?: string | null;
-            timeFormat: TimeFormat;
-          } | null
-        }
-      },
+      currentUser: { user: {} },
       notifications: {
         revokedRoomIds: new Set<string>(),
         scrubbedUserIds: new Set<string>(),
@@ -138,7 +131,8 @@ describe('notifications page', () => {
     mocks.store.notifications.fetchPage.mockResolvedValue(page());
     mocks.store.notifications.deleteOccurrences.mockResolvedValue(undefined);
     mocks.store.notifications.deleteAllOccurrences.mockResolvedValue(undefined);
-    mocks.store.currentUser.user.settings = null;
+    userPreferences.timeZone = '';
+    userPreferences.clockFormat = 'device';
     mocks.servers.splice(0, mocks.servers.length, {
       id: 'origin',
       url: 'https://chat.example.test'
@@ -723,10 +717,8 @@ describe('notifications page', () => {
       { ...mocks.occurrence, id: 'yesterday', createdAt: yesterday.toISOString() },
       { ...mocks.occurrence, id: 'older', createdAt: older.toISOString() }
     ];
-    mocks.store.currentUser.user.settings = {
-      timezone: 'Pacific/Auckland',
-      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-    };
+    userPreferences.timeZone = 'Pacific/Auckland';
+    userPreferences.clockFormat = '24h';
     retainProjection(occurrences);
 
     const { container } = render(NotificationsPage);

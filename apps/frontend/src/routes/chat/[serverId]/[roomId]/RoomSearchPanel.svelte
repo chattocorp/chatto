@@ -22,7 +22,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { EmptyState, Hint, ScrollFader } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
-  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDateTime, timeDisplaySettings } from '$lib/utils/formatTime';
   import ClampedMessagePreview from './ClampedMessagePreview.svelte';
 
   let {
@@ -36,9 +36,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
   } = $props();
 
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeDisplaySettings())
   const activeLocale = $derived(getLocale());
   const search = useDebouncedMessageSearch({
     getStore: () => store,

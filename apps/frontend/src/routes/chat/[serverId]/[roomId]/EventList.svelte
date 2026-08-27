@@ -19,7 +19,7 @@
   import { ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
-  import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDayLabel, timeDisplaySettings } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
   import { convergeAtBottom } from './bottomScrollConvergence';
@@ -150,7 +150,7 @@
   const stores = $derived(serverScope.store);
   const currentUser = $derived(stores.currentUser);
   const serverInfo = $derived(stores.serverInfo);
-  const userSettings = $derived(timeFormatSettingsFor(currentUser.user?.settings));
+  const userSettings = $derived(timeDisplaySettings());
   const activeLocale = $derived(getLocale());
   const firstVisibleDate = $derived(
     viewport.firstVisibleAt

@@ -2,7 +2,6 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 
 import { getCurrentUserViaConnect, getViewerStateViaConnect } from '$lib/api-client/viewer';
 
@@ -51,11 +50,7 @@ describe('getCurrentUserViaConnect', () => {
         hasVerifiedEmail: true,
         hasPassword: true,
         viewerCanDeleteAccount: true,
-        lastLoginChange: Timestamp.fromDate(new Date('2026-05-20T09:30:00Z')),
-        settings: {
-          timezone: 'Europe/Berlin',
-          timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-        }
+        lastLoginChange: Timestamp.fromDate(new Date('2026-05-20T09:30:00Z'))
       }
     });
 
@@ -86,11 +81,7 @@ describe('getCurrentUserViaConnect', () => {
       hasVerifiedEmail: true,
       hasPassword: true,
       viewerCanDeleteAccount: true,
-      lastLoginChange: '2026-05-20T09:30:00.000Z',
-      settings: {
-        timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-      }
+      lastLoginChange: '2026-05-20T09:30:00.000Z'
     });
   });
 
@@ -103,8 +94,7 @@ describe('getCurrentUserViaConnect', () => {
           displayName: 'Bob',
           presenceStatus: APIPresenceStatus.UNSPECIFIED
         },
-        hasVerifiedEmail: false,
-        settings: { timeFormat: TimeFormat.TIME_FORMAT_UNSPECIFIED }
+        hasVerifiedEmail: false
       }
     });
 
@@ -115,7 +105,6 @@ describe('getCurrentUserViaConnect', () => {
 
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
     expect(user.presenceStatus).toBe(PresenceStatus.OFFLINE);
-    expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
     expect(user.customStatus).toBeNull();
     expect(user.hasPassword).toBe(false);
     expect(user.viewerCanDeleteAccount).toBe(false);

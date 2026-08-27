@@ -202,37 +202,27 @@ test.describe('App and User Preferences', () => {
     );
   });
 
-  test('can set timezone and save', async ({ page }) => {
+  test('can set a timezone that persists locally', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.settingsTimeRegion);
     await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Type a timezone
+    // Type a timezone; choices apply immediately without a save button
     const timezoneInput = page.getByTestId('timezone-input');
     await timezoneInput.fill('Europe/Berlin');
 
-    // Save button should be enabled
-    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
-    await expect(saveButton).toBeEnabled({ timeout: TIMEOUTS.UI_STANDARD });
-    await saveButton.click();
-
-    // Should see success toast
-    await expect(page.getByText('Time settings saved')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
-
-    // Reload and verify persistence
+    // Reload and verify persistence across reloads (device-local storage)
     await page.reload();
     await expect(timezoneInput).toHaveValue('Europe/Berlin', {
       timeout: TIMEOUTS.UI_STANDARD
     });
   });
 
-  test('can set time format to 24-hour and save', async ({ page }) => {
+  test('can set the clock format to 24-hour with an immediate preview', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.settingsTimeRegion);
     await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -244,18 +234,9 @@ test.describe('App and User Preferences', () => {
     await page.getByRole('radio', { name: '12-hour' }).click();
     await expect(currentTime).toContainText(/[AP]M$/);
 
-    // Select 24-hour format and verify the unsaved preview updates.
+    // Select 24-hour format and verify the live preview updates.
     await page.getByRole('radio', { name: '24-hour' }).click();
     await expect(currentTime).not.toContainText(/[AP]M$/);
-
-    // Save
-    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
-    await expect(saveButton).toBeEnabled({ timeout: TIMEOUTS.UI_STANDARD });
-    await saveButton.click();
-
-    await expect(page.getByText('Time settings saved')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
 
     // Reload and verify the 24-hour option is still selected
     await page.reload();
@@ -268,9 +249,9 @@ test.describe('App and User Preferences', () => {
     });
   });
 
-  test('can clear timezone back to browser default', async ({ page }) => {
+  test('can clear the timezone back to the device default', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.settingsTimeRegion);
     await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -279,25 +260,9 @@ test.describe('App and User Preferences', () => {
     const timezoneInput = page.getByTestId('timezone-input');
     await timezoneInput.fill('America/New_York');
 
-    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
-    await saveButton.click();
-    await expect(page.getByText('Time settings saved')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
-
-    // Dismiss the first toast before triggering a second save
-    await page.getByRole('button', { name: 'Dismiss notification' }).click();
-
     // Now clear it using the X button
     await page.getByTitle('Clear timezone (use browser default)').click();
     await expect(timezoneInput).toHaveValue('');
-
-    // Save again
-    await expect(saveButton).toBeEnabled({ timeout: TIMEOUTS.UI_STANDARD });
-    await saveButton.click();
-    await expect(page.getByText('Time settings saved')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
 
     // Reload and verify it's cleared
     await page.reload();
@@ -308,7 +273,7 @@ test.describe('App and User Preferences', () => {
 
   test('shows validation error for invalid timezone', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.settingsTimeRegion);
     await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -321,10 +286,6 @@ test.describe('App and User Preferences', () => {
     await expect(page.getByText('Please select a valid timezone')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-
-    // Save button should be disabled
-    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
-    await expect(saveButton).toBeDisabled();
   });
 
   test('unified Settings sidebar exposes the three ordered scope groups', async ({ page }) => {

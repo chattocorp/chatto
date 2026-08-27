@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Preferencias de la aplicación",
       "subtitle": "Opciones de esta aplicación que se aplican a todos tus servidores registrados",
-      "appearance": { "title": "Apariencia" },
-      "composer": { "title": "Redacción" }
+      "appearance": {
+        "title": "Apariencia"
+      },
+      "composer": {
+        "title": "Redacción"
+      }
     },
     "profile": {
       "title": "Perfil",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Hora y región",
-      "subtitle": "Elige cómo muestra este servidor las fechas y horas para ti",
+      "subtitle": "Elige cómo Chatto muestra las fechas y los horarios para ti",
       "browser_scope": "Esta opción se aplica a todos los servidores de Chatto en este navegador.",
       "theme": {
         "title": "Tema",
@@ -185,10 +189,7 @@
           "label": "24 horas",
           "description": "por ejemplo, 14:30"
         }
-      },
-      "save_button": "Guardar configuración de hora",
-      "saved": "Configuración de hora guardada",
-      "save_failed": "No se pudo guardar la configuración de hora"
+      }
     },
     "notifications": {
       "title": "Notificaciones",

@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Lietotnes preferences",
       "subtitle": "Šīs lietotnes izvēles, kas attiecas uz visiem jūsu reģistrētajiem serveriem",
-      "appearance": { "title": "Izskats" },
-      "composer": { "title": "Ziņojumu rakstīšana" }
+      "appearance": {
+        "title": "Izskats"
+      },
+      "composer": {
+        "title": "Ziņojumu rakstīšana"
+      }
     },
     "profile": {
       "title": "Profils",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Laiks un reģions",
-      "subtitle": "Izvēlieties, kā šis serveris attēlo datumus un laikus",
+      "subtitle": "Izvēlieties, kā Chatto jums rāda datumus un laikus",
       "browser_scope": "Šī izvēle attiecas uz visiem Chatto serveriem šajā pārlūkā.",
       "theme": {
         "title": "Tēma",
@@ -185,10 +189,7 @@
           "label": "24 stundas",
           "description": "piemēram, 14:30"
         }
-      },
-      "save_button": "Saglabāt laika iestatījumus",
-      "saved": "Laika iestatījumi saglabāti",
-      "save_failed": "Neizdevās saglabāt laika iestatījumus"
+      }
     },
     "notifications": {
       "title": "Paziņojumi",

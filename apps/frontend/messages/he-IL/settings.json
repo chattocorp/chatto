@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "העדפות האפליקציה",
       "subtitle": "בחירות באפליקציה הזו שחלות על כל השרתים הרשומים שלך",
-      "appearance": { "title": "מראה" },
-      "composer": { "title": "כתיבת הודעות" }
+      "appearance": {
+        "title": "מראה"
+      },
+      "composer": {
+        "title": "כתיבת הודעות"
+      }
     },
     "profile": {
       "title": "פרופיל",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "זמן ואזור",
-      "subtitle": "בחרו כיצד השרת הזה יציג עבורכם תאריכים ושעות",
+      "subtitle": "בחרו כיצד Chatto מציגה עבורכם תאריכים ושעות",
       "browser_scope": "הבחירה חלה על כל שרתי Chatto בדפדפן הזה.",
       "theme": {
         "title": "ערכת נושא",
@@ -185,10 +189,7 @@
           "label": "24 שעות",
           "description": "למשל, 14:30"
         }
-      },
-      "save_button": "שמירת הגדרות הזמן",
-      "saved": "הגדרות הזמן נשמרו",
-      "save_failed": "שמירת הגדרות הזמן נכשלה"
+      }
     },
     "notifications": {
       "title": "התראות",

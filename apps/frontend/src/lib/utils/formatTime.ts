@@ -9,9 +9,9 @@
  * so formatters are reused across calls with the same settings.
  */
 
-import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getBrowserLocale, getFormattingLocale, getLocale } from '$lib/i18n/runtime';
 import { m } from '$lib/i18n/messages';
+import { userPreferences, type DisplayClockFormat } from '$lib/state/userPreferences.svelte';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -20,25 +20,22 @@ export type TimeFormatSettings = {
   effectiveHour12: boolean | undefined;
 };
 
-export type ViewerTimeSettings = {
-  timezone?: string | null;
-  timeFormat: TimeFormat;
-};
-
-export function hour12ForTimeFormat(timeFormat: TimeFormat): boolean | undefined {
-  if (timeFormat === TimeFormat.TIME_FORMAT_12_HOUR) return true;
-  if (timeFormat === TimeFormat.TIME_FORMAT_24_HOUR) return false;
+export function hour12ForClockFormat(clockFormat: DisplayClockFormat): boolean | undefined {
+  if (clockFormat === '12h') return true;
+  if (clockFormat === '24h') return false;
   return undefined;
 }
 
-/** Convert the canonical per-server viewer settings into display formatting options. */
-export function timeFormatSettingsFor(
-  settings: ViewerTimeSettings | null | undefined
-): TimeFormatSettings {
+/**
+ * Convert the user's device-local Time & Region preferences into display
+ * formatting options. Unset preferences fall back to the device timezone and
+ * the locale's clock convention. Reads reactive state, so call it inside a
+ * `$derived` to track preference changes.
+ */
+export function timeDisplaySettings(): TimeFormatSettings {
   return {
-    effectiveTimezone: settings?.timezone || undefined,
-    effectiveHour12:
-      settings?.timeFormat === undefined ? undefined : hour12ForTimeFormat(settings.timeFormat)
+    effectiveTimezone: userPreferences.timeZone || undefined,
+    effectiveHour12: hour12ForClockFormat(userPreferences.clockFormat)
   };
 }
 

@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Appinnstillinger",
       "subtitle": "Valg for denne appen som gjelder for alle registrerte servere",
-      "appearance": { "title": "Utseende" },
-      "composer": { "title": "Meldingsskriving" }
+      "appearance": {
+        "title": "Utseende"
+      },
+      "composer": {
+        "title": "Meldingsskriving"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Tid og region",
-      "subtitle": "Velg hvordan denne serveren viser datoer og klokkeslett for deg",
+      "subtitle": "Velg hvordan Chatto viser datoer og klokkeslett for deg",
       "browser_scope": "Dette valget gjelder for alle Chatto-servere i denne nettleseren.",
       "theme": {
         "title": "Tema",
@@ -185,10 +189,7 @@
           "label": "24 timer i døgnet",
           "description": "f.eks. 14:30"
         }
-      },
-      "save_button": "Lagre tidsinnstillinger",
-      "saved": "Tidsinnstillinger lagret",
-      "save_failed": "Kunne ikke lagre tidsinnstillinger"
+      }
     },
     "notifications": {
       "title": "Varsler",

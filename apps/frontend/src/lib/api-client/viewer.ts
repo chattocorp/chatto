@@ -1,9 +1,8 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { TimeFormat, type GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
-import { timeFormatOrAuto } from './timeFormat.js';
 
 export type ViewerAPIConfig = {
   serverId?: string;
@@ -27,10 +26,6 @@ export type CurrentUser = {
   hasPassword: boolean;
   viewerCanDeleteAccount: boolean;
   lastLoginChange?: string | null;
-  settings?: {
-    timezone?: string | null;
-    timeFormat: TimeFormat;
-  } | null;
 };
 
 export type ViewerCapabilities = {
@@ -110,13 +105,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       hasVerifiedEmail: response.user.hasVerifiedEmail,
       hasPassword: response.user.hasPassword ?? false,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
-      lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,
-      settings: response.user.settings
-        ? {
-            timezone: response.user.settings.timezone ?? null,
-            timeFormat: timeFormatOrAuto(response.user.settings.timeFormat)
-          }
-        : null
+      lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null
     },
     canViewAdmin: can(capabilityKeys.adminView),
     canStartDMs: can(capabilityKeys.dmStart),

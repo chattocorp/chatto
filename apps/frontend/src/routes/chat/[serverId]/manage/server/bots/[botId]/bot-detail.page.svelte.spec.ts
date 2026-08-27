@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
-import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+import { formatDateTime, timeDisplaySettings } from '$lib/utils/formatTime';
 
 const mocks = vi.hoisted(() => ({
 	getBot: vi.fn(),
@@ -16,7 +15,6 @@ const mocks = vi.hoisted(() => ({
 	reassignBotOwner: vi.fn(),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
-	settings: null as { timezone: string; timeFormat: TimeFormat } | null,
 	canManageBots: true,
 	bot: {
 		id: 'bot-user-id',
@@ -37,7 +35,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 		serverId: 'server-1',
 		store: {
 			serverInfo: { supportsFeature: () => true },
-			currentUser: { user: { settings: mocks.settings } },
+			currentUser: { user: {} },
 			projection: {
 				viewer: {
 					user: { profile: { id: 'viewer', login: 'viewer', displayName: 'Viewer' } },
@@ -94,7 +92,6 @@ describe('Bot detail page', () => {
 	beforeEach(async () => {
 		queryClient.clear();
 		vi.clearAllMocks();
-		mocks.settings = null;
 		mocks.canManageBots = true;
 		mocks.getBot.mockResolvedValue(mocks.bot);
 		mocks.batchGetUsers.mockResolvedValue([]);
@@ -182,17 +179,13 @@ describe('Bot detail page', () => {
 		});
 	});
 
-	it("formats API key timestamps with the viewer's timezone and time format", async () => {
-		mocks.settings = {
-			timezone: 'America/New_York',
-			timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-		};
+	it('formats API key timestamps with the app time settings', async () => {
 		const { container } = render(BotDetailPage);
 		await settle();
 
 		const expected = formatDateTime(
 			mocks.bot.apiKeyCreatedAt,
-			timeFormatSettingsFor(mocks.settings),
+			timeDisplaySettings(),
 			'en-GB'
 		);
 		expect(container.textContent).toContain(expected);

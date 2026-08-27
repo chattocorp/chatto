@@ -66,8 +66,7 @@ describe('CurrentUserState', () => {
       presenceStatus: PresenceStatus.ONLINE,
       hasVerifiedEmail: true,
       viewerCanDeleteAccount: false,
-      hasPassword: true,
-      settings: null
+      hasPassword: true
     };
 
     await state.handleAuthFailure({ revokeServerSession: true });

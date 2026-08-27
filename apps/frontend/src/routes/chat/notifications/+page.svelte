@@ -24,7 +24,7 @@
     fileDateGroup,
     formatDate,
     formatMonthYear,
-    timeFormatSettingsFor,
+    timeDisplaySettings,
     type TimeFormatSettings
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
@@ -194,7 +194,7 @@
         ).map((group): ServerGroup => ({
           serverId: instance.id,
           serverHostname: hostname,
-          timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
+          timeFormatSettings: timeDisplaySettings(),
           group
         }));
       })

@@ -20,7 +20,7 @@ in the active server store so browser Back can restore the current search.
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { buildMessageLinkPath } from '$lib/messageLinks';
-  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDateTime, timeDisplaySettings } from '$lib/utils/formatTime';
   import {
     EmptyState,
     Hint,
@@ -38,9 +38,7 @@ in the active server store so browser Back can restore the current search.
   const serverId = $derived(serverScope.serverId);
   const serverStore = $derived(serverScope.store);
   const store = $derived(serverStore.messageSearch);
-  const timeFormatSettings = $derived(
-    timeFormatSettingsFor(serverStore.currentUser.user?.settings)
-  );
+  const timeFormatSettings = $derived(timeDisplaySettings())
   const activeLocale = $derived(getLocale());
   const orderOptions = $derived([
     { value: MessageSearchOrder.RELEVANCE, label: m('search.order.relevance') },

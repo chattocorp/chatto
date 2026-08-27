@@ -20,7 +20,7 @@
   import {
     formatDateTime as formatDateTimeUtil,
     formatDayLabel,
-    timeFormatSettingsFor
+    timeDisplaySettings
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
@@ -29,9 +29,7 @@
   import { queryClient } from '$lib/query/client';
 
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeDisplaySettings())
   const activeLocale = $derived(getLocale());
 
   const activeServerId = $derived(serverScope.serverId);

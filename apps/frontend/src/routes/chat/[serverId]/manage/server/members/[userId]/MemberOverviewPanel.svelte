@@ -4,10 +4,9 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { getLiveLogin } from '$lib/state/userProfiles.svelte';
+    import { getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { Pill } from '$lib/ui';
-  import { formatDate, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDate, formatDateTime, timeDisplaySettings } from '$lib/utils/formatTime';
   import { formatCooldownRemaining, getLoginChangeCooldownRemaining } from '$lib/validation';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
@@ -19,10 +18,7 @@
 
   let { member, roles, canViewMemberEmails }: Props = $props();
 
-  const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeDisplaySettings());
   const activeLocale = $derived(getLocale());
   const lastLoginChange = $derived(
     member.lastLoginChange ? new Date(member.lastLoginChange) : null

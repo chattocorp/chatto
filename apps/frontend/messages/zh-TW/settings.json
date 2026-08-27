@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "應用程式偏好設定",
       "subtitle": "此應用程式中適用於所有已註冊伺服器的選項",
-      "appearance": { "title": "外觀" },
-      "composer": { "title": "訊息編輯" }
+      "appearance": {
+        "title": "外觀"
+      },
+      "composer": {
+        "title": "訊息編輯"
+      }
     },
     "profile": {
       "title": "個人檔案",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "時間與地區",
-      "subtitle": "選擇此伺服器為你顯示日期與時間的方式",
+      "subtitle": "選擇 Chatto 顯示日期與時間的方式",
       "browser_scope": "此選擇適用於這個瀏覽器中的所有 Chatto 伺服器。",
       "theme": {
         "title": "佈景主題",
@@ -185,10 +189,7 @@
           "label": "24 小時制",
           "description": "例如 14:30"
         }
-      },
-      "save_button": "儲存時間設定",
-      "saved": "已儲存時間設定",
-      "save_failed": "無法儲存時間設定"
+      }
     },
     "notifications": {
       "title": "通知",

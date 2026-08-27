@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Preferencje aplikacji",
       "subtitle": "Opcje tej aplikacji dotyczące wszystkich zarejestrowanych serwerów",
-      "appearance": { "title": "Wygląd" },
-      "composer": { "title": "Tworzenie wiadomości" }
+      "appearance": {
+        "title": "Wygląd"
+      },
+      "composer": {
+        "title": "Tworzenie wiadomości"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -116,7 +120,7 @@
     },
     "preferences": {
       "title": "Czas i region",
-      "subtitle": "Wybierz sposób wyświetlania dat i godzin przez ten serwer",
+      "subtitle": "Wybierz, jak Chatto wyświetla dla Ciebie daty i godziny",
       "browser_scope": "Ten wybór dotyczy wszystkich serwerów Chatto w tej przeglądarce.",
       "theme": {
         "title": "Temat",
@@ -185,10 +189,7 @@
           "label": "24 godziny na dobę",
           "description": "np. 14:30"
         }
-      },
-      "save_button": "Zapisz ustawienia czasu",
-      "saved": "Ustawienia czasu zapisane",
-      "save_failed": "Nie udało się zapisać ustawień czasu"
+      }
     },
     "notifications": {
       "title": "Powiadomienia",

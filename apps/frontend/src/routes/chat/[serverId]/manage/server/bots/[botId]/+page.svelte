@@ -30,7 +30,7 @@
   } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { formatDateTime, timeDisplaySettings } from '$lib/utils/formatTime';
   import { onDestroy } from 'svelte';
 
   const serverScope = useServerScope();
@@ -123,9 +123,7 @@
     normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
   );
   const visibleEditError = $derived(editError?.targetKey === targetKey ? editError.message : null);
-  const timeSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const timeSettings = $derived(timeDisplaySettings())
   const activeLocale = $derived(getLocale());
 
   function botAPI() {
