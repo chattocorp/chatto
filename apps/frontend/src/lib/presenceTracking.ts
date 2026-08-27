@@ -68,6 +68,28 @@ function storeMode(mode: PresenceMode) {
 	localStorage.setItem(PRESENCE_MODE_STORAGE_KEY, mode);
 }
 
+/**
+ * Rewrites the stored mode only when it holds a legacy or invalid value
+ * (for example the retired 'auto' mode) so all tabs converge on explicit
+ * modes. Never rewrites a valid or missing stored value: identical setItem
+ * calls can surface as cross-tab storage events and needlessly re-apply
+ * the same mode elsewhere.
+ */
+function normalizeStoredMode(mode: PresenceMode) {
+	if (typeof localStorage === 'undefined') return;
+	const stored = localStorage.getItem(PRESENCE_MODE_STORAGE_KEY);
+	if (
+		stored === null ||
+		stored === 'online' ||
+		stored === 'away' ||
+		stored === 'doNotDisturb' ||
+		stored === 'invisible'
+	) {
+		return;
+	}
+	storeMode(mode);
+}
+
 export function setPresenceMode(mode: PresenceMode) {
 	storeMode(mode);
 	presencePreference.mode = mode;
@@ -93,8 +115,7 @@ export function initPresenceTracking(
 	let reportRevision = 0;
 
 	presencePreference.mode = currentMode;
-	// Normalize legacy stored values such as 'auto' to 'online'.
-	storeMode(currentMode);
+	normalizeStoredMode(currentMode);
 
 	function emitLocalStatus(status: PresenceStatus) {
 		presencePreference.effectiveStatus = status;
@@ -134,10 +155,10 @@ export function initPresenceTracking(
 		}, PRESENCE_REFRESH_MS);
 	}
 
-	function applyMode(mode: PresenceMode, persist = false, syncedFromStorage = false) {
+	function applyMode(mode: PresenceMode, persist = false) {
 		currentMode = mode;
 		presencePreference.mode = mode;
-		if (persist || syncedFromStorage) storeMode(mode);
+		if (persist) storeMode(mode);
 
 		const revision = ++reportRevision;
 		if (mode === 'invisible') {
@@ -164,7 +185,7 @@ export function initPresenceTracking(
 			event.newValue === 'doNotDisturb' ||
 			event.newValue === 'invisible'
 		) {
-			applyMode(event.newValue, false, true);
+			applyMode(event.newValue);
 		}
 	}
 

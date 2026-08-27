@@ -60,7 +60,6 @@ describe('initPresenceTracking', () => {
 				storage.delete(key);
 			})
 		});
-		vi.stubGlobal('document', {});
 		vi.stubGlobal('window', {
 			addEventListener: windowTarget.addEventListener.bind(windowTarget),
 			removeEventListener: windowTarget.removeEventListener.bind(windowTarget),
@@ -173,7 +172,7 @@ describe('initPresenceTracking', () => {
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.OFFLINE);
 	});
 
-	it('follows another tab switching between explicit modes', () => {
+	it('follows another tab switching between explicit modes without rewriting shared state', () => {
 		startTracking();
 
 		dispatchStorageMode('away');
@@ -187,5 +186,13 @@ describe('initPresenceTracking', () => {
 		expect(sentUserSelectedFlags().at(-1)).toBe(true);
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
 		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.ONLINE);
+
+		// Applying another tab's mode must not rewrite the shared storage value;
+		// identical writes can surface as spurious storage events in other tabs.
+		const localSetItem = vi.mocked(localStorage.setItem);
+		const modeWrites = localSetItem.mock.calls.filter(
+			([key]) => key === __presenceTrackingTest.PRESENCE_MODE_STORAGE_KEY
+		);
+		expect(modeWrites).toHaveLength(0);
 	});
 });
