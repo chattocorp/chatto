@@ -287,41 +287,18 @@ override, but bots themselves cannot exercise bot-management operations.
 
 ## API Compatibility
 
-- `User.is_bot` and `BotService` are additive
-  public API changes for Chatto 0.5.0.
-- `BotService.ReassignBotOwner` and the persisted bot-owner reassignment fact
-  are additive changes in the unreleased 0.5.0 train. Older clients continue
-  to work, and the bundled client gates the action through its server feature
-  table.
-- The existing `AdminPermissionService` user-permission operations accept bot
-  user IDs. `PermissionMatrixCell.allow_permitted` is additive and reports when
-  a target-specific delegation ceiling prevents an explicit allow.
-- Missing historical `is_bot` values decode as false, so old persisted users
-  remain human accounts. Older clients ignore the additive field and may
-  render bot identities without a bot marker.
-- The bundled client gates bot management on server version `0.5.0-0`. A new
-  client does not call `BotService` on an older server.
-- Older server replicas cannot authenticate the new `cht_BK_…` credential and
-  therefore cannot accidentally grant it ambient human authority. Operators
-  should still complete the normal rolling upgrade before creating bots so
-  management and identity rendering are consistent across replicas.
-- Servers with the initial bot implementation do not recognize newly shortened
-  keys, while updated servers continue to accept the longer initial format.
-  Operators should complete the normal rolling upgrade before creating or
-  rotating bot credentials.
-- Operators must also complete the normal rolling upgrade before reassigning a
-  bot. A binary predating the ownership event cannot project the new owner, so
-  rolling back after ownership writes requires a binary that understands the
-  event.
-- Chatto 0.5 denies `RoomService.StartDM` to bot callers. This behavior is a
-  breaking authorization change for an integration that used this RPC. During
-  a mixed-replica rollout, an older replica can still accept the call. Upgrade
-  all replicas before you depend on this boundary.
-- Root-message direct mentions now append the existing best-effort thread
-  follow for an eligible recipient. No public or persisted schema changes.
-  During a mixed-replica rollout, an older replica can omit this follow and
-  the later followed-thread activation. Complete the rollout before you depend
-  on that availability.
+Bot identity, management, reassignment, permission ceilings, and credentials
+are additive in Chatto 0.5. Historical users remain human accounts when bot
+identity is absent. Older clients can still render bot accounts as ordinary
+users, and the bundled client does not call bot-management operations on an
+older server.
+
+Operators must replace all replicas before they create or rotate bot
+credentials, reassign bot ownership, or depend on the rule that bots cannot
+start DMs. An older replica can omit newer bot facts or accept the earlier DM
+behavior. Updated servers continue to accept the first longer bot-key format
+while issuing the current shorter format. Exact field, method, event, and
+version-gate details belong in the public schema and API compatibility guide.
 
 ## Related
 

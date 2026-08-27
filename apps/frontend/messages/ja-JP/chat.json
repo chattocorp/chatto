@@ -40,8 +40,9 @@
     "user_menu": {
       "profile": "ユーザープロフィール",
       "send_message": "メッセージを送信",
-      "copy_user_id": "ユーザーIDをコピー",
-      "view_profile": "プロフィールを見る"
+      "view_profile": "プロフィールを見る",
+      "view_in_admin": "サーバー管理で表示",
+      "copy_user_id": "ユーザーIDをコピー"
     },
     "server_gutter": {
       "add_server": "サーバーの追加",

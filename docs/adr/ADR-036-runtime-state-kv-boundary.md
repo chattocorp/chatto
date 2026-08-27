@@ -4,6 +4,8 @@
 
 **Updated:** 2026-08-25
 
+**Status:** Partially superseded
+
 **Partially superseded by:** [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) for mutable human-session expiry storage.
 
 ## Context

@@ -40,8 +40,9 @@
     "user_menu": {
       "profile": "Benutzerprofil",
       "send_message": "Nachricht senden",
-      "copy_user_id": "Benutzer-ID kopieren",
-      "view_profile": "Profil anzeigen"
+      "view_profile": "Profil anzeigen",
+      "view_in_admin": "In der Serveradministration anzeigen",
+      "copy_user_id": "Benutzer-ID kopieren"
     },
     "server_gutter": {
       "add_server": "Server hinzufügen",

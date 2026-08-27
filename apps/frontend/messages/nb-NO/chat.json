@@ -40,8 +40,9 @@
     "user_menu": {
       "profile": "Brukerprofil",
       "send_message": "Send melding",
-      "copy_user_id": "Kopier bruker-ID",
-      "view_profile": "Vis profil"
+      "view_profile": "Vis profil",
+      "view_in_admin": "Vis i serveradministrasjonen",
+      "copy_user_id": "Kopier bruker-ID"
     },
     "server_gutter": {
       "add_server": "Legg til server",

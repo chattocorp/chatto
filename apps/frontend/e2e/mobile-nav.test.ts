@@ -277,8 +277,8 @@ test.describe('Mobile Navigation', () => {
     await verifyAdminEmail(page, adminUser.id!);
 
     // Navigate to admin page and wait for it to load
-    await page.goto(routes.admin);
-    await page.waitForURL(routes.admin);
+    await page.goto(routes.serverAdminGeneral);
+    await page.waitForURL(routes.serverAdminGeneral);
 
     // Wait for the page content to load (General heading visible)
     await expect(page.getByRole('heading', { name: 'General', level: 1 })).toBeVisible({

@@ -28,7 +28,7 @@ type queryToken struct {
 }
 
 type querySyntax struct {
-	Parts []*querySyntaxPart `@@*`
+	Parts []*querySyntaxPart `parser:"@@*"`
 }
 
 // querySyntaxPart is one bare or quoted fragment. Participle positions let us
@@ -36,8 +36,8 @@ type querySyntax struct {
 // Chatto's query semantics without hand-scanning the input.
 type querySyntaxPart struct {
 	Pos    lexer.Position
-	Bare   *string `  @Bare`
-	Quoted *string `| @Quoted`
+	Bare   *string `parser:"  @Bare"`
+	Quoted *string `parser:"| @Quoted"`
 	EndPos lexer.Position
 }
 

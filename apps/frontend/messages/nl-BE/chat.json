@@ -40,8 +40,9 @@
     "user_menu": {
       "profile": "Gebruikersprofiel",
       "send_message": "Bericht verzenden",
-      "copy_user_id": "Gebruikers-ID kopiëren",
-      "view_profile": "Profiel bekijken"
+      "view_profile": "Profiel bekijken",
+      "view_in_admin": "Bekijken in serverbeheer",
+      "copy_user_id": "Gebruikers-ID kopiëren"
     },
     "server_gutter": {
       "add_server": "Server toevoegen",

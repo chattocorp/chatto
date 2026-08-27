@@ -5,6 +5,9 @@ Shows a user's profile card. On desktop, renders as a floating popover anchored 
 element. On mobile (touch devices), renders as a bottom sheet. This dual behavior comes from
 ContextMenu, which handles both modes automatically.
 
+When the current viewer can open Server Admin user pages, the menu links to the selected user's
+page on the active server.
+
 **Props:**
 - `user` - The user to display (must include id, login, displayName, presenceStatus)
 - `anchorRect` - Bounding rect of the trigger element (used for desktop positioning)
@@ -27,6 +30,8 @@ ContextMenu, which handles both modes automatically.
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import {
     getLiveBio,
@@ -79,6 +84,7 @@ ContextMenu, which handles both modes automatically.
     onClose?: () => void;
   } = $props();
 
+  const serverScope = useServerScope();
   const displayName = $derived(getLiveDisplayName(user.id, user.displayName || user.login));
   const customStatus = $derived(getLiveCustomStatus(user.id, user.customStatus));
   const bio = $derived(getLiveBio(user.id, user.bio ?? null));
@@ -97,6 +103,14 @@ ContextMenu, which handles both modes automatically.
       return null;
     }
   });
+  const adminUserHref = $derived(
+    serverScope.store.permissions.loaded && serverScope.store.permissions.canAdminViewUsers
+      ? resolve('/chat/[serverId]/manage/server/members/[userId]', {
+          serverId: serverIdToSegment(serverScope.serverId),
+          userId: user.id
+        })
+      : null
+  );
   function handleSendMessage() {
     onSendMessage?.();
     onClose?.();
@@ -152,7 +166,7 @@ ContextMenu, which handles both modes automatically.
     <Interval milliseconds={60_000} ontick={() => (now = Date.now())} />
   {/if}
 
-  {#if canSendMessage || canBanFromRoom || page.params.serverId}
+  {#if canSendMessage || page.params.serverId || adminUserHref || canBanFromRoom}
     <div class="menu-section">
       <nav class="sidebar-nav">
         {#if canSendMessage}
@@ -169,6 +183,16 @@ ContextMenu, which handles both modes automatically.
             })}
           >
             {m('chat.user_menu.view_profile')}
+          </a>
+        {/if}
+        {#if adminUserHref}
+          <a
+            class="sidebar-item"
+            href={adminUserHref}
+            onclick={() => onClose?.()}
+            data-testid="view-user-admin"
+          >
+            {m('chat.user_menu.view_in_admin')}
           </a>
         {/if}
         {#if canBanFromRoom}

@@ -202,7 +202,7 @@ export class AuthPage {
    */
   async submitRegistrationComplete(): Promise<void> {
     await this.createAccountButton.click();
-    // New users get redirected to /chat/spaces (browse spaces) since they have no joined spaces
+    // New users land on the home server because they have no joined rooms.
     await this.page.waitForURL(routes.patterns.chatRedirect);
   }
 
@@ -312,7 +312,7 @@ export class AuthPage {
    */
   async submitLogin(): Promise<void> {
     await this.signInButton.click();
-    // Users may be redirected to /chat/spaces, their last chat route, or /chat depending on history.
+    // Users may be redirected to the home server, their last chat route, or /chat depending on history.
     await this.page.waitForURL(routes.patterns.chatRedirect);
   }
 

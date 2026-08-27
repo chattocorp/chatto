@@ -5,15 +5,8 @@ Key files:
 - [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
 - [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go)
 - [`cli/internal/http_server/realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go)
-- [`cli/internal/connectapi/realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go)
-- [`cli/internal/core/my_events_model.go`](../../cli/internal/core/my_events_model.go)
-- [`cli/internal/core/notification_materializer.go`](../../cli/internal/core/notification_materializer.go)
-- [`cli/internal/core/realtime_replay.go`](../../cli/internal/core/realtime_replay.go)
 - [`apps/frontend/src/lib/state/server/projection.svelte.ts`](../../apps/frontend/src/lib/state/server/projection.svelte.ts)
-- [`apps/frontend/src/lib/state/server/eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
 - [`apps/frontend/src/lib/state/server/realtimeSync.svelte.ts`](../../apps/frontend/src/lib/state/server/realtimeSync.svelte.ts)
-- [`apps/frontend/src/lib/state/server/ServerRuntimeCoordinator.svelte`](../../apps/frontend/src/lib/state/server/ServerRuntimeCoordinator.svelte)
-- [`apps/frontend/src/lib/presenceTracking.ts`](../../apps/frontend/src/lib/presenceTracking.ts)
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md), and
@@ -44,6 +37,7 @@ best-effort sends a reconnecting `authentication_required` close, and tears
 down the socket. The bundled frontend serializes refresh for that server,
 installs the rotated pair without replacing its per-server state, and reconnects
 the same event bus with its RAM-only opaque resume cursor and retained-room set.
+
 Cookie connections retain the cookie record expiry accepted during the HTTP
 upgrade. Their timer ends at the start of the final renewal quarter. The
 handler cancels authorized work, sends a reconnecting
@@ -51,11 +45,12 @@ handler cancels authorized work, sends a reconnecting
 frontend calls the CSRF-protected browser renewal route. That route advances
 the same cookie-session record with KV OCC and writes the same SCS handle in a
 fresh browser cookie slot with the new lifetime. The frontend then opens the
-replacement socket. The upgrade does not update the record or set a cookie. The frontend keeps its route,
-projection, opaque cursor, and retained-room set during this automatic
-reconnect. The route also returns the next renewal time. An HTTP timer uses
-that value when realtime transport is blocked or disconnected. Bot API keys
-have no expiry timer.
+replacement socket. The upgrade does not update the record or set a cookie.
+
+The frontend keeps its route, projection, opaque cursor, and retained-room set
+during this automatic reconnect. The route also returns the next renewal time.
+An HTTP timer uses that value when realtime transport is blocked or
+disconnected. Bot API keys have no expiry timer.
 
 After the hello, the server revalidates the exact human credential before it
 starts the subscription. It repeats that check once per minute. A definitive
@@ -90,9 +85,10 @@ separate: the URL-active server is `live`, inactive servers are normally
 `dormant`, and one inactive server at a time may be `polling`. A poll opens the
 same `/api/realtime` stream with that projection's cursor and closes as soon as
 `caught_up` arrives. Initial inactive hydration runs immediately; later polls
-run about once a minute with jitter and a 30-second client timeout. Switching
-servers closes the previous persistent socket without discarding its state and
-promotes the selected server to the sole persistent connection.
+run about once a minute with jitter and a 30-second client timeout.
+
+Switching servers closes the previous persistent socket without discarding its
+state and promotes the selected server to the sole persistent connection.
 
 The application-root `ServerRuntimeCoordinator` owns authenticated-server
 transport reconciliation before notification synchronization and routed
@@ -205,11 +201,13 @@ The sealed cursor contains an EVT stream incarnation, global sequence, and
 viewer binding. XChaCha20-Poly1305 protects it with a purpose-separated key
 derived from `core.secret_key`; random nonces prevent equal payloads producing
 equal tokens. NATS and JetStream coordinates are never public API facts.
+
 Tampering, cross-user reuse, secret rotation, or foreign stream incarnation
 selects a compacted reset. Every cursor also carries a sealed issue time and
 expires after 24 hours; expiry selects the same safe reset, limiting captured
-cursor reuse while still allowing ordinary reconnect gaps. The browser retains
-a cursor only with its corresponding in-memory projection. Socket
+cursor reuse while still allowing ordinary reconnect gaps.
+
+The browser retains a cursor only with its corresponding in-memory projection. Socket
 reconnects can resume; page reloads and recreated stores omit it and receive a
 new compacted prefix. A tab waking after more than 24 hours still presents its
 expired cursor, and the server responds with the same compacted reset used for
@@ -247,13 +245,14 @@ boundary. An interaction-scoped timeline contains only related roots, and each
 durable message-derived operation is authorized against its canonical thread
 root. A direct-mention post waits for the Threads projection before delivery,
 so the source operation can establish and use the relationship in order.
+
 Reactions, pins, and asset lifecycle facts also wait for the Threads projection
 at their source message. This prevents an authorized event from being omitted
 when the relationship projection has processing delay. When a viewer gains
-room access through a join, Universal membership, or unarchive,
-live mapping pairs the current room and any retained timeline with
-authoritative active-call and notification replacements. Newly visible calls
-therefore appear without a compacted reset or page reload.
+room access through a join, Universal membership, or unarchive, live mapping
+pairs the current room and any retained timeline with authoritative active-call
+and notification replacements. Newly visible calls therefore appear without a
+compacted reset or page reload.
 
 When a Universal room stops granting membership, live mapping pairs its
 current room state with an empty replacement for any retained timeline plus
@@ -262,10 +261,11 @@ the same viewer-sensitive replacements; loss of room visibility uses
 canonical rows, mounted room stores, open thread stores, optimistic state,
 call and notification mirrors, and in-flight reads as soon as projected
 membership becomes false. It also disconnects local call media for that room
-without issuing a redundant leave command. The privacy fence stays closed
-until an explicit positive membership operation arrives, so delayed pagination,
-previews, read-your-writes responses, and timeline replacements cannot restore
-plaintext.
+without issuing a redundant leave command. The privacy fence stays closed.
+
+It opens only after an explicit positive membership operation arrives, so
+delayed pagination, previews, read-your-writes responses, and timeline
+replacements cannot restore plaintext.
 
 The browser keeps only the non-plaintext retained-room intent. If membership
 later returns, the server rematerialises the current window only for that
@@ -280,6 +280,7 @@ hydration at a time; a non-fatal capacity or rate rejection identifies the room
 and supplies a retry delay, after which the browser resends it on the same
 socket. Both client and server cap retention at 64 room IDs, and the server
 ignores duplicate hydration work.
+
 At the bound, the browser evicts its least-recent inactive timeline and replaces
 the socket before materialising the newly selected room.
 
@@ -300,10 +301,14 @@ For incremental replay, reconciliation also replaces every visible room's
 latest read and permission state because an EVT gap cannot reconstruct
 RUNTIME_STATE read markers. A compacted reset instead owns those rows in its
 incremental `room_upsert` snapshot frames, so its reconciliation neither
-rebuilds nor repeats the complete room viewer-state collection. The bounded
-snapshot phase owns server and directory resources, room summaries, membership,
-permissions, room read state, room groups, active calls, and retained timelines.
-It also seeds viewer data and notifications. Reconciliation authoritatively
+rebuilds nor repeats the complete room viewer-state collection.
+
+The bounded snapshot phase owns server and directory resources, room summaries,
+membership, permissions, room read state, room groups, active calls, and
+retained timelines.
+It also seeds viewer data and notifications.
+
+Reconciliation authoritatively
 refreshes viewer data, followed-thread/read state, notifications and counts, and
 presence after either replay-plan branch. A reset captures the read-state
 index's bounded room-change fence before snapshot assembly and reconciles only
@@ -348,9 +353,11 @@ revalidates that candidate. It sends only the authoritative replacement and a
 positive `play_notification_sound` instruction when the occurrence is unread,
 allowed by current policy and DND state, currently visible, and present in that
 same replacement. Notification and Push notification modes permit local sound;
-only Push notification creates durable push-delivery work. A newer read,
-removal, policy/access change, or lifecycle mutation prevents sound. The client
-deduplicates this one-shot effect by the stable enclosing projection-event ID.
+only Push notification creates durable push-delivery work.
+
+A newer read, removal, policy/access change, or lifecycle mutation prevents
+sound. The client deduplicates this one-shot effect by the stable enclosing
+projection-event ID.
 
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap
@@ -369,10 +376,11 @@ a time per authenticated user. Explicit stale-cursor replay attempts use a
 per-user token bucket with a burst of three and one token restored every 20
 seconds. Cursorless compacted bootstraps cannot request historical events, and
 current-boundary reconnects have no gap, so both use a separate general catch-up
-bucket with a burst of 20 and one token restored each second. If EVT advances
-between boundary classification and replay planning, the server charges a
-replay token before emitting any replay frames, in addition to its general
-token. Every admitted catch-up
+bucket with a burst of 20 and one token restored each second.
+
+If EVT advances between boundary classification and replay planning, the server
+charges a replay token before emitting any replay frames, in addition to its
+general token. Every admitted catch-up
 has a 30-second whole-operation deadline. Capacity rejection sends
 `catch_up_in_progress`, `catch_up_rate_limited`, or `catch_up_server_busy` with
 reconnect guidance; deadline exhaustion sends `catch_up_timeout`. These limits
@@ -494,6 +502,7 @@ and Important counts. Human connections and bot API-key connections receive
 this same viewer-scoped replacement. A live replacement can carry transition
 metadata for one-shot presentation effects, while replay and finite
 reconciliation omit it.
+
 The internal signal carries no stream coordinate. Before emitting the
 replacement at that live cursor, the serving replica waits until the
 notification projection is current, preventing a cross-replica invalidation
@@ -503,6 +512,7 @@ at that boundary and use the separately paginated ConnectRPC read for older
 occurrences. They also quietly reconcile the first page once per minute, which
 bounds count staleness if a best-effort Core NATS invalidation is lost while a
 tab remains connected.
+
 Badge marker changes use a separate content-free user invalidation. The server
 maps it to an authoritative `room_viewer_state_replace` and, for thread Badge
 attention, a complete `thread_viewer_states_replace`. The public projection
@@ -512,6 +522,7 @@ messages separator and does not set `has_unread`. Thus, clients do not receive
 the internal marker or a new public storage coordinate. Thread Badge state
 rolls up into the parent room, and notification orange takes visual priority
 over the neutral unread dot.
+
 Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection
 operations. Active calls converge through `active_calls_replace` in the

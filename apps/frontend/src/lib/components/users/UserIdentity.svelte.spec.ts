@@ -6,6 +6,22 @@ import { q } from '$lib/test-utils';
 import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
 import UserIdentity from './UserIdentity.svelte';
 
+vi.mock('$lib/navigation', () => ({
+	serverIdToSegment: (serverId: string) => serverId
+}));
+
+vi.mock('$lib/state/server/scope.svelte', () => ({
+	useServerScope: () => ({
+		serverId: 'server-1',
+		store: {
+			permissions: {
+				loaded: true,
+				canAdminViewUsers: false
+			}
+		}
+	})
+}));
+
 vi.mock('$lib/state/userProfiles.svelte', () => ({
     getLiveBio: () => null,
     getLiveTimezone: () => null,

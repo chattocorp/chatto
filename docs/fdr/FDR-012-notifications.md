@@ -326,50 +326,19 @@ to `EVT`. Notification policy changes remain user-configuration facts in
 upgraded server. After the 0.5.0 contract ships, new signal variants are
 additive.
 
-The legacy `NotificationService` server and room policy RPCs keep their current
-request and response behavior. `NotificationPolicyService` adds explicit
-server, room-group, and room scopes. An older server returns `Unimplemented`
-for this new service and cannot treat a room-group update as a server update.
+The legacy server and room policy operations remain available, while the new
+policy service adds explicit server, room-group, and room scopes. Deprecated
+delivery names and followed-room slots remain readable so old stored values do
+not acquire a new meaning. Current clients use Room messages at room scope
+instead of the retired followed-room cause.
 
-The public and persisted delivery-mode enums keep their numeric values. The
-new names `IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are aliases for values
-2 and 3. The old `SILENT` and `ALERT` names remain as deprecated aliases so old
-generated clients and stored protobuf values continue to work.
-Badge is the additive value 4. An older binary preserves that numeric
-preference but treats it as no notification output. Thus, Badge attention is
-temporarily inactive during rollback instead of becoming a notification or
-push.
-
-Room messages adds policy field 10 and notification-signal branch 10. Sparse
-field masks let older clients update known policy fields without changing this
-new field. Older clients show an unknown Room-message occurrence as a generic
-dismissible row and do not infer navigation. The default Badge mode uses the
-existing public `has_unread` field.
-
-An older server does not derive new Room messages decisions. Thus, the default
-Badge output and future occurrences are temporarily inactive during rollback
-instead of using another policy cause. If an upgraded server already persisted
-a Room-message occurrence for Notification or Push notification, the older
-server's notification occurrence RPCs return `Unimplemented` until a supporting
-binary serves the occurrence again. The older server does not reinterpret or
-discard the unsupported signal.
-
-The public and persisted `followed_rooms` policy field and
-`followed_room_activity` signal branch remain as deprecated compatibility
-slots. Current code does not derive this signal. Existing overrides stay inert.
-Clients use Room messages at room scope to control ordinary root-message
-activity. Keeping field number 8 prevents older stored data or clients from
-being reinterpreted as another cause.
-
-Room-group changes use a new
-`UserRoomGroupNotificationPolicyChangedEvent`. They do not add a room-group ID
-to `UserNotificationPolicyChangedEvent`. Thus, an older binary safely ignores
-the new event variant. During rollback, room-group overrides are temporarily
-inactive instead of becoming server overrides. The added group map also changes
-the configuration and notification-decision snapshot contract IDs. Thus, an
-older binary cannot replace a newer snapshot with a snapshot that omits group
-overrides. This behavior is part of the coordinated 0.5 server replacement
-boundary.
+Older servers do not derive Badge or Room messages output and cannot apply
+room-group policy. During rollback, those additions become temporarily
+inactive instead of turning into another notification cause. Older clients
+can render an unknown occurrence generically, but cannot infer its navigation
+target. Deployments must replace all replicas before depending on the new
+policy and occurrence behavior. Exact protobuf compatibility details belong in
+the public schema and API compatibility guide.
 
 ## Permissions
 

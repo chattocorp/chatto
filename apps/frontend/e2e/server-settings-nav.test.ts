@@ -88,7 +88,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to server
-      await page.goto(routes.space());
+      await page.goto(routes.chat);
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Every member sees Settings; permissions filter its Server Configuration group.
@@ -107,7 +107,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate to server
-      await page.goto(routes.space());
+      await page.goto(routes.chat);
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Fresh servers grant bot.create to everyone, so Bots is this member's
@@ -134,7 +134,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate to server
-      await page.goto(routes.space());
+      await page.goto(routes.chat);
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Settings also contains the member's User Preferences.
@@ -161,7 +161,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate to server
-      await page.goto(routes.space());
+      await page.goto(routes.chat);
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Settings also contains the member's User Preferences.
@@ -183,7 +183,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate to server
-      await page.goto(routes.space());
+      await page.goto(routes.chat);
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Settings also contains the member's User Preferences.
@@ -240,7 +240,7 @@ test.describe('Server Admin Navigation Permissions', () => {
 
       // Direct Permissions access is also denied because the page loads the
       // server role-permission matrix, which requires role.manage.
-      await page.goto(routes.serverAdminRoles);
+      await page.goto(routes.serverAdminPermissions);
       await serverAdminPage.expectAccessDenied();
     });
 
@@ -311,7 +311,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate to the concrete section unlocked by role.manage
-      await page.goto(routes.serverAdminRoles);
+      await page.goto(routes.serverAdminPermissions);
 
       // Should see Permissions, NOT Access Denied and NOT General settings
       await serverAdminPage.expectAccessNotDenied();

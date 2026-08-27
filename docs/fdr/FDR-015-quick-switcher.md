@@ -1,25 +1,37 @@
 # FDR-015: Quick Switcher (Cmd-K)
 
 **Status:** Active
-**Last reviewed:** 2026-07-31
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
-A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known destinations. Triggered with `Cmd+K` (Mac) or `Ctrl+K` (Windows/Linux). Supports fuzzy search and remembers recently visited destinations.
+A keyboard-driven palette for moving between registered servers, joined rooms,
+visible DMs, and Notifications. It also searches server members and messages.
+Users open it with `Cmd+K` on macOS or `Ctrl+K` on other platforms. It supports
+fuzzy matching and remembers recent destinations on the device.
 
 ## Behavior
 
 - `Cmd+K` / `Ctrl+K` opens the palette from anywhere in the app. `Escape` or clicking outside closes it.
-- On open, the palette fetches the user's accessible spaces, rooms, and DMs in parallel from all connected Chatto servers. While the user types a non-`#` query, it also searches the member directory on each connected server where the viewer can start DMs.
-- Typing filters results with a fuzzy matcher. Items match on both label and detail (e.g., the containing space name); label matches score higher.
+- On open, the palette reads each registered server's current projected
+  navigation state. The empty catalogue contains every registered server,
+  joined channel room, visible DM, and Notifications.
+- A non-`#` and non-`?` query also searches the member directory on each
+  registered server where the viewer can start DMs.
+- Typing filters results with a fuzzy matcher. Items match on both label and
+  detail, such as the server name. Label matches score higher.
 - Typing `#` as the first character restricts results to rooms only. The `#` is stripped before matching the rest.
 - Typing `?` as the first character switches to message search. The client asks every registered server whose Search feature is supported and ready or degraded for its top results, then combines them by the provider relevance score. A failed or unavailable server does not hide results from the others.
 - Message results identify their author, room, and server. Selecting one opens that message in its room or thread context; message results are not recorded as recent destinations.
-- When the search field is empty, results group as: a "Recent" section first (if any), then by kind — "Go to" (well-known destinations), "Space", "Room", "DM" — each section alphabetical.
+- When the search field is empty, results group as: a "Recent" section first
+  when it has entries, then by kind: destination, server, room, and DM. Each
+  non-recent section is alphabetical.
 - Server member results are search-only; they do not appear in the empty palette. Selecting a member starts or reuses a 1:1 DM with that user and navigates to the resulting DM room. Selecting the current user starts or reuses their self-DM.
 - Existing DM rooms appear in the empty palette but are not included in typed search results; typed user lookup is handled through the server member results instead.
-- "Go to" destinations are: **Browse Spaces** (shown only if any connected server grants `room.create` or equivalent listing access), **Direct Messages** (shown if any connected server has visible DM conversations or allows starting DMs), **Notifications** (always shown).
-- DMs show participants' avatars (up to two for the "other" participants, or the self-avatar for self-DMs) and display names; spaces and rooms show the space logo.
+- Notifications is the only well-known destination. Servers link to their
+  Overview page.
+- DMs show participant avatars and display names. Servers and channel rooms
+  show the server logo.
 - Multi-server setups show the server name as a detail label so destinations with similar names disambiguate.
 - Arrow keys move selection; Enter navigates; the selected item scrolls into view.
 - Hovering a result selects it; clicking navigates.
@@ -27,11 +39,17 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 
 ## Design Decisions
 
-### 1. Per-server parallel fetch on open and search
+### 1. Projected navigation catalogue with parallel searches
 
-**Decision:** Every time the palette opens, it fires queries in parallel against every connected Chatto server to fetch the user's spaces, rooms, and DMs. Typed, non-`#` searches also query each connected server's authenticated member directory where the viewer can start DMs. Each server uses `requestPolicy: 'network-only'`. One server's failure doesn't block others.
-**Why:** A multi-server user expects to see everything in one palette. Pre-loading and caching the global list would mean a stale cache problem; fetching on open keeps it correct. Parallel-with-Promise.allSettled keeps a slow server from breaking the whole palette. See ADR-025.
-**Tradeoff:** Open latency depends on the slowest responding server. In practice queries are small and fast.
+**Decision:** Opening the palette composes the current navigation projections
+from every registered server. It does not fetch a second room catalogue.
+Member and message searches run in parallel against eligible registered
+servers. One server's search failure does not block results from another.
+**Why:** The per-server projections already own room and DM convergence. Reusing
+them makes opening immediate and avoids a duplicate cache lifecycle. Parallel
+search still gives users one cross-server result set. See ADR-025.
+**Tradeoff:** A server that has not finished its projection catch-up can have an
+incomplete catalogue until its normal navigation state converges.
 
 ### 2. Fuzzy match with prefix-bias and recent-boost
 
@@ -57,15 +75,21 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 **Why:** "Recent" is contextual to where the user is right now (this device, this session). Syncing across devices isn't valuable — what's recent on your phone is rarely what's recent on your laptop. Local storage is also free and instant.
 **Tradeoff:** Recents don't survive cache clearing. Acceptable.
 
-### 6. Well-known destinations gated by access
+### 6. Keep the well-known destination list small
 
-**Decision:** Browse Spaces only appears if at least one connected server allows listing spaces. Direct Messages appears if the user has DM conversations on a connected server or can start DMs there. Notifications always appears.
-**Why:** Showing a destination the user can't reach is a worse experience than hiding it. DMs have no read permission; membership in an existing DM is enough to make the destination useful, while `message.post` means the user can start a new conversation. See ADR-037.
-**Tradeoff:** The palette's "Go to" list changes depending on the user's permissions in connected servers. Considered correct behavior.
+**Decision:** Notifications is the only well-known destination. Server entries
+open server Overview pages. Visible DMs appear as their rooms, and member search
+starts new DMs when the viewer has permission.
+**Why:** Each current destination has a concrete target. Separate browsing and
+DM landing pages no longer exist.
+**Tradeoff:** Users discover new rooms through server navigation rather than a
+dedicated switcher destination.
 
 ## Permissions
 
-No dedicated permission. The palette respects whatever the connected servers expose to the user — spaces, rooms, and DMs they can see — plus the gating above for well-known destinations.
+No dedicated permission. The palette uses each server's projected navigation
+visibility. Member search runs only where the viewer can start a DM, and
+message search uses the server's Search availability and normal read boundary.
 
 ## Related
 

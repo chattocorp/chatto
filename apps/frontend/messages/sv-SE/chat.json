@@ -40,8 +40,9 @@
     "user_menu": {
       "profile": "Användarprofil",
       "send_message": "Skicka meddelande",
-      "copy_user_id": "Kopiera användar-ID",
-      "view_profile": "Visa profil"
+      "view_profile": "Visa profil",
+      "view_in_admin": "Visa i serveradministrationen",
+      "copy_user_id": "Kopiera användar-ID"
     },
     "server_gutter": {
       "add_server": "Lägg till server",
