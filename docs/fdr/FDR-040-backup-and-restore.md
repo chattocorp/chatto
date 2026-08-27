@@ -12,8 +12,8 @@ separate backup policy.
 
 ## Behavior
 
-- `chatto backup` writes all persistent JetStream streams, KV buckets, and
-  Object Stores to one compressed archive.
+- `chatto backup` writes eligible persistent JetStream streams, KV buckets,
+  and Object Stores to one compressed archive.
 - The archive includes `EVT`, `RUNTIME_STATE`, notification history,
   NATS-backed assets, and NATS-backed projection snapshots.
 - Regeneratable caches, user presence, and S3-backed objects are not included.
@@ -38,8 +38,8 @@ separate backup policy.
 
 ### 1. Back up the NATS storage boundary as one unit
 
-**Decision:** One data archive contains every persistent NATS stream, KV
-bucket, and Object Store that is part of the current Chatto deployment.
+**Decision:** One data archive contains the persistent NATS streams, KV
+buckets, and Object Stores that are not excluded for security or regeneration.
 **Why:** The event log, runtime records, notifications, and NATS-backed assets
 form one restore boundary. A resource-by-resource operator procedure is easier
 to run incorrectly.

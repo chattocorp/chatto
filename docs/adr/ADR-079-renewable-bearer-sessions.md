@@ -4,7 +4,7 @@
 
 **Updated:** 2026-08-26
 
-**Status:** Accepted
+**Status:** Partially superseded
 
 **Partially superseded by:** [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) for renewable-session expiry storage.
 

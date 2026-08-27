@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-08
 
-**Status:** Accepted
+**Status:** Partially superseded
 
 **Partially superseded by:** [ADR-072](ADR-072-optional-host-capabilities-in-the-shared-frontend.md),
 which permits narrow optional preload capabilities while retaining the renderer

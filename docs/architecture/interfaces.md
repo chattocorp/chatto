@@ -62,12 +62,13 @@ permission reads and writes use `AdminPermissionService`'s canonical user
 permission operations with the bot's user ID as the target. Human owners can
 manage their own bots; `bot.manage` allows global management.
 
-Matrix room metadata is limited to rooms visible to both the bot owner and the managing
-caller; group metadata follows the room directory's complete group layout so
-empty groups remain configurable. Bot API keys authenticate the normal public
-and realtime surfaces, but cannot call bot-management or human account-security
-operations. Reassignment requires `bot.manage`, preserves the active key and
-configured allowlist, and immediately changes the owner permission ceiling.
+Matrix room metadata is limited to rooms visible to both the bot owner and the
+managing caller; group metadata follows the room directory's complete group
+layout so empty groups remain configurable. Bot API keys authenticate the
+normal public and realtime surfaces, but cannot call bot-management or human
+account-security operations. Reassignment requires `bot.manage`, preserves the
+active key and configured allowlist, and immediately changes the owner
+permission ceiling.
 
 Rotation closes established realtime connections authenticated by the
 superseded verifier generation.

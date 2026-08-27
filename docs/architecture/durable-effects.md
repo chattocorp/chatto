@@ -111,8 +111,8 @@ read/materialization ordering, dismissal tombstones, and direct push-consumer
 retry. Branding cleanup and the message-body boot
 sweep do not have equivalent crash-and-recovery coverage.
 
-The call-key, user-DEK, and asset-creation compensation paths likewise lack durable
-tests for cleanup failure followed by restart.
+The call-key, user-DEK, and asset-creation compensation paths likewise lack
+durable tests for cleanup failure followed by restart.
 
 Cross-domain follow-up work is tracked in
 [#1377](https://github.com/chattocorp/chatto/issues/1377), with separate issues

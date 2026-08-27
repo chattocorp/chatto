@@ -47,10 +47,10 @@ the same cookie-session record with KV OCC and writes the same SCS handle in a
 fresh browser cookie slot with the new lifetime. The frontend then opens the
 replacement socket. The upgrade does not update the record or set a cookie.
 
-The frontend keeps its route, projection, opaque cursor, and retained-room set during this automatic
-reconnect. The route also returns the next renewal time. An HTTP timer uses
-that value when realtime transport is blocked or disconnected. Bot API keys
-have no expiry timer.
+The frontend keeps its route, projection, opaque cursor, and retained-room set
+during this automatic reconnect. The route also returns the next renewal time.
+An HTTP timer uses that value when realtime transport is blocked or
+disconnected. Bot API keys have no expiry timer.
 
 After the hello, the server revalidates the exact human credential before it
 starts the subscription. It repeats that check once per minute. A definitive
@@ -87,8 +87,8 @@ same `/api/realtime` stream with that projection's cursor and closes as soon as
 `caught_up` arrives. Initial inactive hydration runs immediately; later polls
 run about once a minute with jitter and a 30-second client timeout.
 
-Switching servers closes the previous persistent socket without discarding its state and
-promotes the selected server to the sole persistent connection.
+Switching servers closes the previous persistent socket without discarding its
+state and promotes the selected server to the sole persistent connection.
 
 The application-root `ServerRuntimeCoordinator` owns authenticated-server
 transport reconciliation before notification synchronization and routed
@@ -207,8 +207,7 @@ selects a compacted reset. Every cursor also carries a sealed issue time and
 expires after 24 hours; expiry selects the same safe reset, limiting captured
 cursor reuse while still allowing ordinary reconnect gaps.
 
-The browser retains
-a cursor only with its corresponding in-memory projection. Socket
+The browser retains a cursor only with its corresponding in-memory projection. Socket
 reconnects can resume; page reloads and recreated stores omit it and receive a
 new compacted prefix. A tab waking after more than 24 hours still presents its
 expired cursor, and the server responds with the same compacted reset used for
@@ -264,9 +263,9 @@ call and notification mirrors, and in-flight reads as soon as projected
 membership becomes false. It also disconnects local call media for that room
 without issuing a redundant leave command. The privacy fence stays closed.
 
-It opens only after an explicit positive membership operation arrives, so delayed pagination,
-previews, read-your-writes responses, and timeline replacements cannot restore
-plaintext.
+It opens only after an explicit positive membership operation arrives, so
+delayed pagination, previews, read-your-writes responses, and timeline
+replacements cannot restore plaintext.
 
 The browser keeps only the non-plaintext retained-room intent. If membership
 later returns, the server rematerialises the current window only for that
@@ -304,8 +303,9 @@ RUNTIME_STATE read markers. A compacted reset instead owns those rows in its
 incremental `room_upsert` snapshot frames, so its reconciliation neither
 rebuilds nor repeats the complete room viewer-state collection.
 
-The bounded snapshot phase owns server and directory resources, room summaries, membership,
-permissions, room read state, room groups, active calls, and retained timelines.
+The bounded snapshot phase owns server and directory resources, room summaries,
+membership, permissions, room read state, room groups, active calls, and
+retained timelines.
 It also seeds viewer data and notifications.
 
 Reconciliation authoritatively
@@ -355,8 +355,9 @@ allowed by current policy and DND state, currently visible, and present in that
 same replacement. Notification and Push notification modes permit local sound;
 only Push notification creates durable push-delivery work.
 
-A newer read, removal, policy/access change, or lifecycle mutation prevents sound. The client
-deduplicates this one-shot effect by the stable enclosing projection-event ID.
+A newer read, removal, policy/access change, or lifecycle mutation prevents
+sound. The client deduplicates this one-shot effect by the stable enclosing
+projection-event ID.
 
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap
@@ -377,9 +378,9 @@ seconds. Cursorless compacted bootstraps cannot request historical events, and
 current-boundary reconnects have no gap, so both use a separate general catch-up
 bucket with a burst of 20 and one token restored each second.
 
-If EVT advances between boundary classification and replay planning, the server charges a
-replay token before emitting any replay frames, in addition to its general
-token. Every admitted catch-up
+If EVT advances between boundary classification and replay planning, the server
+charges a replay token before emitting any replay frames, in addition to its
+general token. Every admitted catch-up
 has a 30-second whole-operation deadline. Capacity rejection sends
 `catch_up_in_progress`, `catch_up_rate_limited`, or `catch_up_server_busy` with
 reconnect guidance; deadline exhaustion sends `catch_up_timeout`. These limits
