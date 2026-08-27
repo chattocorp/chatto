@@ -4,6 +4,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverIdToSegment } from '$lib/navigation';
   import { version } from '$app/environment';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import { m } from '$lib/i18n/messages';
@@ -33,7 +34,11 @@
 
   // Show sign-out button when any server is registered
   const hasInstances = $derived(serverRegistry.servers.length > 0);
-
+  const preferencesServerId = $derived.by(() => {
+    const activeServerId = getActiveServer();
+    if (activeServerId && serverRegistry.isAuthenticated(activeServerId)) return activeServerId;
+    return serverRegistry.firstAuthenticatedServerId();
+  });
   function handleSignOut() {
     pushState('', { modal: { type: 'logout' } });
   }
@@ -91,7 +96,11 @@
     {/if}
 
     <a
-      href={resolve('/chat/preferences')}
+      href={preferencesServerId
+        ? resolve('/chat/[serverId]/settings/app', {
+            serverId: serverIdToSegment(preferencesServerId)
+          })
+        : resolve('/chat/preferences')}
       class="app-header-icon"
       aria-label={m('settings.app_preferences.title')}
       title={m('settings.app_preferences.title')}

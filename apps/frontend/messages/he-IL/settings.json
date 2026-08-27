@@ -9,6 +9,8 @@
       "account": "חשבון",
       "bots": "בוטים",
       "user_preferences": "העדפות משתמש",
+      "app_preferences": "העדפות האפליקציה",
+      "your_account": "החשבון שלך",
       "server_configuration": "תצורת שרת"
     },
     "app_preferences": {

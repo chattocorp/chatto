@@ -58,11 +58,46 @@ not grant broad access. DM membership authorizes the bot to read that DM.
 Posting remains a separate `message.post` or `message.post-in-thread`
 decision.
 
-The normal realtime connection sends authorized updates for retained room
-timelines. Chatto does not provide an interaction directory or a bot-specific
-mention signal in this release. When the bot knows a thread root ID, use
-`ThreadService.GetThreadEvents` to request the complete context. The server
-returns the thread only when the bot has current access.
+## Activate a bot from Chatto activity
+
+Use the normal `subscribe_events` realtime subscription. Chatto sends the
+bot's visible notification occurrences in
+`notification_occurrences_replace`. Chatto does not use a bot-only realtime
+channel or a separate bot-interaction event.
+
+Filter the replacement by cause. Use these notification causes to activate an
+integration:
+
+| Cause | When Chatto creates it |
+| ----- | ---------------------- |
+| `direct_message_received` | Another account sends a message in a DM that a human started with the bot. |
+| `direct_mention_received` | Another account directly mentions the bot in a channel-room root or reply. |
+| `reply_received` | Another account replies to a message from the bot. |
+| `followed_thread_activity` | Another account posts in a thread that the bot follows. |
+
+The replacement can also contain other notification causes that apply to the
+account. Ignore causes that the integration does not use.
+
+A delivered direct mention in a channel-room root or reply also attempts to
+follow that thread. Thus, a root mention can activate the bot immediately and
+later replies can activate it through `followed_thread_activity`. An explicit
+unfollow is not replaced. If direct-mention delivery is Off, Chatto creates no
+mention occurrence and does not follow the thread. The mention still creates
+the interaction relationship that controls narrow read access.
+
+Each occurrence has a stable ID and an exact message reference. Save processed
+occurrence IDs because a latest-value replacement can contain an occurrence
+more than once. One message can create multiple causes. If the integration
+must act only once for each message, also deduplicate by the referenced
+`event_id`.
+
+The realtime replacement contains the newest finite page. After a disconnect,
+use `NotificationService.ListNotificationOccurrences` for longer recovery
+within the notification retention period. Then use the message reference with
+the normal message or thread API. For example, use
+`ThreadService.GetThreadEvents` to get the complete thread. The server returns
+content only when the bot has current membership, permission, and interaction
+access.
 
 ## Direct messages
 
@@ -72,7 +107,8 @@ cannot change the rule.
 
 A human can start a DM that includes the bot. DM membership then lets the bot
 read the complete DM. Grant `message.post` if the bot must send messages in
-that DM. The owner must also have `message.post`.
+that DM. The owner must also have `message.post`. Messages from another
+participant create normal `direct_message_received` occurrences for the bot.
 
 ## Authenticate requests
 

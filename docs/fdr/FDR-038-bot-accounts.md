@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -46,6 +46,20 @@ exercise more authority than its human owner currently possesses.
 - A bot API key authenticates normal public API and realtime requests as that
   bot. The bot can otherwise participate like a user wherever its explicit
   permissions allow.
+- A bot uses the normal `subscribe_events` realtime subscription. Chatto sends
+  its visible notification occurrences through
+  `notification_occurrences_replace`; there is no bot-only realtime channel.
+- Direct-message, direct-mention, reply, and followed-thread occurrences are
+  the supported activation causes for bot integrations. The bot uses the
+  message reference in the occurrence to fetch context through the normal API.
+  Other notification causes can be present, so the integration must filter by
+  cause.
+- A delivered direct mention in a channel-room root or reply attempts to
+  follow that thread if the bot has no prior follow state. Later replies can
+  then create followed-thread occurrences for the bot.
+- A direct-mention policy of Off creates no occurrence and no mention-driven
+  follow. It does not remove the interaction relationship created by the
+  durable mention fact.
 - Bots do not inherit the implicit `everyone` role, named-role permissions, or
   any other baseline grants. An absent bot permission is denied.
 - Channel-room membership does not give a bot message content. The bot needs
@@ -226,6 +240,26 @@ incorrect permission grant.
 existing DM. It must use the room state that Chatto sends after a human starts
 the DM.
 
+### 10. Notification occurrences are the bot activation contract
+
+**Decision:** Bots receive the same exact notification occurrences as human
+accounts through `NotificationService` and the normal realtime projection.
+Integrations use direct messages, direct mentions, replies, and
+followed-thread activity as activation causes. A future webhook transport must
+deliver these same occurrences instead of introducing separate bot events.
+
+**Why:** Notification occurrences already own recipient selection, user policy,
+current visibility, stable identity, and bounded recovery. Reusing them keeps
+activation semantics independent of transport and avoids a second event model
+that can disagree with the notification model.
+
+**Tradeoff:** Realtime replacements can repeat occurrences and can contain
+more than one cause for the same message. Integrations must checkpoint
+occurrence IDs and can deduplicate by the referenced message event ID when they
+want one action for each source message. The current realtime replacement
+contains only the newest finite page; longer recovery uses the paginated
+notification API.
+
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
@@ -238,6 +272,10 @@ the DM.
   channel-room thread that it started or where another account directly
   mentioned it, subject to membership and the owner's effective broad or
   narrow read authority.
+
+Notification delivery modes are user preferences, not permissions. A bot can
+change its own notification policy through the normal notification policy API
+when it has access to the selected scope.
 
 Fresh RBAC bootstrap grants `bot.create` to `everyone` and `bot.manage` to
 `admin`. Effective owners have `bot.manage` through the virtual owner override,
@@ -279,15 +317,23 @@ override, but bots themselves cannot exercise bot-management operations.
   breaking authorization change for an integration that used this RPC. During
   a mixed-replica rollout, an older replica can still accept the call. Upgrade
   all replicas before you depend on this boundary.
+- Root-message direct mentions now append the existing best-effort thread
+  follow for an eligible recipient. No public or persisted schema changes.
+  During a mixed-replica rollout, an older replica can omit this follow and
+  the later followed-thread activation. Complete the rollout before you depend
+  on that availability.
 
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
-  runtime credentials), ADR-052 (subject-specific RBAC), ADR-080 (explicit
-  message-read permissions)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-018
+  runtime credentials), ADR-051 (resumable client projection), ADR-052
+  (subject-specific RBAC), ADR-076 (deterministic notification occurrences),
+  ADR-077 (persistent notification list), ADR-080 (explicit message-read
+  permissions)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
+  (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018
   (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &
   Sessions), FDR-025 (User Search & Member Directory), FDR-039 (Message Access
   & Interactions)
@@ -296,3 +342,5 @@ override, but bots themselves cannot exercise bot-management operations.
 
 - Multiple independently rotatable API keys, named keys, and key expiry are
   deferred until integrations demonstrate a need for them.
+- Define durable webhook registration, signing, retry, and delivery status for
+  the same bot activation occurrences.

@@ -62,7 +62,13 @@ Authenticated realtime clients connect to `/api/realtime` and exchange protobuf 
 
 For 0.5, durable message, reaction, room, asset, and call changes are `RealtimeProjectionEvent` operations, not `RealtimeEventEnvelope` alternatives. The latter is reserved for transient, non-replayable signals. This is a breaking migration from the 0.4 live-event contract.
 
-Notification, viewer-preference, thread follow/read, profile, layout, and member changes also arrive as authoritative projection operations. A live notification replacement can carry optional transition metadata for effects such as sounds; bootstrap, resume reconciliation, and reset omit that metadata. The remaining transient envelopes are typing, presence, mention/new-DM attention hints, and session termination.
+Notification, viewer-preference, thread follow/read, profile, layout, and
+member changes also arrive as authoritative projection operations. A live
+notification replacement can carry optional transition metadata for effects
+such as sounds; bootstrap, resume reconciliation, and reset omit that metadata.
+Mention and new-DM attention use notification occurrences, not separate
+transient hints. The remaining transient envelopes are typing, presence, and
+session termination.
 
 The projection stream does not replace `chatto.api.v1`. Integrations should continue to use its resource-oriented ConnectRPC services for explicit reads, pagination, commands, and read-your-writes responses, and add realtime protocol 2 only when they need an ordered local projection that can resume after a disconnect.
 
@@ -77,6 +83,7 @@ Realtime delivery uses the same room membership, RBAC, projection readiness, and
 | Post, edit, or delete messages | `MessageService` |
 | React to messages | `ReactionService` |
 | Track unread state | `RoomService.MarkRoomAsRead` and `ThreadService.MarkThreadAsRead` |
+| React to bot activations | `notification_occurrences_replace` and `NotificationService.ListNotificationOccurrences` |
 | Start DMs | `RoomService` |
 | Read users and profiles | `UserService.ListUsers`, `GetUser`, and `BatchGetUsers` |
 | Manage bot identities and keys | `BotService` |

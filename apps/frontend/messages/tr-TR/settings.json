@@ -9,6 +9,8 @@
       "account": "Hesap",
       "bots": "Botlar",
       "user_preferences": "Kullanıcı tercihleri",
+      "app_preferences": "Uygulama tercihleri",
+      "your_account": "Hesabınız",
       "server_configuration": "Sunucu yapılandırması"
     },
     "app_preferences": {

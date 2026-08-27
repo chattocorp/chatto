@@ -589,6 +589,152 @@ func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
 	if _, err := c.RoomTimelineReads().GetMessage(ctx, bot.User.GetId(), dm.GetId(), message.GetId()); err != nil {
 		t.Fatalf("GetMessage as bot DM participant: %v", err)
 	}
+	occurrences := testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != message.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMessage) {
+		t.Fatalf("bot DM occurrences = %+v, want the human-authored direct message", occurrences)
+	}
+}
+
+func TestBotDirectMentionActivatesInteractionThread(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "activation-owner", "Activation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "activation_bot", "Activation Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, owner.GetId(), KindChannel, "", "activation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := c.AddMember(ctx, owner.GetId(), KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.read.interactions: %v", err)
+	}
+	resolved, err := c.ResolveRoomMentionKinds(ctx, KindChannel, room.GetId(), []string{bot.User.GetLogin()})
+	if err != nil {
+		t.Fatalf("ResolveRoomMentionKinds bot: %v", err)
+	}
+	if len(resolved.Mentions) != 1 || resolved.Mentions[0].GetUserId() != bot.User.GetId() || resolved.Mentions[0].GetDirect() == nil {
+		t.Fatalf("resolved bot mention = %+v, want one direct mention for %s", resolved, bot.User.GetId())
+	}
+
+	root, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "Please check this @activation_bot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root mention: %v", err)
+	}
+	if following, err := c.IsFollowingThread(ctx, KindChannel, bot.User.GetId(), room.GetId(), root.GetId()); err != nil || !following {
+		t.Fatalf("bot root-mention follow = %v, %v; want true, nil", following, err)
+	}
+	occurrences := testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != root.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMention) {
+		t.Fatalf("bot root-mention occurrences = %+v, want the direct mention", occurrences)
+	}
+
+	reply, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "More context", nil, root.GetId(), "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage followed reply: %v", err)
+	}
+	occurrences = testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 2 || !testOccurrencesHaveKinds(occurrences, notificationTestSignalDirectMention, notificationTestSignalFollowedThread) {
+		t.Fatalf("bot activation occurrences = %+v, want direct mention and followed thread", occurrences)
+	}
+	if occurrences[0].GetSourceEventId() != reply.GetId() || occurrences[1].GetSourceEventId() != root.GetId() {
+		t.Fatalf("bot activation sources = (%q, %q), want reply %q then root %q", occurrences[0].GetSourceEventId(), occurrences[1].GetSourceEventId(), reply.GetId(), root.GetId())
+	}
+
+	thread, err := c.RoomTimelineReads().GetThreadEvents(ctx, ThreadTimelineEventsInput{
+		ActorID: bot.User.GetId(), RoomID: room.GetId(), ThreadRootEventID: root.GetId(), Limit: 20,
+	})
+	if err != nil {
+		t.Fatalf("GetThreadEvents as interaction-scoped bot: %v", err)
+	}
+	if thread.Root.GetId() != root.GetId() || len(thread.Replies.Events) != 1 || thread.Replies.Events[0].GetId() != reply.GetId() {
+		t.Fatalf("bot interaction thread = root %+v, replies %+v", thread.Root, thread.Replies.Events)
+	}
+}
+
+func TestBotReplyToAuthoredMessageActivatesBot(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "reply-activation-owner", "Reply Activation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "reply_activation_bot", "Reply Activation Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, owner.GetId(), KindChannel, "", "reply-activation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := c.AddMember(ctx, owner.GetId(), KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	for _, permission := range []Permission{PermMessagePost, PermMessageRead} {
+		if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, permission, PermissionStateAllow); err != nil {
+			t.Fatalf("grant bot %s: %v", permission, err)
+		}
+	}
+
+	root, err := c.PostMessage(ctx, KindChannel, room.GetId(), bot.User.GetId(), "Bot-authored request", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage bot root: %v", err)
+	}
+	reply, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "Human response", nil, "", root.GetId(), nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	occurrences := testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != reply.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalReply) {
+		t.Fatalf("bot reply occurrences = %+v, want the reply to its message", occurrences)
+	}
+}
+
+func TestBotDisabledDirectMentionDoesNotActivateOrFollow(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "muted-activation-owner", "Muted Activation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "muted_activation_bot", "Muted Activation Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, owner.GetId(), KindChannel, "", "muted-activation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := c.AddMember(ctx, owner.GetId(), KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.read.interactions: %v", err)
+	}
+	if _, err := c.NotificationPolicy().SetRoomNotificationMode(ctx, bot.User.GetId(), room.GetId(), notificationTestSignalDirectMention, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
+		t.Fatalf("SetRoomNotificationMode: %v", err)
+	}
+
+	root, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "Muted ping @muted_activation_bot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root mention: %v", err)
+	}
+	if following, err := c.IsFollowingThread(ctx, KindChannel, bot.User.GetId(), room.GetId(), root.GetId()); err != nil || following {
+		t.Fatalf("muted bot root-mention follow = %v, %v; want false, nil", following, err)
+	}
+	if occurrences := testNotificationOccurrences(t, c, bot.User.GetId()); len(occurrences) != 0 {
+		t.Fatalf("muted bot occurrences = %+v, want none", occurrences)
+	}
+	if _, err := c.RoomTimelineReads().GetMessage(ctx, bot.User.GetId(), room.GetId(), root.GetId()); err != nil {
+		t.Fatalf("GetMessage through muted mention interaction: %v", err)
+	}
 }
 
 func TestBotCannotStartDMButCanParticipateInHumanStartedDM(t *testing.T) {

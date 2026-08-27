@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -51,10 +51,16 @@ DM membership continues to authorize complete DM reads.
 - The normal realtime protocol carries authorized updates for retained room
   timelines. A client that knows a thread root can use the thread API to get
   complete context.
+- The normal realtime protocol also carries notification occurrence
+  replacements. A bot can use direct-mention, direct-message, reply, and
+  followed-thread occurrences to learn the message and thread IDs that it must
+  load through the normal API.
+- A delivered direct mention in a channel-room root or reply attempts to
+  follow that thread when the recipient has no prior follow state. Notification
+  policy Off suppresses the occurrence and this follow, but it does not remove
+  the interaction relationship.
 - The public API does not list or inspect interaction relationships. A thread
   read succeeds or fails after the server applies the current access rules.
-- This slice does not add interaction-specific bot pings. Realtime delivery for
-  bot pings is a separate feature decision.
 - Fresh servers grant only `message.read` to `everyone` at server scope when
   they initialize an empty RBAC stream. That effective allow includes the
   interaction permission.
@@ -152,8 +158,8 @@ relationships. A client supplies a known thread root to the normal thread API,
 which applies the current access rules.
 **Why:** A relationship is an authorization input, not a user-managed resource.
 This keeps internal cause metadata out of the public API.
-**Tradeoff:** Clients cannot enumerate related threads. A separate bot-ping
-feature must define how a bot learns about a direct mention.
+**Tradeoff:** Clients cannot enumerate related threads. A bot learns the
+relevant message and thread IDs from its normal notification occurrences.
 
 ## Permissions
 
@@ -184,4 +190,3 @@ DM membership, not a message-read permission, authorizes DM reads.
 
 - Define an explicit end action and the accounts that can use it.
 - Define profile and administration views that show active relationships.
-- Define realtime delivery and recovery for direct-mention bot pings.

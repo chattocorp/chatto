@@ -9,6 +9,8 @@
       "account": "Konto",
       "bots": "Botoj",
       "user_preferences": "Uzantaj preferoj",
+      "app_preferences": "Aplikaj preferoj",
+      "your_account": "Via konto",
       "server_configuration": "Servila agordo"
     },
     "app_preferences": {

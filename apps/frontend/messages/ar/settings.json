@@ -9,6 +9,8 @@
       "account": "الحساب",
       "bots": "الروبوتات",
       "user_preferences": "تفضيلات المستخدم",
+      "app_preferences": "تفضيلات التطبيق",
+      "your_account": "حسابك",
       "server_configuration": "تكوين الخادم"
     },
     "app_preferences": {

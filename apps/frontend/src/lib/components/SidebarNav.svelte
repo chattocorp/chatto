@@ -1,12 +1,16 @@
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- generic component with dynamic routes */
+  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { PaneHeader, ScrollFader } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
 
   export type NavItem = { href: string; label: string; icon: string };
-  export type NavGroup = { label: string; items: NavItem[]; persistKey: string };
+  export type NavGroup = {
+    label: string;
+    items: NavItem[];
+    persistKey: string;
+  };
   type GroupNavItem = NavItem & { id: string };
 
   let {
@@ -50,7 +54,7 @@
 {#snippet groupedNavItem(item: GroupNavItem)}
   {@const active = isActive(item.href, allItems)}
   <a
-    href={item.href}
+    href={resolve(item.href as '/')}
     aria-current={active ? 'page' : undefined}
     class={['sidebar-item', active ? 'bg-surface' : '']}
   >
@@ -67,7 +71,7 @@
       {#each items as item (item.href)}
         {@const active = isActive(item.href, allItems)}
         <a
-          href={item.href}
+          href={resolve(item.href as '/')}
           aria-current={active ? 'page' : undefined}
           class={['sidebar-item', active ? 'bg-surface' : '']}
         >

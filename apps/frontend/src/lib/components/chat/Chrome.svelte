@@ -47,6 +47,11 @@
 
   const userPreferenceNavItems = $derived([
     {
+      href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
+      label: m('settings.nav.account'),
+      icon: 'iconify icon-[uil--setting]'
+    },
+    {
       href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
       label: m('settings.nav.profile'),
       icon: 'iconify icon-[uil--user]'
@@ -60,11 +65,23 @@
       href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
       label: m('settings.nav.notifications'),
       icon: 'iconify icon-[uil--bell]'
+    }
+  ]);
+  const appPreferenceNavItems = $derived([
+    {
+      href: resolve('/chat/[serverId]/settings/app', { serverId: serverSegment }),
+      label: m('settings.app_preferences.appearance.title'),
+      icon: 'iconify icon-[uil--palette]'
     },
     {
-      href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
-      label: m('settings.nav.account'),
-      icon: 'iconify icon-[uil--setting]'
+      href: resolve('/chat/[serverId]/settings/language', { serverId: serverSegment }),
+      label: m('settings.preferences.language.title'),
+      icon: 'iconify icon-[uil--language]'
+    },
+    {
+      href: resolve('/chat/[serverId]/settings/composer', { serverId: serverSegment }),
+      label: m('settings.app_preferences.composer.title'),
+      icon: 'iconify icon-[uil--edit]'
     }
   ]);
 
@@ -176,9 +193,14 @@
   );
   const settingsNavGroups = $derived([
     {
-      label: m('settings.nav.user_preferences'),
+      label: m('settings.nav.app_preferences'),
+      items: appPreferenceNavItems,
+      persistKey: serverStorageKey(serverScope.serverId, 'collapsible:settings:app-preferences')
+    },
+    {
+      label: m('settings.nav.your_account'),
       items: userPreferenceNavItems,
-      persistKey: serverStorageKey(serverScope.serverId, 'collapsible:settings:user-preferences')
+      persistKey: serverStorageKey(serverScope.serverId, 'collapsible:settings:your-account')
     },
     {
       label: m('settings.nav.server_configuration'),

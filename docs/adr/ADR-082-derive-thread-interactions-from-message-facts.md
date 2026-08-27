@@ -66,9 +66,10 @@ membership checks remain request-time decisions.
 
 Do not add public operations that list or inspect relationships. Existing room
 and thread APIs apply the derived relationship when they authorize known
-message and thread IDs. Keep cause metadata inside the projection. A separate
-decision will define interaction-specific bot pings. This slice adds no new
-realtime operation, NATS subject, stream, KV bucket, or durable worker.
+message and thread IDs. Keep cause metadata inside the projection. Bots learn
+known message and thread IDs from their normal notification occurrences. This
+does not add an interaction-specific realtime operation, NATS subject, stream,
+KV bucket, or durable worker.
 
 Filter each message-derived surface by the canonical thread root. Main-room
 typing has no thread target and therefore requires broad access. Thread typing
@@ -97,8 +98,9 @@ an explicit read grant, bounded by its owner's effective read authority.
   List surfaces must filter individual messages or threads.
 - Clients cannot enumerate the relationship set. They can load a known thread
   and receive its content only when the current access rules allow it.
-- A separate bot-ping design must define realtime delivery and recovery for
-  direct mentions.
+- Bots receive direct-mention targets through the normal notification
+  occurrence projection. The relationship remains an internal authorization
+  input.
 - Old replicas do not understand the narrow permission. They deny narrow reads
   when broad `message.read` is absent. A mixed rollout can reduce availability
   but does not give broad message access.
