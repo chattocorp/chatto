@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -75,11 +75,11 @@ This FDR covers human accounts from registration through deletion: signup, email
 **Why:** These values are raw credentials or credential-adjacent workflow state. They need restart and restore survival, but they are not reconstructable account history and should not become event-log or backup secrets. The audit value is captured separately in safe EVT facts.
 **Tradeoff:** Operators must keep `[core].secret_key` stable across restores if pending account workflows should continue working. Changing it intentionally invalidates outstanding registration, email-verification, password-reset, and account-deletion credentials.
 
-### 3. Two-step deletion confirmation
+### 3. Deliberate deletion confirmation
 
-**Decision:** Account deletion requires the user to type a confirmation phrase, not just click a button. The `requestAccountDeletion` mutation sets up the flow; `deleteMyAccount` finalises it.
-**Why:** Deletion is irreversible (the encryption key is destroyed; messages can't be recovered). A single misclick can't be allowed to trigger that. The phrase-typing step also defends against XSS triggering the mutation without the user's awareness — content scripts can't fill the phrase from the actual user.
-**Tradeoff:** Slightly more UI work. Worth it for the irreversibility.
+**Decision:** Self-service deletion requires the user to type a confirmation phrase, not only click a button. Administrator deletion requires the administrator to type the target member's exact login. The `requestAccountDeletion` mutation sets up the self-service flow, and `deleteMyAccount` completes it.
+**Why:** Deletion is irreversible because the encryption key is destroyed and messages cannot be recovered. The typed value reduces accidental deletion and makes the administrator confirm the correct target. It is a user-interface safety measure, not authentication proof or protection against script execution in the trusted origin.
+**Tradeoff:** The additional step makes deletion slower. This is acceptable for an irreversible action.
 
 ### 4. Crypto-shredding instead of message deletion
 

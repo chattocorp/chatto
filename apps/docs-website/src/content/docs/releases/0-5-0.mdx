@@ -77,6 +77,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     role assignment is bounded by the manager's own authority.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="Delete accounts from member administration" size="small">
+    Admins with `user.delete-any` can permanently delete another human member from the
+    member detail page. They confirm the exact login before deletion; this action does not
+    request the admin's password.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="Version-aware compatibility">
     Public server discovery reports the running server version. The multi-server client owns
     its minimum expected server release and uses explicit release boundaries to show useful
@@ -137,6 +143,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+- Remove `current_password` from `chatto.admin.v1.DeleteUserRequest` in custom
+  clients before you update generated code. A 0.5 server ignores protobuf
+  binary tag `2`, but `current_password` is not part of the 0.5 ProtoJSON
+  schema. A 0.5 client does not send the field. An older server can return
+  `failed_precondition` when the current session is not fresh.
 - The bundled frontend automatically moves a valid 0.4 typed browser session to
   the SCS-backed `chatto_auth_*` path. The migration keeps the existing opaque
   server-side session and does not ask the user to sign in again. An expired,
