@@ -204,10 +204,11 @@ message ClearUsernameCooldownResponse {
 
 // Request to delete a user account as a server-admin action.
 message DeleteUserRequest {
+  reserved 2;
+  reserved "current_password";
+
   // Target user ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Ignored. DeleteUser does not use password step-up.
-  string current_password = 2 [deprecated = true];
 }
 
 // Result of deleting a user account.

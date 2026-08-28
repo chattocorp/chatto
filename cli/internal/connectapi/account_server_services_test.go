@@ -560,7 +560,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 }
 
-func TestAdminUserServiceDeleteUserIgnoresDeprecatedPasswordAndFreshness(t *testing.T) {
+func TestAdminUserServiceDeleteUserDoesNotRequireFreshCredential(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "stale-delete-target", "Stale Delete Target", "password")
 	if err != nil {
@@ -576,10 +576,7 @@ func TestAdminUserServiceDeleteUserIgnoresDeprecatedPasswordAndFreshness(t *test
 
 	deleteResp, err := env.adminUsers.DeleteUser(
 		withBearerCredential(env.ctx, env.viewer, staleToken),
-		connect.NewRequest(&adminv1.DeleteUserRequest{
-			UserId:          target.Id,
-			CurrentPassword: "deliberately-ignored-compatibility-value",
-		}),
+		connect.NewRequest(&adminv1.DeleteUserRequest{UserId: target.Id}),
 	)
 	if err != nil {
 		t.Fatalf("DeleteUser with stale credential: %v", err)

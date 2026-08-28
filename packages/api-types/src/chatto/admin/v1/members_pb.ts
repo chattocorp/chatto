@@ -937,14 +937,6 @@ export class DeleteUserRequest extends Message<DeleteUserRequest> {
    */
   userId = "";
 
-  /**
-   * Ignored. DeleteUser does not use password step-up.
-   *
-   * @generated from field: string current_password = 2 [deprecated = true];
-   * @deprecated
-   */
-  currentPassword = "";
-
   constructor(data?: PartialMessage<DeleteUserRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -954,7 +946,6 @@ export class DeleteUserRequest extends Message<DeleteUserRequest> {
   static readonly typeName = "chatto.admin.v1.DeleteUserRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "current_password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteUserRequest {
