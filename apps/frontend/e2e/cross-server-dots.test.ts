@@ -109,11 +109,11 @@ test.describe('Cross-instance dots', () => {
     await joinDefaultRoomsOnRemote(baseURL, mentioner.token);
     const generalRoomId = await getRoomOnRemote(baseURL, owner.token, 'general');
 
-    // Connect the remote instance as `viewer` and stay on /chat (away from the
-    // remote server). This is the cold-load timing window where the bus has to
-    // be ready and consumers have to attach reactively.
+    // Connect the remote instance as `viewer` and stay on the origin Overview
+    // page (away from the remote server). This is the cold-load timing window
+    // where the bus has to be ready and consumers have to attach reactively.
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
-    await navigateWithinClient(page, routes.chat);
+    await navigateWithinClient(page, routes.serverOverview);
     await page.waitForLoadState('networkidle');
 
     // Sanity: no dot on the remote server icon yet. Issue #330: home and
