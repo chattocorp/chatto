@@ -164,7 +164,7 @@ test.describe('Server Admin Members', () => {
 
       // The refreshed summary should show manage/server-relevant account facts.
       await expect(page.getByText('Space Roles')).not.toBeVisible();
-      await expect(page.getByText('Roles', { exact: true })).toBeVisible();
+      await expect(page.locator('div').filter({ hasText: /^Roles$/ })).toBeVisible();
       await expect(page.getByText('Joined')).toBeVisible();
       await expect(page.getByTitle('Copy to clipboard')).toBeVisible();
       await expect(page.getByText('Email verified')).toBeVisible();
