@@ -543,8 +543,10 @@
    Resting inactive state is intentionally transparent; pair with
    `pane-header-icon-button-active` for selected/toggled backgrounds. */
 @utility pane-header-icon-button {
-  @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm bg-transparent leading-none text-muted transition-[background-color,color,scale] active:scale-[0.96];
-  @apply hover:text-text-top disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
+  @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm bg-transparent leading-none text-muted transition-[background-color,color] duration-150;
+  @apply hover:bg-surface-emphasized hover:text-text-top active:bg-surface-selected;
+  @apply focus-visible:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action;
+  @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
 }
 
 @utility pane-header-icon-glyph {
@@ -562,11 +564,19 @@
 
 @utility sidebar-item {
   @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
-  @apply hover:bg-surface hover:text-text;
+  @apply transition-[background-color,color] duration-150 hover:bg-surface hover:text-text active:bg-surface-emphasized;
+  @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+}
+
+/* The current route uses the action colour as a quiet fill, not a decorative
+ * side stripe. This keeps selected server and room navigation related. */
+@utility sidebar-item-current {
+  @apply bg-action/10 font-medium text-text-top hover:bg-action/15 hover:text-text-top active:bg-action/20;
+  @apply focus-visible:bg-action/10;
 }
 
 @utility sidebar-item-attention {
-  @apply font-semibold text-text-top hover:text-text-top;
+  @apply font-medium text-text-top hover:text-text-top;
 }
 
 /* Shared shimmer pseudo-element rules for all shimmer-enabled elements */
@@ -613,7 +623,9 @@
 /* Icon button in the app header: 44px tap target, negative margin to keep
    visual alignment tight, subtle hover/active feedback. */
 @utility app-header-icon {
-  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] hover:text-text active:scale-[0.96] active:bg-surface-emphasized;
+  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-md text-muted transition-[background-color,color] duration-150;
+  @apply hover:bg-surface-emphasized hover:text-text active:bg-surface-selected;
+  @apply focus-visible:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action;
 }
 
 /* Compact inline icon-only action for row/input affordances such as dismiss
@@ -621,8 +633,9 @@
  * pane-header-icon-button instead.
  */
 @utility icon-action {
-  @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] active:scale-[0.96];
-  @apply hover:bg-surface-emphasized hover:text-text;
+  @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color] duration-150;
+  @apply hover:bg-surface-emphasized hover:text-text active:bg-surface-selected;
+  @apply focus-visible:bg-surface-emphasized focus-visible:outline-2 focus-visible:outline-action;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
@@ -630,7 +643,8 @@
  * the text or value it affects. Use icon-action for a standard hit area.
  */
 @utility mini-icon-action {
-  @apply inline-flex shrink-0 cursor-pointer text-muted transition-colors hover:text-text focus-visible:text-text;
+  @apply inline-flex shrink-0 cursor-pointer rounded text-muted transition-colors duration-150 hover:text-text focus-visible:text-text;
+  @apply focus-visible:outline-2 focus-visible:outline-action;
 }
 
 /* Hide scrollbar while maintaining scroll functionality */
@@ -716,13 +730,14 @@
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
 @utility server-gutter-item {
-  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-colors duration-100;
-  @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text;
+  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] duration-150;
+  @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text active:bg-surface-strong;
+  @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
 }
 
 @utility server-gutter-item-active {
-  @apply bg-surface-selected text-text hover:bg-surface-selected hover:text-text;
-  @apply ring-2 ring-text;
+  @apply bg-action/10 text-text hover:bg-action/15 hover:text-text active:bg-action/20;
+  @apply ring-2 ring-action;
 }
 
 /* Make ServerLogo slightly smaller inside server-icon to leave room for the ring */

@@ -72,7 +72,7 @@
 
   {#if reauthRequired}
     <span
-      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
+      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
       data-testid="server-reauth-required"
       aria-hidden="true"
     >
@@ -80,7 +80,7 @@
     </span>
   {:else if compatibilityWarning}
     <span
-      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
+      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
       data-testid="server-compatibility-warning"
       aria-hidden="true"
     >

@@ -39,6 +39,18 @@ message search results:
 - Each row owns its rounded shape. The collection owns only the 1px inset and
   gap, so selections never merge into a single slab.
 
+## Sidebar Navigation
+
+Sidebar links use `sidebar-item`. Apply `sidebar-item-current` to the current
+route. It uses a quiet action-coloured fill and an action-coloured icon. Apply
+`sidebar-item-attention` only to unread content that is not the current route.
+Unread dots remain neutral. Notification badges keep their semantic priority
+colour.
+
+The server gutter follows the same rule. The current server uses its action
+ring and action fill. Do not add a side stripe, a shadow, or a separate accent
+colour for navigation selection.
+
 ## Choosing A Primitive
 
 | Need                                      | Use                                                                        | Avoid                                                        |

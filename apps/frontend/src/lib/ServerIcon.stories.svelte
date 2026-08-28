@@ -52,3 +52,18 @@
     />
   </div>
 </Story>
+
+<Story name="Route and attention" asChild>
+  <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
+    <ServerIcon server={home} href="#home" title="Home Server" selected />
+    <ServerIcon server={remote} href="#remote" title="Remote Server" indicator="unread" />
+    <ServerIcon
+      server={legacy}
+      href="#legacy"
+      title="Legacy Server"
+      indicator="notification"
+      notificationCount={3}
+      importantNotificationCount={3}
+    />
+  </div>
+</Story>
