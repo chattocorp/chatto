@@ -56,7 +56,7 @@
   <a
     href={resolve(item.href as '/')}
     aria-current={active ? 'page' : undefined}
-    class={['sidebar-item', active ? 'bg-surface' : '']}
+    class="sidebar-item"
   >
     <span class="sidebar-icon {item.icon}"></span>
     {item.label}
@@ -73,7 +73,7 @@
         <a
           href={resolve(item.href as '/')}
           aria-current={active ? 'page' : undefined}
-          class={['sidebar-item', active ? 'bg-surface' : '']}
+          class="sidebar-item"
         >
           <span class="sidebar-icon {item.icon}"></span>
           {item.label}

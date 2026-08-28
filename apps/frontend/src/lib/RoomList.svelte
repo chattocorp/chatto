@@ -396,7 +396,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'group/badges @container sidebar-item',
-      isCurrentRoom ? 'sidebar-item-current' : '',
       showUnread && !isCurrentRoom ? 'sidebar-item-attention' : '',
       !isDM && !isJoined ? 'opacity-60 hover:opacity-85' : ''
     ]}
@@ -418,19 +417,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <span
             class={[
               'iconify sidebar-icon icon-[uil--globe]',
-              isCurrentRoom ? 'text-action' : showUnread ? 'text-text-top' : 'text-muted'
+              showUnread ? 'text-text-top' : 'text-muted'
             ]}
             role="img"
             aria-label={m('room.directory.universal')}
             title={m('room.directory.universal_title')}
           ></span>
         {:else}
-          <span
-            class={[
-              'sidebar-icon',
-              isCurrentRoom ? 'text-action' : showUnread ? 'text-text-top' : 'text-muted'
-            ]}>#</span
-          >
+          <span class={['sidebar-icon', showUnread ? 'text-text-top' : 'text-muted']}>#</span>
         {/if}
       {:else if room.viewerCanJoinRoom}
         <span class="sidebar-icon text-muted">+</span>

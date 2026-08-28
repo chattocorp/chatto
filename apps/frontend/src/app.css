@@ -566,13 +566,17 @@
   @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
   @apply transition-[background-color,color] duration-150 hover:bg-surface hover:text-text active:bg-surface-emphasized;
   @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
-}
 
-/* The current route uses the action colour as a quiet fill, not a decorative
- * side stripe. This keeps selected server and room navigation related. */
-@utility sidebar-item-current {
-  @apply bg-action/10 font-medium text-text-top hover:bg-action/15 hover:text-text-top active:bg-action/20;
-  @apply focus-visible:bg-action/10;
+  /* A current route declares itself semantically. The shared item then gives
+   * every sidebar navigation surface the same quiet action-coloured treatment. */
+  &[aria-current='page'] {
+    @apply bg-action/10 font-medium text-text-top hover:bg-action/15 hover:text-text-top active:bg-action/20;
+    @apply focus-visible:bg-action/10;
+  }
+
+  &[aria-current='page'] .sidebar-icon {
+    @apply text-action;
+  }
 }
 
 @utility sidebar-item-attention {

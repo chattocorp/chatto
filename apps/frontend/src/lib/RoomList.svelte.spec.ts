@@ -877,8 +877,9 @@ describe('RoomList', () => {
 
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
     await expect.element(row).toHaveAttribute('aria-current', 'page');
-    expect(row.classList.contains('sidebar-item-current')).toBe(true);
-    expect(row.querySelector('.sidebar-icon')?.classList.contains('text-action')).toBe(true);
+    expect(row.classList.contains('sidebar-item')).toBe(true);
+    expect(row.classList.contains('sidebar-item-current')).toBe(false);
+    expect(row.querySelector('.sidebar-icon')?.classList.contains('text-muted')).toBe(true);
   });
 
   it('uses the established globe icon for universal joined rooms', async () => {

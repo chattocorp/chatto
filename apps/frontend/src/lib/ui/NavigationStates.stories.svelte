@@ -19,8 +19,8 @@
 
 <Story name="Route and attention" asChild>
   <nav class="w-64 rounded-lg bg-background p-2 ring-1 ring-border" aria-label="Example rooms">
-    <a href="#current" class="sidebar-item sidebar-item-current" aria-current="page">
-      <span class="sidebar-icon text-action">#</span>
+    <a href="#current" class="sidebar-item" aria-current="page">
+      <span class="sidebar-icon text-muted">#</span>
       <span class="flex-1 truncate">General</span>
     </a>
     <a href="#unread" class="sidebar-item sidebar-item-attention">

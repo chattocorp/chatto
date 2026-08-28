@@ -263,14 +263,19 @@
       <nav class="sidebar-nav p-2">
         <a
           href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
-          class={['sidebar-item', isHomeActive ? 'bg-surface' : '']}
+          aria-current={isHomeActive ? 'page' : undefined}
+          class="sidebar-item"
         >
           <span class="iconify sidebar-icon icon-[uil--estate]"></span>
           {m('chat.overview.title')}
         </a>
         {#if messageSearchAvailable}
           <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- searchHref is resolved above -->
-          <a href={searchHref} class={['sidebar-item', isSearchActive ? 'bg-surface' : '']}>
+          <a
+            href={searchHref}
+            aria-current={isSearchActive ? 'page' : undefined}
+            class="sidebar-item"
+          >
             <span class="iconify sidebar-icon icon-[uil--search]" aria-hidden="true"></span>
             {m('search.action')}
           </a>

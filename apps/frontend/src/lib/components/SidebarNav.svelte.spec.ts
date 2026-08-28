@@ -61,9 +61,10 @@ describe('SidebarNav', () => {
     await expect.element(getByText('Appearance')).toBeVisible();
     await expect.element(getByText('Language')).toBeVisible();
     await expect.element(getByText('Composer')).toBeVisible();
-    await expect
-      .element(container.querySelector<HTMLElement>('a[href="/settings/preferences"]'))
-      .toHaveAttribute('aria-current', 'page');
+    const activeItem = container.querySelector<HTMLElement>('a[href="/settings/preferences"]');
+    await expect.element(activeItem).toHaveAttribute('aria-current', 'page');
+    expect(activeItem?.classList.contains('sidebar-item')).toBe(true);
+    expect(activeItem?.classList.contains('bg-surface')).toBe(false);
 
     const toggle = container.querySelector<HTMLButtonElement>('button[aria-expanded]');
     await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
