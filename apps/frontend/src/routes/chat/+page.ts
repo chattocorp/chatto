@@ -5,8 +5,8 @@ export const load: PageLoad = async ({ parent, url }) => {
 	const { user } = await parent();
 	if (!user) redirect(302, `/${url.search}`);
 
-	// Pass through welcome query param if present.
-	return {
-		welcome: url.searchParams.get('welcome') === 'true'
-	};
+	// The origin segment does not depend on client registration or realtime
+	// projection state. The server route owns the subsequent room redirect.
+	const welcome = url.searchParams.get('welcome') === 'true';
+	redirect(302, welcome ? '/chat/-?welcome=true' : '/chat/-');
 };
