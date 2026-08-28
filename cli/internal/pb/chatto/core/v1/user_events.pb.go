@@ -177,21 +177,18 @@ func (x *UserDeletedEvent) GetUserId() string {
 	return ""
 }
 
-// UserProfileUpdatedEvent is a transient, projection-derived live snapshot. It
-// is published after a public profile field changes and is never stored in EVT.
-// Durable user events remain the authoritative profile facts.
+// Deprecated: UserProfileUpdatedEvent is retained in its original source file
+// for generated-source compatibility. LiveEvent uses UserProfileSyncEvent.
+//
+// Deprecated: Marked as deprecated in chatto/core/v1/user_events.proto.
 type UserProfileUpdatedEvent struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	UserId      string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	DisplayName string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// URL to the user's avatar, or empty if no avatar is set.
-	AvatarUrl string `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
-	// The user's current login/username.
-	Login string `protobuf:"bytes,4,opt,name=login,proto3" json:"login,omitempty"`
-	// The user's current public bio, or empty when unset.
-	Bio string `protobuf:"bytes,5,opt,name=bio,proto3" json:"bio,omitempty"`
-	// The user's shared IANA time zone, or empty when none is shared.
-	Timezone      string `protobuf:"bytes,6,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	AvatarUrl     string                 `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	Login         string                 `protobuf:"bytes,4,opt,name=login,proto3" json:"login,omitempty"`
+	Bio           string                 `protobuf:"bytes,5,opt,name=bio,proto3" json:"bio,omitempty"`
+	Timezone      string                 `protobuf:"bytes,6,opt,name=timezone,proto3" json:"timezone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1703,7 +1700,7 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"+\n" +
 	"\x10UserDeletedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xb8\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xbc\x01\n" +
 	"\x17UserProfileUpdatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1d\n" +
@@ -1711,7 +1708,7 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"avatar_url\x18\x03 \x01(\tR\tavatarUrl\x12\x14\n" +
 	"\x05login\x18\x04 \x01(\tR\x05login\x12\x10\n" +
 	"\x03bio\x18\x05 \x01(\tR\x03bio\x12\x1a\n" +
-	"\btimezone\x18\x06 \x01(\tR\btimezone\"|\n" +
+	"\btimezone\x18\x06 \x01(\tR\btimezone:\x02\x18\x01\"|\n" +
 	"!ServerUserPreferencesUpdatedEvent\x12\x1a\n" +
 	"\btimezone\x18\x01 \x01(\tR\btimezone\x12;\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatR\n" +

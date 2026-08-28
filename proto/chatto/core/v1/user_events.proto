@@ -31,19 +31,16 @@ message UserDeletedEvent {
   string user_id = 1;
 }
 
-// UserProfileUpdatedEvent is a transient, projection-derived live snapshot. It
-// is published after a public profile field changes and is never stored in EVT.
-// Durable user events remain the authoritative profile facts.
+// Deprecated: UserProfileUpdatedEvent is retained in its original source file
+// for generated-source compatibility. LiveEvent uses UserProfileSyncEvent.
 message UserProfileUpdatedEvent {
+  option deprecated = true;
+
   string user_id = 1;
   string display_name = 2;
-  // URL to the user's avatar, or empty if no avatar is set.
   string avatar_url = 3;
-  // The user's current login/username.
   string login = 4;
-  // The user's current public bio, or empty when unset.
   string bio = 5;
-  // The user's shared IANA time zone, or empty when none is shared.
   string timezone = 6;
 }
 

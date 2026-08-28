@@ -51,7 +51,7 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 
 	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserProfileUpdated{
-			UserProfileUpdated: &corev1.UserProfileUpdatedEvent{
+			UserProfileUpdated: &corev1.UserProfileSyncEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
 				AvatarUrl:   avatarURL,
