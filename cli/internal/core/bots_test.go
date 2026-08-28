@@ -737,6 +737,29 @@ func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
 	}
 }
 
+func TestBotPermissionCeilingResolvesTransitiveInclusion(t *testing.T) {
+	broad, _, narrow := installTestPermissionChain(t)
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := core.CreateUser(ctx, SystemActorID, "transitive_bot_owner", "Transitive Bot Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, owner.GetId(), broad); err != nil {
+		t.Fatalf("grant owner broad permission: %v", err)
+	}
+	bot, err := core.CreateBot(ctx, owner.GetId(), "transitive_permission_bot", "Transitive Permission Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if err := core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, narrow, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot narrow permission: %v", err)
+	}
+	if got, err := core.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", narrow); err != nil || got != DecisionAllow {
+		t.Fatalf("bot transitive decision = %s, %v; want allow", got, err)
+	}
+}
+
 func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)

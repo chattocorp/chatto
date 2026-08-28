@@ -5,6 +5,44 @@ import (
 	"testing"
 )
 
+func permissionMetadata(permission Permission, displayName, description string, category PermissionCategory, scopes []PermissionScope) PermissionMetadata {
+	return PermissionMetadata{
+		Permission:  permission,
+		DisplayName: displayName,
+		Description: description,
+		Category:    category,
+		Scopes:      scopes,
+	}
+}
+
+func installTestPermissionChain(t testing.TB) (Permission, Permission, Permission) {
+	t.Helper()
+	broad := Permission("test.manage")
+	middle := Permission("test.manage.items")
+	narrow := Permission("test.manage.items.publish")
+	testCatalog := []PermissionMetadata{
+		permissionMetadata(broad, "Manage", "Manage", CategoryServer, []PermissionScope{ScopeServer}),
+		permissionMetadata(middle, "Manage Items", "Manage items", CategoryServer, []PermissionScope{ScopeServer}),
+		permissionMetadata(narrow, "Publish Items", "Publish items", CategoryServer, []PermissionScope{ScopeServer}),
+	}
+	validated, err := validatePermissionCatalog(testCatalog)
+	if err != nil {
+		t.Fatalf("validate test permission chain: %v", err)
+	}
+	previous := permissionIndex
+	permissionIndex = make(map[Permission]PermissionMetadata, len(previous)+len(validated))
+	for permission, metadata := range previous {
+		permissionIndex[permission] = metadata
+	}
+	for permission, metadata := range validated {
+		permissionIndex[permission] = metadata
+	}
+	t.Cleanup(func() {
+		permissionIndex = previous
+	})
+	return broad, middle, narrow
+}
+
 // ============================================================================
 // GetPermissionMetadata Tests
 // ============================================================================
@@ -278,12 +316,77 @@ func TestPermissionKeyPartsAllowAdditionalComponents(t *testing.T) {
 	}
 }
 
-func TestMessageReadExplicitlyIncludesInteractions(t *testing.T) {
-	if got := directlyIncludingPermissions(PermMessageReadInteractions); !slices.Equal(got, []Permission{PermMessageRead}) {
+func TestPermissionNamesDefineInclusion(t *testing.T) {
+	if got := includingPermissions(PermMessageReadInteractions); !slices.Equal(got, []Permission{PermMessageRead}) {
 		t.Fatalf("including permissions = %v, want [%s]", got, PermMessageRead)
 	}
-	if got := directlyIncludingPermissions(PermMessageRead); len(got) != 0 {
+	if got := includingPermissions(PermMessageRead); len(got) != 0 {
 		t.Fatalf("message.read must not be included by its child: %v", got)
+	}
+	if got := includingPermissions("message.read.unknown"); len(got) != 0 {
+		t.Fatalf("unknown permission must not inherit a registered prefix: %v", got)
+	}
+}
+
+func TestValidatePermissionCatalog(t *testing.T) {
+	scopes := []PermissionScope{ScopeServer}
+	valid := []PermissionMetadata{
+		permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
+		permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, scopes),
+		permissionMetadata("server.manage.neighbors.publish", "Publish", "Publish", CategoryServer, scopes),
+	}
+	index, err := validatePermissionCatalog(valid)
+	if err != nil {
+		t.Fatalf("valid catalog: %v", err)
+	}
+	if got := includingPermissionsFrom(index, "server.manage.neighbors.publish"); !slices.Equal(got, []Permission{"server.manage.neighbors", "server.manage"}) {
+		t.Fatalf("transitive parents = %v, want [server.manage.neighbors server.manage]", got)
+	}
+
+	tests := []struct {
+		name    string
+		catalog []PermissionMetadata
+	}{
+		{
+			name: "invalid identifier",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server", "Server", "Server", CategoryServer, scopes),
+			},
+		},
+		{
+			name: "missing parent",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, scopes),
+			},
+		},
+		{
+			name: "different category",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryAdmin, scopes),
+			},
+		},
+		{
+			name: "different scopes",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeRoom}),
+			},
+		},
+		{
+			name: "duplicate scopes do not match",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, []PermissionScope{ScopeServer, ScopeGroup}),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeServer}),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := validatePermissionCatalog(test.catalog); err == nil {
+				t.Fatal("invalid catalog was accepted")
+			}
+		})
 	}
 }
 

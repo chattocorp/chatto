@@ -12,6 +12,10 @@
 > dot-separated components. A dotted prefix has no automatic meaning.
 > Permission inclusion must be explicit.
 >
+> **Amended 2026-08-28:** This amendment supersedes the permission-name rule
+> from 2026-08-26. Registered dotted prefixes now define transitive permission
+> inclusion.
+>
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,
@@ -68,14 +72,13 @@ Use a permission-only RBAC model for everyone except effective owners.
   local exceptions; the built-in announcements room adds a room-level
   `everyone` deny for `message.post`.
 - Permission identifiers contain two or more non-empty dot-separated
-  components. A component can contain hyphens. The identifier structure makes
-  related capabilities visible, but it does not create a general hierarchy.
-- An effective allow can explicitly include another permission. The catalog
-  currently defines one inclusion: `message.read` includes
-  `message.read.interactions`. An allow for the included permission does not
-  include its parent. A deny for the included permission cannot restrict an
-  effective allow for its parent. A deny for the parent does not restrict a
-  separate allow for the included permission.
+  components. A component can contain hyphens. Each registered dotted prefix
+  is a broader permission. For example, `message.read` includes
+  `message.read.interactions`. Inclusion is transitive.
+- An allow for a broader permission satisfies its narrower descendants. An
+  allow for a descendant does not include an ancestor. A descendant deny
+  cannot restrict an effective ancestor allow. An ancestor deny does not
+  restrict a separate descendant allow.
 
 This supersedes ADR-005.
 
@@ -98,6 +101,9 @@ This supersedes ADR-005.
   persisted event contract is migrated.
 - Permission inclusion changes effective authorization only. It does not write
   or synthesize an additional RBAC grant.
+- A new permission name can change authority if it is below an existing
+  permission. Each new nested permission must therefore have a registered
+  immediate parent with the same category and scopes.
 - The authorization fence adds an empty operational fact to protected batches.
   During a mixed-version rollout, its full concurrency guarantee starts only
   after all writing replicas understand and advance the fence.

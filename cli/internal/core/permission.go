@@ -211,10 +211,62 @@ var allPermissions = []PermissionMetadata{
 var permissionIndex map[Permission]PermissionMetadata
 
 func init() {
-	permissionIndex = make(map[Permission]PermissionMetadata, len(allPermissions))
-	for _, p := range allPermissions {
-		permissionIndex[p.Permission] = p
+	var err error
+	permissionIndex, err = validatePermissionCatalog(allPermissions)
+	if err != nil {
+		panic(err)
 	}
+}
+
+func validatePermissionCatalog(catalog []PermissionMetadata) (map[Permission]PermissionMetadata, error) {
+	index := make(map[Permission]PermissionMetadata, len(catalog))
+	for _, metadata := range catalog {
+		components := strings.Split(string(metadata.Permission), ".")
+		if len(components) < 2 || slices.Contains(components, "") {
+			return nil, fmt.Errorf("permission %q must contain at least two non-empty components", metadata.Permission)
+		}
+		if _, exists := index[metadata.Permission]; exists {
+			return nil, fmt.Errorf("permission catalog contains duplicate permission %s", metadata.Permission)
+		}
+		index[metadata.Permission] = metadata
+	}
+	for _, metadata := range catalog {
+		parts := strings.Split(string(metadata.Permission), ".")
+		if len(parts) < 3 {
+			continue
+		}
+		parentPermission := Permission(strings.Join(parts[:len(parts)-1], "."))
+		parent, exists := index[parentPermission]
+		if !exists {
+			return nil, fmt.Errorf("permission %s is missing immediate parent %s", metadata.Permission, parentPermission)
+		}
+		if metadata.Category != parent.Category {
+			return nil, fmt.Errorf("permission %s and parent %s use different categories", metadata.Permission, parentPermission)
+		}
+		if !samePermissionScopes(metadata.Scopes, parent.Scopes) {
+			return nil, fmt.Errorf("permission %s and parent %s use different scopes", metadata.Permission, parentPermission)
+		}
+	}
+	return index, nil
+}
+
+func samePermissionScopes(left, right []PermissionScope) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	counts := make(map[PermissionScope]int, len(left))
+	for _, scope := range left {
+		counts[scope]++
+	}
+	for _, scope := range right {
+		counts[scope]--
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // AllPermissions returns all defined permissions with their metadata.
@@ -251,15 +303,29 @@ func PermissionAppliesAtScope(perm Permission, scope PermissionScope) bool {
 	return slices.Contains(meta.Scopes, scope)
 }
 
-// directlyIncludingPermissions returns permissions whose effective allow also
-// allows the requested permission. Permission inclusion is explicit: dotted
-// name components do not create an automatic hierarchy.
-func directlyIncludingPermissions(perm Permission) []Permission {
-	switch perm {
-	case PermMessageReadInteractions:
-		return []Permission{PermMessageRead}
-	default:
+// includingPermissions returns registered dotted ancestors from the immediate
+// parent to the broadest ancestor. An allow for any ancestor includes the
+// requested permission.
+func includingPermissions(perm Permission) []Permission {
+	return includingPermissionsFrom(permissionIndex, perm)
+}
+
+func includingPermissionsFrom(index map[Permission]PermissionMetadata, perm Permission) []Permission {
+	if _, registered := index[perm]; !registered {
 		return nil
+	}
+	var result []Permission
+	name := string(perm)
+	for {
+		separator := strings.LastIndex(name, ".")
+		if separator < 0 {
+			return result
+		}
+		name = name[:separator]
+		ancestor := Permission(name)
+		if _, registered := index[ancestor]; registered {
+			result = append(result, ancestor)
+		}
 	}
 }
 

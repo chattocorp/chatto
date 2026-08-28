@@ -33,6 +33,7 @@ export { default as ScrollFader } from './ScrollFader.svelte';
 export { default as ScrollArea } from './ScrollArea.svelte';
 export { default as SegmentedControl } from './SegmentedControl.svelte';
 export { default as SkeletonImg } from './SkeletonImg.svelte';
+export { default as StatCard } from './StatCard.svelte';
 export { default as ToggleChip } from './ToggleChip.svelte';
 export { default as TopOverlayNotice } from './TopOverlayNotice.svelte';
 export { default as UnreadDot } from './UnreadDot.svelte';

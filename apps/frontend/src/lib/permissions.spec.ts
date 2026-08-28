@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getIncludedByPermission, PERMISSION_METADATA } from './permissions';
+import {
+  getIncludedByPermission,
+  getIncludingPermissions,
+  PERMISSION_METADATA
+} from './permissions';
 
 describe('PERMISSION_METADATA', () => {
   it('covers every current backend permission', () => {
@@ -37,9 +41,23 @@ describe('PERMISSION_METADATA', () => {
     expect(PERMISSION_METADATA).not.toHaveProperty('message.delete-any');
   });
 
-  it('defines the explicit message read inclusion without a general hierarchy', () => {
-    expect(getIncludedByPermission('message.read.interactions')).toBe('message.read');
-    expect(getIncludedByPermission('message.read')).toBeNull();
-    expect(getIncludedByPermission('message.post-in-thread')).toBeNull();
+  it('derives inclusion from registered dotted ancestors', () => {
+    const permissions = ['message.read', 'message.read.interactions', 'message.post-in-thread'];
+    expect(getIncludedByPermission(permissions, 'message.read.interactions')).toBe('message.read');
+    expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
+    expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
+  });
+
+  it('returns all registered dotted ancestors in order', () => {
+    const permissions = [
+      'server.manage',
+      'server.manage.neighbors',
+      'server.manage.neighbors.publish'
+    ];
+    expect(getIncludingPermissions(permissions, 'server.manage.neighbors.publish')).toEqual([
+      'server.manage.neighbors',
+      'server.manage'
+    ]);
+    expect(getIncludingPermissions(['server.manage'], 'server.manage.neighbors')).toEqual([]);
   });
 });

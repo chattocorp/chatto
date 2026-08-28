@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -13,12 +13,13 @@ Chatto controls who can do what through role-based access control. Every authent
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
 - A permission identifier has two or more non-empty dot-separated components.
-  More components can show a relationship, but do not create an automatic
-  permission hierarchy.
+  New identifiers use `<domain>.<capability>[.<narrower-capability>...]`.
+  Each registered dotted prefix is a broader permission that includes its
+  descendants.
 - Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads. `message.read` supplies broad
-  read authority and explicitly includes `message.read.interactions`, which
+  read authority and includes `message.read.interactions`, which
   supplies authority for related threads only. DM membership authorizes DM
   reads. `message.post` separately
   gates root-message posting and permits human users to start DMs. Bot accounts
@@ -96,20 +97,25 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
 **Tradeoff:** Adding a new code default does not grant it to existing servers or rooms automatically. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 
-### 10. Permission names can show explicit inclusion
+### 10. Permission names define inclusion
 
-**Decision:** Use two or more non-empty dot-separated components for permission
-identifiers. Do not infer authority from a dotted prefix. Define each inclusion
-explicitly. `message.read` includes `message.read.interactions`. The child does
-not include the parent. A child deny cannot restrict an effective parent allow,
-and a parent deny cannot restrict a separate child allow. Inclusion changes
-effective authorization only and does not store an additional grant.
+**Decision:** Use `<domain>.<capability>[.<narrower-capability>...]` for new
+permission identifiers. Use a hyphen only inside one component. Prefer no more
+than three components unless the product needs a deeper capability tree. Each
+registered dotted prefix includes its descendants. The resolver follows these
+ancestors transitively. `message.read` therefore includes
+`message.read.interactions`. The child does not include the parent. A child
+deny cannot restrict an effective parent allow, and a parent deny cannot
+restrict a separate child allow. Inclusion changes effective authorization
+only and does not store an additional grant. Catalog validation rejects a
+nested permission without its immediate parent and parent-child pairs with
+different categories or scopes.
 **Why:** The three-component name shows that interaction reads are a narrower
-part of message reads. Explicit inclusion avoids a repository-wide permission
-hierarchy before more examples exist.
-**Tradeoff:** Code and documentation must list each inclusion. If Chatto adds
-more nested permissions, it can replace the explicit logic with a general
-model in a separate decision.
+part of message reads. One naming rule keeps authorization, explanations,
+delegation limits, and the admin UI consistent without separate relationship
+metadata.
+**Tradeoff:** A permission name is an authorization contract. A capability
+that does not belong below an existing permission must use a different name.
 
 ## Permissions
 
@@ -142,5 +148,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit permission inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
+- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and name-derived permission inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
 - **FDRs:** Every FDR that mentions a permission depends on this one; see also FDR-012 (Notifications), FDR-038 (Bot Accounts), and FDR-039 (Message Access & Interactions).

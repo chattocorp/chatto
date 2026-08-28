@@ -194,7 +194,7 @@ func (r *PermissionResolver) botDelegatedExactDecision(botUserID string, kind Ro
 // absent decision on an including permission does not restrict a separately
 // allowed child permission.
 func resolvePermissionWithInclusions(perm Permission, resolveExact func(Permission) (DecisionKind, error)) (DecisionKind, error) {
-	for _, including := range directlyIncludingPermissions(perm) {
+	for _, including := range includingPermissions(perm) {
 		decision, err := resolveExact(including)
 		if err != nil {
 			return DecisionNone, err

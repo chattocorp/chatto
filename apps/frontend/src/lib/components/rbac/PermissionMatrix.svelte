@@ -33,7 +33,7 @@ focusing a cell highlights its permission row and role column.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';
+  import { getIncludingPermissions, getPermissionDescription } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
@@ -190,6 +190,14 @@ focusing a cell highlights its permission row and role column.
   const permissions = $derived.by<string[]>(() =>
     data ? [...data.applicablePermissions].sort((a, b) => a.localeCompare(b)) : []
   );
+  const inclusionChains = $derived.by(() => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
+    const chains = new Map<string, string[]>();
+    for (const permission of permissions) {
+      chains.set(permission, getIncludingPermissions(permissions, permission));
+    }
+    return chains;
+  });
   let permissionFilter = $state('');
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
@@ -222,12 +230,14 @@ focusing a cell highlights its permission row and role column.
   }
 
   function includingPermission(role: TierRole, permission: string): string | null {
-    const including = getIncludedByPermission(permission);
-    if (!including) return null;
-    const includingOverride = overrideState(role, including);
-    if (includingOverride === 'allow') return including;
-    if (includingOverride === 'deny') return null;
-    return exactInheritedState(role, including) === 'allow' ? including : null;
+    for (const including of inclusionChains.get(permission) ?? []) {
+      const includingOverride = overrideState(role, including);
+      if (includingOverride === 'allow') return including;
+      if (includingOverride === 'neutral' && exactInheritedState(role, including) === 'allow') {
+        return including;
+      }
+    }
+    return null;
   }
 
   function inheritedState(role: TierRole, permission: string): State {
@@ -412,7 +422,7 @@ focusing a cell highlights its permission row and role column.
         {/if}
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        {@const includedBy = getIncludedByPermission(permission)}
+        {@const includedBy = inclusionChains.get(permission)?.[0] ?? null}
         <div class={['flex items-center gap-2', includedBy ? 'ml-4' : '']}>
           <HelpTooltip label={`About ${permission}`}>
             {getPermissionDescription(permission)}

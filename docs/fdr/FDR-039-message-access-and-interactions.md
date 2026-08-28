@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -82,15 +82,15 @@ DM membership continues to authorize complete DM reads.
 **Decision:** Use `message.read` for broad channel-room access and
 `message.read.interactions` for relationship-scoped channel-room access. Keep
 membership as a separate required boundary. Make the broad permission
-explicitly include the narrower permission. Do not infer other inclusions from
-dotted names. The child does not include the parent. A child deny cannot
-restrict an effective parent allow, and a parent deny cannot restrict a
-separate child allow.
+include the narrower permission through the registered dotted-name hierarchy.
+Every registered descendant follows the same inclusion rule. The child does
+not include the parent. A child deny cannot restrict an effective parent allow,
+and a parent deny cannot restrict a separate child allow.
 **Why:** Operators can inspect the difference between broad and narrow access.
 An absent broad permission does not cause an implicit privacy mode.
 **Tradeoff:** Each narrow read checks both RBAC and the requested thread
-relationship. The resolver and inspection surfaces must explain the explicit
-inclusion.
+relationship. The resolver and inspection surfaces must explain the
+name-derived inclusion.
 
 ### 2. Direct mentions and authored roots create relationships
 
@@ -144,8 +144,8 @@ interaction-scoped reads.
 ### 7. Bots use the existing owner ceiling
 
 **Decision:** Use the same permissions for human and bot accounts. Apply the
-explicit read inclusion independently to the bot allowlist and to the owner's
-effective authority.
+name-derived read hierarchy independently to the bot allowlist and to the
+owner's effective authority.
 **Why:** This keeps one permission vocabulary and one delegation rule.
 **Tradeoff:** Removing broad read access from an owner does not remove a bot's
 narrow read mode when the owner still has the narrow permission. A bot still
