@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"slices"
 	"sync"
 	"time"

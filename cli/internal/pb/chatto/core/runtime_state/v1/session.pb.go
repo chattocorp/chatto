@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: chatto/core/runtime_state/v1/session.proto
 
-package runtime_statev1
+package runtimestatev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -150,8 +150,8 @@ const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
 	"\x0fauth_generation\x18\x06 \x01(\x04R\x0eauthGeneration\x12>\n" +
 	"\rfresh_auth_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vfreshAuthAt\x12*\n" +
 	"\x11fresh_auth_method\x18\b \x01(\tR\x0ffreshAuthMethod\x12*\n" +
-	"\x11fresh_auth_source\x18\t \x01(\tR\x0ffreshAuthSourceB\x89\x02\n" +
-	" com.chatto.core.runtime_state.v1B\fSessionProtoP\x01ZHhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtime_statev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\x11fresh_auth_source\x18\t \x01(\tR\x0ffreshAuthSourceB\x88\x02\n" +
+	" com.chatto.core.runtime_state.v1B\fSessionProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_session_proto_rawDescOnce sync.Once

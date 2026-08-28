@@ -3,7 +3,7 @@ package linkpreview
 import (
 	"context"
 	"errors"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"testing"
 	"time"

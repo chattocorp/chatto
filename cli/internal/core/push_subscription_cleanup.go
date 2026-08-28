@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"time"
 

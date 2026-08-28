@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"

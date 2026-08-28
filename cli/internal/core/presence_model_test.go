@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"testing"
 	"time"
 

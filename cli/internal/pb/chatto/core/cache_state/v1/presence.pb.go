@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: chatto/core/cache_state/v1/presence.proto
 
-package cache_statev1
+package cachestatev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -141,8 +141,8 @@ const file_chatto_core_cache_state_v1_presence_proto_rawDesc = "" +
 	" USER_PRESENCE_STATUS_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bUSER_PRESENCE_STATUS_ONLINE\x10\x01\x12\x1d\n" +
 	"\x19USER_PRESENCE_STATUS_AWAY\x10\x02\x12'\n" +
-	"#USER_PRESENCE_STATUS_DO_NOT_DISTURB\x10\x03B\xfc\x01\n" +
-	"\x1ecom.chatto.core.cache_state.v1B\rPresenceProtoP\x01ZDhmans.de/chatto/internal/pb/chatto/core/cache_state/v1;cache_statev1\xa2\x02\x03CCC\xaa\x02\x19Chatto.Core.CacheState.V1\xca\x02\x19Chatto\\Core\\CacheState\\V1\xe2\x02%Chatto\\Core\\CacheState\\V1\\GPBMetadata\xea\x02\x1cChatto::Core::CacheState::V1b\x06proto3"
+	"#USER_PRESENCE_STATUS_DO_NOT_DISTURB\x10\x03B\xfb\x01\n" +
+	"\x1ecom.chatto.core.cache_state.v1B\rPresenceProtoP\x01ZChmans.de/chatto/internal/pb/chatto/core/cache_state/v1;cachestatev1\xa2\x02\x03CCC\xaa\x02\x19Chatto.Core.CacheState.V1\xca\x02\x19Chatto\\Core\\CacheState\\V1\xe2\x02%Chatto\\Core\\CacheState\\V1\\GPBMetadata\xea\x02\x1cChatto::Core::CacheState::V1b\x06proto3"
 
 var (
 	file_chatto_core_cache_state_v1_presence_proto_rawDescOnce sync.Once

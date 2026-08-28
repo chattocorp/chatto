@@ -3,7 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net/url"
 	"strings"

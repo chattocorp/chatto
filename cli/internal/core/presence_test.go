@@ -1,7 +1,7 @@
 package core
 
 import (
-	cachestatev1 "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"testing"
 
 	"github.com/nats-io/nats.go/jetstream"

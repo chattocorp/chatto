@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: chatto/core/runtime_state/v1/link_preview_cache.proto
 
-package runtime_statev1
+package runtimestatev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -119,8 +119,8 @@ const file_chatto_core_runtime_state_v1_link_preview_cache_proto_rawDesc = "" +
 	"\ffetch_failed\x18\x03 \x01(\bR\vfetchFailed\x12!\n" +
 	"\ferror_reason\x18\x04 \x01(\tR\verrorReason\x12&\n" +
 	"\x0ffetched_at_unix\x18\x05 \x01(\x03R\rfetchedAtUnix\x12%\n" +
-	"\x0eschema_version\x18\x06 \x01(\rR\rschemaVersionB\x92\x02\n" +
-	" com.chatto.core.runtime_state.v1B\x15LinkPreviewCacheProtoP\x01ZHhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtime_statev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\x0eschema_version\x18\x06 \x01(\rR\rschemaVersionB\x91\x02\n" +
+	" com.chatto.core.runtime_state.v1B\x15LinkPreviewCacheProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_link_preview_cache_proto_rawDescOnce sync.Once

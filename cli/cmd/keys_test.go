@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
-	keymaterialv1 "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
-	runtimestatev1 "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"os"
 	"path/filepath"
 	"strings"

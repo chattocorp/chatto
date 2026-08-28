@@ -2,7 +2,7 @@ package kms
 
 import (
 	"context"
-	keymaterialv1 "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"testing"
 	"time"
 

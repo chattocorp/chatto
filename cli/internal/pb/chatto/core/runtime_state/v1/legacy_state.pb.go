@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: chatto/core/runtime_state/v1/legacy_state.proto
 
-package runtime_statev1
+package runtimestatev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -495,8 +495,8 @@ const file_chatto_core_runtime_state_v1_legacy_state_proto_rawDesc = "" +
 	"\x14VIDEO_STATUS_PENDING\x10\x00\x12\x1b\n" +
 	"\x17VIDEO_STATUS_PROCESSING\x10\x01\x12\x1a\n" +
 	"\x16VIDEO_STATUS_COMPLETED\x10\x02\x12\x17\n" +
-	"\x13VIDEO_STATUS_FAILED\x10\x03B\x8d\x02\n" +
-	" com.chatto.core.runtime_state.v1B\x10LegacyStateProtoP\x01ZHhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtime_statev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\x13VIDEO_STATUS_FAILED\x10\x03B\x8c\x02\n" +
+	" com.chatto.core.runtime_state.v1B\x10LegacyStateProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_legacy_state_proto_rawDescOnce sync.Once

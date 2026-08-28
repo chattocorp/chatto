@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	keymaterialv1 "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"strings"
 
 	"github.com/charmbracelet/log"

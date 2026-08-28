@@ -13,6 +13,8 @@ import "chatto/core/evt/v1/room_events.proto";
 import "chatto/core/evt/v1/user_events.proto";
 import "chatto/core/evt/v1/user_preferences.proto";
 
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/projection/v1;projectionv1";
+
 // ProjectionSnapshotGeneration is the encrypted, immutable unit published by
 // the projection snapshot repository. It is derived cache data,
 // not an authoritative domain record.

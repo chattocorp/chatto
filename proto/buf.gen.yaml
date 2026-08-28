@@ -4,6 +4,8 @@ managed:
   disable:
     - file_option: go_package
       module: buf.build/bufbuild/protovalidate
+    - file_option: go_package
+      path: chatto/core
   override:
     - file_option: go_package_prefix
       value: hmans.de/chatto/internal/pb

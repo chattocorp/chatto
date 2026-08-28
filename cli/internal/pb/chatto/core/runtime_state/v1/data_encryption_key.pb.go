@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: chatto/core/runtime_state/v1/data_encryption_key.proto
 
-package runtime_statev1
+package runtimestatev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -112,8 +112,8 @@ const file_chatto_core_runtime_state_v1_data_encryption_key_proto_rawDesc = "" +
 	"\x11content_key_nonce\x18\x02 \x01(\fR\x0fcontentKeyNonce\x12-\n" +
 	"\x12wrapping_algorithm\x18\x03 \x01(\tR\x11wrappingAlgorithm\x12+\n" +
 	"\x11wrapping_metadata\x18\x04 \x01(\fR\x10wrappingMetadata\x12(\n" +
-	"\x10wrapping_key_ref\x18\x05 \x01(\tR\x0ewrappingKeyRefB\x93\x02\n" +
-	" com.chatto.core.runtime_state.v1B\x16DataEncryptionKeyProtoP\x01ZHhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtime_statev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\x10wrapping_key_ref\x18\x05 \x01(\tR\x0ewrappingKeyRefB\x92\x02\n" +
+	" com.chatto.core.runtime_state.v1B\x16DataEncryptionKeyProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_data_encryption_key_proto_rawDescOnce sync.Once

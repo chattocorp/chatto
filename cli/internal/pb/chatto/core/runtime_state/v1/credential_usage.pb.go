@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: chatto/core/runtime_state/v1/credential_usage.proto
 
-package runtime_statev1
+package runtimestatev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -77,8 +77,8 @@ const file_chatto_core_runtime_state_v1_credential_usage_proto_rawDesc = "" +
 	"\x15last_used_unix_millis\x18\x01 \x03(\v2J.chatto.core.runtime_state.v1.CredentialUsageState.LastUsedUnixMillisEntryR\x12lastUsedUnixMillis\x1aE\n" +
 	"\x17LastUsedUnixMillisEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01B\x91\x02\n" +
-	" com.chatto.core.runtime_state.v1B\x14CredentialUsageProtoP\x01ZHhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtime_statev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01B\x90\x02\n" +
+	" com.chatto.core.runtime_state.v1B\x14CredentialUsageProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
 	file_chatto_core_runtime_state_v1_credential_usage_proto_rawDescOnce sync.Once
