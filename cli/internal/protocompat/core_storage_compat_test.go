@@ -20,6 +20,7 @@ import (
 	_ "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	_ "hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	_ "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	_ "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	_ "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 )
 
@@ -41,6 +42,8 @@ var storedMessageRoots = []protoreflect.FullName{
 	"chatto.core.v1.ThreadMetadata",
 	"chatto.core.v1.VerifiedEmail",
 	"chatto.core.v1.VideoProcessingState",
+	"chatto.core.v1.ProjectionSnapshotGeneration",
+	"chatto.core.v1.ProjectionSnapshotPointer",
 }
 
 var packageExceptions = map[string]string{
@@ -86,6 +89,9 @@ var packageExceptions = map[string]string{
 	"UserPresenceStatus": "chatto.core.cache_state.v1",
 
 	"UserKeyEncryptionKey": "chatto.core.key_material.v1",
+
+	"ProjectionSnapshotGeneration": "chatto.core.projection.v1",
+	"ProjectionSnapshotPointer":    "chatto.core.projection.v1",
 }
 
 func TestCoreStorageWireCompatibility(t *testing.T) {
