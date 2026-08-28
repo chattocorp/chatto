@@ -58,8 +58,6 @@ describe('PERMISSION_METADATA', () => {
       'server.manage.neighbors',
       'server.manage'
     ]);
-    expect(getIncludingPermissions(['server.manage'], 'server.manage.neighbors')).toEqual([
-      'server.manage'
-    ]);
+    expect(getIncludingPermissions(['server.manage'], 'server.manage.neighbors')).toEqual([]);
   });
 });

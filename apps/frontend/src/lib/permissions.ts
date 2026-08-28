@@ -111,6 +111,7 @@ export function getIncludedByPermission(
 /** Return registered dotted ancestors from the immediate parent to the root. */
 export function getIncludingPermissions(permissions: readonly string[], id: string): string[] {
   const registered = new Set(permissions);
+  if (!registered.has(id)) return [];
   const result: string[] = [];
   let name = id;
   for (let separator = name.lastIndexOf('.'); separator >= 0; separator = name.lastIndexOf('.')) {

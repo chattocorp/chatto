@@ -311,6 +311,9 @@ func includingPermissions(perm Permission) []Permission {
 }
 
 func includingPermissionsFrom(index map[Permission]PermissionMetadata, perm Permission) []Permission {
+	if _, registered := index[perm]; !registered {
+		return nil
+	}
 	var result []Permission
 	name := string(perm)
 	for {

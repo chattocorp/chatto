@@ -323,6 +323,9 @@ func TestPermissionNamesDefineInclusion(t *testing.T) {
 	if got := includingPermissions(PermMessageRead); len(got) != 0 {
 		t.Fatalf("message.read must not be included by its child: %v", got)
 	}
+	if got := includingPermissions("message.read.unknown"); len(got) != 0 {
+		t.Fatalf("unknown permission must not inherit a registered prefix: %v", got)
+	}
 }
 
 func TestValidatePermissionCatalog(t *testing.T) {
