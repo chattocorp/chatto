@@ -25,8 +25,8 @@ vi.mock('$lib/storage/lastRoom', () => ({
 
 import { load } from './+page';
 
-async function routeLoad() {
-  return load({ params: { serverId: '-' } } as never);
+async function routeLoad(path = 'https://chat.example.test/chat/-') {
+  return load({ params: { serverId: '-' }, url: new URL(path) } as never);
 }
 
 describe('server landing load', () => {
@@ -48,6 +48,13 @@ describe('server landing load', () => {
     await expect(routeLoad()).rejects.toMatchObject({
       status: 302,
       location: '/chat/-/overview'
+    });
+  });
+
+  it('preserves query parameters while redirecting to the server overview', async () => {
+    await expect(routeLoad('https://chat.example.test/chat/-?welcome=true')).rejects.toMatchObject({
+      status: 302,
+      location: '/chat/-/overview?welcome=true'
     });
   });
 });

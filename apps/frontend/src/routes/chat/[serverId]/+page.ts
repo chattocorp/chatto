@@ -5,7 +5,7 @@ import { getLastRoom } from '$lib/storage/lastRoom';
 import type { PageLoad } from './$types';
 
 /** Redirect a server root to its remembered room, or to the server overview. */
-export const load: PageLoad = ({ params }) => {
+export const load: PageLoad = ({ params, url }) => {
   const serverId = segmentToServerId(params.serverId);
   if (!serverId) redirect(302, resolve('/login'));
 
@@ -13,9 +13,12 @@ export const load: PageLoad = ({ params }) => {
   if (lastRoomId) {
     redirect(
       302,
-      resolve('/chat/[serverId]/[roomId]', { serverId: params.serverId, roomId: lastRoomId })
+      `${resolve('/chat/[serverId]/[roomId]', {
+        serverId: params.serverId,
+        roomId: lastRoomId
+      })}${url.search}`
     );
   }
 
-  redirect(302, resolve('/chat/[serverId]/overview', { serverId: params.serverId }));
+  redirect(302, `${resolve('/chat/[serverId]/overview', { serverId: params.serverId })}${url.search}`);
 };
