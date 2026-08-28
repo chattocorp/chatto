@@ -30,6 +30,20 @@ compatibility review and executable tests against all supported stored schemas.
 Do not store these messages in `google.protobuf.Any` or store their protobuf full
 names without a separate decision and migration plan.
 
+Compatibility fixtures are rolling release-boundary tests. They are not a
+permanent archive of every Chatto schema. While Chatto 0.5 is in development,
+the fixtures in
+[`cli/internal/protocompat/testdata`](../../../cli/internal/protocompat/testdata)
+must cover each supported Chatto 0.4 stored schema that can upgrade to 0.5
+without a data migration. Do not rewrite or remove a fixture while that upgrade
+boundary is supported.
+
+After Chatto 0.5 is released and 0.6 development starts, capture the final 0.5
+stored schema as the new compatibility boundary. When direct upgrades from 0.4
+are no longer supported, remove the 0.4-specific fixtures and test mappings.
+Do not keep old release fixtures only for historical completeness. Before an
+agent rotates the fixture set, it must confirm the supported upgrade boundary.
+
 Projection snapshots are rebuildable. A protobuf full-name change selects a new
 snapshot contract and causes a cold EVT replay. Live messages are transient, but
 their changes still need the approval and review rules in
