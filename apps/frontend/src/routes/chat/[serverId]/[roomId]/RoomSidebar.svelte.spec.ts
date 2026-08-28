@@ -1440,6 +1440,7 @@ describe('RoomSidebar', () => {
     expect(searchBlock?.nextElementSibling).toBe(scrollFader);
     expect(searchBlock?.classList).not.toContain('overflow-y-auto');
     expect(memberList?.classList).toContain('overflow-y-auto');
+    expect(q(memberList, 'nav[aria-label="Members"]')).toBeTruthy();
     expect(scrollFader?.querySelector('.bg-gradient-to-b')).toBeTruthy();
     expect(scrollFader?.querySelector('.bg-gradient-to-t')).toBeTruthy();
   });
