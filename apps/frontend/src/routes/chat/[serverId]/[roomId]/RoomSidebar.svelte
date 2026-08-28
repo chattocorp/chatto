@@ -481,6 +481,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           canSendMessage={canStartDMs}
           canBanFromRoom={canRemovePopoverMember}
           banningFromRoom={banningMemberId === popoverMember.id}
+          viewerSettings={serverScope.store.currentUser.user?.settings}
           onSendMessage={() => startDMWith(activeServerId, popoverMember!.id)}
           onBanFromRoom={() => openBanDialog(popoverMember!)}
           onClose={closePopover}

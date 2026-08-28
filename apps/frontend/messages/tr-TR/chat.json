@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Kullanıcı profili",
       "send_message": "Mesaj Gönder",
+      "view_profile": "Profili görüntüle",
       "view_in_admin": "Sunucu yönetiminde görüntüle",
       "copy_user_id": "Kullanıcı kimliğini kopyala"
     },
@@ -67,6 +68,13 @@
       "message_missing": "Mesaj artık kullanılamıyor",
       "in_room": "içinde",
       "in_room_capitalized": "içinde"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Kullanıcı bulunamadı",
+      "bot": "Bot",
+      "local_time": "{time} yerel saat ({zone})"
     }
   }
 }

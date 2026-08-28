@@ -335,11 +335,11 @@ test.describe('App and User Preferences', () => {
     await expect(groups).toHaveCount(3);
     await expect(groups.nth(0)).toContainText('App preferences');
     await expect(groups.nth(1)).toContainText('Your account');
-    await expect(groups.nth(2)).toContainText('Server configuration');
+    await expect(groups.nth(2)).toContainText('Server');
     await expect(page.getByText('Your account', { exact: true })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(page.getByText('Server configuration', { exact: true })).toBeVisible();
+    await expect(page.getByText('Server', { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Appearance' })).toHaveAttribute(
       'href',
       routes.settingsAppearance

@@ -18,7 +18,7 @@ It is not full-disk encryption, end-to-end encryption, or blanket encryption of 
 | Data | Chatto application-layer protection |
 | ---- | ----------------------------------- |
 | Message text | Encrypted with XChaCha20-Poly1305 before it is written to the `EVT` stream. |
-| Login, display name, and verified email in durable user events | Encrypted with a separate user-PII key. |
+| Login, display name, bio, and verified email in durable user events | Encrypted with a separate user-PII key. |
 | Passwords | Never stored directly. Chatto stores bcrypt password hashes; those hashes are not encrypted by this model. |
 | Attachments, avatars, branding, and generated media | Not encrypted by Chatto. The bytes are stored in NATS Object Store or the configured S3-compatible backend. Use storage-level encryption and access controls. |
 | Filenames, content types, message authorship, room and thread IDs, timestamps, reactions, link-preview metadata, custom statuses, preferences, external-identity metadata, and other event metadata | Not encrypted by this model. Access control still applies through Chatto's APIs. |
@@ -51,7 +51,7 @@ Chatto's administrative APIs do not provide a special “read every conversation
 Chatto creates two purpose-specific data-encryption keys (DEKs) for a new account:
 
 1. A **message-body DEK** encrypts message text authored by that user.
-2. A **user-PII DEK** encrypts the user's login, display name, and verified email in durable user events.
+2. A **user-PII DEK** encrypts the user's login, display name, bio, and verified email in durable user events.
 
 Both start at epoch 1. The event stream records each DEK's purpose, epoch, opaque content-key reference, opaque wrapping-key reference, wrapping algorithm, and provider metadata. It does not contain the plaintext DEK.
 
@@ -84,7 +84,7 @@ The surrounding `MessageBodyEvent` is not wholly encrypted. Attachment reference
 
 ### Durable user PII
 
-Login, display name, and verified email values use XChaCha20-Poly1305 with the user's separate PII DEK. Their AAD binds the value to the user, event ID, event type, field name, and DEK epoch.
+Login, display name, bio, and verified email values use XChaCha20-Poly1305 with the user's separate PII DEK. Their AAD binds the value to the user, event ID, event type, field name, and DEK epoch.
 
 The server decrypts these fields while rebuilding its in-memory user projection and lookup indexes. API responses contain the plaintext fields when the caller is authorized to receive them.
 

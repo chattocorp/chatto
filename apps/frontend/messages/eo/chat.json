@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Profilo de uzanto",
       "send_message": "Sendu Mesaĝon",
+      "view_profile": "Vidi profilon",
       "view_in_admin": "Vidi en servila administrado",
       "copy_user_id": "Kopii identigilon de uzanto"
     },
@@ -67,6 +68,13 @@
       "message_missing": "Mesaĝo ne plu havebla",
       "in_room": "en",
       "in_room_capitalized": "En"
+    },
+    "profile": {
+      "title": "Profilo",
+      "fallback_title": "Profilo",
+      "not_found": "Uzanto ne trovita",
+      "bot": "Roboto",
+      "local_time": "Loka tempo {time} ({zone})"
     }
   }
 }

@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Kasutajaprofiil",
       "send_message": "Saada sõnum",
+      "view_profile": "Vaata profiili",
       "view_in_admin": "Vaata serveri halduses",
       "copy_user_id": "Kopeeri kasutaja ID"
     },
@@ -67,6 +68,13 @@
       "message_missing": "Sõnum pole enam saadaval",
       "in_room": "sisse",
       "in_room_capitalized": "sisse"
+    },
+    "profile": {
+      "title": "Profiil",
+      "fallback_title": "Profiil",
+      "not_found": "Kasutajat ei leitud",
+      "bot": "Bot",
+      "local_time": "{time} kohalik aeg ({zone})"
     }
   }
 }

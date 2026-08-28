@@ -70,6 +70,22 @@ export class User extends Message<User> {
    */
   isBot = false;
 
+  /**
+   * Short self-authored biography shown on the user's profile, when set.
+   *
+   * @generated from field: optional string bio = 9;
+   */
+  bio?: string;
+
+  /**
+   * IANA time zone the user shares on their profile (for example
+   * "Europe/Berlin"), when set. Absent means the user has not chosen a
+   * shareable time zone.
+   *
+   * @generated from field: optional string timezone = 10;
+   */
+  timezone?: string;
+
   constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
@@ -86,6 +102,8 @@ export class User extends Message<User> {
     { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
     { no: 8, name: "is_bot", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 9, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 10, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {

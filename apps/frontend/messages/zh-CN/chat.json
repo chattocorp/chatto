@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "用户个人资料",
       "send_message": "发送消息",
+      "view_profile": "查看个人资料",
       "view_in_admin": "在服务器管理中查看",
       "copy_user_id": "复制用户 ID"
     },
@@ -67,6 +68,13 @@
       "message_missing": "消息已不可用",
       "in_room": "位于",
       "in_room_capitalized": "位于"
+    },
+    "profile": {
+      "title": "个人资料",
+      "fallback_title": "个人资料",
+      "not_found": "未找到该用户",
+      "bot": "机器人",
+      "local_time": "当地时间 {time}（{zone}）"
     }
   }
 }

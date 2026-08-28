@@ -11,7 +11,7 @@
       "user_preferences": "Preferências do usuário",
       "app_preferences": "Preferências do aplicativo",
       "your_account": "Sua conta",
-      "server_configuration": "Configuração do servidor"
+      "server_configuration": "Servidor"
     },
     "app_preferences": {
       "title": "Preferências do aplicativo",
@@ -116,7 +116,13 @@
       },
       "saved": "Perfil atualizado com sucesso",
       "save_failed": "Falha ao salvar perfil",
-      "save_button": "Salvar alterações"
+      "save_button": "Salvar alterações",
+      "bio": {
+        "label": "Bio",
+        "description": "Até {max} caracteres, visível no seu perfil.",
+        "placeholder": "Conte um pouco sobre você",
+        "too_long": "A bio deve ter no máximo {max} caracteres."
+      }
     },
     "preferences": {
       "title": "Hora e região",
@@ -418,11 +424,6 @@
       "create_title": "Criar conta de bot",
       "create_failed": "Falha ao criar o bot",
       "created": "Bot criado",
-      "edit": "Editar",
-      "edit_title": "Editar conta do bot",
-      "updated": "Bot atualizado",
-      "update_failed": "Falha ao atualizar o bot",
-      "update_conflict": "Outra pessoa atualizou este bot. Recarregue a página e tente novamente.",
       "username": "Nome de usuário",
       "username_hint": "Os nomes de usuário dos bots devem terminar em _bot.",
       "display_name": "Nome de exibição",

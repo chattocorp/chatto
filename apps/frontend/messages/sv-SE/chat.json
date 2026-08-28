@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Användarprofil",
       "send_message": "Skicka meddelande",
+      "view_profile": "Visa profil",
       "view_in_admin": "Visa i serveradministrationen",
       "copy_user_id": "Kopiera användar-ID"
     },
@@ -67,6 +68,13 @@
       "message_missing": "Meddelandet är inte längre tillgängligt",
       "in_room": "in",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Användaren hittades inte",
+      "bot": "Bot",
+      "local_time": "{time} lokal tid ({zone})"
     }
   }
 }

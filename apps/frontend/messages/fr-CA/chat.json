@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Profil de l'utilisateur",
       "send_message": "Envoyer un message",
+      "view_profile": "Voir le profil",
       "view_in_admin": "Voir dans l’administration du serveur",
       "copy_user_id": "Copier l’identifiant de l’utilisateur"
     },
@@ -67,6 +68,13 @@
       "message_missing": "Le message n'est plus disponible",
       "in_room": "dans",
       "in_room_capitalized": "Dans"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Utilisateur introuvable",
+      "bot": "Bot",
+      "local_time": "Heure locale : {time} ({zone})"
     }
   }
 }

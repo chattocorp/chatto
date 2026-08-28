@@ -725,6 +725,7 @@ Room sidebar panel for voice/video calls.
     user={popoverParticipant.avatarUser}
     anchorRect={popoverAnchorRect}
     canSendMessage={canStartDMs}
+    viewerSettings={serverScope.store.currentUser.user?.settings}
     onSendMessage={() => startDMWith(activeServerId, popoverParticipant!.avatarUser.id)}
     onClose={closeUserMenu}
   />

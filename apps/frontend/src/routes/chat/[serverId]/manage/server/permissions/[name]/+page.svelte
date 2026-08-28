@@ -284,9 +284,13 @@
         {/if}
 
         <!-- Users with this role -->
-        <Panel title={m('admin.permissions.users_with_role')} icon="iconify icon-[uil--users-alt]">
+        <Panel
+          title={m('admin.permissions.users_with_role')}
+          icon="iconify icon-[uil--users-alt]"
+          noPadding
+        >
           {#if role?.name === 'everyone'}
-            <p class="text-muted">{m('admin.permissions.everyone_implicit')}</p>
+            <p class="p-5 text-muted">{m('admin.permissions.everyone_implicit')}</p>
           {:else}
             <UserList
               users={roleUsers}

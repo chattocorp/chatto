@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
       login: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
+      bio: null,
       viewerCanDeleteAccount: true,
       lastLoginChange: null
     },
@@ -65,7 +66,7 @@ function settle() {
     .then(() => flushSync());
 }
 
-function setInputValue(input: HTMLInputElement, value: string) {
+function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
   input.value = value;
   input.dispatchEvent(new Event('input', { bubbles: true }));
   flushSync();
@@ -78,6 +79,7 @@ describe('Profile settings page', () => {
       login: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
+      bio: null,
       viewerCanDeleteAccount: true,
       lastLoginChange: null
     };
@@ -89,7 +91,8 @@ describe('Profile settings page', () => {
         id: 'user-1',
         displayName: input.displayName ?? mocks.currentUser.user!.displayName,
         login: input.login ?? mocks.currentUser.user!.login,
-        avatarUrl: mocks.currentUser.user!.avatarUrl
+        avatarUrl: mocks.currentUser.user!.avatarUrl,
+        bio: input.bio ?? mocks.currentUser.user!.bio
       })
     );
     mocks.uploadAvatar.mockReset();
@@ -136,11 +139,45 @@ describe('Profile settings page', () => {
     await vi.waitFor(() => {
       expect(mocks.updateProfile).toHaveBeenCalledWith({
         displayName: 'Ada Lovelace',
-        login: undefined
+        login: undefined,
+        bio: undefined
       });
     });
     await expect.element(q(container, 'form')).toHaveTextContent('Profile updated successfully');
     await expect.element(displayNameInput).toHaveValue('Ada Lovelace');
+  });
+
+  it('sends a trimmed sparse bio update', async () => {
+    const { container } = render(ProfilePage);
+    await settle();
+
+    const bioInput = q(container, '[data-testid="settings-bio"]') as HTMLTextAreaElement;
+    setInputValue(bioInput, '  I build analytical engines.  ');
+    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.updateProfile).toHaveBeenCalledWith({
+        displayName: undefined,
+        login: undefined,
+        bio: 'I build analytical engines.'
+      });
+    });
+    await expect.element(bioInput).toHaveValue('I build analytical engines.');
+  });
+
+  it('keeps the bio draft when saving fails', async () => {
+    mocks.updateProfile.mockRejectedValue(new Error('Profile changed; reload and try again.'));
+    const { container } = render(ProfilePage);
+    await settle();
+
+    const bioInput = q(container, '[data-testid="settings-bio"]') as HTMLTextAreaElement;
+    setInputValue(bioInput, 'Unsaved profile draft');
+    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
+
+    await expect
+      .element(q(container, 'form'))
+      .toHaveTextContent('Profile changed; reload and try again.');
+    await expect.element(bioInput).toHaveValue('Unsaved profile draft');
   });
 
   it('shows client validation errors without calling the profile mutation', async () => {
@@ -183,7 +220,8 @@ describe('Profile settings page', () => {
     await vi.waitFor(() => {
       expect(mocks.updateProfile).toHaveBeenCalledWith({
         displayName: undefined,
-        login: 'alice2'
+        login: 'alice2',
+        bio: undefined
       });
     });
   });

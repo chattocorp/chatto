@@ -85,15 +85,17 @@ response, telemetry for other credentials stays unspecified. It is not
 reported as unavailable. The bundled frontend keeps its hydrated bot value and
 refetches the bot instead of replacing that value with the partial response.
 
-The lifecycle event field numbers and the EVT subject tokens from the first
-unreleased implementation remain stable. A credential from that implementation
-has no webhook ID in its stored event or URL. Updated servers project it as a
-synthetic legacy credential and continue to accept its two-part URL until it is
-revoked. New credentials use the three-part URL format. Updated servers also
-replay verifier-replacement events that the unreleased implementation wrote,
-but current servers do not write these events. Operators must complete a
-rolling upgrade before they create or revoke credentials. A rollback must use
-a binary that understands the new lifecycle fields after these writes occur.
+The EVT subject tokens from the first unreleased implementation remain stable.
+The create-event wrapper tag changed before release because tag 722 now
+identifies `UserBioChangedEvent`. No released server wrote the old tag. A
+credential from the first implementation has no webhook ID in its stored event
+or URL. Updated servers project it as a synthetic legacy credential and
+continue to accept its two-part URL until it is revoked. New credentials use
+the three-part URL format. Updated servers also replay verifier-replacement
+events that the unreleased implementation wrote, but current servers do not
+write these events. Operators must complete a rolling upgrade before they
+create or revoke credentials. A rollback must use a binary that understands
+the new lifecycle fields after these writes occur.
 
 ## Consequences
 

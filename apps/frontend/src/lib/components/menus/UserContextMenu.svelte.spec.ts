@@ -1,4 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
@@ -6,6 +7,12 @@ import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import UserContextMenu from './UserContextMenu.svelte';
 
+const liveProfileState = { bio: null as string | null, timezone: null as string | null };
+const viewerSettingsState = {
+  timezone: 'Europe/Berlin',
+  timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+};
+vi.mock('$app/state', () => ({ page: { params: { serverId: '-' } } }));
 const serverScopeMock = vi.hoisted(() => ({
   serverId: 'server-1',
   permissions: {
@@ -26,6 +33,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveBio: (_userId: string, fallback: string | null) => liveProfileState.bio ?? fallback,
+  getLiveTimezone: (_userId: string, fallback: string | null) =>
+    liveProfileState.timezone ?? fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveLogin: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
@@ -71,6 +81,7 @@ function renderMenu(props: Record<string, unknown> = {}) {
     props: {
       user,
       anchorRect: { top: 10, bottom: 30, left: 20 },
+      viewerSettings: viewerSettingsState,
       onClose: vi.fn(),
       ...props
     }
@@ -89,12 +100,16 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   serverScopeMock.serverId = 'server-1';
   serverScopeMock.permissions.loaded = true;
   serverScopeMock.permissions.canAdminViewUsers = false;
   toast.clear();
   writeClipboardText.mockReset();
   writeClipboardText.mockResolvedValue(undefined);
+  liveProfileState.bio = null;
+  liveProfileState.timezone = null;
+  viewerSettingsState.timeFormat = TimeFormat.TIME_FORMAT_24_HOUR;
   Object.defineProperty(navigator, 'clipboard', {
     value: { writeText: writeClipboardText },
     configurable: true
@@ -108,6 +123,53 @@ describe('UserContextMenu', () => {
     await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
     expect(container.textContent).toContain('Alice Example');
     expect(container.textContent).toContain('@alice');
+  });
+
+  it('shows a bio and local time when the user shares them', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2025-04-27T14:30:00Z'));
+    liveProfileState.bio = 'I build chat software.';
+    liveProfileState.timezone = 'Europe/Berlin';
+    const { container } = renderMenu();
+    const dialog = q(container, '[role="dialog"]');
+
+    expect(q(dialog ?? document.body, '[data-testid="user-bio"]')?.textContent).toBe(
+      'I build chat software.'
+    );
+    expect(dialog?.textContent).toContain('Europe/Berlin');
+    expect(dialog?.textContent).toContain('16:30');
+  });
+
+  it('uses the viewer preferred 12-hour format for another user local time', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2025-04-27T14:30:00Z'));
+    viewerSettingsState.timeFormat = TimeFormat.TIME_FORMAT_12_HOUR;
+    liveProfileState.timezone = 'Europe/Berlin';
+    const { container } = renderMenu();
+
+    expect(q(container, '[role="dialog"]')?.textContent).toMatch(/04:30\s*pm/i);
+  });
+
+  it('uses profile fields from the supplied user before a live update arrives', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2025-04-27T14:30:00Z'));
+    const { container } = renderMenu({
+      user: {
+        ...user,
+        bio: 'Cached profile bio',
+        timezone: 'Europe/Berlin'
+      }
+    });
+
+    expect(q(container, '[role="dialog"]')?.textContent).toContain('Cached profile bio');
+    expect(q(container, '[role="dialog"]')?.textContent).toContain('Europe/Berlin');
+    expect(q(container, '[role="dialog"]')?.textContent).toContain('16:30');
+  });
+
+  it('renders the profile action as an ordinary link', () => {
+    const onClose = vi.fn();
+    const { container } = renderMenu({ onClose });
+    const link = q(container, 'a[href="/chat/-/users/user-1"]') as HTMLAnchorElement;
+
+    expect(link.getAttribute('href')).toBe('/chat/-/users/user-1');
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('renders custom status as its own profile line', async () => {
@@ -185,7 +247,12 @@ describe('UserContextMenu', () => {
 
     expect(sections).toHaveLength(3);
     expect(sections[0]?.textContent).toContain('Alice Example');
-    expect(actionLabels).toEqual(['Send Message', 'View in Server Admin', 'Ban from room']);
+    expect(actionLabels).toEqual([
+      'Send Message',
+      'View profile',
+      'View in Server Admin',
+      'Ban from room'
+    ]);
     expect(sections[2]?.textContent).toContain('Copy User ID');
     expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);
     expect(sections[1]?.parentElement).toBe(sections[2]?.parentElement);

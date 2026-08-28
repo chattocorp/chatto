@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "Профиль пользователя",
       "send_message": "Отправить сообщение",
+      "view_profile": "Открыть профиль",
       "view_in_admin": "Открыть в администрировании сервера",
       "copy_user_id": "Скопировать ID пользователя"
     },
@@ -67,6 +68,13 @@
       "message_missing": "Сообщение больше не доступно",
       "in_room": "в",
       "in_room_capitalized": "В"
+    },
+    "profile": {
+      "title": "Профиль",
+      "fallback_title": "Профиль",
+      "not_found": "Пользователь не найден",
+      "bot": "Бот",
+      "local_time": "{time} местное время ({zone})"
     }
   }
 }

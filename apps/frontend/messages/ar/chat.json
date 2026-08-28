@@ -40,6 +40,7 @@
     "user_menu": {
       "profile": "الملف الشخصي للمستخدم",
       "send_message": "أرسل رسالة",
+      "view_profile": "عرض الملف الشخصي",
       "view_in_admin": "عرض في إدارة الخادم",
       "copy_user_id": "نسخ معرّف المستخدم"
     },
@@ -67,6 +68,13 @@
       "message_missing": "لم تعد الرسالة متاحة",
       "in_room": "في",
       "in_room_capitalized": "في"
+    },
+    "profile": {
+      "title": "الملف الشخصي",
+      "fallback_title": "الملف الشخصي",
+      "not_found": "لم يتم العثور على المستخدم",
+      "bot": "روبوت",
+      "local_time": "{time} بالتوقيت المحلي ({zone})"
     }
   }
 }

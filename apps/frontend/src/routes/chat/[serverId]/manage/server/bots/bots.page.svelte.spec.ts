@@ -23,6 +23,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'server-1',
     store: {
       serverInfo: { supportsFeature: () => true },
+      currentUser: { user: { settings: null } },
       projection: { viewer: {} }
     },
     connection: {
@@ -81,6 +82,8 @@ describe('Bot administration page', () => {
           login: 'helper_bot',
           displayName: 'Helper Bot',
           avatarUrl: null,
+          bio: 'Build helper',
+          timezone: null,
           ownerUserId: 'owner-user-id',
           createdAt: null,
           apiKeyCreatedAt: null,

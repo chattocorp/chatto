@@ -425,8 +425,11 @@ type User struct {
 	IsBot bool `protobuf:"varint,7,opt,name=is_bot,json=isBot,proto3" json:"is_bot,omitempty"`
 	// Human owner of this bot. Empty for human accounts.
 	BotOwnerUserId string `protobuf:"bytes,8,opt,name=bot_owner_user_id,json=botOwnerUserId,proto3" json:"bot_owner_user_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Current public bio, hydrated at read boundaries from encrypted projected
+	// state. Never persisted in plaintext here.
+	Bio           string `protobuf:"bytes,9,opt,name=bio,proto3" json:"bio,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *User) Reset() {
@@ -511,6 +514,13 @@ func (x *User) GetIsBot() bool {
 func (x *User) GetBotOwnerUserId() string {
 	if x != nil {
 		return x.BotOwnerUserId
+	}
+	return ""
+}
+
+func (x *User) GetBio() string {
+	if x != nil {
+		return x.Bio
 	}
 	return ""
 }
@@ -2774,7 +2784,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\tuniversal\x18\t \x01(\bR\tuniversal\x12*\n" +
 	"\x11slow_mode_seconds\x18\n" +
 	" \x01(\rR\x0fslowModeSeconds\x12H\n" +
-	"\x0ethreading_mode\x18\v \x01(\x0e2!.chatto.core.v1.RoomThreadingModeR\rthreadingModeJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xad\x02\n" +
+	"\x0ethreading_mode\x18\v \x01(\x0e2!.chatto.core.v1.RoomThreadingModeR\rthreadingModeJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xbf\x02\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -2784,7 +2794,8 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\adeleted\x18\x05 \x01(\bR\adeleted\x12E\n" +
 	"\rcustom_status\x18\x06 \x01(\v2 .chatto.core.v1.CustomUserStatusR\fcustomStatus\x12\x15\n" +
 	"\x06is_bot\x18\a \x01(\bR\x05isBot\x12)\n" +
-	"\x11bot_owner_user_id\x18\b \x01(\tR\x0ebotOwnerUserId\"w\n" +
+	"\x11bot_owner_user_id\x18\b \x01(\tR\x0ebotOwnerUserId\x12\x10\n" +
+	"\x03bio\x18\t \x01(\tR\x03bio\"w\n" +
 	"\x10CustomUserStatus\x12\x14\n" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x129\n" +

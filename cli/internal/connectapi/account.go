@@ -19,8 +19,8 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, err
 	}
-	if req.Msg.DisplayName == nil && req.Msg.Login == nil {
-		return nil, invalidArgument("at least one of display_name or login must be provided")
+	if req.Msg.DisplayName == nil && req.Msg.Login == nil && req.Msg.Bio == nil {
+		return nil, invalidArgument("at least one of display_name, login, or bio must be provided")
 	}
 
 	var updated *corev1.User
@@ -32,6 +32,12 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 	}
 	if req.Msg.Login != nil {
 		updated, err = s.api.core.UpdateUserLogin(ctx, caller.UserID, req.Msg.GetLogin())
+		if err != nil {
+			return nil, connectError(err)
+		}
+	}
+	if req.Msg.Bio != nil {
+		updated, err = s.api.core.UpdateUserBio(ctx, caller.UserID, req.Msg.GetBio())
 		if err != nil {
 			return nil, connectError(err)
 		}
