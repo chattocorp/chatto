@@ -12,53 +12,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 700-722: durable user aggregate events on evt.user.{userId}.*
-//
-// This file also retains deprecated live-only messages in their original file
-// for generated-source compatibility. New live-only messages belong in
-// live_events.proto.
 // ============================================================================
-
-// Deprecated: UserCreatedEvent is retained in its original source file for
-// generated-source compatibility. LiveEvent uses UserCreatedSyncEvent.
-message UserCreatedEvent {
-  option deprecated = true;
-
-  string user_id = 1;
-  string login = 2;
-  string display_name = 3;
-}
-
-// Deprecated: UserDeletedEvent is retained for the deprecated LiveEvent field.
-// Current deletion delivery uses SessionTerminatedEvent for the deleted user's
-// clients and ServerMemberDeletedEvent for server-wide invalidation.
-message UserDeletedEvent {
-  option deprecated = true;
-
-  string user_id = 1;
-}
-
-// Deprecated: UserProfileUpdatedEvent is retained in its original source file
-// for generated-source compatibility. LiveEvent uses UserProfileSyncEvent.
-message UserProfileUpdatedEvent {
-  option deprecated = true;
-
-  string user_id = 1;
-  string display_name = 2;
-  string avatar_url = 3;
-  string login = 4;
-  string bio = 5;
-  string timezone = 6;
-}
-
-// Deprecated: ServerUserPreferencesUpdatedEvent is retained in its original
-// source file for generated-source compatibility. LiveEvent uses
-// ServerUserPreferencesSyncEvent.
-message ServerUserPreferencesUpdatedEvent {
-  option deprecated = true;
-
-  string timezone = 1;
-  TimeFormat time_format = 2;
-}
 
 // ============================================================================
 // DURABLE USER EVENTS (evt.user.{userId})

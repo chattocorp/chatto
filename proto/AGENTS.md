@@ -32,11 +32,11 @@ For public API packages:
 - Put new durable `Event` payloads in the applicable domain `*_events.proto`
   file. Put new payloads that are used only by `LiveEvent` in
   `chatto/core/v1/live_events.proto`.
-- Protobuf file placement affects generated-source compatibility. Do not move
-  an existing symbol to a different file only to reorganize it. Keep a
-  deprecated symbol in its original file, and define an active replacement in
-  the correct file when necessary. Do not create a general `deprecated.proto`
-  file.
+- Protobuf file placement affects generated source code. Never move a persisted
+  symbol only to reorganize it. A transient symbol that is in the wrong file
+  can move as an approved source-breaking change. Do not keep a dead alias only
+  for generated-source compatibility, and do not create a general
+  `deprecated.proto` file.
 - The public auth, discovery, integration, admin, and realtime `v1` packages
   are experimental while Chatto is pre-1.0. Prefer compatibility. A breaking
   change requires explicit user approval, a design benefit, a compatibility
