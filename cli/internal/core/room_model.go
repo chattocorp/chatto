@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -95,7 +95,7 @@ func (m *RoomModel) waitForTimelineAndThreads(ctx context.Context, pos events.St
 	)
 }
 
-func (m *RoomModel) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPosition, event *corev1.Event) error {
+func (m *RoomModel) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPosition, event *evtv1.Event) error {
 	if err := m.waitForTimeline(ctx, pos); err != nil {
 		return err
 	}
@@ -117,11 +117,11 @@ func (m *RoomModel) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPo
 	return nil
 }
 
-func (m *RoomModel) room(roomID string) (*corev1.Room, bool) {
+func (m *RoomModel) room(roomID string) (*evtv1.Room, bool) {
 	return m.directory.Projection().Catalog.Get(roomID)
 }
 
-func (m *RoomModel) roomsByKind(kind corev1.RoomKind) []*corev1.Room {
+func (m *RoomModel) roomsByKind(kind evtv1.RoomKind) []*evtv1.Room {
 	return m.directory.Projection().Catalog.AllByKind(kind)
 }
 
@@ -145,7 +145,7 @@ func (m *RoomModel) explicitRoomMemberIDs(roomID string) []string {
 	return m.directory.Projection().Membership.Members(roomID)
 }
 
-func (m *RoomModel) roomGroup(groupID string) (*corev1.RoomGroup, bool) {
+func (m *RoomModel) roomGroup(groupID string) (*evtv1.RoomGroup, bool) {
 	return m.groupLayout.Projection().Groups.Get(groupID)
 }
 
@@ -153,7 +153,7 @@ func (m *RoomModel) roomGroupSnapshot(groupID string) RoomGroupSnapshot {
 	return m.groupLayout.Projection().Groups.Snapshot(groupID)
 }
 
-func (m *RoomModel) roomGroups() []*corev1.RoomGroup {
+func (m *RoomModel) roomGroups() []*evtv1.RoomGroup {
 	return m.groupLayout.Projection().Groups.All()
 }
 
@@ -212,7 +212,7 @@ func (m *RoomModel) timelineEntry(eventID string) (*TimelineEntry, bool) {
 	return m.timeline.Projection().Get(eventID)
 }
 
-func (m *RoomModel) latestBody(eventID string) (*corev1.MessageBody, bool, bool) {
+func (m *RoomModel) latestBody(eventID string) (*evtv1.MessageBody, bool, bool) {
 	return m.timeline.Projection().LatestBody(eventID)
 }
 
@@ -272,7 +272,7 @@ func (m *RoomModel) messageTombstoned(eventID string) bool {
 	return m.timeline.Projection().MessageTombstoned(eventID)
 }
 
-func (m *RoomModel) lastVisibleRoomEntry(roomID string, visible func(*corev1.Event) bool) (*TimelineEntry, bool) {
+func (m *RoomModel) lastVisibleRoomEntry(roomID string, visible func(*evtv1.Event) bool) (*TimelineEntry, bool) {
 	return m.timeline.Projection().LastVisibleRoomEntry(roomID, visible)
 }
 
@@ -284,7 +284,7 @@ func (m *RoomModel) latestOriginalPostAt(roomID, actorID string) (time.Time, boo
 	return m.timeline.Projection().LatestOriginalPostAt(roomID, actorID)
 }
 
-func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
+func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*evtv1.Event) bool) []*TimelineEntry {
 	return m.timeline.Projection().VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
 }
 
@@ -292,11 +292,11 @@ func (m *RoomModel) roomEventCount(roomID string) int {
 	return m.timeline.Projection().RoomEventCount(roomID)
 }
 
-func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
+func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*evtv1.Event) bool) []*TimelineEntry {
 	return m.timeline.Projection().VisibleRoomTimelineAfter(roomID, limit, afterStreamSeq, visible)
 }
 
-func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int, visible func(*corev1.Event) bool) ([]*TimelineEntry, int, bool, bool, bool) {
+func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int, visible func(*evtv1.Event) bool) ([]*TimelineEntry, int, bool, bool, bool) {
 	return m.timeline.Projection().VisibleRoomTimelineAround(roomID, eventID, limit, visible)
 }
 
@@ -363,7 +363,7 @@ func (m *RoomModel) reactionMutationSnapshot(roomID, messageEventID, emoji, user
 	return m.reactions.Projection().ReactionMutationSnapshot(roomID, messageEventID, emoji, userID)
 }
 
-func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *evtv1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
@@ -376,7 +376,7 @@ func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *evtstrea
 	return pos, nil
 }
 
-func (m *RoomModel) appendGroupLayout(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendGroupLayout(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *evtv1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.Append(ctx, subject, event)
 	if err != nil {
@@ -389,7 +389,7 @@ func (m *RoomModel) appendGroupLayout(ctx context.Context, pub *evtstream.Publis
 	return pos, nil
 }
 
-func (m *RoomModel) appendGroupLayoutEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendGroupLayoutEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *evtv1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
@@ -402,7 +402,7 @@ func (m *RoomModel) appendGroupLayoutEventually(ctx context.Context, pub *evtstr
 	return pos, nil
 }
 
-func (m *RoomModel) appendTimelineEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendTimelineEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *evtv1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {

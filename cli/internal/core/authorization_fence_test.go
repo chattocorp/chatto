@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestAuthorizedGroupMutationRechecksAfterPermissionRevocation(t *testing.T) {
@@ -23,8 +23,8 @@ func TestAuthorizedGroupMutationRechecksAfterPermissionRevocation(t *testing.T) 
 		t.Fatalf("ListRoomGroupsOrdered groups=%d err=%v", len(groups), err)
 	}
 	group := groups[0]
-	event := newEvent(actor.Id, &corev1.Event{Event: &corev1.Event_RoomGroupUpdated{
-		RoomGroupUpdated: &corev1.RoomGroupUpdatedEvent{
+	event := newEvent(actor.Id, &evtv1.Event{Event: &evtv1.Event_RoomGroupUpdated{
+		RoomGroupUpdated: &evtv1.RoomGroupUpdatedEvent{
 			GroupId:     group.GetId(),
 			Name:        "must-not-commit",
 			Description: group.GetDescription(),

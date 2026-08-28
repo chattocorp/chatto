@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type voiceCallService struct {
@@ -131,7 +131,7 @@ func (s *voiceCallService) JoinCall(ctx context.Context, req *connect.Request[ap
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.JoinCallResponse{}), nil
 	}
-	if err := s.api.core.RecordCallParticipantJoined(ctx, req.Msg.GetRoomId(), caller.UserID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.api.core.RecordCallParticipantJoined(ctx, req.Msg.GetRoomId(), caller.UserID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.JoinCallResponse{Joined: true}), nil
@@ -257,7 +257,7 @@ func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[a
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.LeaveCallResponse{}), nil
 	}
-	if err := s.api.core.RecordCallParticipantLeft(ctx, req.Msg.GetRoomId(), caller.UserID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.api.core.RecordCallParticipantLeft(ctx, req.Msg.GetRoomId(), caller.UserID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.LeaveCallResponse{Left: true}), nil

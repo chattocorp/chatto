@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -53,7 +53,7 @@ func (p *ReactionProjection) Subjects() []string {
 	return []string{evtstream.RoomSubjectFilter()}
 }
 
-func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *ReactionProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -70,7 +70,7 @@ func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {
 
 	payload := event.GetEvent()
 	switch payload.(type) {
-	case *corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
+	case *evtv1.Event_ReactionAdded, *evtv1.Event_ReactionRemoved:
 	default:
 		return nil
 	}
@@ -80,9 +80,9 @@ func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	switch e := payload.(type) {
-	case *corev1.Event_ReactionAdded:
+	case *evtv1.Event_ReactionAdded:
 		p.applyAdded(e.ReactionAdded, event.GetActorId(), eventCreatedNanos(event), event.GetId())
-	case *corev1.Event_ReactionRemoved:
+	case *evtv1.Event_ReactionRemoved:
 		p.applyRemoved(e.ReactionRemoved, event.GetActorId())
 	}
 	return nil
@@ -94,29 +94,29 @@ func (p *ReactionProjection) CompleteStartupReplay() {
 	p.replayGuard.completeReplay()
 }
 
-func (p *ReactionProjection) roomSeqIDLocked(event *corev1.Event) string {
+func (p *ReactionProjection) roomSeqIDLocked(event *evtv1.Event) string {
 	if roomID := roomIDOfEvent(event); roomID != "" {
 		return roomID
 	}
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_AssetCreated:
+	case *evtv1.Event_AssetCreated:
 		return assetCreatedRoomID(e.AssetCreated)
-	case *corev1.Event_AssetProcessingStarted:
+	case *evtv1.Event_AssetProcessingStarted:
 		if roomID := p.messageRoom[e.AssetProcessingStarted.GetMessageEventId()]; roomID != "" {
 			return roomID
 		}
 		return p.assetRoom[e.AssetProcessingStarted.GetAssetId()]
-	case *corev1.Event_AssetProcessingSucceeded:
+	case *evtv1.Event_AssetProcessingSucceeded:
 		if roomID := p.messageRoom[e.AssetProcessingSucceeded.GetMessageEventId()]; roomID != "" {
 			return roomID
 		}
 		return p.assetRoom[e.AssetProcessingSucceeded.GetAssetId()]
-	case *corev1.Event_AssetProcessingFailed:
+	case *evtv1.Event_AssetProcessingFailed:
 		if roomID := p.messageRoom[e.AssetProcessingFailed.GetMessageEventId()]; roomID != "" {
 			return roomID
 		}
 		return p.assetRoom[e.AssetProcessingFailed.GetAssetId()]
-	case *corev1.Event_AssetDeleted:
+	case *evtv1.Event_AssetDeleted:
 		return p.assetRoom[e.AssetDeleted.GetAssetId()]
 	default:
 		return ""
@@ -129,28 +129,28 @@ func (p *ReactionProjection) noteRoomSeqLocked(roomID string, seq uint64) {
 	}
 }
 
-func (p *ReactionProjection) noteRoomOwnershipLocked(event *corev1.Event, roomID string) {
+func (p *ReactionProjection) noteRoomOwnershipLocked(event *evtv1.Event, roomID string) {
 	if roomID == "" {
 		return
 	}
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		if event.GetId() != "" {
 			p.messageRoom[event.GetId()] = roomID
 			if originalID := e.MessagePosted.GetEchoOfEventId(); originalID != "" {
 				p.echoOriginal[event.GetId()] = originalID
 			}
 		}
-	case *corev1.Event_AssetCreated:
+	case *evtv1.Event_AssetCreated:
 		if assetID := e.AssetCreated.GetAsset().GetId(); assetID != "" {
 			p.assetRoom[assetID] = roomID
 		}
-	case *corev1.Event_AssetDeleted:
+	case *evtv1.Event_AssetDeleted:
 		delete(p.assetRoom, e.AssetDeleted.GetAssetId())
 	}
 }
 
-func (p *ReactionProjection) applyAdded(e *corev1.ReactionAddedEvent, userID string, nanos int64, sourceEventID string) {
+func (p *ReactionProjection) applyAdded(e *evtv1.ReactionAddedEvent, userID string, nanos int64, sourceEventID string) {
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
@@ -170,7 +170,7 @@ func (p *ReactionProjection) applyAdded(e *corev1.ReactionAddedEvent, userID str
 	}
 }
 
-func (p *ReactionProjection) applyRemoved(e *corev1.ReactionRemovedEvent, userID string) {
+func (p *ReactionProjection) applyRemoved(e *evtv1.ReactionRemovedEvent, userID string) {
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
@@ -199,7 +199,7 @@ func (p *ReactionProjection) canonicalMessageEventIDLocked(messageEventID string
 	return messageEventID
 }
 
-func eventCreatedNanos(event *corev1.Event) int64 {
+func eventCreatedNanos(event *evtv1.Event) int64 {
 	if ts := event.GetCreatedAt(); ts != nil {
 		return ts.AsTime().UnixNano()
 	}

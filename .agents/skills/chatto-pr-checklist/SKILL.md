@@ -38,8 +38,8 @@ Call out compatibility, rollout, migration, security, or operational implication
 - Breaking public API changes require the `api-breaking-change` label, an
   explicit design benefit and compatibility plan, generated client/docs
   updates, migration guidance, and release-note coverage.
-- Persisted `chatto.core.v1` changes must remain non-breaking even when a
-  public API break is accepted.
+- Persisted internal protobuf changes under `chatto.core` must remain
+  non-breaking even when a public API break is accepted.
 - If this PR contains any other changes that you feel might be a breaking change, please notify the user.
 - Please make sure that the PR uses Conventional Commit syntax, and PRs that ship breaking changes are marked accordingly.
 

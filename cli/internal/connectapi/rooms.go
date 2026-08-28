@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type roomService struct {
@@ -53,7 +53,7 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		return nil, err
 	}
 
-	var threadingMode *corev1.RoomThreadingMode
+	var threadingMode *evtv1.RoomThreadingMode
 	if req.Msg.ThreadingMode != nil {
 		value, conversionErr := coreRoomThreadingMode(*req.Msg.ThreadingMode, false)
 		if conversionErr != nil {
@@ -357,7 +357,7 @@ func (s *roomService) apiRoomBan(ctx context.Context, ban core.RoomBan) (*apiv1.
 	return out, nil
 }
 
-func apiRoom(room *corev1.Room) *apiv1.Room {
+func apiRoom(room *evtv1.Room) *apiv1.Room {
 	if room == nil {
 		return nil
 	}
@@ -374,51 +374,51 @@ func apiRoom(room *corev1.Room) *apiv1.Room {
 	}
 }
 
-func coreRoomThreadingMode(mode apiv1.RoomThreadingMode, allowUnspecified bool) (corev1.RoomThreadingMode, error) {
+func coreRoomThreadingMode(mode apiv1.RoomThreadingMode, allowUnspecified bool) (evtv1.RoomThreadingMode, error) {
 	switch mode {
 	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED:
 		if allowUnspecified {
-			return corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED, nil
+			return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED, nil
 		}
 	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
-		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED, nil
+		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED, nil
 	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED:
-		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED, nil
+		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED, nil
 	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED:
-		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED, nil
+		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED, nil
 	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
-		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED, nil
+		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED, nil
 	}
-	return corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED, fmt.Errorf("%w: invalid room threading mode", core.ErrInvalidArgument)
+	return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED, fmt.Errorf("%w: invalid room threading mode", core.ErrInvalidArgument)
 }
 
-func apiRoomThreadingMode(room *corev1.Room) apiv1.RoomThreadingMode {
+func apiRoomThreadingMode(room *evtv1.Room) apiv1.RoomThreadingMode {
 	return apiRoomThreadingModeValue(core.EffectiveRoomThreadingMode(room))
 }
 
-func apiRoomThreadingModeValue(mode corev1.RoomThreadingMode) apiv1.RoomThreadingMode {
+func apiRoomThreadingModeValue(mode evtv1.RoomThreadingMode) apiv1.RoomThreadingMode {
 	switch mode {
-	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
+	case evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
 		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED
-	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED:
+	case evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED:
 		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED
-	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED:
+	case evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED:
 		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED
-	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
+	case evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
 		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED
 	default:
 		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
 	}
 }
 
-func apiRoomThreadingModeChangeValue(mode corev1.RoomThreadingMode) apiv1.RoomThreadingMode {
+func apiRoomThreadingModeChangeValue(mode evtv1.RoomThreadingMode) apiv1.RoomThreadingMode {
 	if !core.IsValidRoomThreadingMode(mode) {
 		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED
 	}
 	return apiRoomThreadingModeValue(mode)
 }
 
-func apiRoomSummary(room *corev1.Room) *apiv1.RoomSummary {
+func apiRoomSummary(room *evtv1.Room) *apiv1.RoomSummary {
 	if room == nil {
 		return nil
 	}
@@ -429,11 +429,11 @@ func apiRoomSummary(room *corev1.Room) *apiv1.RoomSummary {
 	}
 }
 
-func apiRoomKind(kind corev1.RoomKind) apiv1.RoomKind {
+func apiRoomKind(kind evtv1.RoomKind) apiv1.RoomKind {
 	switch kind {
-	case corev1.RoomKind_ROOM_KIND_CHANNEL:
+	case evtv1.RoomKind_ROOM_KIND_CHANNEL:
 		return apiv1.RoomKind_ROOM_KIND_CHANNEL
-	case corev1.RoomKind_ROOM_KIND_DM:
+	case evtv1.RoomKind_ROOM_KIND_DM:
 		return apiv1.RoomKind_ROOM_KIND_DM
 	default:
 		return apiv1.RoomKind_ROOM_KIND_UNSPECIFIED

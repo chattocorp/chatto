@@ -30,8 +30,8 @@ Do not duplicate or reinterpret ADR-045 inside review output.
 - Bundled web-client capability and version-skew handling
 
 Review `chatto.operator.v1` separately as a root-equivalent local API. Treat
-persisted `chatto.core.v1` messages as non-breaking storage contracts, not as
-experimental public APIs.
+persisted internal messages under `chatto.core` as non-breaking storage
+contracts, not as experimental public APIs.
 
 ## Workflow
 

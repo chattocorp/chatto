@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -86,7 +86,7 @@ func (m *UserModel) keyShreddingRequested(userID string) bool {
 
 // activeContentKey returns the newest projected DEK for a purpose. The
 // projection preserves compatibility with legacy purpose-unspecified DEKs.
-func (m *UserModel) activeContentKey(userID string, purpose corev1.UserDEKPurpose) (*corev1.UserDEKGeneratedEvent, bool, error) {
+func (m *UserModel) activeContentKey(userID string, purpose evtv1.UserDEKPurpose) (*evtv1.UserDEKGeneratedEvent, bool, error) {
 	if m.contentKeys.Projection() == nil {
 		return nil, false, errContentKeyProjectionUnavailable
 	}
@@ -96,7 +96,7 @@ func (m *UserModel) activeContentKey(userID string, purpose corev1.UserDEKPurpos
 
 // contentKeyAtEpoch returns a projected DEK at an exact epoch. The projection
 // preserves compatibility with legacy purpose-unspecified DEKs.
-func (m *UserModel) contentKeyAtEpoch(userID string, purpose corev1.UserDEKPurpose, epoch int32) (*corev1.UserDEKGeneratedEvent, bool, error) {
+func (m *UserModel) contentKeyAtEpoch(userID string, purpose evtv1.UserDEKPurpose, epoch int32) (*evtv1.UserDEKGeneratedEvent, bool, error) {
 	if m.contentKeys.Projection() == nil {
 		return nil, false, errContentKeyProjectionUnavailable
 	}
@@ -104,27 +104,27 @@ func (m *UserModel) contentKeyAtEpoch(userID string, purpose corev1.UserDEKPurpo
 	return event, ok, nil
 }
 
-func (m *UserModel) user(ctx context.Context, userID string) (*corev1.User, bool, error) {
+func (m *UserModel) user(ctx context.Context, userID string) (*evtv1.User, bool, error) {
 	return m.users.Projection().GetContext(ctx, userID)
 }
 
-func (m *UserModel) userReference(ctx context.Context, userID string) (*corev1.User, bool, error) {
+func (m *UserModel) userReference(ctx context.Context, userID string) (*evtv1.User, bool, error) {
 	return m.users.Projection().GetReferenceContext(ctx, userID)
 }
 
-func (m *UserModel) userReferences(ctx context.Context, userIDs []string) ([]*corev1.User, error) {
+func (m *UserModel) userReferences(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
 	return m.users.Projection().GetReferencesContext(ctx, userIDs)
 }
 
-func (m *UserModel) userByLogin(ctx context.Context, login string) (*corev1.User, bool, error) {
+func (m *UserModel) userByLogin(ctx context.Context, login string) (*evtv1.User, bool, error) {
 	return m.users.Projection().GetByLoginContext(ctx, login)
 }
 
-func (m *UserModel) userByEmail(ctx context.Context, email string) (*corev1.User, bool, error) {
+func (m *UserModel) userByEmail(ctx context.Context, email string) (*evtv1.User, bool, error) {
 	return m.users.Projection().GetByEmailContext(ctx, email)
 }
 
-func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject string) (*corev1.User, bool, error) {
+func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject string) (*evtv1.User, bool, error) {
 	userID, ok := m.auth.Projection().ExternalIdentityOwnerID(issuer, subject)
 	if !ok {
 		return nil, false, nil
@@ -132,7 +132,7 @@ func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject 
 	return m.users.Projection().GetContext(ctx, userID)
 }
 
-func (m *UserModel) userByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*corev1.User, uint64, bool, error) {
+func (m *UserModel) userByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*evtv1.User, uint64, bool, error) {
 	userID, authGeneration, ok := m.auth.Projection().ExternalIdentityAuthentication(issuer, subject)
 	if !ok {
 		return nil, 0, false, nil
@@ -186,7 +186,7 @@ func (m *UserModel) botIncomingWebhookCredentials(userID string) []BotIncomingWe
 	return m.auth.Projection().BotIncomingWebhookCredentials(userID)
 }
 
-func (m *UserModel) avatar(userID string) (*corev1.AssetRecord, bool) {
+func (m *UserModel) avatar(userID string) (*evtv1.AssetRecord, bool) {
 	return m.users.Projection().Avatar(userID)
 }
 
@@ -217,7 +217,7 @@ func (m *UserModel) loginChangedAt(userID string) time.Time {
 	return m.users.Projection().LoginChangedAt(userID)
 }
 
-func (m *UserModel) allUsers(ctx context.Context) ([]*corev1.User, error) {
+func (m *UserModel) allUsers(ctx context.Context) ([]*evtv1.User, error) {
 	return m.users.Projection().UsersContext(ctx)
 }
 

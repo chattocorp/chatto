@@ -9,7 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -30,7 +30,7 @@ type OAuthClientAuthorization struct {
 	ClientName     string
 	ClientOrigin   string
 	RedirectOrigin string
-	Source         corev1.OAuthClientSource
+	Source         evtv1.OAuthClientSource
 }
 
 func newOAuthClientModel(projection events.ProjectionHandle[*OAuthClientProjection]) *OAuthClientModel {
@@ -59,15 +59,15 @@ func (c *ChattoCore) oauthClientAccessDenied(clientID string) bool {
 	return ok && oauthClientPolicyDeniesAccess(state.Policy)
 }
 
-func oauthClientPolicyDeniesAccess(policy corev1.OAuthClientPolicy) bool {
-	return policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT &&
-		policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED
+func oauthClientPolicyDeniesAccess(policy evtv1.OAuthClientPolicy) bool {
+	return policy != evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT &&
+		policy != evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED
 }
 
-func oauthClientPolicySupported(policy corev1.OAuthClientPolicy) bool {
-	return policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT ||
-		policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED ||
-		policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
+func oauthClientPolicySupported(policy evtv1.OAuthClientPolicy) bool {
+	return policy == evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT ||
+		policy == evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED ||
+		policy == evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
 }
 
 // WatchOAuthClientAccessDenied returns a process-local notification backed by
@@ -117,7 +117,7 @@ func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, aut
 // RecordOAuthClientAuthorization records one successful user authorization.
 // Every authorization advances the durable last-authorization timestamp; the
 // projection de-duplicates callback origins and authorizing users.
-func (c *ChattoCore) RecordOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientOrigin, redirectOrigin string, source corev1.OAuthClientSource) error {
+func (c *ChattoCore) RecordOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientOrigin, redirectOrigin string, source evtv1.OAuthClientSource) error {
 	position, err := c.appendOAuthClientAuthorization(ctx, actorID, clientID, clientName, clientOrigin, redirectOrigin, source)
 	if err != nil {
 		return err
@@ -125,12 +125,12 @@ func (c *ChattoCore) RecordOAuthClientAuthorization(ctx context.Context, actorID
 	return c.oauthClientModel.projection.Projector().WaitFor(ctx, position)
 }
 
-func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientOrigin, redirectOrigin string, source corev1.OAuthClientSource) (events.StreamPosition, error) {
+func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientOrigin, redirectOrigin string, source evtv1.OAuthClientSource) (events.StreamPosition, error) {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {
 		return events.StreamPosition{}, ErrInvalidArgument
 	}
-	if source != corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD && source != corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN {
+	if source != evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD && source != evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN {
 		return events.StreamPosition{}, ErrInvalidArgument
 	}
 	agg := evtstream.OAuthClientAggregate(clientID)
@@ -147,8 +147,8 @@ func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID
 		if exists && oauthClientPolicyDeniesAccess(state.Policy) {
 			return events.StreamPosition{}, ErrOAuthClientBlocked
 		}
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_OauthClientAuthorizationRecorded{
-			OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{
+		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_OauthClientAuthorizationRecorded{
+			OauthClientAuthorizationRecorded: &evtv1.OAuthClientAuthorizationRecordedEvent{
 				ClientId: clientID, ClientName: strings.TrimSpace(clientName), ClientUri: strings.TrimSpace(clientOrigin),
 				RedirectOrigin: origin, Source: source,
 			},
@@ -189,7 +189,7 @@ func (c *ChattoCore) ListOAuthClients(ctx context.Context, actorID string) ([]OA
 	return c.oauthClientModel.projection.Projection().all(), nil
 }
 
-func (c *ChattoCore) UpdateOAuthClientPolicy(ctx context.Context, actorID, clientID string, policy corev1.OAuthClientPolicy) (OAuthClientState, error) {
+func (c *ChattoCore) UpdateOAuthClientPolicy(ctx context.Context, actorID, clientID string, policy evtv1.OAuthClientPolicy) (OAuthClientState, error) {
 	if err := c.requireServerPermission(ctx, actorID, PermServerManage); err != nil {
 		return OAuthClientState{}, err
 	}
@@ -216,8 +216,8 @@ func (c *ChattoCore) UpdateOAuthClientPolicy(ctx context.Context, actorID, clien
 		if state.Policy == policy {
 			return state, nil
 		}
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_OauthClientPolicyChanged{
-			OauthClientPolicyChanged: &corev1.OAuthClientPolicyChangedEvent{ClientId: clientID, Policy: policy},
+		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_OauthClientPolicyChanged{
+			OauthClientPolicyChanged: &evtv1.OAuthClientPolicyChangedEvent{ClientId: clientID, Policy: policy},
 		}})
 		published, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, agg.AllEventsFilter(), seq)
 		if errors.Is(err, events.ErrConflict) {
@@ -230,7 +230,7 @@ func (c *ChattoCore) UpdateOAuthClientPolicy(ctx context.Context, actorID, clien
 			return OAuthClientState{}, err
 		}
 		state, _ = c.oauthClientModel.projection.Projection().get(clientID)
-		if policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
+		if policy == evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
 			if _, err := c.RevokeOAuthClientTokens(ctx, clientID); err != nil {
 				c.logger.Warn("OAuth client blocked but token cleanup was incomplete", "error", err)
 			}

@@ -25,7 +25,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/assets"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -62,7 +62,7 @@ var ErrUnavailable = errors.New("link preview unavailable")
 var errProviderModeration = errors.New("provider moderation prevents structured preview")
 
 // StoreImageFunc persists a processed preview image under the supplied asset ID.
-type StoreImageFunc func(ctx context.Context, assetID string, data []byte, contentType string) (*corev1.AssetRecord, error)
+type StoreImageFunc func(ctx context.Context, assetID string, data []byte, contentType string) (*evtv1.AssetRecord, error)
 
 // Fetcher fetches link preview metadata using OpenGraph.
 type Fetcher struct {
@@ -92,10 +92,10 @@ type FetchResult struct {
 	Title       string
 	Description string
 	SiteName    string
-	ImageAsset  *corev1.AssetRecord // Image asset if image was downloaded, nil otherwise
+	ImageAsset  *evtv1.AssetRecord // Image asset if image was downloaded, nil otherwise
 	EmbedType   string              // "generic", "youtube", "bluesky"
 	EmbedID     string              // Provider-specific canonical ID
-	SocialPost  *corev1.SocialPostPreview
+	SocialPost  *evtv1.SocialPostPreview
 }
 
 // Fetch fetches link preview metadata for a URL.
@@ -330,10 +330,10 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 		return nil, err
 	}
 
-	snapshot := &corev1.SocialPostPreview{
+	snapshot := &evtv1.SocialPostPreview{
 		Provider: "bluesky",
 		Url:      rawURL,
-		Author: &corev1.SocialPostAuthor{
+		Author: &evtv1.SocialPostAuthor{
 			DisplayName: post.Author.DisplayName,
 			Handle:      post.Author.Handle,
 		},
@@ -371,7 +371,7 @@ func (f *Fetcher) fetchBluesky(ctx context.Context, rawURL string) (*FetchResult
 	}, nil
 }
 
-func (f *Fetcher) applyBlueskyEmbed(ctx context.Context, snapshot *corev1.SocialPostPreview, embed *blueskyEmbed, budget *socialPostImageBudget, allowQuote bool) {
+func (f *Fetcher) applyBlueskyEmbed(ctx context.Context, snapshot *evtv1.SocialPostPreview, embed *blueskyEmbed, budget *socialPostImageBudget, allowQuote bool) {
 	if snapshot == nil || embed == nil {
 		return
 	}
@@ -384,7 +384,7 @@ func (f *Fetcher) applyBlueskyEmbed(ctx context.Context, snapshot *corev1.Social
 		if asset == nil {
 			continue
 		}
-		out := &corev1.SocialPostImage{Asset: asset, Alt: truncateUTF8Bytes(image.Alt, 1000)}
+		out := &evtv1.SocialPostImage{Asset: asset, Alt: truncateUTF8Bytes(image.Alt, 1000)}
 		if image.AspectRatio != nil {
 			out.Width = image.AspectRatio.Width
 			out.Height = image.AspectRatio.Height
@@ -394,7 +394,7 @@ func (f *Fetcher) applyBlueskyEmbed(ctx context.Context, snapshot *corev1.Social
 	if external := embed.External; external != nil {
 		externalURL := safeExternalURL(truncateUTF8Bytes(external.URI, 2048))
 		if externalURL != "" {
-			snapshot.ExternalLink = &corev1.SocialPostExternalLink{
+			snapshot.ExternalLink = &evtv1.SocialPostExternalLink{
 				Url:         externalURL,
 				Title:       truncateUTF8Bytes(external.Title, 300),
 				Description: truncateUTF8Bytes(external.Description, 1000),
@@ -429,7 +429,7 @@ func unwrapBlueskyRecordView(record *blueskyRecordView) *blueskyRecordView {
 	return record
 }
 
-func blueskyRecordSnapshot(record *blueskyRecordView) *corev1.SocialPostPreview {
+func blueskyRecordSnapshot(record *blueskyRecordView) *evtv1.SocialPostPreview {
 	if record == nil || record.URI == "" || (record.Author.DisplayName == "" && record.Author.Handle == "") {
 		return nil
 	}
@@ -439,10 +439,10 @@ func blueskyRecordSnapshot(record *blueskyRecordView) *corev1.SocialPostPreview 
 	if displayName == "" {
 		displayName = handle
 	}
-	out := &corev1.SocialPostPreview{
+	out := &evtv1.SocialPostPreview{
 		Provider: "bluesky",
 		Url:      postURL,
-		Author:   &corev1.SocialPostAuthor{DisplayName: displayName, Handle: handle},
+		Author:   &evtv1.SocialPostAuthor{DisplayName: displayName, Handle: handle},
 		Text:     truncateUTF8Bytes(record.Value.Text, 1000),
 	}
 	if out.Url == "" {
@@ -538,7 +538,7 @@ type socialPostImageBudget struct {
 	fetchesRemaining int
 }
 
-func (f *Fetcher) downloadSocialPostImage(ctx context.Context, imageURL string, budget *socialPostImageBudget) *corev1.AssetRecord {
+func (f *Fetcher) downloadSocialPostImage(ctx context.Context, imageURL string, budget *socialPostImageBudget) *evtv1.AssetRecord {
 	if imageURL == "" || f.imageClient == nil || budget == nil || budget.bytesRemaining <= 0 || budget.fetchesRemaining <= 0 {
 		return nil
 	}
@@ -617,12 +617,12 @@ func truncate(s string, maxLen int) string {
 }
 
 // downloadAndStoreImage downloads an image and stores it as an server asset.
-func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (*corev1.AssetRecord, error) {
+func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (*evtv1.AssetRecord, error) {
 	asset, _, err := f.downloadAndStoreImageWithLimit(ctx, imageURL, int64(MaxImageSize))
 	return asset, err
 }
 
-func (f *Fetcher) downloadAndStoreImageWithLimit(ctx context.Context, imageURL string, maxBytes int64) (*corev1.AssetRecord, int64, error) {
+func (f *Fetcher) downloadAndStoreImageWithLimit(ctx context.Context, imageURL string, maxBytes int64) (*evtv1.AssetRecord, int64, error) {
 	// Create request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
 	if err != nil {
@@ -700,8 +700,8 @@ func (f *Fetcher) downloadAndStoreImageWithLimit(ctx context.Context, imageURL s
 }
 
 // ToProto converts a FetchResult to a protobuf LinkPreview.
-func (r *FetchResult) ToProto(url string) *corev1.LinkPreview {
-	lp := &corev1.LinkPreview{
+func (r *FetchResult) ToProto(url string) *evtv1.LinkPreview {
+	lp := &evtv1.LinkPreview{
 		Url:         url,
 		Title:       r.Title,
 		Description: r.Description,
@@ -711,13 +711,13 @@ func (r *FetchResult) ToProto(url string) *corev1.LinkPreview {
 	if r.ImageAsset != nil && r.ImageAsset.GetId() != "" {
 		imageAssetID := r.ImageAsset.GetId()
 		lp.ImageAssetId = &imageAssetID
-		lp.ImageAsset = proto.Clone(r.ImageAsset).(*corev1.AssetRecord)
+		lp.ImageAsset = proto.Clone(r.ImageAsset).(*evtv1.AssetRecord)
 	}
 	if r.EmbedID != "" {
 		lp.EmbedId = &r.EmbedID
 	}
 	if r.SocialPost != nil {
-		lp.SocialPost = proto.Clone(r.SocialPost).(*corev1.SocialPostPreview)
+		lp.SocialPost = proto.Clone(r.SocialPost).(*evtv1.SocialPostPreview)
 	}
 	return lp
 }

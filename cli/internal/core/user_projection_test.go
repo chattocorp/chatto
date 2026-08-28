@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func BenchmarkUserProjectionGetReferences(b *testing.B) {
@@ -28,7 +29,7 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 		userID := fmt.Sprintf("user-%05d", i)
 		eventID := fmt.Sprintf("event-%05d", i)
 		userIDs[i] = userID
-		contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+		contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 		encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "login", userID)
 		if err != nil {
 			b.Fatal(err)
@@ -38,13 +39,13 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 			b.Fatal(err)
 		}
 		p.users[userID] = &projectedUser{
-			user:        &corev1.User{Id: userID},
+			user:        &evtv1.User{Id: userID},
 			login:       newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "login", encryptedLogin),
 			displayName: newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "display_name", encryptedDisplayName),
 		}
-		p.dekEvents[userID] = map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent{
-			corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII: {
-				1: {UserId: userID, Epoch: 1, Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test"},
+		p.dekEvents[userID] = map[evtv1.UserDEKPurpose]map[int32]*evtv1.UserDEKGeneratedEvent{
+			evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII: {
+				1: {UserId: userID, Epoch: 1, Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test"},
 			},
 		}
 	}
@@ -58,7 +59,7 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 	}
 }
 
-func userEvent(id string, ts time.Time, event *corev1.Event) *corev1.Event {
+func userEvent(id string, ts time.Time, event *evtv1.Event) *evtv1.Event {
 	event.Id = id
 	event.CreatedAt = timestamppb.New(ts)
 	return event
@@ -98,8 +99,8 @@ func (w staticProjectionKeyWrapper) ShredKey(context.Context, string) error {
 	return nil
 }
 
-func (s staticProjectionDEKStore) Get(context.Context, string) (*corev1.UserDataEncryptionKey, error) {
-	return &corev1.UserDataEncryptionKey{
+func (s staticProjectionDEKStore) Get(context.Context, string) (*runtimestatev1.UserDataEncryptionKey, error) {
+	return &runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		ContentKeyNonce:     []byte("nonce"),
 		WrappingKeyRef:      "test-key",
@@ -111,52 +112,52 @@ func newEncryptedUserProjection(t *testing.T, userID string) (*UserProjection, *
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	p := NewUserProjection(staticProjectionKeyWrapper{key: key}, staticProjectionDEKStore{})
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "K1",
-		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+		Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 			UserId:        userID,
 			Epoch:         1,
-			Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
+			Purpose:       evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
 			ContentKeyRef: "dek.test",
 		}},
 	}, 1))
-	return p, &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	return p, &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 }
 
-func accountCreated(t *testing.T, contentKey *messageContentKey, eventID, userID, login, displayName string) *corev1.Event {
+func accountCreated(t *testing.T, contentKey *messageContentKey, eventID, userID, login, displayName string) *evtv1.Event {
 	t.Helper()
 	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "login", login)
 	require.NoError(t, err)
 	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "display_name", displayName)
 	require.NoError(t, err)
-	return &corev1.Event{Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{
+	return &evtv1.Event{Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{
 		UserId:               userID,
 		EncryptedLogin:       encryptedLogin,
 		EncryptedDisplayName: encryptedDisplayName,
 	}}}
 }
 
-func loginChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, login string) *corev1.Event {
+func loginChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, login string) *evtv1.Event {
 	t.Helper()
 	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserLoginChanged, "login", login)
 	require.NoError(t, err)
-	return &corev1.Event{Event: &corev1.Event_UserLoginChanged{UserLoginChanged: &corev1.UserLoginChangedEvent{
+	return &evtv1.Event{Event: &evtv1.Event_UserLoginChanged{UserLoginChanged: &evtv1.UserLoginChangedEvent{
 		UserId:         userID,
 		EncryptedLogin: encryptedLogin,
 	}}}
 }
 
-func loginCooldownStarted(userID string) *corev1.Event {
-	return &corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{
+func loginCooldownStarted(userID string) *evtv1.Event {
+	return &evtv1.Event{Event: &evtv1.Event_UserLoginCooldownStarted{UserLoginCooldownStarted: &evtv1.UserLoginCooldownStartedEvent{
 		UserId: userID,
 	}}}
 }
 
-func displayNameChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, displayName string) *corev1.Event {
+func displayNameChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, displayName string) *evtv1.Event {
 	t.Helper()
 	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserDisplayNameChanged, "display_name", displayName)
 	require.NoError(t, err)
-	return &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{
+	return &evtv1.Event{Event: &evtv1.Event_UserDisplayNameChanged{UserDisplayNameChanged: &evtv1.UserDisplayNameChangedEvent{
 		UserId:               userID,
 		EncryptedDisplayName: encryptedDisplayName,
 	}}}
@@ -186,16 +187,16 @@ func TestUserProjection_RetainsEncryptedPIIAndDecryptsOnRead(t *testing.T) {
 	require.NoError(t, err)
 	unwrapCalls := 0
 	p := NewUserProjection(staticProjectionKeyWrapper{key: key, unwrapCalls: &unwrapCalls}, staticProjectionDEKStore{})
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "K1",
-		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+		Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 			UserId:        "U1",
 			Epoch:         1,
-			Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
+			Purpose:       evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
 			ContentKeyRef: "dek.test",
 		}},
 	}, 1))
-	contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 	createdAt := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
 	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
 	require.Equal(t, 1, unwrapCalls, "projection apply decrypts login transiently to derive its lookup digest")
@@ -221,9 +222,9 @@ func TestUserProjection_RetainsEncryptedPIIAndDecryptsOnRead(t *testing.T) {
 
 	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E2", "U1", evtstream.EventUserVerifiedEmailAdded, "email", "Alice@Example.com")
 	require.NoError(t, err)
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E2",
-		Event: &corev1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+		Event: &evtv1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{
 			UserId:         "U1",
 			EncryptedEmail: encryptedEmail,
 		}},
@@ -246,16 +247,16 @@ func TestUserProjection_ReadErrorsDoNotBecomeAbsenceOrTombstones(t *testing.T) {
 	require.NoError(t, p.Apply(userEvent("E1", time.Now(), accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
 	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E2", "U1", evtstream.EventUserVerifiedEmailAdded, "email", "alice@example.com")
 	require.NoError(t, err)
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E2",
-		Event: &corev1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+		Event: &evtv1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{
 			UserId:         "U1",
 			EncryptedEmail: encryptedEmail,
 		}},
 	}, 3))
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E3",
-		Event: &corev1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+		Event: &evtv1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
 			UserId:      "U1",
 			Issuer:      "https://issuer.example",
 			Subject:     "subject-1",
@@ -301,9 +302,9 @@ func TestUserProjection_LoginCooldownUsesEnvelopeTime(t *testing.T) {
 	require.NoError(t, p.Apply(userEvent("E4", changedAt, loginCooldownStarted("U1")), 4))
 	require.True(t, p.LoginChangedAt("U1").Equal(changedAt))
 
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id:    "E5",
-		Event: &corev1.Event_UserLoginCooldownCleared{UserLoginCooldownCleared: &corev1.UserLoginCooldownClearedEvent{UserId: "U1"}},
+		Event: &evtv1.Event_UserLoginCooldownCleared{UserLoginCooldownCleared: &evtv1.UserLoginCooldownClearedEvent{UserId: "U1"}},
 	}, 5))
 	require.True(t, p.LoginChangedAt("U1").IsZero())
 }
@@ -315,11 +316,11 @@ func TestUserProjection_CustomStatusSetClearAndExpiry(t *testing.T) {
 	past := time.Now().Add(-time.Hour)
 
 	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E2",
-		Event: &corev1.Event_UserCustomStatusSet{UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
+		Event: &evtv1.Event_UserCustomStatusSet{UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{
 			UserId: "U1",
-			Status: &corev1.CustomUserStatus{
+			Status: &evtv1.CustomUserStatus{
 				Emoji:     "🌿",
 				Text:      "In focus mode",
 				ExpiresAt: timestamppb.New(future),
@@ -332,11 +333,11 @@ func TestUserProjection_CustomStatusSetClearAndExpiry(t *testing.T) {
 	require.Equal(t, "🌿", got.GetCustomStatus().GetEmoji())
 	require.Equal(t, "In focus mode", got.GetCustomStatus().GetText())
 
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E3",
-		Event: &corev1.Event_UserCustomStatusSet{UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
+		Event: &evtv1.Event_UserCustomStatusSet{UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{
 			UserId: "U1",
-			Status: &corev1.CustomUserStatus{
+			Status: &evtv1.CustomUserStatus{
 				Emoji:     "☕",
 				Text:      "Coffee",
 				ExpiresAt: timestamppb.New(past),
@@ -348,19 +349,19 @@ func TestUserProjection_CustomStatusSetClearAndExpiry(t *testing.T) {
 	require.True(t, ok)
 	require.Nil(t, got.GetCustomStatus())
 
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E4",
-		Event: &corev1.Event_UserCustomStatusSet{UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
+		Event: &evtv1.Event_UserCustomStatusSet{UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{
 			UserId: "U1",
-			Status: &corev1.CustomUserStatus{
+			Status: &evtv1.CustomUserStatus{
 				Emoji: "✅",
 				Text:  "Back",
 			},
 		}},
 	}, 5))
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id:    "E5",
-		Event: &corev1.Event_UserCustomStatusCleared{UserCustomStatusCleared: &corev1.UserCustomStatusClearedEvent{UserId: "U1"}},
+		Event: &evtv1.Event_UserCustomStatusCleared{UserCustomStatusCleared: &evtv1.UserCustomStatusClearedEvent{UserId: "U1"}},
 	}, 6))
 
 	got, ok = p.Get("U1")
@@ -376,24 +377,24 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
 	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E3", "U1", evtstream.EventUserVerifiedEmailAdded, "email", "Alice@Example.com")
 	require.NoError(t, err)
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id:        "E3",
 		CreatedAt: timestamppb.New(verifiedAt),
-		Event: &corev1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+		Event: &evtv1.Event_UserVerifiedEmailAdded{UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{
 			UserId:         "U1",
 			EncryptedEmail: encryptedEmail,
 		}},
 	}, 3))
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E4",
-		Event: &corev1.Event_UserAvatarSet{UserAvatarSet: &corev1.UserAvatarSetEvent{
+		Event: &evtv1.Event_UserAvatarSet{UserAvatarSet: &evtv1.UserAvatarSetEvent{
 			UserId: "U1",
-			Avatar: &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_S3{S3: &corev1.S3Asset{Key: "avatars/U1"}}},
+			Avatar: &evtv1.DeprecatedAsset{Asset: &evtv1.DeprecatedAsset_S3{S3: &evtv1.S3Asset{Key: "avatars/U1"}}},
 		}},
 	}, 4))
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E5",
-		Event: &corev1.Event_UserOidcSubjectLinked{UserOidcSubjectLinked: &corev1.UserOIDCSubjectLinkedEvent{
+		Event: &evtv1.Event_UserOidcSubjectLinked{UserOidcSubjectLinked: &evtv1.UserOIDCSubjectLinkedEvent{
 			UserId:  "U1",
 			Issuer:  "https://issuer.example",
 			Subject: "subject-1",
@@ -410,9 +411,9 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	byOIDC, ok := p.GetByOIDCSubject("https://issuer.example", "subject-1")
 	require.True(t, ok)
 	require.Equal(t, "U1", byOIDC.GetId())
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E5b",
-		Event: &corev1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+		Event: &evtv1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
 			UserId:       "U1",
 			Issuer:       "github-main",
 			Subject:      "12345",
@@ -423,9 +424,9 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	byExternal, ok := p.GetByExternalIdentity("github-main", "12345")
 	require.True(t, ok)
 	require.Equal(t, "U1", byExternal.GetId())
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E5c",
-		Event: &corev1.Event_UserExternalIdentityUnlinked{UserExternalIdentityUnlinked: &corev1.UserExternalIdentityUnlinkedEvent{
+		Event: &evtv1.Event_UserExternalIdentityUnlinked{UserExternalIdentityUnlinked: &evtv1.UserExternalIdentityUnlinkedEvent{
 			UserId:      "U1",
 			SubjectHash: externalIdentityHash("github-main", "12345"),
 		}},
@@ -437,16 +438,16 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "avatars/U1", avatar.GetS3().GetKey())
 
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id:    "E6",
-		Event: &corev1.Event_UserAvatarCleared{UserAvatarCleared: &corev1.UserAvatarClearedEvent{UserId: "U1"}},
+		Event: &evtv1.Event_UserAvatarCleared{UserAvatarCleared: &evtv1.UserAvatarClearedEvent{UserId: "U1"}},
 	}, 6))
 	_, ok = p.Avatar("U1")
 	require.False(t, ok)
 
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id:    "E7",
-		Event: &corev1.Event_UserAccountDeleted{UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: "U1"}},
+		Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: "U1"}},
 	}, 7))
 	_, ok = p.Get("U1")
 	require.False(t, ok)
@@ -461,19 +462,19 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 func TestUserProjection_PublicAvatarIndexTracksLifecycle(t *testing.T) {
 	p := NewUserProjection(staticProjectionKeyWrapper{}, staticProjectionDEKStore{})
 
-	legacy := &corev1.Event{Event: &corev1.Event_UserAvatarSet{UserAvatarSet: &corev1.UserAvatarSetEvent{
+	legacy := &evtv1.Event{Event: &evtv1.Event_UserAvatarSet{UserAvatarSet: &evtv1.UserAvatarSetEvent{
 		UserId: "U1",
-		Avatar: &corev1.DeprecatedAsset{Asset: &corev1.DeprecatedAsset_S3{S3: &corev1.S3Asset{Key: "legacy-avatar-key"}}},
+		Avatar: &evtv1.DeprecatedAsset{Asset: &evtv1.DeprecatedAsset_S3{S3: &evtv1.S3Asset{Key: "legacy-avatar-key"}}},
 	}}}
-	replacement := &corev1.AssetRecord{
+	replacement := &evtv1.AssetRecord{
 		Id:      "A-replacement",
-		Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "replacement-storage-key"}},
+		Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "replacement-storage-key"}},
 	}
 
 	require.NoError(t, p.Apply(legacy, 1))
 	require.True(t, p.IsPublicAvatarAsset("legacy-avatar-key"))
 
-	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_AssetCreated{AssetCreated: &corev1.AssetCreatedEvent{
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_AssetCreated{AssetCreated: &evtv1.AssetCreatedEvent{
 		UserId: "U1",
 		Asset:  replacement,
 	}}}, 2))
@@ -481,20 +482,20 @@ func TestUserProjection_PublicAvatarIndexTracksLifecycle(t *testing.T) {
 	require.True(t, p.IsPublicAvatarAsset("A-replacement"))
 	require.True(t, p.IsPublicAvatarAsset("replacement-storage-key"))
 
-	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_AssetDeleted{AssetDeleted: &corev1.AssetDeletedEvent{
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_AssetDeleted{AssetDeleted: &evtv1.AssetDeletedEvent{
 		AssetId: "A-replacement",
 	}}}, 3))
 	require.False(t, p.IsPublicAvatarAsset("A-replacement"))
 	require.False(t, p.IsPublicAvatarAsset("replacement-storage-key"))
 
 	require.NoError(t, p.Apply(legacy, 4))
-	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_UserAvatarCleared{UserAvatarCleared: &corev1.UserAvatarClearedEvent{
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserAvatarCleared{UserAvatarCleared: &evtv1.UserAvatarClearedEvent{
 		UserId: "U1",
 	}}}, 5))
 	require.False(t, p.IsPublicAvatarAsset("legacy-avatar-key"))
 
 	require.NoError(t, p.Apply(legacy, 6))
-	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_UserAccountDeleted{UserAccountDeleted: &corev1.UserAccountDeletedEvent{
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{
 		UserId: "U1",
 	}}}, 7))
 	require.False(t, p.IsPublicAvatarAsset("legacy-avatar-key"))

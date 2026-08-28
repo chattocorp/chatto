@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync/atomic"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ============================================================================
@@ -81,7 +81,7 @@ type ChattoCore struct {
 	// independently; the main process does not hand work to a local callback.
 	VideoUploadsEnabled bool
 
-	notificationAlertHandler func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error
+	notificationAlertHandler func(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) error
 
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
 	OnPushTestRequested func(ctx context.Context, userID string) error

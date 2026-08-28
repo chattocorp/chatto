@@ -6,18 +6,18 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	logo := &corev1.AssetRecord{
+	logo := &evtv1.AssetRecord{
 		Id:          "logo-asset",
 		Filename:    "logo.webp",
 		ContentType: "image/webp",
-		Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}},
+		Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "logo-asset"}},
 	}
 	if err := core.SetServerLogo(ctx, "admin", logo); err != nil {
 		t.Fatalf("SetServerLogo failed: %v", err)

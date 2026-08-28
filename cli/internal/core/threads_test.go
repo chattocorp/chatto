@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -52,7 +53,7 @@ func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *t
 	)
 	chattoCore.roomModel.threads = delayedThreads
 	type postResult struct {
-		event *corev1.Event
+		event *evtv1.Event
 		err   error
 	}
 	result := make(chan postResult, 1)
@@ -131,7 +132,7 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_created): %v", err)
 		}
-		var created *corev1.Event
+		var created *evtv1.Event
 		for _, event := range threadCreatedEvents {
 			if event.GetThreadCreated().GetThreadRootEventId() == root.Id {
 				created = event
@@ -278,7 +279,7 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 			t.Fatalf("Failed to post root message: %v", err)
 		}
 
-		replies := make([]*corev1.Event, 0, 3)
+		replies := make([]*evtv1.Event, 0, 3)
 		for i := 1; i <= 3; i++ {
 			reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, fmt.Sprintf("Paged reply %d", i), nil, rootEvent.Id, "", nil, false)
 			if err != nil {
@@ -327,7 +328,7 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 			t.Fatalf("Failed to post root message: %v", err)
 		}
 
-		replies := make([]*corev1.Event, 0, 5)
+		replies := make([]*evtv1.Event, 0, 5)
 		for i := 1; i <= 5; i++ {
 			reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, fmt.Sprintf("Around reply %d", i), nil, rootEvent.Id, "", nil, false)
 			if err != nil {
@@ -713,7 +714,7 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 		if follow.GetUserId() != user.Id || follow.GetRoomId() != room.Id || follow.GetThreadRootEventId() != threadRootEventId {
 			t.Fatalf("Unexpected thread_followed payload: %#v", follow)
 		}
-		if got := follow.GetSource(); got != corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL {
+		if got := follow.GetSource(); got != evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL {
 			t.Fatalf("ThreadFollowed source = %v, want manual", got)
 		}
 
@@ -1317,7 +1318,7 @@ func TestChattoCore_PostMessage_DisabledDirectMentionDoesNotAutoFollowThread(t *
 	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
 	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
 	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
-	if _, err := core.NotificationPolicy().SetRoomNotificationMode(ctx, mentioned.Id, room.Id, notificationTestSignalDirectMention, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
+	if _, err := core.NotificationPolicy().SetRoomNotificationMode(ctx, mentioned.Id, room.Id, notificationTestSignalDirectMention, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
 		t.Fatalf("SetRoomNotificationMode: %v", err)
 	}
 
@@ -1529,7 +1530,7 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		}
 
 		roomEventsResult, _ := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
-		var echoBody *corev1.MessageBody
+		var echoBody *evtv1.MessageBody
 		var echoID string
 		for _, e := range roomEventsResult.Events {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId == replyEvent.Id {
@@ -1691,11 +1692,11 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		// Clear existing notifications
 		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
-		if _, err := core.NotificationPolicy().SetRoomNotificationMode(ctx, alice.Id, room.Id, notificationTestSignalReply, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
+		if _, err := core.NotificationPolicy().SetRoomNotificationMode(ctx, alice.Id, room.Id, notificationTestSignalReply, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
 			t.Fatalf("SetRoomNotificationMode: %v", err)
 		}
 		defer func() {
-			if _, err := core.NotificationPolicy().SetRoomNotificationMode(ctx, alice.Id, room.Id, notificationTestSignalReply, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED); err != nil {
+			if _, err := core.NotificationPolicy().SetRoomNotificationMode(ctx, alice.Id, room.Id, notificationTestSignalReply, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED); err != nil {
 				t.Errorf("restore reply notification mode: %v", err)
 			}
 		}()
@@ -1830,7 +1831,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		if len(bobOccurrences) != 2 || !testOccurrencesHaveKinds(bobOccurrences, notificationTestSignalReply, notificationTestSignalFollowedThread) {
 			t.Fatalf("expected Bob to get reply and followed-thread occurrences, got %+v", bobOccurrences)
 		}
-		var target *corev1.NotificationMessageReference
+		var target *notificationv1.NotificationMessageReference
 		for _, occurrence := range bobOccurrences {
 			if testOccurrenceHasKind(occurrence, notificationTestSignalReply) {
 				target = NotificationOccurrenceMessageReference(occurrence)

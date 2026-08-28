@@ -3,13 +3,14 @@ package core
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -156,7 +157,7 @@ func TestReactionNotificationOccurrenceLifecycle(t *testing.T) {
 	if NotificationOccurrenceMessageReference(occurrences[0]).GetEventId() != message.Id || occurrences[0].GetActorId() != reactor.Id || occurrences[0].GetSignal().GetReactionReceived().GetEmoji() != "thumbsup" {
 		t.Fatalf("reaction occurrence = %+v, want message %q and actor %q", occurrences[0], message.Id, reactor.Id)
 	}
-	if got := occurrences[0].GetAttentionLevel(); got != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT {
+	if got := occurrences[0].GetAttentionLevel(); got != notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT {
 		t.Fatalf("reaction attention = %v, want AMBIENT", got)
 	}
 
@@ -889,7 +890,7 @@ func TestEmoji(t *testing.T) {
 	})
 }
 
-func setupReactionTest(t *testing.T, core *ChattoCore, ctx context.Context) (*corev1.User, *corev1.Room, string) {
+func setupReactionTest(t *testing.T, core *ChattoCore, ctx context.Context) (*evtv1.User, *evtv1.Room, string) {
 	t.Helper()
 	user, err := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	if err != nil {

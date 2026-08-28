@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func (s *messageService) FetchLinkPreview(ctx context.Context, req *connect.Request[apiv1.FetchLinkPreviewRequest]) (*connect.Response[apiv1.FetchLinkPreviewResponse], error) {
@@ -36,7 +36,7 @@ func (s *messageService) FetchLinkPreview(ctx context.Context, req *connect.Requ
 	}), nil
 }
 
-func apiLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.LinkPreview {
+func apiLinkPreview(api *API, preview *evtv1.LinkPreview) *apiv1.LinkPreview {
 	if preview == nil {
 		return nil
 	}
@@ -83,7 +83,7 @@ func apiLinkPreview(api *API, preview *corev1.LinkPreview) *apiv1.LinkPreview {
 	return out
 }
 
-func apiSocialPostPreview(api *API, socialPost *corev1.SocialPostPreview, quoteDepth int) *apiv1.SocialPostPreview {
+func apiSocialPostPreview(api *API, socialPost *evtv1.SocialPostPreview, quoteDepth int) *apiv1.SocialPostPreview {
 	if socialPost == nil {
 		return nil
 	}
@@ -125,7 +125,7 @@ func apiSocialPostPreview(api *API, socialPost *corev1.SocialPostPreview, quoteD
 	return mapped
 }
 
-func linkPreviewAsset(api *API, asset *corev1.AssetRecord, width, height int, fit string) (*string, *string) {
+func linkPreviewAsset(api *API, asset *evtv1.AssetRecord, width, height int, fit string) (*string, *string) {
 	if asset == nil || asset.GetId() == "" {
 		return nil, nil
 	}

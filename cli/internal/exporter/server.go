@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"net"
 	"net/http"
 	"sync/atomic"
@@ -18,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/config"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const readTimeout = 5 * time.Second
@@ -200,7 +201,7 @@ func (s *Server) handleEVTMessage(msg jetstream.Msg) error {
 	if err != nil {
 		return fmt.Errorf("EVT message metadata: %w", err)
 	}
-	var event corev1.Event
+	var event evtv1.Event
 	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 		return fmt.Errorf("unmarshal EVT event at seq %d: %w", meta.Sequence.Stream, err)
 	}
@@ -238,7 +239,7 @@ func (s *Server) presenceSnapshot(ctx context.Context) (map[string]int, error) {
 			}
 			return nil, err
 		}
-		var presence corev1.UserPresence
+		var presence cachestatev1.UserPresence
 		if err := proto.Unmarshal(entry.Value(), &presence); err != nil {
 			return nil, err
 		}
@@ -263,11 +264,11 @@ func uniqueListedKeys(lister jetstream.KeyLister) ([]string, error) {
 	return keys, nil
 }
 
-func presenceStatusLabel(status corev1.UserPresenceStatus) string {
+func presenceStatusLabel(status cachestatev1.UserPresenceStatus) string {
 	switch status {
-	case corev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY:
+	case cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY:
 		return "away"
-	case corev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB:
+	case cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB:
 		return "do_not_disturb"
 	default:
 		return "online"

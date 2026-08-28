@@ -2,6 +2,8 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
 	"time"
 
@@ -9,7 +11,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/notificationstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -25,7 +26,7 @@ type notificationOccurrenceRef struct {
 }
 
 type notificationOccurrenceState struct {
-	occurrence *corev1.NotificationOccurrence
+	occurrence *notificationv1.NotificationOccurrence
 	tombstoned bool
 }
 
@@ -35,7 +36,7 @@ type notificationOccurrenceState struct {
 type NotificationProjection struct {
 	events.MemoryProjection
 
-	byID       map[string]*corev1.NotificationOccurrence
+	byID       map[string]*notificationv1.NotificationOccurrence
 	idsByUser  map[string]map[string]struct{}
 	idsByScope map[notificationReadBoundaryScope]map[string]struct{}
 	tombstones map[string]notificationProjectionTombstone
@@ -44,7 +45,7 @@ type NotificationProjection struct {
 
 func NewNotificationProjection() *NotificationProjection {
 	return &NotificationProjection{
-		byID:       make(map[string]*corev1.NotificationOccurrence),
+		byID:       make(map[string]*notificationv1.NotificationOccurrence),
 		idsByUser:  make(map[string]map[string]struct{}),
 		idsByScope: make(map[notificationReadBoundaryScope]map[string]struct{}),
 		tombstones: make(map[string]notificationProjectionTombstone),
@@ -56,7 +57,7 @@ func (*NotificationProjection) Subjects() []string {
 	return notificationstream.Subjects()
 }
 
-func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence uint64) error {
+func (p *NotificationProjection) Apply(event *notificationv1.NotificationEvent, sequence uint64) error {
 	if event == nil || event.GetId() == "" || event.GetRecipientId() == "" || event.GetNotificationId() == "" || event.GetExpiresAt() == nil || !event.GetExpiresAt().IsValid() {
 		return fmt.Errorf("invalid notification event at sequence %d", sequence)
 	}
@@ -65,7 +66,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 	p.pruneExpiredLocked(p.now().UTC())
 
 	switch payload := event.GetEvent().(type) {
-	case *corev1.NotificationEvent_Signalled:
+	case *notificationv1.NotificationEvent_Signalled:
 		signalled := payload.Signalled
 		if signalled.GetSourceEventId() == "" || signalled.GetSourceCreatedAt() == nil || !signalled.GetSourceCreatedAt().IsValid() || signalled.GetSignal() == nil {
 			return fmt.Errorf("invalid notification signal event at sequence %d", sequence)
@@ -84,13 +85,13 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		if signalled.GetAlertExpiresAt() != nil && signalled.GetInitiallyRead() {
 			alertDelivered = proto.Bool(false)
 		}
-		stored := &corev1.NotificationOccurrence{
+		stored := &notificationv1.NotificationOccurrence{
 			Id:                         event.GetNotificationId(),
 			RecipientId:                event.GetRecipientId(),
 			SourceEventId:              signalled.GetSourceEventId(),
 			SourceCreatedAt:            signalled.GetSourceCreatedAt(),
 			ActorId:                    signalled.GetActorId(),
-			Signal:                     proto.Clone(signalled.GetSignal()).(*corev1.NotificationSignal),
+			Signal:                     proto.Clone(signalled.GetSignal()).(*notificationv1.NotificationSignal),
 			Read:                       signalled.GetInitiallyRead(),
 			ExpiresAt:                  event.GetExpiresAt(),
 			SourceStreamSequence:       signalled.GetSourceStreamSequence(),
@@ -105,7 +106,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		}
 		p.idsByUser[stored.GetRecipientId()][stored.GetId()] = struct{}{}
 		p.addScopeLocked(stored)
-	case *corev1.NotificationEvent_Read:
+	case *notificationv1.NotificationEvent_Read:
 		occurrence := p.byID[event.GetNotificationId()]
 		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() {
 			return nil
@@ -114,7 +115,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		if occurrence.GetAlertExpiresAt() != nil && occurrence.AlertDelivered == nil {
 			occurrence.AlertDelivered = proto.Bool(false)
 		}
-	case *corev1.NotificationEvent_Removed:
+	case *notificationv1.NotificationEvent_Removed:
 		notificationID := event.GetNotificationId()
 		signalSequence := payload.Removed.GetSignalStreamSequence()
 		if occurrence := p.byID[notificationID]; occurrence != nil && occurrence.GetRecipientId() == event.GetRecipientId() {
@@ -131,7 +132,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 			expiresAt:      event.GetExpiresAt().AsTime().UTC(),
 			signalSequence: signalSequence,
 		}
-	case *corev1.NotificationEvent_AlertResolved:
+	case *notificationv1.NotificationEvent_AlertResolved:
 		occurrence := p.byID[event.GetNotificationId()]
 		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() || occurrence.AlertDelivered != nil {
 			return nil
@@ -143,7 +144,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 	return nil
 }
 
-func (p *NotificationProjection) removeLocked(occurrence *corev1.NotificationOccurrence) {
+func (p *NotificationProjection) removeLocked(occurrence *notificationv1.NotificationOccurrence) {
 	delete(p.byID, occurrence.GetId())
 	ids := p.idsByUser[occurrence.GetRecipientId()]
 	delete(ids, occurrence.GetId())
@@ -159,7 +160,7 @@ func (p *NotificationProjection) removeLocked(occurrence *corev1.NotificationOcc
 	}
 }
 
-func (p *NotificationProjection) addScopeLocked(occurrence *corev1.NotificationOccurrence) {
+func (p *NotificationProjection) addScopeLocked(occurrence *notificationv1.NotificationOccurrence) {
 	scope, ok := notificationOccurrenceReadScope(occurrence)
 	if !ok {
 		return
@@ -170,7 +171,7 @@ func (p *NotificationProjection) addScopeLocked(occurrence *corev1.NotificationO
 	p.idsByScope[scope][occurrence.GetId()] = struct{}{}
 }
 
-func notificationOccurrenceReadScope(occurrence *corev1.NotificationOccurrence) (notificationReadBoundaryScope, bool) {
+func notificationOccurrenceReadScope(occurrence *notificationv1.NotificationOccurrence) (notificationReadBoundaryScope, bool) {
 	if occurrence == nil || occurrence.GetRecipientId() == "" {
 		return notificationReadBoundaryScope{}, false
 	}
@@ -183,7 +184,7 @@ func notificationOccurrenceReadScope(occurrence *corev1.NotificationOccurrence) 
 	}, true
 }
 
-func (p *NotificationProjection) occurrence(userID, notificationID string, now time.Time) (*corev1.NotificationOccurrence, bool) {
+func (p *NotificationProjection) occurrence(userID, notificationID string, now time.Time) (*notificationv1.NotificationOccurrence, bool) {
 	p.Lock()
 	defer p.Unlock()
 	p.pruneExpiredLocked(now)
@@ -191,7 +192,7 @@ func (p *NotificationProjection) occurrence(userID, notificationID string, now t
 	if occurrence == nil || occurrence.GetRecipientId() != userID {
 		return nil, false
 	}
-	return proto.Clone(occurrence).(*corev1.NotificationOccurrence), true
+	return proto.Clone(occurrence).(*notificationv1.NotificationOccurrence), true
 }
 
 // occurrenceStates prunes once and resolves a complete set of point lookups
@@ -205,7 +206,7 @@ func (p *NotificationProjection) occurrenceStates(refs []notificationOccurrenceR
 	for _, ref := range refs {
 		state := notificationOccurrenceState{}
 		if occurrence := p.byID[ref.notificationID]; occurrence != nil && occurrence.GetRecipientId() == ref.recipientID {
-			state.occurrence = proto.Clone(occurrence).(*corev1.NotificationOccurrence)
+			state.occurrence = proto.Clone(occurrence).(*notificationv1.NotificationOccurrence)
 		}
 		if tombstone, exists := p.tombstones[ref.notificationID]; exists && tombstone.recipientID == ref.recipientID && tombstone.expiresAt.After(now) {
 			state.tombstoned = true
@@ -215,35 +216,35 @@ func (p *NotificationProjection) occurrenceStates(refs []notificationOccurrenceR
 	return states
 }
 
-func (p *NotificationProjection) userOccurrences(userID string, now time.Time) []*corev1.NotificationOccurrence {
+func (p *NotificationProjection) userOccurrences(userID string, now time.Time) []*notificationv1.NotificationOccurrence {
 	p.Lock()
 	defer p.Unlock()
 	p.pruneExpiredLocked(now)
-	result := make([]*corev1.NotificationOccurrence, 0, len(p.idsByUser[userID]))
+	result := make([]*notificationv1.NotificationOccurrence, 0, len(p.idsByUser[userID]))
 	for id := range p.idsByUser[userID] {
-		result = append(result, proto.Clone(p.byID[id]).(*corev1.NotificationOccurrence))
+		result = append(result, proto.Clone(p.byID[id]).(*notificationv1.NotificationOccurrence))
 	}
 	return result
 }
 
-func (p *NotificationProjection) allOccurrences(now time.Time) []*corev1.NotificationOccurrence {
+func (p *NotificationProjection) allOccurrences(now time.Time) []*notificationv1.NotificationOccurrence {
 	p.Lock()
 	defer p.Unlock()
 	p.pruneExpiredLocked(now)
-	result := make([]*corev1.NotificationOccurrence, 0, len(p.byID))
+	result := make([]*notificationv1.NotificationOccurrence, 0, len(p.byID))
 	for _, occurrence := range p.byID {
-		result = append(result, proto.Clone(occurrence).(*corev1.NotificationOccurrence))
+		result = append(result, proto.Clone(occurrence).(*notificationv1.NotificationOccurrence))
 	}
 	return result
 }
 
-func (p *NotificationProjection) scopeOccurrences(scope notificationReadBoundaryScope, now time.Time) []*corev1.NotificationOccurrence {
+func (p *NotificationProjection) scopeOccurrences(scope notificationReadBoundaryScope, now time.Time) []*notificationv1.NotificationOccurrence {
 	p.Lock()
 	defer p.Unlock()
 	p.pruneExpiredLocked(now)
-	result := make([]*corev1.NotificationOccurrence, 0, len(p.idsByScope[scope]))
+	result := make([]*notificationv1.NotificationOccurrence, 0, len(p.idsByScope[scope]))
 	for id := range p.idsByScope[scope] {
-		result = append(result, proto.Clone(p.byID[id]).(*corev1.NotificationOccurrence))
+		result = append(result, proto.Clone(p.byID[id]).(*notificationv1.NotificationOccurrence))
 	}
 	return result
 }
@@ -304,7 +305,7 @@ func (p *NotificationProjection) adminProjectionEstimate() (int64, int64, []Proj
 	}
 }
 
-var notificationSnapshotContractID = snapshotContractID("v2", &corev1.NotificationProjectionSnapshot{})
+var notificationSnapshotContractID = snapshotContractID("v2", &projectionv1.NotificationProjectionSnapshot{})
 
 func (*NotificationProjection) SnapshotContractID() string { return notificationSnapshotContractID }
 
@@ -312,14 +313,14 @@ func (p *NotificationProjection) Snapshot() ([]byte, error) {
 	p.Lock()
 	defer p.Unlock()
 	p.pruneExpiredLocked(p.now().UTC())
-	snapshot := &corev1.NotificationProjectionSnapshot{}
+	snapshot := &projectionv1.NotificationProjectionSnapshot{}
 	ids := make([]string, 0, len(p.byID))
 	for id := range p.byID {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 	for _, id := range ids {
-		snapshot.Notifications = append(snapshot.Notifications, proto.Clone(p.byID[id]).(*corev1.NotificationOccurrence))
+		snapshot.Notifications = append(snapshot.Notifications, proto.Clone(p.byID[id]).(*notificationv1.NotificationOccurrence))
 	}
 	tombstoneIDs := make([]string, 0, len(p.tombstones))
 	for id := range p.tombstones {
@@ -328,7 +329,7 @@ func (p *NotificationProjection) Snapshot() ([]byte, error) {
 	sort.Strings(tombstoneIDs)
 	for _, id := range tombstoneIDs {
 		tombstone := p.tombstones[id]
-		snapshot.Tombstones = append(snapshot.Tombstones, &corev1.NotificationProjectionTombstone{
+		snapshot.Tombstones = append(snapshot.Tombstones, &projectionv1.NotificationProjectionTombstone{
 			NotificationId:       id,
 			RecipientId:          tombstone.recipientID,
 			ExpiresAt:            timestamp(tombstone.expiresAt),
@@ -339,14 +340,14 @@ func (p *NotificationProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *NotificationProjection) Restore(data []byte) error {
-	snapshot := &corev1.NotificationProjectionSnapshot{}
+	snapshot := &projectionv1.NotificationProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal notification snapshot: %w", err)
 		}
 	}
 	now := p.now().UTC()
-	byID := make(map[string]*corev1.NotificationOccurrence)
+	byID := make(map[string]*notificationv1.NotificationOccurrence)
 	idsByUser := make(map[string]map[string]struct{})
 	idsByScope := make(map[notificationReadBoundaryScope]map[string]struct{})
 	for _, occurrence := range snapshot.GetNotifications() {
@@ -359,7 +360,7 @@ func (p *NotificationProjection) Restore(data []byte) error {
 		if _, duplicate := byID[occurrence.GetId()]; duplicate {
 			return fmt.Errorf("notification snapshot repeats occurrence %q", occurrence.GetId())
 		}
-		byID[occurrence.GetId()] = proto.Clone(occurrence).(*corev1.NotificationOccurrence)
+		byID[occurrence.GetId()] = proto.Clone(occurrence).(*notificationv1.NotificationOccurrence)
 		if idsByUser[occurrence.GetRecipientId()] == nil {
 			idsByUser[occurrence.GetRecipientId()] = make(map[string]struct{})
 		}

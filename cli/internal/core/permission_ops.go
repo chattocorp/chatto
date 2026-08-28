@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -30,7 +30,7 @@ func (c *ChattoCore) GrantServerPermission(ctx context.Context, actorID, roleNam
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, func() error {
@@ -50,7 +50,7 @@ func (c *ChattoCore) DenyServerPermission(ctx context.Context, actorID, roleName
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeServer, "", roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -59,7 +59,7 @@ func (c *ChattoCore) DenyServerPermission(ctx context.Context, actorID, roleName
 
 // ClearServerPermissionState clears both grant and denial for a permission.
 func (c *ChattoCore) ClearServerPermissionState(ctx context.Context, actorID, roleName string, perm Permission) error {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 		RbacPermissionCleared: rbacRolePermissionClearedEvent(ScopeServer, "", roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -80,7 +80,7 @@ func (c *ChattoCore) GrantUserPermission(ctx context.Context, actorID, userID st
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeServer, "", userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -92,7 +92,7 @@ func (c *ChattoCore) DenyUserPermission(ctx context.Context, actorID, userID str
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 		RbacPermissionDenied: rbacUserPermissionDeniedEvent(ScopeServer, "", userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -102,7 +102,7 @@ func (c *ChattoCore) DenyUserPermission(ctx context.Context, actorID, userID str
 // ClearUserPermissionState clears both the grant and denial for a user-level
 // permission at server scope.
 func (c *ChattoCore) ClearUserPermissionState(ctx context.Context, actorID, userID string, perm Permission) error {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 		RbacPermissionCleared: rbacUserPermissionClearedEvent(ScopeServer, "", userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -114,7 +114,7 @@ func (c *ChattoCore) GrantUserRoomPermission(ctx context.Context, actorID, roomI
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -126,7 +126,7 @@ func (c *ChattoCore) DenyUserRoomPermission(ctx context.Context, actorID, roomID
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 		RbacPermissionDenied: rbacUserPermissionDeniedEvent(ScopeRoom, roomID, userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -136,7 +136,7 @@ func (c *ChattoCore) DenyUserRoomPermission(ctx context.Context, actorID, roomID
 // ClearUserRoomPermissionState clears both the grant and denial for a
 // user-level permission for a specific room.
 func (c *ChattoCore) ClearUserRoomPermissionState(ctx context.Context, actorID, roomID, userID string, perm Permission) error {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 		RbacPermissionCleared: rbacUserPermissionClearedEvent(ScopeRoom, roomID, userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -149,7 +149,7 @@ func (c *ChattoCore) GrantUserGroupPermission(ctx context.Context, actorID, grou
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeGroup, groupID, userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -162,7 +162,7 @@ func (c *ChattoCore) DenyUserGroupPermission(ctx context.Context, actorID, group
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 		RbacPermissionDenied: rbacUserPermissionDeniedEvent(ScopeGroup, groupID, userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -172,7 +172,7 @@ func (c *ChattoCore) DenyUserGroupPermission(ctx context.Context, actorID, group
 // ClearUserGroupPermissionState clears both the grant and denial for a
 // user-level permission at a specific room group's scope.
 func (c *ChattoCore) ClearUserGroupPermissionState(ctx context.Context, actorID, groupID, userID string, perm Permission) error {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 		RbacPermissionCleared: rbacUserPermissionClearedEvent(ScopeGroup, groupID, userID, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -188,7 +188,7 @@ func (c *ChattoCore) GrantRoomPermission(ctx context.Context, actorID, roomID, r
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeRoom, roomID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -200,7 +200,7 @@ func (c *ChattoCore) DenyRoomPermission(ctx context.Context, actorID, roomID, ro
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeRoom, roomID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -210,7 +210,7 @@ func (c *ChattoCore) DenyRoomPermission(ctx context.Context, actorID, roomID, ro
 // ClearRoomPermissionState removes both grant and denial for a permission at
 // room level.
 func (c *ChattoCore) ClearRoomPermissionState(ctx context.Context, actorID, roomID, roleName string, perm Permission) error {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 		RbacPermissionCleared: rbacRolePermissionClearedEvent(ScopeRoom, roomID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)

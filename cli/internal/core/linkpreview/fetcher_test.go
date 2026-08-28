@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/assets"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -105,14 +105,14 @@ func TestApplyBlueskyEmbedIncludesQuotedPostMedia(t *testing.T) {
 		imageClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 			return response(http.StatusOK, "image/png", pngData.String()), nil
 		})},
-		storeImage: func(_ context.Context, assetID string, _ []byte, _ string) (*corev1.AssetRecord, error) {
-			return &corev1.AssetRecord{
+		storeImage: func(_ context.Context, assetID string, _ []byte, _ string) (*evtv1.AssetRecord, error) {
+			return &evtv1.AssetRecord{
 				Id:      assetID,
-				Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+				Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: assetID}},
 			}, nil
 		},
 	}
-	snapshot := &corev1.SocialPostPreview{Provider: "bluesky"}
+	snapshot := &evtv1.SocialPostPreview{Provider: "bluesky"}
 	embed := &blueskyEmbed{Record: &blueskyRecordView{
 		URI:    "at://did:plc:quoted/app.bsky.feed.post/quote123",
 		Author: blueskyAuthor{DisplayName: "Quoted author", Handle: "quoted.example"},
@@ -143,7 +143,7 @@ func TestApplyBlueskyEmbedIncludesQuotedPostMedia(t *testing.T) {
 }
 
 func TestApplyBlueskyRecordWithMediaIncludesDirectMediaAndQuote(t *testing.T) {
-	snapshot := &corev1.SocialPostPreview{Provider: "bluesky"}
+	snapshot := &evtv1.SocialPostPreview{Provider: "bluesky"}
 	embed := &blueskyEmbed{
 		Media: &blueskyEmbed{External: &blueskyExternal{URI: "https://example.com/story", Title: "Story"}},
 		Record: &blueskyRecordView{Record: &blueskyRecordView{
@@ -302,15 +302,15 @@ func TestSocialPostImageBudgetBoundsFetchesAndBytes(t *testing.T) {
 }
 
 func TestFetchResultPopulatesCompatibilityImage(t *testing.T) {
-	asset := &corev1.AssetRecord{
+	asset := &evtv1.AssetRecord{
 		Id:      "preview_asset",
-		Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "preview_asset"}},
+		Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "preview_asset"}},
 	}
 	result := &FetchResult{
 		ImageAsset: asset,
-		SocialPost: &corev1.SocialPostPreview{
+		SocialPost: &evtv1.SocialPostPreview{
 			Provider: "bluesky",
-			Author:   &corev1.SocialPostAuthor{Handle: "bsky.app"},
+			Author:   &evtv1.SocialPostAuthor{Handle: "bsky.app"},
 		},
 	}
 

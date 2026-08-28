@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"sync"
 	"time"
@@ -11,8 +12,6 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
@@ -40,7 +39,7 @@ type notificationReadBoundaryEntry struct {
 }
 
 type notificationUnreadMarkerEntry struct {
-	marker   *corev1.NotificationUnreadMarker
+	marker   *runtimestatev1.NotificationUnreadMarker
 	revision uint64
 	deleted  bool
 }
@@ -229,7 +228,7 @@ func (i *notificationBoundaryIndex) apply(entry jetstream.KeyValueEntry) error {
 		}
 		next := notificationUnreadMarkerEntry{revision: entry.Revision(), deleted: deleted}
 		if !deleted {
-			var marker corev1.NotificationUnreadMarker
+			var marker runtimestatev1.NotificationUnreadMarker
 			if err := proto.Unmarshal(entry.Value(), &marker); err != nil {
 				return fmt.Errorf("decode %s: %w", key, err)
 			}
@@ -300,7 +299,7 @@ func (i *notificationBoundaryIndex) readBoundary(ctx context.Context, userID, ro
 	return entry.boundary, exists && !entry.deleted, nil
 }
 
-func (i *notificationBoundaryIndex) unreadMarker(ctx context.Context, scope notificationReadBoundaryScope) (*corev1.NotificationUnreadMarker, uint64, bool, error) {
+func (i *notificationBoundaryIndex) unreadMarker(ctx context.Context, scope notificationReadBoundaryScope) (*runtimestatev1.NotificationUnreadMarker, uint64, bool, error) {
 	if err := i.waitReady(ctx); err != nil {
 		return nil, 0, false, err
 	}
@@ -310,13 +309,13 @@ func (i *notificationBoundaryIndex) unreadMarker(ctx context.Context, scope noti
 	if entry.deleted || entry.marker == nil {
 		return nil, entry.revision, false, nil
 	}
-	return proto.Clone(entry.marker).(*corev1.NotificationUnreadMarker), entry.revision, true, nil
+	return proto.Clone(entry.marker).(*runtimestatev1.NotificationUnreadMarker), entry.revision, true, nil
 }
 
 // unreadMarkers returns detached marker values for one room. An empty thread
 // root includes the room marker and all thread markers so room unread state can
 // aggregate nested Badge attention.
-func (i *notificationBoundaryIndex) unreadMarkers(ctx context.Context, userID, roomID, threadRootEventID string) ([]*corev1.NotificationUnreadMarker, error) {
+func (i *notificationBoundaryIndex) unreadMarkers(ctx context.Context, userID, roomID, threadRootEventID string) ([]*runtimestatev1.NotificationUnreadMarker, error) {
 	if err := i.waitReady(ctx); err != nil {
 		return nil, err
 	}
@@ -328,14 +327,14 @@ func (i *notificationBoundaryIndex) unreadMarkers(ctx context.Context, userID, r
 		if entry.deleted || entry.marker == nil {
 			return nil, nil
 		}
-		return []*corev1.NotificationUnreadMarker{proto.Clone(entry.marker).(*corev1.NotificationUnreadMarker)}, nil
+		return []*runtimestatev1.NotificationUnreadMarker{proto.Clone(entry.marker).(*runtimestatev1.NotificationUnreadMarker)}, nil
 	}
-	result := make([]*corev1.NotificationUnreadMarker, 0, len(byThread))
+	result := make([]*runtimestatev1.NotificationUnreadMarker, 0, len(byThread))
 	for _, entry := range byThread {
 		if entry.deleted || entry.marker == nil {
 			continue
 		}
-		result = append(result, proto.Clone(entry.marker).(*corev1.NotificationUnreadMarker))
+		result = append(result, proto.Clone(entry.marker).(*runtimestatev1.NotificationUnreadMarker))
 	}
 	return result, nil
 }

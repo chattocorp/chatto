@@ -8,7 +8,8 @@ Related decisions: [ADR-001](../adr/ADR-001-nats-jetstream-as-primary-data-store
 [ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
 [ADR-069](../adr/ADR-069-explicit-durable-consumer-lifecycle.md), and
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md), and
-[ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md).
+[ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md), and
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 Key and subject schemas are maintained separately in the
 [runtime state](runtime-state.md) and [subject and event](subjects-and-events.md)
@@ -18,15 +19,15 @@ inventories.
 
 | Type         | Name                | Storage | Backup | Description                                                                 |
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
-| Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
-| Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded event log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
-| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, fixed-expiry bearer access verifiers, mutable cookie and renewable-session authorities with explicit expiry and per-message TTL, workflow credentials, credential-usage telemetry, notification read/visibility boundaries, wrapped app DEKs, and encrypted snapshot pointers |
-| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats; recreated automatically after a full NATS restart |
-| KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
+| Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `evtv1.Event` facts on `evt.>`              |
+| Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded `notificationv1.NotificationEvent` log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
+| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value records from `chatto.core.runtime_state.v1`, including credentials, telemetry, notification boundaries, wrapped app DEKs, and snapshot pointers |
+| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile shared records from `chatto.core.cache_state.v1`, plus non-protobuf worker leases, cooldowns, counters, and health heartbeats |
+| KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS records from `chatto.core.key_material.v1`; excluded from backups |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |
-| Object store | `PROJECTION_SNAPSHOTS` | File | Yes    | Optional encrypted projection snapshot objects; configurable TTL defaults to seven days |
+| Object store | `PROJECTION_SNAPSHOTS` | File | Yes    | Optional encrypted `chatto.core.projection.v1` snapshot objects; configurable TTL defaults to seven days |
 | Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
-| NATS Core    | `live.sync.>`       | None    | No     | Transient `corev1.LiveEvent` pubsub signals                                  |
+| NATS Core    | `live.sync.>`       | None    | No     | Transient `livev1.LiveEvent` pubsub signals                                  |
 | Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
 
 ## Durable consumers

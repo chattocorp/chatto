@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,8 +11,6 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // PresenceUpdate represents a deduplicated presence change from the KV watcher.
@@ -188,7 +187,7 @@ func (h *PresenceHub) applyWatcherEntry(entry jetstream.KeyValueEntry, fanOut bo
 
 	status := PresenceStatusOffline
 	if entry.Operation() != jetstream.KeyValueDelete && entry.Operation() != jetstream.KeyValuePurge {
-		var presence corev1.UserPresence
+		var presence cachestatev1.UserPresence
 		if err := proto.Unmarshal(entry.Value(), &presence); err != nil {
 			h.logger.Warn("Presence hub: failed to unmarshal", "error", err, "user_id", userID)
 			return

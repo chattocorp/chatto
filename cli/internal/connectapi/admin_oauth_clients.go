@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -87,11 +87,11 @@ func apiOAuthClient(state core.OAuthClientState) *adminv1.OAuthClient {
 	}
 }
 
-func apiOAuthClientSource(source corev1.OAuthClientSource) adminv1.OAuthClientSource {
+func apiOAuthClientSource(source evtv1.OAuthClientSource) adminv1.OAuthClientSource {
 	switch source {
-	case corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD:
+	case evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD:
 		return adminv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD
-	case corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN:
+	case evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN:
 		return adminv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN
 	default:
 		// The public and durable enums intentionally share numeric assignments.
@@ -101,13 +101,13 @@ func apiOAuthClientSource(source corev1.OAuthClientSource) adminv1.OAuthClientSo
 	}
 }
 
-func apiOAuthClientPolicy(policy corev1.OAuthClientPolicy) adminv1.OAuthClientPolicy {
+func apiOAuthClientPolicy(policy evtv1.OAuthClientPolicy) adminv1.OAuthClientPolicy {
 	switch policy {
-	case corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT:
+	case evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT:
 		return adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT
-	case corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED:
+	case evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED:
 		return adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED
-	case corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED:
+	case evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED:
 		return adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
 	default:
 		// Preserve unknown numeric values across the durable/public boundary so
@@ -116,15 +116,15 @@ func apiOAuthClientPolicy(policy corev1.OAuthClientPolicy) adminv1.OAuthClientPo
 	}
 }
 
-func coreOAuthClientPolicy(policy adminv1.OAuthClientPolicy) (corev1.OAuthClientPolicy, error) {
+func coreOAuthClientPolicy(policy adminv1.OAuthClientPolicy) (evtv1.OAuthClientPolicy, error) {
 	switch policy {
 	case adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT:
-		return corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT, nil
+		return evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT, nil
 	case adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED:
-		return corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED, nil
+		return evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED, nil
 	case adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED:
-		return corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED, nil
+		return evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED, nil
 	default:
-		return corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED, core.ErrInvalidArgument
+		return evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED, core.ErrInvalidArgument
 	}
 }

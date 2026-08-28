@@ -11,7 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/publiccursor"
 )
 
@@ -195,7 +195,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			return plan, nil
 		}
 
-		var event corev1.Event
+		var event evtv1.Event
 		if err := proto.Unmarshal(msg.Data, &event); err != nil {
 			return RealtimeReplayPlan{}, fmt.Errorf("decode EVT sequence %d: %w", seq, err)
 		}

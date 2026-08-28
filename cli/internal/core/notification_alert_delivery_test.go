@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"hmans.de/chatto/internal/notificationstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestNotificationStreamAndAlertConsumerConfiguration(t *testing.T) {
@@ -36,7 +37,7 @@ func TestNotificationStreamAndAlertConsumerConfiguration(t *testing.T) {
 
 func TestNotificationAlertEligibleRejectsUnsupportedFutureSignal(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
-	eligible, err := chattoCore.NotificationAlertEligible(testContext(t), &corev1.NotificationOccurrence{Signal: testUnsupportedNotificationSignal()})
+	eligible, err := chattoCore.NotificationAlertEligible(testContext(t), &notificationv1.NotificationOccurrence{Signal: testUnsupportedNotificationSignal()})
 	if eligible || !errors.Is(err, ErrUnsupportedNotificationSignal) {
 		t.Fatalf("NotificationAlertEligible = (%v, %v), want false and unsupported-signal error", eligible, err)
 	}
@@ -65,7 +66,7 @@ func TestNotificationSoundEligibleAllowsInAppNotificationWithoutPush(t *testing.
 	}
 	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, recipient.Id,
 		notificationTestSignalDirectMention,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 	); err != nil {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
@@ -89,7 +90,7 @@ func TestNotificationSoundEligibleAllowsInAppNotificationWithoutPush(t *testing.
 	}
 	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, recipient.Id,
 		notificationTestSignalDirectMention,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	); err != nil {
 		t.Fatalf("disable notification policy: %v", err)
 	}
@@ -101,8 +102,8 @@ func TestNotificationSoundEligibleAllowsInAppNotificationWithoutPush(t *testing.
 
 func TestNotificationAlertWorkerConsumesSignalledEvent(t *testing.T) {
 	chattoCore, _ := newTestCore(t)
-	delivered := make(chan *corev1.NotificationOccurrence, 1)
-	chattoCore.SetNotificationAlertHandler(func(_ context.Context, occurrence *corev1.NotificationOccurrence) error {
+	delivered := make(chan *notificationv1.NotificationOccurrence, 1)
+	chattoCore.SetNotificationAlertHandler(func(_ context.Context, occurrence *notificationv1.NotificationOccurrence) error {
 		delivered <- occurrence
 		return nil
 	})
@@ -146,8 +147,8 @@ func TestNotificationAlertWorkerConsumesSignalledEvent(t *testing.T) {
 
 func TestNotificationAlertWorkerUsesRoomGroupPolicy(t *testing.T) {
 	chattoCore, _ := newTestCore(t)
-	delivered := make(chan *corev1.NotificationOccurrence, 1)
-	chattoCore.SetNotificationAlertHandler(func(_ context.Context, occurrence *corev1.NotificationOccurrence) error {
+	delivered := make(chan *notificationv1.NotificationOccurrence, 1)
+	chattoCore.SetNotificationAlertHandler(func(_ context.Context, occurrence *notificationv1.NotificationOccurrence) error {
 		delivered <- occurrence
 		return nil
 	})
@@ -176,13 +177,13 @@ func TestNotificationAlertWorkerUsesRoomGroupPolicy(t *testing.T) {
 	}
 	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, recipient.Id,
 		notificationTestSignalDirectMention,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	); err != nil {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
 	if _, err := chattoCore.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, recipient.Id,
 		NotificationPolicyScope{Kind: NotificationPolicyScopeRoomGroup, ID: group.Id},
-		&corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
+		&evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
 		&fieldmaskpb.FieldMask{Paths: []string{"direct_mentions"}},
 	); err != nil {
 		t.Fatalf("UpdateScopedNotificationPolicy: %v", err)

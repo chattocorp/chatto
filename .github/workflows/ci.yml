@@ -212,7 +212,7 @@ jobs:
             --path chatto/api/v1 \
             --path chatto/admin/v1 \
             --path chatto/realtime/v1 \
-            --path chatto/core/v1/live_events.proto
+            --path chatto/core/live/v1/live_events.proto
 
       - name: Check Authling persisted protobuf breaking changes
         run: |

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestNewConfigModelWiresDependencies(t *testing.T) {
@@ -35,11 +35,11 @@ func TestConfigModelUpdateSubjectAppendsAndWaitsForProjection(t *testing.T) {
 	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 
-	err := service.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		return []*corev1.Event{
-			newEvent(SystemActorID, &corev1.Event{
-				Event: &corev1.Event_ServerNameChanged{
-					ServerNameChanged: &corev1.ServerNameChangedEvent{Name: "Service Test"},
+	err := service.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
+		return []*evtv1.Event{
+			newEvent(SystemActorID, &evtv1.Event{
+				Event: &evtv1.Event_ServerNameChanged{
+					ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: "Service Test"},
 				},
 			}),
 		}, nil
@@ -78,9 +78,9 @@ func TestConfigModelPrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
 	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 
-	event := newEvent(SystemActorID, &corev1.Event{
-		Event: &corev1.Event_ServerDescriptionChanged{
-			ServerDescriptionChanged: &corev1.ServerDescriptionChangedEvent{Description: "existing"},
+	event := newEvent(SystemActorID, &evtv1.Event{
+		Event: &evtv1.Event_ServerDescriptionChanged{
+			ServerDescriptionChanged: &evtv1.ServerDescriptionChangedEvent{Description: "existing"},
 		},
 	})
 	subject := evtstream.ConfigSubjectAggregate(ConfigSubjectServer).SubjectFor(event)
@@ -129,7 +129,7 @@ func TestConfigModelUpdateSubjectNoEventsIsNoop(t *testing.T) {
 	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 
-	if err := service.updateSubject(ctx, ConfigSubjectServer, func(evtstream.Aggregate, string, uint64) ([]*corev1.Event, error) {
+	if err := service.updateSubject(ctx, ConfigSubjectServer, func(evtstream.Aggregate, string, uint64) ([]*evtv1.Event, error) {
 		return nil, nil
 	}); err != nil {
 		t.Fatalf("updateSubject no-op returned error: %v", err)
@@ -152,12 +152,12 @@ func TestConfigModelUpdateSubjectRetriesNoopAfterSequenceChange(t *testing.T) {
 	ctx := testContext(t)
 	attempts := 0
 
-	err := service.updateSubject(ctx, ConfigSubjectServer, func(agg evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := service.updateSubject(ctx, ConfigSubjectServer, func(agg evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		attempts++
 		if attempts == 1 {
-			conflicting := newEvent(SystemActorID, &corev1.Event{
-				Event: &corev1.Event_ServerNameChanged{
-					ServerNameChanged: &corev1.ServerNameChangedEvent{Name: "concurrent write"},
+			conflicting := newEvent(SystemActorID, &evtv1.Event{
+				Event: &evtv1.Event_ServerNameChanged{
+					ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: "concurrent write"},
 				},
 			})
 			if _, err := harness.publisher.AppendEventually(ctx, agg.SubjectFor(conflicting), conflicting); err != nil {
@@ -186,7 +186,7 @@ func TestConfigModelUpdateSubjectPropagatesBuildError(t *testing.T) {
 	ctx := testContext(t)
 	wantErr := errors.New("build failed")
 
-	err := service.updateSubject(ctx, ConfigSubjectServer, func(evtstream.Aggregate, string, uint64) ([]*corev1.Event, error) {
+	err := service.updateSubject(ctx, ConfigSubjectServer, func(evtstream.Aggregate, string, uint64) ([]*evtv1.Event, error) {
 		return nil, wantErr
 	})
 	if !errors.Is(err, wantErr) {
@@ -203,22 +203,22 @@ func TestConfigModelUpdateSubjectRetriesConflicts(t *testing.T) {
 	ctx := testContext(t)
 	attempts := 0
 
-	err := service.updateSubject(ctx, ConfigSubjectServer, func(agg evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := service.updateSubject(ctx, ConfigSubjectServer, func(agg evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		attempts++
 		if attempts == 1 {
-			conflicting := newEvent(SystemActorID, &corev1.Event{
-				Event: &corev1.Event_ServerNameChanged{
-					ServerNameChanged: &corev1.ServerNameChangedEvent{Name: "conflicting write"},
+			conflicting := newEvent(SystemActorID, &evtv1.Event{
+				Event: &evtv1.Event_ServerNameChanged{
+					ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: "conflicting write"},
 				},
 			})
 			if _, err := harness.publisher.AppendEventually(ctx, agg.SubjectFor(conflicting), conflicting); err != nil {
 				return nil, err
 			}
 		}
-		return []*corev1.Event{
-			newEvent(SystemActorID, &corev1.Event{
-				Event: &corev1.Event_ServerNameChanged{
-					ServerNameChanged: &corev1.ServerNameChangedEvent{Name: "retried write"},
+		return []*evtv1.Event{
+			newEvent(SystemActorID, &evtv1.Event{
+				Event: &evtv1.Event_ServerNameChanged{
+					ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: "retried write"},
 				},
 			}),
 		}, nil
@@ -243,20 +243,20 @@ func TestConfigModelUpdateSubjectReturnsConflictAfterRetries(t *testing.T) {
 	ctx := testContext(t)
 	attempts := 0
 
-	err := service.updateSubject(ctx, ConfigSubjectServer, func(agg evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := service.updateSubject(ctx, ConfigSubjectServer, func(agg evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		attempts++
-		conflicting := newEvent(SystemActorID, &corev1.Event{
-			Event: &corev1.Event_ServerDescriptionChanged{
-				ServerDescriptionChanged: &corev1.ServerDescriptionChangedEvent{Description: "conflict"},
+		conflicting := newEvent(SystemActorID, &evtv1.Event{
+			Event: &evtv1.Event_ServerDescriptionChanged{
+				ServerDescriptionChanged: &evtv1.ServerDescriptionChangedEvent{Description: "conflict"},
 			},
 		})
 		if _, err := harness.publisher.AppendEventually(ctx, agg.SubjectFor(conflicting), conflicting); err != nil {
 			return nil, err
 		}
-		return []*corev1.Event{
-			newEvent(SystemActorID, &corev1.Event{
-				Event: &corev1.Event_ServerNameChanged{
-					ServerNameChanged: &corev1.ServerNameChangedEvent{Name: "never lands"},
+		return []*evtv1.Event{
+			newEvent(SystemActorID, &evtv1.Event{
+				Event: &evtv1.Event_ServerNameChanged{
+					ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: "never lands"},
 				},
 			}),
 		}, nil

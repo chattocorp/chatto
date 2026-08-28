@@ -2,18 +2,19 @@ package core
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func (c *ChattoCore) publishNotificationOccurrencesInvalidated(ctx context.Context, occurrence *corev1.NotificationOccurrence, creationCandidate bool) {
-	c.publishNotificationOccurrenceInvalidations(ctx, []*corev1.NotificationOccurrence{occurrence}, creationCandidate)
+func (c *ChattoCore) publishNotificationOccurrencesInvalidated(ctx context.Context, occurrence *notificationv1.NotificationOccurrence, creationCandidate bool) {
+	c.publishNotificationOccurrenceInvalidations(ctx, []*notificationv1.NotificationOccurrence{occurrence}, creationCandidate)
 }
 
-func (c *ChattoCore) publishNotificationOccurrenceInvalidations(ctx context.Context, occurrences []*corev1.NotificationOccurrence, creationCandidate bool) {
+func (c *ChattoCore) publishNotificationOccurrenceInvalidations(ctx context.Context, occurrences []*notificationv1.NotificationOccurrence, creationCandidate bool) {
 	if c == nil {
 		return
 	}
@@ -50,9 +51,9 @@ func (c *ChattoCore) publishNotificationOccurrenceInvalidations(ctx context.Cont
 		}
 		publications = append(publications, liveEventPublication{
 			subject: subjects.LiveSyncUserEvent(occurrence.GetRecipientId(), "notification_v2"),
-			event: newLiveEvent(occurrence.GetActorId(), &corev1.LiveEvent{
-				Event: &corev1.LiveEvent_NotificationOccurrencesInvalidated{
-					NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{
+			event: newLiveEvent(occurrence.GetActorId(), &livev1.LiveEvent{
+				Event: &livev1.LiveEvent_NotificationOccurrencesInvalidated{
+					NotificationOccurrencesInvalidated: &livev1.NotificationOccurrencesInvalidatedEvent{
 						AlertCandidateNotificationId: alertCandidateID,
 						SoundCandidateNotificationId: soundCandidateID,
 					},

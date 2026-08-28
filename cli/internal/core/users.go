@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -12,7 +13,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -21,8 +22,8 @@ import (
 
 const DeletedUserDisplayName = "Deleted User"
 
-func DeletedUserReference(userID string) *corev1.User {
-	return &corev1.User{
+func DeletedUserReference(userID string) *evtv1.User {
+	return &evtv1.User{
 		Id:          userID,
 		DisplayName: DeletedUserDisplayName,
 		Deleted:     true,
@@ -33,7 +34,7 @@ func DeletedUserReference(userID string) *corev1.User {
 // Uses the mentionables projection plus stream-wide OCC to prevent user/role
 // handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
-func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
+func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*evtv1.User, error) {
 	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{})
 }
 
@@ -47,7 +48,7 @@ type userCreationOptions struct {
 	authorize     func() error
 }
 
-func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*corev1.User, error) {
+func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*evtv1.User, error) {
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	isBot := options.isBot
@@ -109,7 +110,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}
 
 	now := timestamppb.Now()
-	user := &corev1.User{
+	user := &evtv1.User{
 		Id:             userID,
 		Login:          login,
 		DisplayName:    displayName,
@@ -147,30 +148,30 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		}
 	}()
 
-	_, wrappedMessageDEK, err := c.newWrappedUserDEK(ctx, userID, keyRef, 1, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	_, wrappedMessageDEK, err := c.newWrappedUserDEK(ctx, userID, keyRef, 1, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	if err != nil {
 		return nil, err
 	}
 	cleanupContentKeyRefs = append(cleanupContentKeyRefs, wrappedMessageDEK.GetContentKeyRef())
 
-	piiDEKBytes, wrappedPIIDEK, err := c.newWrappedUserDEK(ctx, userID, keyRef, 1, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
+	piiDEKBytes, wrappedPIIDEK, err := c.newWrappedUserDEK(ctx, userID, keyRef, 1, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
 	if err != nil {
 		return nil, err
 	}
 	cleanupContentKeyRefs = append(cleanupContentKeyRefs, wrappedPIIDEK.GetContentKeyRef())
 
-	piiDEK := &userDEK{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: piiDEKBytes}
+	piiDEK := &userDEK{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: piiDEKBytes}
 	agg := evtstream.UserAggregate(userID)
-	messageDEKEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
+	messageDEKEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{
 		UserDekGenerated: wrappedMessageDEK,
 	}})
 	messageDEKEvent.CreatedAt = now
-	piiDEKEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
+	piiDEKEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{
 		UserDekGenerated: wrappedPIIDEK,
 	}})
 	piiDEKEvent.CreatedAt = now
-	accountCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
-		UserAccountCreated: &corev1.UserAccountCreatedEvent{
+	accountCreated := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserAccountCreated{
+		UserAccountCreated: &evtv1.UserAccountCreatedEvent{
 			UserId:         userID,
 			IsBot:          isBot,
 			BotOwnerUserId: options.botOwnerID,
@@ -198,8 +199,8 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		Event:   accountCreated,
 	}}
 	if isBot {
-		keyCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_BotApiKeyCreated{
-			BotApiKeyCreated: &corev1.BotApiKeyCreatedEvent{UserId: userID, Verifier: botAPIKeyVerifier},
+		keyCreated := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyCreated{
+			BotApiKeyCreated: &evtv1.BotApiKeyCreatedEvent{UserId: userID, Verifier: botAPIKeyVerifier},
 		}})
 		keyCreated.CreatedAt = now
 		entries = append(entries, evtstream.BatchEntry{
@@ -212,8 +213,8 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}
-		passwordChanged := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
-			UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+		passwordChanged := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserPasswordHashChanged{
+			UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{
 				UserId:       userID,
 				PasswordHash: hashedPassword,
 			},
@@ -226,8 +227,8 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}
 
 	if options.invitationID != "" {
-		invitationEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_InvitationRedeemed{
-			InvitationRedeemed: &corev1.InvitationRedeemedEvent{InvitationId: options.invitationID, UserId: userID},
+		invitationEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_InvitationRedeemed{
+			InvitationRedeemed: &evtv1.InvitationRedeemedEvent{InvitationId: options.invitationID, UserId: userID},
 		}})
 		invitationEvent.CreatedAt = now
 		entries = append(entries, evtstream.BatchEntry{
@@ -238,8 +239,8 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 
 	if options.verifiedEmail != "" {
 		email := strings.ToLower(strings.TrimSpace(options.verifiedEmail))
-		verifiedEmailEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
-			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{UserId: userID},
+		verifiedEmailEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserVerifiedEmailAdded{
+			UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{UserId: userID},
 		}})
 		verifiedEmailEvent.CreatedAt = now
 		verifiedEmailEvent.GetUserVerifiedEmailAdded().EncryptedEmail, err = encryptUserPIIStringWithDEK(
@@ -258,8 +259,8 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 
 	if options.external != nil {
 		flow := options.external
-		externalEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityLinked{
-			UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+		externalEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
+			UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
 				UserId:       userID,
 				Issuer:       flow.Issuer,
 				Subject:      flow.Subject,
@@ -334,9 +335,9 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}
 
 	// Publish a best-effort transient signal for the new public user.
-	event := newLiveEvent(eventActorID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_UserCreated{
-			UserCreated: &corev1.UserCreatedSyncEvent{
+	event := newLiveEvent(eventActorID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_UserCreated{
+			UserCreated: &livev1.UserCreatedSyncEvent{
 				UserId:      userID,
 				Login:       login,
 				DisplayName: displayName,
@@ -365,7 +366,7 @@ func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, keyRef
 //
 // Used by signup-completion (post email-link click) and trusted account-link
 // flows where the email has already been proven.
-func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*corev1.User, error) {
+func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*evtv1.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return nil, ErrInvalidArgument
@@ -375,7 +376,7 @@ func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, dis
 
 // CreateVerifiedUserWithInvitation atomically creates a verified account and
 // records its invitation redemption.
-func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*corev1.User, error) {
+func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*evtv1.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return nil, ErrInvalidArgument
@@ -392,13 +393,13 @@ func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actor
 
 // rollbackUserCreation undoes the persisted writes performed by CreateUser. Best-effort —
 // failures are logged but not returned, since the caller is already in an error path.
-func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *corev1.User) {
+func (c *ChattoCore) rollbackUserCreation(ctx context.Context, user *evtv1.User) {
 	c.logger.Warn("rolling back user creation", "user_id", user.Id)
 	_ = c.DeleteUser(ctx, "system:rollback", user.Id)
 }
 
 // GetUser retrieves a user from the user projection.
-func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, error) {
+func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*evtv1.User, error) {
 	user, ok, err := c.userModel.user(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -411,7 +412,7 @@ func (c *ChattoCore) GetUser(ctx context.Context, userID string) (*corev1.User, 
 
 // GetUserReference retrieves a public user reference. Deleted or crypto-shredded
 // users are returned as tombstones; unknown users still return ErrNotFound.
-func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*corev1.User, error) {
+func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*evtv1.User, error) {
 	user, ok, err := c.userModel.userReference(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -425,9 +426,9 @@ func (c *ChattoCore) GetUserReference(ctx context.Context, userID string) (*core
 // GetUsers retrieves multiple users by ID from the user projection.
 // Returns users in the same order as userIDs. nil entries indicate not-found users.
 // More efficient than calling GetUser() in a loop for batched operations.
-func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.User, error) {
+func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
 	if len(userIDs) == 0 {
-		return []*corev1.User{}, nil
+		return []*evtv1.User{}, nil
 	}
 
 	// Deduplicate IDs to avoid redundant fetches
@@ -440,7 +441,7 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.
 		}
 	}
 
-	userMap := make(map[string]*corev1.User, len(uniqueIDs))
+	userMap := make(map[string]*evtv1.User, len(uniqueIDs))
 	for _, id := range uniqueIDs {
 		user, ok, err := c.userModel.user(ctx, id)
 		if err != nil {
@@ -452,7 +453,7 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.
 	}
 
 	// Return in original order (nil for not-found users)
-	result := make([]*corev1.User, len(userIDs))
+	result := make([]*evtv1.User, len(userIDs))
 	for i, id := range userIDs {
 		result[i] = userMap[id] // nil if not found
 	}
@@ -461,7 +462,7 @@ func (c *ChattoCore) GetUsers(ctx context.Context, userIDs []string) ([]*corev1.
 }
 
 // GetUserByLogin retrieves a user by their login name using the login index.
-func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.User, error) {
+func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*evtv1.User, error) {
 	user, ok, err := c.userModel.userByLogin(ctx, login)
 	if err != nil {
 		return nil, err
@@ -478,7 +479,7 @@ func (c *ChattoCore) CountUsers(ctx context.Context) (int, error) {
 	return c.userModel.userCount(), nil
 }
 
-func (c *ChattoCore) ListUsers(ctx context.Context) ([]*corev1.User, error) {
+func (c *ChattoCore) ListUsers(ctx context.Context) ([]*evtv1.User, error) {
 	return c.userModel.allUsers(ctx)
 }
 

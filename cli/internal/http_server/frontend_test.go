@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -767,11 +767,11 @@ func setupFrontendTestCoreWithLogo(t *testing.T) *core.ChattoCore {
 	}
 	startCoreServices(t, chattoCore)
 
-	logo := &corev1.AssetRecord{
+	logo := &evtv1.AssetRecord{
 		Id:          "logo-asset",
 		Filename:    "logo.webp",
 		ContentType: "image/webp",
-		Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}},
+		Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "logo-asset"}},
 	}
 	if err := chattoCore.SetServerLogo(ctx, core.SystemActorID, logo); err != nil {
 		t.Fatalf("SetServerLogo: %v", err)

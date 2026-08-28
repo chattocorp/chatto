@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -598,9 +599,9 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 // ============================================================================
 
 func TestNewSpaceEvent_PopulatesId(t *testing.T) {
-	event := newEvent("test-actor", &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{
+	event := newEvent("test-actor", &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{
 				RoomId: "test-room",
 				Name:   "Test Room",
 			},
@@ -622,10 +623,10 @@ func TestNewSpaceEvent_PopulatesId(t *testing.T) {
 
 func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 	existingId := "E12345678901234"
-	event := newEvent("test-actor", &corev1.Event{
+	event := newEvent("test-actor", &evtv1.Event{
 		Id: existingId,
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{
 				RoomId: "test-room",
 				Name:   "Test Room",
 			},
@@ -638,9 +639,9 @@ func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
-	event := newEvent("test-actor", &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{},
+	event := newEvent("test-actor", &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{},
 		},
 	})
 
@@ -650,9 +651,9 @@ func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
-	event := newEvent("test-actor", &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{},
+	event := newEvent("test-actor", &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{},
 		},
 	})
 
@@ -809,7 +810,7 @@ func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
 
 	event, ok := core.filterLiveSyncEvent(ctx, "U1", map[string]struct{}{}, &nats.Msg{
 		Subject: "live.sync.config.server_updated",
-	}, &corev1.LiveEvent{
+	}, &livev1.LiveEvent{
 		Id:      "LIVE-empty",
 		ActorId: "U1",
 	})
@@ -846,8 +847,8 @@ func TestFilterLiveSyncEvent_DropsTypingWithoutMessageRead(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 
-	live := newLiveEvent(author.GetId(), &corev1.LiveEvent{Event: &corev1.LiveEvent_UserTyping{
-		UserTyping: &corev1.UserTypingEvent{RoomId: room.GetId()},
+	live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+		UserTyping: &livev1.UserTypingEvent{RoomId: room.GetId()},
 	}})
 	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{room.GetId(): {}}, &nats.Msg{
 		Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
@@ -896,8 +897,8 @@ func TestFilterLiveSyncEventAllowsRelatedThreadTyping(t *testing.T) {
 	}
 	memberRooms := map[string]struct{}{room.GetId(): {}}
 	typing := func(threadRootEventID string) (EventEnvelope, bool) {
-		live := newLiveEvent(author.GetId(), &corev1.LiveEvent{Event: &corev1.LiveEvent_UserTyping{
-			UserTyping: &corev1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
+		live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+			UserTyping: &livev1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
 		}})
 		return chatto.filterLiveSyncEvent(ctx, viewer.GetId(), memberRooms, &nats.Msg{
 			Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
@@ -932,8 +933,8 @@ func TestFilterLiveSyncEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 
-	live := newLiveEvent(author.GetId(), &corev1.LiveEvent{Event: &corev1.LiveEvent_UserTyping{
-		UserTyping: &corev1.UserTypingEvent{RoomId: dm.GetId()},
+	live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+		UserTyping: &livev1.UserTypingEvent{RoomId: dm.GetId()},
 	}})
 	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{dm.GetId(): {}}, &nats.Msg{
 		Subject: subjects.LiveSyncRoomEvent(string(KindDM), dm.GetId(), "user_typing"),

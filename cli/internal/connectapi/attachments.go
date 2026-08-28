@@ -7,7 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type assetService struct {
@@ -100,7 +100,7 @@ func (s *assetService) BatchGetAssets(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&apiv1.BatchGetAssetsResponse{Assets: out}), nil
 }
 
-func apiAsset(api *API, attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.Asset {
+func apiAsset(api *API, attachment *evtv1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.Asset {
 	if attachment == nil {
 		return nil
 	}
@@ -117,7 +117,7 @@ func apiAsset(api *API, attachment *corev1.Attachment, viewerID string, thumbnai
 	}
 }
 
-func apiVideoProcessing(api *API, viewerID string, attachment *corev1.Attachment) *apiv1.MessageVideoProcessing {
+func apiVideoProcessing(api *API, viewerID string, attachment *evtv1.Attachment) *apiv1.MessageVideoProcessing {
 	if attachment == nil || (!strings.HasPrefix(attachment.GetContentType(), "video/") && attachment.GetContentType() != "image/gif") {
 		return nil
 	}
@@ -200,11 +200,11 @@ func assetSourceAvailable(api *API, assetID string, fallback bool) bool {
 	return created.GetOriginalBinaryAvailable()
 }
 
-func assetProcessingFailureReasonCode(code corev1.AssetProcessingFailureCode) string {
+func assetProcessingFailureReasonCode(code evtv1.AssetProcessingFailureCode) string {
 	switch code {
-	case corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING:
+	case evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING:
 		return "original_missing"
-	case corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED:
+	case evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED:
 		return "processing_failed"
 	default:
 		return "processing_failed"

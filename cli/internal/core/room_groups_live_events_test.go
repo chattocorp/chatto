@@ -1,6 +1,7 @@
 package core
 
 import (
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // subscribeRoomGroupsUpdated installs a NATS Core subscriber on the live sync
@@ -55,7 +56,7 @@ func expectRoomGroupsUpdated(t *testing.T, ch <-chan *nats.Msg, wantActorID stri
 	t.Helper()
 	select {
 	case msg := <-ch:
-		var got corev1.LiveEvent
+		var got livev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
@@ -204,7 +205,7 @@ func TestRoomLayout_MoveNotificationWaitsForProjectionCatchUp(t *testing.T) {
 	}
 	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
-	setupEvents := []*corev1.Event{
+	setupEvents := []*evtv1.Event{
 		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
 		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
 		newEvent("actor", roomAddedToGroupEvent("G-source", "R1")),
@@ -293,7 +294,7 @@ func TestRoomLayout_MoveNotificationWaitsForProjectionCatchUp(t *testing.T) {
 
 	select {
 	case observation := <-observations:
-		var event corev1.LiveEvent
+		var event livev1.LiveEvent
 		if err := proto.Unmarshal(observation.msg.Data, &event); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}

@@ -2,6 +2,8 @@ package core
 
 import (
 	"bytes"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"strings"
 	"testing"
 	"time"
@@ -15,7 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/encryption"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type snapshotProjection interface {
@@ -29,11 +31,11 @@ func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 	assets.messageOwners["A1"] = assetMessageRef{roomID: "R1", messageEventID: "M1", authorID: "U1"}
 	assetPayload, err := assets.Snapshot()
 	require.NoError(t, err)
-	assetSnapshot := &corev1.AssetProjectionSnapshot{}
+	assetSnapshot := &projectionv1.AssetProjectionSnapshot{}
 	require.NoError(t, proto.Unmarshal(assetPayload, assetSnapshot))
 	require.Len(t, assetSnapshot.GetMessageOwners(), 1)
 	require.Equal(t, "A1", assetSnapshot.GetMessageOwners()[0].GetAssetId())
-	ownerFields := (&corev1.AssetMessageOwnerSnapshot{}).ProtoReflect().Descriptor().Fields()
+	ownerFields := (&projectionv1.AssetMessageOwnerSnapshot{}).ProtoReflect().Descriptor().Fields()
 	require.Equal(t, "author_id", string(ownerFields.ByNumber(protoreflect.FieldNumber(4)).Name()))
 
 	timeline := NewRoomTimelineProjection()
@@ -45,7 +47,7 @@ func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 	timeline.latestPinByRoom["R1"] = latestRoomPinState{PinEventID: "P1", PinSequence: 40}
 	timelinePayload, err := timeline.Snapshot()
 	require.NoError(t, err)
-	timelineSnapshot := &corev1.RoomTimelineProjectionSnapshot{}
+	timelineSnapshot := &projectionv1.RoomTimelineProjectionSnapshot{}
 	require.NoError(t, proto.Unmarshal(timelinePayload, timelineSnapshot))
 	require.Equal(t, uint64(41), timelineSnapshot.GetReplayGuard().GetHighestSequence())
 	require.Len(t, timelineSnapshot.GetPinnedMessages(), 1)
@@ -64,20 +66,20 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		semantics string
 		message   proto.Message
 	}{
-		{assetSnapshotContractID, "v3", &corev1.AssetProjectionSnapshot{}},
-		{callStateSnapshotContractID, "v1", &corev1.CallStateProjectionSnapshot{}},
-		{configSnapshotContractID, "v1", &corev1.ConfigProjectionSnapshot{}},
-		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
-		{mentionablesSnapshotContractID, "v2", &corev1.MentionablesProjectionSnapshot{}},
-		{notificationDecisionSnapshotContractID, "v1", &corev1.NotificationDecisionProjectionSnapshot{}},
-		{notificationSnapshotContractID, "v2", &corev1.NotificationProjectionSnapshot{}},
-		{rbacSnapshotContractID, "v1", &corev1.RBACProjectionSnapshot{}},
-		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
-		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
-		{roomGroupLayoutSnapshotContractID, "v1", &corev1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v7", &corev1.RoomTimelineProjectionSnapshot{}},
-		{threadSnapshotContractID, "v2", &corev1.ThreadProjectionSnapshot{}},
-		{userSnapshotContractID, "v4", &corev1.UserProfileProjectionSnapshot{}},
+		{assetSnapshotContractID, "v3", &projectionv1.AssetProjectionSnapshot{}},
+		{callStateSnapshotContractID, "v1", &projectionv1.CallStateProjectionSnapshot{}},
+		{configSnapshotContractID, "v1", &projectionv1.ConfigProjectionSnapshot{}},
+		{contentKeySnapshotContractID, "v1", &projectionv1.ContentKeyProjectionSnapshot{}},
+		{mentionablesSnapshotContractID, "v2", &projectionv1.MentionablesProjectionSnapshot{}},
+		{notificationDecisionSnapshotContractID, "v1", &projectionv1.NotificationDecisionProjectionSnapshot{}},
+		{notificationSnapshotContractID, "v2", &projectionv1.NotificationProjectionSnapshot{}},
+		{rbacSnapshotContractID, "v1", &projectionv1.RBACProjectionSnapshot{}},
+		{reactionSnapshotContractID, "v1", &projectionv1.ReactionProjectionSnapshot{}},
+		{roomDirectorySnapshotContractID, "v1", &projectionv1.RoomDirectoryProjectionSnapshot{}},
+		{roomGroupLayoutSnapshotContractID, "v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v7", &projectionv1.RoomTimelineProjectionSnapshot{}},
+		{threadSnapshotContractID, "v2", &projectionv1.ThreadProjectionSnapshot{}},
+		{userSnapshotContractID, "v4", &projectionv1.UserProfileProjectionSnapshot{}},
 	}
 	for _, tt := range tests {
 		require.Equal(t, snapshotContractID(tt.semantics, tt.message), tt.contract)
@@ -90,12 +92,12 @@ func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.
 		current string
 		old     string
 	}{
-		{userSnapshotContractID, snapshotContractID("v2", &corev1.UserProfileProjectionSnapshot{})},
-		{userSnapshotContractID, snapshotContractID("v3", &corev1.UserProfileProjectionSnapshot{})},
-		{mentionablesSnapshotContractID, snapshotContractID("v1", &corev1.MentionablesProjectionSnapshot{})},
-		{roomTimelineSnapshotContractID, snapshotContractID("v5", &corev1.RoomTimelineProjectionSnapshot{})},
-		{roomTimelineSnapshotContractID, snapshotContractID("v6", &corev1.RoomTimelineProjectionSnapshot{})},
-		{threadSnapshotContractID, snapshotContractID("v1", &corev1.ThreadProjectionSnapshot{})},
+		{userSnapshotContractID, snapshotContractID("v2", &projectionv1.UserProfileProjectionSnapshot{})},
+		{userSnapshotContractID, snapshotContractID("v3", &projectionv1.UserProfileProjectionSnapshot{})},
+		{mentionablesSnapshotContractID, snapshotContractID("v1", &projectionv1.MentionablesProjectionSnapshot{})},
+		{roomTimelineSnapshotContractID, snapshotContractID("v5", &projectionv1.RoomTimelineProjectionSnapshot{})},
+		{roomTimelineSnapshotContractID, snapshotContractID("v6", &projectionv1.RoomTimelineProjectionSnapshot{})},
+		{threadSnapshotContractID, snapshotContractID("v1", &projectionv1.ThreadProjectionSnapshot{})},
 	}
 	for _, tt := range tests {
 		require.NotEqual(t, tt.old, tt.current)
@@ -155,9 +157,9 @@ func TestMentionablesSnapshotRetainsEncryptedSourceWithoutPlaintextHandle(t *tes
 		return NewMentionablesProjection(staticProjectionKeyWrapper{key: key}, staticProjectionDEKStore{})
 	}
 	p := newProjection()
-	dek := &corev1.Event{Id: "K1", Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{UserId: "U1", Epoch: 1, Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test"}}}
+	dek := &evtv1.Event{Id: "K1", Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{UserId: "U1", Epoch: 1, Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test"}}}
 	require.NoError(t, p.Apply(dek, 1))
-	contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 	created := userEvent("E1", time.Unix(1_700_000_000, 0), accountCreated(t, contentKey, "E1", "U1", "SecretLogin", "Secret Name"))
 	require.NoError(t, p.Apply(created, 2))
 
@@ -175,24 +177,24 @@ func TestMentionablesSnapshotRetainsEncryptedSourceWithoutPlaintextHandle(t *tes
 }
 
 func TestRoomDirectorySnapshotPreservesUnknownThreadingMode(t *testing.T) {
-	const unknownMode = corev1.RoomThreadingMode(99)
+	const unknownMode = evtv1.RoomThreadingMode(99)
 	projection := NewRoomDirectoryProjection()
-	require.NoError(t, projection.Catalog.Apply(&corev1.Event{Event: &corev1.Event_RoomCreated{
-		RoomCreated: &corev1.RoomCreatedEvent{
-			RoomId: "R1", Name: "future-threading", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	require.NoError(t, projection.Catalog.Apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{
+		RoomCreated: &evtv1.RoomCreatedEvent{
+			RoomId: "R1", Name: "future-threading", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
 			ThreadingMode: unknownMode,
 		},
 	}}, 1))
 
 	room, ok := projection.Catalog.Get("R1")
 	require.True(t, ok)
-	require.Equal(t, corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED, room.GetThreadingMode())
+	require.Equal(t, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED, room.GetThreadingMode())
 
 	payload, err := projection.Snapshot()
 	require.NoError(t, err)
 	assertRawMode := func(snapshotBytes []byte) {
 		t.Helper()
-		snapshot := &corev1.RoomDirectoryProjectionSnapshot{}
+		snapshot := &projectionv1.RoomDirectoryProjectionSnapshot{}
 		require.NoError(t, proto.Unmarshal(snapshotBytes, snapshot))
 		require.Len(t, snapshot.GetRooms(), 1)
 		require.Equal(t, unknownMode, snapshot.GetRooms()[0].GetThreadingMode())
@@ -203,7 +205,7 @@ func TestRoomDirectorySnapshotPreservesUnknownThreadingMode(t *testing.T) {
 	require.NoError(t, restored.Restore(payload))
 	restoredRoom, ok := restored.Catalog.Get("R1")
 	require.True(t, ok)
-	require.Equal(t, corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED, restoredRoom.GetThreadingMode())
+	require.Equal(t, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED, restoredRoom.GetThreadingMode())
 	roundTrip, err := restored.Snapshot()
 	require.NoError(t, err)
 	assertRawMode(roundTrip)
@@ -218,7 +220,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	}{
 		{"room_directory", func() snapshotProjection { return NewRoomDirectoryProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomDirectoryProjection)
-			p.Catalog.rooms["R1"] = &roomCatalogEntry{name: "General", kind: corev1.RoomKind_ROOM_KIND_CHANNEL, universal: true}
+			p.Catalog.rooms["R1"] = &roomCatalogEntry{name: "General", kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, universal: true}
 			p.Catalog.seq = 41
 			p.Membership.addLocked("R1", "U1")
 			expires := now.Add(time.Hour)
@@ -228,29 +230,29 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			p := raw.(*ConfigProjection)
 			blocked := "admin"
 			timezone := "Europe/Berlin"
-			format := corev1.TimeFormat_TIME_FORMAT_24H
+			format := evtv1.TimeFormat_TIME_FORMAT_24H
 			p.server.serverName = "Chatto"
 			p.server.blockedUsernames = &blocked
 			p.users["U1"] = &userConfigState{
 				timezone: &timezone, timeFormat: &format,
-				serverModes: &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
-				roomModesByRoom: map[string]*corev1.NotificationDeliveryModes{
-					"R1": {DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
+				serverModes: &evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
+				roomModesByRoom: map[string]*evtv1.NotificationDeliveryModes{
+					"R1": {DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
 				},
-				roomGroupModesByGroup: map[string]*corev1.NotificationDeliveryModes{
-					"G1": {Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
+				roomGroupModesByGroup: map[string]*evtv1.NotificationDeliveryModes{
+					"G1": {Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
 				},
 			}
 		}},
 		{"room_group_layout", func() snapshotProjection { return NewRoomGroupLayoutProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomGroupLayoutProjection)
-			p.Groups.groups["G1"] = &roomGroupEntry{name: "Lobby", roomIDs: []string{"R1"}, entries: []*corev1.SidebarGroupEntry{{Kind: corev1.SidebarGroupEntry_ROOM, Id: "R1"}}, links: map[string]*corev1.SidebarLink{"L1": {Id: "L1", Label: "Docs", Url: "https://example.test"}}}
+			p.Groups.groups["G1"] = &roomGroupEntry{name: "Lobby", roomIDs: []string{"R1"}, entries: []*evtv1.SidebarGroupEntry{{Kind: evtv1.SidebarGroupEntry_ROOM, Id: "R1"}}, links: map[string]*evtv1.SidebarLink{"L1": {Id: "L1", Label: "Docs", Url: "https://example.test"}}}
 			p.Groups.seq = 42
 			p.Layout.groupIDs = []string{"G1"}
 		}},
 		{"notification_decisions", func() snapshotProjection { return NewNotificationDecisionProjection() }, func(raw snapshotProjection) {
 			p := raw.(*NotificationDecisionProjection)
-			event := &corev1.Event{Id: "R1-created", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true}}}
+			event := &evtv1.Event{Id: "R1-created", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true}}}
 			if err := p.Apply(event, 41); err != nil {
 				t.Fatal(err)
 			}
@@ -262,7 +264,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}, func(raw snapshotProjection) {
 			p := raw.(*NotificationProjection)
 			expiresAt := now.Add(time.Hour)
-			occurrence := &corev1.NotificationOccurrence{
+			occurrence := &notificationv1.NotificationOccurrence{
 				Id:                         "N1",
 				RecipientId:                "U1",
 				SourceEventId:              "E1",
@@ -277,8 +279,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"room_timeline", func() snapshotProjection { return NewRoomTimelineProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomTimelineProjection)
-			bodyEvent := &corev1.Event{Id: "BODY1", CreatedAt: timestamppb.New(now), Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{RoomId: "R1", EventId: "M1", Body: &corev1.MessageBody{AuthorId: "U1", BodyEventId: "BODY1", EncryptionVersion: 2, ContentKeyEpoch: 1, EncryptedBody: []byte("ciphertext"), EncryptionNonce: bytes.Repeat([]byte{1}, 24)}}}}
-			posted := &corev1.Event{Id: "M1", ActorId: "U1", CreatedAt: timestamppb.New(now), Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}}}
+			bodyEvent := &evtv1.Event{Id: "BODY1", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "M1", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY1", EncryptionVersion: 2, ContentKeyEpoch: 1, EncryptedBody: []byte("ciphertext"), EncryptionNonce: bytes.Repeat([]byte{1}, 24)}}}}
+			posted := &evtv1.Event{Id: "M1", ActorId: "U1", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
 			if err := p.Apply(bodyEvent, 40); err != nil {
 				t.Fatal(err)
 			}
@@ -290,14 +292,14 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		{"call_state", func() snapshotProjection { return NewCallStateProjection() }, func(raw snapshotProjection) {
 			p := raw.(*CallStateProjection)
 			p.roomSeq["R1"] = 41
-			p.activeCalls["R1"] = CallSession{CallID: "C1", E2EEKeyRef: "K1", StartedAt: now.Unix(), Source: corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER}
+			p.activeCalls["R1"] = CallSession{CallID: "C1", E2EEKeyRef: "K1", StartedAt: now.Unix(), Source: evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER}
 			p.rooms["R1"] = map[string]CallParticipant{"U1": {UserID: "U1", CallID: "C1", JoinedAt: now.Unix()}}
 		}},
 		{"assets", func() snapshotProjection { return NewAssetProjection() }, func(raw snapshotProjection) {
 			p := raw.(*AssetProjection)
-			p.assetCreations["A1"] = &corev1.AssetCreatedEvent{Asset: &corev1.AssetRecord{Id: "A1"}}
+			p.assetCreations["A1"] = &evtv1.AssetCreatedEvent{Asset: &evtv1.AssetRecord{Id: "A1"}}
 			p.assetChildren["A1"] = []string{"A2"}
-			p.videoManifests["A1"] = &VideoAttachmentManifest{Started: &corev1.AssetProcessingStartedEvent{AssetId: "A1"}}
+			p.videoManifests["A1"] = &VideoAttachmentManifest{Started: &evtv1.AssetProcessingStartedEvent{AssetId: "A1"}}
 			p.deletedAssets["A3"] = struct{}{}
 			p.deletedAssetRoom["A3"] = "R1"
 			p.messageOwners["A1"] = assetMessageRef{roomID: "R1", messageEventID: "M1", authorID: "U1"}
@@ -318,15 +320,15 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"content_keys", func() snapshotProjection { return NewContentKeyProjection() }, func(raw snapshotProjection) {
 			p := raw.(*ContentKeyProjection)
-			p.applyDEKGeneratedLocked(&corev1.UserDEKGeneratedEvent{UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, Epoch: 1, ContentKeyRef: "user.U1.pii.1", WrappingKeyRef: "user.U1"})
+			p.applyDEKGeneratedLocked(&evtv1.UserDEKGeneratedEvent{UserId: "U1", Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, Epoch: 1, ContentKeyRef: "user.U1.pii.1", WrappingKeyRef: "user.U1"})
 			p.replayGuard.highestSeq = 41
 			p.replayGuard.completeReplay()
 		}},
 		{"rbac", func() snapshotProjection { return NewRBACProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RBACProjection)
-			p.roles["member"] = &corev1.Role{Name: "member", DisplayName: "Member"}
+			p.roles["member"] = &evtv1.Role{Name: "member", DisplayName: "Member"}
 			p.assignments["U1"] = map[string]struct{}{"member": {}}
-			p.decisions[rbacDecisionKey{scope: ScopeServer, subjectKind: corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessagePost}] = DecisionAllow
+			p.decisions[rbacDecisionKey{scope: ScopeServer, subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, subject: "member", permission: PermMessagePost}] = DecisionAllow
 			p.replayGuard.highestSeq = 41
 			p.replayGuard.completeReplay()
 		}},
@@ -336,7 +338,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"users", func() snapshotProjection { return NewUserProjection(nil, nil) }, func(raw snapshotProjection) {
 			p := raw.(*UserProjection)
-			p.users["U1"] = &projectedUser{user: &corev1.User{Id: "U1", CreatedAt: timestamppb.New(now)}, deleted: true, verifiedEmail: make(map[string]projectedVerifiedEmail)}
+			p.users["U1"] = &projectedUser{user: &evtv1.User{Id: "U1", CreatedAt: timestamppb.New(now)}, deleted: true, verifiedEmail: make(map[string]projectedVerifiedEmail)}
 			p.replayGuard.highestSeq = 41
 			p.replayGuard.completeReplay()
 		}},

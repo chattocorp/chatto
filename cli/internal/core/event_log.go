@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -241,7 +241,7 @@ func (f EventLogFilter) matches(entry *EventLogEntry) bool {
 }
 
 func durableEventLogEventTypes() []string {
-	eventMessage := corev1.File_chatto_core_v1_event_proto.Messages().ByName("Event")
+	eventMessage := evtv1.File_chatto_core_evt_v1_event_proto.Messages().ByName("Event")
 	if eventMessage == nil {
 		return []string{"decode-error"}
 	}
@@ -330,7 +330,7 @@ func fetchEventLogPage(
 }
 
 func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, error) {
-	var event corev1.Event
+	var event evtv1.Event
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		return nil, fmt.Errorf("unmarshal event: %w", err)
 	}
@@ -358,8 +358,8 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, erro
 
 // marshalEventLogPayloadJSON redacts credential verifiers from the public
 // audit API without changing the durable event used by projections and replay.
-func marshalEventLogPayloadJSON(event *corev1.Event) ([]byte, error) {
-	redacted, ok := proto.Clone(event).(*corev1.Event)
+func marshalEventLogPayloadJSON(event *evtv1.Event) ([]byte, error) {
+	redacted, ok := proto.Clone(event).(*evtv1.Event)
 	if !ok {
 		return nil, errors.New("clone event for audit payload")
 	}
@@ -398,7 +398,7 @@ func parseAggregateSubject(subject string) (aggregateType, aggregateID string) {
 	return parts[0], parts[1]
 }
 
-func eventVariantName(event *corev1.Event) string {
+func eventVariantName(event *evtv1.Event) string {
 	rm := event.ProtoReflect()
 	oneof := rm.Descriptor().Oneofs().ByName("event")
 	if oneof == nil {

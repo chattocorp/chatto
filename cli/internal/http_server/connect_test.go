@@ -34,7 +34,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
@@ -868,7 +868,7 @@ func TestAuthenticateConnectRequest(t *testing.T) {
 	})
 
 	t.Run("returns narrow Connect caller", func(t *testing.T) {
-		info, err := authenticateConnectRequest(authctx.WithUser(context.Background(), &corev1.User{
+		info, err := authenticateConnectRequest(authctx.WithUser(context.Background(), &evtv1.User{
 			Id:          "user-123",
 			Login:       "should-not-leak",
 			DisplayName: "Should Not Leak",

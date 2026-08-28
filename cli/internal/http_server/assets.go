@@ -16,7 +16,7 @@ import (
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
 
@@ -66,7 +66,7 @@ const (
 
 const largeAttachmentRedirectThreshold = 32 << 20
 
-func protectedAssetDeliveryMode(attachment *corev1.Attachment) assetDeliveryMode {
+func protectedAssetDeliveryMode(attachment *evtv1.Attachment) assetDeliveryMode {
 	if attachment == nil {
 		return deliveryChattoStream
 	}
@@ -74,7 +74,7 @@ func protectedAssetDeliveryMode(attachment *corev1.Attachment) assetDeliveryMode
 		return deliveryChattoStream
 	}
 	if storage := attachment.GetStorage(); storage != nil {
-		if _, ok := storage.GetAsset().(*corev1.DeprecatedAsset_S3); !ok {
+		if _, ok := storage.GetAsset().(*evtv1.DeprecatedAsset_S3); !ok {
 			return deliveryChattoStream
 		}
 	}
@@ -305,7 +305,7 @@ func parseStableTransformParams(dimensions, fit string) (*signedurl.TransformPar
 	return params, nil
 }
 
-func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context, assetID string, params *signedurl.TransformParams) (*corev1.Attachment, bool) {
+func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context, assetID string, params *signedurl.TransformParams) (*evtv1.Attachment, bool) {
 	if assetID == "" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
 		return nil, false
@@ -318,7 +318,7 @@ func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context
 	return s.resolveAttachmentForViewer(c, ctx, assetID, userID)
 }
 
-func (s *HTTPServer) resolveAttachmentForViewer(c *gin.Context, ctx context.Context, assetID, userID string) (*corev1.Attachment, bool) {
+func (s *HTTPServer) resolveAttachmentForViewer(c *gin.Context, ctx context.Context, assetID, userID string) (*evtv1.Attachment, bool) {
 	state := s.core.GetAssetState(assetID)
 	declared := state.Creation
 	if declared == nil {
@@ -368,7 +368,7 @@ func (s *HTTPServer) resolveAttachmentForViewer(c *gin.Context, ctx context.Cont
 	return attachment, true
 }
 
-func (s *HTTPServer) resolveHLS(c *gin.Context) (*corev1.AssetProcessedHLS, string, bool) {
+func (s *HTTPServer) resolveHLS(c *gin.Context) (*evtv1.AssetProcessedHLS, string, bool) {
 	assetID := c.Param("assetID")
 	access := c.Query("access")
 	if assetID == "" || access == "" {
@@ -415,7 +415,7 @@ func hlsChildPath(assetID, access, suffix string) string {
 	return fmt.Sprintf("/assets/hls/%s/%s?%s", url.PathEscape(assetID), suffix, values.Encode())
 }
 
-func renderHLSMasterPlaylist(hls *corev1.AssetProcessedHLS, childURL func(index int) string) ([]byte, error) {
+func renderHLSMasterPlaylist(hls *evtv1.AssetProcessedHLS, childURL func(index int) string) ([]byte, error) {
 	if hls == nil || len(hls.GetRenditions()) == 0 {
 		return nil, fmt.Errorf("HLS manifest contains no renditions")
 	}
@@ -430,7 +430,7 @@ func renderHLSMasterPlaylist(hls *corev1.AssetProcessedHLS, childURL func(index 
 	return []byte(playlist.String()), nil
 }
 
-func renderHLSMediaPlaylist(rendition *corev1.AssetHLSRendition, segmentURL func(index int) string) ([]byte, error) {
+func renderHLSMediaPlaylist(rendition *evtv1.AssetHLSRendition, segmentURL func(index int) string) ([]byte, error) {
 	if rendition == nil || len(rendition.GetSegments()) == 0 {
 		return nil, fmt.Errorf("HLS rendition contains no segments")
 	}
@@ -453,7 +453,7 @@ func renderHLSMediaPlaylist(rendition *corev1.AssetHLSRendition, segmentURL func
 	return []byte(playlist.String()), nil
 }
 
-func (s *HTTPServer) hlsDerivative(c *gin.Context, originAssetID, assetID string, role corev1.AssetDerivativeRole) (*corev1.Attachment, bool) {
+func (s *HTTPServer) hlsDerivative(c *gin.Context, originAssetID, assetID string, role evtv1.AssetDerivativeRole) (*evtv1.Attachment, bool) {
 	declared := s.core.GetAssetState(assetID).Creation
 	if declared == nil || declared.GetParentAssetId() != originAssetID || declared.GetDerivativeRole() != role {
 		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
@@ -523,7 +523,7 @@ func (s *HTTPServer) serveHLSSegment(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
 		return
 	}
-	attachment, ok := s.hlsDerivative(c, c.Param("assetID"), rendition.GetSegments()[segmentIndex].GetAssetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
+	attachment, ok := s.hlsDerivative(c, c.Param("assetID"), rendition.GetSegments()[segmentIndex].GetAssetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT)
 	if !ok {
 		return
 	}

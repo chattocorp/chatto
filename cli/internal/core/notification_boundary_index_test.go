@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"testing"
 	"time"
 
 	"google.golang.org/protobuf/proto"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestNotificationBoundaryIndexInitialSnapshotAndReplicaChanges(t *testing.T) {
@@ -34,7 +33,7 @@ func TestNotificationBoundaryIndexInitialSnapshotAndReplicaChanges(t *testing.T)
 		t.Fatalf("seed read boundary: %v", err)
 	}
 	unreadKey := notificationUnreadMarkerKey(userID, roomID, threadRoot)
-	unreadMarker := &corev1.NotificationUnreadMarker{
+	unreadMarker := &runtimestatev1.NotificationUnreadMarker{
 		SourceEventId: "E-source", ActorId: "U-actor", SourceStreamSequence: 42,
 		Signal: testNotificationSignal(notificationTestSignalFollowedThread, roomID, "E-source"),
 	}

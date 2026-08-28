@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+import "chatto/core/evt/v1/models.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// CachedLinkPreview wraps LinkPreview with cache metadata. It is stored under
+// link_preview.* keys in RUNTIME_STATE.
+message CachedLinkPreview {
+  string url = 1;
+  chatto.core.evt.v1.LinkPreview preview = 2;
+  bool fetch_failed = 3;
+  string error_reason = 4;
+  int64 fetched_at_unix = 5;
+  uint32 schema_version = 6;
+}

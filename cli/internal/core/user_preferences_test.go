@@ -1,13 +1,14 @@
 package core
 
 import (
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -108,7 +109,7 @@ func TestChattoCore_UpdateUserSettings_PublishesProfileOnlyForTimezoneChanges(t 
 	if err != nil {
 		t.Fatalf("waiting for profile update: %v", err)
 	}
-	var live corev1.LiveEvent
+	var live livev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal profile update: %v", err)
 	}
@@ -116,7 +117,7 @@ func TestChattoCore_UpdateUserSettings_PublishesProfileOnlyForTimezoneChanges(t 
 		t.Fatalf("profile timezone = %q, want %q", got, tz)
 	}
 
-	format := corev1.TimeFormat_TIME_FORMAT_24H
+	format := evtv1.TimeFormat_TIME_FORMAT_24H
 	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{TimeFormat: &format}); err != nil {
 		t.Fatalf("UpdateUserSettings time format: %v", err)
 	}
@@ -136,12 +137,12 @@ func TestChattoCore_UpdateUserSettings_SetTimeFormat(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		format   corev1.TimeFormat
-		expected corev1.TimeFormat
+		format   evtv1.TimeFormat
+		expected evtv1.TimeFormat
 	}{
-		{"12-hour", corev1.TimeFormat_TIME_FORMAT_12H, corev1.TimeFormat_TIME_FORMAT_12H},
-		{"24-hour", corev1.TimeFormat_TIME_FORMAT_24H, corev1.TimeFormat_TIME_FORMAT_24H},
-		{"unspecified", corev1.TimeFormat_TIME_FORMAT_UNSPECIFIED, corev1.TimeFormat_TIME_FORMAT_UNSPECIFIED},
+		{"12-hour", evtv1.TimeFormat_TIME_FORMAT_12H, evtv1.TimeFormat_TIME_FORMAT_12H},
+		{"24-hour", evtv1.TimeFormat_TIME_FORMAT_24H, evtv1.TimeFormat_TIME_FORMAT_24H},
+		{"unspecified", evtv1.TimeFormat_TIME_FORMAT_UNSPECIFIED, evtv1.TimeFormat_TIME_FORMAT_UNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -165,7 +166,7 @@ func TestChattoCore_UpdateUserSettings_PartialUpdate(t *testing.T) {
 
 	userID := "test-user-partial"
 	tz := "Europe/Berlin"
-	format := corev1.TimeFormat_TIME_FORMAT_24H
+	format := evtv1.TimeFormat_TIME_FORMAT_24H
 
 	// Set both timezone and time format
 	_, err := core.UpdateUserSettings(ctx, userID, UserSettingsInput{
@@ -188,12 +189,12 @@ func TestChattoCore_UpdateUserSettings_PartialUpdate(t *testing.T) {
 	if settings.Timezone == nil || *settings.Timezone != newTZ {
 		t.Errorf("Expected timezone %q, got %v", newTZ, settings.Timezone)
 	}
-	if settings.TimeFormat != corev1.TimeFormat_TIME_FORMAT_24H {
+	if settings.TimeFormat != evtv1.TimeFormat_TIME_FORMAT_24H {
 		t.Errorf("Expected time format to be preserved as 24H, got %v", settings.TimeFormat)
 	}
 
 	// Update only time format - timezone should be preserved
-	newFormat := corev1.TimeFormat_TIME_FORMAT_12H
+	newFormat := evtv1.TimeFormat_TIME_FORMAT_12H
 	settings, err = core.UpdateUserSettings(ctx, userID, UserSettingsInput{
 		TimeFormat: &newFormat,
 	})
@@ -204,7 +205,7 @@ func TestChattoCore_UpdateUserSettings_PartialUpdate(t *testing.T) {
 	if settings.Timezone == nil || *settings.Timezone != newTZ {
 		t.Errorf("Expected timezone to be preserved as %q, got %v", newTZ, settings.Timezone)
 	}
-	if settings.TimeFormat != corev1.TimeFormat_TIME_FORMAT_12H {
+	if settings.TimeFormat != evtv1.TimeFormat_TIME_FORMAT_12H {
 		t.Errorf("Expected time format 12H, got %v", settings.TimeFormat)
 	}
 }

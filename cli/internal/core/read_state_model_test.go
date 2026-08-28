@@ -2,6 +2,8 @@ package core
 
 import (
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"testing"
 	"time"
 
@@ -9,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func subscribeRoomReadLiveEvents(t *testing.T, nc *nats.Conn, userID string) *nats.Subscription {
@@ -32,7 +34,7 @@ func expectRoomReadLiveEvent(t *testing.T, sub *nats.Subscription, roomID string
 	if err != nil {
 		t.Fatalf("waiting for room_read live event: %v", err)
 	}
-	var live corev1.LiveEvent
+	var live livev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal room_read live event: %v", err)
 	}
@@ -49,7 +51,7 @@ func expectNoRoomReadLiveEvent(t *testing.T, sub *nats.Subscription) {
 	t.Helper()
 
 	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
-		var live corev1.LiveEvent
+		var live livev1.LiveEvent
 		if unmarshalErr := proto.Unmarshal(msg.Data, &live); unmarshalErr != nil {
 			t.Fatalf("unexpected room_read live event with invalid payload: %v", unmarshalErr)
 		}
@@ -74,7 +76,7 @@ func TestReadStateModel_MarkRoomAsReadSkipsLiveEventWhenCursorUnchanged(t *testi
 	}
 	if _, err := core.NotificationPolicy().SetRoomNotificationMode(
 		ctx, reader.Id, room.Id, notificationTestSignalRoomMessage,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	); err != nil {
 		t.Fatalf("disable room-message Badge: %v", err)
 	}
@@ -163,8 +165,8 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 		SourceCreated:        first.GetCreatedAt().AsTime(),
 		ActorID:              poster.Id,
 		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, first.Id),
-		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup:       true,
 		SourceStreamSequence: firstEntry.StreamSeq,
 	})
@@ -211,7 +213,7 @@ func TestNotificationReadBoundaryReconciliationRepairsInterruptedHandshake(t *te
 	occurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID: reader.Id, SourceEventID: posted.Id, SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
 		Signal: testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:   evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SourceStreamSequence: entry.StreamSeq, SkipReadLookup: true,
 	})
 	if err != nil {

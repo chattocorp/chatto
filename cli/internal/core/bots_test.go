@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -103,7 +103,7 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	if err := c.SetPasswordHash(ctx, bot.User.GetId(), "password123"); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetPasswordHash(bot) err = %v, want ErrHumanAccountRequired", err)
 	}
-	if err := c.SetUserAvatar(ctx, bot.User.GetId(), &corev1.AssetRecord{Id: "avatar"}); !errors.Is(err, ErrHumanAccountRequired) {
+	if err := c.SetUserAvatar(ctx, bot.User.GetId(), &evtv1.AssetRecord{Id: "avatar"}); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetUserAvatar(bot) err = %v, want ErrHumanAccountRequired", err)
 	}
 	if _, err := c.SetUserCustomStatus(ctx, bot.User.GetId(), "🤖", "online", nil); !errors.Is(err, ErrHumanAccountRequired) {
@@ -924,7 +924,7 @@ func TestBotDisabledDirectMentionDoesNotActivateOrFollow(t *testing.T) {
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow); err != nil {
 		t.Fatalf("grant bot message.read.interactions: %v", err)
 	}
-	if _, err := c.NotificationPolicy().SetRoomNotificationMode(ctx, bot.User.GetId(), room.GetId(), notificationTestSignalDirectMention, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
+	if _, err := c.NotificationPolicy().SetRoomNotificationMode(ctx, bot.User.GetId(), room.GetId(), notificationTestSignalDirectMention, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
 		t.Fatalf("SetRoomNotificationMode: %v", err)
 	}
 

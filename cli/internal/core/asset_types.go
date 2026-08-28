@@ -1,6 +1,6 @@
 package core
 
-import corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+import evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 
 type assetMessageRef struct {
 	roomID         string
@@ -20,9 +20,9 @@ type MessageAssetRef struct {
 // original video attachment. Started fires when processing is enqueued;
 // Succeeded or Failed fires on terminal outcome.
 type VideoAttachmentManifest struct {
-	Started   *corev1.AssetProcessingStartedEvent
-	Succeeded *corev1.AssetProcessingSucceededEvent
-	Failed    *corev1.AssetProcessingFailedEvent
+	Started   *evtv1.AssetProcessingStartedEvent
+	Succeeded *evtv1.AssetProcessingSucceededEvent
+	Failed    *evtv1.AssetProcessingFailedEvent
 }
 
 // VideoProcessingRequest describes an original video/GIF attachment embedded
@@ -30,13 +30,13 @@ type VideoAttachmentManifest struct {
 type VideoProcessingRequest struct {
 	RoomID         string
 	MessageEventID string
-	Attachment     *corev1.Attachment
+	Attachment     *evtv1.Attachment
 }
 
 // ownedAssetIDsFromBody returns the asset IDs a message body references,
 // preferring the current asset_ids list and falling back to the legacy embedded
 // attachments slice.
-func ownedAssetIDsFromBody(body *corev1.MessageBody) []string {
+func ownedAssetIDsFromBody(body *evtv1.MessageBody) []string {
 	if body == nil {
 		return nil
 	}

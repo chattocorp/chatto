@@ -18,7 +18,7 @@ continues to define the narrower package boundary and current ownership split.
 
 Chatto's composition layer has also accumulated application policy around those
 mechanics: stable diagnostic keys, display names, memory estimates, snapshot
-eligibility, domain model ownership, and the concrete `corev1.Event` envelope.
+eligibility, domain model ownership, and the concrete `evtv1.Event` envelope.
 Combining those concerns into a richer Chatto-specific runtime abstraction
 would make today's wiring shorter but make a future standalone library harder
 to identify and extract.
@@ -91,9 +91,9 @@ application's wiring.
 The framework is configured with a concrete JetStream stream; it does not
 assume that an application has only one event log or that the log is named
 `EVT`. Chatto's `evtstream.Publisher` is the typed adapter that
-validates `corev1.Event`, uses its stable ID, and protobuf-encodes or decodes at
+validates `evtv1.Event`, uses its stable ID, and protobuf-encodes or decodes at
 the primary domain boundary. `internal/notificationstream` independently adapts
-the bounded `corev1.NotificationEvent` envelope and `NOTIFICATIONS` stream
+the bounded `notificationv1.NotificationEvent` envelope and `NOTIFICATIONS` stream
 through the same mechanics. Both adapters own their application-specific
 subjects, identities, validation, and retention policy.
 
@@ -102,7 +102,7 @@ Applications supply an `EventDecoder[E]` and `EventProjection[E]`; the
 framework retains ordered consumption, subject filtering, startup batching,
 readiness, snapshots, checkpoints, and failure handling.
 `internal/evtstream` owns Chatto's `NewProjector`, `Projection`,
-`SequencedEvent`, and publisher APIs as specializations over `corev1.Event` and
+`SequencedEvent`, and publisher APIs as specializations over `evtv1.Event` and
 its unchanged protobuf codec. The events module has no production dependency
 on Chatto protobufs or subject policy.
 

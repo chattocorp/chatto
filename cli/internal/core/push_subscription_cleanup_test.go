@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -138,7 +139,7 @@ func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDeliver
 	}
 	// Model an already-authorised registration completing after the deletion
 	// worker has acknowledged its otherwise successful pass.
-	subscription := &corev1.PushSubscription{
+	subscription := &runtimestatev1.PushSubscription{
 		Endpoint:  endpoint,
 		P256Dh:    "key",
 		Auth:      "auth",
@@ -301,8 +302,8 @@ func TestDeleteUserImmediatelyRemovesPushCredentials(t *testing.T) {
 
 func pushSubscriptionCleanupDelivery(t *testing.T, subjectUserID, payloadUserID string) events.DurableDelivery {
 	t.Helper()
-	event := newEvent(payloadUserID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
-		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: payloadUserID},
+	event := newEvent(payloadUserID, &evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{
+		UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: payloadUserID},
 	}})
 	data, err := proto.Marshal(event)
 	if err != nil {
@@ -317,8 +318,8 @@ func pushSubscriptionCleanupDelivery(t *testing.T, subjectUserID, payloadUserID 
 
 func appendPushAccountDeletionFact(t *testing.T, chatto *ChattoCore, userID string) {
 	t.Helper()
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
-		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{
+		UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: userID},
 	}})
 	if _, err := chatto.EventPublisher.AppendEventually(context.Background(), evtstream.UserAggregate(userID).SubjectFor(event), event); err != nil {
 		t.Fatalf("append account deletion: %v", err)

@@ -3,11 +3,12 @@ package core
 import (
 	"context"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -25,13 +26,13 @@ type UserSettingsInput struct {
 	// Timezone is an IANA timezone name. nil = no change, pointer to "" = clear override.
 	Timezone *string
 	// TimeFormat preference. nil = no change.
-	TimeFormat *corev1.TimeFormat
+	TimeFormat *evtv1.TimeFormat
 }
 
 // GetUserSettings retrieves a user's settings from the config projection.
 // Returns nil, nil if no settings have been saved yet (the user hasn't configured any).
 // Authorization: Caller must verify access before calling this helper.
-func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.ServerUserPreferences, error) {
+func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*evtv1.ServerUserPreferences, error) {
 	if c.configModel == nil {
 		return nil, nil
 	}
@@ -39,7 +40,7 @@ func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.
 	return settings, nil
 }
 
-func (cm *ConfigModel) userSettings(userID string) (*corev1.ServerUserPreferences, bool) {
+func (cm *ConfigModel) userSettings(userID string) (*evtv1.ServerUserPreferences, bool) {
 	if cm == nil || cm.config.Projection() == nil {
 		return nil, false
 	}
@@ -49,7 +50,7 @@ func (cm *ConfigModel) userSettings(userID string) (*corev1.ServerUserPreference
 	if u == nil || (u.timezone == nil && u.timeFormat == nil) {
 		return nil, false
 	}
-	prefs := &corev1.ServerUserPreferences{}
+	prefs := &evtv1.ServerUserPreferences{}
 	if u.timezone != nil {
 		tz := *u.timezone
 		prefs.Timezone = &tz
@@ -64,7 +65,7 @@ func (cm *ConfigModel) userSettings(userID string) (*corev1.ServerUserPreference
 // Nil fields in the input are ignored (not cleared).
 // To clear the timezone override, pass a pointer to an empty string.
 // Authorization: Caller must verify access before calling this helper.
-func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, input UserSettingsInput) (*corev1.ServerUserPreferences, error) {
+func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, input UserSettingsInput) (*evtv1.ServerUserPreferences, error) {
 	if c.configModel == nil {
 		return nil, fmt.Errorf("config model not configured")
 	}
@@ -80,30 +81,30 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 
 	changed := false
 	timezoneChanged := false
-	if err := c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	if err := c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		changed = false
 		timezoneChanged = false
 		current, _ := c.configModel.userSettings(userID)
-		var evs []*corev1.Event
+		var evs []*evtv1.Event
 		if input.Timezone != nil {
 			tz := *input.Timezone
 			if tz == "" {
 				if current != nil && current.Timezone != nil {
-					evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimezoneCleared{
-						UserTimezoneCleared: &corev1.UserTimezoneClearedEvent{UserId: userID},
+					evs = append(evs, newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserTimezoneCleared{
+						UserTimezoneCleared: &evtv1.UserTimezoneClearedEvent{UserId: userID},
 					}}))
 					timezoneChanged = true
 				}
 			} else if current == nil || current.GetTimezone() != tz {
-				evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimezoneChanged{
-					UserTimezoneChanged: &corev1.UserTimezoneChangedEvent{UserId: userID, Timezone: tz},
+				evs = append(evs, newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserTimezoneChanged{
+					UserTimezoneChanged: &evtv1.UserTimezoneChangedEvent{UserId: userID, Timezone: tz},
 				}}))
 				timezoneChanged = true
 			}
 		}
 		if input.TimeFormat != nil && (current == nil || current.GetTimeFormat() != *input.TimeFormat) {
-			evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimeFormatChanged{
-				UserTimeFormatChanged: &corev1.UserTimeFormatChangedEvent{UserId: userID, TimeFormat: *input.TimeFormat},
+			evs = append(evs, newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserTimeFormatChanged{
+				UserTimeFormatChanged: &evtv1.UserTimeFormatChangedEvent{UserId: userID, TimeFormat: *input.TimeFormat},
 			}}))
 		}
 		changed = len(evs) > 0
@@ -117,7 +118,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 		return nil, err
 	}
 	if settings == nil {
-		settings = &corev1.ServerUserPreferences{}
+		settings = &evtv1.ServerUserPreferences{}
 	}
 	if !changed {
 		return settings, nil
@@ -134,17 +135,17 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 
 // publishServerUserPreferencesSync publishes a transient signal for the user
 // whose preferences changed.
-func (c *ChattoCore) publishServerUserPreferencesSync(ctx context.Context, userID string, settings *corev1.ServerUserPreferences) {
+func (c *ChattoCore) publishServerUserPreferencesSync(ctx context.Context, userID string, settings *evtv1.ServerUserPreferences) {
 	tz := ""
 	if settings.Timezone != nil {
 		tz = *settings.Timezone
 	}
 
-	event := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{
-			ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesSyncEvent{
+	event := newLiveEvent(userID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_ServerUserPreferencesUpdated{
+			ServerUserPreferencesUpdated: &livev1.ServerUserPreferencesSyncEvent{
 				Timezone:   tz,
-				TimeFormat: settings.TimeFormat,
+				TimeFormat: livev1.TimeFormat(settings.TimeFormat),
 			},
 		},
 	})
@@ -160,17 +161,17 @@ func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) erro
 	if c.configModel == nil {
 		return nil
 	}
-	return c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		current, _ := c.configModel.userSettings(userID)
 		if current == nil {
 			return nil, nil
 		}
-		evs := []*corev1.Event{
-			newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserTimezoneCleared{
-				UserTimezoneCleared: &corev1.UserTimezoneClearedEvent{UserId: userID},
+		evs := []*evtv1.Event{
+			newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserTimezoneCleared{
+				UserTimezoneCleared: &evtv1.UserTimezoneClearedEvent{UserId: userID},
 			}}),
-			newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserTimeFormatCleared{
-				UserTimeFormatCleared: &corev1.UserTimeFormatClearedEvent{UserId: userID},
+			newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserTimeFormatCleared{
+				UserTimeFormatCleared: &evtv1.UserTimeFormatClearedEvent{UserId: userID},
 			}}),
 		}
 		return evs, nil

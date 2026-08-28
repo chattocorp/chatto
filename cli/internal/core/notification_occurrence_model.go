@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sort"
 	"strings"
 	"sync"
@@ -18,7 +19,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/notificationstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -32,9 +33,9 @@ type CreateNotificationOccurrenceInput struct {
 	SourceEventID        string
 	SourceCreated        time.Time
 	ActorID              string
-	Signal               *corev1.NotificationSignal
-	Mode                 corev1.NotificationDeliveryMode
-	AttentionLevel       corev1.NotificationAttentionLevel
+	Signal               *notificationv1.NotificationSignal
+	Mode                 evtv1.NotificationDeliveryMode
+	AttentionLevel       notificationv1.NotificationAttentionLevel
 	SourceStreamSequence uint64
 	InitiallyRead        bool
 	SkipReadLookup       bool
@@ -126,9 +127,9 @@ func (m *NotificationOccurrenceModel) Run(ctx context.Context) error {
 	runMaintenance := func() {
 		now := m.now().UTC()
 		expiredUsers := m.projection.Projection().pruneExpired(now)
-		invalidations := make([]*corev1.NotificationOccurrence, 0, len(expiredUsers))
+		invalidations := make([]*notificationv1.NotificationOccurrence, 0, len(expiredUsers))
 		for _, userID := range expiredUsers {
-			invalidations = append(invalidations, &corev1.NotificationOccurrence{RecipientId: userID})
+			invalidations = append(invalidations, &notificationv1.NotificationOccurrence{RecipientId: userID})
 		}
 		m.core.publishNotificationOccurrenceInvalidations(ctx, invalidations, false)
 		m.cleanupDismissedSignals(ctx, now)
@@ -160,7 +161,7 @@ func (m *NotificationOccurrenceModel) reconcileCoveredUnread(ctx context.Context
 		exists   bool
 	}
 	boundaries := make(map[notificationReadBoundaryScope]cachedBoundary, len(scopes))
-	occurrences := make([]*corev1.NotificationOccurrence, 0)
+	occurrences := make([]*notificationv1.NotificationOccurrence, 0)
 	if scopes == nil {
 		occurrences = m.projection.Projection().allOccurrences(m.now().UTC())
 	} else {
@@ -168,7 +169,7 @@ func (m *NotificationOccurrenceModel) reconcileCoveredUnread(ctx context.Context
 			occurrences = append(occurrences, m.projection.Projection().scopeOccurrences(scope, m.now().UTC())...)
 		}
 	}
-	matches := make([]*corev1.NotificationOccurrence, 0)
+	matches := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		if occurrence.GetRead() || occurrence.GetSourceStreamSequence() == 0 {
 			continue
@@ -253,34 +254,34 @@ func notificationLifecycleEventID(operation, notificationID string) string {
 	return "nte_" + base64.RawURLEncoding.EncodeToString(digest[:20])
 }
 
-func newNotificationMessageReference(roomID, eventID string) *corev1.NotificationMessageReference {
-	return &corev1.NotificationMessageReference{RoomId: roomID, EventId: eventID}
+func newNotificationMessageReference(roomID, eventID string) *notificationv1.NotificationMessageReference {
+	return &notificationv1.NotificationMessageReference{RoomId: roomID, EventId: eventID}
 }
 
-func notificationSignalMessage(signal *corev1.NotificationSignal) *corev1.NotificationMessageReference {
+func notificationSignalMessage(signal *notificationv1.NotificationSignal) *notificationv1.NotificationMessageReference {
 	if signal == nil {
 		return nil
 	}
 	switch payload := signal.GetKind().(type) {
-	case *corev1.NotificationSignal_DirectMessageReceived:
+	case *notificationv1.NotificationSignal_DirectMessageReceived:
 		return payload.DirectMessageReceived.GetMessage()
-	case *corev1.NotificationSignal_DirectMentionReceived:
+	case *notificationv1.NotificationSignal_DirectMentionReceived:
 		return payload.DirectMentionReceived.GetMessage()
-	case *corev1.NotificationSignal_ReplyReceived:
+	case *notificationv1.NotificationSignal_ReplyReceived:
 		return payload.ReplyReceived.GetMessage()
-	case *corev1.NotificationSignal_RoleMentionReceived:
+	case *notificationv1.NotificationSignal_RoleMentionReceived:
 		return payload.RoleMentionReceived.GetMessage()
-	case *corev1.NotificationSignal_HereMentionReceived:
+	case *notificationv1.NotificationSignal_HereMentionReceived:
 		return payload.HereMentionReceived.GetMessage()
-	case *corev1.NotificationSignal_AllMentionReceived:
+	case *notificationv1.NotificationSignal_AllMentionReceived:
 		return payload.AllMentionReceived.GetMessage()
-	case *corev1.NotificationSignal_FollowedThreadActivity:
+	case *notificationv1.NotificationSignal_FollowedThreadActivity:
 		return payload.FollowedThreadActivity.GetMessage()
-	case *corev1.NotificationSignal_FollowedRoomActivity:
+	case *notificationv1.NotificationSignal_FollowedRoomActivity:
 		return payload.FollowedRoomActivity.GetMessage()
-	case *corev1.NotificationSignal_ReactionReceived:
+	case *notificationv1.NotificationSignal_ReactionReceived:
 		return payload.ReactionReceived.GetMessage()
-	case *corev1.NotificationSignal_RoomMessageReceived:
+	case *notificationv1.NotificationSignal_RoomMessageReceived:
 		return payload.RoomMessageReceived.GetMessage()
 	default:
 		return nil
@@ -289,49 +290,49 @@ func notificationSignalMessage(signal *corev1.NotificationSignal) *corev1.Notifi
 
 // NotificationOccurrenceMessageReference returns the exact message target for
 // a signal understood by this server version.
-func NotificationOccurrenceMessageReference(occurrence *corev1.NotificationOccurrence) *corev1.NotificationMessageReference {
+func NotificationOccurrenceMessageReference(occurrence *notificationv1.NotificationOccurrence) *notificationv1.NotificationMessageReference {
 	if occurrence == nil {
 		return nil
 	}
 	return notificationSignalMessage(occurrence.GetSignal())
 }
 
-func notificationSignalIdentity(signal *corev1.NotificationSignal) string {
+func notificationSignalIdentity(signal *notificationv1.NotificationSignal) string {
 	if signal == nil {
 		return ""
 	}
 	switch signal.GetKind().(type) {
-	case *corev1.NotificationSignal_DirectMessageReceived:
+	case *notificationv1.NotificationSignal_DirectMessageReceived:
 		return "direct_message_received"
-	case *corev1.NotificationSignal_DirectMentionReceived:
+	case *notificationv1.NotificationSignal_DirectMentionReceived:
 		return "direct_mention_received"
-	case *corev1.NotificationSignal_ReplyReceived:
+	case *notificationv1.NotificationSignal_ReplyReceived:
 		return "reply_received"
-	case *corev1.NotificationSignal_RoleMentionReceived:
+	case *notificationv1.NotificationSignal_RoleMentionReceived:
 		return "role_mention_received"
-	case *corev1.NotificationSignal_HereMentionReceived:
+	case *notificationv1.NotificationSignal_HereMentionReceived:
 		return "here_mention_received"
-	case *corev1.NotificationSignal_AllMentionReceived:
+	case *notificationv1.NotificationSignal_AllMentionReceived:
 		return "all_mention_received"
-	case *corev1.NotificationSignal_FollowedThreadActivity:
+	case *notificationv1.NotificationSignal_FollowedThreadActivity:
 		return "followed_thread_activity"
-	case *corev1.NotificationSignal_FollowedRoomActivity:
+	case *notificationv1.NotificationSignal_FollowedRoomActivity:
 		return "followed_room_activity"
-	case *corev1.NotificationSignal_ReactionReceived:
+	case *notificationv1.NotificationSignal_ReactionReceived:
 		return "reaction_received"
-	case *corev1.NotificationSignal_RoomMessageReceived:
+	case *notificationv1.NotificationSignal_RoomMessageReceived:
 		return "room_message_received"
 	default:
 		return ""
 	}
 }
 
-func NotificationOccurrenceHasUnsupportedSignal(occurrence *corev1.NotificationOccurrence) bool {
+func NotificationOccurrenceHasUnsupportedSignal(occurrence *notificationv1.NotificationOccurrence) bool {
 	signal := occurrence.GetSignal()
 	return signal != nil && signal.GetKind() == nil && len(signal.ProtoReflect().GetUnknown()) > 0
 }
 
-func NotificationAlertDeadline(occurrence *corev1.NotificationOccurrence) time.Time {
+func NotificationAlertDeadline(occurrence *notificationv1.NotificationOccurrence) time.Time {
 	if occurrence == nil {
 		return time.Time{}
 	}
@@ -341,7 +342,7 @@ func NotificationAlertDeadline(occurrence *corev1.NotificationOccurrence) time.T
 	return time.Time{}
 }
 
-func (m *NotificationOccurrenceModel) appendAndWait(ctx context.Context, event *corev1.NotificationEvent) error {
+func (m *NotificationOccurrenceModel) appendAndWait(ctx context.Context, event *notificationv1.NotificationEvent) error {
 	position, err := m.publisher.AppendEventually(ctx, event)
 	if errors.Is(err, notificationstream.ErrExpiredEvent) {
 		return ErrNotFound
@@ -352,7 +353,7 @@ func (m *NotificationOccurrenceModel) appendAndWait(ctx context.Context, event *
 	return m.projection.Projector().WaitFor(ctx, position)
 }
 
-func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNotificationOccurrenceInput) (*corev1.NotificationOccurrence, bool, error) {
+func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNotificationOccurrenceInput) (*notificationv1.NotificationOccurrence, bool, error) {
 	results, err := m.createMany(ctx, []CreateNotificationOccurrenceInput{input})
 	if err != nil {
 		return nil, false, err
@@ -361,13 +362,13 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 }
 
 type createNotificationOccurrenceResult struct {
-	occurrence *corev1.NotificationOccurrence
+	occurrence *notificationv1.NotificationOccurrence
 	created    bool
 }
 
 type pendingNotificationCreate struct {
-	occurrence    *corev1.NotificationOccurrence
-	event         *corev1.NotificationEvent
+	occurrence    *notificationv1.NotificationOccurrence
+	event         *notificationv1.NotificationEvent
 	resultIndexes []int
 	skipRead      bool
 }
@@ -423,7 +424,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 	initialStates := m.projection.Projection().occurrenceStates(refs, now)
 	pendingByID := make(map[string]*pendingNotificationCreate)
 	pending := make([]*pendingNotificationCreate, 0, len(prepared))
-	existingReadCandidates := make([]*corev1.NotificationOccurrence, 0)
+	existingReadCandidates := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, candidate := range prepared {
 		input := candidate.input
 		ref := notificationOccurrenceRef{recipientID: input.RecipientID, notificationID: candidate.notificationID}
@@ -445,16 +446,16 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		}
 
 		var alertExpiresAt *timestamppb.Timestamp
-		if input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+		if input.Mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
 			alertExpiresAt = timestamppb.New(input.SourceCreated.UTC().Add(notificationAlertDeliveryTTL))
 		}
-		occurrence := &corev1.NotificationOccurrence{
+		occurrence := &notificationv1.NotificationOccurrence{
 			Id:                   candidate.notificationID,
 			RecipientId:          input.RecipientID,
 			SourceEventId:        input.SourceEventID,
 			SourceCreatedAt:      timestamppb.New(input.SourceCreated.UTC()),
 			ActorId:              input.ActorID,
-			Signal:               proto.Clone(input.Signal).(*corev1.NotificationSignal),
+			Signal:               proto.Clone(input.Signal).(*notificationv1.NotificationSignal),
 			Read:                 input.InitiallyRead,
 			ExpiresAt:            timestamppb.New(candidate.expiresAt),
 			SourceStreamSequence: input.SourceStreamSequence,
@@ -486,7 +487,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		return results, nil
 	}
 
-	eventsToAppend := make([]*corev1.NotificationEvent, len(pending))
+	eventsToAppend := make([]*notificationv1.NotificationEvent, len(pending))
 	for i, item := range pending {
 		eventsToAppend[i] = item.event
 	}
@@ -527,7 +528,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 	if err := m.reconcileOccurrenceReadBoundaries(ctx, readCandidates); err != nil {
 		return nil, err
 	}
-	created := make([]*corev1.NotificationOccurrence, 0, len(pending))
+	created := make([]*notificationv1.NotificationOccurrence, 0, len(pending))
 	for i, item := range pending {
 		ref := notificationOccurrenceRef{recipientID: item.occurrence.GetRecipientId(), notificationID: item.occurrence.GetId()}
 		stored := storedStates[ref].occurrence
@@ -553,8 +554,8 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 // stopped. Existing unread occurrences must be checked too: a boundary repair
 // can run before the signal reaches this replica's projection and will not be
 // woken again merely because the materializer later retries the source fact.
-func (m *NotificationOccurrenceModel) reconcileOccurrenceReadBoundaries(ctx context.Context, occurrences []*corev1.NotificationOccurrence) error {
-	covered := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
+func (m *NotificationOccurrenceModel) reconcileOccurrenceReadBoundaries(ctx context.Context, occurrences []*notificationv1.NotificationOccurrence) error {
+	covered := make([]*notificationv1.NotificationOccurrence, 0, len(occurrences))
 	for _, occurrence := range occurrences {
 		if occurrence == nil || occurrence.GetRead() {
 			continue
@@ -590,20 +591,20 @@ func validateNotificationCreateInput(input CreateNotificationOccurrenceInput) er
 	if !notificationModeProducesOccurrence(input.Mode) {
 		return nil
 	}
-	if input.AttentionLevel != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT && input.AttentionLevel != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
+	if input.AttentionLevel != notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT && input.AttentionLevel != notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
 		return invalidArgument("a concrete notification attention level is required")
 	}
 	return nil
 }
 
-func newNotificationSignalledLifecycleEvent(now time.Time, occurrence *corev1.NotificationOccurrence) *corev1.NotificationEvent {
-	return &corev1.NotificationEvent{
+func newNotificationSignalledLifecycleEvent(now time.Time, occurrence *notificationv1.NotificationOccurrence) *notificationv1.NotificationEvent {
+	return &notificationv1.NotificationEvent{
 		Id:             notificationLifecycleEventID("signal", occurrence.GetId()),
 		RecipientId:    occurrence.GetRecipientId(),
 		NotificationId: occurrence.GetId(),
 		OccurredAt:     timestamppb.New(now),
 		ExpiresAt:      occurrence.GetExpiresAt(),
-		Event: &corev1.NotificationEvent_Signalled{Signalled: &corev1.NotificationSignalled{
+		Event: &notificationv1.NotificationEvent_Signalled{Signalled: &notificationv1.NotificationSignalled{
 			SourceEventId:        occurrence.GetSourceEventId(),
 			SourceCreatedAt:      occurrence.GetSourceCreatedAt(),
 			ActorId:              occurrence.GetActorId(),
@@ -616,8 +617,8 @@ func newNotificationSignalledLifecycleEvent(now time.Time, occurrence *corev1.No
 	}
 }
 
-func (m *NotificationOccurrenceModel) publishCreatedInvalidations(ctx context.Context, occurrences []*corev1.NotificationOccurrence) {
-	byRecipient := make(map[string]*corev1.NotificationOccurrence)
+func (m *NotificationOccurrenceModel) publishCreatedInvalidations(ctx context.Context, occurrences []*notificationv1.NotificationOccurrence) {
+	byRecipient := make(map[string]*notificationv1.NotificationOccurrence)
 	for _, occurrence := range occurrences {
 		if occurrence == nil || occurrence.GetRecipientId() == "" {
 			continue
@@ -627,14 +628,14 @@ func (m *NotificationOccurrenceModel) publishCreatedInvalidations(ctx context.Co
 			byRecipient[occurrence.GetRecipientId()] = occurrence
 		}
 	}
-	invalidations := make([]*corev1.NotificationOccurrence, 0, len(byRecipient))
+	invalidations := make([]*notificationv1.NotificationOccurrence, 0, len(byRecipient))
 	for _, occurrence := range byRecipient {
 		invalidations = append(invalidations, occurrence)
 	}
 	m.core.publishNotificationOccurrenceInvalidations(ctx, invalidations, true)
 }
 
-func (m *NotificationOccurrenceModel) Get(_ context.Context, userID, notificationID string) (*corev1.NotificationOccurrence, error) {
+func (m *NotificationOccurrenceModel) Get(_ context.Context, userID, notificationID string) (*notificationv1.NotificationOccurrence, error) {
 	occurrence, exists := m.projection.Projection().occurrence(userID, notificationID, m.now().UTC())
 	if !exists {
 		return nil, ErrNotFound
@@ -642,7 +643,7 @@ func (m *NotificationOccurrenceModel) Get(_ context.Context, userID, notificatio
 	return occurrence, nil
 }
 
-func (m *NotificationOccurrenceModel) List(_ context.Context, userID string) ([]*corev1.NotificationOccurrence, error) {
+func (m *NotificationOccurrenceModel) List(_ context.Context, userID string) ([]*notificationv1.NotificationOccurrence, error) {
 	result := m.projection.Projection().userOccurrences(userID, m.now().UTC())
 	sort.Slice(result, func(i, j int) bool {
 		left, right := result[i], result[j]
@@ -672,7 +673,7 @@ func (m *NotificationOccurrenceModel) UnreadCount(ctx context.Context, userID st
 	return count, nil
 }
 
-func (m *NotificationOccurrenceModel) MarkRead(ctx context.Context, userID, notificationID string) (*corev1.NotificationOccurrence, error) {
+func (m *NotificationOccurrenceModel) MarkRead(ctx context.Context, userID, notificationID string) (*notificationv1.NotificationOccurrence, error) {
 	occurrence, err := m.Get(ctx, userID, notificationID)
 	if err != nil {
 		return nil, err
@@ -680,7 +681,7 @@ func (m *NotificationOccurrenceModel) MarkRead(ctx context.Context, userID, noti
 	if occurrence.GetRead() {
 		return occurrence, nil
 	}
-	if _, err := m.markReadOccurrences(ctx, []*corev1.NotificationOccurrence{occurrence}); err != nil {
+	if _, err := m.markReadOccurrences(ctx, []*notificationv1.NotificationOccurrence{occurrence}); err != nil {
 		return nil, err
 	}
 	return m.Get(ctx, userID, notificationID)
@@ -695,7 +696,7 @@ func (m *NotificationOccurrenceModel) Delete(ctx context.Context, userID, notifi
 	if err != nil {
 		return false, err
 	}
-	deleted, err := m.deleteOccurrences(ctx, []*corev1.NotificationOccurrence{occurrence})
+	deleted, err := m.deleteOccurrences(ctx, []*notificationv1.NotificationOccurrence{occurrence})
 	return deleted == 1, err
 }
 
@@ -710,7 +711,7 @@ func (m *NotificationOccurrenceModel) DeleteMany(ctx context.Context, userID str
 		refs = append(refs, notificationOccurrenceRef{recipientID: userID, notificationID: id})
 	}
 	states := m.projection.Projection().occurrenceStates(refs, m.now().UTC())
-	occurrences := make([]*corev1.NotificationOccurrence, 0, len(refs))
+	occurrences := make([]*notificationv1.NotificationOccurrence, 0, len(refs))
 	for _, ref := range refs {
 		if occurrence := states[ref].occurrence; occurrence != nil {
 			occurrences = append(occurrences, occurrence)
@@ -723,11 +724,11 @@ func (m *NotificationOccurrenceModel) DeleteMany(ctx context.Context, userID str
 // committed position, emits one replacement invalidation per recipient, and
 // performs one secure-delete sweep. This keeps bulk privacy cleanup linear in
 // the number of occurrences instead of repeatedly rescanning all tombstones.
-func (m *NotificationOccurrenceModel) deleteOccurrences(ctx context.Context, occurrences []*corev1.NotificationOccurrence) (int, error) {
+func (m *NotificationOccurrenceModel) deleteOccurrences(ctx context.Context, occurrences []*notificationv1.NotificationOccurrence) (int, error) {
 	now := m.now().UTC()
 	seen := make(map[string]struct{}, len(occurrences))
-	unique := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
-	eventsToAppend := make([]*corev1.NotificationEvent, 0, len(occurrences))
+	unique := make([]*notificationv1.NotificationOccurrence, 0, len(occurrences))
+	eventsToAppend := make([]*notificationv1.NotificationEvent, 0, len(occurrences))
 	for _, occurrence := range occurrences {
 		if occurrence == nil || occurrence.GetRecipientId() == "" || occurrence.GetId() == "" {
 			continue
@@ -738,13 +739,13 @@ func (m *NotificationOccurrenceModel) deleteOccurrences(ctx context.Context, occ
 		}
 		seen[key] = struct{}{}
 		unique = append(unique, occurrence)
-		eventsToAppend = append(eventsToAppend, &corev1.NotificationEvent{
+		eventsToAppend = append(eventsToAppend, &notificationv1.NotificationEvent{
 			Id:             notificationLifecycleEventID("remove", occurrence.GetId()),
 			RecipientId:    occurrence.GetRecipientId(),
 			NotificationId: occurrence.GetId(),
 			OccurredAt:     timestamppb.New(now),
 			ExpiresAt:      occurrence.GetExpiresAt(),
-			Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{
+			Event: &notificationv1.NotificationEvent_Removed{Removed: &notificationv1.NotificationRemoved{
 				SignalStreamSequence: occurrence.GetNotificationStreamSequence(),
 			}},
 		})
@@ -756,11 +757,11 @@ func (m *NotificationOccurrenceModel) deleteOccurrences(ctx context.Context, occ
 	return len(changed), err
 }
 
-func (m *NotificationOccurrenceModel) markReadOccurrences(ctx context.Context, occurrences []*corev1.NotificationOccurrence) (int, error) {
+func (m *NotificationOccurrenceModel) markReadOccurrences(ctx context.Context, occurrences []*notificationv1.NotificationOccurrence) (int, error) {
 	now := m.now().UTC()
-	unique := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
+	unique := make([]*notificationv1.NotificationOccurrence, 0, len(occurrences))
 	seen := make(map[string]struct{}, len(occurrences))
-	eventsToAppend := make([]*corev1.NotificationEvent, 0, len(occurrences))
+	eventsToAppend := make([]*notificationv1.NotificationEvent, 0, len(occurrences))
 	for _, occurrence := range occurrences {
 		if occurrence == nil || occurrence.GetRead() || occurrence.GetRecipientId() == "" || occurrence.GetId() == "" {
 			continue
@@ -771,13 +772,13 @@ func (m *NotificationOccurrenceModel) markReadOccurrences(ctx context.Context, o
 		}
 		seen[key] = struct{}{}
 		unique = append(unique, occurrence)
-		eventsToAppend = append(eventsToAppend, &corev1.NotificationEvent{
+		eventsToAppend = append(eventsToAppend, &notificationv1.NotificationEvent{
 			Id:             notificationLifecycleEventID("read", occurrence.GetId()),
 			RecipientId:    occurrence.GetRecipientId(),
 			NotificationId: occurrence.GetId(),
 			OccurredAt:     timestamppb.New(now),
 			ExpiresAt:      occurrence.GetExpiresAt(),
-			Event:          &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{}},
+			Event:          &notificationv1.NotificationEvent_Read{Read: &notificationv1.NotificationRead{}},
 		})
 	}
 	committed, err := m.appendEventsAndWait(ctx, eventsToAppend)
@@ -786,8 +787,8 @@ func (m *NotificationOccurrenceModel) markReadOccurrences(ctx context.Context, o
 	return len(changed), err
 }
 
-func committedOccurrences(occurrences []*corev1.NotificationOccurrence, committed []bool) []*corev1.NotificationOccurrence {
-	changed := make([]*corev1.NotificationOccurrence, 0, len(committed))
+func committedOccurrences(occurrences []*notificationv1.NotificationOccurrence, committed []bool) []*notificationv1.NotificationOccurrence {
+	changed := make([]*notificationv1.NotificationOccurrence, 0, len(committed))
 	for i, wasCommitted := range committed {
 		if wasCommitted && i < len(occurrences) {
 			changed = append(changed, occurrences[i])
@@ -796,7 +797,7 @@ func committedOccurrences(occurrences []*corev1.NotificationOccurrence, committe
 	return changed
 }
 
-func (m *NotificationOccurrenceModel) appendEventsAndWait(ctx context.Context, lifecycleEvents []*corev1.NotificationEvent) ([]bool, error) {
+func (m *NotificationOccurrenceModel) appendEventsAndWait(ctx context.Context, lifecycleEvents []*notificationv1.NotificationEvent) ([]bool, error) {
 	committed := make([]bool, 0, len(lifecycleEvents))
 	var lastPosition events.StreamPosition
 	var appendErr error
@@ -822,14 +823,14 @@ func (m *NotificationOccurrenceModel) appendEventsAndWait(ctx context.Context, l
 	return committed, appendErr
 }
 
-func (m *NotificationOccurrenceModel) publishNotificationInvalidations(ctx context.Context, occurrences []*corev1.NotificationOccurrence) {
-	byRecipient := make(map[string]*corev1.NotificationOccurrence)
+func (m *NotificationOccurrenceModel) publishNotificationInvalidations(ctx context.Context, occurrences []*notificationv1.NotificationOccurrence) {
+	byRecipient := make(map[string]*notificationv1.NotificationOccurrence)
 	for _, occurrence := range occurrences {
 		if occurrence != nil && occurrence.GetRecipientId() != "" {
 			byRecipient[occurrence.GetRecipientId()] = occurrence
 		}
 	}
-	invalidations := make([]*corev1.NotificationOccurrence, 0, len(byRecipient))
+	invalidations := make([]*notificationv1.NotificationOccurrence, 0, len(byRecipient))
 	for _, occurrence := range byRecipient {
 		invalidations = append(invalidations, occurrence)
 	}
@@ -845,7 +846,7 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 	if err != nil {
 		return 0, err
 	}
-	matches := make([]*corev1.NotificationOccurrence, 0)
+	matches := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		if message == nil || message.GetRoomId() != roomID || message.GetThreadRootEventId() != threadRootEventID || occurrence.GetRead() {
@@ -865,7 +866,7 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 	return len(matches), nil
 }
 
-func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, recipientID string, occurrences []*corev1.NotificationOccurrence) ([]*corev1.NotificationOccurrence, error) {
+func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, recipientID string, occurrences []*notificationv1.NotificationOccurrence) ([]*notificationv1.NotificationOccurrence, error) {
 	if len(occurrences) == 0 {
 		return nil, nil
 	}
@@ -905,7 +906,7 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	if err := m.core.rbacModel.waitFor(ctx, rbacPosition); err != nil {
 		return nil, fmt.Errorf("wait for notification RBAC visibility boundary: %w", err)
 	}
-	visible := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
+	visible := make([]*notificationv1.NotificationOccurrence, 0, len(occurrences))
 	for _, occurrence := range occurrences {
 		allowed, err := m.targetVisibleFromCurrentProjections(ctx, recipientID, occurrence)
 		if err != nil {
@@ -918,7 +919,7 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	return visible, nil
 }
 
-func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *corev1.NotificationOccurrence) (bool, error) {
+func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil || occurrence.GetRecipientId() != recipientID {
 		return false, nil
 	}
@@ -973,7 +974,7 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 }
 
 func (m *NotificationOccurrenceModel) RemoveTarget(ctx context.Context, roomID, eventID string) (int, error) {
-	return m.removeMatching(ctx, func(occurrence *corev1.NotificationOccurrence) bool {
+	return m.removeMatching(ctx, func(occurrence *notificationv1.NotificationOccurrence) bool {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		return message != nil && message.GetRoomId() == roomID && (message.GetEventId() == eventID || message.GetThreadRootEventId() == eventID)
 	})
@@ -984,7 +985,7 @@ func (m *NotificationOccurrenceModel) RemoveReaction(ctx context.Context, recipi
 	if err != nil {
 		return 0, err
 	}
-	matches := make([]*corev1.NotificationOccurrence, 0)
+	matches := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		reaction := occurrence.GetSignal().GetReactionReceived()
@@ -1001,7 +1002,7 @@ func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, use
 	if err != nil {
 		return 0, err
 	}
-	matches := make([]*corev1.NotificationOccurrence, 0)
+	matches := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		if message == nil || message.GetRoomId() != roomID || (removedThroughSequence != 0 && occurrence.GetSourceStreamSequence() >= removedThroughSequence) {
@@ -1013,7 +1014,7 @@ func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, use
 }
 
 func (m *NotificationOccurrenceModel) RemoveRoom(ctx context.Context, roomID string) (int, error) {
-	return m.removeMatching(ctx, func(occurrence *corev1.NotificationOccurrence) bool {
+	return m.removeMatching(ctx, func(occurrence *notificationv1.NotificationOccurrence) bool {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		return message != nil && message.GetRoomId() == roomID
 	})
@@ -1027,9 +1028,9 @@ func (m *NotificationOccurrenceModel) PurgeUser(ctx context.Context, userID stri
 	return m.deleteOccurrences(ctx, occurrences)
 }
 
-func (m *NotificationOccurrenceModel) removeMatching(ctx context.Context, match func(*corev1.NotificationOccurrence) bool) (int, error) {
+func (m *NotificationOccurrenceModel) removeMatching(ctx context.Context, match func(*notificationv1.NotificationOccurrence) bool) (int, error) {
 	occurrences := m.projection.Projection().allOccurrences(m.now().UTC())
-	matches := make([]*corev1.NotificationOccurrence, 0)
+	matches := make([]*notificationv1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		if !match(occurrence) {
 			continue
@@ -1039,7 +1040,7 @@ func (m *NotificationOccurrenceModel) removeMatching(ctx context.Context, match 
 	return m.deleteOccurrences(ctx, matches)
 }
 
-func (m *NotificationOccurrenceModel) deliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (*corev1.NotificationOccurrence, error) {
+func (m *NotificationOccurrenceModel) deliveryCurrent(ctx context.Context, expected *notificationv1.NotificationOccurrence) (*notificationv1.NotificationOccurrence, error) {
 	if expected == nil {
 		return nil, nil
 	}
@@ -1060,18 +1061,18 @@ func (m *NotificationOccurrenceModel) deliveryCurrent(ctx context.Context, expec
 
 }
 
-func (m *NotificationOccurrenceModel) alertDeliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {
+func (m *NotificationOccurrenceModel) alertDeliveryCurrent(ctx context.Context, expected *notificationv1.NotificationOccurrence) (bool, error) {
 	current, err := m.deliveryCurrent(ctx, expected)
 	return NotificationAlertPending(current), err
 }
 
 // NotificationAlertPending reports whether an occurrence still has unresolved
 // interruptive delivery work.
-func NotificationAlertPending(occurrence *corev1.NotificationOccurrence) bool {
+func NotificationAlertPending(occurrence *notificationv1.NotificationOccurrence) bool {
 	return occurrence != nil && occurrence.GetAlertExpiresAt() != nil && !occurrence.GetRead() && occurrence.AlertDelivered == nil
 }
 
-func (m *NotificationOccurrenceModel) completeAlertDelivery(ctx context.Context, occurrence *corev1.NotificationOccurrence, delivered bool) error {
+func (m *NotificationOccurrenceModel) completeAlertDelivery(ctx context.Context, occurrence *notificationv1.NotificationOccurrence, delivered bool) error {
 	if occurrence == nil {
 		return nil
 	}
@@ -1083,13 +1084,13 @@ func (m *NotificationOccurrenceModel) completeAlertDelivery(ctx context.Context,
 		return err
 	}
 	now := m.now().UTC()
-	event := &corev1.NotificationEvent{
+	event := &notificationv1.NotificationEvent{
 		Id:             notificationLifecycleEventID("alert-resolved", occurrence.GetId()),
 		RecipientId:    occurrence.GetRecipientId(),
 		NotificationId: occurrence.GetId(),
 		OccurredAt:     timestamppb.New(now),
 		ExpiresAt:      occurrence.GetExpiresAt(),
-		Event: &corev1.NotificationEvent_AlertResolved{AlertResolved: &corev1.NotificationAlertResolved{
+		Event: &notificationv1.NotificationEvent_AlertResolved{AlertResolved: &notificationv1.NotificationAlertResolved{
 			Delivered: delivered,
 		}},
 	}

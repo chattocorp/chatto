@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/log"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // processRequest is the in-process shape passed to the worker after the
@@ -20,7 +20,7 @@ type processRequest struct {
 	AssetID        string
 	MessageEventID string
 	ContentType    string
-	Attachment     *corev1.Attachment
+	Attachment     *evtv1.Attachment
 }
 
 // Service performs one ffmpeg-backed processing attempt at a time. The

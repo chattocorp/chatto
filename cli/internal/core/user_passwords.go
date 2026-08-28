@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // SetPasswordHash hashes and stores a password for a user.
@@ -140,8 +140,8 @@ func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
-		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserPasswordHashChanged{
+		UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{
 			UserId:                      userID,
 			PasswordHash:                hashedPassword,
 			PreserveExistingCredentials: !revokeCredentials,
@@ -171,14 +171,14 @@ func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string
 }
 
 // VerifyPassword verifies a user's password by login name or email and returns the user if valid.
-func (c *ChattoCore) VerifyPassword(ctx context.Context, identifier string, password string) (*corev1.User, error) {
+func (c *ChattoCore) VerifyPassword(ctx context.Context, identifier string, password string) (*evtv1.User, error) {
 	user, _, err := c.VerifyPasswordWithAuthGeneration(ctx, identifier, password)
 	return user, err
 }
 
 // VerifyPasswordWithAuthGeneration verifies a password and returns the user
 // auth generation that was current when the password hash was checked.
-func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, identifier string, password string) (*corev1.User, uint64, error) {
+func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, identifier string, password string) (*evtv1.User, uint64, error) {
 	// Timing attack protection: Always run bcrypt comparison even for non-existent users.
 	// Without this, attackers could enumerate valid logins by measuring response times:
 	// - Non-existent login: fast return (~1μs)
@@ -209,7 +209,7 @@ func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, ident
 }
 
 // verifyUserPassword is an internal helper that verifies a password for an already-fetched user.
-func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *corev1.User, password string, dummyHash []byte) (*corev1.User, uint64, error) {
+func (c *ChattoCore) verifyUserPassword(ctx context.Context, user *evtv1.User, password string, dummyHash []byte) (*evtv1.User, uint64, error) {
 	authGeneration, err := c.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
 		return nil, 0, err

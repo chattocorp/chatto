@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type RoleUserSummary struct {
@@ -13,7 +13,7 @@ type RoleUserSummary struct {
 	DisplayName  string
 	Deleted      bool
 	IsBot  bool
-	CustomStatus *corev1.CustomUserStatus
+	CustomStatus *evtv1.CustomUserStatus
 }
 
 type RoleCatalog struct {

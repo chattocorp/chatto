@@ -7,7 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func (s *accountService) UpdateCustomStatus(ctx context.Context, req *connect.Request[apiv1.UpdateCustomStatusRequest]) (*connect.Response[apiv1.UpdateCustomStatusResponse], error) {
@@ -56,7 +56,7 @@ func apiTimestampToTime(ts *timestamppb.Timestamp) (*time.Time, error) {
 	return &expiresAt, nil
 }
 
-func coreCustomStatusToAPI(status *corev1.CustomUserStatus) *apiv1.CustomUserStatus {
+func coreCustomStatusToAPI(status *evtv1.CustomUserStatus) *apiv1.CustomUserStatus {
 	if status == nil {
 		return nil
 	}

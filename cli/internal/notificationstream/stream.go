@@ -6,12 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/streamidentity"
 	"hmans.de/chatto/pkg/events"
 )
@@ -70,8 +70,8 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, retentionGrac
 // AppendEventually publishes an immutable lifecycle event. Retrying after a
 // bounded-subject OCC conflict is safe because event IDs and state transitions
 // are idempotent.
-func (p *Publisher) AppendEventually(ctx context.Context, event *corev1.NotificationEvent) (events.StreamPosition, error) {
-	results, err := p.AppendBatchEventuallyResults(ctx, []*corev1.NotificationEvent{event})
+func (p *Publisher) AppendEventually(ctx context.Context, event *notificationv1.NotificationEvent) (events.StreamPosition, error) {
+	results, err := p.AppendBatchEventuallyResults(ctx, []*notificationv1.NotificationEvent{event})
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
@@ -96,7 +96,7 @@ type preparedEvent struct {
 // all new is atomic. If JetStream identifies a duplicate ID, the publisher
 // retries each fact idempotently; a non-nil error can then accompany partial
 // results that callers must wait for and account for before returning.
-func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificationEvents []*corev1.NotificationEvent) ([]AppendResult, error) {
+func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificationEvents []*notificationv1.NotificationEvent) ([]AppendResult, error) {
 	if len(notificationEvents) == 0 {
 		return nil, nil
 	}
@@ -157,8 +157,8 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 			return results, nil
 		}
 		if errors.Is(err, events.ErrDuplicateBatchMessageID) && len(notificationEvents) > 1 {
-			return appendNotificationEventsIndividually(notificationEvents, func(event *corev1.NotificationEvent) (AppendResult, error) {
-				single, appendErr := p.AppendBatchEventuallyResults(ctx, []*corev1.NotificationEvent{event})
+			return appendNotificationEventsIndividually(notificationEvents, func(event *notificationv1.NotificationEvent) (AppendResult, error) {
+				single, appendErr := p.AppendBatchEventuallyResults(ctx, []*notificationv1.NotificationEvent{event})
 				if appendErr != nil {
 					return AppendResult{}, appendErr
 				}
@@ -175,8 +175,8 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 }
 
 func appendNotificationEventsIndividually(
-	notificationEvents []*corev1.NotificationEvent,
-	appendOne func(*corev1.NotificationEvent) (AppendResult, error),
+	notificationEvents []*notificationv1.NotificationEvent,
+	appendOne func(*notificationv1.NotificationEvent) (AppendResult, error),
 ) ([]AppendResult, error) {
 	results := make([]AppendResult, 0, len(notificationEvents))
 	for _, event := range notificationEvents {
@@ -189,18 +189,18 @@ func appendNotificationEventsIndividually(
 	return results, nil
 }
 
-func subjectFor(event *corev1.NotificationEvent) (string, error) {
+func subjectFor(event *notificationv1.NotificationEvent) (string, error) {
 	if event == nil || event.GetId() == "" || event.GetRecipientId() == "" || event.GetNotificationId() == "" || event.GetOccurredAt() == nil {
 		return "", fmt.Errorf("%w: id, recipient_id, notification_id, and occurred_at are required", ErrInvalidEvent)
 	}
 	switch event.GetEvent().(type) {
-	case *corev1.NotificationEvent_Signalled:
+	case *notificationv1.NotificationEvent_Signalled:
 		return SignalledSubject, nil
-	case *corev1.NotificationEvent_Read:
+	case *notificationv1.NotificationEvent_Read:
 		return ReadSubject, nil
-	case *corev1.NotificationEvent_Removed:
+	case *notificationv1.NotificationEvent_Removed:
 		return RemovedSubject, nil
-	case *corev1.NotificationEvent_AlertResolved:
+	case *notificationv1.NotificationEvent_AlertResolved:
 		return AlertResolvedSubject, nil
 	default:
 		return "", fmt.Errorf("%w: event payload is unset or unsupported", ErrInvalidEvent)
@@ -208,7 +208,7 @@ func subjectFor(event *corev1.NotificationEvent) (string, error) {
 }
 
 type ProjectionPointer[T any] interface {
-	events.EventProjection[*corev1.NotificationEvent]
+	events.EventProjection[*notificationv1.NotificationEvent]
 	*T
 }
 
@@ -221,12 +221,12 @@ func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logger)
 }
 
-func decodeEvent(data []byte) (events.DecodedEvent[*corev1.NotificationEvent], error) {
-	var event corev1.NotificationEvent
+func decodeEvent(data []byte) (events.DecodedEvent[*notificationv1.NotificationEvent], error) {
+	var event notificationv1.NotificationEvent
 	if err := proto.Unmarshal(data, &event); err != nil {
-		return events.DecodedEvent[*corev1.NotificationEvent]{}, err
+		return events.DecodedEvent[*notificationv1.NotificationEvent]{}, err
 	}
-	return events.DecodedEvent[*corev1.NotificationEvent]{Event: &event, ID: event.GetId()}, nil
+	return events.DecodedEvent[*notificationv1.NotificationEvent]{Event: &event, ID: event.GetId()}, nil
 }
 
 // NewIdentity deterministically derives Chatto's identity for one NOTIFICATIONS

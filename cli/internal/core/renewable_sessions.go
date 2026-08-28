@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -60,7 +60,7 @@ type RenewableSession struct {
 	ClientID          string                       `json:"client_id,omitempty"`
 	Kind              AuthTokenKind                `json:"kind"`
 	Source            string                       `json:"source,omitempty"`
-	Request           *corev1.AuditRequestMetadata `json:"request,omitempty"`
+	Request           *evtv1.AuditRequestMetadata `json:"request,omitempty"`
 	CreatedAt         time.Time                    `json:"created_at"`
 	ExpiresAt         time.Time                    `json:"expires_at"`
 	AuthGeneration    uint64                       `json:"auth_generation"`

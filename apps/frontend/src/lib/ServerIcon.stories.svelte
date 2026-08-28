@@ -23,17 +23,17 @@
 
 <Story name="Gutter states" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
-    <ServerIcon server={home} href="#home" title="Home Server" selected />
+    <ServerIcon server={home} href="/chat/-" title="Home Server" selected />
     <ServerIcon
       server={remote}
-      href="#remote"
+      href="/chat/remote"
       title="Remote Server needs sign-in"
       dimmed
-      reauthRequired
+      signInRequired
     />
     <ServerIcon
       server={legacy}
-      href="#legacy"
+      href="/chat/legacy"
       title="Legacy Server — Server version is not supported"
       dimmed
       compatibilityWarning
@@ -41,14 +41,14 @@
   </div>
 </Story>
 
-<Story name="Reauthentication required" asChild>
+<Story name="Sign-in required" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
     <ServerIcon
       server={remote}
-      href="#remote"
+      href="/chat/remote"
       title="Remote Server needs sign-in"
       dimmed
-      reauthRequired
+      signInRequired
     />
   </div>
 </Story>
