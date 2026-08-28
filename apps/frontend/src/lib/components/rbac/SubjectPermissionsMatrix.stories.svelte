@@ -3,7 +3,12 @@
   import SubjectPermissionsMatrix, { type MatrixData } from './SubjectPermissionsMatrix.svelte';
 
   const data: MatrixData = {
-    applicablePermissions: ['message.post', 'message.react', 'room.manage', 'room.view-history'],
+    applicablePermissions: [
+      'message.post',
+      'message.read-interactions',
+      'room.manage',
+      'room.view-history'
+    ],
     scopes: [
       { id: 'server', label: 'Example server', kind: 'SERVER', parentGroupId: '' },
       { id: 'group:community', label: 'Community', kind: 'GROUP', parentGroupId: '' },
@@ -20,21 +25,26 @@
       },
       { permission: 'message.post', scopeId: 'room:general', override: 'NONE', effective: 'ALLOW' },
       { permission: 'message.post', scopeId: 'room:support', override: 'DENY', effective: 'DENY' },
-      { permission: 'message.react', scopeId: 'server', override: 'NONE', effective: 'NONE' },
       {
-        permission: 'message.react',
+        permission: 'message.read-interactions',
+        scopeId: 'server',
+        override: 'NONE',
+        effective: 'NONE'
+      },
+      {
+        permission: 'message.read-interactions',
         scopeId: 'group:community',
         override: 'ALLOW',
         effective: 'ALLOW'
       },
       {
-        permission: 'message.react',
+        permission: 'message.read-interactions',
         scopeId: 'room:general',
         override: 'NONE',
         effective: 'ALLOW'
       },
       {
-        permission: 'message.react',
+        permission: 'message.read-interactions',
         scopeId: 'room:support',
         override: 'NONE',
         effective: 'ALLOW'

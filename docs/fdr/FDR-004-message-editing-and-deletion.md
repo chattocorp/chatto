@@ -11,7 +11,7 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 - Authors can edit their own messages within a 3-hour window from posting time. After the window closes, only moderators can edit. The window value is queryable via `Server.messageEditWindowSeconds` so the frontend can show countdown timers and disable the edit affordance at exactly the right moment.
 - Editing requires current room membership. In a channel room, it also requires
-  broad `message.read`, or `message.read.interactions` with a relationship to
+  broad `message.read`, or `message.read-interactions` with a relationship to
   the message's thread. The operation reads and returns the current message.
   DM membership authorizes the read. Posting and deletion remain independently
   authorized and do not return surrounding message state.
@@ -93,7 +93,7 @@ message's thread summary contains a reply.
 
 - `message.manage` — edit and delete *other* users' messages.
 - `message.read` — read and edit any channel-room message.
-- `message.read.interactions` — read and edit a channel-room message in a
+- `message.read-interactions` — read and edit a channel-room message in a
   related thread. DM membership authorizes DM reads without either permission.
   Deletion remains independently authorized by authorship or `message.manage`.
 - (No separate permission for editing/deleting one's own messages — that's gated by authorship and the edit window only.)

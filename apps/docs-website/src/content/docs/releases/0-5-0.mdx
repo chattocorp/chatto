@@ -113,7 +113,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     The `everyone` role now acts as a scoped default that named roles and direct-user
     decisions can override at the same or a narrower scope. Fresh announcement rooms also
     give admins an explicit room-level posting grant. The new `message.read` and
-    `message.read.interactions` permissions separate broad and relationship-scoped
+    `message.read-interactions` permissions separate broad and relationship-scoped
     channel-room message access from membership. Broad read access includes the narrower
     interaction permission.
   </ReleaseFeatureCard>
@@ -163,7 +163,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   across a lost-response retry.
 - Before or during the upgrade, grant `message.read` to every existing role or
   account that must keep broad channel-room message access. Grant
-  `message.read.interactions` where an account or bot must read only related
+  `message.read-interactions` where an account or bot must read only related
   threads. A server-level `everyone` grant for `message.read` preserves broad
   access and includes the narrow mode. Chatto never migrates, backfills, or
   reconciles existing RBAC state. Fresh servers receive only the broad grant

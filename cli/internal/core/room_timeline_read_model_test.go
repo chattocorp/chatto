@@ -87,7 +87,7 @@ func TestRoomTimelineReadModelRequiresMessageReadWithoutGrantingWrite(t *testing
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
 	}
 
 	for name, read := range map[string]func() error{
@@ -172,7 +172,7 @@ func TestRoomTimelineReadModelInteractionScopedAccess(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
-		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("GrantUserRoomPermission message.read-interactions: %v", err)
 	}
 
 	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, reader.GetId(), room.GetId(), mentionedRoot.GetId()); !errors.Is(err, ErrPermissionDenied) {
@@ -226,7 +226,7 @@ func TestRoomTimelineReadModelInteractionScopedAccess(t *testing.T) {
 	}
 
 	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyUserRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
 	if _, err := chatto.RoomTimelineReads().roomTimelineVisibility(ctx, reader.GetId(), KindChannel, room.GetId()); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("roomTimelineVisibility after permission loss error = %v, want ErrPermissionDenied", err)
@@ -237,7 +237,7 @@ func TestRoomTimelineReadModelInteractionScopedAccess(t *testing.T) {
 		t.Fatalf("GetThreadEvents after permission loss error = %v, want ErrPermissionDenied", err)
 	}
 	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
-		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("GrantUserRoomPermission message.read-interactions: %v", err)
 	}
 	if err := chatto.LeaveRoom(ctx, reader.GetId(), KindChannel, reader.GetId(), room.GetId()); err != nil {
 		t.Fatalf("LeaveRoom: %v", err)

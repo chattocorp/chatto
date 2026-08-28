@@ -5,7 +5,7 @@ import "testing"
 func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 	scope := PermissionMatrixScope{ID: "server", Kind: MatrixScopeServer}
 
-	t.Run("parent allow wins over child deny", func(t *testing.T) {
+	t.Run("broad allow wins over narrow deny", func(t *testing.T) {
 		cell, ok := buildRolePermissionCell(
 			PermMessageReadInteractions,
 			scope,
@@ -14,14 +14,14 @@ func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 			nil, nil, nil, nil, nil,
 		)
 		if !ok {
-			t.Fatal("child permission did not apply at server scope")
+			t.Fatal("narrow permission did not apply at server scope")
 		}
 		if cell.Override != MatrixDecisionDeny || cell.Effective != MatrixDecisionAllow {
 			t.Fatalf("cell = %+v, want deny override and allow effective decision", cell)
 		}
 	})
 
-	t.Run("child allow is independent of parent deny", func(t *testing.T) {
+	t.Run("narrow allow is independent of broad deny", func(t *testing.T) {
 		cell, ok := buildRolePermissionCell(
 			PermMessageReadInteractions,
 			scope,
@@ -30,7 +30,7 @@ func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 			nil, nil, nil, nil, nil,
 		)
 		if !ok {
-			t.Fatal("child permission did not apply at server scope")
+			t.Fatal("narrow permission did not apply at server scope")
 		}
 		if cell.Override != MatrixDecisionAllow || cell.Effective != MatrixDecisionAllow {
 			t.Fatalf("cell = %+v, want allow override and effective decision", cell)
@@ -38,8 +38,8 @@ func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 	})
 }
 
-func TestRolePermissionMatrixAppliesTransitiveInclusion(t *testing.T) {
-	broad, _, narrow := installTestPermissionChain(t)
+func TestRolePermissionMatrixAppliesExplicitInclusion(t *testing.T) {
+	broad, narrow := installTestPermissionInclusion(t)
 	cell, ok := buildRolePermissionCell(
 		narrow,
 		PermissionMatrixScope{ID: "server", Kind: MatrixScopeServer},
@@ -51,6 +51,6 @@ func TestRolePermissionMatrixAppliesTransitiveInclusion(t *testing.T) {
 		t.Fatal("narrow permission did not apply at server scope")
 	}
 	if cell.Override != MatrixDecisionDeny || cell.Effective != MatrixDecisionAllow {
-		t.Fatalf("cell = %+v, want deny override and transitive allow", cell)
+		t.Fatalf("cell = %+v, want deny override and included allow", cell)
 	}
 }

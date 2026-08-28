@@ -18,7 +18,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads. `message.read` supplies broad
-  read authority and includes `message.read.interactions`, which
+  read authority and includes `message.read-interactions`, which
   supplies authority for related threads only. DM membership authorizes DM
   reads. `message.post` separately
   gates root-message posting and permits human users to start DMs. Bot accounts
@@ -54,7 +54,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 3. Three permission scopes (server / group / room)
 
-**Decision:** For each subject, room checks use the nearest decision at room, group, or server scope. Server-scope message and room permissions act as broad defaults; room/group decisions are local overrides for that same subject. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo` to `everyone` at server scope. The effective `message.read` allow includes `message.read.interactions`; bootstrap does not store a second grant. Fresh servers do not grant `room.create` to `everyone`. Admins get explicit server-tier administrative and `room.*` defaults plus `message.manage`, while ordinary content participation continues to come from `everyone`. Moderators get server-tier `message.manage` and `room.ban-member`.
+**Decision:** For each subject, room checks use the nearest decision at room, group, or server scope. Server-scope message and room permissions act as broad defaults; room/group decisions are local overrides for that same subject. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo` to `everyone` at server scope. The effective `message.read` allow includes `message.read-interactions`; bootstrap does not store a second grant. Fresh servers do not grant `room.create` to `everyone`. Admins get explicit server-tier administrative and `room.*` defaults plus `message.manage`, while ordinary content participation continues to come from `everyone`. Moderators get server-tier `message.manage` and `room.ban-member`.
 **Why:** Operators want both "system-wide policy" and "this one channel works differently" without modelling separate role systems. See ADR-031 and ADR-052.
 **Tradeoff:** Scope precedence is per subject, not global: one role's room allow does not erase a different named role's deny.
 
@@ -98,15 +98,16 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 10. The permission catalog defines inclusion
 
-**Decision:** Treat permission identifiers as opaque, stable values. Define
-inclusion explicitly in the permission catalog and follow those relationships
-transitively. The catalog states that `message.read` includes
-`message.read.interactions`. The child does not include the parent. A child
-deny cannot restrict an effective parent allow, and a parent deny cannot
-restrict a separate child allow. Inclusion changes effective authorization
-only and does not store an additional grant. Catalog validation rejects
-unknown targets, cycles, and relationships with incompatible categories or
-scopes. Public APIs and EVT facts continue to use the stable identifier.
+**Decision:** Treat permission identifiers as opaque, stable values. Use
+`domain.capability` or `domain.capability-with-qualifier` for current names.
+Define each inclusion directly in the permission catalog. The catalog states
+that `message.read` includes `message.read-interactions`. The narrow permission
+does not include the broad permission. A narrow deny cannot restrict an
+effective broad allow, and a broad deny cannot restrict a separate narrow
+allow. Inclusion changes effective authorization only and does not store an
+additional grant. Catalog validation rejects unknown targets, self-inclusion,
+and relationships with incompatible categories or scopes. Public APIs and EVT
+facts use the stable identifier.
 **Why:** Authorization must not change because a developer chose punctuation
 for a new identifier. Explicit metadata keeps inclusion reviewable while stable
 identifiers preserve persisted facts and integrations.
@@ -127,7 +128,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
   Existing servers are not backfilled or reconciled, so operators must add any
   wanted grants during upgrade. DM membership authorizes DM reads without this
   permission.
-- `message.read.interactions` — read only channel-room threads that the account
+- `message.read-interactions` — read only channel-room threads that the account
   started or where another account directly mentioned it. A relationship gives
   access to the complete thread. An effective `message.read` allow includes
   this permission. Fresh servers store only the `message.read` grant for

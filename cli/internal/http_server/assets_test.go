@@ -1990,7 +1990,7 @@ func TestAsset_RevokedMessageReadRevokesStableURL(t *testing.T) {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
 	}
 	after, err := plainClient.Get(env.server.URL + attachmentURL)
 	if err != nil {
@@ -2026,7 +2026,7 @@ func TestAsset_InteractionReaderCanFetchStableURL(t *testing.T) {
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
 	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.GetId(), reader.GetId(), core.PermMessageReadInteractions); err != nil {
-		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("GrantUserRoomPermission message.read-interactions: %v", err)
 	}
 
 	env.login(t, "asset-interaction-author", "password123")

@@ -14,14 +14,12 @@ func permissionMetadata(permission Permission, category PermissionCategory, scop
 	}
 }
 
-func installTestPermissionChain(t testing.TB) (Permission, Permission, Permission) {
+func installTestPermissionInclusion(t testing.TB) (Permission, Permission) {
 	t.Helper()
 	broad := Permission("test.manage")
-	middle := Permission("test.manage.items")
-	narrow := Permission("test.manage.items.publish")
+	narrow := Permission("test.manage-items")
 	testCatalog := []PermissionMetadata{
-		permissionMetadata(broad, CategoryServer, []PermissionScope{ScopeServer}, middle),
-		permissionMetadata(middle, CategoryServer, []PermissionScope{ScopeServer}, narrow),
+		permissionMetadata(broad, CategoryServer, []PermissionScope{ScopeServer}, narrow),
 		permissionMetadata(narrow, CategoryServer, []PermissionScope{ScopeServer}),
 	}
 	validated, err := validatePermissionCatalog(testCatalog)
@@ -39,7 +37,7 @@ func installTestPermissionChain(t testing.TB) (Permission, Permission, Permissio
 	t.Cleanup(func() {
 		permissionIndex = previous
 	})
-	return broad, middle, narrow
+	return broad, narrow
 }
 
 // ============================================================================
@@ -310,9 +308,9 @@ func TestPermissionCatalogDefinesInclusion(t *testing.T) {
 		t.Fatalf("including permissions = %v, want [%s]", got, PermMessageRead)
 	}
 	if got := includingPermissions(PermMessageRead); len(got) != 0 {
-		t.Fatalf("message.read must not be included by its child: %v", got)
+		t.Fatalf("message.read must not be included by the interaction permission: %v", got)
 	}
-	if got := includingPermissions("message.read.unknown"); len(got) != 0 {
+	if got := includingPermissions("message.read-unknown"); len(got) != 0 {
 		t.Fatalf("unknown permission must not have includers: %v", got)
 	}
 }
@@ -320,19 +318,19 @@ func TestPermissionCatalogDefinesInclusion(t *testing.T) {
 func TestValidatePermissionCatalog(t *testing.T) {
 	scopes := []PermissionScope{ScopeServer}
 	valid := []PermissionMetadata{
-		permissionMetadata("server.manage", CategoryServer, scopes, "server.manage.neighbors"),
-		permissionMetadata("server.manage.neighbors", CategoryServer, scopes, "server.manage.neighbors.publish"),
-		permissionMetadata("server.manage.neighbors.publish", CategoryServer, scopes),
+		permissionMetadata("catalog.manage", CategoryServer, scopes, "catalog.manage-items"),
+		permissionMetadata("catalog.manage-items", CategoryServer, scopes, "catalog.publish-items"),
+		permissionMetadata("catalog.publish-items", CategoryServer, scopes),
 	}
 	index, err := validatePermissionCatalog(valid)
 	if err != nil {
 		t.Fatalf("valid catalog: %v", err)
 	}
-	if got := includingPermissionsFrom(index, "server.manage.neighbors.publish"); !slices.Equal(got, []Permission{"server.manage.neighbors", "server.manage"}) {
-		t.Fatalf("transitive parents = %v, want [server.manage.neighbors server.manage]", got)
+	if got := includingPermissionsFrom(index, "catalog.manage-items"); !slices.Equal(got, []Permission{"catalog.manage"}) {
+		t.Fatalf("direct includer = %v, want [catalog.manage]", got)
 	}
-	if got := includingPermissionsFrom(index, "server.manage.neighbors"); !slices.Equal(got, []Permission{"server.manage"}) {
-		t.Fatalf("direct includer = %v, want [server.manage]", got)
+	if got := includingPermissionsFrom(index, "catalog.publish-items"); !slices.Equal(got, []Permission{"catalog.manage-items"}) {
+		t.Fatalf("direct-only includer = %v, want [catalog.manage-items]", got)
 	}
 	nameOnly := []PermissionMetadata{
 		permissionMetadata("server.manage", CategoryServer, scopes),
@@ -378,10 +376,9 @@ func TestValidatePermissionCatalog(t *testing.T) {
 			},
 		},
 		{
-			name: "cycle",
+			name: "includes itself",
 			catalog: []PermissionMetadata{
-				permissionMetadata("alpha", CategoryServer, scopes, "beta"),
-				permissionMetadata("beta", CategoryServer, scopes, "alpha"),
+				permissionMetadata("alpha", CategoryServer, scopes, "alpha"),
 			},
 		},
 	}

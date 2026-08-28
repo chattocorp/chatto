@@ -316,10 +316,10 @@ describe('subject permission loaders', () => {
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
   });
 
-  it('shows a bot child permission as enabled when message.read includes it', async () => {
+  it('shows a bot narrow permission as enabled when message.read includes it', async () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue({
       userId: 'bot-read',
-      applicablePermissions: ['message.read', 'message.read.interactions'],
+      applicablePermissions: ['message.read', 'message.read-interactions'],
       scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
       cells: [
         {
@@ -330,7 +330,7 @@ describe('subject permission loaders', () => {
           allowPermitted: true
         },
         {
-          permission: 'message.read.interactions',
+          permission: 'message.read-interactions',
           scopeId: 'server',
           override: 'NONE',
           effective: 'ALLOW',
@@ -343,7 +343,7 @@ describe('subject permission loaders', () => {
     });
     await settle();
 
-    const child = scopedCellButton(rendered.container, 'server', 'message.read.interactions');
+    const child = scopedCellButton(rendered.container, 'server', 'message.read-interactions');
     expect(child.title).toContain('Included by message.read');
     expect(child.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
     expect(child.disabled).toBe(true);

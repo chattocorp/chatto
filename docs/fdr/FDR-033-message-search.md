@@ -71,7 +71,7 @@ does not expose the dedicated page's filters or pagination.
 
 **Decision:** Results are limited to rooms where the viewer is a current
 member. Channel-room results also require broad `message.read`, or
-`message.read.interactions` with a relationship to the result's thread. DM
+`message.read-interactions` with a relationship to the result's thread. DM
 membership authorizes DM results. Each result is checked again against current
 message state before delivery.
 **Why:** A derived search index must never preserve access after membership or
@@ -167,7 +167,7 @@ independent transient query state.
 ## Permissions
 
 Channel-room search requires `message.read` at the applicable server,
-room-group, or room scope, or `message.read.interactions` with a relationship
+room-group, or room scope, or `message.read-interactions` with a relationship
 to each result's thread. DM membership authorizes DM search. Search omits each
 result where the viewer does not have current read authority.
 

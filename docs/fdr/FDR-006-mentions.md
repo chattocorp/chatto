@@ -37,7 +37,7 @@ the message body.
   Role mentions, `@all`, and `@here` do not auto-follow recipients.
 - A direct mention from another account creates a durable interaction
   relationship with the message's channel-room thread. With
-  `message.read.interactions`, that relationship authorizes the complete
+  `message.read-interactions`, that relationship authorizes the complete
   thread. Self, role, `@all`, and `@here` mentions do not create this access.
 
 ## Design Decisions

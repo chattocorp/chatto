@@ -21,7 +21,7 @@ describe('PERMISSION_METADATA', () => {
       'message.post-in-thread',
       'message.react',
       'message.read',
-      'message.read.interactions',
+      'message.read-interactions',
       'role.assign',
       'role.manage',
       'room.ban-member',
@@ -46,8 +46,8 @@ describe('PERMISSION_METADATA', () => {
   });
 
   it('uses explicit inclusion metadata', () => {
-    const permissions = ['message.read', 'message.read.interactions', 'message.post-in-thread'];
-    expect(getIncludedByPermission(permissions, 'message.read.interactions')).toBe('message.read');
+    const permissions = ['message.read', 'message.read-interactions', 'message.post-in-thread'];
+    expect(getIncludedByPermission(permissions, 'message.read-interactions')).toBe('message.read');
     expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
     expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
   });

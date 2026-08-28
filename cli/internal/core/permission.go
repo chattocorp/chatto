@@ -76,7 +76,7 @@ const (
 	// account authored or where another account directly mentioned it. Room
 	// membership remains a separate requirement. PermMessageRead explicitly
 	// includes this permission.
-	PermMessageReadInteractions Permission = "message.read.interactions"
+	PermMessageReadInteractions Permission = "message.read-interactions"
 
 	// PermMessagePost allows posting new root messages in rooms. Server-scope
 	// decisions act as global defaults/overrides; room or group denies can narrow
@@ -156,9 +156,9 @@ const (
 	PermBotManage Permission = "bot.manage"
 )
 
-// PermissionMetadata defines one known permission. Includes lists narrower
-// permissions that an allow for this permission also grants. Denials do not
-// follow inclusion relationships.
+// PermissionMetadata defines one known permission. Includes lists other
+// permissions that an allow for this permission also grants. Each relationship
+// is direct and explicit. Denials do not follow inclusion relationships.
 type PermissionMetadata struct {
 	Permission Permission
 	Category   PermissionCategory
@@ -247,42 +247,7 @@ func validatePermissionCatalog(catalog []PermissionMetadata) (map[Permission]Per
 			}
 		}
 	}
-	if err := validatePermissionInclusionCycles(index); err != nil {
-		return nil, err
-	}
 	return index, nil
-}
-
-func validatePermissionInclusionCycles(index map[Permission]PermissionMetadata) error {
-	const (
-		unvisited = iota
-		visiting
-		visited
-	)
-	states := make(map[Permission]int, len(index))
-	var visit func(Permission) error
-	visit = func(permission Permission) error {
-		switch states[permission] {
-		case visiting:
-			return fmt.Errorf("permission inclusion contains a cycle at %s", permission)
-		case visited:
-			return nil
-		}
-		states[permission] = visiting
-		for _, included := range index[permission].Includes {
-			if err := visit(included); err != nil {
-				return err
-			}
-		}
-		states[permission] = visited
-		return nil
-	}
-	for permission := range index {
-		if err := visit(permission); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func samePermissionScopes(left, right []PermissionScope) bool {
@@ -338,8 +303,8 @@ func PermissionAppliesAtScope(perm Permission, scope PermissionScope) bool {
 	return slices.Contains(meta.Scopes, scope)
 }
 
-// includingPermissions returns registered permissions whose allows include the
-// requested permission. Direct includers precede transitive includers.
+// includingPermissions returns registered permissions whose allows directly
+// include the requested permission.
 func includingPermissions(perm Permission) []Permission {
 	return includingPermissionsFrom(permissionIndex, perm)
 }
@@ -348,26 +313,13 @@ func includingPermissionsFrom(index map[Permission]PermissionMetadata, perm Perm
 	if _, registered := index[perm]; !registered {
 		return nil
 	}
-	var permissions []Permission
-	for permission := range index {
-		permissions = append(permissions, permission)
-	}
-	slices.Sort(permissions)
-	seen := make(map[Permission]bool)
-	result := make([]Permission, 0)
-	targets := []Permission{perm}
-	for len(targets) > 0 {
-		target := targets[0]
-		targets = targets[1:]
-		for _, candidate := range permissions {
-			if seen[candidate] || !slices.Contains(index[candidate].Includes, target) {
-				continue
-			}
-			seen[candidate] = true
+	var result []Permission
+	for candidate, metadata := range index {
+		if slices.Contains(metadata.Includes, perm) {
 			result = append(result, candidate)
-			targets = append(targets, candidate)
 		}
 	}
+	slices.Sort(result)
 	return result
 }
 

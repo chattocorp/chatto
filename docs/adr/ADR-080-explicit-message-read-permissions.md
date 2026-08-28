@@ -61,7 +61,7 @@ they rely on a deny or absent decision as a security boundary. Old replicas
 continue to use membership-only reads.
 
 ADR-082 adds interaction-scoped message access with
-`message.read.interactions`. It derives thread relationships from durable
+`message.read-interactions`. It derives thread relationships from durable
 message facts. An effective `message.read` allow includes that narrower
 permission.
 

@@ -50,11 +50,11 @@ while retaining the directory's complete group layout so permissions such as
 `room.create` remain configurable for an empty group.
 
 Channel-room membership alone does not expose messages to a bot. Grant
-`message.read` for broad room access. Grant `message.read.interactions` when
+`message.read` for broad room access. Grant `message.read-interactions` when
 the bot must read only complete threads that it started or where another
 account directly mentioned it. A direct mention gives access to messages from
 before the mention. An effective `message.read` allow includes
-`message.read.interactions` for the bot and for its owner. A narrow allow does
+`message.read-interactions` for the bot and for its owner. A narrow allow does
 not grant broad access. DM membership authorizes the bot to read that DM.
 Posting remains a separate `message.post` or `message.post-in-thread`
 decision.

@@ -180,7 +180,7 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
 	}
 	if _, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: room.Id, Limit: 50}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("ListPinnedMessages without message.read error = %v, want permission denied", err)
@@ -265,7 +265,7 @@ func TestPinnedMessagesAndReactionsUseThreadInteractions(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
-		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("GrantUserRoomPermission message.read-interactions: %v", err)
 	}
 	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "pin ping @interaction-pin-reader", nil, visibleRoot.GetId(), "", nil, false); err != nil {
 		t.Fatalf("PostMessage mention: %v", err)

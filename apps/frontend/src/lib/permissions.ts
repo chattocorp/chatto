@@ -66,9 +66,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'message.read': {
     category: 'message',
     description: () => m('rbac.permission_descriptions.message_read'),
-    includes: ['message.read.interactions']
+    includes: ['message.read-interactions']
   },
-  'message.read.interactions': {
+  'message.read-interactions': {
     category: 'message',
     description: () => m('rbac.permission_descriptions.message_read_interactions')
   },
@@ -155,25 +155,13 @@ export function getIncludedByPermission(permissions: readonly string[], id: stri
   return getIncludingPermissions(permissions, id)[0] ?? null;
 }
 
-/** Return explicit includers from the nearest relationship to the broadest. */
+/** Return permissions that directly and explicitly include this ID. */
 export function getIncludingPermissions(permissions: readonly string[], id: string): string[] {
   const registered = new Set(permissions);
   if (!registered.has(id)) return [];
-  const result: string[] = [];
-  const seen = new Set<string>();
-  const targets = [id];
-  while (targets.length > 0) {
-    const target = targets.shift();
-    if (target === undefined) break;
-    for (const candidate of permissions) {
-      if (seen.has(candidate) || !PERMISSION_METADATA[candidate]?.includes?.includes(target))
-        continue;
-      seen.add(candidate);
-      result.push(candidate);
-      targets.push(candidate);
-    }
-  }
-  return result;
+  return permissions.filter((candidate) =>
+    PERMISSION_METADATA[candidate]?.includes?.includes(id)
+  );
 }
 
 /**

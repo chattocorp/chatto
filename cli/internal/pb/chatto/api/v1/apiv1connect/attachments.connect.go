@@ -44,13 +44,13 @@ const (
 type AssetServiceClient interface {
 	// Reads one asset. Authentication and room membership are required.
 	// Channel-room assets also require message.read or a matching thread
-	// relationship with message.read.interactions. DM membership authorizes DM
+	// relationship with message.read-interactions. DM membership authorizes DM
 	// assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
 	// different room.
 	GetAsset(context.Context, *connect.Request[v1.GetAssetRequest]) (*connect.Response[v1.GetAssetResponse], error)
 	// Reads many assets in one room. Authentication and room membership are
 	// required. Channel-room assets also require message.read or a matching
-	// thread relationship with message.read.interactions. DM membership
+	// thread relationship with message.read-interactions. DM membership
 	// authorizes DM assets. Missing, deleted, wrong-room, and inaccessible asset
 	// IDs are omitted. Results preserve first-seen request order, and repeated
 	// asset IDs are de-duplicated.
@@ -103,13 +103,13 @@ func (c *assetServiceClient) BatchGetAssets(ctx context.Context, req *connect.Re
 type AssetServiceHandler interface {
 	// Reads one asset. Authentication and room membership are required.
 	// Channel-room assets also require message.read or a matching thread
-	// relationship with message.read.interactions. DM membership authorizes DM
+	// relationship with message.read-interactions. DM membership authorizes DM
 	// assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
 	// different room.
 	GetAsset(context.Context, *connect.Request[v1.GetAssetRequest]) (*connect.Response[v1.GetAssetResponse], error)
 	// Reads many assets in one room. Authentication and room membership are
 	// required. Channel-room assets also require message.read or a matching
-	// thread relationship with message.read.interactions. DM membership
+	// thread relationship with message.read-interactions. DM membership
 	// authorizes DM assets. Missing, deleted, wrong-room, and inaccessible asset
 	// IDs are omitted. Results preserve first-seen request order, and repeated
 	// asset IDs are de-duplicated.

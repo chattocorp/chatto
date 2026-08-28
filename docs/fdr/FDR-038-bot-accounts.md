@@ -85,7 +85,7 @@ exercise more authority than its human owner currently possesses.
   any other baseline grants. An absent bot permission is denied.
 - Channel-room membership does not give a bot message content. The bot needs
   an explicit `message.read` grant for broad access or an explicit
-  `message.read.interactions` grant for related threads. The broad grant
+  `message.read-interactions` grant for related threads. The broad grant
   includes the narrow permission. Each grant is bounded by sufficient
   effective authority on its owner. DM membership authorizes the bot to read
   that DM.
@@ -311,8 +311,8 @@ deferred.
   its owner, while preserving the current owner's permission ceiling.
 - `message.read` — give the bot broad message access in configured channel
   rooms, subject to membership and the owner's effective broad-read authority.
-  This grant includes `message.read.interactions`.
-- `message.read.interactions` — give the bot complete access to a
+  This grant includes `message.read-interactions`.
+- `message.read-interactions` — give the bot complete access to a
   channel-room thread that it started or where another account directly
   mentioned it, subject to membership and the owner's effective broad or
   narrow read authority.

@@ -105,7 +105,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 
 - `message.read` — read channel-room and thread timelines. Channel-room
   membership is also required.
-- `message.read.interactions` — read a complete channel-room thread when the
+- `message.read-interactions` — read a complete channel-room thread when the
   account authored its root or another account directly mentioned it in that
   thread. Channel-room membership is also required. DM membership authorizes
   historical DM thread reads without either read permission.

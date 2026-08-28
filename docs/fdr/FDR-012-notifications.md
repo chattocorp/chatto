@@ -189,7 +189,7 @@ message that contains `@all` and a direct mention can produce room-message,
 a notification mode, they create separate occurrences. Badge decisions
 coalesce into one latest-value marker for the applicable room or thread.
 Channel-room recipients must have `message.read` at that same source sequence.
-A direct mention also permits its recipient when `message.read.interactions`
+A direct mention also permits its recipient when `message.read-interactions`
 applies, because the same message fact creates the interaction relationship.
 
 **Why:** Notifications describe what happened under the policy and visibility
@@ -206,7 +206,7 @@ and the bounded notification lifecycle. ADR-076 defines that architecture.
 **Decision:** An occurrence may be listed, opened, mutated, or delivered only
 while the recipient still exists and can currently see its room and exact
 target. Channel-room message-derived occurrences also require current
-`message.read`, or `message.read.interactions` with a relationship to the
+`message.read`, or `message.read-interactions` with a relationship to the
 target's thread. DM membership authorizes DM occurrences. Without applicable
 access, Chatto hides the occurrence. Removed reactions, retracted targets,
 deleted rooms, and lost room access remove the corresponding occurrence.

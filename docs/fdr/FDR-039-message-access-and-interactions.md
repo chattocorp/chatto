@@ -14,8 +14,8 @@ DM membership continues to authorize complete DM reads.
 - Channel-room membership is always necessary for message access. It is not
   sufficient.
 - `message.read` gives broad access to message content in a channel room and
-  includes `message.read.interactions`.
-- `message.read.interactions` gives access only to channel-room threads where
+  includes `message.read-interactions`.
+- `message.read-interactions` gives access only to channel-room threads where
   the account has an interaction relationship.
 - The same permissions and rules apply to human and bot accounts.
 - A direct mention from another account creates an interaction relationship.
@@ -33,7 +33,7 @@ DM membership continues to authorize complete DM reads.
   membership loss closes current access. Permission restoration or room
   re-entry opens an existing relationship again.
 - A DM participant can read the complete DM. `message.read` and
-  `message.read.interactions` decisions do not restrict DM reads.
+  `message.read-interactions` decisions do not restrict DM reads.
 - Message-read authority does not grant write authority. Each post, upload,
   reaction, edit, or moderation action needs its normal permission.
 - A channel-room operation that reads or returns an existing message also
@@ -80,11 +80,12 @@ DM membership continues to authorize complete DM reads.
 ### 1. Broad and interaction-scoped access use separate permissions
 
 **Decision:** Use `message.read` for broad channel-room access and
-`message.read.interactions` for relationship-scoped channel-room access. Keep
+`message.read-interactions` for relationship-scoped channel-room access. Keep
 membership as a separate required boundary. State in the permission catalog
-that the broad permission includes the narrower permission. The child does not
-include the parent. A child deny cannot restrict an effective parent allow, and
-a parent deny cannot restrict a separate child allow.
+that the broad permission includes the narrower permission. The narrow
+permission does not include the broad permission. A narrow deny cannot restrict
+an effective broad allow, and a broad deny cannot restrict a separate narrow
+allow.
 **Why:** Operators can inspect the difference between broad and narrow access.
 An absent broad permission does not cause an implicit privacy mode.
 **Tradeoff:** Each narrow read checks both RBAC and the requested thread
@@ -133,7 +134,7 @@ using one room-level allow decision.
 ### 6. New-server defaults do not change existing RBAC
 
 **Decision:** Grant only `message.read` to `everyone` during empty-RBAC
-bootstrap. Its effective allow includes `message.read.interactions`. Do not
+bootstrap. Its effective allow includes `message.read-interactions`. Do not
 migrate, backfill, or reconcile an existing server.
 **Why:** Existing RBAC state belongs to the operator. Startup must not replace
 an absent decision with a code default.
@@ -164,8 +165,8 @@ relevant message and thread IDs from its normal notification occurrences.
 
 - `message.read` — read all message content and message-specific metadata in a
   channel room at the configured scope. It includes
-  `message.read.interactions`.
-- `message.read.interactions` — read message content and message-specific
+  `message.read-interactions`.
+- `message.read-interactions` — read message content and message-specific
   metadata only in channel-room threads with a current interaction
   relationship.
 - `message.post` — post root messages and send messages in an existing DM.

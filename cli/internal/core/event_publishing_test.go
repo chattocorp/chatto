@@ -469,7 +469,7 @@ func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
 	}
 
 	service := NewMyEventsModel(chatto)

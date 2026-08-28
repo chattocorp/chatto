@@ -499,7 +499,7 @@ func TestRealtimeProjectionOmitsMessageStateWithoutMessageRead(t *testing.T) {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
 	}
 
 	snapshot, err := env.httpServer.connectAPI.BuildRealtimeProjectionSnapshot(env.ctx, viewer.Id, []string{room.Id})
@@ -751,7 +751,7 @@ func TestRealtimeBotReceivesNotificationActivations(t *testing.T) {
 		t.Fatalf("AddMember bot: %v", err)
 	}
 	if err := env.core.SetUserPermissionState(env.ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.GetId()}, core.PermMessageReadInteractions, core.PermissionStateAllow); err != nil {
-		t.Fatalf("grant bot message.read.interactions: %v", err)
+		t.Fatalf("grant bot message.read-interactions: %v", err)
 	}
 
 	conn := env.connectRealtime(t)

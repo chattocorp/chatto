@@ -719,7 +719,7 @@ func TestDirectMentionOccurrenceVisibleWithInteractionScopedRead(t *testing.T) {
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
 	if err := chattoCore.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), recipient.GetId(), PermMessageReadInteractions); err != nil {
-		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("GrantUserRoomPermission message.read-interactions: %v", err)
 	}
 	mention, err := chattoCore.PostMessage(
 		ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-notify-recipient please review", nil, root.GetId(), "", nil, false,
@@ -745,7 +745,7 @@ func TestDirectMentionOccurrenceVisibleWithInteractionScopedRead(t *testing.T) {
 		t.Fatalf("CreateServerRole: %v", err)
 	}
 	if err := chattoCore.GrantServerPermission(ctx, SystemActorID, "interaction-observer", PermMessageReadInteractions); err != nil {
-		t.Fatalf("GrantServerPermission message.read.interactions: %v", err)
+		t.Fatalf("GrantServerPermission message.read-interactions: %v", err)
 	}
 	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
 		t.Fatalf("WaitCurrent after unrelated permission change: %v", err)
@@ -778,7 +778,7 @@ func TestDirectMentionOccurrenceVisibleWithInteractionScopedRead(t *testing.T) {
 		t.Fatalf("CreateServerRole second role: %v", err)
 	}
 	if err := chattoCore.GrantServerPermission(ctx, SystemActorID, "interaction-auditor", PermMessageReadInteractions); err != nil {
-		t.Fatalf("GrantServerPermission second message.read.interactions: %v", err)
+		t.Fatalf("GrantServerPermission second message.read-interactions: %v", err)
 	}
 	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
 		t.Fatalf("WaitCurrent after second unrelated permission change: %v", err)

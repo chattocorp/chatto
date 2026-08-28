@@ -142,7 +142,7 @@ describe('PermissionMatrix', () => {
 
   it('shows that message.read includes the nested interaction permission', async () => {
     nextTierRoles = {
-      applicablePermissions: ['message.read', 'message.read.interactions'],
+      applicablePermissions: ['message.read', 'message.read-interactions'],
       roles: [
         {
           roleName: 'reader',
@@ -152,7 +152,7 @@ describe('PermissionMatrix', () => {
           position: 1,
           override: {
             permissions: ['message.read'],
-            permissionDenials: ['message.read.interactions']
+            permissionDenials: ['message.read-interactions']
           },
           inheritedAllows: [],
           inheritedDenials: []
@@ -164,9 +164,9 @@ describe('PermissionMatrix', () => {
 
     const rowName = [
       ...container.querySelectorAll<HTMLElement>('[data-testid="permission-name"]')
-    ].find((permission) => permission.textContent === 'message.read.interactions');
+    ].find((permission) => permission.textContent === 'message.read-interactions');
     const cell = container.querySelector<HTMLButtonElement>(
-      'td[data-role="reader"][data-permission="message.read.interactions"] button'
+      'td[data-role="reader"][data-permission="message.read-interactions"] button'
     );
     expect(rowName?.className).not.toContain('ml-4');
     expect(cell?.title).toContain('Effective Allow (included by message.read)');

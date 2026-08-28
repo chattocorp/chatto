@@ -96,7 +96,7 @@ continues to authorize DM reads. New clients treat a missing `message.read`
 room-permission row from an older server as unsupported and keep the former
 membership-based channel-room navigation behavior.
 
-Chatto 0.5 adds `message.read.interactions` for relationship-scoped channel
+Chatto 0.5 adds `message.read-interactions` for relationship-scoped channel
 reads. An effective `message.read` allow includes this permission, so fresh
 servers store only the broad `everyone` grant. Existing servers do not receive
 an automatic grant. A direct mention or an authored root establishes access to

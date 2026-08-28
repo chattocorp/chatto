@@ -270,7 +270,7 @@ authorization, live events, backup and restore, and backend tests.
 - Define permission inclusion explicitly in the Go permission catalog. Validate
   that each included permission exists and has compatible category and scope
   metadata. Currently, `message.read` includes
-  `message.read.interactions`.
+  `message.read-interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-boundary behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses

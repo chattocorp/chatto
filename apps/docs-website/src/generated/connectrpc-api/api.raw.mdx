@@ -495,7 +495,7 @@ Reads room-scoped asset metadata and freshly signed asset URLs.
 
 Reads one asset. Authentication and room membership are required.
 Channel-room assets also require message.read or a matching thread
-relationship with message.read.interactions. DM membership authorizes DM
+relationship with message.read-interactions. DM membership authorizes DM
 assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
 different room.
 
@@ -533,7 +533,7 @@ Response containing one room-scoped asset.
 
 Reads many assets in one room. Authentication and room membership are
 required. Channel-room assets also require message.read or a matching
-thread relationship with message.read.interactions. DM membership
+thread relationship with message.read-interactions. DM membership
 authorizes DM assets. Missing, deleted, wrong-room, and inaccessible asset
 IDs are omitted. Results preserve first-seen request order, and repeated
 asset IDs are de-duplicated.
@@ -1202,7 +1202,7 @@ Current message-search availability.
 
 Searches current message bodies in rooms where the caller is a member.
 Channel-room results also require message.read or a matching thread
-relationship with message.read.interactions. DM membership authorizes DM
+relationship with message.read-interactions. DM membership authorizes DM
 results. Results are authorized and hydrated from current Chatto state
 after provider matching. Returns FAILED_PRECONDITION when Search is
 disabled and UNAVAILABLE when its provider is not ready.
@@ -1337,7 +1337,7 @@ window. Non-authors need message.manage and cannot change channel echo
 state. Disabled rooms reject creation of a new channel echo while allowing
 an existing echo to be removed. Room membership is also required.
 Channel-room edits require message.read or a matching thread relationship
-with message.read.interactions. DM membership authorizes the DM read.
+with message.read-interactions. DM membership authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
@@ -1478,7 +1478,7 @@ Reads one renderable message, including current body, attachment metadata,
 link preview, reactions, thread metadata, and pin state. Authentication
 and room membership are required. Channel-room reads also require
 message.read or a matching thread relationship with
-message.read.interactions. DM membership authorizes DM reads. Returns
+message.read-interactions. DM membership authorizes DM reads. Returns
 NOT_FOUND when the event does not exist, is not a message, has been
 retracted, or belongs to a different room.
 
@@ -1516,7 +1516,7 @@ Response containing one renderable message.
 Reads many renderable messages and their current pin state in one room.
 Authentication and room membership are required. Channel-room reads also
 require message.read or a matching thread relationship with
-message.read.interactions. DM membership authorizes DM reads. Missing,
+message.read-interactions. DM membership authorizes DM reads. Missing,
 retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
 Results preserve first-seen request order, and repeated event IDs are
 de-duplicated.
@@ -1554,7 +1554,7 @@ Response containing renderable messages.
 
 Adds a reaction to a message. The user must be a room member and have
 message.react. Channel-room reactions also require message.read or a
-matching thread relationship with message.read.interactions. DM membership
+matching thread relationship with message.read-interactions. DM membership
 authorizes the DM read.
 
 ```http
@@ -1598,7 +1598,7 @@ Result of adding a reaction.
 
 Removes a reaction from a message. The user must be a room member and have
 message.react. Channel-room reactions also require message.read or a
-matching thread relationship with message.read.interactions. DM membership
+matching thread relationship with message.read-interactions. DM membership
 authorizes the DM read.
 
 ```http
@@ -2140,7 +2140,7 @@ Active room bans visible to the current moderator.
 
 Lists current message-owned room attachments. Authentication and room
 membership are required. Channel-room attachments also require message.read
-or a matching thread relationship with message.read.interactions. DM
+or a matching thread relationship with message.read-interactions. DM
 membership authorizes DM attachments. The server omits attachments from
 inaccessible threads. Returns PERMISSION_DENIED when the room is
 inaccessible to the caller.
@@ -2179,7 +2179,7 @@ Room-scoped attachment list response.
 ### ListPinnedMessages
 
 Lists current pinned messages in a channel room. Room membership plus
-message.read or message.read.interactions are required. The server omits
+message.read or message.read-interactions are required. The server omits
 pins from threads that the caller cannot read. Direct-message rooms do not
 support pins.
 
@@ -2321,7 +2321,7 @@ Result of refreshing a typing indicator.
 
 Returns one page of room timeline events, including related user data
 needed to render the page. Room membership is required. Channel-room reads
-also require message.read or message.read.interactions. The server returns
+also require message.read or message.read-interactions. The server returns
 only related thread roots for an interaction-scoped caller. DM membership
 authorizes DM reads.
 
@@ -2407,7 +2407,7 @@ Response containing a room timeline window around a specific event.
 
 Marks a room timeline as read through the supplied event. Room membership
 is required. Channel-room reads also require message.read or
-message.read.interactions. DM membership authorizes DM reads. If no event
+message.read-interactions. DM membership authorizes DM reads. If no event
 is supplied, the server marks through the latest root event that the caller
 can read. Clients
 usually call this after the user has viewed the latest visible event in the
@@ -2635,7 +2635,7 @@ Reads, marks read, and deletes notifications for the authenticated viewer.
 
 Gets one exact visible occurrence. Message-derived occurrences require
 current room membership. Channel-room occurrences also require message.read
-or a matching thread relationship with message.read.interactions. DM
+or a matching thread relationship with message.read-interactions. DM
 membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
 is absent, deleted, expired, or no longer visible to the authenticated
 viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
@@ -2710,7 +2710,7 @@ Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 presentation groups without changing occurrence identity or counts.
 Message-derived occurrences require current room membership. Channel-room
 occurrences also require message.read or a matching thread relationship
-with message.read.interactions. DM membership authorizes DM occurrences.
+with message.read-interactions. DM membership authorizes DM occurrences.
 Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
 signal kind this server version cannot validate and assemble.
 
@@ -3441,7 +3441,7 @@ Manages thread follow state for the current user.
 
 Returns followed threads in rooms where the current user is a member.
 Channel-room threads also require message.read or an active relationship
-with message.read.interactions. Historical DM threads use DM membership.
+with message.read-interactions. Historical DM threads use DM membership.
 The result includes enough root-message data for clients to render the
 list without extra per-field fetches.
 
@@ -3478,7 +3478,7 @@ Response containing one followed-thread page.
 ### FollowThread
 
 Follows a thread for the current user. Room membership plus message.read or
-an active relationship with message.read.interactions are required. DMs do
+an active relationship with message.read-interactions are required. DMs do
 not support current thread actions.
 Followed threads can be surfaced in clients and can participate in thread
 notification behavior.
@@ -3516,7 +3516,7 @@ Result of following a thread.
 ### UnfollowThread
 
 Stops following a thread for the current user. Room membership plus
-message.read or an active relationship with message.read.interactions are
+message.read or an active relationship with message.read-interactions are
 required. DMs do not support current thread actions. The response reports
 the resulting follow state so clients can update local UI immediately.
 
@@ -3554,7 +3554,7 @@ Result of unfollowing a thread.
 
 Returns one page of events in a message thread. Room membership is
 required. Channel-room reads also require message.read or an active
-relationship with message.read.interactions. Historical DM threads use DM
+relationship with message.read-interactions. Historical DM threads use DM
 membership. Initial pages include the thread root message; cursor pages
 return replies in the requested direction.
 
@@ -3643,7 +3643,7 @@ Response containing a thread timeline window around a specific event.
 
 Marks a thread timeline as read through the supplied event without changing
 the room-level read marker. Room membership plus message.read or an active
-relationship with message.read.interactions are required. DMs do not
+relationship with message.read-interactions are required. DMs do not
 support current thread actions.
 
 ```http

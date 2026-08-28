@@ -181,11 +181,11 @@ func TestPermissionExplainer_ReportsIncludedPermission(t *testing.T) {
 	}
 }
 
-func TestPermissionExplainer_ReportsTransitiveIncludedPermission(t *testing.T) {
-	broad, _, narrow := installTestPermissionChain(t)
+func TestPermissionExplainer_ReportsExplicitIncludedPermission(t *testing.T) {
+	broad, narrow := installTestPermissionInclusion(t)
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "transitive-explanation", "Transitive Explanation", "password123")
+	user, err := core.CreateUser(ctx, SystemActorID, "included-explanation", "Included Explanation", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}

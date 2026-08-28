@@ -1227,7 +1227,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyUserRoomPermission message.read.interactions: %v", err)
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
 	if _, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{
 		RoomId:  room.Id,
@@ -1243,7 +1243,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 		t.Fatalf("ClearUserRoomPermissionState message.read: %v", err)
 	}
 	if err := env.core.ClearUserRoomPermissionState(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessageReadInteractions); err != nil {
-		t.Fatalf("ClearUserRoomPermissionState message.read.interactions: %v", err)
+		t.Fatalf("ClearUserRoomPermissionState message.read-interactions: %v", err)
 	}
 
 	echo := false

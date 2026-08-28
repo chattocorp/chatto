@@ -17,7 +17,7 @@ export const NotificationService = {
     /**
      * Gets one exact visible occurrence. Message-derived occurrences require
      * current room membership. Channel-room occurrences also require message.read
-     * or a matching thread relationship with message.read.interactions. DM
+     * or a matching thread relationship with message.read-interactions. DM
      * membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
      * is absent, deleted, expired, or no longer visible to the authenticated
      * viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
@@ -50,7 +50,7 @@ export const NotificationService = {
      * presentation groups without changing occurrence identity or counts.
      * Message-derived occurrences require current room membership. Channel-room
      * occurrences also require message.read or a matching thread relationship
-     * with message.read.interactions. DM membership authorizes DM occurrences.
+     * with message.read-interactions. DM membership authorizes DM occurrences.
      * Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
      * signal kind this server version cannot validate and assemble.
      *

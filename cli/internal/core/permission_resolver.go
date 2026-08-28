@@ -191,7 +191,7 @@ func (r *PermissionResolver) botDelegatedExactDecision(botUserID string, kind Ro
 // resolvePermissionWithInclusions applies explicit permission inclusion to an
 // effective decision. An allow from an including permission wins. A deny or
 // absent decision on an including permission does not restrict a separately
-// allowed child permission.
+// allowed included permission.
 func resolvePermissionWithInclusions(perm Permission, resolveExact func(Permission) (DecisionKind, error)) (DecisionKind, error) {
 	for _, including := range includingPermissions(perm) {
 		decision, err := resolveExact(including)
