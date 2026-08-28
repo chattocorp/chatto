@@ -42,9 +42,11 @@ vi.mock('$lib/api-client/serverState', async () => {
   };
 });
 
-vi.mock('$lib/components/admin', async () => ({
-  Panel: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default,
-  DataTable: (await import('./DataTableMock.svelte')).default
+vi.mock('$lib/ui/Panel.svelte', async () => ({
+  default: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+}));
+vi.mock('$lib/ui/DataTable.svelte', async () => ({
+  default: (await import('./DataTableMock.svelte')).default
 }));
 vi.mock('$lib/ui', async () => ({
   Hint: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default,

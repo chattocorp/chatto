@@ -166,6 +166,33 @@ func TestChattoCore_PasswordResetAuditEvents(t *testing.T) {
 	}
 }
 
+func TestChattoCore_CreateAccountDeletionTokenRequiresDeleteSelfPermission(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "delete-self-denied-user", "Delete Self Denied User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	if err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermUserDeleteSelf); err != nil {
+		t.Fatalf("DenyUserPermission user.delete-self: %v", err)
+	}
+	if _, err := core.CreateAccountDeletionToken(ctx, user.Id); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("CreateAccountDeletionToken with denied delete-self err = %v, want ErrPermissionDenied", err)
+	}
+
+	if err := core.GrantUserPermission(ctx, SystemActorID, user.Id, PermUserDeleteSelf); err != nil {
+		t.Fatalf("GrantUserPermission user.delete-self: %v", err)
+	}
+	token, err := core.CreateAccountDeletionToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAccountDeletionToken after grant: %v", err)
+	}
+	if token == "" {
+		t.Fatalf("expected token after grant")
+	}
+}
+
 func TestChattoCore_AccountDeletionTokenAuditEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

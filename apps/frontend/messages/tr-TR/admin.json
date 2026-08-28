@@ -104,7 +104,25 @@
       "edit": "Düzenle",
       "assigned_role": "{role} rolü atandı",
       "removed_role": "{role} rolü kaldırıldı",
-      "role_update_failed": "Rol ataması güncellenemedi"
+      "role_update_failed": "Rol ataması güncellenemedi",
+      "danger_zone": "Tehlike bölgesi",
+      "open_delete_account": "Hesabı sil",
+      "delete_account_entry_description": "Bu üyenin hesabını kalıcı olarak siler. Mesajları okunamaz hâle gelir. Bu işlem geri alınamaz."
+    },
+    "member_delete": {
+      "title": "Üyeyi sil",
+      "warning": "Bu işlem {name} hesabını kalıcı olarak siler. Geri alınamaz.",
+      "consequences_intro": "Olacaklar:",
+      "consequence_rooms": "Üye tüm odalardan çıkarılır.",
+      "consequence_messages": "Yazdığı tüm mesajlar kalıcı olarak okunamaz olur.",
+      "consequence_profile": "Profil, avatar ve kullanıcı adı silinir. Kullanıcı adı daha sonra yeniden kullanılabilir olur.",
+      "consequence_sessions": "Kişi her yerden çıkış yapar.",
+      "confirm_label": "Onaylamak için {login} yazın",
+      "submit": "Hesabı kalıcı olarak sil",
+      "deleting": "Siliniyor...",
+      "failed": "Hesap silinemedi.",
+      "success": "Hesap silindi.",
+      "not_allowed": "Bu hesabı silemezsiniz."
     },
     "member_detail": {
       "no_self_rename": "Kendi kendini yeniden adlandırma kaydedilmedi.",

@@ -5,7 +5,7 @@
   import { Button } from '$lib/ui/form';
 
   const componentDescription = `
-  Bordered admin surface for grouped management content. Use \`Panel\` when a
+  Bordered surface for grouped application content. Use \`Panel\` when a
   section needs a title band, optional summary copy, and optional header
   actions. It owns the canonical \`panel-shell panel-shell-raised\` container
   and the shared \`panel-header\` treatment. A slim surface frame wraps its rounded
@@ -13,7 +13,7 @@
   `.trim();
 
   const { Story } = defineMeta({
-    title: 'Admin/Panel',
+    title: 'UI/Panel',
     component: Panel,
     tags: ['autodocs'],
     parameters: {

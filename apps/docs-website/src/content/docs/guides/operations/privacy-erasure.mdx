@@ -90,6 +90,22 @@ The server decrypts these fields while rebuilding its in-memory user projection 
 
 ## Account Deletion and Crypto-Shredding
 
+### Who can delete an account
+
+A member deletes their own account through Account Settings. Chatto checks the
+`user.delete-self` permission both when the confirmation code is created and
+when it is used. If you revoke that permission, deletion stops working for that
+member, including codes that were already created.
+
+An administrator with `admin.view-users` and `user.delete-any` deletes another
+member from the member detail page in Server Administration. That page shows
+what deletion does, and the administrator must type the member's login name.
+Chatto does not request the administrator's password or require recent
+authentication for this action.
+The page does not offer this action for the administrator's own account. The
+administrator uses Account Settings for that action. Bots do not use either
+flow. See [Bot Accounts](/guides/integrations/bot-accounts/) for bot deletion.
+
 The account-deletion path attempts to:
 
 1. Purge every app-owned `dek.*` record referenced by the user's DEK events.

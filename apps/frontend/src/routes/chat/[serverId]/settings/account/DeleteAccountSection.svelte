@@ -3,7 +3,7 @@
   import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
   import { csrfFetch } from '$lib/auth/csrf';
   import { notifyLogout } from '$lib/auth/sessionChannel';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Dialog, Hint } from '$lib/ui';

@@ -104,7 +104,25 @@
       "edit": "Rediģēt",
       "assigned_role": "Piešķirta {role} loma",
       "removed_role": "Noņemta {role} loma",
-      "role_update_failed": "Neizdevās atjaunināt lomas piešķiršanu"
+      "role_update_failed": "Neizdevās atjaunināt lomas piešķiršanu",
+      "danger_zone": "Bīstamā zona",
+      "open_delete_account": "Dzēst kontu",
+      "delete_account_entry_description": "Pastāvīgi dzēš šī dalībnieka kontu. Viņa ziņojumi kļūst nelasāmi. To nevar atsaukt."
+    },
+    "member_delete": {
+      "title": "Dzēst dalībnieku",
+      "warning": "Šī darbība pastāvīgi dzēš lietotāja {name} kontu. To nevar atsaukt.",
+      "consequences_intro": "Kas notiks:",
+      "consequence_rooms": "Dalībnieks tiks izņemts no visām istabām.",
+      "consequence_messages": "Visi rakstītie ziņojumi kļūs pastāvīgi nelasāmi.",
+      "consequence_profile": "Profils, avatārs un lietotājvārds tiks dzēsts. Lietotājvārds vēlāk atkal kļūs pieejams.",
+      "consequence_sessions": "Persona tiks izrakstīta visur.",
+      "confirm_label": "Ierakstiet {login}, lai apstiprinātu",
+      "submit": "Pastāvīgi dzēst kontu",
+      "deleting": "Notiek dzēšana...",
+      "failed": "Kontu neizdevās izdzēst.",
+      "success": "Konts tika izdzēsts.",
+      "not_allowed": "Jūs nevarat izdzēst šo kontu."
     },
     "member_detail": {
       "no_self_rename": "Pašpārdēvēšana nav reģistrēta.",

@@ -104,7 +104,25 @@
       "edit": "Modifier",
       "assigned_role": "Rôle {role} attribué",
       "removed_role": "Rôle {role} supprimé",
-      "role_update_failed": "Échec de la mise à jour de l'attribution de rôle"
+      "role_update_failed": "Échec de la mise à jour de l'attribution de rôle",
+      "danger_zone": "Zone de danger",
+      "open_delete_account": "Supprimer le compte",
+      "delete_account_entry_description": "Supprime définitivement le compte de ce membre. Ses messages deviennent illisibles. Cette action est irréversible."
+    },
+    "member_delete": {
+      "title": "Supprimer un membre",
+      "warning": "Cette action supprime définitivement le compte de {name}. Elle est irréversible.",
+      "consequences_intro": "Ce qui va se passer :",
+      "consequence_rooms": "Le membre est retiré de tous les salons.",
+      "consequence_messages": "Tous les messages qu'il a écrits deviennent définitivement illisibles.",
+      "consequence_profile": "Son profil, son avatar et son nom d'utilisateur sont supprimés. Le nom d'utilisateur redevient disponible ensuite.",
+      "consequence_sessions": "La personne est déconnectée partout.",
+      "confirm_label": "Tapez {login} pour confirmer",
+      "submit": "Supprimer définitivement le compte",
+      "deleting": "Suppression...",
+      "failed": "Échec de la suppression du compte.",
+      "success": "Le compte a été supprimé.",
+      "not_allowed": "Vous ne pouvez pas supprimer ce compte."
     },
     "member_detail": {
       "no_self_rename": "Aucun changement de nom automatique enregistré.",

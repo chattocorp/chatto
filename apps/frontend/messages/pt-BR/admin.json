@@ -104,7 +104,25 @@
       "edit": "Editar",
       "assigned_role": "Função {role} atribuída",
       "removed_role": "Função {role} removida",
-      "role_update_failed": "Falha ao atualizar atribuição de função"
+      "role_update_failed": "Falha ao atualizar atribuição de função",
+      "danger_zone": "Zona de perigo",
+      "open_delete_account": "Excluir conta",
+      "delete_account_entry_description": "Exclui definitivamente a conta deste membro. As mensagens ficam ilegíveis. Isso não pode ser desfeito."
+    },
+    "member_delete": {
+      "title": "Excluir membro",
+      "warning": "Isso exclui definitivamente a conta de {name}. Não é possível desfazer.",
+      "consequences_intro": "O que vai acontecer:",
+      "consequence_rooms": "O membro é removido de todas as salas.",
+      "consequence_messages": "Todas as mensagens escritas ficam permanentemente ilegíveis.",
+      "consequence_profile": "O perfil, o avatar e o nome de usuário são excluídos. O nome de usuário volta a ficar disponível depois.",
+      "consequence_sessions": "A pessoa é desconectada em todos os lugares.",
+      "confirm_label": "Digite {login} para confirmar",
+      "submit": "Excluir a conta permanentemente",
+      "deleting": "Excluindo...",
+      "failed": "Falha ao excluir a conta.",
+      "success": "A conta foi excluída.",
+      "not_allowed": "Você não pode excluir esta conta."
     },
     "member_detail": {
       "no_self_rename": "Nenhuma renomeação automática registrada.",

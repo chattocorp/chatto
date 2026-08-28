@@ -424,7 +424,8 @@ Result of deleting the current user's custom status.
 
 ### RequestAccountDeletion
 
-Issues a short-lived token used to confirm self-deletion.
+Issues a short-lived token used to confirm self-deletion. Requires
+user.delete-self.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/RequestAccountDeletion
@@ -454,6 +455,7 @@ Result of issuing an account deletion confirmation token.
 ### DeleteMyAccount
 
 Permanently deletes the authenticated account after token validation.
+Requires user.delete-self.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/DeleteMyAccount

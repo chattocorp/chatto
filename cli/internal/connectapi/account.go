@@ -179,6 +179,16 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 	if req.Msg.GetConfirmationToken() == "" {
 		return nil, invalidArgument("confirmation_token is required")
 	}
+	// Enforce user.delete-self at redemption so revoking the permission also
+	// blocks tokens issued before revocation (see FDR-018). The same gate runs
+	// at token issuance in core.
+	canDeleteSelf, err := s.api.core.CanDeleteUser(ctx, caller.UserID, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if !canDeleteSelf {
+		return nil, connectError(core.ErrPermissionDenied)
+	}
 
 	if err := s.api.core.ValidateAccountDeletionToken(ctx, req.Msg.GetConfirmationToken(), caller.UserID); err != nil {
 		return nil, connectError(err)

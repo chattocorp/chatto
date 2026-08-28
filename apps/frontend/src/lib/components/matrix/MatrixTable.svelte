@@ -8,7 +8,7 @@ snippets.
 -->
 <script lang="ts" generics="TRow, TColumn">
   import type { Snippet } from 'svelte';
-  import { DataTable } from '$lib/components/admin';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import MatrixColumnHeading from './MatrixColumnHeading.svelte';
 
   let {

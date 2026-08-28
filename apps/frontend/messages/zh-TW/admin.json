@@ -104,7 +104,25 @@
       "edit": "編輯",
       "assigned_role": "已指派 {role} 角色",
       "removed_role": "已移除 {role} 角色",
-      "role_update_failed": "無法更新角色指派"
+      "role_update_failed": "無法更新角色指派",
+      "danger_zone": "危險區域",
+      "open_delete_account": "刪除帳號",
+      "delete_account_entry_description": "永久刪除此成員的帳號。其訊息將變為無法讀取。此操作無法復原。"
+    },
+    "member_delete": {
+      "title": "刪除成員",
+      "warning": "這將永久刪除 {name} 的帳號，且無法復原。",
+      "consequences_intro": "將會發生的事：",
+      "consequence_rooms": "該成員將從所有聊天室中移除。",
+      "consequence_messages": "其撰寫的所有訊息都將永久無法讀取。",
+      "consequence_profile": "個人檔案、頭像和使用者名稱將被刪除。使用者名稱之後會再次開放使用。",
+      "consequence_sessions": "對方將在所有地方登出。",
+      "confirm_label": "輸入 {login} 以確認",
+      "submit": "永久刪除帳號",
+      "deleting": "正在刪除...",
+      "failed": "無法刪除帳號。",
+      "success": "帳號已刪除。",
+      "not_allowed": "你無法刪除此帳號。"
     },
     "member_detail": {
       "no_self_rename": "沒有自行重新命名記錄。",

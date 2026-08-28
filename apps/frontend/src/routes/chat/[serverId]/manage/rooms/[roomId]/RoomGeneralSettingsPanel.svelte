@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { Button, Checkbox, Select, TextArea, TextInput } from '$lib/ui/form';
   import { ChoiceRow } from '$lib/ui';
   import { normalizeRoomName, roomNameValidationError } from '$lib/utils/roomName';

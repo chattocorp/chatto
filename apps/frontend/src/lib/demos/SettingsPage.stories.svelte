@@ -10,7 +10,7 @@
 </script>
 
 <script lang="ts">
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import FormSection from '$lib/ui/FormSection.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PaneContent from '$lib/ui/PaneContent.svelte';

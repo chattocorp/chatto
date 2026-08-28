@@ -104,7 +104,25 @@
       "edit": "Bewerken",
       "assigned_role": "Rol {role} toegewezen",
       "removed_role": "Rol {role} verwijderd",
-      "role_update_failed": "Kan de roltoewijzing niet updaten"
+      "role_update_failed": "Kan de roltoewijzing niet updaten",
+      "danger_zone": "Gevarenzone",
+      "open_delete_account": "Account verwijderen",
+      "delete_account_entry_description": "Verwijdert het account van dit lid definitief. De berichten worden onleesbaar. Dit kan niet ongedaan worden gemaakt."
+    },
+    "member_delete": {
+      "title": "Lid verwijderen",
+      "warning": "Hiermee verwijder je het account van {name} definitief. Dit kan niet ongedaan worden gemaakt.",
+      "consequences_intro": "Wat er gebeurt:",
+      "consequence_rooms": "Het lid wordt uit alle ruimtes verwijderd.",
+      "consequence_messages": "Alle verzonden berichten worden permanent onleesbaar.",
+      "consequence_profile": "Profiel, avatar en gebruikersnaam worden verwijderd. De gebruikersnaam komt daarna weer beschikbaar.",
+      "consequence_sessions": "De persoon wordt overal afgemeld.",
+      "confirm_label": "Typ {login} om te bevestigen",
+      "submit": "Account definitief verwijderen",
+      "deleting": "Wordt verwijderd...",
+      "failed": "Het account kon niet worden verwijderd.",
+      "success": "Het account is verwijderd.",
+      "not_allowed": "Je kunt dit account niet verwijderen."
     },
     "member_detail": {
       "no_self_rename": "Geen zelfhernoeming opgenomen.",

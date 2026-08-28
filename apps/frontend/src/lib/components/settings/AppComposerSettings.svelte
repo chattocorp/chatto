@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
   import {
     userPreferences,

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { AdminDurableWorkerStatus } from '$lib/api-client/adminDiagnostics';
-	import { DataTable, Panel } from '$lib/components/admin';
+	import DataTable from '$lib/ui/DataTable.svelte';
+	import Panel from '$lib/ui/Panel.svelte';
 	import { Pill } from '$lib/ui';
 	import { m } from '$lib/i18n/messages';
 

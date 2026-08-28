@@ -249,9 +249,6 @@ func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connec
 	if !canDelete {
 		return nil, connectError(core.ErrPermissionDenied)
 	}
-	if err := s.api.requireFreshCredential(ctx, caller, req.Msg.GetCurrentPassword()); err != nil {
-		return nil, connectError(err)
-	}
 	if err := s.api.core.AdminDeleteUserAs(ctx, caller.UserID, req.Msg.GetUserId()); err != nil {
 		return nil, connectError(err)
 	}
@@ -286,7 +283,7 @@ func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member
 		Login:          member.Login,
 		DisplayName:    member.DisplayName,
 		Deleted:        member.Deleted,
-		IsBot:    member.IsBot,
+		IsBot:          member.IsBot,
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(member.CustomStatus),
 	}

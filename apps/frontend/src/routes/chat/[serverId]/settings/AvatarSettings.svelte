@@ -3,7 +3,7 @@
   import type { AccountAPI } from '$lib/api-client/account';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';

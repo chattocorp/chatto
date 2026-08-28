@@ -104,7 +104,25 @@
       "edit": "Editar",
       "assigned_role": "Função {role} atribuída",
       "removed_role": "Função {role} removida",
-      "role_update_failed": "Falha ao atualizar a atribuição da função"
+      "role_update_failed": "Falha ao atualizar a atribuição da função",
+      "danger_zone": "Zona de perigo",
+      "open_delete_account": "Eliminar conta",
+      "delete_account_entry_description": "Elimina definitivamente a conta deste membro. As mensagens ficam ilegíveis. Isto não pode ser anulado."
+    },
+    "member_delete": {
+      "title": "Eliminar membro",
+      "warning": "Isto elimina definitivamente a conta de {name}. Não pode ser anulado.",
+      "consequences_intro": "O que vai acontecer:",
+      "consequence_rooms": "O membro é removido de todas as salas.",
+      "consequence_messages": "Todas as mensagens escritas ficam permanentemente ilegíveis.",
+      "consequence_profile": "O perfil, o avatar e o nome de utilizador são eliminados. O nome de utilizador volta a ficar disponível.",
+      "consequence_sessions": "A pessoa tem a sessão terminada em todo o lado.",
+      "confirm_label": "Escreva {login} para confirmar",
+      "submit": "Eliminar a conta definitivamente",
+      "deleting": "A eliminar...",
+      "failed": "Falha ao eliminar a conta.",
+      "success": "A conta foi eliminada.",
+      "not_allowed": "Não pode eliminar esta conta."
     },
     "member_detail": {
       "no_self_rename": "Nenhuma renomeação automática registada.",

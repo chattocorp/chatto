@@ -5,7 +5,7 @@ User notification preferences across server, room-group, and room scopes.
 Rows are notification causes. Columns follow the current navigation layout.
 -->
 <script lang="ts">
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { MatrixCellButton, MatrixTable } from '$lib/components/matrix';
   import { HelpTooltip, Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';

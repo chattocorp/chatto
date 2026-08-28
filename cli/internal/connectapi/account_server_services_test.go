@@ -297,6 +297,46 @@ func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
 	}
 }
 
+func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	tokenResp, err := env.account.RequestAccountDeletion(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RequestAccountDeletionRequest{}))
+	if err != nil {
+		t.Fatalf("RequestAccountDeletion before deny: %v", err)
+	}
+	if tokenResp.Msg.GetConfirmationToken() == "" {
+		t.Fatal("confirmation token is empty before deny")
+	}
+
+	// Revoking user.delete-self must disable the whole self-service flow:
+	// new token issuance and redemption of an already-issued token both refuse
+	// to act (FDR-018 kill-switch).
+	if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserDeleteSelf); err != nil {
+		t.Fatalf("DenyUserPermission user.delete-self: %v", err)
+	}
+
+	if _, err := env.account.RequestAccountDeletion(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RequestAccountDeletionRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied RequestAccountDeletion code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.account.DeleteMyAccount(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteMyAccountRequest{
+		ConfirmationToken: tokenResp.Msg.GetConfirmationToken(),
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied DeleteMyAccount code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserDeleteSelf); err != nil {
+		t.Fatalf("GrantUserPermission user.delete-self: %v", err)
+	}
+	deleteResp, err := env.account.DeleteMyAccount(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteMyAccountRequest{
+		ConfirmationToken: tokenResp.Msg.GetConfirmationToken(),
+	}))
+	if err != nil {
+		t.Fatalf("DeleteMyAccount with restored permission: %v", err)
+	}
+	if !deleteResp.Msg.GetDeleted() {
+		t.Fatal("Deleted = false, want true")
+	}
+}
+
 func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-target", "Admin User Target", "password")
@@ -518,6 +558,53 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 	if _, err := env.core.GetUser(env.ctx, target.Id); !errors.Is(err, core.ErrNotFound) {
 		t.Fatalf("GetUser after DeleteUser err = %v, want not found", err)
+	}
+}
+
+func TestAdminUserServiceDeleteUserDoesNotRequireFreshCredential(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "stale-delete-target", "Stale Delete Target", "password")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	staleToken, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "unknown")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+	}
+
+	deleteResp, err := env.adminUsers.DeleteUser(
+		withBearerCredential(env.ctx, env.viewer, staleToken),
+		connect.NewRequest(&adminv1.DeleteUserRequest{UserId: target.Id}),
+	)
+	if err != nil {
+		t.Fatalf("DeleteUser with stale credential: %v", err)
+	}
+	if !deleteResp.Msg.GetDeleted() {
+		t.Fatal("Deleted = false, want true")
+	}
+	if _, err := env.core.GetUser(env.ctx, target.Id); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("GetUser after DeleteUser err = %v, want not found", err)
+	}
+}
+
+func TestAdminUserServiceDeleteUserPreservesSelfTargetContract(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	deleteResp, err := env.adminUsers.DeleteUser(
+		withCaller(env.ctx, env.viewer),
+		connect.NewRequest(&adminv1.DeleteUserRequest{UserId: env.viewer.Id}),
+	)
+	if err != nil {
+		t.Fatalf("self DeleteUser: %v", err)
+	}
+	if !deleteResp.Msg.GetDeleted() {
+		t.Fatal("Deleted = false, want true")
+	}
+	if _, err := env.core.GetUser(env.ctx, env.viewer.Id); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("GetUser after self DeleteUser err = %v, want not found", err)
 	}
 }
 

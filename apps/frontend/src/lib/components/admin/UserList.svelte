@@ -9,7 +9,8 @@ and supplies an optional row-navigation callback.
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { DataTable, CopyId } from '$lib/components/admin';
+  import { CopyId } from '$lib/components/admin';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import { m } from '$lib/i18n/messages';
 
   type User = {

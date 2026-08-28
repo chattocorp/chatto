@@ -104,7 +104,25 @@
       "edit": "編集",
       "assigned_role": "{role} ロールが割り当てられました",
       "removed_role": "{role} ロールを削除しました",
-      "role_update_failed": "ロール割り当ての更新に失敗しました"
+      "role_update_failed": "ロール割り当ての更新に失敗しました",
+      "danger_zone": "危険ゾーン",
+      "open_delete_account": "アカウントを削除",
+      "delete_account_entry_description": "このメンバーのアカウントを完全に削除します。メッセージは読めなくなります。この操作は取り消せません。"
+    },
+    "member_delete": {
+      "title": "メンバーを削除",
+      "warning": "これにより、{name} のアカウントが完全に削除されます。この操作は取り消せません。",
+      "consequences_intro": "実行される内容：",
+      "consequence_rooms": "メンバーはすべてのルームから削除されます。",
+      "consequence_messages": "書いたすべてのメッセージは永久に読めなくなります。",
+      "consequence_profile": "プロフィール、アバター、ユーザー名が削除されます。ユーザー名はその後再度利用できるようになります。",
+      "consequence_sessions": "すべてのデバイスからサインアウトされます。",
+      "confirm_label": "確認するには {login} と入力してください",
+      "submit": "アカウントを完全に削除",
+      "deleting": "削除中...",
+      "failed": "アカウントを削除できませんでした。",
+      "success": "アカウントを削除しました。",
+      "not_allowed": "このアカウントは削除できません。"
     },
     "member_detail": {
       "no_self_rename": "自己名前変更は記録されていません。",

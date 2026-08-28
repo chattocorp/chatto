@@ -60,6 +60,16 @@ The new fields on
 protobuf wire level. Programmatic clients can use the complete renewable pair.
 The bundled same-origin client completes this flow with its HttpOnly cookie.
 
+Chatto 0.5 removes `current_password` from
+`chatto.admin.v1.DeleteUserRequest`. Regenerate custom clients and stop sending
+that field. An older binary client can send protobuf tag `2` to a 0.5 server;
+the server treats it as an unknown field and ignores it. The field is not part
+of the 0.5 ProtoJSON schema. A 0.5 client does not send the field to an older
+server, so that server can return `failed_precondition` when the current
+session is not fresh. A 0.5 server authorizes deletion with `user.delete-any`
+for another user or `user.delete-self` for the caller. It does not use password
+proof or a fresh credential for this operation.
+
 The 0.5 notification matrix uses the additive
 `chatto.api.v1.NotificationPolicyService`. An older server returns
 `Unimplemented` for this service. It cannot misapply a room-group update as a
