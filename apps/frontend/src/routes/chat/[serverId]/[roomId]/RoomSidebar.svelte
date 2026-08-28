@@ -458,7 +458,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         data-testid="room-member-list"
         aria-label={m('room.sidebar.members')}
       >
-        <div>
+        <nav aria-label={m('room.sidebar.members')}>
           {#if (loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
             <ul role="list" class="px-2">
               {#each Array(8) as _, i (i)}
@@ -488,7 +488,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
               />
             {/each}
           {/if}
-        </div>
+        </nav>
       </ScrollFader>
 
       {#if popoverMember && popoverAnchorRect}
