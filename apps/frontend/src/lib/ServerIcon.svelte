@@ -48,11 +48,13 @@
     /** Show a non-interactive compatibility warning marker. */
     compatibilityWarning?: boolean;
   } = $props();
+
+  const resolvedHref = $derived(href.startsWith('/') ? resolve(href as '/') : href);
 </script>
 
 <div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
-    href={resolve(href as '/')}
+    href={resolvedHref}
     {onclick}
     {title}
     aria-label={title ?? server?.name}
