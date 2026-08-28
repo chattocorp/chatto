@@ -1,3 +1,10 @@
+<!--
+@component
+
+Compact metric card for countable operational facts. Use it for values that
+benefit from quick comparison across a dashboard row. The tone communicates
+the category or health of the metric; it is not decorative.
+-->
 <script lang="ts">
   type Color = 'action' | 'success' | 'warning' | 'danger';
 

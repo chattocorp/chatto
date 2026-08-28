@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAdminSystemInfo } from '$lib/api-client/adminDiagnostics';
-  import { StatCard, formatBytes, formatNumber } from '$lib/components/admin';
+  import { formatBytes, formatNumber } from '$lib/components/admin';
+  import { StatCard } from '$lib/ui';
   import DataTable from '$lib/ui/DataTable.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent, Pill } from '$lib/ui';

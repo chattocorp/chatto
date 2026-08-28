@@ -3,37 +3,24 @@
   import StatCard from './StatCard.svelte';
 
   const componentDescription = `
-  Compact metric card for admin dashboards. Use it for countable operational
-  facts that benefit from quick comparison across a row. Tone should describe
-  the metric category or health, not decorate arbitrary numbers.
+  Compact metric card for operational dashboards. Use it for countable facts
+  that benefit from quick comparison across a row. Tone describes the metric
+  category or health, not arbitrary decoration.
   `.trim();
 
   const { Story } = defineMeta({
-    title: 'Admin/StatCard',
+    title: 'UI/Stat card',
     component: StatCard,
     tags: ['autodocs'],
     parameters: {
       docs: {
-        description: {
-          component: componentDescription
-        }
+        description: { component: componentDescription }
       }
     }
   });
 </script>
 
-<Story
-  name="Tones"
-  asChild
-  parameters={{
-    docs: {
-      description: {
-        story:
-          'The four tones cover neutral totals, healthy counts, warning-level attention, and failure/error metrics.'
-      }
-    }
-  }}
->
+<Story name="Tones" asChild>
   <div class="grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-4">
     <StatCard
       color="action"

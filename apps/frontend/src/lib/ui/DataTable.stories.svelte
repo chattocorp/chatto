@@ -3,6 +3,7 @@
   import DataTable from './DataTable.svelte';
   import Panel from './Panel.svelte';
   import CopyId from './CopyId.svelte';
+  import EmptyState from './EmptyState.svelte';
   import Pill from '$lib/ui/Pill.svelte';
   import { Button } from '$lib/ui/form';
 
@@ -133,7 +134,8 @@
   parameters={{
     docs: {
       description: {
-        story: 'Use `emptyMessage` to keep empty admin lists quiet and direct.'
+        story:
+          'Use `emptyMessage` for a quiet empty list, or the `empty` snippet when the next useful action belongs in the table.'
       }
     }
   }}
@@ -143,10 +145,20 @@
       <DataTable
         items={[]}
         columns={4}
-        emptyMessage="No spaces found"
         header={tableHeader}
         row={tableRow}
-      />
+      >
+        {#snippet empty()}
+          <div class="flex min-h-52 flex-col">
+            <EmptyState icon="icon-[uil--building]" title="No spaces yet">
+              Create a space to organise conversations for a group of members.
+              <div class="mt-4">
+                <Button size="sm">Create space</Button>
+              </div>
+            </EmptyState>
+          </div>
+        {/snippet}
+      </DataTable>
     </Panel>
   </div>
 </Story>

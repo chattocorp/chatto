@@ -17,6 +17,7 @@ and optional incremental loading.
     header,
     row,
     emptyMessage = m('ui.data_table.empty'),
+    empty,
     onRowClick,
     getKey,
     getGroupKey,
@@ -37,7 +38,9 @@ and optional incremental loading.
     columns: number;
     header: Snippet;
     row: Snippet<[T]>;
+    /** Optional rich empty-state content. Takes precedence over `emptyMessage`. */
     emptyMessage?: string;
+    empty?: Snippet;
     onRowClick?: (item: T) => void;
     getKey?: (item: T, index: number) => unknown;
     getGroupKey?: (item: T, index: number) => string | null | undefined;
@@ -163,7 +166,13 @@ and optional incremental loading.
         </tr>
       {:else}
         <tr>
-          <td colspan={columns} class="px-4 py-8 text-center text-muted">{emptyMessage}</td>
+          <td colspan={columns} class={empty ? 'p-0' : 'px-4 py-8 text-center text-muted'}>
+            {#if empty}
+              {@render empty()}
+            {:else}
+              {emptyMessage}
+            {/if}
+          </td>
         </tr>
       {/each}
 
