@@ -54,7 +54,7 @@
 
       <p class="text-sm text-muted">
         Panel content can be form sections, summary rows, or a table. Use <code>noPadding</code>
-        when a child component owns its own edge-to-edge spacing.
+        when a child component owns its work-plane treatment.
       </p>
     </Panel>
   </div>
@@ -103,7 +103,7 @@
     docs: {
       description: {
         story:
-          'Use `noPadding` for tables and dense list components that need to meet the panel edge.'
+          'Use `noPadding` when a table or another dense child owns the panel work plane. Tables use flush ruled rows.'
       }
     }
   }}
@@ -120,6 +120,44 @@
           <span class="text-muted">12 minutes ago</span>
         </div>
       </div>
+    </Panel>
+  </div>
+</Story>
+
+<Story
+  name="Inset selectable list"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Use the shared `selectable-list` inset for individually rounded, navigable, or directly actionable rows. This differs intentionally from a flush ruled table.'
+      }
+    }
+  }}
+>
+  <div class="max-w-2xl">
+    <Panel title="Rooms" noPadding>
+      <ul class="selectable-list">
+        <li>
+          <button type="button" class="flex w-full items-center gap-3 selectable-list-item px-3 py-2 text-start">
+            <span class="text-muted" aria-hidden="true">#</span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-medium">announcements</span>
+              <span class="block truncate text-sm text-muted">Updates for everyone.</span>
+            </span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="flex w-full items-center gap-3 selectable-list-item px-3 py-2 text-start">
+            <span class="text-muted" aria-hidden="true">#</span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-medium">general</span>
+              <span class="block truncate text-sm text-muted">General discussion.</span>
+            </span>
+          </button>
+        </li>
+      </ul>
     </Panel>
   </div>
 </Story>

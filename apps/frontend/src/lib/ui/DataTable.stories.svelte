@@ -30,7 +30,8 @@
   Record-table primitive with a standalone rounded scroll viewport, contrasting
   header and body, empty state row, optional row hover/click affordance, and
   automatic load-more support. Inside \`Panel noPadding\`, the panel owns the
-  shared radius and the table meets adjacent content at square internal seams.
+  shared radius and the table uses flush ruled rows that meet adjacent content
+  at square internal seams.
   `.trim();
 
   const { Story } = defineMeta({

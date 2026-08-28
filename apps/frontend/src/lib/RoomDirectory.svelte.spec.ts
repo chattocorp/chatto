@@ -186,11 +186,9 @@ describe('RoomDirectory', () => {
     expect(header.className).toContain('px-6');
     expect(inset).not.toBeNull();
 
-    // The header creates separation above the inset; the panel adds the
-    // bottom frame inset. Keep the list's own vertical inset compact.
+    // Selectable lists own their standard compact inset inside `Panel noPadding`.
     const list = shell.querySelector('ul') as HTMLElement;
-    expect(list.className).toContain('pt-1');
-    expect(list.className).toContain('pb-1');
+    expect(list.className).toBe('selectable-list');
   });
 
   // -- "Join all" group action -----------------------------------------------

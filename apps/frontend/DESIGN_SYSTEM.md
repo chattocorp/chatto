@@ -36,8 +36,8 @@ message search results:
 - Rows rest transparently on the owning `background` work plane. Hover and
   keyboard focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
-- Each row owns its rounded shape. The collection owns only the 1px inset and
-  gap, so selections never merge into a single slab.
+- Each row owns its rounded shape. The collection owns only the standard
+  `p-1` inset and `gap-1`, so selections never merge into a single slab.
 
 ## Sidebar Navigation
 
@@ -99,7 +99,7 @@ behaviour, content width, spacing, and panel hierarchy.
       </Panel>
 
       <Panel title={resultsTitle} noPadding>
-        <!-- edge-to-edge list, table, or result state -->
+        <!-- child-owned collection, table, or result state -->
       </Panel>
     </div>
   </PaneContent>
@@ -122,8 +122,9 @@ Follow these defaults:
   single form field's visible label, keep the field label available to
   assistive technology with the field component's `labelHidden` option.
 - Use the default padded `Panel` for forms, prose, summaries, and grouped
-  controls. Use `noPadding` for tables, lists, search results, and other
-  edge-to-edge collections; the child owns its row padding and dividers.
+  controls. Use `noPadding` when the child owns its work-plane treatment.
+  `DataTable` rows are flush and use dividers. A `selectable-list` keeps its
+  standard `p-1` inset and `gap-1` so separately rounded rows have clear boundaries.
 - Render loading, error, and empty states inside the panel whose content they
   replace. A single full-page availability state may use one untitled panel
   because there are no peer sections to distinguish.
@@ -249,6 +250,12 @@ add feature-local radius overrides for this composition. Dense matrices may keep
 an intrinsic content width inside the viewport; ordinary record tables fill it.
 Standard record-table headings use `table-header-cell`; matrix headings remain
 bespoke because their vertical labels have different spatial needs.
+
+`noPadding` does not require every child to be flush. `DataTable` uses a
+continuous grid, so its header and rows meet the work-plane edge. A
+`selectable-list` uses independent rounded rows, so it keeps the shared `p-1`
+inset and `gap-1` inside that same work plane. Do not add local padding utilities to
+either primitive to make it resemble the other.
 
 Panel title bands use `px-6 py-3`. The horizontal inset aligns titles with
 `p-5` panel content after accounting for the frame, while keeping the band
