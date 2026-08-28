@@ -295,10 +295,10 @@ store owns only optimistic join/leave state.
         {/if}
       {/snippet}
 
-      <!-- `Panel noPadding` adds a bottom-only frame inset. Pair `pt-2` with
-           `pb-1` so that frame inset makes the list's top and bottom spacing
-           equal; the horizontal inset keeps row actions aligned. -->
-      <ul class="selectable-list pt-2 pb-1">
+      <!-- The panel header already creates separation above the inset. Keep
+           the list's top inset compact, while the panel's bottom-only frame
+           inset combines with `pb-1` below. -->
+      <ul class="selectable-list pt-1 pb-1">
         {#each rooms as room (room.id)}
           {@render roomRow(room)}
         {/each}
