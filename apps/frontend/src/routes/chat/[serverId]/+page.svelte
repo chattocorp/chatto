@@ -14,7 +14,6 @@
     const serverId = serverScope.serverId;
     const lastPos = resolveLastPosition(serverId);
     if (lastPos) {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- lastPos from resolveLastPosition() is already resolved
       goto(lastPos, { replaceState: true });
       return;
     }
