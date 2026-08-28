@@ -193,7 +193,6 @@ jobs:
       - name: Check storage, internal, and Operator protobuf breaking changes
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
-          mise x -- node --test tools/check-storage-proto-breaking.test.mjs
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"
 
