@@ -5,6 +5,16 @@ import (
 	"testing"
 )
 
+func permissionMetadata(permission Permission, displayName, description string, category PermissionCategory, scopes []PermissionScope) PermissionMetadata {
+	return PermissionMetadata{
+		Permission:  permission,
+		DisplayName: displayName,
+		Description: description,
+		Category:    category,
+		Scopes:      scopes,
+	}
+}
+
 func installTestPermissionChain(t testing.TB) (Permission, Permission, Permission) {
 	t.Helper()
 	broad := Permission("test.manage")
