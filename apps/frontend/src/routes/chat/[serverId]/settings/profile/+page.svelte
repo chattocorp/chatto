@@ -3,8 +3,8 @@
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PaneContent, PaneHeader } from '$lib/ui';
-  import AvatarSettings from './AvatarSettings.svelte';
-  import ProfileDetailsSettings from './ProfileDetailsSettings.svelte';
+  import AvatarSettings from '../AvatarSettings.svelte';
+  import ProfileDetailsSettings from '../ProfileDetailsSettings.svelte';
 
   const serverScope = useServerScope();
 

@@ -106,7 +106,7 @@ describe('AppHeader', () => {
     const { container } = render(AppHeader);
 
     expect(
-      container.querySelector('a[href="/chat/remote.example.com/settings/app"]')
+      container.querySelector('a[href="/chat/remote.example.com/settings/appearance"]')
     ).not.toBeNull();
     expect(container.querySelector('a[href="/chat/preferences"]')).toBeNull();
   });

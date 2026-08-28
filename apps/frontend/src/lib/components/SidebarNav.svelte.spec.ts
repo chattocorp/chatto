@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import SidebarNav from './SidebarNav.svelte';
 
-const mocks = vi.hoisted(() => ({ pathname: '/settings/preferences' }));
+const mocks = vi.hoisted(() => ({ pathname: '/settings/time' }));
 
 vi.mock('$app/state', () => ({
   page: {
@@ -14,7 +14,7 @@ vi.mock('$app/state', () => ({
 
 describe('SidebarNav', () => {
   beforeEach(() => {
-    mocks.pathname = '/settings/preferences';
+    mocks.pathname = '/settings/time';
     localStorage.clear();
   });
 
@@ -29,7 +29,7 @@ describe('SidebarNav', () => {
             label: 'App preferences',
             persistKey: 'test:sidebar-nav:app-preferences',
             items: [
-              { href: '/settings/app', label: 'Appearance', icon: 'icon-appearance' },
+              { href: '/settings/appearance', label: 'Appearance', icon: 'icon-appearance' },
               { href: '/settings/language', label: 'Language', icon: 'icon-language' },
               { href: '/settings/composer', label: 'Composer', icon: 'icon-composer' }
             ]
@@ -39,8 +39,8 @@ describe('SidebarNav', () => {
             persistKey: 'test:sidebar-nav:your-account',
             items: [
               { href: '/settings/account', label: 'Account', icon: 'icon-account' },
-              { href: '/settings', label: 'Profile', icon: 'icon-profile' },
-              { href: '/settings/preferences', label: 'Time & region', icon: 'icon-time' }
+              { href: '/settings/profile', label: 'Profile', icon: 'icon-profile' },
+              { href: '/settings/time', label: 'Time & region', icon: 'icon-time' }
             ]
           },
           {
@@ -62,7 +62,7 @@ describe('SidebarNav', () => {
     await expect.element(getByText('Appearance')).toBeVisible();
     await expect.element(getByText('Language')).toBeVisible();
     await expect.element(getByText('Composer')).toBeVisible();
-    const activeItem = container.querySelector<HTMLElement>('a[href="/settings/preferences"]');
+    const activeItem = container.querySelector<HTMLElement>('a[href="/settings/time"]');
     await expect.element(activeItem).toHaveAttribute('aria-current', 'page');
     expect(activeItem?.classList.contains('sidebar-item')).toBe(true);
     expect(activeItem?.classList.contains('bg-surface')).toBe(false);
@@ -74,9 +74,9 @@ describe('SidebarNav', () => {
   });
 
   it.each([
-    { pathname: '/settings/app', expectedHref: '/settings/app' },
+    { pathname: '/settings/appearance', expectedHref: '/settings/appearance' },
     { pathname: '/settings/account', expectedHref: '/settings/account' },
-    { pathname: '/settings', expectedHref: '/settings' }
+    { pathname: '/settings/profile', expectedHref: '/settings/profile' }
   ])('marks only the most-specific item for $pathname', async ({ pathname, expectedHref }) => {
     mocks.pathname = pathname;
 
@@ -84,9 +84,9 @@ describe('SidebarNav', () => {
       props: {
         title: 'Settings',
         items: [
-          { href: '/settings/app', label: 'Appearance', icon: 'icon-appearance' },
+          { href: '/settings/appearance', label: 'Appearance', icon: 'icon-appearance' },
           { href: '/settings/account', label: 'Account', icon: 'icon-account' },
-          { href: '/settings', label: 'Profile', icon: 'icon-profile' }
+          { href: '/settings/profile', label: 'Profile', icon: 'icon-profile' }
         ]
       }
     });

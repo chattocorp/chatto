@@ -52,12 +52,12 @@
       icon: 'iconify icon-[uil--setting]'
     },
     {
-      href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/settings/profile', { serverId: serverSegment }),
       label: m('settings.nav.profile'),
       icon: 'iconify icon-[uil--user]'
     },
     {
-      href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/settings/time', { serverId: serverSegment }),
       label: m('settings.preferences.title'),
       icon: 'iconify icon-[uil--clock]'
     },
@@ -69,7 +69,7 @@
   ]);
   const appPreferenceNavItems = $derived([
     {
-      href: resolve('/chat/[serverId]/settings/app', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/settings/appearance', { serverId: serverSegment }),
       label: m('settings.app_preferences.appearance.title'),
       icon: 'iconify icon-[uil--palette]'
     },
@@ -212,7 +212,8 @@
     }
   ]);
   const settingsHref = $derived(
-    adminNavItems[0]?.href ?? resolve('/chat/[serverId]/settings', { serverId: serverSegment })
+    adminNavItems[0]?.href ??
+      resolve('/chat/[serverId]/settings/profile', { serverId: serverSegment })
   );
 </script>
 

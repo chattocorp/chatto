@@ -48,7 +48,7 @@ describe('App Preferences layout', () => {
   });
 
   it.each([
-    ['/chat/preferences', '/chat/remote.example.com/settings/app'],
+    ['/chat/preferences', '/chat/remote.example.com/settings/appearance'],
     ['/chat/preferences/language', '/chat/remote.example.com/settings/language'],
     ['/chat/preferences/composer', '/chat/remote.example.com/settings/composer']
   ])('replace-navigates %s to the matching unified page', async (pathname, destination) => {
