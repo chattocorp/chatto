@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Uygulama tercihleri",
       "subtitle": "Kayıtlı tüm sunucularınızda geçerli olan bu uygulamaya ait seçimler",
-      "appearance": { "title": "Görünüm" },
-      "composer": { "title": "Mesaj yazma" }
+      "appearance": {
+        "title": "Görünüm"
+      },
+      "composer": {
+        "title": "Mesaj yazma"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profil başarıyla güncellendi",
       "save_failed": "Profil kaydedilemedi",
-      "save_button": "Değişiklikleri Kaydet"
+      "save_button": "Değişiklikleri Kaydet",
+      "bio": {
+        "label": "Bio",
+        "description": "En fazla {max} karakter, profilinizde görünür.",
+        "placeholder": "Kendinizden kısaca bahsedin",
+        "too_long": "Bio en fazla {max} karakter olabilir."
+      }
     },
     "preferences": {
       "title": "Saat ve bölge",
@@ -414,11 +424,6 @@
       "create_title": "Bot Hesabı Oluştur",
       "create_failed": "Bot oluşturulamadı",
       "created": "Bot oluşturuldu",
-      "edit": "Düzenle",
-      "edit_title": "Bot Hesabını Düzenle",
-      "updated": "Bot güncellendi",
-      "update_failed": "Bot güncellenemedi",
-      "update_conflict": "Başka biri bu botu güncelledi. Sayfayı yeniden yükleyip tekrar dene.",
       "username": "Kullanıcı adı",
       "username_hint": "Bot kullanıcı adları _bot ile bitmelidir.",
       "display_name": "Görünen Ad",

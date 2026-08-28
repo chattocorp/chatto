@@ -43,7 +43,9 @@ describe('createBotAPI', () => {
             id: 'U-bot',
             login: 'helper_bot',
             displayName: 'Helper',
-            avatarUrl: ''
+            avatarUrl: '',
+            bio: 'Build helper',
+            timezone: 'Europe/Berlin'
           },
           ownerUserId: 'U-owner',
           createdAt: Timestamp.fromDate(createdAt),
@@ -63,6 +65,8 @@ describe('createBotAPI', () => {
           login: 'helper_bot',
           displayName: 'Helper',
           avatarUrl: '',
+          bio: 'Build helper',
+          timezone: 'Europe/Berlin',
           ownerUserId: 'U-owner',
           createdAt,
           apiKeyCreatedAt: createdAt,

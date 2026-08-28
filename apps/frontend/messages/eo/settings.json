@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Aplikaj preferoj",
       "subtitle": "Elektoj de ĉi tiu aplikaĵo, kiuj validas por ĉiuj viaj registritaj serviloj",
-      "appearance": { "title": "Aspekto" },
-      "composer": { "title": "Mesaĝverkilo" }
+      "appearance": {
+        "title": "Aspekto"
+      },
+      "composer": {
+        "title": "Mesaĝverkilo"
+      }
     },
     "profile": {
       "title": "Profilo",
@@ -112,7 +116,13 @@
       },
       "saved": "Profilo sukcese ĝisdatigita",
       "save_failed": "Malsukcesis konservi profilon",
-      "save_button": "Konservu Ŝanĝojn"
+      "save_button": "Konservu Ŝanĝojn",
+      "bio": {
+        "label": "Priskribo",
+        "description": "Ĝis {max} signoj, videbla en via profilo.",
+        "placeholder": "Rakontu al aliaj iom pri vi",
+        "too_long": "La priskribo povas havi maksimume {max} signojn."
+      }
     },
     "preferences": {
       "title": "Tempo kaj regiono",
@@ -414,11 +424,6 @@
       "create_title": "Krei Bot-Konton",
       "create_failed": "Malsukcesis krei bot",
       "created": "Bot kreita",
-      "edit": "Redakti",
-      "edit_title": "Redakti Bot-Konton",
-      "updated": "Bot ĝisdatigita",
-      "update_failed": "Malsukcesis ĝisdatigi bot",
-      "update_conflict": "Iu alia ĝisdatigis ĉi tiun roboton. Reŝargu la paĝon kaj provu denove.",
       "username": "Uzantnomo",
       "username_hint": "Bot uzantnomoj devas finiĝi per _bot.",
       "display_name": "Montra nomo",

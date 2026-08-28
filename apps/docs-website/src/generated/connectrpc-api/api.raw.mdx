@@ -64,7 +64,7 @@ authenticated user.
 
 ### UpdateProfile
 
-Updates the authenticated user's login and/or display name.
+Updates the authenticated user's login, display name, and/or bio.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
@@ -74,13 +74,14 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
 
 #### Input: UpdateProfileRequest
 
-Request to update the authenticated user's profile. At least one field must
-be present.
+Request to update the authenticated user's profile. Human and bot accounts
+use this same self-service operation. At least one field must be present.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
 | `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
+| `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
 
 
 <a id="chatto-api-v1-UpdateProfileResponse"></a>
@@ -876,40 +877,6 @@ Result of creating a bot. api_key is shown once and cannot be retrieved.
 | --- | --- | --- |
 | `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
 | `api_key` | `string` | Newly issued API key. |
-
-
-<a id="chatto-api-v1-BotService-UpdateBot"></a>
-
-### UpdateBot
-
-Updates a bot's public identity.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/UpdateBot
-```
-
-<a id="chatto-api-v1-UpdateBotRequest"></a>
-
-#### Input: UpdateBotRequest
-
-Patch request for a bot's public identity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `login` | `optional string` | New bot login. Must end in `_bot`. |
-| `display_name` | `optional string` | New public display name. |
-
-
-<a id="chatto-api-v1-UpdateBotResponse"></a>
-
-#### Result: UpdateBotResponse
-
-Result of updating a bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot. |
 
 
 <a id="chatto-api-v1-BotService-DeleteBot"></a>
@@ -4038,6 +4005,8 @@ Public user fields.
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 | `is_bot` | `bool` | True when this identity represents an automated bot. |
+| `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
+| `timezone` | `optional string` | IANA time zone the user shares on their profile (for example "Europe/Berlin"), when set. Absent means the user has not chosen a shareable time zone. |
 
 
 

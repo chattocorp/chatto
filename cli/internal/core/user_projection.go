@@ -41,6 +41,7 @@ type projectedUser struct {
 	login         *projectedUserPII
 	loginHash     string
 	displayName   *projectedUserPII
+	bio           *projectedUserPII
 	deleted       bool
 	shredded      bool
 	avatar        *corev1.AssetRecord
@@ -126,6 +127,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		return p.applyLoginChanged(event.GetId(), e.UserLoginChanged, event.GetCreatedAt())
 	case *corev1.Event_UserDisplayNameChanged:
 		p.applyDisplayNameChanged(event.GetId(), e.UserDisplayNameChanged)
+	case *corev1.Event_UserBioChanged:
+		p.applyBioChanged(event.GetId(), e.UserBioChanged)
 	case *corev1.Event_UserAvatarSet:
 		p.applyAvatarSet(e.UserAvatarSet)
 	case *corev1.Event_UserAvatarCleared:
@@ -282,6 +285,16 @@ func (p *UserProjection) applyDisplayNameChanged(eventID string, e *corev1.UserD
 	u.displayName = newProjectedUserPII(eventID, evtstream.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
 }
 
+// applyBioChanged stores the encrypted bio fact. An event without an
+// encrypted payload clears the bio; projected state stays ciphertext-only.
+func (p *UserProjection) applyBioChanged(eventID string, e *corev1.UserBioChangedEvent) {
+	if e == nil || e.GetUserId() == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	u.bio = newProjectedUserPII(eventID, evtstream.EventUserBioChanged, "bio", e.GetEncryptedBio())
+}
+
 func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
@@ -417,6 +430,7 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent) 
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
+	u.bio = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.loginChanged = time.Time{}
 	delete(p.dekEvents, e.GetUserId())
@@ -442,6 +456,7 @@ func (p *UserProjection) applyKeyShredded(userID string) {
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
+	u.bio = nil
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.loginChanged = time.Time{}
@@ -568,6 +583,7 @@ type projectedUserSnapshot struct {
 	user        *corev1.User
 	login       *projectedPIISnapshot
 	displayName *projectedPIISnapshot
+	bio         *projectedPIISnapshot
 	deleted     bool
 	shredded    bool
 }
@@ -610,6 +626,7 @@ func (p *UserProjection) userSnapshotLocked(userID string, u *projectedUser) *pr
 		user:        user,
 		login:       p.piiSnapshotLocked(userID, u.login),
 		displayName: p.piiSnapshotLocked(userID, u.displayName),
+		bio:         p.piiSnapshotLocked(userID, u.bio),
 		deleted:     u.deleted,
 		shredded:    u.shredded,
 	}
@@ -660,6 +677,11 @@ func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *proj
 	}
 	snapshot.user.Login = login
 	snapshot.user.DisplayName = displayName
+	if bio, ok, err := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.bio); err != nil {
+		return nil, false, err
+	} else if ok {
+		snapshot.user.Bio = bio
+	}
 	if statusExpired(snapshot.user.GetCustomStatus(), now) {
 		snapshot.user.CustomStatus = nil
 	}

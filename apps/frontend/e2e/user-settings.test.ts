@@ -14,7 +14,7 @@ test.describe('App and User Preferences', () => {
     page
   }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.space());
+    await page.goto(routes.chat);
     await page.getByRole('link', { name: 'App Preferences' }).click();
     await page.waitForURL(routes.settingsAppearance);
     await expect(page.getByTestId('server-sidebar')).toBeVisible({

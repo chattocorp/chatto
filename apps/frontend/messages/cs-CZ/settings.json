@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Předvolby aplikace",
       "subtitle": "Volby této aplikace, které platí pro všechny vaše registrované servery",
-      "appearance": { "title": "Vzhled" },
-      "composer": { "title": "Editor zpráv" }
+      "appearance": {
+        "title": "Vzhled"
+      },
+      "composer": {
+        "title": "Editor zpráv"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profil byl úspěšně aktualizován",
       "save_failed": "Profil se nepodařilo uložit",
-      "save_button": "Uložit změny"
+      "save_button": "Uložit změny",
+      "bio": {
+        "label": "Bio",
+        "description": "Maximálně {max} znaků, zobrazuje se ve vašem profilu.",
+        "placeholder": "Napište o sobě pár slov",
+        "too_long": "Bio může mít nejvýše {max} znaků."
+      }
     },
     "preferences": {
       "title": "Čas a oblast",
@@ -414,11 +424,6 @@
       "create_title": "Vytvořit účet robota",
       "create_failed": "Nepodařilo se vytvořit robota",
       "created": "Robot vytvořen",
-      "edit": "Upravit",
-      "edit_title": "Upravit účet robota",
-      "updated": "Robot aktualizován",
-      "update_failed": "Nepodařilo se aktualizovat robot",
-      "update_conflict": "Tohoto bota mezitím aktualizoval někdo jiný. Načtěte stránku znovu a zkuste to znovu.",
       "username": "Uživatelské jméno",
       "username_hint": "Uživatelská jména robotů musí končit _bot.",
       "display_name": "Zobrazovaný název",

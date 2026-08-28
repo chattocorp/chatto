@@ -240,8 +240,7 @@ export class QuickSwitcherModel {
     const url = this.#itemUrl(item);
     if (!url) return;
     if (item.kind !== 'message') recentQuickSwitcher.record(url);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- itemUrl returns paths from resolve() or buildMessageLinkPath()
-    await goto(url);
+    await goto(resolve(url as '/'));
   }
 
   groupHeader(index: number): string | null {

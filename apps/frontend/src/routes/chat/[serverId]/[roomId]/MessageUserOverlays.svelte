@@ -140,6 +140,7 @@
       canSendMessage={canStartDMs && !interactions.user.deleted}
       canBanFromRoom={canBanPopoverUser}
       banningFromRoom={banningMemberId === interactions.user.id}
+      viewerSettings={serverScope.store.currentUser.user?.settings}
       onSendMessage={() => startDMWith(serverId, interactions.user!.id)}
       onBanFromRoom={() => openBanDialog(interactions.user!)}
       onClose={() => interactions.close()}

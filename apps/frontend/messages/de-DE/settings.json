@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "App-Einstellungen",
       "subtitle": "Einstellungen dieser App, die für alle deine registrierten Server gelten",
-      "appearance": { "title": "Erscheinungsbild" },
-      "composer": { "title": "Nachrichten verfassen" }
+      "appearance": {
+        "title": "Erscheinungsbild"
+      },
+      "composer": {
+        "title": "Nachrichten verfassen"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profil erfolgreich aktualisiert",
       "save_failed": "Profil konnte nicht gespeichert werden",
-      "save_button": "Änderungen speichern"
+      "save_button": "Änderungen speichern",
+      "bio": {
+        "label": "Bio",
+        "description": "Bis zu {max} Zeichen, sichtbar in deinem Profil.",
+        "placeholder": "Erzähle anderen kurz etwas über dich",
+        "too_long": "Die Bio darf höchstens {max} Zeichen lang sein."
+      }
     },
     "preferences": {
       "title": "Zeit & Region",
@@ -414,11 +424,6 @@
       "create_title": "Bot-Konto erstellen",
       "create_failed": "Bot konnte nicht erstellt werden",
       "created": "Bot erstellt",
-      "edit": "Bearbeiten",
-      "edit_title": "Bot-Konto bearbeiten",
-      "updated": "Bot aktualisiert",
-      "update_failed": "Bot konnte nicht aktualisiert werden",
-      "update_conflict": "Jemand anderes hat diesen Bot aktualisiert. Lade die Seite neu und versuche es noch einmal.",
       "username": "Benutzername",
       "username_hint": "Bot-Benutzernamen müssen auf _bot enden.",
       "display_name": "Anzeigename",

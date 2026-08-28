@@ -85,7 +85,7 @@ async function logoutUser(page: Page): Promise<void> {
  * Navigates to the primary server root.
  */
 async function gotoServer(page: Page): Promise<void> {
-  await page.goto(routes.space());
+  await page.goto(routes.chat);
 }
 
 test.describe('Server Admin Page', () => {

@@ -21,6 +21,10 @@ export type UserSummary = {
   deleted: boolean;
   isBot?: boolean;
   avatarUrl: string | null;
+  /** Public self-authored bio; `null` when unset. */
+  bio?: string | null;
+  /** Public IANA time zone the user shares; `null` when unset. */
+  timezone?: string | null;
 };
 
 /**
@@ -38,7 +42,9 @@ export function mapUserSummary(user: APIUser): UserSummary {
     displayName: user.displayName,
     deleted: user.deleted,
     isBot: user.isBot,
-    avatarUrl: user.avatarUrl || null
+    avatarUrl: user.avatarUrl || null,
+    bio: user.bio || null,
+    timezone: user.timezone || null
   };
 }
 

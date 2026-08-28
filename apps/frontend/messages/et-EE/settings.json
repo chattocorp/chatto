@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Rakenduse eelistused",
       "subtitle": "Selle rakenduse valikud, mis kehtivad kõigis sinu registreeritud serverites",
-      "appearance": { "title": "Välimus" },
-      "composer": { "title": "Sõnumi koostamine" }
+      "appearance": {
+        "title": "Välimus"
+      },
+      "composer": {
+        "title": "Sõnumi koostamine"
+      }
     },
     "profile": {
       "title": "Profiil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profiili värskendamine õnnestus",
       "save_failed": "Profiili salvestamine ebaõnnestus",
-      "save_button": "Salvesta muudatused"
+      "save_button": "Salvesta muudatused",
+      "bio": {
+        "label": "Bio",
+        "description": "Kuni {max} tähemärki, nähtav sinu profiilis.",
+        "placeholder": "Räägi lühidalt endast",
+        "too_long": "Bio võib olla kuni {max} tähemärki."
+      }
     },
     "preferences": {
       "title": "Aeg ja piirkond",
@@ -414,11 +424,6 @@
       "create_title": "Looge roboti konto",
       "create_failed": "Boti loomine ebaõnnestus",
       "created": "Bot loodud",
-      "edit": "Muuda",
-      "edit_title": "Muutke robotikontot",
-      "updated": "Botit värskendati",
-      "update_failed": "Boti värskendamine ebaõnnestus",
-      "update_conflict": "Keegi teine värskendas seda boti. Laadi leht uuesti ja proovi veel kord.",
       "username": "Kasutajanimi",
       "username_hint": "Boti kasutajanimed peavad lõppema numbriga _bot.",
       "display_name": "Kuvatav nimi",

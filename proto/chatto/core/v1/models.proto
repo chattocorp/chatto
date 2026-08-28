@@ -79,6 +79,9 @@ message User {
   bool is_bot = 7;
   // Human owner of this bot. Empty for human accounts.
   string bot_owner_user_id = 8;
+  // Current public bio, hydrated at read boundaries from encrypted projected
+  // state. Never persisted in plaintext here.
+  string bio = 9;
 }
 
 // CustomUserStatus is a durable, public user-authored status that is

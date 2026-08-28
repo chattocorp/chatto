@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Appvoorkeuren",
       "subtitle": "Keuzes van deze app die gelden voor al je geregistreerde servers",
-      "appearance": { "title": "Weergave" },
-      "composer": { "title": "Berichten opstellen" }
+      "appearance": {
+        "title": "Weergave"
+      },
+      "composer": {
+        "title": "Berichten opstellen"
+      }
     },
     "profile": {
       "title": "Profiel",
@@ -112,7 +116,13 @@
       },
       "saved": "Profiel is succesvol bijgewerkt",
       "save_failed": "Kan profiel niet opslaan",
-      "save_button": "Wijzigingen opslaan"
+      "save_button": "Wijzigingen opslaan",
+      "bio": {
+        "label": "Bio",
+        "description": "Tot {max} tekens, zichtbaar in je profiel.",
+        "placeholder": "Vertel anderen kort iets over jezelf",
+        "too_long": "De bio mag maximaal {max} tekens bevatten."
+      }
     },
     "preferences": {
       "title": "Tijd en regio",
@@ -414,11 +424,6 @@
       "create_title": "Bot-account maken",
       "create_failed": "Kan geen bot maken",
       "created": "Bot gemaakt",
-      "edit": "Bewerken",
-      "edit_title": "Bot-account bewerken",
-      "updated": "Bot bijgewerkt",
-      "update_failed": "Kan bot niet updaten",
-      "update_conflict": "Iemand anders heeft deze bot bijgewerkt. Herlaad de pagina en probeer opnieuw.",
       "username": "Gebruikersnaam",
       "username_hint": "Bot-gebruikersnamen moeten eindigen op _bot.",
       "display_name": "Weergavenaam",

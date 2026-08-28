@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Preferenze dell'app",
       "subtitle": "Scelte di questa app applicate a tutti i server registrati",
-      "appearance": { "title": "Aspetto" },
-      "composer": { "title": "Composizione" }
+      "appearance": {
+        "title": "Aspetto"
+      },
+      "composer": {
+        "title": "Composizione"
+      }
     },
     "profile": {
       "title": "Profilo",
@@ -112,7 +116,13 @@
       },
       "saved": "Profilo aggiornato con successo",
       "save_failed": "Impossibile salvare il profilo",
-      "save_button": "Salva modifiche"
+      "save_button": "Salva modifiche",
+      "bio": {
+        "label": "Bio",
+        "description": "Fino a {max} caratteri, mostrato nel tuo profilo.",
+        "placeholder": "Racconta brevemente di te",
+        "too_long": "La bio può contenere al massimo {max} caratteri."
+      }
     },
     "preferences": {
       "title": "Ora e area geografica",
@@ -414,11 +424,6 @@
       "create_title": "Crea un account Bot",
       "create_failed": "Impossibile creare il bot",
       "created": "Bot creato",
-      "edit": "Modifica",
-      "edit_title": "Modifica account bot",
-      "updated": "Bot aggiornato",
-      "update_failed": "Impossibile aggiornare il bot",
-      "update_conflict": "Un'altra persona ha aggiornato questo bot. Ricarica la pagina e riprova.",
       "username": "Nome utente",
       "username_hint": "I nomi utente dei bot devono terminare con _bot.",
       "display_name": "Nome visualizzato",

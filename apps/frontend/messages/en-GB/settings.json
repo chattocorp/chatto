@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "App Preferences",
       "subtitle": "Choices for this app that apply across all your registered servers",
-      "appearance": { "title": "Appearance" },
-      "composer": { "title": "Composer" }
+      "appearance": {
+        "title": "Appearance"
+      },
+      "composer": {
+        "title": "Composer"
+      }
     },
     "profile": {
       "title": "Profile",
@@ -112,7 +116,13 @@
       },
       "saved": "Profile updated successfully",
       "save_failed": "Failed to save profile",
-      "save_button": "Save Changes"
+      "save_button": "Save Changes",
+      "bio": {
+        "label": "Bio",
+        "description": "Up to {max} characters, shown on your profile.",
+        "placeholder": "Tell others a little about yourself",
+        "too_long": "Bio must be {max} characters or fewer."
+      }
     },
     "preferences": {
       "title": "Time & region",
@@ -414,11 +424,6 @@
       "create_title": "Create Bot Account",
       "create_failed": "Failed to create bot",
       "created": "Bot created",
-      "edit": "Edit",
-      "edit_title": "Edit Bot Account",
-      "updated": "Bot updated",
-      "update_failed": "Failed to update bot",
-      "update_conflict": "Someone else updated this bot. Reload the page and try again.",
       "username": "Username",
       "username_hint": "Bot usernames must end in _bot.",
       "display_name": "Display Name",

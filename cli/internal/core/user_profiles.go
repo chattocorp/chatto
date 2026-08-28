@@ -18,10 +18,15 @@ import (
 const (
 	MaxCustomStatusEmojiLength = 16
 	MaxCustomStatusTextLength  = 100
+	// MaxBioLength bounds a user's self-authored public bio in Unicode
+	// characters.
+	MaxBioLength = 1000
 )
 
-// publishUserProfileUpdate publishes a UserProfileUpdatedEvent to the server stream.
-// This allows other users to see profile changes (avatar, display name) in real-time.
+var ErrBioTooLong = fmt.Errorf("bio is too long")
+
+// publishUserProfileUpdate publishes a transient snapshot of the current public
+// profile. Durable profile facts remain authoritative in EVT.
 func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string) {
 	// Get current user data
 	user, err := c.GetUser(ctx, userID)
@@ -37,13 +42,22 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		avatarURL = ""
 	}
 
+	// Include the user's shareable time zone so clients can render local time
+	// without an extra read. Absent settings mean no public zone.
+	timezone := ""
+	if settings, err := c.GetUserSettings(ctx, userID); err == nil && settings != nil {
+		timezone = settings.GetTimezone()
+	}
+
 	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserProfileUpdated{
-			UserProfileUpdated: &corev1.UserProfileUpdatedEvent{
+			UserProfileUpdated: &corev1.UserProfileSyncEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
 				AvatarUrl:   avatarURL,
 				Login:       user.Login,
+				Bio:         user.GetBio(),
+				Timezone:    timezone,
 			},
 		},
 	})
@@ -66,9 +80,6 @@ var ErrCustomStatusExpiryInPast = fmt.Errorf("custom status expiry must be in th
 // UpdateUserDisplayName updates a user's display name.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return nil, err
-	}
 	return c.updateUserDisplayNameAs(ctx, userID, userID, displayName)
 }
 
@@ -132,14 +143,26 @@ func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, dis
 	return user, nil
 }
 
-// AdminUpdateUserProfile updates a user's login and/or display name as a
-// single admin-authored mutation. When both fields are changed, both durable
-// events are appended atomically in one batch.
-func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName *string) (*corev1.User, error) {
-	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName, true)
+// AdminUpdateUserProfile updates a user's login, display name, and/or bio as a
+// single admin-authored mutation. When multiple fields are changed, their
+// durable events are appended atomically in one batch.
+func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*corev1.User, error) {
+	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName, bio, true)
 }
 
-func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName *string, retryConflicts bool) (*corev1.User, error) {
+// UpdateUserBio updates a user's public bio. An empty value clears it. A no-op
+// write (unchanged bio) appends no EVT event.
+// Authorization: Caller should verify the actor is the user being updated.
+func (c *ChattoCore) UpdateUserBio(ctx context.Context, userID, bio string) (*corev1.User, error) {
+	return c.updateUserProfileAs(ctx, userID, userID, nil, nil, &bio, true)
+}
+
+// normalizeBio trims surrounding whitespace from bio text.
+func normalizeBio(bio string) string {
+	return strings.TrimSpace(bio)
+}
+
+func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts bool) (*corev1.User, error) {
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -187,6 +210,16 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		displayNameChanged = user.GetDisplayName() != nextDisplayName
 	}
 
+	var nextBio string
+	var bioChanged bool
+	if bio != nil {
+		nextBio = normalizeBio(*bio)
+		if utf8.RuneCountInString(nextBio) > MaxBioLength {
+			return nil, ErrBioTooLong
+		}
+		bioChanged = user.GetBio() != nextBio
+	}
+
 	agg := evtstream.UserAggregate(userID)
 	entries := make([]evtstream.BatchEntry, 0, 2)
 	if loginChanged {
@@ -210,6 +243,23 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		}
 		displayNameChangedEvent.GetUserDisplayNameChanged().EncryptedDisplayName = encryptedDisplayName
 		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(displayNameChangedEvent), Event: displayNameChangedEvent})
+	}
+	if bioChanged {
+		bioChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserBioChanged{
+			UserBioChanged: &corev1.UserBioChangedEvent{UserId: userID},
+		}})
+		if nextBio == "" {
+			// Clearing omits the encrypted payload; readers treat absence as
+			// "bio cleared".
+			bioChangedEvent.GetUserBioChanged().EncryptedBio = nil
+		} else {
+			encryptedBio, err := c.encryptUserPIIString(ctx, bioChangedEvent.GetId(), userID, evtstream.EventUserBioChanged, "bio", nextBio)
+			if err != nil {
+				return nil, fmt.Errorf("encrypt bio: %w", err)
+			}
+			bioChangedEvent.GetUserBioChanged().EncryptedBio = encryptedBio
+		}
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(bioChangedEvent), Event: bioChangedEvent})
 	}
 
 	checkUserExists := func() error {
@@ -251,7 +301,10 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 	if displayNameChanged {
 		user.DisplayName = nextDisplayName
 	}
-	c.logger.Info("Admin updated user profile", "id", userID)
+	if bioChanged {
+		user.Bio = nextBio
+	}
+	c.logger.Info("Updated user profile", "id", userID)
 	c.publishUserProfileUpdate(ctx, userID)
 	return user, nil
 }
@@ -259,19 +312,20 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 type AdminUpdateUserInput struct {
 	Login       *string
 	DisplayName *string
+	Bio         *string
 }
 
 func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*corev1.User, error) {
 	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
 		return nil, err
 	}
-	if input.Login == nil && input.DisplayName == nil {
-		return nil, fmt.Errorf("%w: at least one of login or display_name must be provided", ErrInvalidArgument)
+	if input.Login == nil && input.DisplayName == nil && input.Bio == nil {
+		return nil, fmt.Errorf("%w: at least one of login, display_name, or bio must be provided", ErrInvalidArgument)
 	}
 	if err := c.requireHumanUser(ctx, targetUserID); err != nil {
 		return nil, err
 	}
-	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName, true)
+	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName, input.Bio, true)
 }
 
 func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {
@@ -316,9 +370,6 @@ func userLoginChangedAtKey(userID string) string {
 // UpdateUserLogin changes a user's login/username with 30-day cooldown enforcement.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		return nil, err
-	}
 	return c.applyLoginChange(ctx, userID, userID, newLogin, true)
 }
 

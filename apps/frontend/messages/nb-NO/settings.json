@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Appinnstillinger",
       "subtitle": "Valg for denne appen som gjelder for alle registrerte servere",
-      "appearance": { "title": "Utseende" },
-      "composer": { "title": "Meldingsskriving" }
+      "appearance": {
+        "title": "Utseende"
+      },
+      "composer": {
+        "title": "Meldingsskriving"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profilen ble oppdatert",
       "save_failed": "Kunne ikke lagre profilen",
-      "save_button": "Lagre endringer"
+      "save_button": "Lagre endringer",
+      "bio": {
+        "label": "Bio",
+        "description": "Opptil {max} tegn, vises i profilen din.",
+        "placeholder": "Fortell litt om deg selv",
+        "too_long": "Bioen kan ha maksimalt {max} tegn."
+      }
     },
     "preferences": {
       "title": "Tid og region",
@@ -414,11 +424,6 @@
       "create_title": "Opprett bot-konto",
       "create_failed": "Kunne ikke opprette bot",
       "created": "Bote opprettet",
-      "edit": "Rediger",
-      "edit_title": "Rediger botkonto",
-      "updated": "Bot oppdatert",
-      "update_failed": "Kunne ikke oppdatere bot",
-      "update_conflict": "Noen andre oppdaterte denne boten. Last inn siden på nytt og prøv igjen.",
       "username": "Brukernavn",
       "username_hint": "Botebrukernavn må ende på _bot.",
       "display_name": "Visningsnavn",

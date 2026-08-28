@@ -10,8 +10,8 @@ import { ImageUpload } from "./common_pb.js";
 import { TimeFormat, UserSettings } from "./viewer_pb.js";
 
 /**
- * Request to update the authenticated user's profile. At least one field must
- * be present.
+ * Request to update the authenticated user's profile. Human and bot accounts
+ * use this same self-service operation. At least one field must be present.
  *
  * @generated from message chatto.api.v1.UpdateProfileRequest
  */
@@ -32,6 +32,13 @@ export class UpdateProfileRequest extends Message<UpdateProfileRequest> {
    */
   login?: string;
 
+  /**
+   * New Markdown biography, when changing it. Empty clears the bio.
+   *
+   * @generated from field: optional string bio = 3;
+   */
+  bio?: string;
+
   constructor(data?: PartialMessage<UpdateProfileRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -42,6 +49,7 @@ export class UpdateProfileRequest extends Message<UpdateProfileRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateProfileRequest {

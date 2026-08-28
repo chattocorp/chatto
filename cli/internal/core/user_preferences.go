@@ -79,7 +79,10 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	}
 
 	changed := false
+	timezoneChanged := false
 	if err := c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		changed = false
+		timezoneChanged = false
 		current, _ := c.configModel.userSettings(userID)
 		var evs []*corev1.Event
 		if input.Timezone != nil {
@@ -89,11 +92,13 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 					evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimezoneCleared{
 						UserTimezoneCleared: &corev1.UserTimezoneClearedEvent{UserId: userID},
 					}}))
+					timezoneChanged = true
 				}
 			} else if current == nil || current.GetTimezone() != tz {
 				evs = append(evs, newEvent(userID, &corev1.Event{Event: &corev1.Event_UserTimezoneChanged{
 					UserTimezoneChanged: &corev1.UserTimezoneChangedEvent{UserId: userID, Timezone: tz},
 				}}))
+				timezoneChanged = true
 			}
 		}
 		if input.TimeFormat != nil && (current == nil || current.GetTimeFormat() != *input.TimeFormat) {
@@ -120,6 +125,9 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 
 	c.logger.Info("Updated user settings", "user_id", userID)
 	c.publishServerUserPreferencesUpdatedEvent(ctx, userID, settings)
+	if timezoneChanged {
+		c.publishUserProfileUpdate(ctx, userID)
+	}
 
 	return settings, nil
 }

@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "应用偏好设置",
       "subtitle": "此应用中适用于所有已注册服务器的选项",
-      "appearance": { "title": "外观" },
-      "composer": { "title": "消息编辑" }
+      "appearance": {
+        "title": "外观"
+      },
+      "composer": {
+        "title": "消息编辑"
+      }
     },
     "profile": {
       "title": "个人资料",
@@ -112,7 +116,13 @@
       },
       "saved": "个人资料更新成功",
       "save_failed": "个人资料保存失败",
-      "save_button": "保存更改"
+      "save_button": "保存更改",
+      "bio": {
+        "label": "个人简介",
+        "description": "最多 {max} 个字符，显示在你的个人资料中。",
+        "placeholder": "简单介绍一下自己",
+        "too_long": "简介不能超过 {max} 个字符。"
+      }
     },
     "preferences": {
       "title": "时间和地区",
@@ -414,11 +424,6 @@
       "create_title": "创建机器人帐户",
       "create_failed": "创建机器人失败",
       "created": "机器人已创建",
-      "edit": "编辑",
-      "edit_title": "编辑机器人帐户",
-      "updated": "机器人已更新",
-      "update_failed": "更新机器人失败",
-      "update_conflict": "其他人更新了此机器人。请重新加载页面后再试。",
       "username": "用户名",
       "username_hint": "机器人用户名必须以 _bot 结尾。",
       "display_name": "显示名称",

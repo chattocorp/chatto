@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Preferencje aplikacji",
       "subtitle": "Opcje tej aplikacji dotyczące wszystkich zarejestrowanych serwerów",
-      "appearance": { "title": "Wygląd" },
-      "composer": { "title": "Tworzenie wiadomości" }
+      "appearance": {
+        "title": "Wygląd"
+      },
+      "composer": {
+        "title": "Tworzenie wiadomości"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profil został pomyślnie zaktualizowany",
       "save_failed": "Nie udało się zapisać profilu",
-      "save_button": "Zapisz zmiany"
+      "save_button": "Zapisz zmiany",
+      "bio": {
+        "label": "Bio",
+        "description": "Do {max} znaków, widoczne w Twoim profilu.",
+        "placeholder": "Napisz coś krótko o sobie",
+        "too_long": "Bio może mieć najwyżej {max} znaków."
+      }
     },
     "preferences": {
       "title": "Czas i region",
@@ -414,11 +424,6 @@
       "create_title": "Utwórz konto bota",
       "create_failed": "Nie udało się utworzyć bota",
       "created": "Bot został utworzony",
-      "edit": "Edytuj",
-      "edit_title": "Edytuj konto bota",
-      "updated": "Bot zaktualizowany",
-      "update_failed": "Nie udało się zaktualizować bota",
-      "update_conflict": "Ktoś inny zaktualizował tego bota. Odśwież stronę i spróbuj ponownie.",
       "username": "Nazwa użytkownika",
       "username_hint": "Nazwy użytkowników botów muszą kończyć się na _bot.",
       "display_name": "Nazwa wyświetlana",

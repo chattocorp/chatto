@@ -175,7 +175,7 @@ test.describe('Server Roles Management', () => {
       await logoutUser(page);
       await loginUser(page, nonAdmin.login, nonAdmin.password);
       // Navigate directly to roles list (bypassing nav filtering)
-      await page.goto(routes.serverAdminRoles);
+      await page.goto(routes.serverAdminPermissions);
 
       // Users without roles.manage permission see Access Denied
       await serverRolesPage.expectAccessDenied();
@@ -254,7 +254,7 @@ test.describe('Server Roles Management', () => {
       await logoutUser(page);
       await loginUser(page, nonAdmin.login, nonAdmin.password);
       // Navigate directly to create role page (bypassing method that expects success)
-      await page.goto(routes.serverAdminRolesNew);
+      await page.goto(routes.serverAdminPermissionsNew);
 
       // Should see access denied
       await serverRolesPage.expectAccessDenied();
@@ -538,7 +538,7 @@ test.describe('Roles Management', () => {
       await logoutUser(page);
       await loginUser(page, regularUser.login, regularUser.password);
       // Navigate to roles list - should be denied because everyone role has denial
-      await page.goto(routes.serverAdminRoles);
+      await page.goto(routes.serverAdminPermissions);
       await serverRolesPage.expectAccessDenied();
     });
   });
@@ -615,7 +615,7 @@ test.describe('Server Permission Enforcement', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate directly to roles list (bypassing nav filtering)
-      await page.goto(routes.serverAdminRoles);
+      await page.goto(routes.serverAdminPermissions);
 
       // Users without roles.manage permission see Access Denied
       await serverRolesPage.expectAccessDenied();
@@ -633,7 +633,7 @@ test.describe('Server Permission Enforcement', () => {
       const server = await usePrimaryServerViaAPI(page);
 
       // Navigate to server
-      await page.goto(routes.space());
+      await page.goto(routes.chat);
 
       // Admin should see settings link in sidebar
       await serverAdminPage.expectSettingsLinkVisible();
@@ -653,7 +653,7 @@ test.describe('Server Permission Enforcement', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate to server
-      await page.goto(routes.space());
+      await page.goto(routes.chat);
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Bots remains available through the default bot.create grant, while

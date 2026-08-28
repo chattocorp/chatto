@@ -22,7 +22,6 @@ In floating mode, exactly one of `position` or `anchor` must be provided. In she
 ignored (the BottomSheet handles its own positioning).
 -->
 <script lang="ts">
-  import { fade } from 'svelte/transition';
   import type { Snippet } from 'svelte';
   import BottomSheet from './BottomSheet.svelte';
   import FloatingPopover from './FloatingPopover.svelte';
@@ -97,7 +96,7 @@ ignored (the BottomSheet handles its own positioning).
     {onmouseenter}
     {onmouseleave}
   >
-    <div class="flex flex-col gap-1" transition:fade|global={{ duration: 100 }}>
+    <div class="flex flex-col gap-1">
       {@render children()}
     </div>
   </FloatingPopover>

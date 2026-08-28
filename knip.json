@@ -11,7 +11,7 @@
     "namespaceMembers": "off",
     "duplicates": "warn"
   },
-  "ignoreBinaries": ["check", "lint", "mise", "playwright", "vitest"],
+  "ignoreBinaries": ["mise", "playwright"],
   "ignoreDependencies": ["gemoji"],
   "workspaces": {
     ".": {
@@ -19,7 +19,11 @@
       "project": ["tools/**/*.mjs"]
     },
     "apps/frontend": {
-      "entry": ["scripts/*.mjs"],
+      "entry": [
+        "playwright.compat.config.ts",
+        "e2e/remote-compatibility.compat.ts",
+        "scripts/*.mjs"
+      ],
       "project": [
         ".storybook/**/*.{css,js,ts}",
         "e2e/**/*.ts",
@@ -27,8 +31,6 @@
         "src/**/*.{js,ts,svelte}"
       ],
       "ignoreDependencies": [
-        "@bufbuild/protoc-gen-es",
-        "@connectrpc/protoc-gen-connect-es",
         "@iconify/json",
         "@iconify/tailwind4",
         "@fontsource-variable/ibm-plex-sans",
@@ -42,10 +44,25 @@
       }
     },
     "apps/docs-website": {
-      "ignoreDependencies": ["@fontsource-variable/ibm-plex-sans"]
+      "entry": [
+        "src/custom.css",
+        "src/routeData.ts",
+        "src/generated/connectrpc-api/*.raw.mdx"
+      ]
+    },
+    "apps/desktop": {
+      "entry": ["preload.cjs", "scripts/*.mjs"],
+      "project": ["**/*.{cjs,mjs}"],
+      "ignoreBinaries": ["xcrun"]
+    },
+    "packages/api-types": {
+      "ignoreDependencies": [
+        "@bufbuild/protoc-gen-es",
+        "@connectrpc/protoc-gen-connect-es"
+      ]
     },
     "packages/lingua": {
-      "entry": ["src/index.ts", "src/**/*.spec.ts", "test/**/*.ts"],
+      "entry": ["src/**/*.spec.ts", "test/**/*.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     }
   }

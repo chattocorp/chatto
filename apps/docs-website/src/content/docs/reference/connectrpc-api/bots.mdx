@@ -155,40 +155,6 @@ Result of creating a bot. api_key is shown once and cannot be retrieved.
 | `api_key` | `string` | Newly issued API key. |
 
 
-<a id="chatto-api-v1-BotService-UpdateBot"></a>
-
-### UpdateBot
-
-Updates a bot's public identity.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/UpdateBot
-```
-
-<a id="chatto-api-v1-UpdateBotRequest"></a>
-
-#### Input: UpdateBotRequest
-
-Patch request for a bot's public identity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `login` | `optional string` | New bot login. Must end in `_bot`. |
-| `display_name` | `optional string` | New public display name. |
-
-
-<a id="chatto-api-v1-UpdateBotResponse"></a>
-
-#### Result: UpdateBotResponse
-
-Result of updating a bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot. |
-
-
 <a id="chatto-api-v1-BotService-DeleteBot"></a>
 
 ### DeleteBot

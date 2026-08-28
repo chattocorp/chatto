@@ -56,7 +56,9 @@ describe('createUserAPI', () => {
         displayName: 'Alice',
         deleted: false,
         isBot: true,
-        avatarUrl: 'https://cdn/avatar.webp'
+        avatarUrl: 'https://cdn/avatar.webp',
+        bio: null,
+        timezone: null
       }
     ]);
 
@@ -87,7 +89,9 @@ describe('createUserAPI', () => {
       displayName: 'Bob',
       deleted: false,
       isBot: false,
-      avatarUrl: null
+      avatarUrl: null,
+      bio: null,
+      timezone: null
     });
   });
 });

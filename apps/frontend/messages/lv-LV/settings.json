@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Lietotnes preferences",
       "subtitle": "Šīs lietotnes izvēles, kas attiecas uz visiem jūsu reģistrētajiem serveriem",
-      "appearance": { "title": "Izskats" },
-      "composer": { "title": "Ziņojumu rakstīšana" }
+      "appearance": {
+        "title": "Izskats"
+      },
+      "composer": {
+        "title": "Ziņojumu rakstīšana"
+      }
     },
     "profile": {
       "title": "Profils",
@@ -112,7 +116,13 @@
       },
       "saved": "Profils ir veiksmīgi atjaunināts",
       "save_failed": "Neizdevās saglabāt profilu",
-      "save_button": "Saglabāt izmaiņas"
+      "save_button": "Saglabāt izmaiņas",
+      "bio": {
+        "label": "Apraksts",
+        "description": "Līdz {max} rakstzīmēm, redams jūsu profilā.",
+        "placeholder": "Pastāstiet īsi par sevi",
+        "too_long": "Aprakstā var būt ne vairāk kā {max} rakstzīmes."
+      }
     },
     "preferences": {
       "title": "Laiks un reģions",
@@ -414,11 +424,6 @@
       "create_title": "Izveidojiet robotprogrammatūras kontu",
       "create_failed": "Neizdevās izveidot robotu",
       "created": "Bots izveidots",
-      "edit": "Rediģēt",
-      "edit_title": "Rediģēt robota kontu",
-      "updated": "Bots ir atjaunināts",
-      "update_failed": "Neizdevās atjaunināt robotu",
-      "update_conflict": "Kāds cits atjaunināja šo robotu. Pārlādē lapu un mēģini vēlreiz.",
       "username": "Lietotājvārds",
       "username_hint": "Bot lietotājvārdiem jābeidzas ar _bot.",
       "display_name": "Parādītais nosaukums",

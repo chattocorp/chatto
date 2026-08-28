@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Préférences de l’application",
       "subtitle": "Choix de cette application qui s’appliquent à tous vos serveurs enregistrés",
-      "appearance": { "title": "Apparence" },
-      "composer": { "title": "Rédaction" }
+      "appearance": {
+        "title": "Apparence"
+      },
+      "composer": {
+        "title": "Rédaction"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -112,7 +116,13 @@
       },
       "saved": "Profil mis à jour avec succès",
       "save_failed": "Échec de l'enregistrement du profil",
-      "save_button": "Enregistrer les modifications"
+      "save_button": "Enregistrer les modifications",
+      "bio": {
+        "label": "Bio",
+        "description": "Jusqu'à {max} caractères, visible sur votre profil.",
+        "placeholder": "Présentez-vous en quelques mots",
+        "too_long": "La bio ne peut pas dépasser {max} caractères."
+      }
     },
     "preferences": {
       "title": "Heure et région",
@@ -414,11 +424,6 @@
       "create_title": "Créer un compte de robot",
       "create_failed": "Échec de la création du bot",
       "created": "Bot créé",
-      "edit": "Modifier",
-      "edit_title": "Modifier le compte du robot",
-      "updated": "Bot mis à jour",
-      "update_failed": "Échec de la mise à jour du bot",
-      "update_conflict": "Quelqu’un d’autre a mis à jour ce bot. Recharge la page et réessaie.",
       "username": "Nom d'utilisateur",
       "username_hint": "Les noms d'utilisateur des robots doivent se terminer par _bot.",
       "display_name": "Nom d'affichage",

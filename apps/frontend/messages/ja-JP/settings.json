@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "アプリ設定",
       "subtitle": "登録済みのすべてのサーバーに適用される、このアプリの設定",
-      "appearance": { "title": "外観" },
-      "composer": { "title": "メッセージ作成" }
+      "appearance": {
+        "title": "外観"
+      },
+      "composer": {
+        "title": "メッセージ作成"
+      }
     },
     "profile": {
       "title": "プロフィール",
@@ -112,7 +116,13 @@
       },
       "saved": "プロフィールが正常に更新されました",
       "save_failed": "プロフィールの保存に失敗しました",
-      "save_button": "変更を保存"
+      "save_button": "変更を保存",
+      "bio": {
+        "label": "自己紹介",
+        "description": "最大{max}文字。プロフィールに表示されます。",
+        "placeholder": "自分について簡単に紹介しましょう",
+        "too_long": "自己紹介は{max}文字以内にしてください。"
+      }
     },
     "preferences": {
       "title": "時刻と地域",
@@ -414,11 +424,6 @@
       "create_title": "ボット アカウントの作成",
       "create_failed": "ボットの作成に失敗しました",
       "created": "ボットが作成されました",
-      "edit": "編集",
-      "edit_title": "ボット アカウントを編集",
-      "updated": "ボットが更新されました",
-      "update_failed": "ボットを更新できませんでした",
-      "update_conflict": "別のユーザーがこのボットを更新しました。ページを再読み込みして、もう一度お試しください。",
       "username": "ユーザー名",
       "username_hint": "ボットのユーザー名は _bot で終わる必要があります。",
       "display_name": "表示名",

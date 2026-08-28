@@ -293,6 +293,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.bot_owner_reassigned`                   | `BotOwnerReassignedEvent`; previous and new human owner IDs, with no credential change |
 | `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
 | `evt.user.{userId}.display_name_changed`                    | `UserDisplayNameChangedEvent`                       |
+| `evt.user.{userId}.bio_changed`                             | `UserBioChangedEvent`; encrypted PII bio text (empty payload clears the bio) |
 | `evt.user.{userId}.avatar_set`                              | `UserAvatarSetEvent`                                |
 | `evt.user.{userId}.avatar_cleared`                          | `UserAvatarClearedEvent`                            |
 | `evt.user.{userId}.custom_status_set`                       | `UserCustomStatusSetEvent`                          |
@@ -371,7 +372,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
 | `live.sync.user.{userId}.created`                        | User registration completed  |
-| `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast for login/display/avatar updates; custom status set/clear is delivered from `live.evt.>`) |
+| `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast for login/display/avatar/bio/public-timezone updates; custom status set/clear is delivered from `live.evt.>`) |
 | `live.sync.config.server_updated`                        | Public server profile/config changed (name/MOTD/welcome/logo/banner/description) |
 | `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
 | `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; triggers an authoritative occurrence/count replacement and can carry a best-effort local-sound candidate |

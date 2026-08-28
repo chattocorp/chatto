@@ -31,16 +31,17 @@ message UserDeletedEvent {
   string user_id = 1;
 }
 
-// UserProfileUpdatedEvent is published when a user's profile changes.
-// This includes avatar uploads/deletions, display name changes, and login changes.
-// Allows other users to see profile changes in real-time.
+// Deprecated: UserProfileUpdatedEvent is retained in its original source file
+// for generated-source compatibility. LiveEvent uses UserProfileSyncEvent.
 message UserProfileUpdatedEvent {
+  option deprecated = true;
+
   string user_id = 1;
   string display_name = 2;
-  // URL to the user's avatar, or empty if no avatar is set.
   string avatar_url = 3;
-  // The user's current login/username.
   string login = 4;
+  string bio = 5;
+  string timezone = 6;
 }
 
 // ============================================================================
@@ -105,6 +106,14 @@ message UserLoginChangedEvent {
 message UserDisplayNameChangedEvent {
   string user_id = 1;
   EncryptedUserString encrypted_display_name = 10;
+}
+
+// UserBioChangedEvent is the authoritative durable fact for a change to a
+// user's self-authored bio. An empty encrypted value clears the bio. Bio text
+// is user PII and stays encrypted at rest.
+message UserBioChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_bio = 10;
 }
 
 message UserAvatarSetEvent {

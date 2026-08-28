@@ -407,6 +407,7 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 	case evtstream.EventUserAccountCreated,
 		evtstream.EventUserLoginChanged,
 		evtstream.EventUserDisplayNameChanged,
+		evtstream.EventUserBioChanged,
 		evtstream.EventUserAvatarSet,
 		evtstream.EventUserAvatarCleared,
 		evtstream.EventUserAccountDeleted,

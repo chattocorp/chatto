@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "應用程式偏好設定",
       "subtitle": "此應用程式中適用於所有已註冊伺服器的選項",
-      "appearance": { "title": "外觀" },
-      "composer": { "title": "訊息編輯" }
+      "appearance": {
+        "title": "外觀"
+      },
+      "composer": {
+        "title": "訊息編輯"
+      }
     },
     "profile": {
       "title": "個人檔案",
@@ -112,7 +116,13 @@
       },
       "saved": "個人檔案已更新",
       "save_failed": "無法儲存個人檔案",
-      "save_button": "儲存變更"
+      "save_button": "儲存變更",
+      "bio": {
+        "label": "個人簡介",
+        "description": "最多 {max} 個字元，顯示在你的個人資料中。",
+        "placeholder": "簡單介紹一下自己",
+        "too_long": "簡介不能超過 {max} 個字元。"
+      }
     },
     "preferences": {
       "title": "時間與地區",
@@ -414,11 +424,6 @@
       "create_title": "建立機器人帳號",
       "create_failed": "創建機器人失敗",
       "created": "機器人已建立",
-      "edit": "編輯",
-      "edit_title": "編輯機器人帳號",
-      "updated": "機器人已更新",
-      "update_failed": "更新機器人失敗",
-      "update_conflict": "其他人已更新此機器人。請重新載入頁面後再試。",
       "username": "使用者名稱",
       "username_hint": "機器人使用者名稱必須以 _bot 結尾。",
       "display_name": "顯示名稱",

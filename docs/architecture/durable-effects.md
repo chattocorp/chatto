@@ -1,6 +1,10 @@
 # Durable Effect Inventory
 
-Key files: [`pkg/events/durable_worker.go`](../../pkg/events/durable_worker.go), [`cli/internal/core/durable_delivery.go`](../../cli/internal/core/durable_delivery.go), [`cli/internal/core/notification_materializer.go`](../../cli/internal/core/notification_materializer.go), [`cli/internal/core/notification_decision_projection.go`](../../cli/internal/core/notification_decision_projection.go), [`cli/internal/core/notification_occurrence_model.go`](../../cli/internal/core/notification_occurrence_model.go), [`cli/internal/core/notification_unread_marker.go`](../../cli/internal/core/notification_unread_marker.go), [`cli/internal/core/push_subscription_cleanup.go`](../../cli/internal/core/push_subscription_cleanup.go), [`cli/internal/core/user_key_shredding.go`](../../cli/internal/core/user_key_shredding.go), [`cli/internal/core/call_model.go`](../../cli/internal/core/call_model.go), [`cli/internal/core/asset_model.go`](../../cli/internal/core/asset_model.go), [`cli/internal/core/message_body_cleanup.go`](../../cli/internal/core/message_body_cleanup.go), [`cli/internal/video/unit.go`](../../cli/internal/video/unit.go), [`cli/internal/video/service.go`](../../cli/internal/video/service.go)
+Key files: [`pkg/events/durable_worker.go`](../../pkg/events/durable_worker.go),
+[`cli/internal/evtstream/effects.go`](../../cli/internal/evtstream/effects.go),
+[`cli/internal/core/durable_delivery.go`](../../cli/internal/core/durable_delivery.go),
+[`cli/internal/core/notification_materializer.go`](../../cli/internal/core/notification_materializer.go),
+[`cli/internal/video/unit.go`](../../cli/internal/video/unit.go)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md), and
@@ -20,6 +24,11 @@ poison termination, and reconnect-safe fetching. Chatto owns each consumer's
 durable name, filters, ack policy, event decoding, projection barrier,
 idempotency, and terminal facts. Video processing and notification
 materialization use application-owned durable consumers through this boundary.
+
+`internal/evtstream` standardizes consumer creation and worker wiring. Each
+application site still owns its name, filters, handler, retry policy, and
+lifecycle.
+
 Transient fetch failures retry in place. A deleted consumer stops its worker so
 the owning core process or supervised runtime unit can recreate the declared
 consumer instead of polling a stale handle indefinitely. Retry failures are
@@ -27,6 +36,7 @@ logged on the first and exponentially sparse later attempts; terminated poison
 deliveries are always logged. Shutdown cancels outstanding pulls before active
 handlers and schedules redelivery beyond the maximum pull lifetime, preventing
 an orphaned server-side pull from reclaiming its own handoff.
+
 Owner-only admin diagnostics classify the seven known Chatto durable queues from
 their JetStream consumer state without adding process-local health as a source
 of truth. Waiting pulls demonstrate availability. Ack-pending deliveries
@@ -55,7 +65,9 @@ It retries materializing the durable RBAC owner role, while live authorization
 recognizes only that role. Notification Decisions keeps a second in-memory
 evaluator at the worker position and journals compact facts that the live
 projection has seen first; acknowledged deltas and boundaries are then
-released. This keeps transient role-assignment or acknowledgement failures from
+released.
+
+This keeps transient role-assignment or acknowledgement failures from
 creating live/event-time divergence or redelivery gaps without serializing
 server-wide state per message or adding notification-only EVT facts. Snapshot publication
 also defers whenever a capture crosses the full notification-consumer floor,
@@ -63,6 +75,7 @@ including while a non-boundary worker fact is pending, preserving the
 repository's last generation that restart can safely accept. Idle-tail
 advancement is reconstructed after restart as the full-EVT prefix immediately
 before the earliest fact following the filtered consumer's sparse raw AckFloor.
+
 During a rolling feature upgrade, the materializer consumer name and filter set
 act as an immutable capability generation. A new source-event schema uses a new
 consumer generation; changing filters under an existing name fails startup
@@ -85,18 +98,21 @@ deletion have commit/failure, restart, independent-work, and late-replica
 coverage; video processing covers durable delivery ack/retry decisions,
 pre-queue backfill, exact-event confirmation
 after ambiguous terminal publication, terminal manifest races, and bounded
-prompt cleanup of failed generations;
-message-body cleanup covers immediate secure deletion after edits and
+prompt cleanup of failed generations.
+
+Message-body cleanup covers immediate secure deletion after edits and
 retractions. User-key shredding covers request-append failure, logical
 fail-closed state before physical deletion, partial deletion, missing
 completion, idempotent retry, and shutdown handoff to another replica.
+
 Notification occurrence tests cover durable work recovery, replay-safe
 per-signal-class identity, stream projection and snapshot behavior,
 read/materialization ordering, dismissal tombstones, and direct push-consumer
 retry. Branding cleanup and the message-body boot
-sweep do not have equivalent crash-and-recovery coverage. The
-call-key, user-DEK, and asset-creation compensation paths likewise lack durable
-tests for cleanup failure followed by restart.
+sweep do not have equivalent crash-and-recovery coverage.
+
+The call-key, user-DEK, and asset-creation compensation paths likewise lack
+durable tests for cleanup failure followed by restart.
 
 Cross-domain follow-up work is tracked in
 [#1377](https://github.com/chattocorp/chatto/issues/1377), with separate issues

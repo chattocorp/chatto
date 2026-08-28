@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "העדפות האפליקציה",
       "subtitle": "בחירות באפליקציה הזו שחלות על כל השרתים הרשומים שלך",
-      "appearance": { "title": "מראה" },
-      "composer": { "title": "כתיבת הודעות" }
+      "appearance": {
+        "title": "מראה"
+      },
+      "composer": {
+        "title": "כתיבת הודעות"
+      }
     },
     "profile": {
       "title": "פרופיל",
@@ -112,7 +116,13 @@
       },
       "saved": "הפרופיל עודכן בהצלחה",
       "save_failed": "שמירת הפרופיל נכשלה",
-      "save_button": "שמור שינויים"
+      "save_button": "שמור שינויים",
+      "bio": {
+        "label": "ביו",
+        "description": "עד {max} תווים, מוצג בפרופיל שלך.",
+        "placeholder": "ספרו לאחרים קצת על עצמכם",
+        "too_long": "התיאור יכול להכיל {max} תווים לכל היותר."
+      }
     },
     "preferences": {
       "title": "זמן ואזור",
@@ -414,11 +424,6 @@
       "create_title": "צור חשבון בוט",
       "create_failed": "יצירת הבוט נכשלה",
       "created": "בוט נוצר",
-      "edit": "ערוך",
-      "edit_title": "ערוך חשבון בוט",
-      "updated": "בוט עודכן",
-      "update_failed": "עדכון הבוט נכשל",
-      "update_conflict": "מישהו אחר עדכן את הבוט הזה. יש לטעון מחדש את הדף ולנסות שוב.",
       "username": "שם משתמש",
       "username_hint": "שמות משתמש בוטים חייבים להסתיים ב-_bot.",
       "display_name": "שם תצוגה",
