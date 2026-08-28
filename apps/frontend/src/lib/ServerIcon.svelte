@@ -1,4 +1,5 @@
 <script lang="ts">
+  /* eslint-disable svelte/no-navigation-without-resolve -- fragments and external URLs must bypass SvelteKit resolve */
   import { resolve } from '$app/paths';
   import ServerLogo from './components/ServerLogo.svelte';
   import NotificationBadge from './ui/NotificationBadge.svelte';
