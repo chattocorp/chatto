@@ -86,31 +86,37 @@
   --color-input: var(--color-white);
   --color-input-border: var(--color-gray-300);
 
+  /* Action keeps the familiar sky blue. Supporting hues have comparable
+     perceived weight without taking attention from the recommended action. */
   --color-action: var(--color-sky-700);
   --color-action-hover: color-mix(in srgb, var(--color-action), black 15%);
   --color-on-action: var(--color-white);
-  --color-button-success: var(--color-green-700);
-  --color-button-warning: var(--color-amber-700);
-  --color-button-danger: var(--color-red-700);
+  --color-button-success: oklch(49% 0.13 163);
+  --color-button-success-hover: color-mix(in oklch, var(--color-button-success), black 10%);
+  --color-button-warning: oklch(53% 0.13 60);
+  --color-button-warning-hover: color-mix(in oklch, var(--color-button-warning), black 10%);
+  --color-button-danger: oklch(51% 0.18 12);
+  --color-button-danger-hover: color-mix(in oklch, var(--color-button-danger), black 10%);
   --color-neutral-action: var(--color-slate-600);
   --color-neutral-action-hover: var(--color-slate-700);
   --color-on-neutral-action: var(--color-white);
   --color-link: var(--color-sky-700);
   --color-link-hover: var(--color-sky-800);
-  --color-success: var(--color-green-800);
+  --color-success: oklch(44% 0.12 163);
   --color-on-success: var(--color-white);
-  --color-warning: var(--color-amber-800);
+  --color-warning: oklch(50% 0.13 60);
   --color-on-warning: var(--color-white);
-  /* Notification attention stays warm and consistent across both themes. */
-  --color-attention: var(--color-amber-500);
+  /* Attention is brighter than warning so unread and pending states stay
+     noticeable without competing with a committed action. */
+  --color-attention: oklch(68% 0.15 80);
   --color-on-attention: var(--color-neutral-950);
-  --color-danger: var(--color-red-700);
+  --color-danger: oklch(49% 0.17 12);
   --color-on-danger: var(--color-white);
-  --color-error: var(--color-red-700);
-  --color-server: var(--color-indigo-700);
-  --color-presence-online: var(--color-green-500);
-  --color-presence-away: var(--color-yellow-500);
-  --color-presence-do-not-disturb: var(--color-red-500);
+  --color-error: var(--color-danger);
+  --color-server: oklch(48% 0.16 305);
+  --color-presence-online: oklch(60% 0.16 163);
+  --color-presence-away: oklch(75% 0.16 80);
+  --color-presence-do-not-disturb: oklch(60% 0.18 12);
   --color-presence-offline: var(--color-gray-500);
   --color-presence-invisible: var(--color-gray-400);
 
@@ -148,22 +154,19 @@
   --color-action: var(--color-sky-400);
   --color-action-hover: color-mix(in srgb, var(--color-action), white 15%);
   --color-on-action: var(--color-neutral-950);
-  --color-button-success: var(--color-green-700);
-  --color-button-warning: var(--color-amber-700);
-  --color-button-danger: var(--color-red-700);
   --color-neutral-action: var(--color-neutral-600);
   --color-neutral-action-hover: var(--color-neutral-500);
   --color-on-neutral-action: var(--color-white);
   --color-link: var(--color-action);
-  --color-link-hover: color-mix(in srgb, var(--color-action), white 20%);
-  --color-success: var(--color-green-500);
+  --color-link-hover: color-mix(in srgb, var(--color-link), white 20%);
+  --color-success: oklch(75% 0.16 163);
   --color-on-success: var(--color-neutral-950);
-  --color-warning: var(--color-amber-500);
+  --color-warning: oklch(80% 0.15 78);
   --color-on-warning: var(--color-neutral-950);
-  --color-danger: var(--color-red-400);
+  --color-danger: oklch(74% 0.14 12);
   --color-on-danger: var(--color-neutral-950);
-  --color-error: var(--color-red-400);
-  --color-server: var(--color-indigo-400);
+  --color-error: var(--color-danger);
+  --color-server: oklch(74% 0.13 305);
 
   --color-image-outline: rgba(255, 255, 255, 0.1);
 }
@@ -287,9 +290,9 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-/* Buttons place their semantic fill inside framed, inset geometry related to
- * SegmentedControl. The tight inset keeps solid actions from appearing
- * optically larger than equally sized inputs without looking double-framed.
+/* Inputs and SegmentedControl use this firm frame. Buttons use a separate flat
+ * treatment, so a filled button does not read as a thin outline around a
+ * smaller fill.
  */
 @utility control-frame {
   @apply rounded-md border border-input-border;
@@ -299,11 +302,10 @@
 }
 
 @utility btn {
-  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 control-frame px-4 py-1.5 font-medium;
-  @apply transition-[background-color,border-color,color,box-shadow,scale] duration-150 active:scale-[0.97];
+  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-4 py-1.5 font-medium;
+  @apply transition-[background-color,border-color,color] duration-150;
   @apply focus-visible:ring-2 focus-visible:ring-action/35 focus-visible:outline-none;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
-  --control-inset-shadow: inset 0 0 0 1px var(--color-input);
 }
 
 @utility btn-neutral {
@@ -311,27 +313,28 @@
 }
 
 @utility btn-action {
-  @apply btn border-action bg-action text-on-action hover:border-action/90 hover:bg-action/90;
+  @apply btn border-action bg-action font-semibold text-on-action hover:border-(--color-action-hover) hover:bg-(--color-action-hover);
 }
 
 @utility btn-success {
-  @apply btn border-(--color-button-success) bg-(--color-button-success) text-white hover:border-(--color-button-success)/90 hover:bg-(--color-button-success)/90;
+  @apply btn border-(--color-button-success) bg-(--color-button-success) font-semibold text-white hover:border-(--color-button-success-hover) hover:bg-(--color-button-success-hover);
 }
 
 @utility btn-secondary {
-  @apply btn bg-surface-emphasized/60 text-text hover:bg-surface-emphasized;
+  @apply btn border-input-border/70 bg-surface-emphasized/60 text-text;
+  @apply hover:border-input-border hover:bg-surface-emphasized;
 }
 
 @utility btn-ghost {
-  @apply btn bg-transparent text-text hover:bg-surface-emphasized;
+  @apply btn bg-transparent text-text hover:bg-action/10 hover:text-action;
 }
 
 @utility btn-warning {
-  @apply btn border-(--color-button-warning) bg-(--color-button-warning) text-white hover:border-(--color-button-warning)/90 hover:bg-(--color-button-warning)/90;
+  @apply btn border-(--color-button-warning) bg-(--color-button-warning) font-semibold text-white hover:border-(--color-button-warning-hover) hover:bg-(--color-button-warning-hover);
 }
 
 @utility btn-danger {
-  @apply btn border-(--color-button-danger) bg-(--color-button-danger) text-white hover:border-(--color-button-danger)/90 hover:bg-(--color-button-danger)/90;
+  @apply btn border-(--color-button-danger) bg-(--color-button-danger) font-semibold text-white hover:border-(--color-button-danger-hover) hover:bg-(--color-button-danger-hover);
 }
 
 /* Quiet destructive action: neutral at rest, destructive on hover/focus. */
@@ -343,8 +346,8 @@
 
 /* Quiet room-membership action that reveals its destructive meaning on hover. */
 @utility btn-danger-ghost {
-  @apply btn border border-border bg-transparent text-muted;
-  @apply hover:border-danger/30 hover:bg-danger/10 hover:text-danger;
+  @apply btn bg-transparent text-muted;
+  @apply hover:bg-danger/10 hover:text-danger;
 }
 
 @utility btn-sm {

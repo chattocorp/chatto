@@ -168,26 +168,21 @@ glow. Invalid fields follow the same treatment with the error-coloured border.
 
 Compact filled controls pair each tone with its `on-*` foreground token.
 Prominent action, success, warning, and danger buttons use dedicated fills with
-contrast-safe labels. The action colour is the single blue accent in each theme:
-primary buttons, links, focus borders, selection indicators, and compact status
-UI all derive from that same token rather than maintaining a separate button blue.
-Each theme's action token must retain WCAG AA contrast both as text on its
-surrounding work surfaces and with its paired `on-action` button label.
-Buttons frame their fills with a tight inset related to `SegmentedControl`.
-Prominent semantic buttons tint the outer border to match their fill; quieter
-secondary and ghost buttons retain the input-coloured border. The tight inset
-keeps a standalone button from looking double-framed. The frame is part of the
-standard button geometry: do not remove it from individual variants or reproduce
-it with feature-local wrappers.
+contrast-safe labels. The action colour is the single blue accent in each
+theme: primary buttons, links, focus borders, selection indicators, and compact
+status UI all derive from that same token rather than maintaining a separate
+button colour. Each theme's action token must retain WCAG AA contrast both as
+text on its surrounding work surfaces and with its paired `on-action` button
+label.
 
-A one-pixel black outer ring keeps framed controls legible on mid-tone surfaces.
-Buttons, form inputs, and `SegmentedControl` share the `control-frame` utility,
-which owns their radius, one-pixel border, and non-layout outer ring. Individual
-controls only add semantic border colours and their appropriate inset treatment.
+Buttons are flat colour controls, not framed form controls. Their fills have a
+matched tonal border. Secondary buttons use a quiet `surface-emphasized` fill and
+an input-coloured border, so they stay visible inside a `surface` card. Do not add
+local frames, shadows, gradients, or bevel effects.
 
-Button frames and `SegmentedControl` use one pixel for both the outer border and
-the inset gap. Keep these dimensions aligned so adjacent controls share the same
-optical height and edge rhythm.
+Form inputs and `SegmentedControl` share the `control-frame` utility. It owns
+their radius, one-pixel border, and non-layout black outer ring, which keeps
+framed controls legible on mid-tone surfaces. Buttons do not use `control-frame`.
 
 Surfaces form a small semantic ladder:
 
