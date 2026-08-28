@@ -443,12 +443,14 @@ jobs:
           echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Run base-revision performance test
+        id: performance-baseline-test
         if: steps.performance-baseline.outputs.available == 'true'
         working-directory: ${{ runner.temp }}/chatto-performance-base
+        continue-on-error: true
         run: mise test-e2e-performance
 
       - name: Preserve base-revision results
-        if: steps.performance-baseline.outputs.available == 'true'
+        if: steps.performance-baseline.outputs.available == 'true' && steps.performance-baseline-test.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -474,7 +476,7 @@ jobs:
           cp "$candidate_result" "$comparison_dir/candidate.json"
 
       - name: Compare performance with base revision
-        if: steps.performance-baseline.outputs.available == 'true'
+        if: steps.performance-baseline.outputs.available == 'true' && steps.performance-baseline-test.outcome == 'success'
         working-directory: apps/frontend
         shell: bash
         run: |
@@ -485,12 +487,16 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Summarize candidate-only performance results
-        if: steps.performance-baseline.outputs.available != 'true'
+        if: steps.performance-baseline.outputs.available != 'true' || steps.performance-baseline-test.outcome == 'failure'
         shell: bash
         run: |
           result="apps/frontend/test-results/performance-comparison/candidate.json"
           {
             echo "## Large-server E2E performance"
+            if [[ "${{ steps.performance-baseline-test.outcome }}" == 'failure' ]]; then
+              echo "> Warning: The base-revision benchmark failed, so these candidate results are not compared with the base revision."
+              echo ""
+            fi
             jq -r '"Fixture: \(.measurements.syntheticUsers) users, \(.measurements.messages) messages; \(.measurements.sampleCount)-sample medians (\(.measurements.startupMode) startup)"' "$result"
             echo ""
             echo "| Measurement | Duration (ms) |"

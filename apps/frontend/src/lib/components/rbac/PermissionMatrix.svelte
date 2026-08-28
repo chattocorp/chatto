@@ -27,7 +27,7 @@ focusing a cell highlights its permission row and role column.
 <script lang="ts">
   import { onDestroy, type Snippet } from 'svelte';
   import Panel from '$lib/ui/Panel.svelte';
-  import { MatrixColumnHeading, MatrixTable } from '$lib/components/matrix';
+  import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';

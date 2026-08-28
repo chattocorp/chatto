@@ -10,7 +10,7 @@
   `.trim();
 
   const { Story } = defineMeta({
-    title: 'Admin/Matrix cell button',
+    title: 'UI/Matrix/Cell button',
     component: MatrixCellButton,
     tags: ['autodocs'],
     parameters: {

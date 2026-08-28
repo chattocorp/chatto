@@ -9,7 +9,7 @@
   `.trim();
 
   const { Story } = defineMeta({
-    title: 'Admin/CopyId',
+    title: 'UI/CopyId',
     component: CopyId,
     tags: ['autodocs'],
     parameters: {

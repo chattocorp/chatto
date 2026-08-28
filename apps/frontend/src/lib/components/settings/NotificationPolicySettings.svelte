@@ -6,7 +6,7 @@ Rows are notification causes. Columns follow the current navigation layout.
 -->
 <script lang="ts">
   import Panel from '$lib/ui/Panel.svelte';
-  import { MatrixCellButton, MatrixTable } from '$lib/components/matrix';
+  import { MatrixCellButton, MatrixTable } from '$lib/ui/matrix';
   import { HelpTooltip, Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
