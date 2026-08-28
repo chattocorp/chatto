@@ -1,18 +1,16 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/mentions';
-import { PresenceStatus } from '$lib/render/types';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+
+import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
-  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null)),
-  store: {
-    currentUser: {
-      user: undefined as { login: string } | undefined
-    }
-  }
+  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null))
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -25,13 +23,8 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: mocks.segmentToServerId
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
-}));
-
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    tryGetStore: () => mocks.store,
     getServer: (serverId: string) =>
       serverId === 'origin'
         ? { id: 'origin', url: window.location.origin }
@@ -47,16 +40,32 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
+import MessageContent, { renderMarkdown } from './MessageContent.svelte';
 
 const channelRoomId = 'R123456789abcde';
 const dmRoomId = 'abcdef12345678';
 const messageId = 'Eabc123DEF456gh';
 const threadRootEventId = 'Ethread12345678';
 
-function renderMessage(body: string, members: RoomMember[] = [], roleHandles: string[] = []) {
-  return render(MessageContent, { props: { body, members, roleHandles } });
+function renderMessage(
+  body: string,
+  members: RoomMember[] = [],
+  roleHandles: string[] = [],
+  viewerLogin?: string
+) {
+  return render(MessageContent, { props: { body, members, roleHandles, viewerLogin } });
 }
+
+const utc24Settings: TimeFormatSettings = {
+  get effectiveTimezone() {
+    return 'UTC';
+  },
+  get effectiveHour12() {
+    return false;
+  }
+};
+let originalShowPopover: typeof HTMLElement.prototype.showPopover;
+let originalHidePopover: typeof HTMLElement.prototype.hidePopover;
 
 function member(login: string): RoomMember {
   return {
@@ -64,7 +73,7 @@ function member(login: string): RoomMember {
     login,
     displayName: login,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 
@@ -96,15 +105,28 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
-describe('renderMarkdown', () => {
-  // Wait for the markdown renderer to initialize before running tests
-  beforeAll(async () => {
-    await rendererReady;
-  });
+beforeAll(() => {
+  originalShowPopover = HTMLElement.prototype.showPopover;
+  originalHidePopover = HTMLElement.prototype.hidePopover;
 
+  HTMLElement.prototype.showPopover = function showPopover() {
+    this.setAttribute('popover-open', '');
+  };
+  HTMLElement.prototype.hidePopover = function hidePopover() {
+    this.removeAttribute('popover-open');
+  };
+});
+
+afterAll(() => {
+  HTMLElement.prototype.showPopover = originalShowPopover;
+  HTMLElement.prototype.hidePopover = originalHidePopover;
+});
+
+describe('renderMarkdown', () => {
   describe('allowed syntax', () => {
     it('renders bold text with **', async () => {
       const html = await renderMarkdown('**bold**');
@@ -285,9 +307,11 @@ describe('renderMarkdown', () => {
       expect(html).not.toContain('<hr');
     });
 
-    it('does not render tables', async () => {
+    it('renders GFM tables', async () => {
       const html = await renderMarkdown('| a | b |\n|---|---|\n| 1 | 2 |');
-      expect(html).not.toContain('<table');
+      expect(html).toContain('<div class="table-scroll" tabindex="0"><table>');
+      expect(html).toContain('<th>a</th>');
+      expect(html).toContain('<td>1</td>');
     });
   });
 
@@ -352,9 +376,14 @@ describe('renderMarkdown', () => {
 });
 
 describe('MessageContent component', () => {
-  // Wait for the markdown renderer to initialize before running tests
-  beforeAll(async () => {
-    await rendererReady;
+  it('does not render encoded non-breaking spaces as tall message content', async () => {
+    const body = `Magnets, how\n\ndo they work?\n\n- ONCE\n- TWICE\n- THRICE\n\nA haiku by a professional chef,\n\nthis was\n${'&nbsp;\n'.repeat(500)}`;
+    const { container } = renderMessage(body);
+
+    await expect.poll(() => q(container, '.prose p')).toBeTruthy();
+    const content = q(container, '.prose')!;
+    expect(content.textContent).not.toContain('&nbsp;');
+    expect(content.clientHeight).toBeLessThan(500);
   });
 
   it('renders markdown content', async () => {
@@ -373,7 +402,7 @@ describe('MessageContent component', () => {
     expect(container.textContent).toContain('fsdfsd fsdffdsf');
   });
 
-  it('renders bold content followed immediately by text in edited messages', async () => {
+  it('appends an edited marker after inline message text', async () => {
     const { container } = render(MessageContent, {
       props: {
         body: 'fsdfsd **fsdf**fdsf',
@@ -383,7 +412,148 @@ describe('MessageContent component', () => {
 
     await expect.poll(() => q(container, 'strong')).toBeTruthy();
     expect(q(container, 'strong')?.textContent).toBe('fsdf');
-    expect(container.textContent).toContain('fsdfsd fsdffdsf (edited)');
+    const marker = q(container, '.edited-marker')!;
+    expect(marker.getAttribute('role')).toBe('img');
+    expect(marker.getAttribute('aria-label')).toBe('Edited message');
+    expect(marker.getAttribute('title')).toBe('Edited message');
+    expect(marker.querySelector('[class~="icon-[uil--pen]"]')).toBeTruthy();
+    expect(marker.classList).toContain('align-[-0.09em]');
+  });
+
+  it('appends an echoed-to-channel marker after inline message text', async () => {
+    const { container } = render(MessageContent, {
+      props: { body: 'Visible in the room', echoedToChannel: true }
+    });
+
+    await expect.poll(() => q(container, '.echoed-to-channel-marker')).toBeTruthy();
+    const marker = q(container, '.echoed-to-channel-marker')!;
+    expect(marker.getAttribute('role')).toBe('img');
+    expect(marker.getAttribute('aria-label')).toBe('Also sent to channel');
+    expect(marker.getAttribute('title')).toBe('Also sent to channel');
+    expect(marker.querySelector('[class~="icon-[uil--megaphone]"]')).toBeTruthy();
+    expect(marker.classList).toContain('align-[-0.09em]');
+    expect(marker.parentElement?.tagName).toBe('P');
+  });
+
+  it('places an echoed-to-channel marker in a trailing paragraph after block content', async () => {
+    const { container } = render(MessageContent, {
+      props: { body: '```\ncode\n```', echoedToChannel: true }
+    });
+
+    await expect.poll(() => q(container, '.echoed-to-channel-marker')).toBeTruthy();
+    const marker = q(container, '.echoed-to-channel-marker')!;
+    expect(marker.parentElement?.tagName).toBe('P');
+    expect(marker.parentElement?.previousElementSibling?.tagName).toBe('PRE');
+  });
+
+  it('renders message timestamp tokens as localized time elements', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'Call at <t:1745764200:F>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'button.message-timestamp')).toBeTruthy();
+    const button = q(container, 'button.message-timestamp')!;
+    const time = q(container, 'button.message-timestamp time')!;
+    expect(button.querySelector('.message-timestamp-icon')).toBeTruthy();
+    expect(button.getAttribute('data-timestamp-epoch')).toBe('1745764200');
+    expect(button.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(button.getAttribute('aria-label')).toBeNull();
+    expect(time.getAttribute('datetime')).toBe('2025-04-27T14:30:00.000Z');
+    expect(time.textContent).toMatch(/April\s*27,?\s*2025/);
+    expect(time.textContent).toContain('14:30');
+  });
+
+  it('opens timestamp details from a rendered timestamp', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'Call at <t:1745764200:F>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'button.message-timestamp')).toBeTruthy();
+    (q(container, 'button.message-timestamp') as HTMLButtonElement).click();
+
+    await expect
+      .poll(() => q(container, '[data-testid="message-timestamp-details"]')?.textContent)
+      .toContain('Date and time');
+    const details = q(container, '[data-testid="message-timestamp-details"]')!;
+    expect(details.textContent).toContain('Local');
+    expect(details.textContent).toContain('Relative');
+    expect(details.textContent).not.toContain('UTC');
+    expect(details.textContent).not.toContain('1745764200');
+  });
+
+  it('updates the relative timestamp detail while the popover is open', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-04-27T14:29:59Z'));
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'Call at <t:1745764200:F>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'button.message-timestamp')).toBeTruthy();
+    (q(container, 'button.message-timestamp') as HTMLButtonElement).click();
+
+    await expect
+      .poll(() => q(container, '[data-testid="message-timestamp-details"]')?.textContent)
+      .toContain('in 1 second');
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect
+      .poll(() => q(container, '[data-testid="message-timestamp-details"]')?.textContent)
+      .toContain('now');
+  });
+
+  it('leaves invalid timestamp tokens literal', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: 'Call at <t:abc:F> or <t:1745764200:R>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => container.textContent).toContain('<t:abc:F>');
+    expect(container.textContent).toContain('<t:1745764200:R>');
+    expect(q(container, '.message-timestamp')).toBeNull();
+  });
+
+  it('does not render timestamp tokens inside code or blockquotes', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: '`<t:1745764200:F>`\n\n> <t:1745764200:F>',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'code')).toBeTruthy();
+    expect(q(container, '.message-timestamp')).toBeNull();
+    expect(container.textContent).toContain('<t:1745764200:F>');
+  });
+
+  it('does not render timestamp tokens inside links', async () => {
+    const { container } = render(MessageContent, {
+      props: {
+        body: '[<t:1745764200:F>](https://example.com)',
+        timestampSettings: utc24Settings,
+        timestampLocale: 'en-US'
+      }
+    });
+
+    await expect.poll(() => q(container, 'a')).toBeTruthy();
+    expect(q(container, '.message-timestamp')).toBeNull();
+    expect(q(container, 'a')?.textContent).toContain('<t:1745764200:F>');
   });
 
   it('applies prose classes for typography', async () => {
@@ -391,6 +561,72 @@ describe('MessageContent component', () => {
 
     const wrapper = q(container, '.prose');
     await expect.element(wrapper).toBeInTheDocument();
+  });
+
+  it('sizes each ordered-list marker column to its widest marker', async () => {
+    const shortList = '1. Short item 1\n2. Short item 2';
+    const longList = Array.from(
+      { length: 12 },
+      (_, index) => `${index + 1}. Long item ${index + 1}`
+    ).join('\n');
+    const startedList = '9. Started item 9\n10. Started item 10';
+    const body = `${shortList}\n\nBetween lists\n\n${longList}\n\nAnother break\n\n${startedList}`;
+    const { container } = renderMessage(body);
+
+    await expect.poll(() => container.querySelectorAll('ol').length).toBe(3);
+    const [short, long, started] = Array.from(container.querySelectorAll('ol'));
+    const longItems = Array.from(long!.querySelectorAll(':scope > li'));
+    const startedItems = Array.from(started!.querySelectorAll(':scope > li'));
+
+    const textLeft = (element: Element) => {
+      const content = element.querySelector(':scope > .list-item-content, :scope > p');
+      if (!content) throw new Error('Expected content in the list item');
+      return content.getBoundingClientRect().left;
+    };
+
+    expect(textLeft(longItems[0]!)).toBeCloseTo(textLeft(longItems[9]!), 0);
+    expect(textLeft(longItems[0]!)).toBeGreaterThan(textLeft(short!.querySelector('li')!));
+    expect(textLeft(startedItems[0]!)).toBeCloseTo(textLeft(startedItems[1]!), 0);
+    expect(textLeft(startedItems[0]!)).toBeGreaterThan(textLeft(short!.querySelector('li')!));
+  });
+
+  it('aligns RTL ordered-list markers toward their content without start padding', async () => {
+    const { container } = renderMessage('1. العنصر الأول\n2. العنصر الثاني');
+
+    await expect.poll(() => q(container, 'ol')).toBeTruthy();
+    const list = q(container, 'ol')!;
+    const item = q(list, 'li')!;
+
+    expect(window.getComputedStyle(list).paddingInlineStart).toBe('0px');
+    expect(window.getComputedStyle(item, '::before').textAlign).toBe('end');
+  });
+
+  it('isolates inline code as LTR within RTL prose', async () => {
+    const { container } = renderMessage('مرحبا `const direction = "ltr";`');
+
+    await expect.poll(() => q(container, 'code')).toBeTruthy();
+    const styles = window.getComputedStyle(q(container, 'code')!);
+
+    expect(styles.direction).toBe('ltr');
+    expect(styles.unicodeBidi).toBe('isolate');
+  });
+
+  it('keeps inline code flowing with ordered-list item text', async () => {
+    const { container } = renderMessage(
+      '1. Connect to `/api/realtime` using `chatto.realtime.v1` protobuf frames for live updates.'
+    );
+
+    await expect.poll(() => container.querySelectorAll('ol code').length).toBe(2);
+    const content = q(container, 'ol > li > .list-item-content')!;
+    const codes = Array.from(content.querySelectorAll('code'));
+
+    expect(window.getComputedStyle(codes[0]!).display).toBe('inline');
+    expect(codes[0]!.getBoundingClientRect().width).toBeLessThan(
+      content.getBoundingClientRect().width
+    );
+    expect(codes[1]!.getBoundingClientRect().width).toBeLessThan(
+      content.getBoundingClientRect().width
+    );
   });
 
   it('styles blockquotes as distinct quote blocks', async () => {
@@ -403,6 +639,24 @@ describe('MessageContent component', () => {
     expect(styles.borderLeftColor).not.toBe(computedBorderColorFor('--color-border'));
     expect(styles.backgroundImage).toBe('none');
     expect(styles.color).not.toBe(computedColorFor('--color-muted'));
+  });
+
+  it('shows an inset focus indicator on keyboard-scrollable tables', async () => {
+    const { container } = renderMessage(
+      '| Name | Role | Location |\n| --- | --- | --- |\n| Ada Lovelace | Administrator | London, United Kingdom |'
+    );
+
+    await expect.poll(() => q(container, '.table-scroll')).toBeTruthy();
+    const wrapper = q(container, '.prose')!;
+    const scroller = q(container, '.table-scroll')!;
+    wrapper.setAttribute('style', 'width: 240px');
+    await expect.poll(() => scroller.scrollWidth).toBeGreaterThan(scroller.clientWidth);
+    await userEvent.tab();
+
+    expect(document.activeElement).toBe(scroller);
+    expect(window.getComputedStyle(scroller).overflowX).toBe('auto');
+    expect(window.getComputedStyle(scroller).outlineStyle).toBe('solid');
+    expect(window.getComputedStyle(scroller).outlineOffset).toBe('-2px');
   });
 
   it('renders links with security attributes', async () => {
@@ -543,6 +797,11 @@ describe('MessageContent component', () => {
       const span = q(container, 'span.mention')!;
       expect(span.textContent).toBe('@alice');
       expect(span.getAttribute('data-user-id')).toBe('u_alice');
+    });
+
+    it('uses the supplied viewer identity for self-mention highlighting', async () => {
+      const { container } = renderMessage('Hello @alice!', [member('alice')], [], 'alice');
+      await expect.poll(() => q(container, 'span.mention-self')).toBeTruthy();
     });
 
     it('does not wrap an @mention when no member matches', async () => {

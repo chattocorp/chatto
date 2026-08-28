@@ -1,0 +1,22 @@
+{
+  "add_server": {
+    "title": "Přidat server",
+    "sign_in": "Přihlaste se",
+    "connect": "Připojte se",
+    "redirecting": "Čekání na přihlášení...",
+    "connecting": "Připojování...",
+    "start_failed": "Nepodařilo se zahájit přihlašování.",
+    "invalid_url": "Zadejte prosím platnou adresu URL.",
+    "already_connected": "Tento server je již připojen.",
+    "not_chatto_server": "Zdá se, že se nejedná o server Chatto.",
+    "oauth_unsupported": "Tento server nepodporuje ověřování OAuth. Může být nutné jej aktualizovat.",
+    "connection_timed_out": "Vypršel časový limit připojení. Zkontrolujte adresu URL a zkuste to znovu.",
+    "connection_failed": "Připojení se nezdařilo. Zkontrolujte adresu URL a zkuste to znovu.",
+    "connect_failed": "Připojení se nezdařilo.",
+    "edit_url": "Špatný server? Upravit URL",
+    "description_url": "Chatto je distribuováno – váš klient se ke každému serveru připojuje přímo. Chcete-li přidat další, zadejte adresu URL.",
+    "description_preview": "Otevře se samostatné okno, takže se můžete přihlásit přímo na tento server.",
+    "url_label": "Adresa URL serveru",
+    "url_placeholder": "chat.example.com"
+  }
+}

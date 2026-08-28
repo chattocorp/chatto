@@ -31,11 +31,41 @@ func (c *ChattoCore) ReadState() *ReadStateModel {
 // helpers stay available for trusted/internal callers, while this model keeps
 // public API authorization and anchor semantics in one place.
 type ReadStateModel struct {
-	core *ChattoCore
+	core  *ChattoCore
+	index *ReadStateIndex
+}
+
+// Run maintains the process-wide read marker index until ctx is cancelled.
+func (s *ReadStateModel) Run(ctx context.Context) error {
+	return s.index.Run(ctx)
+}
+
+// WaitReady blocks until the read marker index has applied its initial
+// RUNTIME_STATE snapshot.
+func (s *ReadStateModel) WaitReady(ctx context.Context) error {
+	return s.index.WaitReady(ctx)
+}
+
+// Resync replaces the read-state watcher and waits for a current snapshot.
+func (s *ReadStateModel) Resync(ctx context.Context) error {
+	return s.index.Resync(ctx)
+}
+
+// RoomMarkerFence captures the latest room-marker change generation visible
+// through the process-wide read-state index.
+func (s *ReadStateModel) RoomMarkerFence(ctx context.Context) (uint64, error) {
+	return s.index.roomMarkerFence(ctx)
+}
+
+// RoomMarkerIDsChangedAfter returns one user's room marker keys changed after
+// fence. It supports bounded realtime reset repair without rebuilding every
+// visible room's permissions and read state.
+func (s *ReadStateModel) RoomMarkerIDsChangedAfter(ctx context.Context, userID string, fence uint64) ([]string, error) {
+	return s.index.roomMarkerIDsChangedAfter(ctx, userID, fence)
 }
 
 func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, upToEventID string) (*MarkRoomAsReadResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +76,7 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 		hasLast     bool
 	)
 	if strings.TrimSpace(upToEventID) != "" {
-		targetEventID, targetTime, found, err := s.roomReadAnchor(ctx, kind, room.Id, upToEventID)
+		targetEventID, targetTime, found, err := s.roomReadAnchor(ctx, actorID, kind, room.Id, upToEventID)
 		if err != nil {
 			return nil, err
 		}
@@ -57,7 +87,7 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 		}
 	}
 	if !hasLast {
-		lastEventID, lastTime, hasLast, err = s.core.GetRoomLastEvent(ctx, kind, room.Id)
+		lastEventID, lastTime, hasLast, err = s.core.GetRoomLastReadableEvent(ctx, kind, actorID, room.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -81,11 +111,18 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 		}
 	}
 
-	dismissedNotifications := 0
-	if hasLast && !lastTime.IsZero() {
-		dismissedNotifications = s.core.DismissRoomReadNotifications(ctx, kind, actorID, room.Id, lastTime)
+	badgeUnread, err := s.core.notificationOccurrences.HasNotificationUnread(ctx, actorID, room.Id, "")
+	if err != nil {
+		return nil, fmt.Errorf("read room Badge state: %w", err)
 	}
-	if markerUpdated || dismissedNotifications > 0 {
+	readNotifications := 0
+	if hasLast && lastEventID != "" {
+		readNotifications, err = s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, "", lastEventID)
+		if err != nil {
+			return nil, fmt.Errorf("reconcile room read state with notifications: %w", err)
+		}
+	}
+	if markerUpdated || readNotifications > 0 || badgeUnread {
 		s.core.NotifyRoomMarkedAsRead(ctx, actorID, kind, room.Id)
 	}
 
@@ -102,7 +139,7 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 }
 
 func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, threadRootEventID, upToEventID string) (*MarkThreadAsReadResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,14 +172,15 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		return nil, err
 	}
 	if markerEventID != "" {
-		if markerTime, err := s.core.GetEventTimestamp(ctx, kind, room.Id, markerEventID); err == nil && !markerTime.IsZero() {
-			s.core.DismissThreadReadNotifications(ctx, kind, actorID, room.Id, threadRootEventID, markerTime)
+		if _, err := s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, threadRootEventID, markerEventID); err != nil {
+			return nil, fmt.Errorf("reconcile thread read state with notifications: %w", err)
 		}
+		s.core.NotifyNotificationUnreadChanged(ctx, actorID, actorID, room.Id, threadRootEventID)
 	}
 	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil
 }
 
-func (s *ReadStateModel) roomReadAnchor(ctx context.Context, kind RoomKind, roomID, eventID string) (eventIDOut string, ts time.Time, found bool, err error) {
+func (s *ReadStateModel) roomReadAnchor(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string) (eventIDOut string, ts time.Time, found bool, err error) {
 	if strings.TrimSpace(eventID) == "" {
 		return "", time.Time{}, false, nil
 	}
@@ -156,6 +194,13 @@ func (s *ReadStateModel) roomReadAnchor(ctx context.Context, kind RoomKind, room
 	message := event.GetMessagePosted()
 	if message == nil || message.GetInThread() != "" || message.GetEchoOfEventId() != "" {
 		return "", time.Time{}, false, invalidArgument("up_to_event_id must identify a root message in the room timeline")
+	}
+	allowed, err := s.core.CanReadMessage(ctx, actorID, kind, roomID, event.Id)
+	if err != nil {
+		return "", time.Time{}, false, err
+	}
+	if !allowed {
+		return "", time.Time{}, false, ErrPermissionDenied
 	}
 	if createdAt := event.GetCreatedAt(); createdAt != nil {
 		return event.Id, createdAt.AsTime(), true, nil

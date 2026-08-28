@@ -213,6 +213,9 @@ func TestValidateLogin(t *testing.T) {
 		{"starts with period", ".alice", ErrLoginInvalidCharacter},
 		{"starts with underscore", "_alice", ErrLoginInvalidCharacter},
 		{"starts with hyphen", "-alice", ErrLoginInvalidCharacter},
+		{"ends with period", "alice.", ErrLoginInvalidCharacter},
+		{"ends with consecutive periods", "alice..", ErrLoginInvalidCharacter},
+		{"minimum length ending with period", "a.", ErrLoginInvalidCharacter},
 
 		// Invalid - disallowed characters
 		{"with space", "alice bob", ErrLoginInvalidCharacter},

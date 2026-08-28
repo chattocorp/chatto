@@ -2,56 +2,77 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"time"
 
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
-// Run starts recoverable physical cleanup for message-owned asset deletion
-// facts. Lease handover is safe because storage deletion is idempotent and a
-// fresh consumer replays the durable event history.
+func (s *AssetModel) configureCleanup(ctx context.Context, stream jetstream.Stream) error {
+	consumer, err := evtstream.CreateEffectConsumer(ctx, stream, evtstream.EffectConsumerConfig{
+		Name:           assetCleanupConsumerName,
+		Description:    "Shared durable queue for Chatto asset deletion",
+		FilterSubjects: []string{evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted)},
+		AckWait:        assetCleanupAckWait,
+		MaxAckPending:  assetCleanupMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
+	})
+	if err != nil {
+		return fmt.Errorf("create asset cleanup consumer: %w", err)
+	}
+	worker, err := evtstream.NewEffectWorker(consumer, s.processCleanupDelivery, evtstream.EffectWorkerOptions{
+		MaxConcurrent:     assetCleanupMaxPending,
+		RetryDelay:        assetCleanupRetryDelay,
+		AckTimeout:        assetCleanupAckTimeout,
+		HeartbeatInterval: assetCleanupHeartbeat,
+		Logger:            s.logger.WithPrefix("core.AssetCleanup"),
+	})
+	if err != nil {
+		return fmt.Errorf("configure asset cleanup worker: %w", err)
+	}
+	s.cleanupConsumer = consumer
+	s.cleanupWorker = worker
+	return nil
+}
+
+// Run starts shared, recoverable physical cleanup for asset deletion facts.
 func (s *AssetModel) Run(ctx context.Context) error {
-	if s == nil || s.cleanupLease == nil {
-		return fmt.Errorf("asset cleanup lease is not configured")
+	if s == nil || s.cleanupWorker == nil {
+		return fmt.Errorf("asset cleanup worker is not configured")
 	}
-	return s.cleanupLease.Run(ctx, s.runCleanupLoop)
+	return s.cleanupWorker.Run(ctx)
 }
 
-func (s *AssetModel) runCleanupLoop(ctx context.Context) error {
-	if err := s.consumeAssetCleanup(ctx); err != nil {
-		s.logger.Warn("Asset cleanup pass failed", "error", err)
+func (s *AssetModel) processCleanupDelivery(ctx context.Context, delivery events.DurableDelivery) error {
+	event, err := decodeDurableCoreDelivery(delivery)
+	if err != nil {
+		return err
 	}
-	ticker := time.NewTicker(s.cleanupPollEvery)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			if err := s.consumeAssetCleanup(ctx); err != nil {
-				s.logger.Warn("Asset cleanup pass failed", "error", err)
-			}
-		}
+	deleted := event.GetAssetDeleted()
+	assetID, ok := evtstream.ParseAssetSubject(delivery.Subject)
+	if !ok || deleted == nil || deleted.GetAssetId() == "" || assetID != deleted.GetAssetId() {
+		return events.TerminateDelivery("invalid asset deletion request", errors.New("asset deletion subject and payload do not match"))
 	}
+	// HLS repair consults projected child state. A worker can receive retained
+	// deletion facts while the projection is still replaying at startup, so the
+	// delivery itself is the barrier that makes all earlier creation facts safe
+	// to read before we decide a child was already tombstoned.
+	if err := s.waitForAssets(ctx, events.SubjectPosition(delivery.Subject, delivery.StreamSequence)); err != nil {
+		return fmt.Errorf("wait for asset cleanup projection boundary: %w", err)
+	}
+	return s.cleanupDeletedAsset(ctx, &evtstream.SubjectEvent{Subject: delivery.Subject, Event: event})
 }
 
-func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
-	if s == nil || s.cleanupConsumer == nil {
-		return fmt.Errorf("asset cleanup consumer is not configured")
-	}
-	return s.cleanupConsumer.Consume(ctx)
-}
-
-func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *events.SubjectEvent) error {
+func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *evtstream.SubjectEvent) error {
 	event := subjectEvent.Event
 	deleted := event.GetAssetDeleted()
 	if deleted == nil || deleted.GetAssetId() == "" {
 		return nil
 	}
-	aggregateAssetID, ok := events.ParseAssetSubject(subjectEvent.Subject)
+	aggregateAssetID, ok := evtstream.ParseAssetSubject(subjectEvent.Subject)
 	if !ok || aggregateAssetID != deleted.GetAssetId() {
 		return fmt.Errorf(
 			"asset deletion subject %q does not match payload id %q",
@@ -61,7 +82,7 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *even
 	}
 	createdEvents, _, err := s.EventPublisher.SubjectEvents(
 		ctx,
-		events.AssetAggregate(deleted.GetAssetId()).Subject(events.EventAssetCreated),
+		evtstream.AssetAggregate(deleted.GetAssetId()).Subject(evtstream.EventAssetCreated),
 	)
 	if err != nil {
 		return fmt.Errorf("read creation fact for asset %s: %w", deleted.GetAssetId(), err)
@@ -69,6 +90,9 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *even
 	if len(createdEvents) == 0 {
 		// Beta room-scoped histories cannot be located from the asset ID alone.
 		return nil
+	}
+	if err := s.reconcileDeletedAssetHLSDerivatives(ctx, event, deleted.GetAssetId()); err != nil {
+		return err
 	}
 	created := createdEvents[len(createdEvents)-1].GetAssetCreated()
 	if created.GetAsset().GetId() != deleted.GetAssetId() {
@@ -85,13 +109,81 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *even
 	if attachment == nil {
 		return fmt.Errorf("asset creation %s has invalid storage metadata", deleted.GetAssetId())
 	}
-	if err := s.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+	if err := s.mediaModel.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		return fmt.Errorf("delete asset %s from storage: %w", deleted.GetAssetId(), err)
 	}
 	return nil
 }
 
-func (s *AssetModel) validateCleanupStorage(assetID string, asset *corev1.AssetRecord) error {
+// reconcileDeletedAssetHLSDerivatives repairs mixed-version deletion. An older
+// replica can read an additive HLS manifest as MP4-only and tombstone the source
+// without tombstoning the HLS children. The durable cleanup consumer can still
+// recover those child IDs from the source aggregate after an upgrade and append
+// their deletion facts before removing the source bytes.
+func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, sourceEvent *evtv1.Event, sourceAssetID string) error {
+	processedEvents, _, err := s.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.AssetAggregate(sourceAssetID).Subject(evtstream.EventAssetProcessingSucceeded),
+	)
+	if err != nil {
+		return fmt.Errorf("read processing manifest for deleted asset %s: %w", sourceAssetID, err)
+	}
+	if len(processedEvents) == 0 {
+		return nil
+	}
+	processed := processedEvents[len(processedEvents)-1].GetAssetProcessingSucceeded()
+	if processed.GetAssetId() != sourceAssetID {
+		return fmt.Errorf("processing manifest id %q does not match deleted asset %q", processed.GetAssetId(), sourceAssetID)
+	}
+	hls := processed.GetVideo().GetHls()
+	if hls == nil {
+		return nil
+	}
+
+	type derivativeRef struct {
+		assetID string
+		role    evtv1.AssetDerivativeRole
+	}
+	var refs []derivativeRef
+	for _, rendition := range hls.GetRenditions() {
+		if rendition == nil {
+			continue
+		}
+		for _, segment := range rendition.GetSegments() {
+			if segment == nil {
+				continue
+			}
+			refs = append(refs, derivativeRef{
+				assetID: segment.GetAssetId(),
+				role:    evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT,
+			})
+		}
+	}
+
+	actorID := sourceEvent.GetActorId()
+	if actorID == "" {
+		actorID = SystemActorID
+	}
+	for _, ref := range refs {
+		if ref.assetID == "" {
+			continue
+		}
+		declared, ok := s.AssetCreation(ref.assetID)
+		if !ok {
+			// The child was already tombstoned by an HLS-aware replica.
+			continue
+		}
+		if declared.GetParentAssetId() != sourceAssetID || declared.GetDerivativeRole() != ref.role {
+			return fmt.Errorf("deleted asset %s has invalid HLS derivative reference %s", sourceAssetID, ref.assetID)
+		}
+		if err := s.DeleteAsset(ctx, actorID, ref.assetID); err != nil {
+			return fmt.Errorf("tombstone HLS derivative %s of deleted asset %s: %w", ref.assetID, sourceAssetID, err)
+		}
+	}
+	return nil
+}
+
+func (s *AssetModel) validateCleanupStorage(assetID string, asset *evtv1.AssetRecord) error {
 	switch {
 	case asset.GetNats() != nil:
 		if asset.GetNats().GetKey() != assetID {

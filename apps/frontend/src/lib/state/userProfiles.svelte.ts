@@ -21,6 +21,8 @@ type ProfileUpdate = {
   avatarUrl?: string | null;
   login?: string;
   customStatus?: CustomUserStatus | null;
+  bio?: string | null;
+  timezone?: string | null;
 };
 
 const [getCache, setCache] = createContext<{ current: SvelteMap<string, ProfileUpdate> }>();
@@ -89,10 +91,7 @@ function scheduleExpiry(
     }
     expiryCleanups.delete(userId);
   });
-  expiryCleanups.set(
-    userId,
-    cleanup
-  );
+  expiryCleanups.set(userId, cleanup);
 }
 
 function mergeProfileUpdate(
@@ -124,14 +123,31 @@ export function createUserProfileCache() {
       displayName: string,
       avatarUrl: string | null,
       login: string,
-      customStatus?: CustomUserStatus | null
+      customStatus?: CustomUserStatus | null,
+      extras?: { bio?: string | null; timezone?: string | null }
     ) => {
       const update: ProfileUpdate = { displayName, avatarUrl, login };
       if (customStatus !== undefined) update.customStatus = customStatus;
+      if (extras) {
+        if ('bio' in extras) update.bio = extras.bio ?? null;
+        if ('timezone' in extras) update.timezone = extras.timezone ?? null;
+      }
       mergeProfileUpdate(state.current, userId, update);
     },
     updateStatus: (userId: string, customStatus: CustomUserStatus | null) => {
       mergeProfileUpdate(state.current, userId, { customStatus });
+    },
+    remove: (userId: string) => {
+      expiryCleanups.get(userId)?.();
+      expiryCleanups.delete(userId);
+      state.current.delete(userId);
+    },
+    clear: () => {
+      for (const userId of state.current.keys()) {
+        expiryCleanups.get(userId)?.();
+        expiryCleanups.delete(userId);
+      }
+      state.current.clear();
     }
   };
 }
@@ -174,4 +190,22 @@ export function getLiveCustomStatus(
   const update = cache.current.get(userId);
   const status = update && 'customStatus' in update ? update.customStatus : fallback;
   return isCustomStatusActive(status) ? status : null;
+}
+
+/**
+ * Get the live public bio if available, otherwise return fallback.
+ */
+export function getLiveBio(userId: string, fallback: string | null): string | null {
+  const cache = getCache();
+  const update = cache.current.get(userId);
+  return update && 'bio' in update ? (update.bio ?? null) : fallback;
+}
+
+/**
+ * Get the live public time zone if available, otherwise return fallback.
+ */
+export function getLiveTimezone(userId: string, fallback: string | null): string | null {
+  const cache = getCache();
+  const update = cache.current.get(userId);
+  return update && 'timezone' in update ? (update.timezone ?? null) : fallback;
 }

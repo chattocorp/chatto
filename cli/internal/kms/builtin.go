@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -14,7 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/jetstreamutil"
 )
 
 const (
@@ -123,7 +124,7 @@ func encodeUserKeyEncryptionKey(key []byte) ([]byte, error) {
 	if len(key) != encryption.KeySize {
 		return nil, fmt.Errorf("invalid KEK length: got %d, want %d", len(key), encryption.KeySize)
 	}
-	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+	data, err := proto.Marshal(&keymaterialv1.UserKeyEncryptionKey{
 		Key:       key,
 		Algorithm: AlgorithmBuiltinXChaCha20Poly1305V1,
 	})
@@ -143,7 +144,7 @@ func DecodeUserKeyEncryptionKeyRecord(keyRef string, data []byte) ([]byte, error
 		}
 		return nil, fmt.Errorf("invalid legacy user key record")
 	}
-	var stored corev1.UserKeyEncryptionKey
+	var stored keymaterialv1.UserKeyEncryptionKey
 	if err := proto.Unmarshal(data, &stored); err == nil &&
 		stored.GetAlgorithm() == AlgorithmBuiltinXChaCha20Poly1305V1 &&
 		len(stored.GetKey()) == encryption.KeySize {
@@ -170,7 +171,7 @@ func decodeCallKeyRecord(keyRef string, data []byte) ([]byte, error) {
 	if err := ValidateCallKeyRef(keyRef); err != nil {
 		return nil, err
 	}
-	var stored corev1.UserKeyEncryptionKey
+	var stored keymaterialv1.UserKeyEncryptionKey
 	if err := proto.Unmarshal(data, &stored); err != nil {
 		return nil, fmt.Errorf("failed to decode call key: %w", err)
 	}
@@ -233,7 +234,7 @@ func (b *Builtin) CreateKey(ctx context.Context, owner string) (string, error) {
 			return "", err
 		}
 		if _, err := b.kv.Create(ctx, keyPath(keyRef), data); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return "", fmt.Errorf("failed to store encryption key: %w", err)
@@ -269,7 +270,7 @@ func (b *Builtin) CreateCallKey(ctx context.Context, callID string) (string, str
 		return "", "", err
 	}
 	keyRef := CallKeyRef(callID)
-	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+	data, err := proto.Marshal(&keymaterialv1.UserKeyEncryptionKey{
 		Key:       key,
 		Algorithm: AlgorithmLiveKitCallE2EEV1,
 	})
@@ -277,7 +278,7 @@ func (b *Builtin) CreateCallKey(ctx context.Context, callID string) (string, str
 		return "", "", fmt.Errorf("failed to encode call key: %w", err)
 	}
 	if _, err := b.kv.Create(ctx, keyPath(keyRef), data); err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			return "", "", fmt.Errorf("call key already exists: %w", err)
 		}
 		return "", "", fmt.Errorf("failed to store call key: %w", err)

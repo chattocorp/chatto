@@ -10,14 +10,14 @@ describe('localized date metadata', () => {
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-11-28T12:00:00Z'));
-    await loadLocaleMessages('en');
-    setReactiveLocale('en');
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
   });
 
   afterEach(async () => {
     vi.useRealTimers();
-    await loadLocaleMessages('en');
-    setReactiveLocale('en');
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
   });
 
   it('updates precomputed day labels when the active locale changes', async () => {
@@ -25,10 +25,10 @@ describe('localized date metadata', () => {
     flushSync();
 
     const label = q(container, '[data-testid="day-label"]');
-    await expect.element(label).toHaveTextContent('Thursday, November 20');
+    await expect.element(label).toHaveTextContent('Thursday 20 November');
 
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
     flushSync();
 
     await expect.element(label).toHaveTextContent(/Donnerstag/);

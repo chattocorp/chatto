@@ -42,6 +42,13 @@ message MessageVideoVariant {
   MessageAssetUrl asset_url = 5;
 }
 
+// HLS adaptive-streaming metadata for a processed video.
+message MessageVideoHLS {
+  // Signed URL for the HLS master playlist. The URL authorises all playlists
+  // and segments in this video generation and expires with the attachment URL.
+  MessageAssetUrl master_playlist_url = 1;
+}
+
 // Processing metadata for a video attachment.
 //
 // Clients can use this object to show upload/transcoding progress and decide
@@ -64,6 +71,9 @@ message MessageVideoProcessing {
   MessageAssetUrl thumbnail_asset_url = 7;
   // Available transcoded renditions.
   repeated MessageVideoVariant variants = 8;
+  // Adaptive-streaming metadata. Absent on MP4-only historical results and
+  // servers that do not support HLS processing.
+  MessageVideoHLS hls = 9;
 }
 
 // Attachment metadata included with a message.
@@ -108,7 +118,8 @@ message MessageReaction {
 message ThreadViewerState {
   // Whether the current user follows this message's thread, when known.
   optional bool is_following = 1;
-  // True when the thread has unread replies for the current user, when known.
+  // True when the thread has unread replies or neutral Badge attention for the
+  // current user, when known.
   optional bool has_unread = 2;
 }
 
@@ -170,9 +181,13 @@ message Message {
   string channel_echo_event_id = 13;
   // Reaction summaries for this message.
   repeated MessageReaction reactions = 19;
-  // Aggregated thread state, when known for a thread root message.
+  // Aggregated thread state. Present only when a durable thread has been
+  // established for this root message, including an empty thread.
   ThreadSummary thread = 20;
   // Time when the message content was deleted through retraction or account
   // crypto-shredding. Absent when unavailable body content is not a deletion.
   google.protobuf.Timestamp deleted_at = 21;
+  // True when this message's canonical message is currently pinned in its
+  // channel room. Always false for direct-message rooms.
+  bool pinned = 22;
 }

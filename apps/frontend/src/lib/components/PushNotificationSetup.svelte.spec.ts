@@ -4,23 +4,49 @@ import { flushSync } from 'svelte';
 import PushNotificationSetup from './PushNotificationSetup.svelte';
 
 const mocks = vi.hoisted(() => ({
-  ensureRegistered: vi.fn(),
-  serverInfo: {
-    pushNotificationsEnabled: true,
-    vapidPublicKey: 'vapid-key' as string | null
+  refreshPushSubscriptions: vi.fn(),
+  stores: {
+    origin: {
+      isAuthenticated: true,
+      serverInfo: {
+        pushNotificationsEnabled: true,
+        vapidPublicKey: 'origin-vapid' as string | null
+      }
+    },
+    remote: {
+      isAuthenticated: true,
+      serverInfo: {
+        pushNotificationsEnabled: false,
+        vapidPublicKey: null as string | null
+      }
+    }
   }
 }));
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
-  ensureRegistered: mocks.ensureRegistered
+  getPushRegistrationTargets: () => {
+    const targets = [];
+    for (const serverId of ['origin', 'remote'] as const) {
+      const store = mocks.stores[serverId];
+      if (
+        !store.isAuthenticated ||
+        !store.serverInfo.pushNotificationsEnabled ||
+        !store.serverInfo.vapidPublicKey
+      ) {
+        continue;
+      }
+      targets.push({ serverId, vapidPublicKey: store.serverInfo.vapidPublicKey });
+    }
+    return targets;
+  },
+  refreshPushSubscriptions: mocks.refreshPushSubscriptions
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    originServer: { id: 'origin' },
-    getStore: () => ({
-      serverInfo: mocks.serverInfo
-    })
+    servers: [{ id: 'origin' }, { id: 'remote' }],
+    tryGetStore: (serverId: 'origin' | 'remote') => mocks.stores[serverId],
+    isOriginServer: (serverId: string) => serverId === 'origin'
   }
 }));
 
@@ -61,9 +87,13 @@ async function settle() {
 
 describe('PushNotificationSetup', () => {
   beforeEach(() => {
-    mocks.ensureRegistered.mockReset();
-    mocks.serverInfo.pushNotificationsEnabled = true;
-    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.refreshPushSubscriptions.mockReset();
+    mocks.stores.origin.isAuthenticated = true;
+    mocks.stores.origin.serverInfo.pushNotificationsEnabled = true;
+    mocks.stores.origin.serverInfo.vapidPublicKey = 'origin-vapid';
+    mocks.stores.remote.isAuthenticated = true;
+    mocks.stores.remote.serverInfo.pushNotificationsEnabled = false;
+    mocks.stores.remote.serverInfo.vapidPublicKey = null;
   });
 
   it('refreshes granted-permission subscriptions on startup and service worker controller changes', async () => {
@@ -72,7 +102,9 @@ describe('PushNotificationSetup', () => {
     render(PushNotificationSetup);
     await settle();
 
-    expect(mocks.ensureRegistered).toHaveBeenCalledWith('vapid-key', { prompt: false });
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith([
+      { serverId: 'origin', vapidPublicKey: 'origin-vapid' }
+    ]);
     expect(serviceWorker.addEventListener).toHaveBeenCalledWith(
       'controllerchange',
       expect.any(Function)
@@ -81,18 +113,31 @@ describe('PushNotificationSetup', () => {
     serviceWorker.dispatchControllerChange();
     await settle();
 
-    expect(mocks.ensureRegistered).toHaveBeenCalledTimes(2);
-    expect(mocks.ensureRegistered).toHaveBeenLastCalledWith('vapid-key', { prompt: false });
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledTimes(2);
   });
 
   it('does not reconcile when push is not configured', async () => {
     const serviceWorker = installServiceWorkerStub();
-    mocks.serverInfo.pushNotificationsEnabled = false;
+    mocks.stores.origin.serverInfo.pushNotificationsEnabled = false;
 
     render(PushNotificationSetup);
     await settle();
 
-    expect(mocks.ensureRegistered).not.toHaveBeenCalled();
+    expect(mocks.refreshPushSubscriptions).not.toHaveBeenCalled();
     expect(serviceWorker.listenerCount()).toBe(0);
+  });
+
+  it('reconciles authenticated remote servers independently', async () => {
+    installServiceWorkerStub();
+    mocks.stores.origin.isAuthenticated = false;
+    mocks.stores.remote.serverInfo.pushNotificationsEnabled = true;
+    mocks.stores.remote.serverInfo.vapidPublicKey = 'remote-vapid';
+
+    render(PushNotificationSetup);
+    await settle();
+
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith([
+      { serverId: 'remote', vapidPublicKey: 'remote-vapid' }
+    ]);
   });
 });

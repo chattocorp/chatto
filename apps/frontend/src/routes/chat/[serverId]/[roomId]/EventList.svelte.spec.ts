@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import EventListTestHarness from './EventListTestHarness.svelte';
-import { setVirtualizerScrollOffset } from './EventListVirtualizerMock.svelte';
+import {
+  setVirtualizerForcedRenderedIndex,
+  setVirtualizerScrollOffset
+} from './EventListVirtualizerMock.svelte';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
 
 const resumeCallbacks = vi.hoisted(() => [] as Array<() => void>);
 
@@ -29,12 +34,35 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
-  useTabResumeCallback: (callback: () => void) => resumeCallbacks.push(callback)
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  return {
+    useServerScope: () => ({
+      serverId: 'server-1',
+      connection: {},
+      get store() {
+        return serverRegistry.getStore('server-1');
+      }
+    })
+  };
+});
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+    getLiveBio: () => null,
+    getLiveTimezone: () => null,
+  getLiveDisplayName: (_userId: string, fallback: string) => fallback,
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
-vi.mock('$lib/hooks/useMayHaveMissedMessagesCallback.svelte', () => ({
-  useMayHaveMissedMessagesCallback: () => {}
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({
+    get: (_scope: { serverId: string; userId: string }, fallback: unknown) => fallback
+  })
+}));
+
+vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
+  useTabResumeCallback: (callback: () => void) => resumeCallbacks.push(callback)
 }));
 
 describe('EventList jump completion', () => {
@@ -203,6 +231,74 @@ describe('EventList jump completion', () => {
     } finally {
       setVirtualizerScrollOffset(700);
       vi.unstubAllGlobals();
+    }
+  });
+
+  it('preserves an expanded system group across virtual row remounts and resets it by room', async () => {
+    const initialEventIds = ['join-1', 'join-2', 'join-3', 'join-4', 'join-5'];
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: initialEventIds,
+        eventKind: 'join',
+        scrollToEventId: null,
+        updateCounter: initialEventIds.length
+      }
+    });
+
+    await page.getByRole('button', { name: '2 others' }).click();
+    await expect.element(page.getByRole('button', { name: 'show less' })).toBeVisible();
+
+    // Extending the group changes its virtual-item key, forcing the mock
+    // virtualizer to remount the row just like forward pagination can.
+    const extendedEventIds = [...initialEventIds, 'join-6'];
+    await rendered.rerender({
+      eventIds: extendedEventIds,
+      eventKind: 'join',
+      scrollToEventId: null,
+      updateCounter: extendedEventIds.length
+    });
+    await expect
+      .element(page.getByTestId('virtualizer-rendered-key'))
+      .toHaveAttribute('data-rendered-key', 'system-group-join-6');
+    await expect.element(page.getByRole('button', { name: 'show less' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'show less' }).click();
+    await expect.element(page.getByRole('button', { name: '3 others' })).toBeVisible();
+
+    await page.getByRole('button', { name: '3 others' }).click();
+    await rendered.rerender({
+      eventIds: extendedEventIds,
+      roomId: 'room-2',
+      eventKind: 'join',
+      scrollToEventId: null,
+      updateCounter: extendedEventIds.length
+    });
+    await expect.element(page.getByRole('button', { name: '3 others' })).toBeVisible();
+  });
+});
+
+describe('EventList localisation', () => {
+  it('localises the beginning-of-conversation marker', async () => {
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
+    setVirtualizerForcedRenderedIndex(0);
+
+    try {
+      render(EventListTestHarness, {
+        props: {
+          eventIds: ['msg-first'],
+          scrollToEventId: null,
+          hasReachedStart: true
+        }
+      });
+
+      await expect
+        .element(page.getByText('Dies ist der Anfang dieser Unterhaltung.'))
+        .toBeVisible();
+    } finally {
+      setVirtualizerForcedRenderedIndex(null);
+      await loadLocaleMessages('en-GB');
+      setReactiveLocale('en-GB');
     }
   });
 });

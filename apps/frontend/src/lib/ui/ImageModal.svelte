@@ -1,6 +1,7 @@
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- external image URLs */
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
+  import { toInlineEndDelta } from '$lib/i18n/direction';
 
   export type ImageItem = {
     id?: string;
@@ -41,10 +42,10 @@
       close();
     } else if (e.key === 'ArrowLeft' && hasMultiple) {
       e.preventDefault();
-      navigate(-1);
+      navigate(toInlineEndDelta(-1) as -1 | 1);
     } else if (e.key === 'ArrowRight' && hasMultiple) {
       e.preventDefault();
-      navigate(1);
+      navigate(toInlineEndDelta(1) as -1 | 1);
     }
   }
 </script>
@@ -56,7 +57,7 @@
   onclick={(e) => {
     if (e.target === e.currentTarget) close();
   }}
-  class="fixed inset-0 m-0 flex h-dvh max-h-dvh w-dvw max-w-dvw items-center justify-center border-none bg-black/80 p-0 backdrop:bg-transparent"
+  class="image-modal fixed inset-0 m-0 flex h-dvh max-h-dvh w-dvw max-w-dvw items-center justify-center border-none bg-black/80 p-0 backdrop:bg-transparent"
 >
   {#if current}
     <div class="flex flex-col items-center gap-3">
@@ -65,16 +66,16 @@
           <button
             type="button"
             onclick={() => navigate(-1)}
-            class="nav-button"
-            aria-label={m['ui.image_modal.previous']()}
+            class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
+            aria-label={m('ui.image_modal.previous')}
           >
-            <span class="iconify text-2xl uil--angle-left-b"></span>
+            <span class="iconify icon-[uil--angle-left-b] text-2xl rtl:-scale-x-100"></span>
           </button>
         {/if}
 
         <img
           src={current.src}
-          alt={current.alt ?? current.filename ?? m['ui.image_modal.fallback_alt']()}
+          alt={current.alt ?? current.filename ?? m('ui.image_modal.fallback_alt')}
           class="max-h-[85vh] max-w-[85vw] object-contain"
         />
 
@@ -82,17 +83,17 @@
           <button
             type="button"
             onclick={() => navigate(1)}
-            class="nav-button"
-            aria-label={m['ui.image_modal.next']()}
+            class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
+            aria-label={m('ui.image_modal.next')}
           >
-            <span class="iconify text-2xl uil--angle-right-b"></span>
+            <span class="iconify icon-[uil--angle-right-b] text-2xl rtl:-scale-x-100"></span>
           </button>
         {/if}
       </div>
 
       <div class="flex items-center gap-4 text-white/80">
         {#if current.filename}
-          <span class="text-sm">{current.filename}</span>
+          <bdi class="text-sm">{current.filename}</bdi>
         {/if}
 
         {#if hasMultiple}
@@ -106,43 +107,10 @@
           rel="noopener noreferrer"
           class="flex items-center gap-1 text-sm text-white/60 hover:text-white"
         >
-          <span class="iconify uil--external-link-alt"></span>
+          <span class="iconify icon-[uil--external-link-alt]"></span>
           Open original
         </a>
       </div>
     </div>
   {/if}
 </dialog>
-
-<style>
-  dialog[open] {
-    animation: fade-in 150ms ease-out;
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .nav-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    flex-shrink: 0;
-    border-radius: 9999px;
-    color: white;
-    opacity: 0.6;
-    cursor: pointer;
-    transition: opacity 150ms;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-</style>

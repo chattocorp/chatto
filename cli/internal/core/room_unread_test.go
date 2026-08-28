@@ -2,6 +2,8 @@ package core
 
 import (
 	"testing"
+
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_GetRoomLastEvent(t *testing.T) {
@@ -59,11 +61,13 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
-	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
+	// This test only exercises the RUNTIME_STATE read marker. Using fresh IDs
+	// keeps it independent of room/user creation and projection timing.
+	roomID := NewRoomID()
+	userID := NewUserID()
 
 	// Initially: empty (never read)
-	id, err := core.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
+	id, err := core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id: %v", err)
 	}
@@ -72,10 +76,10 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	}
 
 	// Set and read back
-	if err := core.SetLastReadEventID(ctx, KindChannel, user.Id, room.Id, "Eabcdefghij012"); err != nil {
+	if err := core.SetLastReadEventID(ctx, KindChannel, userID, roomID, "Eabcdefghij012"); err != nil {
 		t.Fatalf("Failed to set last read event id: %v", err)
 	}
-	id, err = core.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
+	id, err = core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id after set: %v", err)
 	}
@@ -84,10 +88,10 @@ func TestChattoCore_LastReadEventID(t *testing.T) {
 	}
 
 	// Overwrite
-	if err := core.SetLastReadEventID(ctx, KindChannel, user.Id, room.Id, "Exyzxyzxyzxyz9"); err != nil {
+	if err := core.SetLastReadEventID(ctx, KindChannel, userID, roomID, "Exyzxyzxyzxyz9"); err != nil {
 		t.Fatalf("Failed to update last read event id: %v", err)
 	}
-	id, err = core.GetLastReadEventID(ctx, KindChannel, user.Id, room.Id)
+	id, err = core.GetLastReadEventID(ctx, KindChannel, userID, roomID)
 	if err != nil {
 		t.Fatalf("Failed to get last read event id after update: %v", err)
 	}
@@ -243,6 +247,7 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User2 should have unread (hasn't read the room yet)
 	hasUnread, err := core.HasUnread(ctx, KindChannel, user2.Id, room.Id)
@@ -263,6 +268,173 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	}
 }
 
+func TestChattoCore_PostMessageClearsExistingRoomBadge(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Poster clears Badge", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	poster, err := core.CreateUser(ctx, SystemActorID, "poster-clears-badge", "Poster Clears Badge", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := core.CreateUser(ctx, SystemActorID, "poster-badge-source", "Poster Badge Source", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{poster.Id, other.Id} {
+		if _, err := core.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, other.Id, "unread source", nil, "", "", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := core.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if unread, err := core.HasUnread(ctx, KindChannel, poster.Id, room.Id); err != nil || !unread {
+		t.Fatalf("Badge before poster reply = (%v, %v), want (true, nil)", unread, err)
+	}
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "I have caught up", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := core.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if unread, err := core.HasUnread(ctx, KindChannel, poster.Id, room.Id); err != nil || unread {
+		t.Fatalf("Badge after poster reply = (%v, %v), want (false, nil)", unread, err)
+	}
+	readID, exists, err := core.PeekLastReadEventID(ctx, poster.Id, room.Id)
+	if err != nil || !exists || readID != posted.Id {
+		t.Fatalf("poster Message Read Cursor = (%q, %v, %v), want %q", readID, exists, err, posted.Id)
+	}
+}
+
+func TestChattoCore_HasUnread_RoomMessageOffKeepsCursorWithoutBadge(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Off room", "")
+	author, _ := core.CreateUser(ctx, "system", "off-room-author", "Off Room Author", "password123")
+	recipient, _ := core.CreateUser(ctx, "system", "off-room-recipient", "Off Room Recipient", "password123")
+	for _, userID := range []string{author.Id, recipient.Id} {
+		if _, err := core.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+	if _, err := core.NotificationPolicy().SetRoomNotificationMode(
+		ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+	); err != nil {
+		t.Fatalf("disable room-message attention: %v", err)
+	}
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "No dot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := core.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for notification materializer: %v", err)
+	}
+	if hasUnread, err := core.HasUnread(ctx, KindChannel, recipient.Id, room.Id); err != nil || hasUnread {
+		t.Fatalf("Badge attention with Room messages Off = (%v, %v), want (false, nil)", hasUnread, err)
+	}
+	readID, exists, err := core.PeekLastReadEventID(ctx, recipient.Id, room.Id)
+	if err != nil || !exists || readID != "" {
+		t.Fatalf("stored read cursor = (%q, %v, %v), want empty join sentinel", readID, exists, err)
+	}
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, recipient.Id, room.Id, posted.Id); err != nil {
+		t.Fatalf("advance independent read cursor: %v", err)
+	}
+	readID, exists, err = core.PeekLastReadEventID(ctx, recipient.Id, room.Id)
+	if err != nil || !exists || readID != posted.Id {
+		t.Fatalf("advanced read cursor = (%q, %v, %v), want %q", readID, exists, err, posted.Id)
+	}
+}
+
+func TestChattoCore_ReadStateUsesLatestReadableInteractionRoot(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chatto.CreateUser(ctx, SystemActorID, "interaction-unread-author", "Interaction Unread Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "interaction-unread-reader", "Interaction Unread Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, author.GetId(), KindChannel, "", "interaction-unread", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.GetId(), reader.GetId()} {
+		if _, err := chatto.JoinRoom(ctx, userID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+	first, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-unread-reader first", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage first related root: %v", err)
+	}
+	if _, err := chatto.ReadState().MarkRoomAsRead(ctx, reader.GetId(), room.GetId(), first.GetId()); err != nil {
+		t.Fatalf("MarkRoomAsRead first related root: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated newer root", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage unrelated root: %v", err)
+	}
+	if latest, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != first.GetId() {
+		t.Fatalf("latest readable event after unrelated root = %q, %v, %v; want %q", latest, exists, err, first.GetId())
+	}
+	second, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-unread-reader second", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage second related root: %v", err)
+	}
+	if latest, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != second.GetId() {
+		t.Fatalf("latest readable event after related root = %q, %v, %v; want %q", latest, exists, err, second.GetId())
+	}
+	if _, err := chatto.ReadState().MarkRoomAsRead(ctx, reader.GetId(), room.GetId(), ""); err != nil {
+		t.Fatalf("MarkRoomAsRead latest readable root: %v", err)
+	}
+	if marker, err := chatto.GetLastReadEventID(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || marker != second.GetId() {
+		t.Fatalf("read marker = %q, %v; want %q (first was %q)", marker, err, second.GetId(), first.GetId())
+	}
+	reply, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "related reply echoed to the channel", nil, second.GetId(), "", nil, true)
+	if err != nil {
+		t.Fatalf("PostMessage related channel echo: %v", err)
+	}
+	echoID, ok := chatto.roomModel.channelEchoEventID(reply.GetId())
+	if !ok {
+		t.Fatal("channel echo was not projected")
+	}
+	if latest, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != echoID {
+		t.Fatalf("latest readable event = %q, %v, %v; want channel echo %q", latest, exists, err, echoID)
+	}
+	if _, err := chatto.ReadState().MarkRoomAsRead(ctx, reader.GetId(), room.GetId(), ""); err != nil {
+		t.Fatalf("MarkRoomAsRead related channel echo: %v", err)
+	}
+	unrelated, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated root for an echo", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage unrelated echo root: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated reply echoed to the channel", nil, unrelated.GetId(), "", nil, true); err != nil {
+		t.Fatalf("PostMessage unrelated channel echo: %v", err)
+	}
+	if latest, _, exists, err := chatto.GetRoomLastReadableEvent(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !exists || latest != echoID {
+		t.Fatalf("latest readable event after unrelated echo = %q, %v, %v; want %q", latest, exists, err, echoID)
+	}
+}
+
 func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -279,6 +451,7 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User1 should have unread (someone else posted)
 	hasUnread, err := core.HasUnread(ctx, KindChannel, user1.Id, room.Id)
@@ -298,8 +471,9 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 		t.Fatal("Expected room to have a last event")
 	}
 
-	// User1 marks as read up to the last event
-	if err := core.SetLastReadEventID(ctx, KindChannel, user1.Id, room.Id, lastID); err != nil {
+	// User1 marks as read up to the last event. This advances the cursor and
+	// clears notification attention through the same user operation.
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, user1.Id, room.Id, lastID); err != nil {
 		t.Fatalf("Failed to set last read event id: %v", err)
 	}
 
@@ -317,6 +491,7 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post second message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User1 should have unread again (user2 posted new message)
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user1.Id, room.Id)
@@ -375,6 +550,7 @@ func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post to room1: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// Room1 should have unread for user1 (user2 posted)
 	hasUnread, err := core.HasUnread(ctx, KindChannel, user1.Id, room1.Id)
@@ -396,7 +572,9 @@ func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
 
 	// User1 marks room1 as read
 	lastID, _, _, _ := core.GetRoomLastEvent(ctx, KindChannel, room1.Id)
-	core.SetLastReadEventID(ctx, KindChannel, user1.Id, room1.Id, lastID)
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, user1.Id, room1.Id, lastID); err != nil {
+		t.Fatalf("Failed to mark room1 read: %v", err)
+	}
 
 	// Room1 should now have no unread for user1
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user1.Id, room1.Id)
@@ -428,6 +606,7 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message 2: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// Now user2 joins (after messages already exist)
 	core.JoinRoom(ctx, user2.Id, KindChannel, user2.Id, room.Id)
@@ -447,6 +626,7 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post new message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user2.Id, room.Id)
 	if err != nil {
@@ -457,9 +637,9 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	}
 }
 
-// TestChattoCore_HasUnread_StaleMarker verifies that if a user's read marker
-// points to a non-existent (e.g. deleted) event, HasUnread reports the room as
-// unread rather than falling silent — the next mark-read self-corrects.
+// TestChattoCore_HasUnread_StaleMarker verifies that a stale message cursor
+// does not create Badge attention. The cursor remains available to the room
+// timeline and is corrected by the next mark-read operation.
 func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -482,8 +662,8 @@ func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HasUnread error: %v", err)
 	}
-	if !hasUnread {
-		t.Error("Expected stale read marker to surface as unread")
+	if hasUnread {
+		t.Error("Expected stale read marker not to create Badge attention")
 	}
 }
 
@@ -511,8 +691,13 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 	stranger, _ := core.CreateUser(ctx, "system", "race-stranger", "race-stranger", "password123")
 	const concurrentWinner = "Eraceconcurwin"
 	bucket := core.storage.runtimeStateKV
-	if _, err := bucket.Put(ctx, roomReadEventKey(stranger.Id, room.Id), []byte(concurrentWinner)); err != nil {
+	key := roomReadEventKey(stranger.Id, room.Id)
+	revision, err := bucket.Put(ctx, key, []byte(concurrentWinner))
+	if err != nil {
 		t.Fatalf("seed marker error: %v", err)
+	}
+	if err := core.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+		t.Fatalf("wait for seeded marker: %v", err)
 	}
 
 	got, err := core.GetLastReadEventID(ctx, KindChannel, stranger.Id, room.Id)
@@ -540,13 +725,14 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post root message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User2 reads the room (marks as read up to root message)
 	lastID, _, _, err := core.GetRoomLastEvent(ctx, KindChannel, room.Id)
 	if err != nil {
 		t.Fatalf("Failed to get last event: %v", err)
 	}
-	if err := core.SetLastReadEventID(ctx, KindChannel, user2.Id, room.Id, lastID); err != nil {
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, user2.Id, room.Id, lastID); err != nil {
 		t.Fatalf("Failed to set last read: %v", err)
 	}
 
@@ -564,6 +750,7 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post thread reply: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	// User2 should still NOT have unread — thread replies don't affect room-level unread
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user2.Id, room.Id)
@@ -579,6 +766,7 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post second root message: %v", err)
 	}
+	waitForNotificationMaterializer(t, core)
 
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user2.Id, room.Id)
 	if err != nil {

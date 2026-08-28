@@ -1,21 +1,30 @@
+import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
 import type { MessageLink } from '$lib/messageLinks';
-import { FitMode } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+
+import { TimelineEventKind } from '$lib/render/timelineEvents';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
-const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.hoisted(
-  () => ({
-    getRoomEventsAroundMock: vi.fn(),
-    timelineResults: [] as unknown[],
-    refreshAssetUrlsMock: vi.fn()
-  })
-);
+const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.hoisted(() => ({
+  getRoomEventsAroundMock: vi.fn(),
+  timelineResults: [] as unknown[],
+  refreshAssetUrlsMock: vi.fn()
+}));
 
 function testImageUrl(label: string): string {
-  return `/icons/favicon.png?label=${label}`;
+  return `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg"><title>${label}</title></svg>`
+  )}`;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 vi.mock('$lib/api-client/roomTimeline', () => ({
@@ -24,7 +33,8 @@ vi.mock('$lib/api-client/roomTimeline', () => ({
   }))
 }));
 
-vi.mock('$lib/api-client/attachments', () => ({
+vi.mock('$lib/api-client/attachments', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/api-client/attachments')>()),
   createAttachmentAPI: vi.fn(() => ({
     refreshAssetUrls: refreshAssetUrlsMock
   }))
@@ -36,7 +46,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       currentUser: {
         user: { login: 'viewer' }
       },
-      rooms: {
+      navigation: {
         rooms: [{ id: 'room_1', name: 'general' }]
       }
     }),
@@ -54,6 +64,14 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server_1'
+}));
+
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  serverConnectionManager: {
+    getClient: () => ({
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    })
+  }
 }));
 
 function link(): MessageLink {
@@ -84,7 +102,7 @@ function previewPage(event: unknown) {
 
 function previewResult(thumbnailUrl: string) {
   return previewPage({
-    kind: RoomEventKind.MessagePosted,
+    kind: TimelineEventKind.MessagePosted,
     body: null,
     attachments: [
       {
@@ -103,7 +121,7 @@ function previewResult(thumbnailUrl: string) {
 
 function bodyPreviewResult(body: string) {
   return previewPage({
-    kind: RoomEventKind.MessagePosted,
+    kind: TimelineEventKind.MessagePosted,
     body,
     attachments: []
   });
@@ -111,7 +129,7 @@ function bodyPreviewResult(body: string) {
 
 function videoPreviewResult(videoThumbnailUrl: string | null) {
   return previewPage({
-    kind: RoomEventKind.MessagePosted,
+    kind: TimelineEventKind.MessagePosted,
     body: null,
     attachments: [
       {
@@ -195,6 +213,20 @@ beforeEach(() => {
 });
 
 describe('MessagePreviewCard', () => {
+  it('renders a deleted author as an italicized placeholder', async () => {
+    timelineResults.push(bodyPreviewResult('A deleted user message'));
+
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="message-preview-card"] em')?.textContent).toBe(
+        '[deleted user]'
+      );
+    });
+  });
+
   it('renders the linked message body as markdown in a scrollable preview', async () => {
     timelineResults.push(
       bodyPreviewResult('# Release notes\n\n- **Breaking** change\n- More details')
@@ -214,9 +246,17 @@ describe('MessagePreviewCard', () => {
       container.querySelector('[data-testid="message-preview-card"] strong')?.textContent
     ).toBe('Breaking');
     expect(container.querySelector('[data-testid="message-preview-card"] ul')).not.toBeNull();
-    expect(container.querySelector('.max-h-52.overflow-y-auto')).not.toBeNull();
-    expect(container.querySelector('.bg-gradient-to-b')).not.toBeNull();
-    expect(container.querySelector('.bg-gradient-to-t')).not.toBeNull();
+    expect(container.querySelector('.max-h-52 .overflow-y-auto')).not.toBeNull();
+    expect(
+      [...container.querySelectorAll('[data-testid="message-preview-card"] bdi')]
+        .map((value) => value.textContent)
+        .filter((value) => value === 'Test Server' || value === '#general')
+    ).toEqual(['Test Server', '#general']);
+    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+    expect(fades).toHaveLength(2);
+    expect(fades[0].className).toContain('from-surface');
+    expect(fades[0].className).toContain('z-30');
+    expect(fades[1].className).toContain('bg-gradient-to-t');
   });
 
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {
@@ -242,13 +282,14 @@ describe('MessagePreviewCard', () => {
     expect(refreshAssetUrlsMock).toHaveBeenCalledWith('room_1', ['att_1'], {
       width: 120,
       height: 120,
-      fit: FitMode.Cover
+      fit: ImageFitMode.COVER
     });
   });
 
   it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(previewResult(testImageUrl('old-image')));
-    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
+    const refresh = deferred<Map<string, RefreshedAttachmentUrls>>();
+    refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -261,8 +302,12 @@ describe('MessagePreviewCard', () => {
     });
     img.dispatchEvent(new Event('error'));
 
+    expect(refreshAssetUrlsMock).toHaveBeenCalled();
+    expect(container.querySelector('img[alt="photo.jpg"]')).toBe(img);
+
+    refresh.resolve(clearedRefreshResult('att_1'));
+
     await vi.waitFor(() => {
-      expect(refreshAssetUrlsMock).toHaveBeenCalled();
       expect(container.querySelector('img[alt="photo.jpg"]')).toBeNull();
     });
     expect(container.textContent).toContain('Image');
@@ -281,7 +326,7 @@ describe('MessagePreviewCard', () => {
 
     const img = container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]');
     expect(img?.getAttribute('src')).toContain('old-video');
-    expect(container.querySelector('.uil--play')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--play]"]')).not.toBeNull();
   });
 
   it('refreshes video attachment thumbnail asset URLs after image load failure', async () => {
@@ -308,7 +353,8 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
-    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
+    const refresh = deferred<Map<string, RefreshedAttachmentUrls>>();
+    refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -321,11 +367,15 @@ describe('MessagePreviewCard', () => {
     });
     img.dispatchEvent(new Event('error'));
 
+    expect(refreshAssetUrlsMock).toHaveBeenCalled();
+    expect(container.querySelector('img[alt="clip.mp4"]')).toBe(img);
+
+    refresh.resolve(clearedRefreshResult('att_video'));
+
     await vi.waitFor(() => {
-      expect(refreshAssetUrlsMock).toHaveBeenCalled();
       expect(container.querySelector('img[alt="clip.mp4"]')).toBeNull();
     });
-    expect(container.querySelector('.uil--play')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--play]"]')).not.toBeNull();
   });
 
   it('falls back to a video tile when the refreshed video thumbnail also fails', async () => {
@@ -357,7 +407,7 @@ describe('MessagePreviewCard', () => {
     await vi.waitFor(() => {
       expect(container.querySelector('img[alt="clip.mp4"]')).toBeNull();
     });
-    expect(container.querySelector('.uil--play')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--play]"]')).not.toBeNull();
     expect(container.textContent).toContain('Video');
   });
 });

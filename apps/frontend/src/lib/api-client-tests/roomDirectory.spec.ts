@@ -4,6 +4,7 @@ import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 const Permission = {
   Attach: 'message.attach',
@@ -15,6 +16,8 @@ const Permission = {
   ManageRoom: 'room.manage',
   PostInThread: 'message.post-in-thread',
   PostMessage: 'message.post',
+  ReadInteractions: 'message.read.interactions',
+  ReadMessages: 'message.read',
   React: 'message.react'
 } as const;
 
@@ -107,7 +110,8 @@ describe('createRoomDirectoryAPI', () => {
       baseUrl: 'https://remote.example.com/api/connect',
       bearerToken: 'token'
     });
-    const rooms = await api.listRooms(RoomDirectoryScope.DMS);
+    const signal = new AbortController().signal;
+    const rooms = await api.listRooms(RoomDirectoryScope.DMS, { signal });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
       baseUrl: 'https://remote.example.com/api/connect',
@@ -115,7 +119,7 @@ describe('createRoomDirectoryAPI', () => {
     });
     expect(mocks.listRooms).toHaveBeenCalledWith(
       { scope: RoomDirectoryScope.DMS },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal }
     );
     expect(rooms).toEqual([
       {
@@ -125,9 +129,14 @@ describe('createRoomDirectoryAPI', () => {
         kind: RoomKind.CHANNEL,
         archived: false,
         isUniversal: true,
+        slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.ENABLED,
+        slowModeNextPostAt: null,
         isMember: true,
         hasUnread: true,
-        canJoinRoom: false
+        canReadMessages: null,
+        canJoinRoom: false,
+        canManageRoom: false
       },
       {
         id: 'room-2',
@@ -136,9 +145,14 @@ describe('createRoomDirectoryAPI', () => {
         kind: RoomKind.DM,
         archived: true,
         isUniversal: false,
+        slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.UNSPECIFIED,
+        slowModeNextPostAt: null,
         isMember: true,
         hasUnread: false,
-        canJoinRoom: true
+        canReadMessages: null,
+        canJoinRoom: true,
+        canManageRoom: false
       }
     ]);
   });
@@ -159,6 +173,7 @@ describe('createRoomDirectoryAPI', () => {
           hasUnread: true,
           [Permission.JoinRoom]: false,
           [Permission.PostMessage]: true,
+          [Permission.ReadMessages]: true,
           [Permission.PostInThread]: true,
           [Permission.Attach]: false,
           [Permission.React]: true,
@@ -188,8 +203,12 @@ describe('createRoomDirectoryAPI', () => {
       kind: RoomKind.CHANNEL,
       archived: false,
       isUniversal: true,
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.ENABLED,
+      slowModeNextPostAt: null,
       isMember: true,
       hasUnread: true,
+      canReadMessages: true,
       canJoinRoom: false,
       canPostMessage: true,
       canPostInThread: true,
@@ -199,6 +218,35 @@ describe('createRoomDirectoryAPI', () => {
       canManageOthersMessage: false,
       canManageRoom: true,
       canBanRoomMembers: false
+    });
+  });
+
+  it('admits a room when interaction-scoped reads are enabled', async () => {
+    mocks.getRoom.mockResolvedValue({
+      room: {
+        room: {
+          id: 'room-interactions',
+          name: 'bot-work',
+          kind: RoomKind.CHANNEL
+        },
+        viewerState: roomViewerState({
+          isMember: true,
+          hasUnread: false,
+          [Permission.ReadMessages]: false,
+          [Permission.ReadInteractions]: true
+        })
+      }
+    });
+
+    const api = createRoomDirectoryAPI({
+      serverId: 'remote',
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+
+    await expect(api.getRoom('room-interactions')).resolves.toMatchObject({
+      id: 'room-interactions',
+      canReadMessages: true
     });
   });
 
@@ -322,6 +370,7 @@ describe('createRoomDirectoryAPI', () => {
         id: 'g1',
         name: 'Lobby',
         canCreateRoom: true,
+        canManageGroup: false,
         roomIds: ['general', 'random'],
         items: [
           {
@@ -465,12 +514,16 @@ function roomViewerState(
   };
 }
 
-function groupViewerState(canCreateRoom: boolean) {
+function groupViewerState(canCreateRoom: boolean, canManageGroup = false) {
   return {
     permissions: [
       {
         permission: Permission.CreateRoom,
         granted: canCreateRoom
+      },
+      {
+        permission: Permission.ManageRoom,
+        granted: canManageGroup
       }
     ]
   };

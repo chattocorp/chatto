@@ -1,0 +1,13 @@
+{
+  "media": {
+    "server_banner_alt": "لافتة الخادم",
+    "fullscreen_video": "فيديو بملء الشاشة",
+    "close_fullscreen_video": "إغلاق الفيديو بملء الشاشة",
+    "video_alt": "فيديو",
+    "video_original_missing": "الفيديو غير متاح لأن التحميل الأصلي مفقود.",
+    "video_processing_failed_retry": "فشلت معالجة الفيديو. يرجى محاولة التحميل مرة أخرى.",
+    "video_queued": "تم وضع الفيديو في قائمة الانتظار للمعالجة...",
+    "video_processing": "معالجة الفيديو...",
+    "video_processing_failed": "فشلت معالجة الفيديو"
+  }
+}

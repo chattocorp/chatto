@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,8 +10,8 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -59,10 +57,9 @@ type EmailVerificationCode struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// VerifiedEmail is the in-memory shape returned by GetVerifiedEmails.
-// On disk each entry lives in its own KV key as a proto-encoded
-// corev1.VerifiedEmail; this Go struct exists for back-compat with the
-// callers that already use it.
+// VerifiedEmail is the read-time plaintext shape returned by
+// GetVerifiedEmails. UserProjection retains only its encrypted value and
+// materialises this shape while hydrating a request.
 type VerifiedEmail struct {
 	Email      string    `json:"email"`
 	VerifiedAt time.Time `json:"verified_at"`
@@ -97,8 +94,7 @@ func emailVerificationOTPSubject(userID, email string) string {
 // the per-email key and the user_by_email index. Centralised so the
 // index and the per-email entries can never drift apart.
 func emailHash(email string) string {
-	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
-	return hex.EncodeToString(sum[:])
+	return userPIILookupHash(email)
 }
 
 // verifiedEmailKey returns the KV key for a single verified email.
@@ -131,6 +127,9 @@ func userByEmailKey(email string) string {
 // CreateEmailVerificationCode creates a short-lived verification code for an email.
 // The returned raw code is intended to be sent by email and is never stored.
 func (c *ChattoCore) CreateEmailVerificationCode(ctx context.Context, userID, email string) (string, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return "", err
+	}
 	email = strings.ToLower(strings.TrimSpace(email))
 	if userID == "" {
 		return "", fmt.Errorf("userID is required")
@@ -222,10 +221,10 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 // account gains its first verified sign-in factor.
 func (c *ChattoCore) requireVerifiedAccountCapacity(ctx context.Context, userID string) error {
 	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
-		if userID != "" && c.Users.HasVerifiedFactor(userID) {
+		if userID != "" && c.userModel.hasVerifiedFactor(userID) {
 			return nil
 		}
-		count, err := c.CountVerifiedAccounts(ctx)
+		count, err := c.CountUserLimitAccounts(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to count verified accounts: %w", err)
 		}
@@ -240,6 +239,9 @@ func (c *ChattoCore) requireVerifiedAccountCapacity(ctx context.Context, userID 
 // Idempotent: rewriting the same (user, email) pair just overwrites the
 // existing entry with identical content.
 func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, email string) error {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return ErrInvalidArgument
@@ -248,22 +250,22 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 		return fmt.Errorf("user not found: %w", err)
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
-		UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserVerifiedEmailAdded{
+		UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{
 			UserId: userID,
 		},
 	}})
-	encryptedEmail, err := c.encryptUserPIIString(ctx, event.GetId(), userID, events.EventUserVerifiedEmailAdded, "email", email)
+	encryptedEmail, err := c.encryptUserPIIString(ctx, event.GetId(), userID, evtstream.EventUserVerifiedEmailAdded, "email", email)
 	if err != nil {
 		return fmt.Errorf("encrypt verified email: %w", err)
 	}
 	event.GetUserVerifiedEmailAdded().EncryptedEmail = encryptedEmail
-	if _, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+	sequence, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
 		if _, err := c.GetUser(ctx, userID); err != nil {
 			return fmt.Errorf("user not found: %w", err)
 		}
-		if user, ok := c.Users.GetByEmail(email); ok {
-			if user.GetId() == userID {
+		if ownerID, ok := c.userModel.emailOwnerID(email); ok {
+			if ownerID == userID {
 				return errVerifiedEmailNoop
 			}
 			return ErrEmailAlreadyVerified
@@ -272,10 +274,11 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 			return err
 		}
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		if errors.Is(err, errVerifiedEmailNoop) {
-			// Already verified for this user. Keep going so owner-email
-			// auto-promotion below still catches config changes.
+			// Already verified for this user. Keep going so a retry can wait
+			// for an owner assignment that was still pending previously.
 		} else if errors.Is(err, ErrEmailAlreadyVerified) {
 			return ErrEmailAlreadyVerified
 		} else {
@@ -283,17 +286,37 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 		}
 	}
 
-	// Auto-promote on config-owner email match. This is what closes the
-	// chicken-and-egg gap on fresh deployments: as soon as the operator's
-	// account verifies their email, they pick up the `owner` role without
-	// waiting for the next boot-time owner sync.
+	// The durable effects lane materializes owners.emails into RBAC and retries
+	// transient assignment failures. Wait through this source fact so a
+	// successful verification cannot return while live authorization and
+	// event-time notification visibility disagree about owner status.
 	if c.config.Owners.IsServerOwnerEmail(email) {
-		if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
-			c.logger.Warn("Failed to auto-assign owner role on email verification",
-				"user_id", userID, "error", err)
+		if c.notificationMaterializer == nil {
+			return errors.New("notification materializer is not configured")
+		}
+		var waitErr error
+		if sequence == 0 {
+			// An idempotent verification may be retrying after the original
+			// request timed out while durable owner assignment was pending.
+			waitErr = c.notificationMaterializer.WaitCurrent(ctx)
 		} else {
-			c.logger.Info("Auto-promoted user to owner via owners.emails match",
-				"user_id", userID)
+			waitErr = c.notificationMaterializer.WaitThrough(ctx, sequence)
+		}
+		if waitErr != nil {
+			return fmt.Errorf("wait for configured-owner role materialization: %w", waitErr)
+		}
+		// The shared delivery may have run on another replica. Its ACK proves
+		// the RBAC fact committed, not that this replica's RBAC projection has
+		// observed that later fact yet.
+		rbacPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+		if err != nil {
+			return fmt.Errorf("capture configured-owner RBAC boundary: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, rbacPosition); err != nil {
+			return fmt.Errorf("wait for configured-owner RBAC boundary: %w", err)
+		}
+		if !c.rbacModel.hasRole(userID, RoleOwner) {
+			return errors.New("configured-owner role was not materialized")
 		}
 	}
 
@@ -302,24 +325,28 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 
 // GetVerifiedEmails returns all verified emails for a user from the user projection.
 func (c *ChattoCore) GetVerifiedEmails(ctx context.Context, userID string) ([]VerifiedEmail, error) {
-	return c.Users.VerifiedEmails(userID), nil
+	return c.userModel.verifiedEmails(ctx, userID)
 }
 
 // HasVerifiedEmail checks if a user has at least one verified email.
 func (c *ChattoCore) HasVerifiedEmail(ctx context.Context, userID string) (bool, error) {
-	return c.Users.HasVerifiedEmail(userID), nil
+	return c.userModel.hasVerifiedEmail(userID), nil
 }
 
 // IsEmailClaimed checks if an email address is already verified by any user.
 // Used to prevent registration with an email that's already in use.
 func (c *ChattoCore) IsEmailClaimed(ctx context.Context, email string) (bool, error) {
-	return c.Users.EmailClaimed(email), nil
+	return c.userModel.emailClaimed(email), nil
 }
 
 // GetUserByVerifiedEmail looks up a user by their verified email address.
 // Returns the user if found, or an error if not found.
-func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*corev1.User, error) {
-	if user, ok := c.Users.GetByEmail(email); ok {
+func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*evtv1.User, error) {
+	user, ok, err := c.userModel.userByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return user, nil
 	}
 	return nil, fmt.Errorf("%w: verified email", ErrNotFound)
@@ -328,18 +355,31 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 // CountVerifiedAccounts returns the number of distinct users with at least one
 // verified sign-in factor: a verified email or linked external identity.
 func (c *ChattoCore) CountVerifiedAccounts(ctx context.Context) (int, error) {
-	return len(c.Users.VerifiedAccountIDs()), nil
+	return len(c.userModel.verifiedAccountIDs()), nil
+}
+
+// CountUserLimitAccounts returns every account consuming the instance user
+// limit: humans with a verified sign-in factor plus all active bot accounts.
+func (c *ChattoCore) CountUserLimitAccounts(ctx context.Context) (int, error) {
+	ids := make(map[string]struct{})
+	for _, userID := range c.userModel.verifiedAccountIDs() {
+		ids[userID] = struct{}{}
+	}
+	for _, userID := range c.userModel.botIDs() {
+		ids[userID] = struct{}{}
+	}
+	return len(ids), nil
 }
 
 // CountVerifiedUsers returns the number of distinct users with at least
 // one verified email.
 func (c *ChattoCore) CountVerifiedUsers(ctx context.Context) (int, error) {
-	return len(c.Users.VerifiedUserIDs()), nil
+	return len(c.userModel.verifiedUserIDs()), nil
 }
 
 // ListUsersWithVerifiedEmail returns all user IDs that have at least one verified email.
 func (c *ChattoCore) ListUsersWithVerifiedEmail(ctx context.Context) ([]string, error) {
-	return c.Users.VerifiedUserIDs(), nil
+	return c.userModel.verifiedUserIDs(), nil
 }
 
 // applyConfigOwners materializes owners.emails as durable owner-role
@@ -353,13 +393,16 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 	}
 
 	promoted := 0
-	for _, userID := range c.Users.VerifiedUserIDs() {
-		emails := c.Users.VerifiedEmails(userID)
+	for _, userID := range c.userModel.verifiedUserIDs() {
+		emails, err := c.userModel.verifiedEmails(ctx, userID)
+		if err != nil {
+			return err
+		}
 		for _, ve := range emails {
 			if !c.config.Owners.IsServerOwnerEmail(ve.Email) {
 				continue
 			}
-			if c.RBAC.HasRole(userID, RoleOwner) {
+			if c.rbacModel.hasRole(userID, RoleOwner) {
 				break
 			}
 			if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {

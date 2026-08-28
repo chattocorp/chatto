@@ -1,0 +1,119 @@
+---
+import { logos } from "virtual:starlight/user-images";
+import config from "virtual:starlight/user-config";
+import {
+  docsChannel,
+  docsDisplayVersion,
+  docsRevision,
+} from "../docsMetadata";
+
+const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
+const badgeTitle =
+  docsChannel === "stable"
+    ? `Documentation for ${docsDisplayVersion}, built from commit ${docsRevision}`
+    : `Unreleased documentation built from commit ${docsRevision}`;
+---
+
+<div class="title-group">
+  <a href={siteTitleHref} class="site-title sl-flex">
+    {
+      config.logo && logos.dark && (
+        <>
+          <img
+            class:list={{ "light:sl-hidden print:hidden": !("src" in config.logo) }}
+            alt={config.logo.alt}
+            src={logos.dark.src}
+            width={logos.dark.width}
+            height={logos.dark.height}
+          />
+          {
+            !("src" in config.logo) && (
+              <img
+                class="dark:sl-hidden print:block"
+                alt={config.logo.alt}
+                src={logos.light?.src}
+                width={logos.light?.width}
+                height={logos.light?.height}
+              />
+            )
+          }
+        </>
+      )
+    }
+    <span class:list={{ "sr-only": config.logo?.replacesTitle }} translate="no">
+      {siteTitle}
+    </span>
+  </a>
+  <span class:list={["docs-version", { dev: docsChannel === "dev" }]} title={badgeTitle}>
+    {docsDisplayVersion}
+  </span>
+</div>
+
+<style>
+  @layer starlight.core {
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+
+    .site-title {
+      align-items: center;
+      gap: var(--sl-nav-gap);
+      min-width: 0;
+      color: var(--sl-color-text-accent);
+      font-size: var(--sl-text-h4);
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .site-title span {
+      overflow: hidden;
+    }
+
+    .site-title img {
+      width: auto;
+      max-width: 100%;
+      height: calc(var(--sl-nav-height) - 2 * var(--sl-nav-pad-y));
+      object-fit: contain;
+      object-position: 0 50%;
+    }
+
+    .docs-version {
+      flex: none;
+      max-width: 12rem;
+      overflow: hidden;
+      padding: 0.18rem 0.48rem;
+      border: 1px solid var(--sl-color-gray-5);
+      border-radius: 999px;
+      color: var(--sl-color-gray-2);
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 0.68rem;
+      font-weight: 650;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .docs-version.dev {
+      border-color: hsl(35, 72%, 52%);
+      background: hsl(42, 100%, 92%);
+      color: hsl(31, 70%, 25%);
+    }
+
+    :global(:root[data-theme="dark"]) .docs-version.dev {
+      border-color: hsl(36, 52%, 42%);
+      background: hsl(33, 35%, 17%);
+      color: hsl(42, 80%, 80%);
+    }
+
+    @media (max-width: 24rem) {
+      .docs-version {
+        max-width: 7.5rem;
+      }
+    }
+  }
+</style>

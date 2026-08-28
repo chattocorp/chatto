@@ -1,13 +1,23 @@
 import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
+import { csrfFetch } from '$lib/auth/csrf';
+import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
+import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { serverRegistry } from './registry.svelte';
 
-export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+export type ConnectionStatus = 'connected' | 'connecting' | 'dormant' | 'disconnected';
+
+const HIDDEN_RECONNECT_AFTER_MS = 30_000;
+const MAX_BROWSER_RENEWAL_TIMER_MS = 24 * 60 * 60 * 1000;
+const BROWSER_RENEWAL_RETRY_MS = 60_000;
+let nextQueryScope = 0;
 
 export interface ServerConnectionConfig {
   /** Server base URL (relative for origin, absolute for remote). */
   serverUrl: string;
   /** Bearer token for Connect/realtime auth, or null for origin cookie auth. */
   token: string | null;
+  /** Access-token expiry as Unix epoch milliseconds. */
+  accessTokenExpiresAt?: number | null;
   /** Registered server ID, used to clear stale credentials after auth failures */
   serverId?: string;
 }
@@ -43,9 +53,7 @@ const ORIGIN_SERVER_URL = '/';
 
 export class ServerConnection {
   status = $state<ConnectionStatus>('connecting');
-  reconnectCount = $state(0);
   #failedAttempts = $state(0);
-  #wasDisconnected = false;
   #lastVisibleAt = Date.now();
   #visibilityHandler: (() => void) | null = null;
   #onlineHandler: (() => void) | null = null;
@@ -54,8 +62,15 @@ export class ServerConnection {
   #connectBaseUrl: string;
   #realtimeUrl: string;
   #token: string | null;
+  #accessTokenExpiresAt: number | null;
+  #renewalTimer: ReturnType<typeof setTimeout> | null = null;
+  #browserRenewal: Promise<boolean> | null = null;
+  #browserRenewalTimer: ReturnType<typeof setTimeout> | null = null;
+  #browserRenewAfter: number | null = null;
   #serverId: string | undefined;
   #realtimeReconnect: ((reason: string) => void) | null = null;
+  #apis = new WeakMap<object, unknown>();
+  readonly #queryScope = `connection-${++nextQueryScope}`;
 
   get isConnected() {
     return this.status === 'connected';
@@ -85,6 +100,32 @@ export class ServerConnection {
 
   get serverId(): string | undefined {
     return this.#serverId;
+  }
+
+  /** Opaque cache scope that changes whenever credentials or transport are replaced. */
+  get queryScope(): string {
+    return this.#queryScope;
+  }
+
+  /** ConnectRPC configuration for helpers that are not API factories. */
+  get apiConfig(): ConnectAPIConfig {
+    return {
+      serverId: this.#serverId,
+      baseUrl: this.#connectBaseUrl,
+      bearerToken: this.#token,
+      renewBearerToken:
+        this.#serverId && this.#token
+          ? (force) => serverRegistry.renewServerAuthentication(this.#serverId!, force)
+          : undefined
+    };
+  }
+
+  /** Return one API facade per factory for this connection's lifetime. */
+  getAPI<T>(factory: (config: ConnectAPIConfig) => T): T {
+    if (this.#apis.has(factory)) return this.#apis.get(factory) as T;
+    const api = factory(this.apiConfig);
+    this.#apis.set(factory, api);
+    return api;
   }
 
   /** Force-terminate and immediately reconnect the WebSocket. */
@@ -132,58 +173,171 @@ export class ServerConnection {
 
   setRealtimeConnectionStatus(status: ConnectionStatus, failedAttempts = 0): void {
     if (status === 'connecting') {
-      if (this.status === 'disconnected') {
-        this.#wasDisconnected = true;
-      }
       this.status = 'connecting';
       this.#failedAttempts = failedAttempts;
       return;
     }
 
     if (status === 'connected') {
-      console.log(
-        '[ws:%s] Connected (prev status: %s, wasDisconnected: %s)',
-        this.#host,
-        this.status,
-        this.#wasDisconnected
-      );
-      if (this.#wasDisconnected) {
-        this.#wasDisconnected = false;
-        this.reconnectCount++;
-        console.log('[ws:%s] Reconnected (count: %d)', this.#host, this.reconnectCount);
-      }
+      console.log('[ws:%s] Connected', this.#host);
       this.status = 'connected';
       this.#failedAttempts = 0;
       return;
     }
 
-    if (this.status === 'connected') {
-      this.#wasDisconnected = true;
+    if (status === 'dormant') {
+      this.status = 'dormant';
+      this.#failedAttempts = 0;
+      return;
     }
+
     this.status = 'disconnected';
     this.#failedAttempts = failedAttempts;
   }
 
-  handleAuthenticationRequired(): void {
+  async handleAuthenticationRequired(): Promise<boolean> {
     if (this.#serverId) {
       if (isExplicitSignOutRedirectInProgress() && serverRegistry.isOriginServer(this.#serverId)) {
-        return;
+        return false;
+      }
+      if (this.#token) {
+        return (await serverRegistry.renewServerAuthentication(this.#serverId, true)) !== null;
       }
       serverRegistry.handleAuthenticationRequired(this.#serverId);
     }
+    return false;
+  }
+
+  /** Renew the origin's stable HttpOnly cookie before its current window ends. */
+  renewBrowserSession(): Promise<boolean> {
+    if (this.#token !== null || !this.#serverId || !serverRegistry.isOriginServer(this.#serverId)) {
+      return Promise.resolve(false);
+    }
+    if (this.#browserRenewal) return this.#browserRenewal;
+
+    const renew = async () => {
+      const response = await csrfFetch('/auth/browser/session/renew', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...browserCookieAuthenticationHeaders
+        },
+        body: '{}'
+      });
+      if (response.status === 401) {
+        serverRegistry.handleAuthenticationRequired(this.#serverId!);
+        return false;
+      }
+      if (!response.ok) {
+        throw new Error(`Browser session renewal failed (${response.status})`);
+      }
+      const body: Record<string, unknown> = await response.json().catch(() => ({}));
+      const renewAfter =
+        typeof body.renewAfter === 'string' ? Date.parse(body.renewAfter) : Number.NaN;
+      this.#browserRenewAfter = Number.isFinite(renewAfter) ? renewAfter : null;
+      this.#scheduleBrowserSessionMaintenance();
+      return true;
+    };
+    const operation =
+      typeof navigator !== 'undefined' && navigator.locks
+        ? navigator.locks.request('chatto:origin-session-renewal', renew)
+        : renew();
+    const renewal = operation.finally(() => {
+      if (this.#browserRenewal === renewal) this.#browserRenewal = null;
+    });
+    this.#browserRenewal = renewal;
+    return renewal;
+  }
+
+  #scheduleBrowserSessionMaintenance(retryDelayMs?: number): void {
+    if (this.#browserRenewalTimer !== null) {
+      clearTimeout(this.#browserRenewalTimer);
+      this.#browserRenewalTimer = null;
+    }
+    if (this.#token !== null || !this.#serverId || !serverRegistry.isOriginServer(this.#serverId)) {
+      return;
+    }
+    const remaining =
+      this.#browserRenewAfter === null
+        ? MAX_BROWSER_RENEWAL_TIMER_MS
+        : this.#browserRenewAfter - Date.now();
+    const delay = retryDelayMs ?? Math.min(MAX_BROWSER_RENEWAL_TIMER_MS, Math.max(0, remaining));
+    this.#browserRenewalTimer = setTimeout(() => {
+      this.#browserRenewalTimer = null;
+      if (this.#browserRenewAfter !== null && Date.now() < this.#browserRenewAfter) {
+        this.#scheduleBrowserSessionMaintenance();
+        return;
+      }
+      void this.renewBrowserSession().catch((error) => {
+        console.warn('[auth:%s] background browser-session renewal failed', this.#host, error);
+        this.#scheduleBrowserSessionMaintenance(BROWSER_RENEWAL_RETRY_MS);
+      });
+    }, delay);
+  }
+
+  #maintainBrowserSessionIfDue(): void {
+    if (this.#browserRenewAfter === null || Date.now() >= this.#browserRenewAfter) {
+      void this.renewBrowserSession().catch((error) => {
+        console.warn('[auth:%s] browser-session maintenance failed', this.#host, error);
+        this.#scheduleBrowserSessionMaintenance(BROWSER_RENEWAL_RETRY_MS);
+      });
+    }
+  }
+
+  /** Start or resume automatic origin-cookie maintenance. */
+  maintainBrowserSession(): void {
+    this.#maintainBrowserSessionIfDue();
+  }
+
+  /** Adopt a rotated token without replacing the connection or query scope. */
+  updateBearerSession(token: string | null, accessTokenExpiresAt: number | null): void {
+    const changed = token !== this.#token;
+    this.#token = token;
+    this.#accessTokenExpiresAt = accessTokenExpiresAt;
+    this.#scheduleRenewal();
+    if (changed && this.status === 'connected') {
+      this.forceReconnect('access token rotated');
+    }
+  }
+
+  #scheduleRenewal(retryDelayMs?: number): void {
+    if (this.#renewalTimer !== null) {
+      clearTimeout(this.#renewalTimer);
+      this.#renewalTimer = null;
+    }
+    if (!this.#serverId || !this.#token || !this.#accessTokenExpiresAt) return;
+    const remaining = this.#accessTokenExpiresAt - Date.now();
+    const refreshLead = Math.min(60_000, Math.max(0, remaining / 5));
+    const delay = retryDelayMs ?? Math.max(0, remaining - refreshLead);
+    this.#renewalTimer = setTimeout(() => {
+      this.#renewalTimer = null;
+      void serverRegistry.renewServerAuthentication(this.#serverId!, true).catch((error) => {
+        console.warn('[auth:%s] background bearer renewal failed', this.#host, error);
+        const retryRemaining = this.#accessTokenExpiresAt
+          ? this.#accessTokenExpiresAt - Date.now()
+          : 0;
+        const retryDelay =
+          retryRemaining > 0 ? Math.min(30_000, Math.max(250, retryRemaining / 2)) : 30_000;
+        this.#scheduleRenewal(retryDelay);
+      });
+    }, delay);
   }
 
   constructor(config: ServerConnectionConfig) {
-    const { serverUrl, token, serverId } = config;
+    const { serverUrl, token, accessTokenExpiresAt, serverId } = config;
     this.#host = hostFromServerUrl(serverUrl);
     this.#connectBaseUrl = connectBaseUrlFromServerUrl(serverUrl);
     this.#realtimeUrl = realtimeUrlFromServerUrl(serverUrl);
     this.#token = token;
+    this.#accessTokenExpiresAt = accessTokenExpiresAt ?? null;
     this.#serverId = serverId;
+    this.#scheduleRenewal();
 
-    // Track tab visibility for diagnostics. Browser resume signals are handled
-    // by resumeCoordinator; liveness stays with actual close events and the
-    // heartbeat watchdog so a healthy hidden-tab socket is not torn down.
+    // A suspended browser can retain a locally "open" WebSocket long after the
+    // server has dropped it. Replace the active transport after a meaningful
+    // hidden interval so its retained projection resumes by cursor. If that
+    // cursor expired, the server responds on the same stream with a compacted
+    // reset; no component-level reload is needed.
     if (typeof document !== 'undefined') {
       this.#visibilityHandler = () => {
         if (document.visibilityState === 'visible') {
@@ -197,6 +351,10 @@ export class ServerConnection {
           );
 
           this.#lastVisibleAt = Date.now();
+          this.#maintainBrowserSessionIfDue();
+          if (hiddenDuration >= HIDDEN_RECONNECT_AFTER_MS) {
+            this.forceReconnect(`tab visible after ${Math.round(hiddenDuration / 1000)}s hidden`);
+          }
         } else {
           this.#lastVisibleAt = Date.now();
         }
@@ -233,6 +391,7 @@ export class ServerConnection {
       // or Wi-Fi re-association following sleep).
       this.#onlineHandler = () => {
         console.debug('[ws:%s] online event fired', this.#host);
+        this.#maintainBrowserSessionIfDue();
         this.forceReconnect('network came back online');
       };
       window.addEventListener('online', this.#onlineHandler);
@@ -241,6 +400,7 @@ export class ServerConnection {
 
   /** Clean up event listeners owned by the connection state object. */
   dispose() {
+    this.#apis = new WeakMap();
     if (this.#visibilityHandler && typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', this.#visibilityHandler);
       this.#visibilityHandler = null;
@@ -253,6 +413,14 @@ export class ServerConnection {
       clearInterval(this.#suspendDetectorInterval);
       this.#suspendDetectorInterval = null;
     }
+    if (this.#renewalTimer !== null) {
+      clearTimeout(this.#renewalTimer);
+      this.#renewalTimer = null;
+    }
+    if (this.#browserRenewalTimer !== null) {
+      clearTimeout(this.#browserRenewalTimer);
+      this.#browserRenewalTimer = null;
+    }
   }
 }
 
@@ -264,29 +432,28 @@ export class ServerConnection {
 class ServerConnectionManager {
   #clients = new Map<string, ServerConnection>();
   #originClient: ServerConnection | null = null;
-  #originClientToken: string | null = null;
   #originClientServerId: string | undefined;
 
-  /** The origin instance connection (serves the SPA, prefers bearer auth when available). */
+  /** The origin ConnectRPC base URL without creating an authenticated connection. */
+  get originConnectBaseUrl(): string {
+    return connectBaseUrlFromServerUrl(ORIGIN_SERVER_URL);
+  }
+
+  /** The origin connection always uses the browser's same-origin cookie. */
   get originClient(): ServerConnection {
     const origin = serverRegistry.originServer;
-    const token = origin?.token ?? null;
     const serverId = origin?.id;
-    if (
-      this.#originClient &&
-      this.#originClientToken === token &&
-      this.#originClientServerId === serverId
-    ) {
+    if (this.#originClient && this.#originClientServerId === serverId) {
       return this.#originClient;
     }
 
     this.#originClient?.dispose();
     this.#originClient = new ServerConnection({
       serverUrl: ORIGIN_SERVER_URL,
-      token,
+      token: null,
+      accessTokenExpiresAt: null,
       serverId
     });
-    this.#originClientToken = token;
     this.#originClientServerId = serverId;
     return this.#originClient;
   }
@@ -308,6 +475,7 @@ class ServerConnectionManager {
     const client = new ServerConnection({
       serverUrl: server.url,
       token: server.token,
+      accessTokenExpiresAt: server.accessTokenExpiresAt,
       serverId
     });
 
@@ -321,7 +489,6 @@ class ServerConnectionManager {
       if (!this.#originClient) return false;
       this.#originClient.dispose();
       this.#originClient = null;
-      this.#originClientToken = null;
       this.#originClientServerId = undefined;
       return true;
     }
@@ -332,6 +499,19 @@ class ServerConnectionManager {
     client.dispose();
     this.#clients.delete(serverId);
     return true;
+  }
+
+  /** Push persisted bearer rotation into an existing connection in place. */
+  updateBearerSession(serverId: string): void {
+    const server = serverRegistry.getServer(serverId);
+    if (!server) return;
+    if (serverRegistry.isOriginServer(serverId)) {
+      this.#originClient?.updateBearerSession(null, null);
+      return;
+    }
+    this.#clients
+      .get(serverId)
+      ?.updateBearerSession(server.token, server.accessTokenExpiresAt ?? null);
   }
 }
 

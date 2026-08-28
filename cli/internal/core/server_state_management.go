@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type ServerConfigUpdateInput struct {
@@ -22,10 +22,7 @@ func (c *ChattoCore) GetManagedServerConfig(ctx context.Context, actorID string)
 		return nil, err
 	}
 
-	cfg, err := c.ConfigManager().GetServerConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
+	cfg := c.ConfigModel().GetServerConfig()
 	if cfg == nil {
 		return &configv1.ServerConfig{}, nil
 	}
@@ -37,7 +34,7 @@ func (c *ChattoCore) UpdateServerConfig(ctx context.Context, actorID string, inp
 		return nil, err
 	}
 
-	cfg, err := c.ConfigManager().UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+	cfg, err := c.ConfigModel().UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
@@ -68,7 +65,7 @@ func (c *ChattoCore) GetServerSecurityConfig(ctx context.Context, actorID string
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.ConfigManager().GetBlockedUsernamesList(ctx)
+	return c.ConfigModel().GetBlockedUsernamesList(), nil
 }
 
 func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string, blockedUsernames []string) ([]string, error) {
@@ -76,9 +73,9 @@ func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string,
 		return nil, err
 	}
 
-	configMgr := c.ConfigManager()
+	configModel := c.ConfigModel()
 	normalized := normalizeBlockedUsernameEntries(blockedUsernames)
-	if _, err := configMgr.UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
+	if _, err := configModel.UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
@@ -89,7 +86,7 @@ func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string,
 		return nil, err
 	}
 
-	return configMgr.GetBlockedUsernamesList(ctx)
+	return configModel.GetBlockedUsernamesList(), nil
 }
 
 func normalizeBlockedUsernameEntries(entries []string) string {
@@ -99,7 +96,7 @@ func normalizeBlockedUsernameEntries(entries []string) string {
 	return strings.Join(parseBlockedUsernames(strings.Join(entries, "\n")), "\n")
 }
 
-func (c *ChattoCore) UploadManagedServerLogo(ctx context.Context, actorID string, reader io.Reader) (*corev1.AssetRecord, error) {
+func (c *ChattoCore) UploadManagedServerLogo(ctx context.Context, actorID string, reader io.Reader) (*evtv1.AssetRecord, error) {
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -114,7 +111,7 @@ func (c *ChattoCore) UploadManagedServerLogo(ctx context.Context, actorID string
 	return asset, nil
 }
 
-func (c *ChattoCore) UploadManagedServerBanner(ctx context.Context, actorID string, reader io.Reader) (*corev1.AssetRecord, error) {
+func (c *ChattoCore) UploadManagedServerBanner(ctx context.Context, actorID string, reader io.Reader) (*evtv1.AssetRecord, error) {
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
 		return nil, err
 	}

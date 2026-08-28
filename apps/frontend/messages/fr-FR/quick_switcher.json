@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "Accédez à une destination ou tapez ? pour rechercher des messages...",
+    "no_results": "Aucun résultat",
+    "recent": "Récent",
+    "kind": {
+      "destination": "Aller à",
+      "server": "Serveur",
+      "room": "Chambre",
+      "dm": "DM",
+      "user": "Utilisateur",
+      "message": "Message"
+    },
+    "message_search": {
+      "prompt": "Tapez après ? pour rechercher des messages sur tous vos serveurs",
+      "no_results": "Aucun message trouvé"
+    }
+  }
+}

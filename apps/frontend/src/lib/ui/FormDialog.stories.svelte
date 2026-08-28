@@ -180,7 +180,7 @@
       label="Email address"
       bind:value={inviteEmail}
       type="email"
-      leadingIcon="uil--envelope"
+      leadingIcon="icon-[uil--envelope]"
       placeholder="hendrik@example.com"
       required
     />

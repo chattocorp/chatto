@@ -1,0 +1,22 @@
+{
+  "add_server": {
+    "title": "Lisa server",
+    "sign_in": "Logi sisse",
+    "connect": "Ühendage",
+    "redirecting": "Sisselogimise ootel...",
+    "connecting": "Ühendamine...",
+    "start_failed": "Sisselogimise alustamine ebaõnnestus.",
+    "invalid_url": "Sisestage kehtiv URL.",
+    "already_connected": "See server on juba ühendatud.",
+    "not_chatto_server": "See ei näi olevat Chatto server.",
+    "oauth_unsupported": "See server ei toeta OAuthi autentimist. Võimalik, et seda tuleb värskendada.",
+    "connection_timed_out": "Ühendus aegus. Kontrollige URL-i ja proovige uuesti.",
+    "connection_failed": "Ühendust ei õnnestunud luua. Kontrollige URL-i ja proovige uuesti.",
+    "connect_failed": "Ühenduse loomine ebaõnnestus.",
+    "edit_url": "Vale server? Muuda URL-i",
+    "description_url": "Chatto on levitatud – teie klient loob ühenduse otse iga serveriga. Teise lisamiseks sisestage URL.",
+    "description_preview": "Avaneb eraldi aken, et saaksite otse sellesse serverisse sisse logida.",
+    "url_label": "Serveri URL",
+    "url_placeholder": "chat.example.com"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "message_preview": {
+    "attachments_count": {
+      "one": "{count} קובץ מצורף",
+      "two": "{count} קבצים מצורפים",
+      "other": "{count} קבצים מצורפים"
+    },
+    "attachment_image": "תמונה",
+    "attachment_video": "וידאו",
+    "attachment_audio": "שמע",
+    "attachment_file": "קובץ"
+  }
+}

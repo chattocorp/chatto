@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="en" dir="ltr" style="color-scheme: light">
+<html lang="en-GB" dir="ltr" style="color-scheme: light">
   <head>
     <meta charset="utf-8" />
+    %sveltekit.head%
     <script>
       // Resolve and apply shell preferences as early as possible — before CSS
       // loads — so:
@@ -42,9 +43,99 @@
           root.style.colorScheme = effective;
         }
 
+        function textDirection(locale) {
+          const parts = String(locale).split('-');
+          const language = parts[0].toLowerCase();
+          const script = parts.find((part) => part.length === 4);
+          const rtlLanguages = [
+            'ar',
+            'ckb',
+            'dv',
+            'fa',
+            'he',
+            'ks',
+            'ku',
+            'ps',
+            'sd',
+            'syr',
+            'ug',
+            'ur',
+            'yi'
+          ];
+          const rtlScripts = ['adlm', 'arab', 'hebr', 'nkoo', 'rohg', 'thaa'];
+          return script
+            ? rtlScripts.includes(script.toLowerCase())
+              ? 'rtl'
+              : 'ltr'
+            : rtlLanguages.includes(language)
+              ? 'rtl'
+              : 'ltr';
+        }
+
         function applyLocale() {
-          const locales = ['en', 'de'];
-          const stored = localStorage.getItem('PARAGLIDE_LOCALE');
+          const locales = [
+            'en-GB',
+            'en-US',
+            'de-DE',
+            'de-AT',
+            'de-CH',
+            'nl-NL',
+            'nl-BE',
+            'sv-SE',
+            'fr-FR',
+            'fr-CA',
+            'es-ES',
+            'es-419',
+            'pt-BR',
+            'pt-PT',
+            'nb-NO',
+            'pl-PL',
+            'uk-UA',
+            'it-IT',
+            'lv-LV',
+            'et-EE',
+            'tr-TR',
+            'cs-CZ',
+            'ru-RU',
+            'ar',
+            'he-IL',
+            'ja-JP',
+            'zh-TW',
+            'zh-CN',
+            'eo'
+          ];
+          const legacyLocales = { en: 'en-GB', de: 'de-DE' };
+          const defaultLocales = {
+            en: 'en-GB',
+            de: 'de-DE',
+            nl: 'nl-NL',
+            sv: 'sv-SE',
+            fr: 'fr-FR',
+            es: 'es-ES',
+            pt: 'pt-BR',
+            nb: 'nb-NO',
+            no: 'nb-NO',
+            pl: 'pl-PL',
+            uk: 'uk-UA',
+            it: 'it-IT',
+            lv: 'lv-LV',
+            et: 'et-EE',
+            tr: 'tr-TR',
+            cs: 'cs-CZ',
+            ru: 'ru-RU',
+            ar: 'ar',
+            he: 'he-IL',
+            ja: 'ja-JP',
+            zh: 'zh-CN',
+            eo: 'eo'
+          };
+          const storedValue =
+            localStorage.getItem('chatto:locale') ?? localStorage.getItem('PARAGLIDE_LOCALE');
+          const migratedStored = legacyLocales[storedValue] ?? storedValue;
+          const stored = locales.includes(migratedStored) ? migratedStored : null;
+          if (storedValue && stored && stored !== storedValue) {
+            localStorage.setItem('chatto:locale', stored);
+          }
           const browserLanguages =
             typeof navigator === 'undefined' ? [] : navigator.languages || [navigator.language];
           const requested = stored ? [stored] : browserLanguages;
@@ -52,11 +143,28 @@
             requested
               .filter(Boolean)
               .map((value) => String(value).toLowerCase())
-              .map((value) => locales.find((locale) => value === locale || value.startsWith(`${locale}-`)))
-              .find(Boolean) ?? 'en';
+              .map((value) => {
+                const exact = locales.find((locale) => value === locale.toLowerCase());
+                if (exact) return exact;
+                const parts = value.split('-');
+                const language = parts[0];
+                if (language === 'zh') {
+                  if (parts.includes('hans')) return 'zh-CN';
+                  if (parts.includes('hant')) return 'zh-TW';
+                  if (parts.includes('tw') || parts.includes('hk') || parts.includes('mo')) {
+                    return 'zh-TW';
+                  }
+                }
+                return defaultLocales[language];
+              })
+              .find(Boolean) ?? 'en-GB';
 
+          // Persist browser negotiation so the runtime cannot disagree with the
+          // first-paint language. The old Paraglide key is read once for migration.
+          localStorage.setItem('chatto:locale', locale);
+          localStorage.removeItem('PARAGLIDE_LOCALE');
           root.lang = locale;
-          root.dir = 'ltr';
+          root.dir = textDirection(locale);
         }
 
         applyTheme();
@@ -70,7 +178,7 @@
     <!-- OG_META_PLACEHOLDER -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="description" content="Real-time chat application" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e5e7eb" />
@@ -78,9 +186,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icons/favicon.png" type="image/png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-    %sveltekit.head%
+    <link rel="icon" href="/favicon" sizes="32x32" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon" />
   </head>
   <body>
     <div style="display: contents">%sveltekit.body%</div>

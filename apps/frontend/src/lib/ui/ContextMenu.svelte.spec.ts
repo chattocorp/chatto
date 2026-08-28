@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import ContextMenu from './ContextMenu.svelte';
+import ContextMenuRouteTeardownHarness from './ContextMenuRouteTeardownHarness.svelte';
 
 const inputCapabilities = vi.hoisted(() => ({
   prefersTouchActions: vi.fn(() => false),
@@ -61,6 +63,70 @@ beforeEach(() => {
 });
 
 describe('ContextMenu', () => {
+  it('does not keep an old route visible while its replacement mounts', async () => {
+    const { container } = render(ContextMenuRouteTeardownHarness);
+
+    q(container, 'button')?.click();
+    await tick();
+
+    expect(q(container, '[data-testid="profile-route"]')).not.toBeNull();
+    expect(q(container, '[data-testid="room-route"]')).toBeNull();
+  });
+
+  it('dismisses on outside scroll by default', async () => {
+    const onclose = vi.fn();
+    renderMenu({ onclose });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.body.dispatchEvent(new Event('scroll'));
+
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it('can remain open during programmatic outside scroll', async () => {
+    const onclose = vi.fn();
+    renderMenu({ onclose, scrollDismissal: 'user' });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.body.dispatchEvent(new Event('scroll'));
+
+    expect(onclose).not.toHaveBeenCalled();
+  });
+
+  it('dismisses user-scroll mode on outside wheel input', async () => {
+    const onclose = vi.fn();
+    renderMenu({ onclose, scrollDismissal: 'user' });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.body.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it('dismisses user-scroll mode when an outside touch scroll starts', async () => {
+    const onclose = vi.fn();
+    renderMenu({ onclose, scrollDismissal: 'user' });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    document.body.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' })
+    );
+
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it('keeps user-scroll mode open for wheel input inside the menu', async () => {
+    const onclose = vi.fn();
+    const { container } = renderMenu({ onclose, scrollDismissal: 'user' });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const menu = q(container, '[role="menu"]');
+    if (!menu) throw new Error('menu not rendered');
+    menu.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+
+    expect(onclose).not.toHaveBeenCalled();
+  });
+
   it('uses floating presentation on hybrid devices by default', async () => {
     inputCapabilities.prefersTouchActions.mockReturnValue(true);
     inputCapabilities.supportsHoverActions.mockReturnValue(true);
@@ -76,10 +142,17 @@ describe('ContextMenu', () => {
     inputCapabilities.prefersTouchActions.mockReturnValue(true);
     inputCapabilities.supportsHoverActions.mockReturnValue(true);
 
-    const { container } = renderMenu({ presentation: 'sheet' });
+    const { container } = renderMenu({
+      presentation: 'sheet',
+      ariaLabel: 'Room actions'
+    });
 
     await expect.element(q(container, 'dialog.bottom-sheet')).toBeInTheDocument();
-    expect(q(container, '[role="menu"]')).toBeNull();
+    await expect
+      .element(q(container, 'dialog.bottom-sheet'))
+      .toHaveAttribute('aria-label', 'Room actions');
+    await expect.element(q(container, '[role="menu"]')).toHaveAttribute('aria-label', 'Room actions');
+    await expect.element(q(container, '[role="menu"]')).toHaveClass('flex', 'flex-col', 'gap-1');
     expect(container.textContent).toContain('Menu body');
   });
 });

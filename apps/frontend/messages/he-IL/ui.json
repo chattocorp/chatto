@@ -1,0 +1,102 @@
+{
+  "ui": {
+    "toggle_sidebar": "החלף את סרגל הצד",
+    "notifications": "התראות",
+    "open_quick_switcher": "פתח את המחליף המהיר",
+    "quick_switcher_shortcut": "מחליף מהיר (Cmd+K)",
+    "realtime_paused": "עדכונים בזמן אמת הושהו. מתחבר מחדש...",
+    "update_available": "זמינה גרסה חדשה",
+    "reload": "טען מחדש",
+    "sign_out": "צא",
+    "close": "סגירה",
+    "auth_status": {
+      "origin_title": "פג תוקף ההפעלה",
+      "origin_message": "אתה יכול להמשיך לקרוא את מה שכבר נטען. היכנס שוב כדי לשלוח הודעות ולרענן נתונים.",
+      "origin_action": "היכנס שוב",
+      "remote_title": "{server} זקוק לכניסה",
+      "remote_message": "שרת זה דחה את הכניסה המאוחסנת. חבר אותו מחדש כדי לחדש עדכונים ופעולות בזמן אמת.",
+      "remote_action": "התחבר מחדש",
+      "remote_failed": "נכשלה להתחיל להתחבר מחדש",
+      "sidebar_reauth": "{server} זקוק לכניסה"
+    },
+    "access_denied": {
+      "title": "גישה נדחתה",
+      "message": "אין לך הרשאה לגשת לדף זה.",
+      "back": "חזור לצ'אט",
+      "back_to_server": "חזור לשרת"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "מידע נוסף",
+      "about": "אודות {subject}"
+    },
+    "easter_egg": {
+      "fire": "הפעל לייזר מוכן ב-Chatto",
+      "points": "{count} נקודות",
+      "laser_guns_count": {
+        "one": "{count} אקדח לייזר",
+        "two": "{count} רובי לייזר",
+        "other": "{count} רובי לייזר"
+      },
+      "laser_ready": "לייזר {number}, כוח {power}, מוכן",
+      "laser_cooldown": "לייזר {number}, כוח {power}: {seconds} שנותרו שניות של קירור",
+      "upgrade_power": "שדרוג לייזר {number} לרמת הספק {level} עבור נקודות {cost}",
+      "buy_laser": "קנה אקדח לייזר {number} עבור נקודות {cost}",
+      "maximum_lasers": "הגעת למקסימום של רובי לייזר {count}"
+    },
+    "pane_header": {
+      "back": "חזרה"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "חזרה לצ'אט"
+    },
+    "resize_handle": {
+      "resize": "שינוי גודל",
+      "resize_sidebar": "שינוי גודל סרגל צד"
+    },
+    "data_table": {
+      "empty": "אין נתונים",
+      "loading_more": "טוען עוד..."
+    },
+    "loading_page": {
+      "loading": "טוען..."
+    },
+    "image_modal": {
+      "previous": "תמונה קודמת",
+      "next": "התמונה הבאה",
+      "fallback_alt": "תמונה"
+    },
+    "toast": {
+      "dismiss": "בטל הודעה"
+    },
+    "combobox": {
+      "loading": "טוען...",
+      "empty": "אין התאמות",
+      "clear": "ברור"
+    },
+    "expiry": {
+      "label": "יפוג",
+      "24h": "24 שעות",
+      "7d": "7 ימים",
+      "30d": "30 ימים",
+      "indefinite": "אין תפוגה",
+      "custom": "מותאם אישית",
+      "custom_label": "תפוגה מותאמת אישית",
+      "error_required": "בחר תאריך תפוגה.",
+      "error_invalid": "הזן זמן תפוגה חוקי.",
+      "error_future": "זמן התפוגה חייב להיות בעתיד."
+    },
+    "form": {
+      "required": "נדרש",
+      "max_bytes": "מקסימום {max} בתים; תווים מסוימים משתמשים ביותר מבייט אחד."
+    },
+    "dates": {
+      "today": "היום",
+      "yesterday": "אתמול",
+      "this_week": "השבוע",
+      "this_month": "החודש"
+    }
+  }
+}

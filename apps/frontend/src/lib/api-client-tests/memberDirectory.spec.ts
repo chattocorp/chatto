@@ -1,7 +1,8 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PresenceStatus } from '$lib/api-client/renderTypes';
+
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 
@@ -61,6 +62,7 @@ describe('createMemberDirectoryAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             deleted: false,
+            isBot: true,
             avatarUrl: 'https://cdn/avatar.webp',
             presenceStatus: APIPresenceStatus.AWAY,
             customStatus: {
@@ -81,15 +83,19 @@ describe('createMemberDirectoryAPI', () => {
       bearerToken: 'token'
     });
 
-    await expect(api.listUsers('ali', 10, 20)).resolves.toEqual({
+    const signal = new AbortController().signal;
+    await expect(api.listUsers('ali', 10, 20, { signal })).resolves.toEqual({
       members: [
         {
           id: 'U1',
           login: 'alice',
           displayName: 'Alice',
           deleted: false,
+          isBot: true,
           avatarUrl: 'https://cdn/avatar.webp',
-          presenceStatus: PresenceStatus.Away,
+          bio: null,
+          timezone: null,
+          presenceStatus: PresenceStatus.AWAY,
           customStatus: {
             emoji: ':seedling:',
             text: 'Focus',
@@ -109,7 +115,7 @@ describe('createMemberDirectoryAPI', () => {
     });
     expect(mocks.listUsers).toHaveBeenCalledWith(
       { search: 'ali', page: { limit: 10, offset: 20 } },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal }
     );
   });
 
@@ -134,15 +140,13 @@ describe('createMemberDirectoryAPI', () => {
 
     await expect(api.getUser('U1')).resolves.toMatchObject({
       id: 'U1',
-      presenceStatus: PresenceStatus.Online
+      presenceStatus: PresenceStatus.ONLINE
     });
     await expect(api.getUserByLogin('alice')).resolves.toMatchObject({
       id: 'U1',
-      presenceStatus: PresenceStatus.Online
+      presenceStatus: PresenceStatus.ONLINE
     });
-    await expect(api.batchGetUsers(['U1', 'missing'])).resolves.toMatchObject([
-      { id: 'U1' }
-    ]);
+    await expect(api.batchGetUsers(['U1', 'missing'])).resolves.toMatchObject([{ id: 'U1' }]);
 
     expect(mocks.getUser).toHaveBeenNthCalledWith(
       1,
@@ -186,8 +190,11 @@ describe('createMemberDirectoryAPI', () => {
           login: 'bob',
           displayName: 'Bob',
           deleted: false,
+          isBot: false,
           avatarUrl: null,
-          presenceStatus: PresenceStatus.DoNotDisturb,
+          bio: null,
+          timezone: null,
+          presenceStatus: PresenceStatus.DO_NOT_DISTURB,
           customStatus: null,
           roles: [],
           createdAt: null
@@ -236,9 +243,10 @@ describe('createMemberDirectoryAPI', () => {
     const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
 
     await expect(api.getRoomMember('room-1', 'U2')).resolves.toMatchObject({ id: 'U2' });
-    await expect(api.batchGetRoomMembers('room-1', ['U2', 'missing'])).resolves.toMatchObject([
-      { id: 'U2' }
-    ]);
+    const signal = new AbortController().signal;
+    await expect(
+      api.batchGetRoomMembers('room-1', ['U2', 'missing'], { signal })
+    ).resolves.toMatchObject([{ id: 'U2' }]);
 
     expect(mocks.getRoomMember).toHaveBeenCalledWith(
       { roomId: 'room-1', userId: 'U2' },
@@ -246,7 +254,23 @@ describe('createMemberDirectoryAPI', () => {
     );
     expect(mocks.batchGetRoomMembers).toHaveBeenCalledWith(
       { roomId: 'room-1', userIds: ['U2', 'missing'] },
-      { headers: undefined }
+      { headers: undefined, signal }
+    );
+  });
+
+  it('passes cancellation through when listing room members', async () => {
+    mocks.listRoomMembers.mockResolvedValue({
+      members: [],
+      page: { totalCount: 0n, hasMore: false }
+    });
+    const signal = new AbortController().signal;
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await api.listRoomMembers('room-1', '', 20, 40, { signal });
+
+    expect(mocks.listRoomMembers).toHaveBeenCalledWith(
+      { roomId: 'room-1', search: '', page: { limit: 20, offset: 40 } },
+      { headers: undefined, signal }
     );
   });
 
@@ -274,20 +298,20 @@ describe('createMemberDirectoryAPI', () => {
       users: [
         {
           user: {
-              id: 'U3',
-              login: 'carol',
-              displayName: 'Carol',
-              deleted: false,
+            id: 'U3',
+            login: 'carol',
+            displayName: 'Carol',
+            deleted: false,
             presenceStatus: APIPresenceStatus.OFFLINE
           },
           roles: []
         },
         {
           user: {
-              id: 'U4',
-              login: 'dave',
-              displayName: 'Dave',
-              deleted: false,
+            id: 'U4',
+            login: 'dave',
+            displayName: 'Dave',
+            deleted: false,
             presenceStatus: APIPresenceStatus.UNSPECIFIED
           },
           roles: []
@@ -300,8 +324,8 @@ describe('createMemberDirectoryAPI', () => {
 
     await expect(api.listUsers()).resolves.toMatchObject({
       members: [
-        { id: 'U3', presenceStatus: PresenceStatus.Offline },
-        { id: 'U4', presenceStatus: PresenceStatus.Offline }
+        { id: 'U3', presenceStatus: PresenceStatus.OFFLINE },
+        { id: 'U4', presenceStatus: PresenceStatus.OFFLINE }
       ]
     });
   });

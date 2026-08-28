@@ -2,9 +2,9 @@ package core
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // PublishTypingIndicator publishes a typing indicator event to other users in the room.
@@ -13,15 +13,15 @@ import (
 //
 // Authorization: Caller must verify room membership before calling.
 func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID string, kind RoomKind, roomID string, threadRootEventID *string) error {
-	typingEvent := &corev1.UserTypingEvent{
+	typingEvent := &livev1.UserTypingEvent{
 		RoomId: roomID,
 	}
 	if threadRootEventID != nil {
 		typingEvent.ThreadRootEventId = threadRootEventID
 	}
 
-	event := newLiveEvent(actorID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_UserTyping{
+	event := newLiveEvent(actorID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_UserTyping{
 			UserTyping: typingEvent,
 		},
 	})

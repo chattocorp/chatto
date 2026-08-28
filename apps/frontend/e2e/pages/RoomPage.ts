@@ -9,7 +9,7 @@ import { MessageComponent } from './MessageComponent';
 export class RoomPage {
   constructor(readonly page: Page) {}
 
-  /** The message input field (TipTap contenteditable editor) */
+  /** The message input field (visual or Markdown contenteditable editor) */
   get messageInput(): Locator {
     return this.page.getByTestId('message-input');
   }
@@ -31,17 +31,17 @@ export class RoomPage {
 
   /** Attachment preview (shown when file is selected before sending) */
   get attachmentPreview(): Locator {
-    return this.page.locator('img.h-16.w-16');
+    return this.page.getByTestId('composer-attachment-preview');
   }
 
   /** Attachment preview staged in the main room composer. */
   get roomAttachmentPreview(): Locator {
-    return this.roomDropZone.locator('img.h-16.w-16');
+    return this.roomDropZone.getByTestId('composer-attachment-preview');
   }
 
   /** Attachment preview staged in the thread composer. */
   get threadAttachmentPreview(): Locator {
-    return this.threadDropZone.locator('img.h-16.w-16');
+    return this.threadDropZone.getByTestId('composer-attachment-preview');
   }
 
   /** The attach file button */
@@ -52,6 +52,11 @@ export class RoomPage {
   /** The send button */
   get sendButton(): Locator {
     return this.page.getByRole('button', { name: 'Send message' });
+  }
+
+  /** The destination prompt shown after a recent authored message gained a thread. */
+  get recentThreadConfirmationDialog(): Locator {
+    return this.page.getByRole('dialog', { name: 'Continue your previous thread?' });
   }
 
   /** Video attachment preview in the composer (shown when a video file is staged) */
@@ -110,6 +115,14 @@ export class RoomPage {
     return this.page.locator('aside[aria-label="Room extras"] nav[aria-label="Members"]');
   }
 
+  /** Open the room's Members panel when it is currently closed. */
+  async openMembersPanel(): Promise<void> {
+    if (await this.memberList.isVisible()) return;
+
+    await this.page.getByRole('button', { name: 'Show members' }).click();
+    await expect(this.memberList).toBeVisible();
+  }
+
   /**
    * Get a member's list item by their display name or login.
    */
@@ -128,7 +141,7 @@ export class RoomPage {
    * Get a member's username element (the @username line).
    */
   getMemberUsername(name: string): Locator {
-    return this.getMember(name).locator('.min-w-0 > div').nth(1);
+    return this.getMember(name).getByTestId('room-member-login');
   }
 
   /**
@@ -173,9 +186,33 @@ export class RoomPage {
     await this.waitForInputEditable();
     await this.messageInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.messageInput);
-    await this.messageInput.press('Enter');
+    await this.messageInput.press('Control+Enter');
     const message = this.getMessage(text);
     await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await this.waitForInputEditable();
+    return message;
+  }
+
+  /**
+   * Send a new root message when the composer asks whether a recent thread
+   * should receive it instead. This asserts that the safeguard was shown.
+   */
+  async sendNewRootAfterThread(text: string): Promise<MessageComponent> {
+    await this.waitForInputEditable();
+    await this.messageInput.fill(text);
+    await this.dismissAutocompleteIfOpen(this.messageInput);
+    await this.messageInput.press('Control+Enter');
+
+    await expect(this.recentThreadConfirmationDialog).toBeVisible({
+      timeout: TIMEOUTS.UI_FAST
+    });
+    await this.recentThreadConfirmationDialog
+      .getByRole('button', { name: 'Post as new message' })
+      .click();
+
+    const message = this.getMessage(text);
+    await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await this.waitForInputEditable();
     return message;
   }
 
@@ -189,6 +226,7 @@ export class RoomPage {
     await this.sendButton.click();
     const message = this.getMessage(text);
     await expect(message.locator).toBeVisible();
+    await this.waitForInputEditable();
     return message;
   }
 
@@ -211,7 +249,7 @@ export class RoomPage {
       await this.messageInput.fill(text);
     }
     await this.dismissAutocompleteIfOpen(this.messageInput);
-    await this.messageInput.press('Enter');
+    await this.messageInput.press('Control+Enter');
 
     // Wait for attachment preview to clear (message sent)
     await expect(this.attachmentPreview).not.toBeVisible();
@@ -267,7 +305,7 @@ export class RoomPage {
    * Assert that a message with the given text is visible.
    */
   async expectMessageVisible(text: string, options?: { timeout?: number }): Promise<void> {
-    await expect(this.page.getByText(text)).toBeVisible(options);
+    await expect(this.getMessage(text).locator).toBeVisible(options);
   }
 
   /**
@@ -365,6 +403,7 @@ export class RoomPage {
    * Assert that a member is visible in the member list.
    */
   async expectMemberVisible(name: string, options?: { timeout?: number }): Promise<void> {
+    await this.openMembersPanel();
     await expect(this.getMember(name)).toBeVisible(options);
   }
 
@@ -372,6 +411,7 @@ export class RoomPage {
    * Assert that a member has an avatar image (not initials).
    */
   async expectMemberHasAvatar(name: string, options?: { timeout?: number }): Promise<void> {
+    await this.openMembersPanel();
     await expect(this.getMemberAvatarImage(name)).toBeVisible(options);
   }
 
@@ -379,6 +419,7 @@ export class RoomPage {
    * Assert that a member has initials (no avatar image).
    */
   async expectMemberHasInitials(name: string, options?: { timeout?: number }): Promise<void> {
+    await this.openMembersPanel();
     await expect(this.getMemberAvatarInitials(name)).toBeVisible(options);
     await expect(this.getMemberAvatarImage(name)).not.toBeVisible();
   }
@@ -391,6 +432,7 @@ export class RoomPage {
     expectedDisplayName: string,
     options?: { timeout?: number }
   ): Promise<void> {
+    await this.openMembersPanel();
     await expect(this.getMemberDisplayName(memberIdentifier)).toHaveText(
       expectedDisplayName,
       options
@@ -405,6 +447,7 @@ export class RoomPage {
     expectedLogin: string,
     options?: { timeout?: number }
   ): Promise<void> {
+    await this.openMembersPanel();
     const usernameElement = this.getMemberUsername(memberIdentifier);
     await expect(usernameElement).toHaveText(`@${expectedLogin}`, options);
     await expect(usernameElement).toHaveClass(/text-muted/);
@@ -415,6 +458,7 @@ export class RoomPage {
    * Returns an array of display name strings.
    */
   async getMemberDisplayNamesInOrder(): Promise<string[]> {
+    await this.openMembersPanel();
     const memberItems = this.memberList.locator('button.sidebar-item');
     const count = await memberItems.count();
     const displayNames: string[] = [];
@@ -456,7 +500,7 @@ export class RoomPage {
    */
   async completeEdit(newText: string): Promise<void> {
     await this.composer.fill(newText);
-    await this.composer.press('Enter');
+    await this.composer.press('Control+Enter');
     await expect(this.editingIndicator).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   }
 
@@ -574,12 +618,14 @@ export class RoomPage {
     });
     await this.threadReplyInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.threadReplyInput);
-    await this.threadReplyInput.press('Enter');
-    await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await this.threadReplyInput.press('Control+Enter');
+    await expect(this.getThreadMessage(text).locator).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
   }
 
   /**
-   * Post a reply in the currently open thread with "Also send to channel" checkbox enabled.
+   * Post a reply in the currently open thread with "Also send to channel" enabled.
    */
   async postThreadReplyWithEcho(text: string): Promise<void> {
     // Wait for thread reply input to be editable
@@ -587,18 +633,18 @@ export class RoomPage {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Check the "Also send to channel" checkbox
-    const checkbox = this.page.getByLabel('Also send to channel');
-    await expect(checkbox).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    await checkbox.check();
-    await expect(checkbox).toBeChecked();
+    const echoToggle = this.page.getByRole('button', { name: 'Also send to channel' });
+    await expect(echoToggle).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await echoToggle.click();
+    await expect(echoToggle).toHaveAttribute('aria-pressed', 'true');
 
     // Post the reply
     await this.threadReplyInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.threadReplyInput);
-    await this.threadReplyInput.press('Enter');
-    // Wait for message to appear in thread pane specifically
-    await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await this.threadReplyInput.press('Control+Enter');
+    await expect(this.getThreadMessage(text).locator).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
   }
 
   private async dismissAutocompleteIfOpen(input: Locator): Promise<void> {
@@ -672,7 +718,9 @@ export class RoomPage {
    * Assert that text is visible in the thread pane.
    */
   async expectTextInThreadPane(text: string): Promise<void> {
-    await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(this.getThreadMessage(text).locator).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
   }
 
   /**
@@ -708,7 +756,7 @@ export class RoomPage {
    */
   async completeThreadEdit(newText: string): Promise<void> {
     await this.threadReplyInput.fill(newText);
-    await this.threadReplyInput.press('Enter');
+    await this.threadReplyInput.press('Control+Enter');
     await expect(this.threadEditingIndicator).not.toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   }
 
@@ -835,6 +883,9 @@ export class RoomPage {
    * Type text in the main room input without sending.
    */
   async typeInMainInput(text: string): Promise<void> {
+    await expect(this.messageInput).toHaveAttribute('contenteditable', 'true', {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
     await this.messageInput.fill(text);
   }
 
@@ -842,6 +893,9 @@ export class RoomPage {
    * Type text in the thread reply input without sending.
    */
   async typeInThreadInput(text: string): Promise<void> {
+    await expect(this.threadReplyInput).toHaveAttribute('contenteditable', 'true', {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
     await this.threadReplyInput.fill(text);
   }
 

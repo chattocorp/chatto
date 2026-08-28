@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 
 const CSRF_COOKIE_NAME = 'chatto_csrf';
 export const CSRF_HEADER_NAME = 'X-CSRF-Token';
+export const BROWSER_AUTHENTICATION_MODE_HEADER = 'X-Chatto-Authentication-Mode';
 
 export async function csrfHeaders(page: Page): Promise<Record<string, string>> {
   // API-only login helpers can create or swap cookie sessions without a page
@@ -12,4 +13,15 @@ export async function csrfHeaders(page: Page): Promise<Record<string, string>> {
   const cookies = await page.context().cookies();
   const token = cookies.find((cookie) => cookie.name === CSRF_COOKIE_NAME)?.value;
   return token ? { [CSRF_HEADER_NAME]: token } : {};
+}
+
+/** Headers for a same-origin browser authentication mutation. */
+export async function browserAuthenticationHeaders(page: Page): Promise<Record<string, string>> {
+  const response = await page.request.get('/');
+  return {
+    'Content-Type': 'application/json',
+    [BROWSER_AUTHENTICATION_MODE_HEADER]: 'cookie',
+    Origin: new URL(response.url()).origin,
+    ...(await csrfHeaders(page))
+  };
 }

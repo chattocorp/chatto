@@ -4,18 +4,18 @@ import '../src/app.css';
 import './storybook.css';
 
 const prefersDark =
-  typeof window !== 'undefined' &&
-  window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
 function resolveTheme(theme: string | undefined): 'light' | 'dark' {
   if (theme === 'light' || theme === 'dark') return theme;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-const themeDecorator: Decorator = (story, context) => {
+const previewDecorator: Decorator = (story, context) => {
   if (typeof document !== 'undefined') {
     const resolved = resolveTheme(context.globals.theme as string | undefined);
     document.documentElement.dataset.theme = resolved;
+    document.documentElement.dir = context.globals.direction === 'rtl' ? 'rtl' : 'ltr';
   }
   return story();
 };
@@ -29,6 +29,9 @@ const preview: Preview = {
       }
     },
     backgrounds: { disable: true },
+    a11y: {
+      test: 'error'
+    },
     docs: {
       // Storybook themes its own docs chrome (page bg, headings, props
       // table). Pick the preset that matches the user's OS preference at
@@ -55,12 +58,25 @@ const preview: Preview = {
         ],
         dynamicTitle: true
       }
+    },
+    direction: {
+      description: 'Text direction',
+      toolbar: {
+        title: 'Direction',
+        icon: 'globe',
+        items: [
+          { value: 'ltr', title: 'Left to right' },
+          { value: 'rtl', title: 'Right to left' }
+        ],
+        dynamicTitle: true
+      }
     }
   },
   initialGlobals: {
-    theme: 'auto'
+    theme: 'auto',
+    direction: 'ltr'
   },
-  decorators: [themeDecorator]
+  decorators: [previewDecorator]
 };
 
 export default preview;

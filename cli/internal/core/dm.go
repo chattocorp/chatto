@@ -10,9 +10,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // MaxDMParticipants is the maximum number of participants allowed in a DM.
@@ -33,19 +33,19 @@ const (
 
 // ProtoKindForRoomKind maps the Go-side RoomKind string to the proto
 // enum stored on Room.kind.
-func ProtoKindForRoomKind(kind RoomKind) corev1.RoomKind {
+func ProtoKindForRoomKind(kind RoomKind) evtv1.RoomKind {
 	if kind == KindDM {
-		return corev1.RoomKind_ROOM_KIND_DM
+		return evtv1.RoomKind_ROOM_KIND_DM
 	}
-	return corev1.RoomKind_ROOM_KIND_CHANNEL
+	return evtv1.RoomKind_ROOM_KIND_CHANNEL
 }
 
 // KindOfRoom returns the canonical RoomKind for a Room. Reads
 // Room.kind directly; legacy `space_id`-based fallback was removed
 // when the field was retired from the proto.
-func KindOfRoom(room *corev1.Room) RoomKind {
+func KindOfRoom(room *evtv1.Room) RoomKind {
 	switch room.Kind {
-	case corev1.RoomKind_ROOM_KIND_DM:
+	case evtv1.RoomKind_ROOM_KIND_DM:
 		return KindDM
 	default:
 		return KindChannel
@@ -81,13 +81,10 @@ func DMRoomID(participantIDs []string) string {
 // DM Room Management
 // ============================================================================
 
-// FindOrCreateDM finds an existing DM conversation or creates a new one.
-// The caller (creatorID) is automatically included in the participant list.
-// Returns the room and a boolean indicating whether it was newly created.
-//
-// For existing DMs, the caller must already be a participant.
-// For new DMs, all participants are automatically joined to the room.
-func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*corev1.Room, bool, error) {
+// FindDM returns the existing DM for the caller and participant set.
+// The caller is automatically included in the participant set. A missing DM
+// returns (nil, false, nil). The caller must be a member of a found DM.
+func (c *ChattoCore) FindDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
 	// Ensure creator is in participants
 	allParticipants := ensureInList(participantIDs, creatorID)
 
@@ -114,11 +111,31 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 		if !isMember {
 			return nil, false, fmt.Errorf("access denied: not a participant in this DM")
 		}
-		return room, false, nil
+		return room, true, nil
 	}
 	if !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil, false, fmt.Errorf("failed to check existing DM: %w", err)
 	}
+	return nil, false, nil
+}
+
+// FindOrCreateDM finds an existing DM conversation or creates a new one.
+// The caller (creatorID) is automatically included in the participant list.
+// Returns the room and a boolean indicating whether it was newly created.
+//
+// For existing DMs, the caller must already be a participant.
+// For new DMs, all participants are automatically joined to the room.
+func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
+	room, found, err := c.FindDM(ctx, creatorID, participantIDs)
+	if err != nil {
+		return nil, false, err
+	}
+	if found {
+		return room, false, nil
+	}
+
+	allParticipants := ensureInList(participantIDs, creatorID)
+	roomID := DMRoomID(allParticipants)
 
 	// Create new DM room
 	room, err = c.createDMRoom(ctx, roomID, allParticipants)
@@ -154,25 +171,25 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 //
 // Post-batch side effects (per-participant read markers) happen after the
 // batch acks, since they're outside the durable event log.
-func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*corev1.Room, error) {
-	room := &corev1.Room{
+func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*evtv1.Room, error) {
+	room := &evtv1.Room{
 		Id:   roomID,
-		Kind: corev1.RoomKind_ROOM_KIND_DM,
+		Kind: evtv1.RoomKind_ROOM_KIND_DM,
 		Name: "", // DMs don't have names - derived from participants in UI
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 
 	// "system" actor reflects that the conversation is created by
 	// the platform on the first participant's behalf — DMs have no
 	// operator-driven creation flow.
-	createdEvent := newEvent("system", &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{
+	createdEvent := newEvent("system", &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{
 				RoomId:      roomID,
 				Name:        "",
 				Description: "",
-				Kind:        corev1.RoomKind_ROOM_KIND_DM,
+				Kind:        evtv1.RoomKind_ROOM_KIND_DM,
 			},
 		},
 	})
@@ -182,7 +199,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// "no prior RoomCreated event." Preserves the per-aggregate
 	// uniqueness guarantee under the per-(agg, event-type) subject
 	// shape.
-	entries := []events.BatchEntry{
+	entries := []evtstream.BatchEntry{
 		{
 			Subject:       agg.SubjectFor(createdEvent),
 			Event:         createdEvent,
@@ -191,12 +208,12 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		},
 	}
 	for _, pid := range participantIDs {
-		joinEvent := newEvent(pid, &corev1.Event{
-			Event: &corev1.Event_UserJoinedRoom{
-				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
+		joinEvent := newEvent(pid, &evtv1.Event{
+			Event: &evtv1.Event_UserJoinedRoom{
+				UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID},
 			},
 		})
-		entries = append(entries, events.BatchEntry{
+		entries = append(entries, evtstream.BatchEntry{
 			Subject: agg.SubjectFor(joinEvent),
 			Event:   joinEvent,
 		})
@@ -213,10 +230,10 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// Reaching the last UserJoinedRoom means the earlier RoomCreated has also
 	// landed in the room directory.
 	lastSubject := entries[len(entries)-1].Subject
-	if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+	if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
 		c.logger.Warn("DM room directory projection wait failed", "error", err, "room_id", roomID)
 	}
-	if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+	if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
 		c.logger.Warn("DM room timeline projection wait failed", "error", err, "room_id", roomID)
 	}
 
@@ -224,7 +241,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// HasUnread distinguishes a fresh member from a deploy-era user; see
 	// GetLastReadEventID.
 	for _, pid := range participantIDs {
-		if err := c.SetLastReadEventID(ctx, KindDM, pid, roomID, ""); err != nil {
+		if err := c.initializeLastReadEventID(ctx, pid, roomID, ""); err != nil {
 			c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", pid, "room_id", roomID)
 		}
 	}
@@ -240,80 +257,4 @@ func ensureInList(list []string, id string) []string {
 		}
 	}
 	return append(list, id)
-}
-
-// notifyDMParticipants sends notifications to all DM participants except the sender.
-// This creates persistent notifications (for bell icon) and publishes live events.
-// This is best-effort - failures are logged but don't affect message posting.
-func (c *ChattoCore) notifyDMParticipants(ctx context.Context, roomID, senderID, eventID string) {
-	participants, err := c.GetRoomMembersList(ctx, KindDM, roomID)
-	if err != nil {
-		c.logger.Warn("Failed to get DM participants for notification",
-			"room_id", roomID,
-			"error", err)
-		return
-	}
-
-	for _, participant := range participants {
-		participantID := participant.UserId
-		// Don't notify the sender
-		if participantID == senderID {
-			continue
-		}
-
-		// Skip if user has muted this DM room
-		level, err := c.GetEffectiveNotificationLevel(ctx, participantID, roomID)
-		if err != nil {
-			c.logger.Warn("Failed to get notification level for DM participant, continuing",
-				"user_id", participantID, "error", err)
-		} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			continue
-		}
-		// Create persistent notification (for bell icon and notification center)
-		// This also publishes NotificationCreatedEvent for real-time updates
-		created, createErr := c.CreateNotification(ctx, participantID, senderID, &corev1.Notification{
-			Notification: &corev1.Notification_DmMessage{
-				DmMessage: &corev1.DMMessageNotification{
-					RoomId:  roomID,
-					EventId: eventID,
-				},
-			},
-		})
-		if createErr != nil {
-			c.logger.Warn("Failed to create DM notification",
-				"participant_id", participantID,
-				"sender_id", senderID,
-				"room_id", roomID,
-				"error", createErr)
-			continue
-		}
-		if created == nil {
-			continue
-		}
-		if c.suppressesNotificationAlertsForPresence(ctx, participantID) {
-			continue
-		}
-
-		// Publish live DM notification event for unread indicator real-time update
-		event := newLiveEvent(senderID, &corev1.LiveEvent{
-			Event: &corev1.LiveEvent_NewDirectMessageNotification{
-				NewDirectMessageNotification: &corev1.NewDirectMessageNotificationEvent{
-					RoomId:   roomID,
-					SenderId: senderID,
-				},
-			},
-		})
-
-		subject := subjects.LiveSyncUserEvent(participantID, "dm_message")
-		if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-			c.logger.Warn("Failed to publish DM live event",
-				"participant_id", participantID,
-				"error", err)
-		}
-
-		c.logger.Debug("Created DM notification",
-			"participant_id", participantID,
-			"sender_id", senderID,
-			"room_id", roomID)
-	}
 }

@@ -6,31 +6,42 @@ import { PINNED_REACTIONS } from '$lib/emoji';
 import { __resetRecentEmojisForTests, getRecentEmojis } from '$lib/state/recentEmojis.svelte';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import MessageHoverBar from './MessageHoverBar.svelte';
+import { buildMessageActionModel } from './messageActionModel';
 
 const SERVER_ID = 'recent-reactions-server';
 
 const mocks = vi.hoisted(() => ({
   actions: {
     toggleReaction: vi.fn(),
+    addReaction: vi.fn(),
+    removeReaction: vi.fn(),
     startEdit: vi.fn(),
-    openDeleteConfirmation: vi.fn()
+    openDeleteConfirmation: vi.fn(),
+    copyMessageText: vi.fn(),
+    copyMessageLink: vi.fn()
   }
 }));
 
-vi.mock('$lib/hooks', () => ({
-  useMessageActions: () => mocks.actions
-}));
-
 function renderBar() {
-  return render(MessageHoverBar, {
-    props: {
+  const action = buildMessageActionModel({
+    actions: mocks.actions,
+    params: {
       serverId: SERVER_ID,
       roomId: 'room-1',
       messageEventId: 'message-event-1',
       eventId: 'event-1',
-      messageBody: 'Hello',
-      canReact: true
-    }
+      messageBody: 'Hello'
+    },
+    reactions: [],
+    canReact: true,
+    canEdit: false,
+    canDelete: false,
+    replyInRoomLabel: 'Reply',
+    replyThreadLabel: 'Reply in thread'
+  });
+
+  return render(MessageHoverBar, {
+    props: { action }
   });
 }
 
@@ -73,7 +84,9 @@ describe('MessageHoverBar recent reactions integration', () => {
       }
     });
     await searchEmoji(picker.container, 'check');
-    (picker.container.querySelector('button[title="white_check_mark"]') as HTMLButtonElement).click();
+    (
+      picker.container.querySelector('button[title="white_check_mark"]') as HTMLButtonElement
+    ).click();
     flushSync();
     await tick();
 

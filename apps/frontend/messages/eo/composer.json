@@ -1,0 +1,70 @@
+{
+  "composer": {
+    "attach_file": "Alektu dosieron",
+    "send": "Sendu mesaĝon",
+    "send_label": "Sendu",
+    "also_send_to_channel": "Ankaŭ sendu al kanalo",
+    "post_as_thread": "Afiŝi kiel fadenon",
+    "thread_label": "Fadeno",
+    "echo_label": "Eĥo",
+    "replying_to": "Respondante al",
+    "esc_to_cancel": "nuligi",
+    "editing": "Redaktante mesaĝon",
+    "send_anyway": "Sendu Ĉiuokaze",
+    "role_mention_confirm_title": "Ĉu sendi mencion?",
+    "role_mention_confirm_body": "Ĉi tiu mesaĝo enhavas mencion, kiu povas sciigi plurajn homojn.",
+    "link_url": "Ligo URL",
+    "open_link": "Malfermu ligilon",
+    "remove_link": "Forigi ligilon",
+    "code_language": "Kodlingvo",
+    "placeholder": "Tajpu mesaĝon...",
+    "editing_placeholder": "Redaktante mesaĝon...",
+    "drop_files_title": "Forigu dosierojn ĉi tie",
+    "drop_files_subtitle": "Bildoj kaj filmetoj estos aldonitaj al via mesaĝo",
+    "send_failed": "Malsukcesis sendi mesaĝon",
+    "slow_mode_ready": "Malrapida reĝimo: unu mesaĝo ĉiun {interval}.",
+    "slow_mode_waiting": "Malrapida reĝimo: sendu denove post {countdown}.",
+    "slow_mode_bypassed": "Malrapida reĝimo: {interval} (vi estas esceptita).",
+    "slow_mode_rejected": "Malrapida reĝimo estas aktiva. Atendu antaŭ ol sendi alian mesaĝon.",
+    "threads_encouraged": "Fadenoj estas instigitaj en ĉi tiu ĉambro.",
+    "recent_thread_confirm_title": "Ĉu daŭrigi vian antaŭan fadenon?",
+    "recent_thread_confirm_body": "Via antaŭa mesaĝo jam havas fadenon. Kien ĉi tiu mesaĝo estu afiŝita?",
+    "post_as_new_message": "Afiŝi kiel novan mesaĝon",
+    "continue_in_thread": "Daŭrigi en la fadeno",
+    "edit_failed": "Malsukcesis redakti mesaĝon",
+    "upload": {
+      "preparing": "Preparante…",
+      "uploading": "{percentage}% alŝutita",
+      "uploaded": "Alŝutita",
+      "failed": "Alŝuto malsukcesis",
+      "remove": "Forigi {filename}"
+    },
+    "format": {
+      "bold": "Grasa",
+      "italic": "Kursiva",
+      "inline_code": "Enlinia kodo",
+      "heading": "Titolo",
+      "bullet_list": "Bulleta listo",
+      "ordered_list": "Numerita listo",
+      "blockquote": "Citaĵo",
+      "code_block": "Kodbloko",
+      "outdent": "Malpligrandigi deŝovon",
+      "indent": "Pligrandigi deŝovon"
+    },
+    "timestamp": {
+      "title": "Enmeti tempomarkon",
+      "insert_label": "Enmeti tempomarkon",
+      "date_time": "Dato kaj horo",
+      "timezone": "Horzono",
+      "insert": "Enmeti",
+      "error_required": "Elektu daton kaj horon.",
+      "error_timezone": "Elektu validan IANA-horzonon.",
+      "error_invalid": "Elektu validajn daton kaj horon por ĉi tiu horzono."
+    },
+    "mention": {
+      "all_room_members": "Ĉiuj ĉambromembroj",
+      "members_here": "Membroj nuntempe ĉi tie",
+      "role": "Rolo"
+    }
+  }
+}

@@ -1,28 +1,40 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let { active }: { active: boolean } = $props();
 
-  const notificationStore = serverRegistry.getStore(getActiveServer()).notifications;
+  const serverScope = useServerScope();
+  const serverId = $derived(serverScope.serverId);
+  const notificationStore = $derived(serverScope.store.notifications);
+  const hasNotification = $derived(
+    notificationStore.unreadOccurrences.some((n) => notificationTarget(n).threadRootId !== null)
+  );
 
   const hasUnread = $derived(
-    notificationStore.notifications.some((n) => notificationTarget(n).threadRootId !== null)
+    hasNotification ||
+      [...serverScope.store.projection.threadViewerStates.values()].some(
+        (state) => state.isFollowing && state.hasUnread
+      )
   );
 </script>
 
 <a
-  href={resolve('/chat/[serverId]/threads', { serverId: serverIdToSegment(getActiveServer()) })}
-  class={['sidebar-item', active ? 'bg-surface-100' : '']}
+  href={resolve('/chat/[serverId]/threads', { serverId: serverIdToSegment(serverId) })}
+  aria-current={active ? 'page' : undefined}
+  class="sidebar-item"
 >
-  <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
-  {m['chat.threads.title']()}
+  <span class="iconify sidebar-icon icon-[uil--comment-alt-lines]"></span>
+  {m('chat.threads.title')}
   {#if hasUnread}
-    <UnreadDot class="ml-auto" testid="my-threads-unread-dot" />
+    <UnreadDot
+      class="ms-auto"
+      color={hasNotification ? 'warning' : 'neutral'}
+      testid="my-threads-unread-dot"
+    />
   {/if}
 </a>

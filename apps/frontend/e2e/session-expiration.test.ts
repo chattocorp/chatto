@@ -30,7 +30,7 @@ async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
 }
 
 /**
- * Clear stored credentials and reload the protected route.
+ * Clear all stored credentials and reload the protected route.
  *
  * Session expiry is observed on the next app load or protected request. There
  * is intentionally no passive visibilitychange validation hook anymore: that
@@ -67,9 +67,31 @@ async function clearCredentialsAndReloadProtectedRoute(page: Page): Promise<void
             return server;
           }
 
+          if (typeof serverRecord.id === 'string') {
+            localStorage.setItem(
+              `chatto:i:${serverRecord.id}:authentication`,
+              JSON.stringify({
+                version: 1,
+                token: null,
+                refreshToken: null,
+                accessTokenExpiresAt: null,
+                refreshTokenExpiresAt: null,
+                oauthClientId: null,
+                refreshRequestId: null,
+                reauthRequiredAt: null
+              })
+            );
+          }
+
           return {
             ...serverRecord,
             token: null,
+            refreshToken: null,
+            accessTokenExpiresAt: null,
+            refreshTokenExpiresAt: null,
+            oauthClientId: null,
+            refreshRequestId: null,
+            reauthRequiredAt: null,
             userId: null,
             userLogin: null,
             userDisplayName: null,
@@ -111,7 +133,7 @@ test.describe('Session Expiration Handling', () => {
 
     // Navigate to a deep route and wait for full client-side initialization
     await gotoAndWaitForHydration(page, routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Clear credentials and reload the protected route
     await clearCredentialsAndReloadProtectedRoute(page);
@@ -133,7 +155,7 @@ test.describe('Session Expiration Handling', () => {
 
     // Navigate to a specific route and wait for full client-side initialization
     await gotoAndWaitForHydration(page, routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Clear credentials and reload the protected route
     await clearCredentialsAndReloadProtectedRoute(page);
@@ -161,7 +183,7 @@ test.describe('Session Expiration Handling', () => {
 
     // Navigate to a specific route and wait for full client-side initialization
     await gotoAndWaitForHydration(page, routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Clear credentials and reload the protected route
     await clearCredentialsAndReloadProtectedRoute(page);
@@ -178,7 +200,10 @@ test.describe('Session Expiration Handling', () => {
     await page.waitForURL(routes.settings, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
 
-  test('session cookie is refreshed on page load', async ({ page, authPage }) => {
+  test('same-origin login keeps a renewable cookie without persisted bearer credentials', async ({
+    page,
+    authPage
+  }) => {
     const timestamp = Date.now();
     const testLogin = `sessionrefresh${timestamp}`;
     const testPassword = 'testpassword123';
@@ -190,35 +215,53 @@ test.describe('Session Expiration Handling', () => {
 
     // Get initial cookie
     const initialCookies = await page.context().cookies();
-    const initialSessionCookie = initialCookies.find((c) => c.name === 'chatto_session');
+    const initialSessionCookie = initialCookies.find((c) => c.name.startsWith('chatto_auth_'));
     expect(initialSessionCookie).toBeDefined();
 
-    // Wait >1 second so cookie timestamps can differ (precision is seconds).
-    // This is an intentional delay — we need wall-clock time to pass so the
-    // cookie's timestamp-based value changes on re-signing.
-    await page.waitForTimeout(1500);
-
-    // Navigate to a deep route (this should refresh the cookie)
+    // Ordinary navigation validates the cookie without re-signing it or
+    // updating the server-side record.
     await page.goto(routes.settings);
     await page.waitForURL(routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Get updated cookie
     const updatedCookies = await page.context().cookies();
-    const updatedSessionCookie = updatedCookies.find((c) => c.name === 'chatto_session');
+    const updatedSessionCookie = updatedCookies.find((c) => c.name.startsWith('chatto_auth_'));
     expect(updatedSessionCookie).toBeDefined();
 
-    // Cookie expiration should be ~90 days from now
+    // Cookie expiration should be ~90 days from login.
     const now = Date.now() / 1000;
     const ninetyDaysInSeconds = 90 * 24 * 60 * 60;
     const expectedMinExpires = now + ninetyDaysInSeconds - 60; // Allow 1 minute tolerance
 
-    // Verify cookie has reasonable expiration (90 days from now, with tolerance)
+    // Verify the cookie has a reasonable fixed expiration.
     expect(updatedSessionCookie!.expires).toBeGreaterThan(expectedMinExpires);
 
-    // Verify cookie was updated (value may have changed due to re-signing)
-    // The cookie value changes when session.Save() is called because it includes timestamp
-    expect(updatedSessionCookie!.value).toBeTruthy();
+    // Ordinary navigation does not replace the opaque handle or its expiry.
+    expect(Math.abs(updatedSessionCookie!.expires - initialSessionCookie!.expires)).toBeLessThan(2);
+    expect(updatedSessionCookie!.value).toBe(initialSessionCookie!.value);
+
+    const originAuthentication = await page.evaluate(() => {
+      const registrations = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]') as Array<{
+        id?: string;
+        url?: string;
+      }>;
+      const origin = registrations.find(
+        (registration) =>
+          typeof registration.url === 'string' &&
+          new URL(registration.url).origin === window.location.origin
+      );
+      if (!origin?.id) return null;
+      return JSON.parse(
+        localStorage.getItem(`chatto:i:${origin.id}:authentication`) ?? 'null'
+      ) as Record<string, unknown> | null;
+    });
+    expect(originAuthentication).toMatchObject({
+      token: null,
+      refreshToken: null,
+      accessTokenExpiresAt: null,
+      refreshTokenExpiresAt: null
+    });
   });
 
   test('handles repeated expired-session loads without multiple redirects', async ({
@@ -268,5 +311,51 @@ test.describe('Session Expiration Handling', () => {
       const url = page.url();
       expect(url.endsWith('/') || url.includes('/chat') || url.includes('/login')).toBe(true);
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [500, 1000] });
+  });
+});
+
+test.describe('Cookie session renewal', () => {
+  test.use({
+    serverOptions: {
+      env: {
+        CHATTO_AUTH_TOKEN_TTL: '12s'
+      }
+    }
+  });
+
+  test('automatically renews the opaque cookie in the final quarter of its lifetime', async ({
+    page,
+    authPage
+  }) => {
+    const timestamp = Date.now();
+    const testLogin = `sessionrenew${timestamp}`;
+    const testPassword = 'testpassword123';
+
+    await authPage.createUserViaApi(testLogin, testPassword);
+    await authPage.login(testLogin, testPassword);
+    await authPage.expectLoggedIn();
+
+    const initialSessionCookie = (await page.context().cookies()).find((cookie) =>
+      cookie.name.startsWith('chatto_auth_')
+    );
+    expect(initialSessionCookie).toBeDefined();
+
+    // The realtime connection asks the frontend to call the explicit renewal
+    // endpoint when the session enters its final quarter.
+    await expect
+      .poll(
+        async () =>
+          (await page.context().cookies()).find((cookie) => cookie.name.startsWith('chatto_auth_'))
+            ?.expires ?? 0,
+        { timeout: 11_000, intervals: [250] }
+      )
+      .toBeGreaterThan(initialSessionCookie!.expires);
+
+    const renewedSessionCookie = (await page.context().cookies()).find((cookie) =>
+      cookie.name.startsWith('chatto_auth_')
+    );
+    expect(renewedSessionCookie).toBeDefined();
+    expect(renewedSessionCookie!.value).toBe(initialSessionCookie!.value);
+    expect(renewedSessionCookie!.expires).toBeGreaterThan(initialSessionCookie!.expires);
   });
 });

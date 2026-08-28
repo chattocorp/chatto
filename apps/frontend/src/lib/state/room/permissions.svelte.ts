@@ -8,6 +8,8 @@ export type RoomPermissions = {
   canManageOthersMessage: boolean;
   canEchoMessage: boolean;
   canManageRoom: boolean;
+  canViewPinnedMessages: boolean;
+  canPinMessages: boolean;
   canBanRoomMembers: boolean;
 };
 
@@ -19,6 +21,8 @@ export const DEFAULT_ROOM_PERMISSIONS: RoomPermissions = {
   canManageOthersMessage: false,
   canEchoMessage: false,
   canManageRoom: false,
+  canViewPinnedMessages: false,
+  canPinMessages: false,
   canBanRoomMembers: false
 };
 

@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 
 // Request to fetch server-side link preview metadata for a URL.
 message FetchLinkPreviewRequest {
@@ -36,6 +37,72 @@ message LinkPreview {
   optional string embed_type = 7;
   // Provider-specific embed ID, when recognized.
   optional string embed_id = 8;
+  // Structured, provider-neutral social-post data for native rendering.
+  SocialPostPreview social_post = 9;
+}
+
+// Bounded, provider-neutral social-post data used for native preview cards.
+message SocialPostPreview {
+  // Stable lowercase provider identifier, such as "bluesky".
+  string provider = 1;
+  // Author shown on the post.
+  SocialPostAuthor author = 2;
+  // Plain-text post body.
+  string text = 3;
+  // Post publication time.
+  google.protobuf.Timestamp published_at = 4;
+  // Images attached directly to the post, in display order.
+  repeated SocialPostImage images = 5;
+  // Website card embedded in the post, when present.
+  SocialPostExternalLink external_link = 6;
+  // Provider-supplied content warning, when present.
+  optional string content_warning = 7;
+  // Canonical URL for this post. Always set for quoted posts; the outer post
+  // may also use LinkPreview.url.
+  string url = 8;
+  // Post quoted by this post, when present. Quotes inside this snapshot are
+  // omitted so preview size and rendering depth remain bounded.
+  SocialPostPreview quoted_post = 9;
+}
+
+// Author shown on a social-post preview.
+message SocialPostAuthor {
+  // Author display name.
+  string display_name = 1;
+  // Provider-native handle without a leading at-sign when applicable.
+  string handle = 2;
+  // Locally served author avatar URL, when available.
+  optional string avatar_url = 3;
+  // Locally stored author avatar asset ID, when available.
+  optional string avatar_asset_id = 4;
+}
+
+// One image attached directly to a social post.
+message SocialPostImage {
+  // Locally served image URL.
+  string url = 1;
+  // Locally stored image asset ID.
+  string asset_id = 2;
+  // Author-provided alternative text.
+  optional string alt = 3;
+  // Source aspect-ratio width, when known.
+  optional uint32 width = 4;
+  // Source aspect-ratio height, when known.
+  optional uint32 height = 5;
+}
+
+// Website card embedded in a social post.
+message SocialPostExternalLink {
+  // Destination URL.
+  string url = 1;
+  // Card title, when available.
+  optional string title = 2;
+  // Card description, when available.
+  optional string description = 3;
+  // Locally served card image URL, when available.
+  optional string image_url = 4;
+  // Locally stored card image asset ID, when available.
+  optional string image_asset_id = 5;
 }
 
 // Result of fetching link preview metadata.

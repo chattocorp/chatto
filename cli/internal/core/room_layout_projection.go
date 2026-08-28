@@ -3,8 +3,9 @@ package core
 import (
 	"slices"
 
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // RoomLayoutProjection holds the operator-defined inter-group ordering
@@ -30,20 +31,20 @@ func NewRoomLayoutProjection() *RoomLayoutProjection {
 	return &RoomLayoutProjection{}
 }
 
-// Subjects implements events.Projection. Singleton aggregate with one
+// Subjects implements evtstream.Projection. Singleton aggregate with one
 // event type — the per-(agg, event-type) subject is exact.
 func (p *RoomLayoutProjection) Subjects() []string {
-	return []string{events.LayoutAggregate().Subject(events.EventRoomGroupsReordered)}
+	return []string{evtstream.LayoutAggregate().Subject(evtstream.EventRoomGroupsReordered)}
 }
 
-// Apply implements events.Projection. Recognised events:
+// Apply implements evtstream.Projection. Recognised events:
 // RoomGroupsReordered (full ordering replacement). Other variants
 // are silently ignored per the framework's forward-compat rule.
-func (p *RoomLayoutProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *RoomLayoutProjection) Apply(event *evtv1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
-	if e, ok := event.GetEvent().(*corev1.Event_RoomGroupsReordered); ok {
+	if e, ok := event.GetEvent().(*evtv1.Event_RoomGroupsReordered); ok {
 		p.Lock()
 		p.groupIDs = slices.Clone(e.RoomGroupsReordered.GetGroupIds())
 		p.Unlock()

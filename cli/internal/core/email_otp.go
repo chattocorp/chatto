@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/jetstreamutil"
 )
 
 const (
@@ -110,7 +112,7 @@ func (c *ChattoCore) createEmailOTP(ctx context.Context, scope, subject string, 
 
 		codeKey = c.emailOTPCodeKey(scope, subject, code)
 		codeRevision, err = c.storage.runtimeStateKV.Create(ctx, codeKey, data, jetstream.KeyTTL(ttl))
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			continue
 		}
 		if err != nil {
@@ -199,7 +201,7 @@ func (c *ChattoCore) reserveEmailOTPIssuance(ctx context.Context, scope, subject
 			if err == nil {
 				return key, revision, true, nil
 			}
-			if errors.Is(err, jetstream.ErrKeyExists) {
+			if jetstreamutil.IsSequenceConflict(err) {
 				continue
 			}
 			return "", 0, false, fmt.Errorf("failed to create email otp challenge: %w", err)
@@ -221,7 +223,7 @@ func (c *ChattoCore) reserveEmailOTPIssuance(ctx context.Context, scope, subject
 		if err != nil {
 			return "", 0, false, fmt.Errorf("failed to marshal email otp challenge: %w", err)
 		}
-		revision, err := c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), ttl)
+		revision, err := c.updateRuntimeStateWithTTL(ctx, key, data, entry.Revision(), ttl)
 		if err == nil {
 			return key, revision, false, nil
 		}
@@ -262,7 +264,7 @@ func (c *ChattoCore) rollbackEmailOTPIssuance(ctx context.Context, key string, r
 	if err != nil {
 		return err
 	}
-	if _, err := c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), ttl); err != nil && !isRuntimeStateRevisionConflict(err) {
+	if _, err := c.updateRuntimeStateWithTTL(ctx, key, data, entry.Revision(), ttl); err != nil && !isRuntimeStateRevisionConflict(err) {
 		return err
 	}
 	return nil
@@ -322,7 +324,7 @@ func (c *ChattoCore) decrementEmailOTPIssuance(ctx context.Context, scope, subje
 		if err != nil {
 			return fmt.Errorf("failed to marshal email otp challenge: %w", err)
 		}
-		if _, err := c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), ttl); err != nil {
+		if _, err := c.updateRuntimeStateWithTTL(ctx, key, data, entry.Revision(), ttl); err != nil {
 			if isRuntimeStateRevisionConflict(err) {
 				continue
 			}
@@ -388,7 +390,7 @@ func (c *ChattoCore) recordEmailOTPFailure(ctx context.Context, scope, subject s
 		if err != nil {
 			return fmt.Errorf("failed to marshal email otp challenge: %w", err)
 		}
-		if _, err := c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), ttl); err != nil {
+		if _, err := c.updateRuntimeStateWithTTL(ctx, key, data, entry.Revision(), ttl); err != nil {
 			if isRuntimeStateRevisionConflict(err) {
 				continue
 			}

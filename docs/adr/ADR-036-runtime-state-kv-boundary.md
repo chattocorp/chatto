@@ -2,6 +2,12 @@
 
 **Date:** 2026-05-27
 
+**Updated:** 2026-08-25
+
+**Status:** Partially superseded
+
+**Partially superseded by:** [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) for mutable human-session expiry storage.
+
 ## Context
 
 [ADR-033](ADR-033-event-sourced-state-with-projections.md) moves Chatto's
@@ -57,24 +63,33 @@ Current occupants include:
 
 - Room read cursors: `read.room.{userId}.{roomId}`.
 - Thread read cursors: `read.thread.{userId}.{roomId}.{threadRootEventId}`.
-- Pending notifications: `notification.{userId}.{notificationId}`, with per-key
-  90-day TTL.
+- Bounded notification read-boundary and visibility-boundary records used to
+  coordinate read reconciliation and persistent privacy boundaries between
+  `EVT` and the separate `NOTIFICATIONS` event stream. Notification derivation
+  work, occurrences, and lifecycle facts do not live in `RUNTIME_STATE`; see
+  ADR-076.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
-- Runtime credential verifiers: `session.{hmac}`, with per-key
-  `auth.token_ttl` sliding-window expiry. Values include credential kind
+- Runtime credential verifiers: `session.{hmac}`. Cookie-presentation records
+  carry a fixed explicit `auth.token_ttl` expiry and rotate in the final
+  quarter of that lifetime. Human bearer access records use fixed
+  `auth.access_token_ttl` expiry and point to a stable
+  `renewable_session.{hmac}` authority with an explicit `auth.token_ttl`
+  renewal window. Values include credential kind
   (`first_party_session` or `oauth_access_token`), presentation (`bearer` or
   `cookie`), source, safe request metadata, fresh-auth metadata, and the user
   auth generation they were issued against. User-wide cleanup scans these
   records and deletes entries whose stored user ID matches.
-- Legacy embedded-SPA cookie-session records:
-  `cookie_session.{userId}.{sessionHmac}`. Current code no longer writes this
-  shape, and the keyspace is deprecated. Chatto still validates and cleans it up
-  during the typed runtime credential rollout so upgrades do not invalidate
-  existing sessions. The value is a `CookieSession` protobuf containing
-  `user_id`, `created_at`, `expires_at`, source, safe request metadata, and the
-  user auth generation it was issued against. Remove this compatibility path
-  after existing sessions have exceeded the configured auth token TTL or after a
-  documented pre-1.0 compatibility cutoff.
+- Renewable human bearer-session authorities: `renewable_session.{hmac}` with
+  user/client binding, current window expiry, auth generation, current refresh
+  generation, last refresh-request verifier/time, and fresh-auth metadata. The
+  verifier is a purpose-separated HMAC of a raw UUID version 4 recovery nonce.
+  Rotation uses KV revision OCC across replicas and advances the window in its
+  final quarter. The raw refresh credential and recovery nonce are never
+  stored; deleting this key invalidates every access generation.
+- Mutable human sessions: `session.{hmac}` cookie records and
+  `renewable_session.{hmac}` bearer authorities store explicit expiry. Each
+  changed revision uses revision-checked JetStream publish with a per-message
+  TTL equal to its remaining explicit lifetime. See ADR-081.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL. Values include the user auth generation they were issued against.
 - Account workflow credential verifiers: `email_otp.{hmac(subject)}.{hmac(code)}`,
@@ -87,13 +102,27 @@ Current occupants include:
   `UserDataEncryptionKey` per purpose-scoped user DEK epoch. These records have
   no TTL and are shredded on account deletion.
 
-The HMAC keys for runtime credential handles, OAuth codes, and account workflow
-tokens are derived with `[core].secret_key` from the raw token/code plus a
-per-flow scope string. `RUNTIME_STATE` is included in backups, so active
-sessions and pending flows survive restore when the same secret is used;
-restoring with a different secret intentionally invalidates those credentials.
-Backup archives do not contain raw cookie credential handles, bearer tokens,
-links, or OAuth codes.
+`ReadStateModel` mirrors the room and thread cursor keyspaces into memory with
+one filtered watcher per Chatto process. The watcher supplies both its initial
+latest-value snapshot and ongoing changes; core startup does not complete until
+that snapshot is applied. KV remains authoritative, writes retain revision OCC,
+and write paths wait for the watcher to observe their successful revision when
+they require local read-your-writes.
+
+`NotificationBoundaryIndex` applies the same process-wide filtered-watcher
+pattern to notification read and visibility boundaries. Core startup waits for
+its initial snapshot. Writes retain KV revision OCC and wait for the successful
+revision to reach the index when local read-your-writes matters. One owning
+model therefore serves all requests and background repair without creating a
+watcher per request, user, or WebSocket.
+
+The HMAC keys for runtime credential handles, renewable sessions, OAuth codes,
+and account workflow tokens are derived with `[core].secret_key` from opaque
+credential material plus a per-flow scope string. `RUNTIME_STATE` is included
+in backups, so active sessions and pending flows survive restore when the same
+secret is used; restoring with a different secret intentionally invalidates
+those credentials. Backup archives do not contain raw cookie credential
+handles, bearer access or refresh credentials, links, or OAuth codes.
 
 Attachment declarations and video derivative manifests are not a `RUNTIME_STATE`
 target. Uploaded assets are content and are declared with `AssetCreatedEvent`;
@@ -103,15 +132,20 @@ The current video processor does not write new runtime progress or claim state;
 legacy `SERVER_RUNTIME video.*` records are historical pre-0.1 state and are
 not written by current code.
 
-Mention flags are not a target runtime-state model. Orange-dot behavior derives
-from pending notifications instead of preserving `room_mention_status.*` as
-canonical state.
+Mention flags are not a target runtime-state model. Attention indicators derive
+from exact unread notification occurrences instead of preserving
+`room_mention_status.*` as canonical state.
 
 ## Consequences
 
 - `EVT` remains focused on reconstructable content and domain history.
 - Runtime state has one persisted operational home with uniform backup, TTL,
   and history semantics.
+- Hot read-state assembly avoids one KV round trip per room or thread, at the
+  cost of process memory proportional to the persisted marker count and one
+  process-wide filtered watcher per replica.
+- Notification read and visibility reconciliation gets the same bounded,
+  process-wide watcher and startup/read-your-writes guarantees.
 - The old `SERVER_RUNTIME` bucket is historical pre-0.1 storage, not a place
   for new state.
 - Runtime values in `RUNTIME_STATE` are not replayable from `EVT`; backup and
@@ -121,6 +155,8 @@ canonical state.
   tokens, because their keys are HMAC-derived from `[core].secret_key`.
 - Per-key TTL becomes available for tokens and similar runtime values without
   splitting each feature into its own bucket.
+- Mutable human-session revisions use per-message TTL. Explicit record expiry
+  remains the authorization boundary.
 - Security-sensitive exceptions remain explicit. In particular, KMS KEKs in
   `ENCRYPTION_KEYS` are not folded into this bucket; only app-owned wrapped DEK
   records live in `RUNTIME_STATE`.
@@ -140,5 +176,9 @@ canonical state.
 
 - [ADR-033](ADR-033-event-sourced-state-with-projections.md) — defines the
   event-sourced content/domain boundary.
+- [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md)
+  — separates mutable human-session state from immutable cleanup deadlines.
 - [ADR-028](ADR-028-event-id-keyed-read-state.md) — defines the read-cursor
   shape that now lives in `RUNTIME_STATE`.
+- [ADR-076](ADR-076-deterministic-notification-occurrences.md) — defines the
+  bounded notification log and its cross-log runtime boundaries.

@@ -2,6 +2,7 @@ import { test, expect } from './setup';
 import type { Page } from '@playwright/test';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
 
 /**
  * Navigate to a route and wait for the client-side app to be fully hydrated.
@@ -29,10 +30,9 @@ async function expectLoggedOutRedirect(page: Page): Promise<void> {
 }
 
 async function logoutViaFetch(page: Page): Promise<void> {
-  const cookies = await page.context().cookies();
-  const csrfCookie = cookies.find((cookie) => cookie.name === 'chatto_csrf');
-  const response = await page.context().request.post('/auth/logout', {
-    headers: csrfCookie ? { 'X-CSRF-Token': csrfCookie.value } : undefined
+  const response = await page.context().request.post('/auth/browser/logout', {
+    headers: await browserAuthenticationHeaders(page),
+    data: {}
   });
 
   expect(response.ok()).toBe(true);
@@ -55,7 +55,7 @@ test.describe('Cross-Tab Sign-Out', () => {
 
     // Get the session cookie from tab 1
     const cookies = await authPage.page.context().cookies();
-    const sessionCookie = cookies.find((c) => c.name === 'chatto_session');
+    const sessionCookie = cookies.find((c) => c.name.startsWith('chatto_auth_'));
     expect(sessionCookie).toBeDefined();
 
     // Create a second browser context with the same session cookie
@@ -67,8 +67,8 @@ test.describe('Cross-Tab Sign-Out', () => {
     const page2 = await context2.newPage();
 
     try {
-      // Navigate page2 to chat/spaces and wait for full hydration
-      await gotoAndWaitForHydration(page2, routes.spaces);
+      // Navigate page2 to the home server and wait for full hydration.
+      await gotoAndWaitForHydration(page2, routes.chat);
 
       // Verify page2 is authenticated and on the chat page
       await expect(page2).toHaveURL(routes.patterns.chatRedirect);
@@ -110,7 +110,7 @@ test.describe('Cross-Tab Sign-Out', () => {
 
     try {
       // Navigate page2 to chat and wait for full hydration
-      await gotoAndWaitForHydration(page2, routes.spaces);
+      await gotoAndWaitForHydration(page2, routes.chat);
       await expect(page2).toHaveURL(routes.patterns.chatRedirect);
 
       // Notify other tabs before the logout request invalidates this page's

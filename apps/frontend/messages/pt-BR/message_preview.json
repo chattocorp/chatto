@@ -1,0 +1,9 @@
+{
+  "message_preview": {
+    "attachments_count": { "other": "Anexos {count}" },
+    "attachment_image": "Imagem",
+    "attachment_video": "Vídeo",
+    "attachment_audio": "Áudio",
+    "attachment_file": "Arquivo"
+  }
+}

@@ -48,6 +48,9 @@ Owner-only operational diagnostics for the Chatto server.
 | --- | --- | --- |
 | `system_info` | [`AdminSystemInfo`](#chatto-admin-v1-AdminSystemInfo) | Broker connection, account, and JetStream state. |
 | `projections` | repeated [`AdminProjectionState`](#chatto-admin-v1-AdminProjectionState) | Event-sourced projection health and memory estimates. |
+| `asset_cleanup` | [`AdminAssetCleanupStatus`](#chatto-admin-v1-AdminAssetCleanupStatus) | Recoverable physical deletion worker health. |
+| `durable_workers` | repeated [`AdminDurableWorkerStatus`](#chatto-admin-v1-AdminDurableWorkerStatus) | Known durable worker queues and their current broker-derived health. |
+| `projections_available` | `optional bool` | Whether projection diagnostics were collected successfully. |
 
 
 <a id="chatto-admin-v1-AdminEventLogService"></a>
@@ -156,6 +159,142 @@ Result of reading one durable EVT entry.
 | Field | Type | Description |
 | --- | --- | --- |
 | `entry` | [`AdminEventLogEntry`](#chatto-admin-v1-AdminEventLogEntry) | Requested event-log entry. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService"></a>
+
+## AdminInviteLinkService
+
+Manages the invite links used for invite-only account admission.
+
+<a id="chatto-admin-v1-AdminInviteLinkService-ListInviteLinks"></a>
+
+### ListInviteLinks
+
+Lists invite links. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/ListInviteLinks
+```
+
+<a id="chatto-admin-v1-ListInviteLinksRequest"></a>
+
+#### Input: ListInviteLinksRequest
+
+Requests a page of invite links, newest first.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `chatto.api.v1.PageRequest` | No field description provided. |
+
+
+<a id="chatto-admin-v1-ListInviteLinksResponse"></a>
+
+#### Result: ListInviteLinksResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_links` | repeated [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+| `page` | `chatto.api.v1.PageInfo` | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-GetInviteLink"></a>
+
+### GetInviteLink
+
+Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/GetInviteLink
+```
+
+<a id="chatto-admin-v1-GetInviteLinkRequest"></a>
+
+#### Input: GetInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-GetInviteLinkResponse"></a>
+
+#### Result: GetInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-CreateInviteLink"></a>
+
+### CreateInviteLink
+
+Creates an invite link. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/CreateInviteLink
+```
+
+<a id="chatto-admin-v1-CreateInviteLinkRequest"></a>
+
+#### Input: CreateInviteLinkRequest
+
+Creates an invite link. Absent constraints mean unlimited uses and no expiry.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+<a id="chatto-admin-v1-CreateInviteLinkResponse"></a>
+
+#### Result: CreateInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-RevokeInviteLink"></a>
+
+### RevokeInviteLink
+
+Permanently revokes an invite link while retaining its audit history. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/RevokeInviteLink
+```
+
+<a id="chatto-admin-v1-RevokeInviteLinkRequest"></a>
+
+#### Input: RevokeInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-RevokeInviteLinkResponse"></a>
+
+#### Result: RevokeInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
 
 
 <a id="chatto-admin-v1-AdminRoleService"></a>
@@ -447,6 +586,9 @@ Server-admin member detail payload.
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
 | `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
+| `assignable_role_names` | `repeated string` | Roles the caller may assign without granting authority the caller does not possess. Populated when assignment limits are enforced. |
+| `revocable_role_names` | `repeated string` | Roles the caller may revoke without removing restrictions or authority beyond the caller's own. Populated when assignment limits are enforced. |
+| `role_assignment_limits_enforced` | `bool` | True when assignable_role_names and revocable_role_names are authoritative. Older servers leave this false and clients may retain legacy behaviour. |
 
 
 <a id="chatto-admin-v1-AdminUserService-BatchGetMembers"></a>
@@ -486,7 +628,8 @@ Batch server-admin member response.
 
 ### AssignRole
 
-Assigns a role to a user. Requires role.assign.
+Assigns a role to a user. Requires role.assign, and non-owner callers may
+only assign roles whose granted authority they already possess.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/AssignRole
@@ -519,7 +662,8 @@ Result of assigning a role.
 
 ### RevokeRole
 
-Revokes a role from a user. Requires role.assign.
+Revokes a role from a user. Requires role.assign, and non-owner callers may
+only revoke roles whose permission decisions are within their authority.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/RevokeRole
@@ -657,8 +801,7 @@ Result of clearing a user's username-change cooldown.
 ### DeleteUser
 
 Deletes a user account as an admin action. Requires user.delete-any for
-other users, user.delete-self for the caller, and a fresh credential for
-the caller.
+other users or user.delete-self for the caller.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/DeleteUser
@@ -673,7 +816,6 @@ Request to delete a user account as a server-admin action.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | Target user ID. |
-| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
 
 
 <a id="chatto-admin-v1-DeleteUserResponse"></a>
@@ -687,6 +829,110 @@ Result of deleting a user account.
 | `deleted` | `bool` | True when the user was deleted. |
 
 
+<a id="chatto-admin-v1-AdminOAuthClientService"></a>
+
+## AdminOAuthClientService
+
+Manages OAuth clients authorized through this server. Requires server.manage.
+
+<a id="chatto-admin-v1-AdminOAuthClientService-ListOAuthClients"></a>
+
+### ListOAuthClients
+
+Lists clients that completed at least one authorization. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/ListOAuthClients
+```
+
+<a id="chatto-admin-v1-ListOAuthClientsRequest"></a>
+
+#### Input: ListOAuthClientsRequest
+
+Lists OAuth clients with recorded authorizations using offset pagination.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `chatto.api.v1.PageRequest` | Requested offset and page size. |
+
+
+<a id="chatto-admin-v1-ListOAuthClientsResponse"></a>
+
+#### Result: ListOAuthClientsResponse
+
+One page of OAuth clients in stable first-authorization order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_clients` | repeated [`OAuthClient`](#chatto-admin-v1-OAuthClient) | Clients visible to the caller in this page. |
+| `page` | `chatto.api.v1.PageInfo` | Total count and whether another page is available. |
+
+
+<a id="chatto-admin-v1-AdminOAuthClientService-GetOAuthClient"></a>
+
+### GetOAuthClient
+
+Gets one recorded client or returns NOT_FOUND. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/GetOAuthClient
+```
+
+<a id="chatto-admin-v1-GetOAuthClientRequest"></a>
+
+#### Input: GetOAuthClientRequest
+
+Identifies one OAuth client by its exact stable client ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Exact CIMD URL or built-in application URI. |
+
+
+<a id="chatto-admin-v1-GetOAuthClientResponse"></a>
+
+#### Result: GetOAuthClientResponse
+
+Returns one OAuth client with a recorded authorization.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_client` | [`OAuthClient`](#chatto-admin-v1-OAuthClient) | The requested client. |
+
+
+<a id="chatto-admin-v1-AdminOAuthClientService-UpdateOAuthClientPolicy"></a>
+
+### UpdateOAuthClientPolicy
+
+Replaces a client's policy and revokes tokens when blocked. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/UpdateOAuthClientPolicy
+```
+
+<a id="chatto-admin-v1-UpdateOAuthClientPolicyRequest"></a>
+
+#### Input: UpdateOAuthClientPolicyRequest
+
+Replaces the administrative policy for one OAuth client.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Exact CIMD URL or built-in application URI. |
+| `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | New complete policy value. Default removes any trusted or blocked label. |
+
+
+<a id="chatto-admin-v1-UpdateOAuthClientPolicyResponse"></a>
+
+#### Result: UpdateOAuthClientPolicyResponse
+
+Returns the OAuth client with its updated policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_client` | [`OAuthClient`](#chatto-admin-v1-OAuthClient) | The updated client. |
+
+
 <a id="chatto-admin-v1-AdminPermissionService"></a>
 
 ## AdminPermissionService
@@ -697,9 +943,9 @@ Provides permission matrix reads and admin permission writes.
 
 ### GetRolePermissionTierMatrix
 
-Gets the role-permission matrix for a single tier. Requires role.manage
-for server/group scope; room scope requires role.manage or room.manage in
-that room.
+Gets the role-permission matrix for a single tier. Server scope requires
+role.manage; group and room scopes require role.manage or effective
+room.manage at the requested resource.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix
@@ -798,7 +1044,8 @@ Resource-oriented permission decisions for one role.
 
 ### GetUserPermissionMatrix
 
-Gets one user's full permission matrix. Requires user.manage-permissions.
+Gets one user's full permission matrix. Human targets require
+user.manage-permissions; bot targets require ownership or bot.manage.
 Returns NOT_FOUND when the user does not exist.
 
 ```http
@@ -831,8 +1078,9 @@ Response containing one user's permission matrix.
 
 ### ListUserPermissionDecisions
 
-Lists one user's permission decisions as resource-oriented rows. Requires
-user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+Lists one user's permission decisions as resource-oriented rows. Human
+targets require user.manage-permissions; bot targets require ownership or
+bot.manage. Returns NOT_FOUND when the user does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/ListUserPermissionDecisions
@@ -898,7 +1146,8 @@ Permission explanations for all permissions applicable at the requested scope.
 
 ### SetRolePermission
 
-Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+Sets one role permission decision. Server scope requires role.manage;
+group and room scopes also accept effective room.manage at that resource.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
@@ -933,7 +1182,9 @@ Result of setting one role permission state.
 
 ### SetUserPermission
 
-Sets one user permission decision. Requires user.manage-permissions.
+Sets one user permission decision. Human targets require
+user.manage-permissions; bot targets require ownership or bot.manage and
+accept only allow or clear within the bot owner's current authority.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission
@@ -970,13 +1221,82 @@ Result of setting one user permission state.
 
 Reads and mutates the server-admin room layout.
 
+<a id="chatto-admin-v1-AdminRoomLayoutService-GetRoom"></a>
+
+### GetRoom
+
+Gets management-authorized channel room metadata. Requires role.manage or
+effective room.manage for the room.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetRoom
+```
+
+<a id="chatto-admin-v1-GetRoomRequest"></a>
+
+#### Input: GetRoomRequest
+
+Request for management-authorized channel room metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+
+
+<a id="chatto-admin-v1-GetRoomResponse"></a>
+
+#### Result: GetRoomResponse
+
+Channel room metadata and the caller's management capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | `chatto.api.v1.Room` | Requested channel room. This read does not require ordinary directory visibility when the caller can configure the room's role permissions. |
+| `viewer_can_manage_room` | `bool` | Whether the caller can update the room's general settings. |
+| `viewer_can_manage_permissions` | `bool` | Whether the caller can configure role permissions for the room. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-GetRoomGroup"></a>
+
+### GetRoomGroup
+
+Gets management-authorized room group metadata. Requires role.manage or
+effective room.manage for the group.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetRoomGroup
+```
+
+<a id="chatto-admin-v1-GetRoomGroupRequest"></a>
+
+#### Input: GetRoomGroupRequest
+
+Request for management-authorized room group metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required room group ID. |
+
+
+<a id="chatto-admin-v1-GetRoomGroupResponse"></a>
+
+#### Result: GetRoomGroupResponse
+
+Room group metadata and the caller's management capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Requested room group metadata. Ordered room and link entries are omitted so role permission managers do not gain visibility into private room names. |
+| `viewer_can_manage_group` | `bool` | Whether the caller can update the room group's general settings. |
+| `viewer_can_manage_permissions` | `bool` | Whether the caller can configure role permissions for the room group. |
+
+
 <a id="chatto-admin-v1-AdminRoomLayoutService-ListRoomGroups"></a>
 
 ### ListRoomGroups
 
-Lists the editable room group layout. Requires role.manage and returns
-visible room entries, including archived rooms for administrative actions
-such as unarchiving.
+Lists the editable room group layout. Requires server-scope room.manage
+and includes archived rooms for administrative actions such as unarchiving.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ListRoomGroups
@@ -1004,7 +1324,7 @@ Server-admin room group layout response.
 
 ### CreateRoomGroup
 
-Creates a room group. Requires role.manage.
+Creates a room group. Requires server-scope room.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup
@@ -1037,7 +1357,7 @@ Result of creating a room group.
 
 ### UpdateRoomGroup
 
-Updates a room group's metadata. Requires role.manage.
+Updates a room group's metadata. Requires effective room.manage for the group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateRoomGroup
@@ -1071,7 +1391,7 @@ Result of updating a room group.
 
 ### DeleteRoomGroup
 
-Deletes an empty room group. Requires role.manage.
+Deletes an empty room group. Requires effective room.manage for the group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteRoomGroup
@@ -1103,7 +1423,7 @@ Result of deleting a room group.
 
 ### ReorderRoomGroups
 
-Replaces the global room group order. Requires role.manage.
+Replaces the global room group order. Requires server-scope room.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderRoomGroups
@@ -1611,6 +1931,27 @@ JetStream account limits and usage.
 
 
 
+<a id="chatto-admin-v1-AdminAssetCleanupStatus"></a>
+
+### AdminAssetCleanupStatus
+
+Current health of recoverable message-owned asset deletion.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `health` | [`AdminAssetCleanupHealth`](#chatto-admin-v1-AdminAssetCleanupHealth) | Operator-facing state derived from the shared durable consumer. |
+| `pending_count` | `int64` | Deletion effects currently waiting for a successful retry. |
+| `oldest_pending_at` | `google.protobuf.Timestamp` | **Deprecated.** Deprecated. Shared durable consumers do not expose this value. |
+| `pass_in_progress` | `bool` | **Deprecated.** Deprecated. Shared durable consumers run continuously rather than in passes. |
+| `last_pass_at` | `google.protobuf.Timestamp` | **Deprecated.** Deprecated. Shared durable consumers run continuously rather than in passes. |
+| `last_successful_pass_at` | `google.protobuf.Timestamp` | **Deprecated.** Deprecated. Shared durable consumers run continuously rather than in passes. |
+| `updated_at` | `google.protobuf.Timestamp` | **Deprecated.** Deprecated. Shared durable consumers do not publish a liveness heartbeat. |
+| `last_pass_failed` | `bool` | **Deprecated.** Deprecated. Use health and pending_count instead. |
+| `last_inspected_sequence` | `string` | Global EVT sequence of the most recently delivered deletion fact. |
+| `latest_deletion_sequence` | `string` | Current latest global EVT sequence matching asset deletion facts. |
+
+
+
 <a id="chatto-admin-v1-AdminConnectionInfo"></a>
 
 ### AdminConnectionInfo
@@ -1625,6 +1966,25 @@ Current NATS server connection metadata.
 | `version` | `string` | Connected NATS server version. |
 | `max_payload` | `int64` | Maximum payload accepted by the connected NATS server. |
 | `rtt` | `string` | Round-trip latency to the connected NATS server. |
+
+
+
+<a id="chatto-admin-v1-AdminDurableWorkerStatus"></a>
+
+### AdminDurableWorkerStatus
+
+Broker-derived health for one known durable worker queue.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `key` | `string` | Stable machine-readable worker key. |
+| `health` | [`AdminDurableWorkerHealth`](#chatto-admin-v1-AdminDurableWorkerHealth) | Current availability and work state. |
+| `pending_count` | `string` | Deliveries not yet handed to a handler. |
+| `ack_pending_count` | `string` | Deliveries awaiting acknowledgement; this does not prove handler liveness. |
+| `waiting_count` | `string` | Pull requests currently waiting for work. |
+| `redelivered_count` | `string` | Redelivered messages that remain unacknowledged. |
+| `last_delivered_sequence` | `string` | Latest EVT stream sequence delivered to this queue. |
+| `ack_floor_sequence` | `string` | Highest contiguous EVT stream sequence acknowledged by this queue. |
 
 
 
@@ -1780,7 +2140,7 @@ One durable EVT entry decoded for operator inspection.
 | `event_id` | `string` | Durable event ID. |
 | `actor_id` | `string` | Actor user ID stored on the event. |
 | `created_at` | `google.protobuf.Timestamp` | Event creation timestamp. |
-| `payload_json` | `string` | Pretty-printed JSON representation of the event payload. |
+| `payload_json` | `string` | Pretty-printed, sanitized JSON representation of the event payload. Password verifiers are omitted. |
 
 
 
@@ -1796,6 +2156,27 @@ Filter for owner/auditor event-log inspection.
 | `actor_id` | `string` | Actor user ID. |
 | `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
 | `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
+
+
+
+<a id="chatto-admin-v1-InviteLink"></a>
+
+### InviteLink
+
+An administrator-visible invite link. The link is a bearer capability and
+is returned only to callers with user.invite.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Durable identifier used for administrative operations. |
+| `link` | `string` | Fully qualified bearer URL. Anyone who has it can use the link while active. |
+| `created_by` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `use_count` | `uint32` | No field description provided. |
+| `status` | [`InviteLinkStatus`](#chatto-admin-v1-InviteLinkStatus) | No field description provided. |
+| `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
 
 
 
@@ -1834,6 +2215,26 @@ admin/member metadata with visibility controlled by the service.
 
 
 
+<a id="chatto-admin-v1-OAuthClient"></a>
+
+### OAuthClient
+
+An OAuth client that completed at least one successful user authorization.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Stable client identifier: a CIMD URL or built-in application URI. |
+| `client_name` | `string` | Display name from validated client metadata. |
+| `client_origin` | `string` | Privacy-safe canonical origin derived from validated client metadata. |
+| `source` | [`OAuthClientSource`](#chatto-admin-v1-OAuthClientSource) | How the client identity was established. |
+| `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | Current server-administrator policy for the client. |
+| `first_authorization_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |
+| `last_authorization_at` | `google.protobuf.Timestamp` | When this server most recently completed an authorization for the client. |
+| `redirect_origins` | `repeated string` | Canonical web origins or native callback schemes seen during authorization. |
+| `authorized_user_count` | `uint32` | Number of distinct users who have authorized this client. |
+
+
+
 <a id="chatto-admin-v1-PermissionDecisionUpdate"></a>
 
 ### PermissionDecisionUpdate
@@ -1857,10 +2258,11 @@ Full decision trace for one permission and target user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after applying deny-wins resolution. |
+| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after resolving named subjects and the everyone baseline. |
 | `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
-| `decided_by_role` | `string` | Role name or policy marker that produced the winning decision. |
+| `decided_by_role` | `string` | Role name, user ID, or policy marker that produced the winning decision. |
 | `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
+| `included_by_permission` | `string` | Permission whose effective allow includes this permission. Empty when the permission was resolved directly. |
 
 
 
@@ -1876,6 +2278,7 @@ Matrix cell for one permission and scope.
 | `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
 | `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
+| `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
 
 
 
@@ -1916,7 +2319,7 @@ One explicit decision encountered while explaining a permission.
 | Field | Type | Description |
 | --- | --- | --- |
 | `level` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level at which this decision was observed. |
-| `role_name` | `string` | Role name or policy marker that produced the decision. |
+| `role_name` | `string` | Role name, user ID, or policy marker that produced the decision. |
 | `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Decision observed at this trace step. |
 | `applied` | `bool` | Whether this entry is the winning decision. |
 
@@ -2070,6 +2473,83 @@ Runtime-editable server profile settings.
 
 
 ## Enums
+
+<a id="chatto-admin-v1-AdminAssetCleanupHealth"></a>
+
+### AdminAssetCleanupHealth
+
+Operator-facing state for the shared durable asset cleanup queue.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED` | `0` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_INACTIVE` | `1` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_INITIALIZING` | `2` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY` | `3` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_RETRYING` | `4` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_STALLED` | `5` | No value description provided. |
+| `ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE` | `6` | Cleanup diagnostics could not be read; other system diagnostics remain valid. |
+
+
+<a id="chatto-admin-v1-AdminDurableWorkerHealth"></a>
+
+### AdminDurableWorkerHealth
+
+Operator-facing state derived from a durable consumer.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNSPECIFIED` | `0` | No value description provided. |
+| `ADMIN_DURABLE_WORKER_HEALTH_INACTIVE` | `1` | This optional worker is not required by current server configuration. |
+| `ADMIN_DURABLE_WORKER_HEALTH_HEALTHY` | `2` | A worker is waiting and all known work is acknowledged. |
+| `ADMIN_DURABLE_WORKER_HEALTH_WORKING` | `3` | A worker is available and unacknowledged work remains. |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED` | `4` | An acknowledgement is pending, but broker state cannot prove whether a handler is active or the delivery is awaiting recovery after a crash. |
+| `ADMIN_DURABLE_WORKER_HEALTH_STALLED` | `5` | The consumer exists but has neither a waiting pull nor an ack-pending delivery. |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE` | `6` | The required consumer is unavailable. |
+
+
+<a id="chatto-admin-v1-InviteLinkStatus"></a>
+
+### InviteLinkStatus
+
+Current lifecycle state of an invite link.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `INVITE_LINK_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `INVITE_LINK_STATUS_ACTIVE` | `1` | No value description provided. |
+| `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
+| `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
+| `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
+
+
+<a id="chatto-admin-v1-OAuthClientPolicy"></a>
+
+### OAuthClientPolicy
+
+Administrator policy for a public OAuth client. Trusted is an informational
+blessing and never bypasses individual user consent.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `OAUTH_CLIENT_POLICY_UNSPECIFIED` | `0` | No valid policy was supplied. |
+| `OAUTH_CLIENT_POLICY_DEFAULT` | `1` | The client follows the normal open-client authorization policy. |
+| `OAUTH_CLIENT_POLICY_TRUSTED` | `2` | Administrators have labelled the client as trusted without changing consent. |
+| `OAUTH_CLIENT_POLICY_BLOCKED` | `3` | The client cannot authorize or use its existing OAuth access tokens. |
+
+
+<a id="chatto-admin-v1-OAuthClientSource"></a>
+
+### OAuthClientSource
+
+How a public OAuth client establishes its identity with this server.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `OAUTH_CLIENT_SOURCE_UNSPECIFIED` | `0` | The server does not recognize the source value. |
+| `OAUTH_CLIENT_SOURCE_CIMD` | `1` | The client identifies itself with an HTTPS Client ID Metadata Document. |
+| `OAUTH_CLIENT_SOURCE_BUILT_IN` | `2` | The client uses a registration built into this Chatto release. |
+
 
 <a id="chatto-admin-v1-PermissionDecision"></a>
 

@@ -1,15 +1,17 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
-import { FitMode } from './renderTypes.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from './attachmentUrls.js';
 import { ImageFitMode, ImageTransformOptions } from '@chatto/api-types/api/v1/common_pb';
+import { imageFitModeOrCover } from './enumDefaults.js';
 import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
 import type { Asset } from '@chatto/api-types/api/v1/attachments_pb';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import {
+  type MessageAttachment,
   MessageVideoProcessingStatus,
   type MessageAssetUrl,
   type MessageVideoProcessing
 } from '@chatto/api-types/api/v1/message_types_pb';
+import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 
 export type AttachmentAPIConfig = {
   serverId?: string;
@@ -21,7 +23,7 @@ export type AttachmentAPIConfig = {
 export type AttachmentRefreshOptions = {
   width: number;
   height: number;
-  fit: FitMode;
+  fit: ImageFitMode;
 };
 
 export type RoomFileItem = {
@@ -44,6 +46,7 @@ export type RoomFileItem = {
       sourceAvailable: boolean;
       reasonCode: string | null;
       thumbnailAssetUrl: ExpiringAssetUrl | null;
+      hlsMasterPlaylistUrl?: ExpiringAssetUrl | null;
       variants: Array<{
         quality: string;
         width: number;
@@ -128,6 +131,7 @@ function refreshedAttachmentUrlMap(
         assetUrl: assetUrl(attachment.assetUrl),
         thumbnailAssetUrl: assetUrl(attachment.thumbnailAssetUrl),
         videoThumbnailAssetUrl: assetUrl(attachment.videoProcessing?.thumbnailAssetUrl),
+        hlsMasterPlaylistUrl: assetUrl(attachment.videoProcessing?.hls?.masterPlaylistUrl),
         variantAssetUrls: new Map(
           (attachment.videoProcessing?.variants ?? []).map(
             (variant) => [variant.quality, assetUrl(variant.assetUrl)] as const
@@ -142,7 +146,7 @@ function thumbnailOptions(options: AttachmentRefreshOptions): ImageTransformOpti
   return new ImageTransformOptions({
     width: options.width,
     height: options.height,
-    fit: options.fit === FitMode.Contain ? ImageFitMode.CONTAIN : ImageFitMode.COVER
+    fit: imageFitModeOrCover(options.fit)
   });
 }
 
@@ -156,11 +160,24 @@ function roomFileItem(item: {
     messageEventId: item.messageEventId,
     threadRootEventId: item.threadRootEventId || null,
     createdAt: timestampToISO(item.createdAt),
-    attachment: attachment(item.attachment)
+    attachment: roomFileAttachment(item.attachment)
   };
 }
 
-function attachment(value?: Asset): RoomFileItem['attachment'] {
+/** Convert one authoritative timeline message into room-file cache rows. */
+export function roomFileItemsForTimelineEvent(event: RoomTimelineEvent): RoomFileItem[] {
+  if (event.event.case !== 'messagePosted') return [];
+  const message = event.event.value.message;
+  if (!message || message.deletedAt) return [];
+  return message.attachments.map((attachment) => ({
+    messageEventId: event.id,
+    threadRootEventId: message.threadRootEventId || null,
+    createdAt: timestampToISO(event.createdAt),
+    attachment: roomFileAttachment(attachment)
+  }));
+}
+
+function roomFileAttachment(value?: Asset | MessageAttachment): RoomFileItem['attachment'] {
   return {
     id: value?.id ?? '',
     filename: value?.filename ?? '',
@@ -187,6 +204,7 @@ function videoProcessing(
     sourceAvailable: value.sourceAvailable,
     reasonCode: value.reasonCode || null,
     thumbnailAssetUrl: assetUrl(value.thumbnailAssetUrl),
+    hlsMasterPlaylistUrl: assetUrl(value.hls?.masterPlaylistUrl),
     variants: value.variants.map((variant) => ({
       quality: variant.quality,
       width: variant.width,

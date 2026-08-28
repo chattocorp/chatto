@@ -1,17 +1,20 @@
 package http_server
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"embed"
 	"encoding/json"
 	"fmt"
-	"html"
+	"io"
 	"io/fs"
 	"mime"
 	"net/http"
+	"net/url"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,24 +33,22 @@ const (
 	cacheControlRevalidate = "no-cache, must-revalidate"
 	// Hashed assets (in _app/) are immutable - cache for 1 year
 	cacheControlImmutable = "public, max-age=31536000, immutable"
-	// Report-only CSP preserves Chatto's multi-server client model while surfacing
-	// violations during development/staging before we consider enforcement.
-	contentSecurityPolicyReportOnly = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:; frame-src https://www.youtube-nocookie.com; worker-src 'self'; require-trusted-types-for 'script'; trusted-types chatto-markdown-html"
+	// SvelteKit puts the resource policy in the static SPA document with
+	// build-specific script hashes. frame-ancestors is not valid in a CSP meta
+	// element, so each frontend response enforces it in an HTTP header.
+	contentSecurityPolicyHeader = "frame-ancestors 'none'"
 )
 
-const defaultAppleTouchIconHref = "/icons/apple-touch-icon.png"
-
 type pwaServerIconURLs struct {
-	AppleTouch180 string
-	Icon192       string
-	Icon512       string
+	Icon192 string
+	Icon512 string
 }
 
 func setFrontendSecurityHeaders(c *gin.Context) {
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("X-Frame-Options", "DENY")
 	c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-	c.Header("Content-Security-Policy-Report-Only", contentSecurityPolicyReportOnly)
+	c.Header("Content-Security-Policy", contentSecurityPolicyHeader)
 }
 
 // extractImmutableETag extracts an ETag from a SvelteKit immutable asset path.
@@ -99,7 +100,7 @@ func setServiceWorkerETag(c *gin.Context, content []byte) bool {
 
 func setFrontendCacheHeaders(c *gin.Context) {
 	urlPath := c.Request.URL.Path
-	if strings.HasPrefix(urlPath, "/_app/immutable/") {
+	if isImmutableFrontendAsset(urlPath) {
 		c.Header("Cache-Control", cacheControlImmutable)
 
 		// Extract ETag from the content-hashed filename
@@ -125,60 +126,92 @@ func setFrontendCacheHeaders(c *gin.Context) {
 	c.Next()
 }
 
-func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs {
+func isImmutableFrontendAsset(urlPath string) bool {
+	return strings.HasPrefix(urlPath, "/_app/immutable/")
+}
+
+func (s *HTTPServer) currentServerIconURL(ctx context.Context, size int) string {
 	if s.core == nil {
-		return nil
+		return ""
 	}
 
-	sizeURL := func(size int) string {
-		width, height := size, size
-		url, err := s.core.GetServerLogoURL(ctx, &width, &height, "cover")
-		if err != nil {
-			s.logger.Warn("failed to get server logo URL for PWA metadata", "error", err, "size", size)
-			return ""
-		}
-		return url
+	width, height := size, size
+	iconURL, err := s.core.GetServerLogoURL(ctx, &width, &height, "cover")
+	if err != nil {
+		s.logger.Warn("failed to get server logo URL for browser metadata", "error", err, "size", size)
+		return ""
 	}
+	return sameOriginServerAssetURL(iconURL)
+}
 
+func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs {
 	icons := &pwaServerIconURLs{
-		AppleTouch180: sizeURL(180),
-		Icon192:       sizeURL(192),
-		Icon512:       sizeURL(512),
+		Icon192: s.currentServerIconURL(ctx, 192),
+		Icon512: s.currentServerIconURL(ctx, 512),
 	}
-	if icons.AppleTouch180 == "" || icons.Icon192 == "" || icons.Icon512 == "" {
+	if icons.Icon192 == "" || icons.Icon512 == "" {
 		return nil
 	}
 	return icons
 }
 
+func (s *HTTPServer) currentPWAServerName() string {
+	if s.core == nil || s.core.ConfigModel() == nil {
+		return "Chatto"
+	}
+
+	name := s.core.ConfigModel().GetEffectiveServerName()
+	if strings.TrimSpace(name) == "" {
+		return "Chatto"
+	}
+	return name
+}
+
+// sameOriginServerAssetURL keeps browser metadata on the frontend origin. General
+// asset URLs may use a configured asset base, but each Chatto frontend serves
+// its own public server assets and browsers must be able to fetch metadata
+// images from the frontend's origin.
+func sameOriginServerAssetURL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Opaque != "" || !strings.HasPrefix(parsed.Path, "/assets/server/") {
+		return ""
+	}
+
+	result := parsed.EscapedPath()
+	if parsed.RawQuery != "" {
+		result += "?" + parsed.RawQuery
+	}
+	return result
+}
+
 func pwaManifestIcons(icon192, icon512 string) []map[string]string {
 	return []map[string]string{
-		{"src": icon192, "sizes": "192x192"},
-		{"src": icon512, "sizes": "512x512"},
-		{"src": icon192, "sizes": "192x192", "purpose": "maskable"},
-		{"src": icon512, "sizes": "512x512", "purpose": "maskable"},
+		{"src": icon192, "sizes": "192x192", "type": "image/png"},
+		{"src": icon512, "sizes": "512x512", "type": "image/png"},
+		{"src": icon192, "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+		{"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
 	}
 }
 
-func dynamicPWAManifest(staticManifest []byte, icons *pwaServerIconURLs) ([]byte, error) {
-	if icons == nil {
-		return staticManifest, nil
-	}
-
+func dynamicPWAManifest(staticManifest []byte, serverName string, icons *pwaServerIconURLs) ([]byte, error) {
 	var manifest map[string]any
 	if err := json.Unmarshal(staticManifest, &manifest); err != nil {
 		return nil, err
 	}
 
-	manifest["icons"] = pwaManifestIcons(icons.Icon192, icons.Icon512)
-	if shortcuts, ok := manifest["shortcuts"].([]any); ok {
-		for _, shortcut := range shortcuts {
-			shortcutMap, ok := shortcut.(map[string]any)
-			if !ok {
-				continue
-			}
-			shortcutMap["icons"] = []map[string]string{
-				{"src": icons.Icon192, "sizes": "192x192"},
+	manifest["name"] = serverName
+	manifest["short_name"] = serverName
+	if icons != nil {
+		manifest["icons"] = pwaManifestIcons(icons.Icon192, icons.Icon512)
+		if shortcuts, ok := manifest["shortcuts"].([]any); ok {
+			for _, shortcut := range shortcuts {
+				shortcutMap, ok := shortcut.(map[string]any)
+				if !ok {
+					continue
+				}
+				shortcutMap["icons"] = []map[string]string{
+					{"src": icons.Icon192, "sizes": "192x192", "type": "image/png"},
+				}
 			}
 		}
 	}
@@ -186,41 +219,91 @@ func dynamicPWAManifest(staticManifest []byte, icons *pwaServerIconURLs) ([]byte
 	return json.MarshalIndent(manifest, "", "  ")
 }
 
-func injectAppleTouchIcon(content []byte, iconURL string) []byte {
-	if iconURL == "" {
-		return content
-	}
-	escaped := html.EscapeString(iconURL)
-	return []byte(strings.ReplaceAll(
-		string(content),
-		`href="`+defaultAppleTouchIconHref+`"`,
-		`href="`+escaped+`"`,
-	))
-}
-
 // clientAcceptsEncoding checks if the client accepts a specific encoding.
 // It parses the Accept-Encoding header and looks for the encoding name.
 func clientAcceptsEncoding(acceptEncoding, encoding string) bool {
-	// Simple check - look for the encoding in the header
-	// This handles common cases like "gzip, deflate, br" or "br"
+	encoding = strings.ToLower(encoding)
+	wildcardQuality := -1.0
 	for _, part := range strings.Split(acceptEncoding, ",") {
-		part = strings.TrimSpace(part)
-		// Strip quality value if present (e.g., "gzip;q=0.8")
-		if idx := strings.Index(part, ";"); idx != -1 {
-			part = part[:idx]
+		fields := strings.Split(part, ";")
+		name := strings.ToLower(strings.TrimSpace(fields[0]))
+		quality := 1.0
+		valid := name != ""
+		for _, parameter := range fields[1:] {
+			key, value, found := strings.Cut(parameter, "=")
+			if !found || !strings.EqualFold(strings.TrimSpace(key), "q") {
+				continue
+			}
+			parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+			if err != nil || parsed < 0 || parsed > 1 {
+				valid = false
+				break
+			}
+			quality = parsed
 		}
-		if part == encoding {
-			return true
+		if !valid {
+			continue
+		}
+		if name == encoding {
+			return quality > 0
+		}
+		if name == "*" {
+			wildcardQuality = quality
 		}
 	}
-	return false
+	return wildcardQuality > 0
+}
+
+// readFrontendIdentityFile returns the uncompressed representation of an
+// embedded frontend file. Release builds omit raw files when SvelteKit emitted
+// a gzip sibling, so clients without compression support are served by
+// inflating that trusted embedded fallback on demand.
+func readFrontendIdentityFile(clientFS fs.FS, filePath string) ([]byte, error) {
+	content, rawErr := fs.ReadFile(clientFS, filePath)
+	if rawErr == nil {
+		return content, nil
+	}
+
+	compressed, err := clientFS.Open(filePath + ".gz")
+	if err != nil {
+		return nil, rawErr
+	}
+	defer compressed.Close()
+
+	reader, err := gzip.NewReader(compressed)
+	if err != nil {
+		return nil, fmt.Errorf("open embedded gzip fallback for %q: %w", filePath, err)
+	}
+	defer reader.Close()
+
+	content, err = io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("decompress embedded gzip fallback for %q: %w", filePath, err)
+	}
+	return content, nil
+}
+
+func frontendFileExists(clientFS fs.FS, filePath string) bool {
+	if _, err := fs.Stat(clientFS, filePath); err == nil {
+		return true
+	}
+	_, err := fs.Stat(clientFS, filePath+".gz")
+	return err == nil
+}
+
+func frontendContentType(filePath string) string {
+	contentType := mime.TypeByExtension(filepath.Ext(filePath))
+	if contentType == "" {
+		return "application/octet-stream"
+	}
+	return contentType
 }
 
 // serveSPAFallback serves the 200.html file as a fallback for SPA routing.
 // It injects OpenGraph meta tags based on the URL path.
 // Returns true if the fallback was served successfully, false if an error occurred.
 func (s *HTTPServer) serveSPAFallback(c *gin.Context, clientFS fs.FS) bool {
-	content, err := fs.ReadFile(clientFS, "200.html")
+	content, err := readFrontendIdentityFile(clientFS, "200.html")
 	if err != nil {
 		log.Error("Failed to read 200.html for SPA fallback", "error", err)
 		c.String(http.StatusInternalServerError, "Failed to load application")
@@ -232,21 +315,30 @@ func (s *HTTPServer) serveSPAFallback(c *gin.Context, clientFS fs.FS) bool {
 	defer cancel()
 
 	content = s.injectOpenGraphTags(ctx, content, c.Request.URL.Path)
-	if icons := s.currentPWAIconURLs(ctx); icons != nil {
-		content = injectAppleTouchIcon(content, icons.AppleTouch180)
-	}
 
 	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 	return true
 }
 
+func (s *HTTPServer) redirectBrowserIcon(c *gin.Context, size int, fallbackURL string) {
+	iconURL := s.currentServerIconURL(c.Request.Context(), size)
+	if iconURL == "" {
+		iconURL = fallbackURL
+	}
+	c.Redirect(http.StatusTemporaryRedirect, iconURL)
+}
+
 func (s *HTTPServer) servePWAWebManifest(c *gin.Context, clientFS fs.FS) {
-	content, err := fs.ReadFile(clientFS, "manifest.webmanifest")
+	content, err := readFrontendIdentityFile(clientFS, "manifest.webmanifest")
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return
 	}
-	content, err = dynamicPWAManifest(content, s.currentPWAIconURLs(c.Request.Context()))
+	content, err = dynamicPWAManifest(
+		content,
+		s.currentPWAServerName(),
+		s.currentPWAIconURLs(c.Request.Context()),
+	)
 	if err != nil {
 		s.logger.Warn("failed to generate dynamic PWA manifest", "error", err)
 		c.Status(http.StatusInternalServerError)
@@ -284,11 +376,7 @@ func servePrecompressedFile(c *gin.Context, clientFS fs.FS, filePath string) boo
 			continue // Compressed file doesn't exist, try next
 		}
 
-		// Determine content type from the original file extension
-		contentType := mime.TypeByExtension(filepath.Ext(filePath))
-		if contentType == "" {
-			contentType = "application/octet-stream"
-		}
+		contentType := frontendContentType(filePath)
 
 		c.Header("Content-Encoding", enc.name)
 		c.Header("Content-Type", contentType)
@@ -299,6 +387,23 @@ func servePrecompressedFile(c *gin.Context, clientFS fs.FS, filePath string) boo
 	}
 
 	return false
+}
+
+func serveFrontendFile(c *gin.Context, clientFS fs.FS, filePath string) error {
+	// Identity and encoded representations share this URL.
+	c.Header("Vary", "Accept-Encoding")
+	if servePrecompressedFile(c, clientFS, filePath) {
+		return nil
+	}
+
+	// Development builds retain the raw file. Release builds instead inflate
+	// the embedded gzip fallback for clients that do not accept compression.
+	content, err := readFrontendIdentityFile(clientFS, filePath)
+	if err != nil {
+		return err
+	}
+	c.Data(http.StatusOK, frontendContentType(filePath), content)
+	return nil
 }
 
 func isReservedNonFrontendPath(urlPath string) bool {
@@ -330,16 +435,15 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 	// and must not be cached immutably.
 	s.router.Use(setFrontendCacheHeaders)
 
-	// refreshSessionIfAuthenticated validates and rotates authenticated
-	// cookie-session records for active SPA browsing. KV TTL is set only when
-	// a session is created, so near-expiry sessions are rotated instead of
-	// "touched" in place.
-	refreshSessionIfAuthenticated := func(c *gin.Context) {
-		credential, ok, _ := s.cookiePresentedCredential(c)
-		if ok {
-			s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
-		}
-	}
+	// Browser icon metadata uses stable semantic URLs. Each request resolves the
+	// current server logo so changing or removing branding does not require a
+	// frontend rebuild. The cache middleware keeps these redirects temporary.
+	s.router.Match([]string{"GET", "HEAD"}, "/favicon", func(c *gin.Context) {
+		s.redirectBrowserIcon(c, 32, "/icons/favicon.png")
+	})
+	s.router.Match([]string{"GET", "HEAD"}, "/apple-touch-icon", func(c *gin.Context) {
+		s.redirectBrowserIcon(c, 180, "/icons/apple-touch-icon.png")
+	})
 
 	// Custom static file handler with precompressed file support
 	serveStatic := func(c *gin.Context, filePath string) {
@@ -349,12 +453,8 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 			filePath = "200.html"
 		}
 
-		// Refresh session for all SPA routes to prevent cookie expiration
-		refreshSessionIfAuthenticated(c)
-
-		// Check if file exists
-		_, err := fs.Stat(clientFS, filePath)
-		if err != nil {
+		// Release builds may retain only compressed representations.
+		if !frontendFileExists(clientFS, filePath) {
 			// File not found, serve 200.html for SPA routing
 			s.serveSPAFallback(c, clientFS)
 			return
@@ -367,7 +467,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		}
 
 		if filePath == "service-worker.js" {
-			content, err := fs.ReadFile(clientFS, filePath)
+			content, err := readFrontendIdentityFile(clientFS, filePath)
 			if err != nil {
 				c.Status(http.StatusInternalServerError)
 				return
@@ -382,23 +482,9 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 			return
 		}
 
-		// Try to serve precompressed version first
-		if servePrecompressedFile(c, clientFS, filePath) {
-			return
-		}
-
-		// Serve the original file
-		content, err := fs.ReadFile(clientFS, filePath)
-		if err != nil {
+		if err := serveFrontendFile(c, clientFS, filePath); err != nil {
 			c.Status(http.StatusInternalServerError)
-			return
 		}
-
-		contentType := mime.TypeByExtension(filepath.Ext(filePath))
-		if contentType == "" {
-			contentType = "application/octet-stream"
-		}
-		c.Data(http.StatusOK, contentType, content)
 	}
 
 	// Handle root path explicitly to avoid directory listing

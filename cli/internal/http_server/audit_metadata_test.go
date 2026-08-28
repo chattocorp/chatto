@@ -18,7 +18,11 @@ func TestAuditRequestMetadataUsesForwardedIPAndCapsUserAgent(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "203.0.113.4, 10.0.0.7")
 	req.Header.Set("X-Real-IP", "198.51.100.9")
 	req.RemoteAddr = "192.0.2.10:1234"
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	router := gin.New()
+	if err := router.SetTrustedProxies([]string{"192.0.2.10", "10.0.0.0/8"}); err != nil {
+		t.Fatal(err)
+	}
+	c := gin.CreateTestContextOnly(httptest.NewRecorder(), router)
 	c.Request = req
 
 	s := &HTTPServer{config: config.ChattoConfig{
@@ -62,21 +66,45 @@ func TestAuditRequestMetadataRemovesInvalidShortUserAgent(t *testing.T) {
 func TestAuditSourceIPFallbacks(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("real ip", func(t *testing.T) {
+	t.Run("trusted proxy real ip", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
 		req.Header.Set("X-Real-IP", "198.51.100.9")
 		req.RemoteAddr = "192.0.2.10:1234"
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		router := gin.New()
+		if err := router.SetTrustedProxies([]string{"192.0.2.10"}); err != nil {
+			t.Fatal(err)
+		}
+		c := gin.CreateTestContextOnly(httptest.NewRecorder(), router)
 		c.Request = req
 		if got := auditSourceIP(c); got != "198.51.100.9" {
 			t.Fatalf("auditSourceIP = %q", got)
 		}
 	})
 
+	t.Run("untrusted peer cannot spoof forwarded ip", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("X-Forwarded-For", "203.0.113.4")
+		req.Header.Set("X-Real-IP", "198.51.100.9")
+		req.RemoteAddr = "192.0.2.10:1234"
+		router := gin.New()
+		if err := router.SetTrustedProxies(nil); err != nil {
+			t.Fatal(err)
+		}
+		c := gin.CreateTestContextOnly(httptest.NewRecorder(), router)
+		c.Request = req
+		if got := auditSourceIP(c); got != "192.0.2.10" {
+			t.Fatalf("auditSourceIP = %q, want direct peer", got)
+		}
+	})
+
 	t.Run("remote addr", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
 		req.RemoteAddr = "192.0.2.10:1234"
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		router := gin.New()
+		if err := router.SetTrustedProxies(nil); err != nil {
+			t.Fatal(err)
+		}
+		c := gin.CreateTestContextOnly(httptest.NewRecorder(), router)
 		c.Request = req
 		if got := auditSourceIP(c); got != "192.0.2.10" {
 			t.Fatalf("auditSourceIP = %q", got)

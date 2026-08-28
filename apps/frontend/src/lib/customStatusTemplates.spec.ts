@@ -31,7 +31,7 @@ describe('custom status templates', () => {
   });
 
   it('formats template tokens and leaves custom text untouched', () => {
-    expect(formatCustomStatusText('chatto:status:vacation')).toBe('Vacation');
+    expect(formatCustomStatusText('chatto:status:vacation')).toBe('Holiday');
     expect(formatCustomStatusText('In focus mode')).toBe('In focus mode');
   });
 });

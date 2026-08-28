@@ -1,0 +1,22 @@
+# Authling Feature Decision Records
+
+This directory contains behavior and design rationale for implemented Authling
+features. Number Authling FDRs independently, beginning with FDR-001. Do not
+record planned behavior as active functionality.
+
+## Features
+
+| # | Feature | Status | Last reviewed |
+|---|---------|--------|---------------|
+| [FDR-001](FDR-001-standalone-account-runtime.md) | Standalone Account Runtime | Experimental | 2026-07-31 |
+| [FDR-002](FDR-002-verified-email-signup.md) | Verified Email Signup | Experimental | 2026-08-21 |
+| [FDR-003](FDR-003-local-login-and-browser-sessions.md) | Local Login and Browser Sessions | Experimental | 2026-08-20 |
+| [FDR-004](FDR-004-openid-connect-provider.md) | OpenID Connect Provider | Experimental | 2026-08-01 |
+| [FDR-005](FDR-005-account-data-sync.md) | Account Data Synchronization | Retired | 2026-08-14 |
+| [FDR-006](FDR-006-password-reset.md) | Password Reset | Experimental | 2026-08-20 |
+| [FDR-007](FDR-007-verified-email-change.md) | Verified Email Change | Experimental | 2026-08-20 |
+| [FDR-008](FDR-008-signed-in-password-change.md) | Signed-in Password Change | Experimental | 2026-08-20 |
+| [FDR-009](FDR-009-browser-session-management.md) | Browser Session Management | Experimental | 2026-08-20 |
+| [FDR-010](FDR-010-oidc-authorization-grants.md) | OIDC Authorization Grants | Experimental | 2026-08-21 |
+| [FDR-011](FDR-011-account-profile.md) | Account Profile | Experimental | 2026-08-21 |
+| [FDR-012](FDR-012-automatic-oidc-signing-key-rotation.md) | Automatic OIDC Signing-Key Rotation | Experimental | 2026-08-21 |

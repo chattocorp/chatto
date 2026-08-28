@@ -1,9 +1,20 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import MentionAutocomplete from './MentionAutocomplete.svelte';
 import type { RoomMember } from '$lib/state/room';
-import { PresenceStatus } from '$lib/render/types';
+
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({ get: (_key: unknown, fallback: unknown) => fallback })
+}));
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+    getLiveBio: () => null,
+    getLiveTimezone: () => null,
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
+}));
 
 function member(login: string, displayName?: string, deleted = false): RoomMember {
   return {
@@ -12,7 +23,7 @@ function member(login: string, displayName?: string, deleted = false): RoomMembe
     displayName: displayName ?? login,
     deleted,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 
@@ -35,8 +46,7 @@ function renderAutocomplete(props: {
 }
 
 function visibleLogins(container: HTMLElement): string[] {
-  // The snippet renders @login as a `<span class="text-muted">@login</span>`
-  return Array.from(container.querySelectorAll('span'))
+  return Array.from(container.querySelectorAll('bdi[dir="ltr"]'))
     .map((s) => s.textContent ?? '')
     .filter((t) => t.startsWith('@'))
     .map((t) => t.slice(1));
@@ -45,7 +55,7 @@ function visibleLogins(container: HTMLElement): string[] {
 function activeLogin(container: HTMLElement): string | null {
   const active = container.querySelector('.menu-item-active');
   if (!active) return null;
-  const span = Array.from(active.querySelectorAll('span'))
+  const span = Array.from(active.querySelectorAll('bdi[dir="ltr"]'))
     .map((s) => s.textContent ?? '')
     .find((t) => t.startsWith('@'));
   return span ? span.slice(1) : null;
@@ -76,6 +86,14 @@ describe('MentionAutocomplete', () => {
         members: [member('alice', 'Alice Wonderland'), member('bob', 'Bob Smith')]
       });
       expect(visibleLogins(container)).toEqual(['alice']);
+      expect(container.querySelector('bdi:not([dir])')?.textContent).toBe('Alice Wonderland');
+    });
+
+    it('marks bot mention targets with the shared avatar badge', () => {
+      const bot = { ...member('helper_bot', 'Helper Bot'), isBot: true };
+      const { container } = renderAutocomplete({ query: 'helper', members: [bot] });
+
+      expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
     });
 
     it('does not render deleted members as mention targets', () => {

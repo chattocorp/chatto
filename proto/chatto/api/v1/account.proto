@@ -9,9 +9,10 @@ import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 import "chatto/api/v1/users.proto";
 import "chatto/api/v1/viewer.proto";
+import "google/protobuf/descriptor.proto";
 
-// Request to update the authenticated user's profile. At least one field must
-// be present.
+// Request to update the authenticated user's profile. Human and bot accounts
+// use this same self-service operation. At least one field must be present.
 message UpdateProfileRequest {
   // New display name, when changing it. Empty clears the explicit display
   // name. The server also rejects control and confusing invisible characters.
@@ -22,6 +23,8 @@ message UpdateProfileRequest {
     min_len: 2
     max_len: 32
   }];
+  // New Markdown biography, when changing it. Empty clears the bio.
+  optional string bio = 3 [(buf.validate.field).string.max_len = 1000];
 }
 
 // Result of a profile update.
@@ -114,12 +117,14 @@ message DeleteMyAccountResponse {
 // custom-status, external identity, and account lifecycle commands for the
 // authenticated user.
 service MyAccountService {
-  // Updates the authenticated user's login and/or display name.
+  // Updates the authenticated user's login, display name, and/or bio.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Uploads and sets the authenticated user's avatar.
   rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
   // Deletes the authenticated user's avatar. The call is idempotent.
-  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
+  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
   // Updates or adds the authenticated user's password.
   rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
   // Updates the authenticated user's display preferences.
@@ -142,9 +147,13 @@ service MyAccountService {
   rpc UpdateCustomStatus(UpdateCustomStatusRequest) returns (UpdateCustomStatusResponse);
   // Deletes the current user's custom status. The call is idempotent and returns
   // the resulting empty status state.
-  rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse);
-  // Issues a short-lived token used to confirm self-deletion.
+  rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+  // Issues a short-lived token used to confirm self-deletion. Requires
+  // user.delete-self.
   rpc RequestAccountDeletion(RequestAccountDeletionRequest) returns (RequestAccountDeletionResponse);
   // Permanently deletes the authenticated account after token validation.
+  // Requires user.delete-self.
   rpc DeleteMyAccount(DeleteMyAccountRequest) returns (DeleteMyAccountResponse);
 }

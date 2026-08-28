@@ -2,7 +2,7 @@
  * Login/username validation matching the backend rules.
  *
  * Allowed: ASCII letters, digits, periods, underscores, hyphens.
- * Must start with a letter or digit.
+ * Must start with a letter or digit and must not end with a period.
  * Length: 2-32 characters.
  * Mixed case is preserved; uniqueness and login are case-insensitive.
  */
@@ -49,6 +49,10 @@ export function validateLogin(login: string): ValidationResult {
       valid: false,
       error: 'Username can only contain letters, numbers, periods, underscores, and hyphens'
     };
+  }
+
+  if (login.endsWith('.')) {
+    return { valid: false, error: 'Username must end with a letter or number' };
   }
 
   return { valid: true };

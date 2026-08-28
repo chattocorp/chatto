@@ -3,10 +3,10 @@ import { TIMEOUTS } from '../constants';
 import * as routes from '../routes';
 
 /**
- * Page object for the unified server-admin interface (/chat/-/server-admin).
+ * Page object for the unified manage/server interface (/chat/-/manage/server).
  * Handles admin navigation, general settings, members, system, runtime, and permissions pages.
  *
- * The legacy /chat/-/admin route tree was folded into server-admin once the
+ * The legacy /chat/-/admin route tree was folded into manage/server once the
  * old instance-vs-server admin split collapsed; the back-compat aliases in
  * routes.ts make older test names continue to point at the new URLs.
  */
@@ -26,9 +26,9 @@ export class AdminPage {
     return this.page.locator('div.flex-1.flex-col').first();
   }
 
-  /** Gear entry point in the server header. */
-  get adminGearLink(): Locator {
-    return this.page.getByRole('link', { name: 'Server administration' });
+  /** Settings entry point in the server sidebar. */
+  get settingsLink(): Locator {
+    return this.page.getByRole('link', { name: 'Settings', exact: true });
   }
 
   /** General settings link inside the dedicated admin sidebar. */
@@ -85,34 +85,34 @@ export class AdminPage {
    * Navigate to the default admin destination.
    */
   async goto(): Promise<void> {
-    await this.page.goto(routes.admin);
+    await this.page.goto(routes.serverAdminGeneral);
   }
 
   /**
    * Navigate to the admin users page.
    */
   async gotoUsers(): Promise<void> {
-    await this.page.goto(routes.adminUsers);
+    await this.page.goto(routes.serverAdminMembers);
   }
 
   /**
    * Navigate to the admin system page.
    */
   async gotoSystem(): Promise<void> {
-    await this.page.goto(routes.adminSystem);
+    await this.page.goto(routes.serverAdminSystem);
   }
 
   /**
    * Navigate to the admin permissions page.
    */
   async gotoRoles(): Promise<void> {
-    await this.page.goto(routes.adminRoles);
+    await this.page.goto(routes.serverAdminPermissions);
   }
 
   /**
    * Navigate to the instance settings page. Post-merge, the legacy
-   * /admin/settings/instance is split across /server-admin/general (name,
-   * description, motd, welcome) and /server-admin/security (blocked
+   * /admin/settings/instance is split across /manage/server/general (name,
+   * description, motd, welcome) and /manage/server/security (blocked
    * usernames). Default to /general — the smart fill/expect methods
    * below switch to /security as needed.
    */
@@ -132,34 +132,34 @@ export class AdminPage {
    * Navigate to a specific user's management page.
    */
   async gotoUserManagement(userId: string): Promise<void> {
-    await this.page.goto(routes.adminUser(userId));
+    await this.page.goto(routes.serverAdminMember(userId));
   }
 
   /**
    * Navigate to a specific role's page.
    */
   async gotoRole(roleName: string): Promise<void> {
-    await this.page.goto(routes.adminRole(roleName));
+    await this.page.goto(routes.serverAdminPermission(roleName));
   }
 
   async navigateToGeneral(): Promise<void> {
     await this.generalLink.click();
-    await this.page.waitForURL(routes.admin);
+    await this.page.waitForURL(routes.serverAdminGeneral);
   }
 
   async navigateToUsers(): Promise<void> {
     await this.usersLink.click();
-    await this.page.waitForURL(routes.adminUsers);
+    await this.page.waitForURL(routes.serverAdminMembers);
   }
 
   async navigateToSystem(): Promise<void> {
     await this.systemLink.click();
-    await this.page.waitForURL(routes.adminSystem);
+    await this.page.waitForURL(routes.serverAdminSystem);
   }
 
-  async navigateToAdminViaGear(): Promise<void> {
-    await this.adminGearLink.click();
-    await this.page.waitForURL(routes.admin);
+  async navigateToSettings(): Promise<void> {
+    await this.settingsLink.click();
+    await this.page.waitForURL(routes.serverAdminGeneral);
   }
 
   async navigateBackToChat(): Promise<void> {
@@ -256,7 +256,12 @@ export class AdminPage {
    * Get a role checkbox in the Role Assignments section.
    */
   getRoleCheckbox(roleDisplayName: string): Locator {
-    return this.page.locator('label').filter({ hasText: roleDisplayName }).getByRole('checkbox');
+    return this.getRoleOption(roleDisplayName).getByRole('checkbox');
+  }
+
+  /** Get the visible option label that owns the role checkbox hit area. */
+  getRoleOption(roleDisplayName: string): Locator {
+    return this.page.locator('label').filter({ hasText: roleDisplayName });
   }
 
   /**
@@ -264,7 +269,7 @@ export class AdminPage {
    */
   async assignRole(roleDisplayName: string): Promise<void> {
     const checkbox = this.getRoleCheckbox(roleDisplayName);
-    await checkbox.click();
+    await this.getRoleOption(roleDisplayName).click();
     await expect(checkbox).toBeChecked({ timeout: TIMEOUTS.UI_STANDARD });
   }
 
@@ -273,7 +278,7 @@ export class AdminPage {
    */
   async revokeRole(roleDisplayName: string): Promise<void> {
     const checkbox = this.getRoleCheckbox(roleDisplayName);
-    await checkbox.click();
+    await this.getRoleOption(roleDisplayName).click();
     await expect(checkbox).not.toBeChecked({ timeout: TIMEOUTS.UI_STANDARD });
   }
 
@@ -304,7 +309,7 @@ export class AdminPage {
 
   /**
    * Assert that the members page is visible. (Was: "Users" before the
-   * instance-admin → server-admin merge.)
+   * instance-admin → manage/server merge.)
    */
   async expectUsersPageVisible(): Promise<void> {
     await expect(this.page.getByRole('heading', { name: 'Members' })).toBeVisible();
@@ -344,7 +349,7 @@ export class AdminPage {
   }
 
   /**
-   * Assert that access is denied. The merged server-admin layout shows a
+   * Assert that access is denied. The merged manage/server layout shows a
    * generic "You do not have permission..." message rather than naming the
    * specific permission like the legacy /admin layout did, so this method
    * now ignores the permission argument — kept for back-compat.
@@ -353,19 +358,15 @@ export class AdminPage {
     await expect(this.accessDeniedMessage).toBeVisible();
   }
 
-  /** Assert that the dedicated server-admin sidebar exposes admin navigation. */
+  /** Assert that the dedicated manage/server sidebar exposes admin navigation. */
   async expectSidebarNavVisible(): Promise<void> {
     await expect(this.generalLink).toBeVisible();
     await expect(this.usersLink).toBeVisible();
     await expect(this.systemLink).toBeVisible();
   }
 
-  async expectAdminGearVisible(): Promise<void> {
-    await expect(this.adminGearLink).toBeVisible();
-  }
-
-  async expectAdminGearNotVisible(): Promise<void> {
-    await expect(this.adminGearLink).not.toBeVisible();
+  async expectSettingsLinkVisible(): Promise<void> {
+    await expect(this.settingsLink).toBeVisible();
   }
 
   /**
@@ -413,7 +414,7 @@ export class AdminPage {
       Roles: this.rolesLink,
       Permissions: this.rolesLink
     };
-    await expect(linkMap[linkName]).toHaveClass(/bg-surface-100/);
+    await expect(linkMap[linkName]).toHaveAttribute('aria-current', 'page');
   }
 
   /** Assert that the normal server sidebar offers a way back to chat. */
@@ -536,24 +537,24 @@ export class AdminPage {
    */
   async expectPermissionFromRole(permission: string): Promise<void> {
     const permRow = this.getPermissionRow(permission);
-    const rolesIndicator = permRow.locator('.uil--check-circle');
+    const rolesIndicator = permRow.locator('[class~="icon-[uil--check-circle]"]');
     await expect(rolesIndicator).toBeVisible();
   }
 
   // --- Instance Settings Page ---
 
-  /** Instance Name input — lives on /server-admin/general (label "Name", suffixed
+  /** Instance Name input — lives on /manage/server/general (label "Name", suffixed
    * with the required-marker asterisk so the accessible name is "Name*"). */
   get instanceNameInput(): Locator {
     return this.page.getByLabel(/^Name\*?$/);
   }
 
-  /** MOTD input — on /server-admin/general. */
+  /** MOTD input — on /manage/server/general. */
   get motdInput(): Locator {
     return this.page.getByLabel('Message of the Day');
   }
 
-  /** Welcome Message textarea — on /server-admin/general. */
+  /** Welcome Message textarea — on /manage/server/general. */
   get welcomeMessageInput(): Locator {
     return this.page.getByLabel('Welcome Message');
   }
@@ -579,7 +580,7 @@ export class AdminPage {
   }
 
   /**
-   * Fill server-admin settings on /general. serverName, description,
+   * Fill manage/server settings on /general. serverName, description,
    * motd, and welcomeMessage all live in one ServerSettings form now;
    * a single "Save Changes" click persists everything via Mutation.updateInstance.
    */
@@ -612,7 +613,7 @@ export class AdminPage {
   }
 
   /**
-   * Save the active server-admin form. Kept as a no-op for back-compat —
+   * Save the active manage/server form. Kept as a no-op for back-compat —
    * fillServerSettings now persists each field group as it goes.
    */
   async saveServerSettings(): Promise<void> {
@@ -620,7 +621,7 @@ export class AdminPage {
   }
 
   /**
-   * Assert that the server-admin settings landing page (General) is visible.
+   * Assert that the manage/server settings landing page (General) is visible.
    * The page-level H1 ("General") and a FormSection H2 ("General") share the
    * label, so scope to the page header explicitly.
    */
@@ -639,7 +640,7 @@ export class AdminPage {
 
   /**
    * Assert that the MOTD input has a specific value. The field lives on
-   * /server-admin/general (Messages panel).
+   * /manage/server/general (Messages panel).
    */
   async expectMotd(value: string): Promise<void> {
     await this.ensureOn(routes.serverAdminGeneral);
@@ -648,7 +649,7 @@ export class AdminPage {
 
   /**
    * Assert that the welcome message input has a specific value. The field
-   * lives on /server-admin/general (Messages panel).
+   * lives on /manage/server/general (Messages panel).
    */
   async expectWelcomeMessage(value: string): Promise<void> {
     await this.ensureOn(routes.serverAdminGeneral);

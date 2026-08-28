@@ -2,36 +2,45 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import NotificationsPage from './+page.svelte';
-import { NotificationLevel } from '$lib/render/types';
-import { NotificationLevel as ApiNotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
-import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
+
 import { q } from '$lib/test-utils';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import {
+  getServerNotificationPreferences,
+  resetServerNotificationPreferencesForTests
+} from '$lib/state/serverNotificationPreferences.svelte';
 import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  mutation: vi.fn(),
-  getServerNotificationPreference: vi.fn(),
-  updateServerNotificationPreference: vi.fn(),
-  updateRoomNotificationPreference: vi.fn(),
-  getViewerStateViaConnect: vi.fn(),
-  listRooms: vi.fn(),
   playNotificationSound: vi.fn(),
   activeServerId: 'origin',
-  notificationLevels: {
-    setServerPreference: vi.fn(),
-    setRoomPreference: vi.fn()
+  notifications: {
+    getPolicy: vi.fn().mockResolvedValue(null),
+    updatePolicy: vi.fn().mockResolvedValue(null),
+    notificationPolicies: {
+      loading: false,
+      error: null as string | null,
+      errorKind: null as 'load' | 'save' | null,
+      load: vi.fn().mockResolvedValue(undefined),
+      update: vi.fn().mockResolvedValue(undefined),
+      policy: vi.fn(() => undefined),
+      isPending: vi.fn(() => false)
+    }
   },
   serverInfo: {
+    name: 'Test Server',
     pushNotificationsEnabled: false,
-    vapidPublicKey: null as string | null
+    vapidPublicKey: null as string | null,
+    supportsFeature: vi.fn(() => true)
   },
   pushNotifications: {
     ensureRegistered: vi.fn(),
+    isBrowserWebPushRuntime: vi.fn(),
     getPushCapability: vi.fn(),
     getPermission: vi.fn(),
-    isSubscribed: vi.fn()
+    isSubscribed: vi.fn(),
+    refreshPushSubscriptions: vi.fn(),
+    sendTestNotification: vi.fn()
   }
 }));
 
@@ -45,64 +54,70 @@ vi.mock('$lib/audio/notificationSounds', async (importOriginal) => {
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
   ensureRegistered: mocks.pushNotifications.ensureRegistered,
+  isBrowserWebPushRuntime: mocks.pushNotifications.isBrowserWebPushRuntime,
   getPushCapability: mocks.pushNotifications.getPushCapability,
   getPermission: mocks.pushNotifications.getPermission,
-  isSubscribed: mocks.pushNotifications.isSubscribed
-}));
-
-vi.mock('$lib/api-client/notificationPreferences', () => ({
-  getServerNotificationPreference: mocks.getServerNotificationPreference,
-  updateServerNotificationPreference: mocks.updateServerNotificationPreference,
-  updateRoomNotificationPreference: mocks.updateRoomNotificationPreference
-}));
-
-vi.mock('$lib/api-client/viewer', () => ({
-  getViewerStateViaConnect: mocks.getViewerStateViaConnect
-}));
-
-vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/roomDirectory')>();
-  return {
-    ...actual,
-    createRoomDirectoryAPI: vi.fn(() => ({
-      listRooms: mocks.listRooms
-    }))
-  };
-});
-
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => mocks.activeServerId
+  isSubscribed: mocks.pushNotifications.isSubscribed,
+  refreshPushSubscriptions: mocks.pushNotifications.refreshPushSubscriptions,
+  sendTestNotification: mocks.pushNotifications.sendTestNotification
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: () => ({
-      serverInfo: mocks.serverInfo,
-      notificationLevels: mocks.notificationLevels
-    }),
     isOriginServer: (serverId: string) => serverId === 'origin'
   }
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: mocks.query,
-      mutation: mocks.mutation,
-      subscription: vi.fn()
-    },
-    connectBaseUrl: 'https://origin.test/api/connect',
-    bearerToken: 'origin-token'
-  })
-}));
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const { userPreferences: reactivePreferences } =
+    await import('$lib/state/userPreferences.svelte');
+  return {
+    useServerScope: () => ({
+      get serverId() {
+        // Keep the mock route ID reactive without introducing test-only state
+        // into production code.
+        void reactivePreferences.composerEditor;
+        return mocks.activeServerId;
+      },
+      store: {
+        serverInfo: mocks.serverInfo,
+        notifications: mocks.notifications,
+        navigation: {
+          roomGroups: [],
+          rooms: []
+        }
+      },
+      connection: {
+        queryScope: 'origin-session',
+        isConnected: true,
+        showConnectionLostBanner: false,
+        connectBaseUrl: 'https://origin.test/api/connect',
+        bearerToken: 'origin-token',
+        apiConfig: {
+          serverId: 'origin',
+          baseUrl: 'https://origin.test/api/connect',
+          bearerToken: 'origin-token'
+        },
+        getAPI: (factory: (config: never) => unknown) => factory({} as never)
+      },
+      isCurrent: () => true
+    })
+  };
+});
 
 async function settle() {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
   flushSync();
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 function setRangeValue(input: HTMLInputElement, value: string) {
@@ -118,8 +133,8 @@ function commitRangeValue(input: HTMLInputElement, value: string) {
 }
 
 function buttonWithText(container: Element, text: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll('button')).find((candidate) =>
-    candidate.textContent?.includes(text)
+  const button = Array.from(container.querySelectorAll('button')).find(
+    (candidate) => candidate.textContent?.trim() === text
   );
   if (!button) {
     throw new Error(`Button with text "${text}" not found`);
@@ -127,114 +142,69 @@ function buttonWithText(container: Element, text: string): HTMLButtonElement {
   return button;
 }
 
+function notificationPreferences(serverId = mocks.activeServerId) {
+  return getServerNotificationPreferences(serverId);
+}
+
+function notificationPreferencesStorageKey(serverId = mocks.activeServerId) {
+  return `chatto:i:${serverId}:notificationPreferences`;
+}
+
 describe('Notification settings page', () => {
   beforeEach(() => {
     localStorage.clear();
-    userPreferences.notificationSound = 'chime-up';
-    userPreferences.resetNotificationSoundFilters();
+    userPreferences.composerEditor = 'markdown';
+    localStorage.setItem(
+      'chatto:preferences',
+      JSON.stringify({
+        notificationSound: 'chime-up',
+        notificationSoundFilters: defaultNotificationSoundFilters
+      })
+    );
+    resetServerNotificationPreferencesForTests();
     mocks.activeServerId = 'origin';
     mocks.playNotificationSound.mockClear();
-    mocks.notificationLevels.setServerPreference.mockClear();
-    mocks.notificationLevels.setRoomPreference.mockClear();
+    mocks.notifications.getPolicy.mockClear();
+    mocks.notifications.getPolicy.mockResolvedValue(null);
+    mocks.notifications.updatePolicy.mockClear();
+    mocks.notifications.updatePolicy.mockResolvedValue(null);
+    mocks.notifications.notificationPolicies.load.mockClear();
+    mocks.notifications.notificationPolicies.load.mockResolvedValue(undefined);
+    mocks.notifications.notificationPolicies.update.mockClear();
+    mocks.notifications.notificationPolicies.policy.mockReturnValue(undefined);
+    mocks.notifications.notificationPolicies.isPending.mockReturnValue(false);
     mocks.serverInfo.pushNotificationsEnabled = false;
     mocks.serverInfo.vapidPublicKey = null;
+    mocks.serverInfo.supportsFeature.mockReturnValue(true);
     mocks.pushNotifications.ensureRegistered.mockReset();
     mocks.pushNotifications.ensureRegistered.mockResolvedValue(true);
+    mocks.pushNotifications.isBrowserWebPushRuntime.mockReset();
+    mocks.pushNotifications.isBrowserWebPushRuntime.mockReturnValue(true);
     mocks.pushNotifications.getPermission.mockReset();
     mocks.pushNotifications.getPermission.mockReturnValue('default');
     mocks.pushNotifications.getPushCapability.mockReset();
     mocks.pushNotifications.getPushCapability.mockReturnValue('supported');
     mocks.pushNotifications.isSubscribed.mockReset();
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
-    mocks.query.mockReset();
-    mocks.mutation.mockReset();
-    mocks.getServerNotificationPreference.mockReset();
-    mocks.getServerNotificationPreference.mockResolvedValue({
-      level: ApiNotificationLevel.NORMAL,
-      effectiveLevel: ApiNotificationLevel.NORMAL
-    });
-    mocks.updateServerNotificationPreference.mockReset();
-    mocks.updateServerNotificationPreference.mockResolvedValue({
-      level: ApiNotificationLevel.ALL_MESSAGES,
-      effectiveLevel: ApiNotificationLevel.ALL_MESSAGES
-    });
-    mocks.updateRoomNotificationPreference.mockReset();
-    mocks.updateRoomNotificationPreference.mockResolvedValue({
-      level: ApiNotificationLevel.MUTED,
-      effectiveLevel: ApiNotificationLevel.MUTED
-    });
-    mocks.getViewerStateViaConnect.mockReset();
-    mocks.getViewerStateViaConnect.mockResolvedValue({
-      roomNotificationPreferences: [
-        {
-          roomId: 'room-1',
-          level: NotificationLevel.Default,
-          effectiveLevel: NotificationLevel.Normal
-        },
-        {
-          roomId: 'dm-1',
-          level: NotificationLevel.Muted,
-          effectiveLevel: NotificationLevel.Muted
-        }
-      ]
-    });
-    mocks.listRooms.mockReset();
-    mocks.listRooms.mockResolvedValue([{ id: 'room-1', name: 'general', hasUnread: false }]);
-  });
-
-  it('renders notification levels and sound choices from mocked state', async () => {
-    const { container } = render(NotificationsPage);
-    await settle();
-
-    await expect.element(q(container, 'h1')).toHaveTextContent('Notifications');
-    await expect
-      .element(q(container, '[data-testid="room-notification-general"]'))
-      .toBeInTheDocument();
-    expect(mocks.query).not.toHaveBeenCalled();
-    expect(mocks.getServerNotificationPreference).toHaveBeenCalledWith({
-      serverId: 'origin',
-      baseUrl: 'https://origin.test/api/connect',
-      bearerToken: 'origin-token'
-    });
-    expect(mocks.getViewerStateViaConnect).toHaveBeenCalledWith({
-      serverId: 'origin',
-      baseUrl: 'https://origin.test/api/connect',
-      bearerToken: 'origin-token'
-    });
-    expect(mocks.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.CHANNELS);
-    expect(container.textContent).toContain('Notification Sound');
-    expect(container.textContent).toContain('Silent');
-    expect(container.textContent).toContain('Simple');
-    expect(container.textContent).toContain('Soft Pop');
-    expect(container.textContent).toContain('Sound Shape');
-    await expect.element(q(container, '[data-testid="notification-volume-filter"]')).toBeVisible();
-    await expect
-      .element(q(container, '[data-testid="notification-high-pass-filter"]'))
-      .toBeVisible();
-    await expect
-      .element(q(container, '[data-testid="notification-low-pass-filter"]'))
-      .toBeVisible();
-    await expect.element(q(container, '[data-testid="notification-echo-filter"]')).toBeVisible();
-    await expect.element(q(container, '[data-testid="notification-reverb-filter"]')).toBeVisible();
-    await expect.element(q(container, '[data-testid="notification-crunch-filter"]')).toBeVisible();
-    expect(container.querySelector('.uil--volume')).not.toBeNull();
-    expect(container.querySelector('.uil--bolt')).not.toBeNull();
-    expect(container.querySelector('.uil--volume-mute')).not.toBeNull();
-    expect(container.querySelector('.uil--redo')).not.toBeNull();
-    expect(container.querySelector('.uil--cloud')).not.toBeNull();
-    expect(container.querySelector('.uil--fire')).not.toBeNull();
+    mocks.pushNotifications.refreshPushSubscriptions.mockReset();
+    mocks.pushNotifications.refreshPushSubscriptions.mockResolvedValue(undefined);
+    mocks.pushNotifications.sendTestNotification.mockReset();
+    mocks.pushNotifications.sendTestNotification.mockResolvedValue(true);
   });
 
   it('selects and persists a non-silent notification sound', async () => {
     const { container } = render(NotificationsPage);
     await settle();
 
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(3);
     const softPopButton = buttonWithText(container, 'Soft Pop');
     softPopButton.click();
     flushSync();
 
-    expect(userPreferences.notificationSound).toBe('pop');
-    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+    expect(notificationPreferences().notificationSound).toBe('pop');
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey()) ?? '{}')
+    ).toMatchObject({
       notificationSound: 'pop'
     });
     expect(mocks.playNotificationSound).toHaveBeenCalledWith(
@@ -242,6 +212,29 @@ describe('Notification settings page', () => {
       defaultNotificationSoundFilters
     );
     await expect.element(softPopButton).toHaveClass(/choice-row-selected/);
+  });
+
+  it('switches sound storage when the mounted route changes servers', async () => {
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    buttonWithText(container, 'Soft Pop').click();
+    flushSync();
+
+    mocks.activeServerId = 'remote';
+    userPreferences.composerEditor = 'visual';
+    await settle();
+    buttonWithText(container, 'Falling Chime').click();
+    flushSync();
+
+    expect(notificationPreferences('origin').notificationSound).toBe('pop');
+    expect(notificationPreferences('remote').notificationSound).toBe('chime-down');
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey('origin')) ?? '{}')
+    ).toMatchObject({ notificationSound: 'pop' });
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey('remote')) ?? '{}')
+    ).toMatchObject({ notificationSound: 'chime-down' });
   });
 
   it('selects silent mode without previewing a sound', async () => {
@@ -252,60 +245,9 @@ describe('Notification settings page', () => {
     silentButton.click();
     flushSync();
 
-    expect(userPreferences.notificationSound).toBe('silent');
+    expect(notificationPreferences().notificationSound).toBe('silent');
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
     await expect.element(silentButton).toHaveClass(/choice-row-selected/);
-  });
-
-  it('updates room notification overrides through ConnectRPC', async () => {
-    const { container } = render(NotificationsPage);
-    await settle();
-
-    const select = q(
-      container,
-      '[data-testid="room-notification-general"] select'
-    ) as HTMLSelectElement;
-    select.value = NotificationLevel.Muted;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-
-    expect(mocks.updateRoomNotificationPreference).toHaveBeenCalledWith(
-      {
-        serverId: 'origin',
-        baseUrl: 'https://origin.test/api/connect',
-        bearerToken: 'origin-token'
-      },
-      'room-1',
-      ApiNotificationLevel.MUTED
-    );
-    expect(mocks.mutation).not.toHaveBeenCalled();
-    expect(mocks.notificationLevels.setRoomPreference).toHaveBeenLastCalledWith(
-      'room-1',
-      NotificationLevel.Muted,
-      NotificationLevel.Muted
-    );
-  });
-
-  it('updates server notification level through ConnectRPC', async () => {
-    const { container } = render(NotificationsPage);
-    await settle();
-
-    buttonWithText(container, 'All Messages').click();
-    await settle();
-
-    expect(mocks.updateServerNotificationPreference).toHaveBeenCalledWith(
-      {
-        serverId: 'origin',
-        baseUrl: 'https://origin.test/api/connect',
-        bearerToken: 'origin-token'
-      },
-      ApiNotificationLevel.ALL_MESSAGES
-    );
-    expect(mocks.mutation).not.toHaveBeenCalled();
-    expect(mocks.notificationLevels.setServerPreference).toHaveBeenCalledWith(
-      NotificationLevel.AllMessages,
-      NotificationLevel.AllMessages
-    );
   });
 
   it('shows the push enable path when configured and not subscribed', async () => {
@@ -321,7 +263,7 @@ describe('Notification settings page', () => {
     expect(container.textContent).not.toContain('Disable');
   });
 
-  it('does not offer native push registration for remote servers', async () => {
+  it('offers an independent push subscription for remote servers', async () => {
     mocks.activeServerId = 'remote';
     mocks.serverInfo.pushNotificationsEnabled = true;
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
@@ -331,16 +273,70 @@ describe('Notification settings page', () => {
     await settle();
 
     expect(container.textContent).toContain('Push Notifications');
-    expect(container.textContent).toContain('Native push is unavailable for remote servers');
-    expect(container.textContent).toContain('In-app notification badges and sounds still work');
-    expect(container.textContent).not.toContain('Get notified about new messages while Chatto');
-    expect(
-      Array.from(container.querySelectorAll('button')).some((button) =>
-        button.textContent?.includes('Enable')
-      )
-    ).toBe(false);
+    await expect.element(buttonWithText(container, 'Enable')).toBeVisible();
+    expect(mocks.pushNotifications.isSubscribed).toHaveBeenCalledWith('remote');
+  });
+
+  it('does not offer browser Web Push controls inside Chatto Desktop', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.isBrowserWebPushRuntime.mockReturnValue(false);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    expect(container.textContent).not.toContain('Push Notifications');
     expect(mocks.pushNotifications.isSubscribed).not.toHaveBeenCalled();
-    expect(mocks.pushNotifications.ensureRegistered).not.toHaveBeenCalled();
+  });
+
+  it('ignores a stale subscription result after navigating to another server', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    const originResult = deferred<boolean>();
+    mocks.pushNotifications.isSubscribed
+      .mockReturnValueOnce(originResult.promise)
+      .mockResolvedValueOnce(false);
+
+    const view = render(NotificationsPage);
+    await settle();
+    expect(mocks.pushNotifications.isSubscribed).toHaveBeenCalledWith('origin');
+
+    mocks.activeServerId = 'remote';
+    userPreferences.composerEditor = 'visual';
+    await settle();
+    expect(mocks.pushNotifications.isSubscribed).toHaveBeenCalledWith('remote');
+
+    originResult.resolve(true);
+    await settle();
+
+    await expect.element(buttonWithText(view.container, 'Enable')).toBeVisible();
+    expect(view.container.textContent).not.toContain('Push notifications enabled');
+  });
+
+  it('ignores a stale subscription result after navigating away and back', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    const firstOriginResult = deferred<boolean>();
+    mocks.pushNotifications.isSubscribed
+      .mockReturnValueOnce(firstOriginResult.promise)
+      .mockResolvedValue(false);
+
+    const view = render(NotificationsPage);
+    await settle();
+
+    mocks.activeServerId = 'remote';
+    userPreferences.composerEditor = 'visual';
+    await settle();
+    mocks.activeServerId = 'origin';
+    userPreferences.composerEditor = 'markdown';
+    await settle();
+
+    firstOriginResult.resolve(true);
+    await settle();
+
+    await expect.element(buttonWithText(view.container, 'Enable')).toBeVisible();
+    expect(view.container.textContent).not.toContain('Push notifications enabled');
   });
 
   it('shows iOS Home Screen guidance without checking or registering push', async () => {
@@ -381,12 +377,92 @@ describe('Notification settings page', () => {
     buttonWithText(container, 'Enable').click();
     await settle();
 
-    expect(mocks.pushNotifications.ensureRegistered).toHaveBeenCalledWith('vapid-key', {
+    expect(mocks.pushNotifications.ensureRegistered).toHaveBeenCalledWith('origin', 'vapid-key', {
       prompt: true
     });
+    expect(mocks.pushNotifications.refreshPushSubscriptions).toHaveBeenCalledOnce();
     expect(container.textContent).toContain('Push notifications enabled');
     expect(container.textContent).toContain('disable them for this site');
     expect(container.textContent).not.toContain('Disable');
+  });
+
+  it('ignores a stale enable result after navigating away and back', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
+    const firstOriginResult = deferred<boolean>();
+    mocks.pushNotifications.ensureRegistered
+      .mockReturnValueOnce(firstOriginResult.promise)
+      .mockResolvedValueOnce(false);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+    buttonWithText(container, 'Enable').click();
+    await settle();
+
+    mocks.activeServerId = 'remote';
+    userPreferences.composerEditor = 'visual';
+    await settle();
+    mocks.activeServerId = 'origin';
+    userPreferences.composerEditor = 'markdown';
+    await settle();
+    buttonWithText(container, 'Enable').click();
+    await settle();
+    expect(container.textContent).toContain('Failed to enable push notifications');
+
+    firstOriginResult.resolve(true);
+    await settle();
+
+    expect(container.textContent).toContain('Failed to enable push notifications');
+    expect(container.textContent).not.toContain('Push notifications enabled');
+  });
+
+  it('sends a test push notification when push is enabled', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.getPermission.mockReturnValue('granted');
+    mocks.pushNotifications.isSubscribed.mockResolvedValue(true);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    buttonWithText(container, 'Send test notification').click();
+    await settle();
+
+    expect(mocks.pushNotifications.sendTestNotification).toHaveBeenCalledWith('origin');
+    expect(container.textContent).toContain('Test notification sent.');
+  });
+
+  it('ignores a stale test result after navigating away and back', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.getPermission.mockReturnValue('granted');
+    mocks.pushNotifications.isSubscribed.mockResolvedValue(true);
+    const firstOriginResult = deferred<boolean>();
+    mocks.pushNotifications.sendTestNotification
+      .mockReturnValueOnce(firstOriginResult.promise)
+      .mockResolvedValueOnce(false);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+    buttonWithText(container, 'Send test notification').click();
+    await settle();
+
+    mocks.activeServerId = 'remote';
+    userPreferences.composerEditor = 'visual';
+    await settle();
+    mocks.activeServerId = 'origin';
+    userPreferences.composerEditor = 'markdown';
+    await settle();
+    buttonWithText(container, 'Send test notification').click();
+    await settle();
+    expect(container.textContent).toContain('Could not send a test notification');
+
+    firstOriginResult.resolve(true);
+    await settle();
+
+    expect(container.textContent).toContain('Could not send a test notification');
+    expect(container.textContent).not.toContain('Test notification sent.');
   });
 
   it('updates and persists notification sound filter sliders', async () => {
@@ -418,7 +494,7 @@ describe('Notification settings page', () => {
       '55'
     );
 
-    expect(userPreferences.notificationSoundFilters).toEqual({
+    expect(notificationPreferences().notificationSoundFilters).toEqual({
       volume: 1.5,
       highPassHz: 500,
       lowPassHz: 7904,
@@ -426,7 +502,9 @@ describe('Notification settings page', () => {
       reverb: 45,
       crunch: 55
     });
-    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey()) ?? '{}')
+    ).toMatchObject({
       notificationSoundFilters: {
         volume: 1.5,
         highPassHz: 500,
@@ -534,8 +612,12 @@ describe('Notification settings page', () => {
     buttonWithText(container, 'Reset').click();
     flushSync();
 
-    expect(userPreferences.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
-    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+    expect(notificationPreferences().notificationSoundFilters).toEqual(
+      defaultNotificationSoundFilters
+    );
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey()) ?? '{}')
+    ).toMatchObject({
       notificationSoundFilters: defaultNotificationSoundFilters
     });
     expect(container.textContent).toContain('100%');

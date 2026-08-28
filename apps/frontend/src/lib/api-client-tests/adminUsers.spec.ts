@@ -61,7 +61,8 @@ describe('createAdminUserManagementAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             avatarUrl: undefined,
-            deleted: false
+            deleted: false,
+            isBot: true
           },
           roles: ['admin'],
           createdAt: { toDate: () => createdAt },
@@ -95,6 +96,7 @@ describe('createAdminUserManagementAPI', () => {
           login: 'alice',
           displayName: 'Alice',
           avatarUrl: null,
+          isBot: true,
           roles: ['admin'],
           createdAt: '2026-01-02T03:04:05.000Z',
           deleted: false,
@@ -145,7 +147,10 @@ describe('createAdminUserManagementAPI', () => {
       availablePermissions: ['room.manage', 'message.post'],
       viewerCanAssignRoles: true,
       viewerCanManageRoles: false,
-      viewerCanManageUserPermissions: true
+      viewerCanManageUserPermissions: true,
+      assignableRoleNames: ['moderator'],
+      revocableRoleNames: ['moderator'],
+      roleAssignmentLimitsEnforced: true
     });
     const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
 
@@ -181,7 +186,9 @@ describe('createAdminUserManagementAPI', () => {
       availablePermissions: ['room.manage', 'message.post'],
       viewerCanAssignRoles: true,
       viewerCanManageRoles: false,
-      viewerCanManageUserPermissions: true
+      viewerCanManageUserPermissions: true,
+      assignableRoleNames: ['moderator'],
+      revocableRoleNames: ['moderator']
     });
   });
 
@@ -192,7 +199,8 @@ describe('createAdminUserManagementAPI', () => {
       availablePermissions: [],
       viewerCanAssignRoles: false,
       viewerCanManageRoles: false,
-      viewerCanManageUserPermissions: false
+      viewerCanManageUserPermissions: false,
+      roleAssignmentLimitsEnforced: false
     });
     const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
 
@@ -331,19 +339,17 @@ describe('createAdminUserManagementAPI', () => {
     );
   });
 
-  it('deletes a user with auth headers and fresh credential', async () => {
+  it('deletes a user with auth headers', async () => {
     mocks.deleteUser.mockResolvedValue({ deleted: true });
     const api = createAdminUserManagementAPI({
       baseUrl: '/api/connect',
       bearerToken: 'token'
     });
 
-    await expect(
-      api.deleteUser({ userId: 'user-1', currentPassword: 'current-password' })
-    ).resolves.toBe(true);
+    await expect(api.deleteUser({ userId: 'user-1' })).resolves.toBe(true);
 
     expect(mocks.deleteUser).toHaveBeenCalledWith(
-      { userId: 'user-1', currentPassword: 'current-password' },
+      { userId: 'user-1' },
       { headers: { Authorization: 'Bearer token' } }
     );
   });

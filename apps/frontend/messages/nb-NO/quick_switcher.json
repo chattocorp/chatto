@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "Gå et sted, eller skriv ? for å søke i meldinger...",
+    "no_results": "Ingen resultater",
+    "recent": "Nylig",
+    "kind": {
+      "destination": "Gå til",
+      "server": "Server",
+      "room": "Rom",
+      "dm": "DM",
+      "user": "Bruker",
+      "message": "Melding"
+    },
+    "message_search": {
+      "prompt": "Skriv etter ? for å søke i meldinger på alle serverne dine",
+      "no_results": "Ingen meldinger funnet"
+    }
+  }
+}

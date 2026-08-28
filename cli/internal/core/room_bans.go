@@ -9,8 +9,9 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const MaxRoomBanReasonLength = 1000
@@ -43,7 +44,7 @@ func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKin
 		return nil, fmt.Errorf("ban expiry must be in the future")
 	}
 
-	banPayload := &corev1.RoomMemberBannedEvent{
+	banPayload := &evtv1.RoomMemberBannedEvent{
 		RoomId: roomID,
 		UserId: targetUserID,
 		Reason: reason,
@@ -51,13 +52,13 @@ func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKin
 	if expiresAt != nil {
 		banPayload.ExpiresAt = timestamppb.New(*expiresAt)
 	}
-	banEvent := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomMemberBanned{
+	banEvent := newEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_RoomMemberBanned{
 			RoomMemberBanned: banPayload,
 		},
 	})
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
@@ -76,7 +77,7 @@ func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKin
 		}
 
 		if err := c.appendRoomLeaveBatch(ctx, kind, roomID, targetUserID, expectedSeq, banEvent); err == nil {
-			ban, ok := c.rooms().activeRoomBan(roomID, targetUserID, time.Now())
+			ban, ok := c.roomModel.activeRoomBan(roomID, targetUserID, time.Now())
 			if !ok {
 				return nil, fmt.Errorf("room ban projection did not contain newly published ban")
 			}
@@ -110,24 +111,24 @@ func (c *ChattoCore) UnbanMember(ctx context.Context, actorID string, kind RoomK
 	if len([]rune(reason)) > MaxRoomBanReasonLength {
 		return fmt.Errorf("unban reason exceeds %d characters", MaxRoomBanReasonLength)
 	}
-	if _, ok := c.rooms().activeRoomBan(roomID, targetUserID, time.Now()); !ok {
+	if _, ok := c.roomModel.activeRoomBan(roomID, targetUserID, time.Now()); !ok {
 		return nil
 	}
 
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomMemberUnbanned{
-			RoomMemberUnbanned: &corev1.RoomMemberUnbannedEvent{
+	event := newEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_RoomMemberUnbanned{
+			RoomMemberUnbanned: &evtv1.RoomMemberUnbannedEvent{
 				RoomId: roomID,
 				UserId: targetUserID,
 				Reason: reason,
 			},
 		},
 	})
-	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	pos, err := c.roomModel.appendDirectoryEventually(ctx, c.EventPublisher, evtstream.RoomAggregate(roomID), event)
 	if err != nil {
 		return fmt.Errorf("publish RoomMemberUnbannedEvent: %w", err)
 	}
-	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
+	if err := c.roomModel.waitForTimeline(ctx, pos); err != nil {
 		return err
 	}
 	return nil
@@ -136,7 +137,7 @@ func (c *ChattoCore) UnbanMember(ctx context.Context, actorID string, kind RoomK
 func (c *ChattoCore) ListActiveRoomBans(_ context.Context, roomID *string) ([]RoomBan, error) {
 	now := time.Now()
 	if roomID != nil && *roomID != "" {
-		return c.rooms().activeRoomBans(*roomID, now), nil
+		return c.roomModel.activeRoomBans(*roomID, now), nil
 	}
-	return c.rooms().activeBans(now), nil
+	return c.roomModel.activeBans(now), nil
 }

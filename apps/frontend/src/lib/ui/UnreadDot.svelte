@@ -1,5 +1,5 @@
 <script lang="ts">
-  type Color = 'warning' | 'primary' | 'muted';
+  type Color = 'warning' | 'ambient' | 'action' | 'neutral' | 'muted';
 
   let {
     color = 'warning',
@@ -14,8 +14,10 @@
   } = $props();
 
   const colorClasses = {
-    warning: 'bg-warning',
-    primary: 'bg-primary',
+    warning: 'bg-attention',
+    ambient: 'bg-text',
+    action: 'bg-action',
+    neutral: 'bg-neutral-action',
     muted: 'bg-muted'
   } as const;
 </script>

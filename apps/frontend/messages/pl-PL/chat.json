@@ -1,0 +1,81 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "Powiadomienia",
+      "subtitle": "Oto nowości",
+      "clear_all": "Wyczyść wszystko",
+      "empty_title": "Brak powiadomień",
+      "empty_body": "Wszyscy jesteście zajęci!",
+      "time_now": "Właśnie teraz",
+      "time_minutes": "{count}m temu",
+      "time_hours": "{count}h temu",
+      "time_days": "{count}d temu",
+      "unread": "Nieprzeczytane",
+      "activity": "Nowa aktywność",
+      "summary": {
+        "direct_message": "Masz nową wiadomość bezpośrednią od {actor}.",
+        "reaction": "Osoba {actor} zareagowała „{emoji}” na Twoją wiadomość w {channel}.",
+        "reaction_group": "Osoba {actor} i inni zareagowali „{emoji}” na Twoją wiadomość w {channel}.",
+        "reply": "Osoba {actor} odpowiedziała na Twoją wiadomość.",
+        "mention": "Osoba {actor} wspomniała o Tobie.",
+        "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku.",
+        "new_message": "Osoba {actor} opublikowała nową wiadomość.",
+        "activity": "Masz nowe powiadomienie od {actor}."
+      }
+    },
+    "sign_out": {
+      "title": "Wyloguj się",
+      "current_server": "Bieżący serwer",
+      "all_servers": "Wszystkie serwery",
+      "description": "Wyloguj się tylko z wybranego serwera lub odłącz każdy serwer od tego klienta."
+    },
+    "overview": {
+      "title": "Przegląd"
+    },
+    "server_nav": {
+      "back_to_server": "Powrót do serwera",
+      "server_fallback": "Serwer",
+      "administration": "Administracja serwerem"
+    },
+    "user_menu": {
+      "profile": "Profil użytkownika",
+      "send_message": "Wyślij wiadomość",
+      "view_profile": "Zobacz profil",
+      "profile_requires_direct_message": "Aby zobaczyć ten profil, potrzebujesz bezpośredniej wiadomości.",
+      "view_in_admin": "Wyświetl w administracji serwera",
+      "copy_user_id": "Kopiuj identyfikator użytkownika"
+    },
+    "server_gutter": {
+      "add_server": "Dodaj serwer",
+      "version": "Wersja {version}",
+      "version_unknown": "Nieznana wersja",
+      "unreachable": "Serwer jest niedostępny",
+      "compatibility_server_too_old": "Ten serwer musi zostać zaktualizowany do Chatto 0.5 lub nowszego, zanim ta aplikacja będzie mogła się połączyć.",
+      "compatibility_unknown": "Ta aplikacja nie może określić zgodności na podstawie wersji serwera."
+    },
+    "threads": {
+      "title": "Moje wątki",
+      "subtitle": "Wątki, które obserwujesz",
+      "filter_label": "Filtruj wątki",
+      "filter_all": "Wszystko",
+      "filter_unread": "Nieprzeczytane",
+      "empty_title": "Brak obserwowanych wątków",
+      "empty_body": "Wątki, które obserwujesz, pojawią się tutaj. Automatycznie obserwujesz wątki, w których bierzesz udział.",
+      "no_unread_loaded": "Nie załadowano żadnych nieprzeczytanych wątków",
+      "all_caught_up": "Wszystko nadrobione",
+      "loaded_summary": "Załadowano następujące wątki {loaded} z {total}.",
+      "load_more": "Załaduj więcej",
+      "no_unread": "W tej chwili nie ma nieprzeczytanych wątków.",
+      "message_missing": "Wiadomość nie jest już dostępna",
+      "in_room": "w",
+      "in_room_capitalized": "W"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Nie znaleziono użytkownika",
+      "bot": "Bot",
+      "local_time": "{time} czasu lokalnego ({zone})"
+    }
+  }
+}

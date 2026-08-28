@@ -3,11 +3,14 @@ import { test } from './setup';
 import {
   createAndLoginTestUser,
   grantPermission,
+  loginAsAdmin,
   logoutCurrentUser,
   loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
 import { TIMEOUTS } from './constants';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
+import { waitForUserDeletedViaConnect } from './fixtures/connectHelpers';
 import * as routes from './routes';
 
 interface TestServer {
@@ -61,7 +64,8 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
  * Logs in an existing user via HTTP endpoint.
  */
 async function loginUser(page: Page, login: string, password: string): Promise<void> {
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: { login, password }
   });
 
@@ -158,7 +162,7 @@ test.describe('Server Admin Members', () => {
       // Should see admin's login
       await expect(page.getByText(`@${admin.login}`)).toBeVisible();
 
-      // The refreshed summary should show server-admin-relevant account facts.
+      // The refreshed summary should show manage/server-relevant account facts.
       await expect(page.getByText('Space Roles')).not.toBeVisible();
       await expect(page.getByText('Roles', { exact: true })).toBeVisible();
       await expect(page.getByText('Joined')).toBeVisible();
@@ -214,8 +218,11 @@ test.describe('Server Admin Members', () => {
       // Should see Role Assignments section heading
       await expect(page.locator('h2', { hasText: 'Role Assignments' })).toBeVisible();
 
-      // Should see at least one checkbox (role assignment control)
-      await expect(page.locator('input[type="checkbox"]').first()).toBeVisible();
+      // The visible option label owns the hit area; the native checkbox remains
+      // available to assistive technology and form-state assertions.
+      const roleOption = page.locator('label:has(input[type="checkbox"])').first();
+      await expect(roleOption).toBeVisible();
+      await expect(roleOption.getByRole('checkbox')).toBeAttached();
     });
 
     test('back to members button works', async ({ serverAdminPage }) => {
@@ -259,6 +266,84 @@ test.describe('Server Admin Members', () => {
 
       // Should see access denied
       await serverAdminPage.expectAccessDenied();
+    });
+  });
+
+  test.describe('Member Deletion', () => {
+    test('admin viewing their own details sees no delete entry', async ({ serverAdminPage }) => {
+      const { page } = serverAdminPage;
+
+      // The bootstrap owner views their own member record; self-deletion stays
+      // in the account settings danger zone instead of this page.
+      const admin = await loginAsAdmin(page);
+      await serverAdminPage.gotoMemberDetails('server', admin.id!);
+
+      await expect(
+        page.getByRole('heading', { name: 'User Details' })
+      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.getByText('Danger Zone')).toHaveCount(0, {
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+      await expect(page.getByRole('link', { name: 'Delete Account' })).toHaveCount(0);
+    });
+
+    test('admin can delete another member through the confirmation page', async ({
+      serverAdminPage
+    }) => {
+      const { page } = serverAdminPage;
+
+      await createAndLoginTestUser(page);
+      const server = await usePrimaryServerViaAPI(page);
+      const target = await createSecondTestUser(page);
+
+      await serverAdminPage.gotoMemberDetails(server.id, target.id!);
+      const deleteButton = page.getByRole('link', { name: 'Delete Account' });
+      await expect(deleteButton).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await deleteButton.click();
+
+      await expect(page).toHaveURL(routes.serverAdminMemberDelete(target.id!));
+
+      // Confirmation is gated on typing the target's login.
+      const confirmInput = page.locator('#member-delete-confirm');
+      await expect(confirmInput).toBeVisible();
+      await expect(page.locator('#member-delete-password')).toHaveCount(0);
+      const submit = page.getByRole('button', { name: 'Permanently Delete Account' });
+      await expect(submit).toBeDisabled();
+
+      await confirmInput.fill(target.login.slice(0, -1));
+      await expect(submit).toBeDisabled();
+      await confirmInput.fill(target.login);
+      await expect(submit).toBeEnabled();
+
+      await submit.click();
+
+      // Success returns to the members list.
+      await expect(page).toHaveURL(routes.serverAdminMembers, { timeout: TIMEOUTS.UI_STANDARD });
+      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
+
+      // The server actually deleted the account.
+      await waitForUserDeletedViaConnect(page, target.id!);
+    });
+
+    test('the deletion page blocks viewers without delete permission', async ({
+      serverAdminPage
+    }) => {
+      const { page } = serverAdminPage;
+
+      await loginAsAdmin(page);
+      const viewer = await createSecondTestUser(page);
+      const target = await createSecondTestUser(page);
+
+      // The viewer may read member data (admin.view-users granted to everyone)
+      // but has no user.delete-any grant, so the confirmation page must refuse
+      // to act even though the page itself is reachable.
+      await grantPermission(page, 'everyone', 'admin.view-users');
+      await logoutUser(page);
+      await loginUser(page, viewer.login, viewer.password);
+      await page.goto(routes.serverAdminMemberDelete(target.id!));
+      await expect(page.getByText('You cannot delete this account.')).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
     });
   });
 });

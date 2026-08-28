@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
+import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, GetRoomMemberRequest, GetRoomMemberResponse, ListRoomMembersRequest, ListRoomMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
@@ -95,8 +95,10 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Starts or fetches a direct-message room for the current user and the
-     * requested participant set. The caller must be allowed to start DMs.
+     * Starts a direct-message room for the current human user and the requested
+     * participant set, or fetches its existing DM. message.post is required
+     * only when the DM must be created. A valid request from a bot receives
+     * PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
      *
      * @generated from rpc chatto.api.v1.RoomService.StartDM
      */
@@ -119,7 +121,8 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists explicit members of a room. The caller must be a member of the room.
+     * Lists effective room members. Existing members and room.manage holders may
+     * list a channel room; other nonmembers need both room.list and room.join.
      *
      * @generated from rpc chatto.api.v1.RoomService.ListMembers
      */
@@ -130,8 +133,9 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one explicit member of a room. The caller must be a member of the
-     * room. Returns NOT_FOUND when the target is unknown or not a room member.
+     * Gets one explicit member of a room. Existing members and room.manage
+     * holders may read channel-room members; DMs remain membership-only. Returns
+     * NOT_FOUND when the target is unknown or not a room member.
      *
      * @generated from rpc chatto.api.v1.RoomService.GetMember
      */
@@ -142,8 +146,9 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets explicit room member rows for multiple users. The caller must be a
-     * member of the room.
+     * Gets explicit room member rows for multiple users. Existing members and
+     * room.manage holders may read channel-room members; DMs remain
+     * membership-only.
      *
      * @generated from rpc chatto.api.v1.RoomService.BatchGetMembers
      */
@@ -193,7 +198,10 @@ export const RoomService = {
     },
     /**
      * Lists current message-owned room attachments. Authentication and room
-     * membership are required. Returns PERMISSION_DENIED when the room is
+     * membership are required. Channel-room attachments also require message.read
+     * or a matching thread relationship with message.read.interactions. DM
+     * membership authorizes DM attachments. The server omits attachments from
+     * inaccessible threads. Returns PERMISSION_DENIED when the room is
      * inaccessible to the caller.
      *
      * @generated from rpc chatto.api.v1.RoomService.ListRoomAttachments
@@ -202,6 +210,45 @@ export const RoomService = {
       name: "ListRoomAttachments",
       I: ListRoomAttachmentsRequest,
       O: ListRoomAttachmentsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists current pinned messages in a channel room. Room membership plus
+     * message.read or message.read.interactions are required. The server omits
+     * pins from threads that the caller cannot read. Direct-message rooms do not
+     * support pins.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.ListPinnedMessages
+     */
+    listPinnedMessages: {
+      name: "ListPinnedMessages",
+      I: ListPinnedMessagesRequest,
+      O: ListPinnedMessagesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Pins a current message. The caller must have room.manage and must be able
+     * to read the message. Repeating an existing pin is idempotent. Direct-message
+     * rooms are rejected.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.CreatePinnedMessage
+     */
+    createPinnedMessage: {
+      name: "CreatePinnedMessage",
+      I: CreatePinnedMessageRequest,
+      O: CreatePinnedMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes a current pin. The caller must have room.manage. Removing a
+     * missing pin is idempotent. Direct-message rooms are rejected.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.DeletePinnedMessage
+     */
+    deletePinnedMessage: {
+      name: "DeletePinnedMessage",
+      I: DeletePinnedMessageRequest,
+      O: DeletePinnedMessageResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -217,8 +264,11 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Returns one page of room timeline events, including related user data needed
-     * to render the page.
+     * Returns one page of room timeline events, including related user data
+     * needed to render the page. Room membership is required. Channel-room reads
+     * also require message.read or message.read.interactions. The server returns
+     * only related thread roots for an interaction-scoped caller. DM membership
+     * authorizes DM reads.
      *
      * @generated from rpc chatto.api.v1.RoomService.GetRoomEvents
      */
@@ -232,7 +282,9 @@ export const RoomService = {
      * Returns a room timeline window centered around a specific event. Use this to
      * open a permalink, search result, or notification target in context. Returns
      * NOT_FOUND when the anchor event is missing or not visible in the room
-     * timeline and PERMISSION_DENIED when the room is inaccessible.
+     * timeline. Returns PERMISSION_DENIED when room membership or both read modes
+     * are missing, or when the anchor is in an unrelated thread. DM membership
+     * authorizes DM reads.
      *
      * @generated from rpc chatto.api.v1.RoomService.GetRoomEventsAround
      */
@@ -243,8 +295,11 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Marks a room timeline as read through the supplied event. If no event is
-     * supplied, the server marks through the room's latest root event. Clients
+     * Marks a room timeline as read through the supplied event. Room membership
+     * is required. Channel-room reads also require message.read or
+     * message.read.interactions. DM membership authorizes DM reads. If no event
+     * is supplied, the server marks through the latest root event that the caller
+     * can read. Clients
      * usually call this after the user has viewed the latest visible event in the
      * room.
      *

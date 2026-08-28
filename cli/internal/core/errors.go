@@ -48,6 +48,10 @@ var (
 	// they are not a member of.
 	ErrNotRoomMember = errors.New("not a member of this room")
 
+	// ErrCallParticipationRequired is returned when an operation requires the
+	// user to be a participant in the active call generation.
+	ErrCallParticipationRequired = errors.New("active call participation required")
+
 	// ErrRoleNotFound is returned when attempting to access a role that doesn't exist.
 	ErrRoleNotFound = errors.New("role not found")
 
@@ -86,6 +90,11 @@ var (
 	// the requested attachment.
 	ErrMessageAttachmentNotFound = errors.New("message attachment not found")
 
+	// ErrAssetNotAttachable is returned when a message references an asset that
+	// is unavailable, belongs to another uploader, or is already attached to a
+	// message.
+	ErrAssetNotAttachable = errors.New("asset is not available to attach")
+
 	// ErrMessageLinkPreviewNotFound is returned when a message does not contain
 	// the requested link preview.
 	ErrMessageLinkPreviewNotFound = errors.New("message link preview not found")
@@ -96,6 +105,19 @@ var (
 
 	// ErrMessageTooLong is returned when a message body exceeds the maximum length.
 	ErrMessageTooLong = errors.New("message body exceeds maximum length")
+
+	// ErrSlowModeActive is returned when a user attempts to post before the
+	// room's per-user posting interval has elapsed.
+	ErrSlowModeActive = errors.New("slow mode is active")
+
+	// ErrDMThreadsUnsupported is returned when a caller tries to create or
+	// extend a thread in a direct-message room. DMs support flat reply
+	// attribution, but thread containment is a channel-room-only capability.
+	ErrDMThreadsUnsupported = errors.New("threads are not supported in direct messages")
+
+	// ErrRoomThreadingPolicy is returned when thread creation or message
+	// placement conflicts with the channel's current threading mode.
+	ErrRoomThreadingPolicy = errors.New("message conflicts with the room threading policy")
 
 	// ErrDisplayNameTooLong is returned when a display name exceeds the maximum length.
 	ErrDisplayNameTooLong = errors.New("display name exceeds maximum length")
@@ -143,6 +165,21 @@ var (
 	// outside the allowed set (letters, digits, periods, underscores, hyphens).
 	ErrLoginInvalidCharacter = errors.New("username can only contain letters, numbers, periods, underscores, and hyphens")
 
+	// ErrHumanLoginReservedForBot is returned when a human account attempts to
+	// claim the reserved `_bot` suffix.
+	ErrHumanLoginReservedForBot = errors.New("human usernames cannot end in _bot")
+
+	// ErrBotLoginSuffixRequired is returned when a bot login omits the reserved
+	// `_bot` suffix.
+	ErrBotLoginSuffixRequired = errors.New("bot usernames must end in _bot")
+
+	// ErrHumanAccountRequired is returned when a human-only operation targets a bot.
+	ErrHumanAccountRequired = errors.New("operation requires a human account")
+
+	// ErrBotOwnerPermissionCeiling is returned when a requested bot grant would
+	// exceed its owner's current effective permission.
+	ErrBotOwnerPermissionCeiling = errors.New("bot permission exceeds its owner's current permission")
+
 	// ErrLoginChangeCooldown is returned when a user tries to change their login
 	// before the cooldown period has elapsed.
 	ErrLoginChangeCooldown = errors.New("you can only change your username once every 30 days")
@@ -154,6 +191,10 @@ var (
 	// ErrLimitExceeded is returned when an operation would exceed an instance-wide
 	// resource limit configured via [limits] (e.g. max_users).
 	ErrLimitExceeded = errors.New("instance limit reached")
+
+	// ErrReactionLimitExceeded is returned when a user already has the maximum
+	// number of distinct emoji reactions on one canonical message.
+	ErrReactionLimitExceeded = errors.New("reaction limit reached")
 
 	// ErrServerNotBootstrapped is returned by API-layer helpers that need
 	// the deployment's primary space ID before its bootstrap has run.
@@ -172,6 +213,18 @@ var (
 	// the entire user-provided password contributes to the hash and to bound work.
 	ErrPasswordTooLong = fmt.Errorf("password cannot exceed %d bytes", MaxPasswordLength)
 )
+
+// SlowModeActiveError reports the authoritative time at which a rejected
+// message post may be retried.
+type SlowModeActiveError struct {
+	NextPostAt time.Time
+}
+
+func (e *SlowModeActiveError) Error() string {
+	return fmt.Sprintf("slow mode is active until %s", e.NextPostAt.UTC().Format(time.RFC3339Nano))
+}
+
+func (e *SlowModeActiveError) Unwrap() error { return ErrSlowModeActive }
 
 // InvalidArgumentError carries a caller-safe validation message while still
 // matching ErrInvalidArgument through errors.Is.
@@ -202,6 +255,10 @@ const (
 
 	// MaxMessageBodyLength is the maximum length of a message body in bytes.
 	MaxMessageBodyLength = 10000
+
+	// MaxReactionsPerUserPerMessage is the maximum number of distinct emoji
+	// reactions one user may add to one canonical message.
+	MaxReactionsPerUserPerMessage = 20
 
 	// MaxDisplayNameLength is the maximum length of a user's display name in characters.
 	MaxDisplayNameLength = 32
@@ -265,12 +322,18 @@ const (
 
 	// MaxPushEndpointLength is the maximum length of a Push API endpoint URL in bytes.
 	MaxPushEndpointLength = 4096
+	// MaxPushClientHostLength bounds the URL host stored with a browser subscription.
+	MaxPushClientHostLength = 255
 
 	// MaxPushKeyLength is the maximum length of a Push API p256dh public key in bytes.
 	MaxPushKeyLength = 256
 
 	// MaxPushAuthLength is the maximum length of a Push API auth secret in bytes.
 	MaxPushAuthLength = 128
+	// MaxPushCleanupTokenLength bounds the random capability attached to one save.
+	MaxPushCleanupTokenLength = 128
+	// MinPushCleanupTokenLength preserves at least 128 bits for hexadecimal tokens.
+	MinPushCleanupTokenLength = 32
 
 	// MaxPushUserAgentLength is the maximum length of a stored push user-agent string in bytes.
 	MaxPushUserAgentLength = 512
@@ -295,4 +358,10 @@ const (
 
 	// MaxLinkPreviewImageAssetIDLength is the maximum length of a client-provided link preview image asset ID in bytes.
 	MaxLinkPreviewImageAssetIDLength = 15
+
+	// MaxMessageAttachmentAssetIDs is the maximum number of attachment asset IDs accepted for one message.
+	MaxMessageAttachmentAssetIDs = 10
+
+	// MaxMessageAttachmentAssetIDLength is the maximum length of a message attachment asset ID in bytes.
+	MaxMessageAttachmentAssetIDLength = 15
 )

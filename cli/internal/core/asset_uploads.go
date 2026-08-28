@@ -18,7 +18,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/assets"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -87,7 +87,7 @@ type AssetUploadModel struct {
 }
 
 func (c *ChattoCore) AssetUploads() *AssetUploadModel {
-	return &AssetUploadModel{core: c}
+	return c.assetUploadModel
 }
 
 func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCreateInput) (*AssetUploadSession, error) {
@@ -194,7 +194,7 @@ func (m *AssetUploadModel) UploadChunk(ctx context.Context, input AssetUploadChu
 	return session, nil
 }
 
-func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUploadCompleteInput) (*AssetUploadSession, *corev1.Attachment, error) {
+func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUploadCompleteInput) (*AssetUploadSession, *evtv1.Attachment, error) {
 	session, revision, err := m.loadUpload(ctx, input.UploadID)
 	if err != nil {
 		return nil, nil, err
@@ -203,7 +203,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 		return nil, nil, ErrPermissionDenied
 	}
 	if session.Status == AssetUploadStatusCompleted {
-		declared, ok := m.core.assetLifecycle().AssetCreation(session.AssetID)
+		declared, ok := m.core.assetModel.AssetCreation(session.AssetID)
 		if !ok {
 			return nil, nil, ErrNotFound
 		}
@@ -233,9 +233,9 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 		return nil, nil, err
 	}
 	pendingExpiresAt := time.Now().Add(defaultPendingAttachmentAssetTTL)
-	needsVideoProcessing := m.core.OnVideoProcessingRequested != nil && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
-	if err := m.core.assetLifecycle().RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
-		m.core.media().DeleteAttachmentFromStorage(ctx, attachment)
+	needsVideoProcessing := m.core.VideoUploadsEnabled && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
+	if err := m.core.assetModel.RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
+		m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment)
 		return nil, nil, err
 	}
 	session.Status = AssetUploadStatusCompleted
@@ -357,23 +357,23 @@ func (m *AssetUploadModel) cleanupOrphanUploadChunks(ctx context.Context, now ti
 }
 
 func (m *AssetUploadModel) cleanupExpiredPendingAssets(ctx context.Context, now time.Time) error {
-	claimed := make(map[string]struct{})
-	for _, owner := range m.core.assetLifecycle().MessageAssetOwners() {
-		if owner.AssetID != "" && !m.core.assetLifecycle().MessageTombstoned(owner.MessageEventID) {
-			claimed[owner.AssetID] = struct{}{}
+	attached := make(map[string]struct{})
+	for _, owner := range m.core.assetModel.MessageAssetOwners() {
+		if owner.AssetID != "" && !m.core.assetModel.MessageTombstoned(owner.MessageEventID) {
+			attached[owner.AssetID] = struct{}{}
 		}
 	}
-	for _, declared := range m.core.assetLifecycle().PendingExpiredAssets(now) {
+	for _, declared := range m.core.assetModel.PendingExpiredAssets(now) {
 		asset := declared.GetAsset()
 		if asset == nil || asset.GetId() == "" {
 			continue
 		}
-		if _, ok := claimed[asset.GetId()]; ok {
+		if _, ok := attached[asset.GetId()]; ok {
 			continue
 		}
 		roomID := declared.GetRoomId()
 		if roomID == "" {
-			if projectedRoomID, ok := m.core.assetLifecycle().AssetRoomID(asset.GetId()); ok {
+			if projectedRoomID, ok := m.core.assetModel.AssetRoomID(asset.GetId()); ok {
 				roomID = projectedRoomID
 			}
 		}
@@ -385,10 +385,14 @@ func (m *AssetUploadModel) cleanupExpiredPendingAssets(ctx context.Context, now 
 			continue
 		}
 		attachment.RoomId = roomID
-		if err := m.core.assetLifecycle().RecordAssetDeleted(ctx, SystemActorID, roomID, asset.GetId()); err != nil {
+		deleted, err := m.core.assetModel.RecordExpiredPendingAssetDeleted(ctx, roomID, asset.GetId(), now)
+		if err != nil {
 			return fmt.Errorf("record expired pending asset deletion: %w", err)
 		}
-		if err := m.core.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+		if !deleted {
+			continue
+		}
+		if err := m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 			m.core.logger.Warn("Failed to delete expired pending attachment binary", "attachment_id", asset.GetId(), "error", err)
 		}
 	}
@@ -456,7 +460,7 @@ func (m *AssetUploadModel) updateUpload(ctx context.Context, session *AssetUploa
 	if ttl <= 0 {
 		ttl = time.Second
 	}
-	if _, err := m.core.updateRuntimeStateTokenTTL(ctx, assetUploadKey(session.UploadID), value, revision, ttl); err != nil {
+	if _, err := m.core.updateRuntimeStateWithTTL(ctx, assetUploadKey(session.UploadID), value, revision, ttl); err != nil {
 		return fmt.Errorf("update upload session: %w", err)
 	}
 	return nil
@@ -503,7 +507,7 @@ func (m *AssetUploadModel) materializeUpload(ctx context.Context, session *Asset
 	return tmp, nil
 }
 
-func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *AssetUploadSession, reader io.ReadSeeker) (*corev1.Attachment, bool, error) {
+func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *AssetUploadSession, reader io.ReadSeeker) (*evtv1.Attachment, bool, error) {
 	attachmentID := NewAssetID()
 	contentType := session.ContentType
 	isImage := strings.HasPrefix(contentType, "image/")
@@ -530,15 +534,15 @@ func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *As
 		}
 	}
 
-	var storage *corev1.DeprecatedAsset
+	var storage *evtv1.DeprecatedAsset
 	if m.core.ShouldUseS3() {
 		s3Key := S3KeyAttachment(attachmentID)
 		if _, err := m.core.s3Client.PutObject(ctx, s3Key, reader, size, contentType); err != nil {
 			return nil, false, fmt.Errorf("failed to upload attachment to S3: %w", err)
 		}
-		storage = &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_S3{
-				S3: &corev1.S3Asset{Key: s3Key, Bucket: proto.String(m.core.s3Client.Bucket())},
+		storage = &evtv1.DeprecatedAsset{
+			Asset: &evtv1.DeprecatedAsset_S3{
+				S3: &evtv1.S3Asset{Key: s3Key, Bucket: proto.String(m.core.s3Client.Bucket())},
 			},
 		}
 	} else {
@@ -555,14 +559,14 @@ func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *As
 		}, reader); err != nil {
 			return nil, false, fmt.Errorf("failed to store attachment: %w", err)
 		}
-		storage = &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_Nats{
-				Nats: &corev1.NATSAsset{Key: attachmentID},
+		storage = &evtv1.DeprecatedAsset{
+			Asset: &evtv1.DeprecatedAsset_Nats{
+				Nats: &evtv1.NATSAsset{Key: attachmentID},
 			},
 		}
 	}
 
-	return &corev1.Attachment{
+	return &evtv1.Attachment{
 		Id:          attachmentID,
 		RoomId:      session.RoomID,
 		Filename:    session.Filename,

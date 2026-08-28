@@ -50,7 +50,8 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Assigns a role to a user. Requires role.assign.
+     * Assigns a role to a user. Requires role.assign, and non-owner callers may
+     * only assign roles whose granted authority they already possess.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.AssignRole
      */
@@ -61,7 +62,8 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Revokes a role from a user. Requires role.assign.
+     * Revokes a role from a user. Requires role.assign, and non-owner callers may
+     * only revoke roles whose permission decisions are within their authority.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.RevokeRole
      */
@@ -110,8 +112,7 @@ export const AdminUserService = {
     },
     /**
      * Deletes a user account as an admin action. Requires user.delete-any for
-     * other users, user.delete-self for the caller, and a fresh credential for
-     * the caller.
+     * other users or user.delete-self for the caller.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.DeleteUser
      */

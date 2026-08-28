@@ -65,6 +65,12 @@ describe('validateLogin', () => {
       expect(result.error).toContain('start with');
     });
 
+    it.each(['alice.', 'alice..', 'a.'])('rejects a trailing period in %s', (login) => {
+      const result = validateLogin(login);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('end with');
+    });
+
     it('rejects spaces', () => {
       const result = validateLogin('alice bob');
       expect(result.valid).toBe(false);

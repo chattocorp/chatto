@@ -20,6 +20,16 @@ export class UserSummaryCache {
     if (changed) this.#version++;
   }
 
+  remove(userId: string): void {
+    if (this.#entries.delete(userId)) this.#version++;
+  }
+
+  clear(): void {
+    if (this.#entries.size === 0) return;
+    this.#entries.clear();
+    this.#version++;
+  }
+
   get(userId: string): UserSummary | null {
     void this.#version;
     return this.#entries.get(userId) ?? null;
@@ -60,6 +70,16 @@ export function getUserSummaryCache(serverId: string): UserSummaryCache {
 export function primeUserSummaryCache(serverId: string | undefined, users: Iterable<UserSummary>) {
   if (!serverId) return;
   getUserSummaryCache(serverId).prime(users);
+}
+
+export function removeUserSummaryCacheEntry(serverId: string | undefined, userId: string): void {
+  if (!serverId) return;
+  getUserSummaryCache(serverId).remove(userId);
+}
+
+export function clearUserSummaryCache(serverId: string | undefined): void {
+  if (!serverId) return;
+  getUserSummaryCache(serverId).clear();
 }
 
 export function __resetUserSummaryCachesForTests() {

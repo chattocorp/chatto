@@ -14,143 +14,6 @@ Endpoint paths use the Connect convention:
 
 Use this reference when building clients against Chatto's public ConnectRPC API.
 
-<a id="chatto-api-v1-NotificationPreferencesService"></a>
-
-## NotificationPreferencesService
-
-Reads and updates per-room notification preferences for the current user.
-
-<a id="chatto-api-v1-NotificationPreferencesService-GetServerNotificationPreference"></a>
-
-### GetServerNotificationPreference
-
-Returns the current user's explicit and effective server notification level.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetServerNotificationPreference
-```
-
-<a id="chatto-api-v1-GetServerNotificationPreferenceRequest"></a>
-
-#### Input: GetServerNotificationPreferenceRequest
-
-Request for the current user's server-level notification preference.
-
-
-<a id="chatto-api-v1-GetNotificationPreferenceResponse"></a>
-
-#### Result: GetNotificationPreferenceResponse
-
-Current notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Current stored and effective notification preference. |
-
-
-<a id="chatto-api-v1-NotificationPreferencesService-UpdateServerNotificationPreference"></a>
-
-### UpdateServerNotificationPreference
-
-Updates the current user's explicit server notification level and returns the
-resulting stored and effective levels.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/UpdateServerNotificationPreference
-```
-
-<a id="chatto-api-v1-UpdateServerNotificationPreferenceRequest"></a>
-
-#### Input: UpdateServerNotificationPreferenceRequest
-
-Request to update the current user's server-level notification level.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the server to default behavior. |
-
-
-<a id="chatto-api-v1-UpdateNotificationPreferenceResponse"></a>
-
-#### Result: UpdateNotificationPreferenceResponse
-
-Updated notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Stored and effective notification preference after the update. |
-
-
-<a id="chatto-api-v1-NotificationPreferencesService-GetRoomNotificationPreference"></a>
-
-### GetRoomNotificationPreference
-
-Returns the current user's explicit and effective notification level for a
-room. Use this before rendering room notification controls so the UI can
-distinguish inherited defaults from an explicit room override. Returns
-NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
-exists but is inaccessible to the caller.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference
-```
-
-<a id="chatto-api-v1-GetRoomNotificationPreferenceRequest"></a>
-
-#### Input: GetRoomNotificationPreferenceRequest
-
-Request for the current user's notification preference in one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose notification preference should be loaded for the current user. |
-
-
-<a id="chatto-api-v1-GetNotificationPreferenceResponse"></a>
-
-#### Result: GetNotificationPreferenceResponse
-
-Current notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Current stored and effective notification preference. |
-
-
-<a id="chatto-api-v1-NotificationPreferencesService-UpdateRoomNotificationPreference"></a>
-
-### UpdateRoomNotificationPreference
-
-Updates the current user's explicit notification level for a room and returns
-the resulting stored and effective levels.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/UpdateRoomNotificationPreference
-```
-
-<a id="chatto-api-v1-UpdateRoomNotificationPreferenceRequest"></a>
-
-#### Input: UpdateRoomNotificationPreferenceRequest
-
-Request to update the current user's notification level in one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose notification level should be changed for the current user. |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
-
-
-<a id="chatto-api-v1-UpdateNotificationPreferenceResponse"></a>
-
-#### Result: UpdateNotificationPreferenceResponse
-
-Updated notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Stored and effective notification preference after the update. |
-
-
 <a id="chatto-api-v1-ViewerService"></a>
 
 ## ViewerService
@@ -185,8 +48,6 @@ Authenticated viewer snapshot needed by application shells.
 | --- | --- | --- |
 | `user` | [`ViewerUser`](#chatto-api-v1-ViewerUser) | Current authenticated user. |
 | `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
-| `server_notification_preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Server-wide notification preference. |
-| `room_notification_preferences` | repeated [`RoomNotificationPreference`](#chatto-api-v1-RoomNotificationPreference) | Notification preferences for rooms the user participates in. |
 | `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
 | `viewer_state` | [`ServerViewerState`](#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |
 
@@ -203,7 +64,7 @@ authenticated user.
 
 ### UpdateProfile
 
-Updates the authenticated user's login and/or display name.
+Updates the authenticated user's login, display name, and/or bio.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
@@ -213,13 +74,14 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
 
 #### Input: UpdateProfileRequest
 
-Request to update the authenticated user's profile. At least one field must
-be present.
+Request to update the authenticated user's profile. Human and bot accounts
+use this same self-service operation. At least one field must be present.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
 | `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
+| `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
 
 
 <a id="chatto-api-v1-UpdateProfileResponse"></a>
@@ -562,7 +424,8 @@ Result of deleting the current user's custom status.
 
 ### RequestAccountDeletion
 
-Issues a short-lived token used to confirm self-deletion.
+Issues a short-lived token used to confirm self-deletion. Requires
+user.delete-self.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/RequestAccountDeletion
@@ -592,6 +455,7 @@ Result of issuing an account deletion confirmation token.
 ### DeleteMyAccount
 
 Permanently deletes the authenticated account after token validation.
+Requires user.delete-self.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/DeleteMyAccount
@@ -629,8 +493,11 @@ Reads room-scoped asset metadata and freshly signed asset URLs.
 
 ### GetAsset
 
-Reads one asset. Authentication and room membership are required. Returns
-NOT_FOUND when the asset is missing, deleted, or owned by a different room.
+Reads one asset. Authentication and room membership are required.
+Channel-room assets also require message.read or a matching thread
+relationship with message.read.interactions. DM membership authorizes DM
+assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
+different room.
 
 ```http
 POST /api/connect/chatto.api.v1.AssetService/GetAsset
@@ -665,8 +532,11 @@ Response containing one room-scoped asset.
 ### BatchGetAssets
 
 Reads many assets in one room. Authentication and room membership are
-required. Missing, deleted, and wrong-room asset IDs are omitted. Results
-preserve first-seen request order and repeated asset IDs are de-duplicated.
+required. Channel-room assets also require message.read or a matching
+thread relationship with message.read.interactions. DM membership
+authorizes DM assets. Missing, deleted, wrong-room, and inaccessible asset
+IDs are omitted. Results preserve first-seen request order, and repeated
+asset IDs are de-duplicated.
 
 ```http
 POST /api/connect/chatto.api.v1.AssetService/BatchGetAssets
@@ -870,6 +740,318 @@ Response after cancelling an upload.
 | `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
 
 
+<a id="chatto-api-v1-BotService"></a>
+
+## BotService
+
+Creates and manages bot accounts owned by human users. Bot API keys cannot
+call this service.
+
+<a id="chatto-api-v1-BotService-ListBots"></a>
+
+### ListBots
+
+Lists bots visible to the authenticated caller.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBots
+```
+
+<a id="chatto-api-v1-ListBotsRequest"></a>
+
+#### Input: ListBotsRequest
+
+Request bots visible to the caller. Owners see their own bots; callers with
+bot.manage see every bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive login or display-name search. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListBotsResponse"></a>
+
+#### Result: ListBotsResponse
+
+Page of visible bots.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Visible bots. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-BotService-GetBot"></a>
+
+### GetBot
+
+Gets one visible bot. Returns NOT_FOUND for an unknown bot and
+PERMISSION_DENIED for a bot managed by another user.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBot
+```
+
+<a id="chatto-api-v1-GetBotRequest"></a>
+
+#### Input: GetBotRequest
+
+Request one bot by stable user ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-GetBotResponse"></a>
+
+#### Result: GetBotResponse
+
+Response containing one bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Requested bot. |
+
+
+<a id="chatto-api-v1-BotService-BatchGetBots"></a>
+
+### BatchGetBots
+
+Gets several visible bots. Missing and inaccessible bots are omitted.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/BatchGetBots
+```
+
+<a id="chatto-api-v1-BatchGetBotsRequest"></a>
+
+#### Input: BatchGetBotsRequest
+
+Request several bots by stable user ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_ids` | `repeated string` | Required bot user IDs. Missing or inaccessible bots are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetBotsResponse"></a>
+
+#### Result: BatchGetBotsResponse
+
+Response containing accessible bots in first-seen request order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Found bots. |
+
+
+<a id="chatto-api-v1-BotService-CreateBot"></a>
+
+### CreateBot
+
+Creates a bot owned by the authenticated human caller. Requires bot.create.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBot
+```
+
+<a id="chatto-api-v1-CreateBotRequest"></a>
+
+#### Input: CreateBotRequest
+
+Request creation of a bot owned by the authenticated human caller.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Bot login. Must end in `_bot`. |
+| `display_name` | `string` | Public display name. |
+
+
+<a id="chatto-api-v1-CreateBotResponse"></a>
+
+#### Result: CreateBotResponse
+
+Result of creating a bot. api_key is shown once and cannot be retrieved.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
+| `api_key` | `string` | Newly issued API key. |
+
+
+<a id="chatto-api-v1-BotService-DeleteBot"></a>
+
+### DeleteBot
+
+Deletes a bot and invalidates its API key.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DeleteBot
+```
+
+<a id="chatto-api-v1-DeleteBotRequest"></a>
+
+#### Input: DeleteBotRequest
+
+Request deletion of a bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-DeleteBotResponse"></a>
+
+#### Result: DeleteBotResponse
+
+Result of deleting a bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the bot was deleted. |
+
+
+<a id="chatto-api-v1-BotService-RotateBotApiKey"></a>
+
+### RotateBotApiKey
+
+Rotates the bot's sole API key and immediately invalidates the old key.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RotateBotApiKey
+```
+
+<a id="chatto-api-v1-RotateBotApiKeyRequest"></a>
+
+#### Input: RotateBotApiKeyRequest
+
+Request rotation of a bot's sole API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-RotateBotApiKeyResponse"></a>
+
+#### Result: RotateBotApiKeyResponse
+
+Result of rotating a bot API key. api_key is shown once and cannot be
+retrieved later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
+| `api_key` | `string` | Newly issued API key. |
+
+
+<a id="chatto-api-v1-BotService-CreateBotIncomingWebhook"></a>
+
+### CreateBotIncomingWebhook
+
+Creates a named incoming webhook. A bot can have at most 20 active
+incoming webhooks.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-CreateBotIncomingWebhookRequest"></a>
+
+#### Input: CreateBotIncomingWebhookRequest
+
+Request creation of one named incoming webhook for a bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
+
+
+<a id="chatto-api-v1-CreateBotIncomingWebhookResponse"></a>
+
+#### Result: CreateBotIncomingWebhookResponse
+
+Result of creating an incoming webhook. webhook_url is shown once and cannot
+be retrieved later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
+| `webhook_url` | `string` | Newly issued incoming webhook URL. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotIncomingWebhook"></a>
+
+### RevokeBotIncomingWebhook
+
+Revokes one incoming webhook without changing other webhooks.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-RevokeBotIncomingWebhookRequest"></a>
+
+#### Input: RevokeBotIncomingWebhookRequest
+
+Request irreversible revocation of one incoming webhook credential.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `webhook_id` | `string` | Required webhook credential ID. |
+
+
+<a id="chatto-api-v1-RevokeBotIncomingWebhookResponse"></a>
+
+#### Result: RevokeBotIncomingWebhookResponse
+
+Result of revoking an incoming webhook.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
+
+
+<a id="chatto-api-v1-BotService-ReassignBotOwner"></a>
+
+### ReassignBotOwner
+
+Reassigns a bot to another active human owner. Requires bot.manage. The
+current API key and configured permission allowlist remain unchanged,
+while effective permissions immediately use the new owner's ceiling.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ReassignBotOwner
+```
+
+<a id="chatto-api-v1-ReassignBotOwnerRequest"></a>
+
+#### Input: ReassignBotOwnerRequest
+
+Request an administrative reassignment of a bot to another human owner.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `owner_user_id` | `string` | Required user ID of the new human owner. |
+
+
+<a id="chatto-api-v1-ReassignBotOwnerResponse"></a>
+
+#### Result: ReassignBotOwnerResponse
+
+Result of reassigning a bot owner. The bot's API key and configured
+permission allowlist are unchanged.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Reassigned bot. |
+
+
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService
@@ -978,6 +1160,90 @@ Batch user directory response.
 | `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
 
 
+<a id="chatto-api-v1-MessageSearchService"></a>
+
+## MessageSearchService
+
+Searches current message content visible to an authenticated user.
+
+<a id="chatto-api-v1-MessageSearchService-GetStatus"></a>
+
+### GetStatus
+
+Reports whether the operator enabled Search and whether its provider can
+currently answer. This method remains available when Search is disabled.
+
+```http
+POST /api/connect/chatto.api.v1.MessageSearchService/GetStatus
+```
+
+<a id="chatto-api-v1-GetStatusRequest"></a>
+
+#### Input: GetStatusRequest
+
+Request for current message-search availability.
+
+
+<a id="chatto-api-v1-GetStatusResponse"></a>
+
+#### Result: GetStatusResponse
+
+Current message-search availability.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`MessageSearchState`](#chatto-api-v1-MessageSearchState) | Current feature/provider state. |
+| `retry_after` | `google.protobuf.Duration` | Suggested delay before checking again while search is not ready. |
+
+
+<a id="chatto-api-v1-MessageSearchService-SearchMessages"></a>
+
+### SearchMessages
+
+Searches current message bodies in rooms where the caller is a member.
+Channel-room results also require message.read or a matching thread
+relationship with message.read.interactions. DM membership authorizes DM
+results. Results are authorized and hydrated from current Chatto state
+after provider matching. Returns FAILED_PRECONDITION when Search is
+disabled and UNAVAILABLE when its provider is not ready.
+
+```http
+POST /api/connect/chatto.api.v1.MessageSearchService/SearchMessages
+```
+
+<a id="chatto-api-v1-SearchMessagesRequest"></a>
+
+#### Input: SearchMessagesRequest
+
+Request to search current message bodies visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `query` | `string` | Required query expression. Words are required terms, quoted text is an exact phrase, and `AND` may separate terms. The query also accepts `in:`, `from:`, `before:`, `after:`, and `has:attachment` filters; a recognized filter may be used without a word or phrase. |
+| `room_id` | `optional string` | Optional room-ID scope. The server intersects this room with rooms the current user may read and with any `in:` filters in query. |
+| `author_id` | `optional string` | Optional author-ID scope. The server intersects this author with any `from:` filters in query. |
+| `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
+| `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
+| `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
+| `order` | [`MessageSearchOrder`](#chatto-api-v1-MessageSearchOrder) | Result ordering. Unspecified defaults to relevance. |
+| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default of 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
+| `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
+
+
+<a id="chatto-api-v1-SearchMessagesResponse"></a>
+
+#### Result: SearchMessagesResponse
+
+One ordered page of current, authorized message results. Pagination reads a live
+search index rather than a pinned snapshot, so results may move, repeat, or
+disappear between page requests while the index advances.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `results` | repeated [`MessageSearchResult`](#chatto-api-v1-MessageSearchResult) | Current renderable messages and their provider relevance scores in the requested order. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
+| `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |
+
+
 <a id="chatto-api-v1-MessageService"></a>
 
 ## MessageService
@@ -1026,7 +1292,8 @@ Result of fetching link preview metadata.
 Creates a message for the current user. The user must be a room member and
 must have message.post for room messages or message.post-in-thread for
 thread replies. Echoing a thread reply also requires message.echo and
-message.post.
+message.post. The room's Threading Mode may automatically establish a root
+thread or reject a thread placement that the mode does not allow.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/CreateMessage
@@ -1042,11 +1309,12 @@ Request to create a message in a room or thread.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room where the message should be created. |
 | `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
-| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
+| `attachment_asset_ids` | `repeated string` | Completed room-scoped asset IDs uploaded by the caller and not yet attached to a message. The server attaches them exclusively and atomically to this message. At most 10 IDs may be supplied. |
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
+| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -1066,7 +1334,10 @@ Result of creating a message.
 
 Edits a message body. Authors can edit their own messages within the edit
 window. Non-authors need message.manage and cannot change channel echo
-state.
+state. Disabled rooms reject creation of a new channel echo while allowing
+an existing echo to be removed. Room membership is also required.
+Channel-room edits require message.read or a matching thread relationship
+with message.read.interactions. DM membership authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
@@ -1204,9 +1475,12 @@ Result of removing a link preview from a message.
 ### GetMessage
 
 Reads one renderable message, including current body, attachment metadata,
-link preview, reactions, and thread metadata. Authentication and room
-membership are required. Returns NOT_FOUND when the event does not exist,
-is not a message, has been retracted, or belongs to a different room.
+link preview, reactions, thread metadata, and pin state. Authentication
+and room membership are required. Channel-room reads also require
+message.read or a matching thread relationship with
+message.read.interactions. DM membership authorizes DM reads. Returns
+NOT_FOUND when the event does not exist, is not a message, has been
+retracted, or belongs to a different room.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/GetMessage
@@ -1239,10 +1513,13 @@ Response containing one renderable message.
 
 ### BatchGetMessages
 
-Reads many renderable messages in one room. Authentication and room
-membership are required. Missing, retracted, non-message, and wrong-room
-event IDs are omitted. Results preserve first-seen request order and
-repeated event IDs are de-duplicated.
+Reads many renderable messages and their current pin state in one room.
+Authentication and room membership are required. Channel-room reads also
+require message.read or a matching thread relationship with
+message.read.interactions. DM membership authorizes DM reads. Missing,
+retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
+Results preserve first-seen request order, and repeated event IDs are
+de-duplicated.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
@@ -1276,7 +1553,9 @@ Response containing renderable messages.
 ### AddReaction
 
 Adds a reaction to a message. The user must be a room member and have
-message.react in the target room.
+message.react. Channel-room reactions also require message.read or a
+matching thread relationship with message.read.interactions. DM membership
+authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/AddReaction
@@ -1290,7 +1569,9 @@ Request to add the current user's reaction to a message.
 
 When `message_event_id` names a channel echo of a thread reply, the server
 treats it as an alias for the original thread reply and stores the reaction
-on that original event.
+on that original event. The server returns `RESOURCE_EXHAUSTED` when the
+current user already has 20 distinct emoji reactions on the canonical
+message; adding an emoji that already exists remains an idempotent success.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1316,7 +1597,9 @@ Result of adding a reaction.
 ### RemoveReaction
 
 Removes a reaction from a message. The user must be a room member and have
-message.react in the target room.
+message.react. Channel-room reactions also require message.read or a
+matching thread relationship with message.read.interactions. DM membership
+authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
@@ -1382,10 +1665,11 @@ Request to create a channel room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | Required. Name of the new channel room. |
+| `name` | `string` | Required. Visible 1–30-code-point Unicode name of the new channel room. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `string` | Optional room description. |
 | `group_id` | `string` | Required. Room group that should contain the new channel. |
 | `universal` | `bool` | Whether the new channel should grant effective membership to eligible server members. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for the new channel. UNSPECIFIED selects ENABLED. |
 
 
 <a id="chatto-api-v1-CreateRoomResponse"></a>
@@ -1419,9 +1703,11 @@ Request to update a room's editable metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room to update. |
-| `name` | `optional string` | New room name, when changing it. |
+| `name` | `optional string` | New visible 1–30-code-point Unicode room name, when changing it. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
+| `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
+| `threading_mode` | optional [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -1570,8 +1856,10 @@ Result of joining all joinable rooms in one room group.
 
 ### StartDM
 
-Starts or fetches a direct-message room for the current user and the
-requested participant set. The caller must be allowed to start DMs.
+Starts a direct-message room for the current human user and the requested
+participant set, or fetches its existing DM. message.post is required
+only when the DM must be created. A valid request from a bot receives
+PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/StartDM
@@ -1581,7 +1869,10 @@ POST /api/connect/chatto.api.v1.RoomService/StartDM
 
 #### Input: StartDMRequest
 
-Request to start or fetch a direct-message room.
+Request to start a direct-message room for a human caller, or fetch an
+existing one. A human caller can fetch an existing DM without message.post.
+A valid request from a bot receives PERMISSION_DENIED, including when the
+room already exists.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1636,7 +1927,8 @@ Result of leaving a room.
 
 ### ListMembers
 
-Lists explicit members of a room. The caller must be a member of the room.
+Lists effective room members. Existing members and room.manage holders may
+list a channel room; other nonmembers need both room.list and room.join.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/ListMembers
@@ -1650,7 +1942,7 @@ Request for members of one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Required. Room whose explicit members should be listed. |
+| `room_id` | `string` | Required. Room whose effective members should be listed. Existing members and room.manage holders may list a channel room; other nonmembers need both room.list and room.join. |
 | `search` | `string` | Optional case-insensitive search against login and display name. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 250 results when absent or limit is zero. |
 
@@ -1671,8 +1963,9 @@ Room member page.
 
 ### GetMember
 
-Gets one explicit member of a room. The caller must be a member of the
-room. Returns NOT_FOUND when the target is unknown or not a room member.
+Gets one explicit member of a room. Existing members and room.manage
+holders may read channel-room members; DMs remain membership-only. Returns
+NOT_FOUND when the target is unknown or not a room member.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetMember
@@ -1705,8 +1998,9 @@ Room member response.
 
 ### BatchGetMembers
 
-Gets explicit room member rows for multiple users. The caller must be a
-member of the room.
+Gets explicit room member rows for multiple users. Existing members and
+room.manage holders may read channel-room members; DMs remain
+membership-only.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/BatchGetMembers
@@ -1845,7 +2139,10 @@ Active room bans visible to the current moderator.
 ### ListRoomAttachments
 
 Lists current message-owned room attachments. Authentication and room
-membership are required. Returns PERMISSION_DENIED when the room is
+membership are required. Channel-room attachments also require message.read
+or a matching thread relationship with message.read.interactions. DM
+membership authorizes DM attachments. The server omits attachments from
+inaccessible threads. Returns PERMISSION_DENIED when the room is
 inaccessible to the caller.
 
 ```http
@@ -1875,6 +2172,113 @@ Room-scoped attachment list response.
 | --- | --- | --- |
 | `attachments` | repeated [`RoomAttachmentListItem`](#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-RoomService-ListPinnedMessages"></a>
+
+### ListPinnedMessages
+
+Lists current pinned messages in a channel room. Room membership plus
+message.read or message.read.interactions are required. The server omits
+pins from threads that the caller cannot read. Direct-message rooms do not
+support pins.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ListPinnedMessages
+```
+
+<a id="chatto-api-v1-ListPinnedMessagesRequest"></a>
+
+#### Input: ListPinnedMessagesRequest
+
+Request to list a channel room's current pinned messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListPinnedMessagesResponse"></a>
+
+#### Result: ListPinnedMessagesResponse
+
+Current pinned messages in one channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pinned_messages` | repeated [`PinnedMessage`](#chatto-api-v1-PinnedMessage) | Pinned messages in newest-pin-first order. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `latest_pin_marker` | `string` | Opaque marker for the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. Clients must not interpret it. |
+
+
+<a id="chatto-api-v1-RoomService-CreatePinnedMessage"></a>
+
+### CreatePinnedMessage
+
+Pins a current message. The caller must have room.manage and must be able
+to read the message. Repeating an existing pin is idempotent. Direct-message
+rooms are rejected.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/CreatePinnedMessage
+```
+
+<a id="chatto-api-v1-CreatePinnedMessageRequest"></a>
+
+#### Input: CreatePinnedMessageRequest
+
+Request to pin a message in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `message_event_id` | `string` | Required canonical message event ID. Thread replies are supported. |
+
+
+<a id="chatto-api-v1-CreatePinnedMessageResponse"></a>
+
+#### Result: CreatePinnedMessageResponse
+
+Result of pinning a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pinned_message` | [`PinnedMessage`](#chatto-api-v1-PinnedMessage) | Current pinned-message resource. Repeating an existing pin returns it. |
+
+
+<a id="chatto-api-v1-RoomService-DeletePinnedMessage"></a>
+
+### DeletePinnedMessage
+
+Removes a current pin. The caller must have room.manage. Removing a
+missing pin is idempotent. Direct-message rooms are rejected.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/DeletePinnedMessage
+```
+
+<a id="chatto-api-v1-DeletePinnedMessageRequest"></a>
+
+#### Input: DeletePinnedMessageRequest
+
+Request to unpin a message from a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `message_event_id` | `string` | Required canonical message event ID. |
+
+
+<a id="chatto-api-v1-DeletePinnedMessageResponse"></a>
+
+#### Result: DeletePinnedMessageResponse
+
+Result of unpinning a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the message is not pinned after this call. |
 
 
 <a id="chatto-api-v1-RoomService-UpdateTypingIndicator"></a>
@@ -1915,8 +2319,11 @@ Result of refreshing a typing indicator.
 
 ### GetRoomEvents
 
-Returns one page of room timeline events, including related user data needed
-to render the page.
+Returns one page of room timeline events, including related user data
+needed to render the page. Room membership is required. Channel-room reads
+also require message.read or message.read.interactions. The server returns
+only related thread roots for an interaction-scoped caller. DM membership
+authorizes DM reads.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetRoomEvents
@@ -1958,7 +2365,9 @@ Response containing one room timeline page.
 Returns a room timeline window centered around a specific event. Use this to
 open a permalink, search result, or notification target in context. Returns
 NOT_FOUND when the anchor event is missing or not visible in the room
-timeline and PERMISSION_DENIED when the room is inaccessible.
+timeline. Returns PERMISSION_DENIED when room membership or both read modes
+are missing, or when the anchor is in an unrelated thread. DM membership
+authorizes DM reads.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetRoomEventsAround
@@ -1996,8 +2405,11 @@ Response containing a room timeline window around a specific event.
 
 ### MarkRoomAsRead
 
-Marks a room timeline as read through the supplied event. If no event is
-supplied, the server marks through the room's latest root event. Clients
+Marks a room timeline as read through the supplied event. Room membership
+is required. Channel-room reads also require message.read or
+message.read.interactions. DM membership authorizes DM reads. If no event
+is supplied, the server marks through the latest root event that the caller
+can read. Clients
 usually call this after the user has viewed the latest visible event in the
 room.
 
@@ -2023,8 +2435,8 @@ Request to mark a room timeline as read.
 
 Result of marking a room timeline as read.
 
-Clients can use the previous timestamp to decide whether unread badges or
-local notification state need to be reconciled.
+Clients can use the previous timestamp to place a local New messages
+separator. Notification policy controls room Badge attention separately.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2103,266 +2515,443 @@ Result of removing a room ban.
 | `unbanned` | `bool` | True when the unban operation completed. |
 
 
+<a id="chatto-api-v1-NotificationPolicyService"></a>
+
+## NotificationPolicyService
+
+Reads and updates the authenticated viewer's server, room-group, and room
+notification delivery policies.
+
+<a id="chatto-api-v1-NotificationPolicyService-GetNotificationPolicy"></a>
+
+### GetNotificationPolicy
+
+Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+for a missing room group or room, and PERMISSION_DENIED when the viewer is
+not a current member of a requested room.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/GetNotificationPolicy
+```
+
+<a id="chatto-api-v1-NotificationPolicyServiceGetNotificationPolicyRequest"></a>
+
+#### Input: NotificationPolicyServiceGetNotificationPolicyRequest
+
+Request one notification policy for the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Required policy scope. |
+
+
+<a id="chatto-api-v1-NotificationPolicyServiceGetNotificationPolicyResponse"></a>
+
+#### Result: NotificationPolicyServiceGetNotificationPolicyResponse
+
+One resolved notification policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policy` | [`ScopedNotificationPolicy`](#chatto-api-v1-ScopedNotificationPolicy) | Requested policy and its explicit scope. |
+
+
+<a id="chatto-api-v1-NotificationPolicyService-BatchGetNotificationPolicies"></a>
+
+### BatchGetNotificationPolicies
+
+Gets an explicit bounded set of policies. Missing and inaccessible scopes
+are omitted, and duplicate scopes are de-duplicated in first-seen order.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/BatchGetNotificationPolicies
+```
+
+<a id="chatto-api-v1-BatchGetNotificationPoliciesRequest"></a>
+
+#### Input: BatchGetNotificationPoliciesRequest
+
+Request an explicit bounded set of notification policies.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scopes` | repeated [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Required scopes. Missing or inaccessible scopes are omitted. Repeated scopes are de-duplicated in first-seen request order. |
+
+
+<a id="chatto-api-v1-BatchGetNotificationPoliciesResponse"></a>
+
+#### Result: BatchGetNotificationPoliciesResponse
+
+Resolved notification policies requested by scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policies` | repeated [`ScopedNotificationPolicy`](#chatto-api-v1-ScopedNotificationPolicy) | Found policies in first-seen request order. |
+
+
+<a id="chatto-api-v1-NotificationPolicyService-UpdateNotificationPolicy"></a>
+
+### UpdateNotificationPolicy
+
+Atomically sets or clears selected overrides at one explicit scope.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/UpdateNotificationPolicy
+```
+
+<a id="chatto-api-v1-NotificationPolicyServiceUpdateNotificationPolicyRequest"></a>
+
+#### Input: NotificationPolicyServiceUpdateNotificationPolicyRequest
+
+Sparsely update notification policy overrides at one explicit scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Required policy scope. |
+| `overrides` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Sparse override values. Fields selected by update_mask but absent here are cleared to Inherit. |
+| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. The mask must contain at least one supported delivery-mode field. |
+
+
+<a id="chatto-api-v1-NotificationPolicyServiceUpdateNotificationPolicyResponse"></a>
+
+#### Result: NotificationPolicyServiceUpdateNotificationPolicyResponse
+
+Complete supported notification policy after a scoped sparse update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policy` | [`ScopedNotificationPolicy`](#chatto-api-v1-ScopedNotificationPolicy) | Updated policy and its explicit scope. |
+
+
 <a id="chatto-api-v1-NotificationService"></a>
 
 ## NotificationService
 
-Reads and dismisses pending notifications for the authenticated viewer.
+Reads, marks read, and deletes notifications for the authenticated viewer.
 
-<a id="chatto-api-v1-NotificationService-ListNotifications"></a>
+<a id="chatto-api-v1-NotificationService-GetNotificationOccurrence"></a>
 
-### ListNotifications
+### GetNotificationOccurrence
 
-Lists the authenticated viewer's pending notifications.
+Gets one exact visible occurrence. Message-derived occurrences require
+current room membership. Channel-room occurrences also require message.read
+or a matching thread relationship with message.read.interactions. DM
+membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
+is absent, deleted, expired, or no longer visible to the authenticated
+viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
+kind.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/ListNotifications
+POST /api/connect/chatto.api.v1.NotificationService/GetNotificationOccurrence
 ```
 
-<a id="chatto-api-v1-ListNotificationsRequest"></a>
+<a id="chatto-api-v1-GetNotificationOccurrenceRequest"></a>
 
-#### Input: ListNotificationsRequest
+#### Input: GetNotificationOccurrenceRequest
 
-Request for the authenticated viewer's pending notifications.
+Request one exact notification occurrence by stable ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required stable occurrence ID. |
+
+
+<a id="chatto-api-v1-GetNotificationOccurrenceResponse"></a>
+
+#### Result: GetNotificationOccurrenceResponse
+
+One exact notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `occurrence` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Visible occurrence. Absence is reported as NOT_FOUND. |
+
+
+<a id="chatto-api-v1-NotificationService-BatchGetNotificationOccurrences"></a>
+
+### BatchGetNotificationOccurrences
+
+Gets an explicit bounded set of visible occurrences. Missing or
+inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
+UNIMPLEMENTED rather than partially answering when this server cannot
+validate one requested signal kind.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/BatchGetNotificationOccurrences
+```
+
+<a id="chatto-api-v1-BatchGetNotificationOccurrencesRequest"></a>
+
+#### Input: BatchGetNotificationOccurrencesRequest
+
+Request an explicit bounded set of notification occurrences.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_ids` | `repeated string` | Stable occurrence IDs. Unknown, deleted, and currently invisible IDs are omitted. Repeated IDs are de-duplicated in first-seen request order. |
+
+
+<a id="chatto-api-v1-BatchGetNotificationOccurrencesResponse"></a>
+
+#### Result: BatchGetNotificationOccurrencesResponse
+
+Exact visible notification occurrences requested by stable ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `occurrences` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Found occurrences in first-seen request order. |
+
+
+<a id="chatto-api-v1-NotificationService-ListNotificationOccurrences"></a>
+
+### ListNotificationOccurrences
+
+Lists exact Notifications 2.0 occurrences. Clients may derive temporary
+presentation groups without changing occurrence identity or counts.
+Message-derived occurrences require current room membership. Channel-room
+occurrences also require message.read or a matching thread relationship
+with message.read.interactions. DM membership authorizes DM occurrences.
+Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+signal kind this server version cannot validate and assemble.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListNotificationOccurrences
+```
+
+<a id="chatto-api-v1-ListNotificationOccurrencesRequest"></a>
+
+#### Input: ListNotificationOccurrencesRequest
+
+Request for one page of notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
 
 
-<a id="chatto-api-v1-ListNotificationsResponse"></a>
+<a id="chatto-api-v1-ListNotificationOccurrencesResponse"></a>
 
-#### Result: ListNotificationsResponse
+#### Result: ListNotificationOccurrencesResponse
 
-Pending notification page.
+One page of exact notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
+| `occurrences` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Occurrences newest activity first. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `unread_count` | `int32` | Total unread occurrence count, independent of presentation grouping. |
+| `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including occurrences outside this page. Clients refresh authoritative notification state at this boundary. |
+| `room_unread_counts` | repeated [`NotificationRoomUnreadCount`](#chatto-api-v1-NotificationRoomUnreadCount) | Complete unread-occurrence counts by target room. This is independent of the bounded page so room indicators remain authoritative. |
+| `important_unread_count` | `int32` | Exact unread occurrences with Important attention. |
 
 
-<a id="chatto-api-v1-NotificationService-GetNotification"></a>
+<a id="chatto-api-v1-NotificationService-MarkNotificationRead"></a>
 
-### GetNotification
+### MarkNotificationRead
 
-Gets one pending notification. Returns NOT_FOUND when the notification is
-unknown or has been dismissed.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/GetNotification
-```
-
-<a id="chatto-api-v1-GetNotificationRequest"></a>
-
-#### Input: GetNotificationRequest
-
-Request one pending notification for the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Required notification ID. |
-
-
-<a id="chatto-api-v1-GetNotificationResponse"></a>
-
-#### Result: GetNotificationResponse
-
-Pending notification response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification` | [`NotificationItem`](#chatto-api-v1-NotificationItem) | Requested notification. |
-
-
-<a id="chatto-api-v1-NotificationService-BatchGetNotifications"></a>
-
-### BatchGetNotifications
-
-Gets pending notifications by ID.
+Marks one occurrence read. Repeating the call is safe. Returns
+UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/BatchGetNotifications
+POST /api/connect/chatto.api.v1.NotificationService/MarkNotificationRead
 ```
 
-<a id="chatto-api-v1-BatchGetNotificationsRequest"></a>
+<a id="chatto-api-v1-MarkNotificationReadRequest"></a>
 
-#### Input: BatchGetNotificationsRequest
+#### Input: MarkNotificationReadRequest
 
-Request pending notifications for a set of stable notification IDs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_ids` | `repeated string` | Required notification IDs. Unknown or dismissed IDs are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetNotificationsResponse"></a>
-
-#### Result: BatchGetNotificationsResponse
-
-Batch pending notification response.
+Request to mark one notification occurrence read.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
+| `notification_id` | `string` | Required stable occurrence ID. |
 
 
-<a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
+<a id="chatto-api-v1-MarkNotificationReadResponse"></a>
 
-### ListRoomNotifications
+#### Result: MarkNotificationReadResponse
 
-Lists pending notifications for one room. Non-members receive an empty page.
+Notification occurrence after marking it read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `occurrence` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Updated occurrence. |
+
+
+<a id="chatto-api-v1-NotificationService-DeleteNotificationOccurrence"></a>
+
+### DeleteNotificationOccurrence
+
+Permanently deletes one occurrence while retaining its anti-recreation
+tombstone through the original expiry. Repeating the call is safe. Returns
+UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotifications
+POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationOccurrence
 ```
 
-<a id="chatto-api-v1-ListRoomNotificationsRequest"></a>
+<a id="chatto-api-v1-DeleteNotificationOccurrenceRequest"></a>
 
-#### Input: ListRoomNotificationsRequest
+#### Input: DeleteNotificationOccurrenceRequest
 
-Request for pending notifications scoped to one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose notifications should be listed. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListRoomNotificationsResponse"></a>
-
-#### Result: ListRoomNotificationsResponse
-
-Pending notification page scoped to one room.
+Request permanent deletion of one notification occurrence.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `notification_id` | `string` | Required stable occurrence ID. |
 
 
-<a id="chatto-api-v1-NotificationService-ListRoomNotificationCounts"></a>
+<a id="chatto-api-v1-DeleteNotificationOccurrenceResponse"></a>
 
-### ListRoomNotificationCounts
+#### Result: DeleteNotificationOccurrenceResponse
 
-Lists pending notification counts grouped by room as a finite snapshot.
+Result of deleting one notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when this call replaced a visible occurrence with a deletion tombstone. False when the occurrence was already absent or deleted. |
+
+
+<a id="chatto-api-v1-NotificationService-BatchDeleteNotificationOccurrences"></a>
+
+### BatchDeleteNotificationOccurrences
+
+Permanently deletes an exact set of occurrences. Repeating the call is
+safe because later activity receives different occurrence IDs. Returns
+UNIMPLEMENTED rather than partially deleting a signal kind this server
+cannot validate.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotificationCounts
+POST /api/connect/chatto.api.v1.NotificationService/BatchDeleteNotificationOccurrences
 ```
 
-<a id="chatto-api-v1-ListRoomNotificationCountsRequest"></a>
+<a id="chatto-api-v1-BatchDeleteNotificationOccurrencesRequest"></a>
 
-#### Input: ListRoomNotificationCountsRequest
+#### Input: BatchDeleteNotificationOccurrencesRequest
 
-Request for pending notification counts grouped by room.
-
-
-<a id="chatto-api-v1-ListRoomNotificationCountsResponse"></a>
-
-#### Result: ListRoomNotificationCountsResponse
-
-Finite snapshot of pending notification counts grouped by room.
+Request permanent deletion of an explicit bounded set of occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_counts` | repeated [`RoomNotificationCount`](#chatto-api-v1-RoomNotificationCount) | Counts for rooms with at least one pending notification. |
+| `notification_ids` | `repeated string` | Stable occurrence IDs to delete. Duplicates and already absent IDs are ignored. The server accepts at most 100 IDs. |
 
 
-<a id="chatto-api-v1-NotificationService-HasNotifications"></a>
+<a id="chatto-api-v1-BatchDeleteNotificationOccurrencesResponse"></a>
 
-### HasNotifications
+#### Result: BatchDeleteNotificationOccurrencesResponse
 
-Checks whether the authenticated viewer has any pending notifications.
+Result of deleting exact notification occurrences.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted_count` | `int32` | Number of visible occurrences replaced by deletion tombstones. |
+
+
+<a id="chatto-api-v1-NotificationService-DeleteAllNotificationOccurrences"></a>
+
+### DeleteAllNotificationOccurrences
+
+Permanently deletes every visible occurrence current at the server's
+authoritative mutation boundary. Callers must not retry this mutation
+automatically because later activity may arrive after that boundary.
+Returns UNIMPLEMENTED rather than partially deleting a signal kind this
+server cannot validate.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/HasNotifications
+POST /api/connect/chatto.api.v1.NotificationService/DeleteAllNotificationOccurrences
 ```
 
-<a id="chatto-api-v1-HasNotificationsRequest"></a>
+<a id="chatto-api-v1-DeleteAllNotificationOccurrencesRequest"></a>
 
-#### Input: HasNotificationsRequest
+#### Input: DeleteAllNotificationOccurrencesRequest
 
-Request for a lightweight pending notification check.
+Request permanent deletion of every currently visible notification occurrence.
 
 
-<a id="chatto-api-v1-HasNotificationsResponse"></a>
+<a id="chatto-api-v1-DeleteAllNotificationOccurrencesResponse"></a>
 
-#### Result: HasNotificationsResponse
+#### Result: DeleteAllNotificationOccurrencesResponse
 
-Lightweight pending notification check.
+Result of deleting every currently visible notification occurrence.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `has_notifications` | `bool` | True when the authenticated viewer has at least one pending notification. |
+| `deleted_count` | `int32` | Number of visible occurrences replaced by deletion tombstones. |
 
 
-<a id="chatto-api-v1-NotificationService-DismissNotification"></a>
+<a id="chatto-api-v1-NotificationService-GetNotificationPolicy"></a>
 
-### DismissNotification
+### GetNotificationPolicy
 
-Dismisses one pending notification. Already-dismissed notifications are
-treated as idempotent success.
+Gets explicit and effective modes for every supported signal class.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/DismissNotification
+POST /api/connect/chatto.api.v1.NotificationService/GetNotificationPolicy
 ```
 
-<a id="chatto-api-v1-DismissNotificationRequest"></a>
+<a id="chatto-api-v1-GetNotificationPolicyRequest"></a>
 
-#### Input: DismissNotificationRequest
+#### Input: GetNotificationPolicyRequest
 
-Request to dismiss one pending notification.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Required. Notification to dismiss. |
-
-
-<a id="chatto-api-v1-DismissNotificationResponse"></a>
-
-#### Result: DismissNotificationResponse
-
-Result of dismissing one pending notification.
+Request the authenticated viewer's notification policy.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `dismissed` | `bool` | True when the notification is no longer pending. |
+| `room_id` | `optional string` | Empty returns server-scoped preferences. A room ID returns the inherited effective policy for that room and requires current membership. |
 
 
-<a id="chatto-api-v1-NotificationService-DismissAllNotifications"></a>
+<a id="chatto-api-v1-GetNotificationPolicyResponse"></a>
 
-### DismissAllNotifications
+#### Result: GetNotificationPolicyResponse
 
-Dismisses all pending notifications.
+Complete supported notification policy for one scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `optional string` | Room scope when requested; absent for server scope. |
+| `policy` | [`NotificationPolicy`](#chatto-api-v1-NotificationPolicy) | Explicit and effective policy for the requested scope. |
+
+
+<a id="chatto-api-v1-NotificationService-UpdateNotificationPolicy"></a>
+
+### UpdateNotificationPolicy
+
+Atomically sets or clears selected server- or room-scoped signal-class overrides.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/DismissAllNotifications
+POST /api/connect/chatto.api.v1.NotificationService/UpdateNotificationPolicy
 ```
 
-<a id="chatto-api-v1-DismissAllNotificationsRequest"></a>
+<a id="chatto-api-v1-UpdateNotificationPolicyRequest"></a>
 
-#### Input: DismissAllNotificationsRequest
+#### Input: UpdateNotificationPolicyRequest
 
-Request to dismiss all pending notifications.
-
-
-<a id="chatto-api-v1-DismissAllNotificationsResponse"></a>
-
-#### Result: DismissAllNotificationsResponse
-
-Result of dismissing all pending notifications.
+Sparsely update notification policy overrides.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `dismissed_count` | `int32` | Number of notifications dismissed. |
+| `room_id` | `optional string` | Room scope to change; absent changes the server scope. |
+| `overrides` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Sparse override values. Fields selected by update_mask but absent here are cleared to Inherit. |
+| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. The mask must contain at least one supported delivery-mode field. |
+
+
+<a id="chatto-api-v1-UpdateNotificationPolicyResponse"></a>
+
+#### Result: UpdateNotificationPolicyResponse
+
+Complete supported notification policy after a sparse update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `optional string` | Room scope when changed; absent for server scope. |
+| `policy` | [`NotificationPolicy`](#chatto-api-v1-NotificationPolicy) | Explicit and effective policy after the update. |
 
 
 <a id="chatto-api-v1-PushNotificationService"></a>
 
 ## PushNotificationService
 
-Browser Web Push subscription commands for the current user.
+Browser Web Push subscription commands for the authenticated user.
 
 <a id="chatto-api-v1-PushNotificationService-Subscribe"></a>
 
@@ -2385,10 +2974,12 @@ Request to store a PushSubscription returned by the browser Push API.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `endpoint` | `string` | Push service endpoint URL. |
+| `endpoint` | `string` | Absolute HTTPS push service endpoint URL. The server rejects redirects and destinations that resolve to private or other special-use addresses. |
 | `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
 | `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
 | `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
+| `client_host` | `string` | URL host of the Chatto server that supplied the installed web app. The sending server combines this with its own hostname to reconstruct the client route. A host can include a port but no scheme, path, or user info. |
+| `cleanup_token` | `string` | Random per-save capability generated by the client. A cancelled save can later remove only the record carrying this exact token, even when the same browser PushSubscription has since moved to another account. |
 
 
 <a id="chatto-api-v1-SubscribePushResponse"></a>
@@ -2434,6 +3025,36 @@ Response from removing a browser push subscription.
 | Field | Type | Description |
 | --- | --- | --- |
 | `unsubscribed` | `bool` | True when the request completed. |
+
+
+<a id="chatto-api-v1-PushNotificationService-SendTestNotification"></a>
+
+### SendTestNotification
+
+Sends a test notification to the caller's registered browser subscriptions.
+Calls are rate-limited per account. Delivery failures return a generic
+unavailable error without exposing the push provider's response body.
+
+```http
+POST /api/connect/chatto.api.v1.PushNotificationService/SendTestNotification
+```
+
+<a id="chatto-api-v1-SendTestPushNotificationRequest"></a>
+
+#### Input: SendTestPushNotificationRequest
+
+Request to test the current user's registered browser push subscriptions.
+
+
+<a id="chatto-api-v1-SendTestPushNotificationResponse"></a>
+
+#### Result: SendTestPushNotificationResponse
+
+Result of sending a test Web Push notification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sent` | `bool` | True when the push provider accepted the notification. |
 
 
 <a id="chatto-api-v1-RoleService"></a>
@@ -2548,9 +3169,9 @@ Reads room directory data.
 ### ListRooms
 
 Lists rooms visible to the current user. Channel rooms are non-archived
-rooms visible through membership or room.list. DM rooms are membership-only
-and empty DM conversations are omitted. Results are returned as a finite
-navigation snapshot.
+rooms visible through membership or room.list. DM membership authorizes DM
+reads. Empty DMs are omitted. Results are returned as a finite navigation
+snapshot.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
@@ -2818,8 +3439,11 @@ Manages thread follow state for the current user.
 
 ### ListFollowedThreads
 
-Returns followed threads for the current user, including enough root-message
-data for clients to render the list without extra per-field fetches.
+Returns followed threads in rooms where the current user is a member.
+Channel-room threads also require message.read or an active relationship
+with message.read.interactions. Historical DM threads use DM membership.
+The result includes enough root-message data for clients to render the
+list without extra per-field fetches.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
@@ -2853,8 +3477,11 @@ Response containing one followed-thread page.
 
 ### FollowThread
 
-Follows a thread for the current user. Followed threads can be surfaced in
-clients and can participate in thread notification behavior.
+Follows a thread for the current user. Room membership plus message.read or
+an active relationship with message.read.interactions are required. DMs do
+not support current thread actions.
+Followed threads can be surfaced in clients and can participate in thread
+notification behavior.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/FollowThread
@@ -2888,8 +3515,10 @@ Result of following a thread.
 
 ### UnfollowThread
 
-Stops following a thread for the current user. The response reports the
-resulting follow state so clients can update local UI immediately.
+Stops following a thread for the current user. Room membership plus
+message.read or an active relationship with message.read.interactions are
+required. DMs do not support current thread actions. The response reports
+the resulting follow state so clients can update local UI immediately.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
@@ -2923,8 +3552,11 @@ Result of unfollowing a thread.
 
 ### GetThreadEvents
 
-Returns one page of events in a message thread. Initial pages include the
-thread root message; cursor pages return replies in the requested direction.
+Returns one page of events in a message thread. Room membership is
+required. Channel-room reads also require message.read or an active
+relationship with message.read.interactions. Historical DM threads use DM
+membership. Initial pages include the thread root message; cursor pages
+return replies in the requested direction.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
@@ -2967,8 +3599,10 @@ Response containing one thread timeline page.
 
 Returns a thread timeline window centered around a specific event. Use this
 to open a reply from a notification or search result in context. Returns
-NOT_FOUND when the thread root or anchor event is missing or hidden and
-PERMISSION_DENIED when the room is inaccessible.
+NOT_FOUND when the thread root or anchor event is missing or hidden.
+Returns PERMISSION_DENIED when room membership is missing, both read modes
+are missing, or an interaction-scoped account has no relationship with the
+thread. Historical DM threads use DM membership.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
@@ -3008,7 +3642,9 @@ Response containing a thread timeline window around a specific event.
 ### MarkThreadAsRead
 
 Marks a thread timeline as read through the supplied event without changing
-the room-level read marker.
+the room-level read marker. Room membership plus message.read or an active
+relationship with message.read.interactions are required. DMs do not
+support current thread actions.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
@@ -3048,7 +3684,7 @@ Voice-call request/response APIs backed by Chatto call-state projections.
 
 ### ListActiveCalls
 
-Lists member channel rooms that currently have active calls as a finite
+Lists member rooms that currently have active calls as a finite
 runtime snapshot. Rooms the caller is not a member of are omitted.
 
 Returns an empty list when LiveKit is not configured.
@@ -3061,14 +3697,14 @@ POST /api/connect/chatto.api.v1.VoiceCallService/ListActiveCalls
 
 #### Input: ListActiveCallsRequest
 
-Request for active channel call snapshots.
+Request for active room call snapshots.
 
 
 <a id="chatto-api-v1-ListActiveCallsResponse"></a>
 
 #### Result: ListActiveCallsResponse
 
-Finite runtime snapshot of active channel calls.
+Finite runtime snapshot of active room calls.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -3258,6 +3894,47 @@ LiveKit token details for joining a room call.
 | `call_id` | `string` | Active call session ID. |
 
 
+<a id="chatto-api-v1-VoiceCallService-CreateCallMediaPublisherToken"></a>
+
+### CreateCallMediaPublisherToken
+
+Issues a short-lived LiveKit token for a native companion publisher owned
+by the caller. Companion publishers contribute media to the caller's
+logical participant without becoming call participants themselves.
+
+The caller must already participate in the active call. Returns
+FAILED_PRECONDITION when no call is active, the caller has not joined it,
+or voice and video calls are not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/CreateCallMediaPublisherToken
+```
+
+<a id="chatto-api-v1-CreateCallMediaPublisherTokenRequest"></a>
+
+#### Input: CreateCallMediaPublisherTokenRequest
+
+Request for a native companion publisher credential.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose active call receives the media. |
+| `kind` | [`CallMediaPublisherKind`](#chatto-api-v1-CallMediaPublisherKind) | Required. Kind of native media publisher being started. |
+
+
+<a id="chatto-api-v1-CreateCallMediaPublisherTokenResponse"></a>
+
+#### Result: CreateCallMediaPublisherTokenResponse
+
+Credential for one native companion publisher connection.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Short-lived LiveKit JWT token. |
+| `e2ee_key` | `string` | Shared E2EE key for this active call. |
+| `call_id` | `string` | Active call session ID. |
+
+
 <a id="chatto-api-v1-VoiceCallService-LeaveCall"></a>
 
 ### LeaveCall
@@ -3335,6 +4012,8 @@ Public login/provider metadata shared by discovery and account-linking APIs.
 | `type` | `string` | Provider type, such as "password", "oidc", "github", or "discord". |
 | `label` | `string` | Human-readable provider label. |
 | `login_url` | `string` | URL that starts login for this provider. |
+| `issuer_url` | `optional string` | OIDC issuer URL. Absent for providers that do not use OpenID Connect. Clients can compare this value with their own trusted issuer selection; the server does not select the client's identity provider. |
+| `auto_provision` | `optional bool` | Whether an unlinked identity may create a new account through this provider. |
 
 
 
@@ -3397,19 +4076,9 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-
-
-
-<a id="chatto-api-v1-NotificationPreference"></a>
-
-### NotificationPreference
-
-Stored and effective notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user. |
-| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
+| `is_bot` | `bool` | True when this identity represents an automated bot. |
+| `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
+| `timezone` | `optional string` | IANA time zone the user shares on their profile (for example "Europe/Berlin"), when set. Absent means the user has not chosen a shareable time zone. |
 
 
 
@@ -3424,6 +4093,7 @@ Built-in keys currently include:
 - dm.start
 - admin.view-users
 - user.manage-accounts
+- user.invite
 - role.assign
 - role.view
 - role.manage
@@ -3453,19 +4123,6 @@ Effective decision for one permission key.
 
 
 
-<a id="chatto-api-v1-RoomNotificationPreference"></a>
-
-### RoomNotificationPreference
-
-Room notification preference for one joined room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room whose preference is represented. |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Stored and effective notification preference. |
-
-
-
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
 ### ServerViewerPermissions
@@ -3486,7 +4143,7 @@ Non-permission server state for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `has_unread_rooms` | `bool` | Whether any joined channel room has unread messages. |
+| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
 
 
 
@@ -3553,6 +4210,74 @@ client-provided metadata fields.
 | `site_name` | `optional string` | Site name, when known. |
 | `embed_type` | `optional string` | Embed provider or type, when recognized. |
 | `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
+| `social_post` | [`SocialPostPreview`](#chatto-api-v1-SocialPostPreview) | Structured, provider-neutral social-post data for native rendering. |
+
+
+
+<a id="chatto-api-v1-SocialPostAuthor"></a>
+
+### SocialPostAuthor
+
+Author shown on a social-post preview.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `display_name` | `string` | Author display name. |
+| `handle` | `string` | Provider-native handle without a leading at-sign when applicable. |
+| `avatar_url` | `optional string` | Locally served author avatar URL, when available. |
+| `avatar_asset_id` | `optional string` | Locally stored author avatar asset ID, when available. |
+
+
+
+<a id="chatto-api-v1-SocialPostExternalLink"></a>
+
+### SocialPostExternalLink
+
+Website card embedded in a social post.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Destination URL. |
+| `title` | `optional string` | Card title, when available. |
+| `description` | `optional string` | Card description, when available. |
+| `image_url` | `optional string` | Locally served card image URL, when available. |
+| `image_asset_id` | `optional string` | Locally stored card image asset ID, when available. |
+
+
+
+<a id="chatto-api-v1-SocialPostImage"></a>
+
+### SocialPostImage
+
+One image attached directly to a social post.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Locally served image URL. |
+| `asset_id` | `string` | Locally stored image asset ID. |
+| `alt` | `optional string` | Author-provided alternative text. |
+| `width` | `optional uint32` | Source aspect-ratio width, when known. |
+| `height` | `optional uint32` | Source aspect-ratio height, when known. |
+
+
+
+<a id="chatto-api-v1-SocialPostPreview"></a>
+
+### SocialPostPreview
+
+Bounded, provider-neutral social-post data used for native preview cards.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider` | `string` | Stable lowercase provider identifier, such as "bluesky". |
+| `author` | [`SocialPostAuthor`](#chatto-api-v1-SocialPostAuthor) | Author shown on the post. |
+| `text` | `string` | Plain-text post body. |
+| `published_at` | `google.protobuf.Timestamp` | Post publication time. |
+| `images` | repeated [`SocialPostImage`](#chatto-api-v1-SocialPostImage) | Images attached directly to the post, in display order. |
+| `external_link` | [`SocialPostExternalLink`](#chatto-api-v1-SocialPostExternalLink) | Website card embedded in the post, when present. |
+| `content_warning` | `optional string` | Provider-supplied content warning, when present. |
+| `url` | `string` | Canonical URL for this post. Always set for quoted posts; the outer post may also use LinkPreview.url. |
+| `quoted_post` | [`SocialPostPreview`](#chatto-api-v1-SocialPostPreview) | Post quoted by this post, when present. Quotes inside this snapshot are omitted so preview size and rendering depth remain bounded. |
 
 
 
@@ -3583,8 +4308,9 @@ requests.
 | `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
 | `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
 | `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reaction summaries for this message. |
-| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state, when known for a thread root message. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. Present only when a durable thread has been established for this root message, including an empty thread. |
 | `deleted_at` | `google.protobuf.Timestamp` | Time when the message content was deleted through retraction or account crypto-shredding. Absent when unavailable body content is not a deletion. |
+| `pinned` | `bool` | True when this message's canonical message is currently pinned in its channel room. Always false for direct-message rooms. |
 
 
 
@@ -3644,6 +4370,18 @@ user has reacted with the same emoji.
 
 
 
+<a id="chatto-api-v1-MessageVideoHLS"></a>
+
+### MessageVideoHLS
+
+HLS adaptive-streaming metadata for a processed video.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `master_playlist_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the HLS master playlist. The URL authorises all playlists and segments in this video generation and expires with the attachment URL. |
+
+
+
 <a id="chatto-api-v1-MessageVideoProcessing"></a>
 
 ### MessageVideoProcessing
@@ -3664,6 +4402,7 @@ state.
 | `reason_code` | `string` | Stable reason code for a failed or incomplete processing state. |
 | `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the generated thumbnail, when available. |
 | `variants` | repeated [`MessageVideoVariant`](#chatto-api-v1-MessageVideoVariant) | Available transcoded renditions. |
+| `hls` | [`MessageVideoHLS`](#chatto-api-v1-MessageVideoHLS) | Adaptive-streaming metadata. Absent on MP4-only historical results and servers that do not support HLS processing. |
 
 
 
@@ -3709,7 +4448,7 @@ Viewer-specific state for one message thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
-| `has_unread` | `optional bool` | True when the thread has unread replies for the current user, when known. |
+| `has_unread` | `optional bool` | True when the thread has unread replies or neutral Badge attention for the current user, when known. |
 
 
 
@@ -3795,6 +4534,41 @@ for simple list browsing.
 
 
 
+<a id="chatto-api-v1-Bot"></a>
+
+### Bot
+
+A managed bot account. The API key itself is returned only by creation and
+rotation responses.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Canonical public bot identity. |
+| `owner_user_id` | `string` | Stable human owner user ID. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key_created_at` | `google.protobuf.Timestamp` | Time the initial API key was created. |
+| `api_key_rotated_at` | `optional google.protobuf.Timestamp` | Most recent API-key rotation time, when it has been rotated. |
+| `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
+
+
+
+<a id="chatto-api-v1-BotIncomingWebhook"></a>
+
+### BotIncomingWebhook
+
+Safe metadata for one active bot incoming webhook. The webhook URL is
+returned only when the credential is created.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable webhook credential ID. |
+| `name` | `string` | Manager-defined name for the credential. |
+| `created_at` | `google.protobuf.Timestamp` | Time the incoming webhook credential was created. |
+| `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
+| `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
+
+
+
 <a id="chatto-api-v1-DirectoryMember"></a>
 
 ### DirectoryMember
@@ -3810,6 +4584,19 @@ surfaces.
 
 
 
+<a id="chatto-api-v1-MessageSearchResult"></a>
+
+### MessageSearchResult
+
+One current, authorized message search result.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
+| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
+
+
+
 <a id="chatto-api-v1-RoomMessagePosted"></a>
 
 ### RoomMessagePosted
@@ -3819,6 +4606,19 @@ Payload for a message-posted timeline event.
 | Field | Type | Description |
 | --- | --- | --- |
 | `message` | [`Message`](#chatto-api-v1-Message) | Renderable message created by this timeline event. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineCallEvent"></a>
+
+### RoomTimelineCallEvent
+
+Payload for voice-call lifecycle timeline events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the call. |
+| `call_id` | `string` | Stable identifier for this call session. |
 
 
 
@@ -3841,8 +4641,11 @@ Clients should inspect the event oneof to choose the renderer for the event.
 | `event.room_deleted` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was deleted. |
 | `event.room_archived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was archived. |
 | `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
+| `event.room_threading_mode_changed` | [`RoomTimelineThreadingModeChangedEvent`](#chatto-api-v1-RoomTimelineThreadingModeChangedEvent) | The room's Threading Mode changed. |
 | `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
 | `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
+| `event.call_started` | [`RoomTimelineCallEvent`](#chatto-api-v1-RoomTimelineCallEvent) | A voice call started in the room. |
+| `event.call_ended` | [`RoomTimelineCallEvent`](#chatto-api-v1-RoomTimelineCallEvent) | The voice call ended in the room. |
 
 
 
@@ -3871,7 +4674,9 @@ Cursor page of room or thread timeline events.
 
 Use opaque start_cursor and end_cursor values with before/after requests to
 continue paging in either direction. Clients must treat cursor values as
-server-owned tokens and must not parse or construct them. The has_older and
+server-owned tokens and must not parse, construct, share between users, or
+reuse them for another room or thread. The server binds each cursor to the
+authenticated viewer and exact timeline resource. The has_older and
 has_newer flags tell clients whether another request can extend the current
 window.
 
@@ -3898,6 +4703,31 @@ Payload for room lifecycle and membership timeline events.
 
 
 
+<a id="chatto-api-v1-RoomTimelineThreadingModeChangedEvent"></a>
+
+### RoomTimelineThreadingModeChangedEvent
+
+Payload for a room Threading Mode change shown in the room timeline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose Threading Mode changed. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Newly configured Threading Mode. |
+
+
+
+<a id="chatto-api-v1-PinnedMessage"></a>
+
+### PinnedMessage
+
+One current pinned message in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message. Retracted messages are omitted from pin lists. |
+
+
+
 <a id="chatto-api-v1-Room"></a>
 
 ### Room
@@ -3913,6 +4743,8 @@ Public room metadata returned by room commands.
 | `archived` | `bool` | True when the room is archived and hidden from active room lists. |
 | `group_id` | `string` | Room group ID for channel rooms. Empty for direct-message rooms. |
 | `universal` | `bool` | True when a channel grants effective membership to eligible server members. |
+| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between message posts. Channel rooms only; zero means slow mode is disabled. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for this channel room. Direct-message rooms report UNSPECIFIED because they do not support threads. |
 
 
 
@@ -3951,89 +4783,258 @@ Lightweight room reference for cross-resource rows.
 
 
 
-<a id="chatto-api-v1-DirectMessageNotification"></a>
+<a id="chatto-api-v1-AllMentionReceived"></a>
 
-### DirectMessageNotification
+### AllMentionReceived
 
-Direct-message notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event_id` | `string` | Message event ID. |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | DM room where the message was posted. |
-
-
-
-<a id="chatto-api-v1-MentionNotification"></a>
-
-### MentionNotification
-
-Mention notification payload.
+An `@all` message that included the viewer.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the mention occurred. |
-| `event_id` | `string` | Message event ID. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the mention happened inside a thread. |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
 
 
-<a id="chatto-api-v1-NotificationItem"></a>
+<a id="chatto-api-v1-DirectMentionReceived"></a>
 
-### NotificationItem
+### DirectMentionReceived
 
-One pending notification for the authenticated viewer.
+A message that mentions the viewer directly.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable notification ID. |
-| `created_at` | `google.protobuf.Timestamp` | Creation time. |
-| `actor` | [`User`](#chatto-api-v1-User) | User who triggered the notification, when still resolvable. |
-| `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
-| `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
-| `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
-| `kind.room_message` | [`RoomMessageNotification`](#chatto-api-v1-RoomMessageNotification) | All-messages room notification. |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
 
 
-<a id="chatto-api-v1-ReplyNotification"></a>
+<a id="chatto-api-v1-DirectMessageReceived"></a>
 
-### ReplyNotification
+### DirectMessageReceived
 
-Reply notification payload.
+A direct message sent to the viewer.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the reply occurred. |
-| `event_id` | `string` | Reply event ID. |
-| `in_reply_to_id` | `string` | Event ID of the message being replied to. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the reply happened inside a thread. |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
 
 
-<a id="chatto-api-v1-RoomMessageNotification"></a>
+<a id="chatto-api-v1-FollowedRoomActivity"></a>
 
-### RoomMessageNotification
+### FollowedRoomActivity
 
-All-messages room notification payload.
+Deprecated compatibility payload. Chatto does not derive this signal.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the message was posted. |
-| `event_id` | `string` | Message event ID. |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
 
 
-<a id="chatto-api-v1-RoomNotificationCount"></a>
+<a id="chatto-api-v1-FollowedThreadActivity"></a>
 
-### RoomNotificationCount
+### FollowedThreadActivity
 
-Pending notification count for one room.
+Activity in a thread followed by the viewer.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room ID. |
-| `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+
+
+<a id="chatto-api-v1-HereMentionReceived"></a>
+
+### HereMentionReceived
+
+An `@here` message that included the viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+
+
+<a id="chatto-api-v1-NotificationDeliveryModes"></a>
+
+### NotificationDeliveryModes
+
+Delivery modes for Chatto's finite built-in notification signal classes.
+Presence is significant: absent fields inherit in a stored policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `direct_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `direct_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `replies` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `role_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `here_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `all_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `followed_threads` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | **Deprecated.** Deprecated compatibility slot. Use room_messages at room scope. |
+| `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `room_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for root messages posted directly to joined channel rooms. Thread messages and direct messages use their own signal classes. |
+
+
+
+<a id="chatto-api-v1-NotificationMessageReference"></a>
+
+### NotificationMessageReference
+
+Exact visible message destination carried by a notification signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the source activity. |
+| `event_id` | `string` | Exact source or reacted-to message event to reveal. |
+| `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
+
+
+
+<a id="chatto-api-v1-NotificationOccurrence"></a>
+
+### NotificationOccurrence
+
+One exact Notifications 2.0 source occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable occurrence ID. |
+| `created_at` | `google.protobuf.Timestamp` | Time of the source activity. |
+| `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
+| `signal` | [`NotificationSignal`](#chatto-api-v1-NotificationSignal) | Immutable cause and destination represented by this occurrence. |
+| `unread` | `bool` | Whether this occurrence still contributes unread attention. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+| `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
+
+
+
+<a id="chatto-api-v1-NotificationPolicy"></a>
+
+### NotificationPolicy
+
+Explicit and effective delivery modes for one notification policy scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `overrides` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Explicit modes at the requested scope. Missing fields mean Inherit. |
+| `effective` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Complete modes after applying product, server, and room inheritance. |
+
+
+
+<a id="chatto-api-v1-NotificationPolicyScope"></a>
+
+### NotificationPolicyScope
+
+Explicit target for one notification policy. Clients must select exactly
+one scope. Direct-message rooms use room scope and never inherit from a room
+group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope.server` | `google.protobuf.Empty` | Selects the authenticated viewer's server-wide policy. |
+| `scope.room_group_id` | `string` | Selects one existing room group's policy. |
+| `scope.room_id` | `string` | Selects one room's policy and requires current room membership. |
+
+
+
+<a id="chatto-api-v1-NotificationRoomUnreadCount"></a>
+
+### NotificationRoomUnreadCount
+
+Unread notification occurrences currently targeting one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Target room ID. |
+| `unread_count` | `int32` | Number of unread occurrences targeting this room. |
+| `important_unread_count` | `int32` | Unread occurrences in this room with Important attention. |
+
+
+
+<a id="chatto-api-v1-NotificationSignal"></a>
+
+### NotificationSignal
+
+Immutable, typed cause and destination of one notification. Clients must
+preserve unknown variants as generic dismissible rows and must not infer
+navigation semantics for them.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind.direct_message_received` | [`DirectMessageReceived`](#chatto-api-v1-DirectMessageReceived) | No field description provided. |
+| `kind.direct_mention_received` | [`DirectMentionReceived`](#chatto-api-v1-DirectMentionReceived) | No field description provided. |
+| `kind.reply_received` | [`ReplyReceived`](#chatto-api-v1-ReplyReceived) | No field description provided. |
+| `kind.role_mention_received` | [`RoleMentionReceived`](#chatto-api-v1-RoleMentionReceived) | No field description provided. |
+| `kind.here_mention_received` | [`HereMentionReceived`](#chatto-api-v1-HereMentionReceived) | No field description provided. |
+| `kind.all_mention_received` | [`AllMentionReceived`](#chatto-api-v1-AllMentionReceived) | No field description provided. |
+| `kind.followed_thread_activity` | [`FollowedThreadActivity`](#chatto-api-v1-FollowedThreadActivity) | No field description provided. |
+| `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | **Deprecated.** No field description provided. |
+| `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
+| `kind.room_message_received` | [`RoomMessageReceived`](#chatto-api-v1-RoomMessageReceived) | No field description provided. |
+
+
+
+<a id="chatto-api-v1-ReactionReceived"></a>
+
+### ReactionReceived
+
+A reaction added to one of the viewer's messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+| `emoji` | `string` | Exact reaction supplied by the actor. |
+
+
+
+<a id="chatto-api-v1-ReplyReceived"></a>
+
+### ReplyReceived
+
+A reply to one of the viewer's messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+
+
+<a id="chatto-api-v1-RoleMentionReceived"></a>
+
+### RoleMentionReceived
+
+A message mentioning a role held by the viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+| `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
+
+
+
+<a id="chatto-api-v1-RoomMessageReceived"></a>
+
+### RoomMessageReceived
+
+A root message posted directly to a channel room that the viewer belongs to.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+
+
+<a id="chatto-api-v1-ScopedNotificationPolicy"></a>
+
+### ScopedNotificationPolicy
+
+One policy together with the explicit scope that produced it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Exact policy scope. |
+| `policy` | [`NotificationPolicy`](#chatto-api-v1-NotificationPolicy) | Explicit and effective modes for the scope. |
 
 
 
@@ -4104,8 +5105,9 @@ Viewer-specific state and permission decisions for one room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `is_member` | `bool` | True when the current user is an effective room member. |
-| `has_unread` | `bool` | True when the room has unread root messages for the current user. |
+| `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
 
 
 
@@ -4148,6 +5150,8 @@ Login and registration options exposed before authentication.
 | `direct_registration_enabled` | `bool` | Whether users can create accounts through the public UI. |
 | `providers` | repeated [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Configured login providers. |
 | `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
+| `account_creation_policy` | [`AccountCreationPolicy`](#chatto-api-v1-AccountCreationPolicy) | Admission policy for direct registration and provider auto-provisioning. |
+| `direct_login_enabled` | `optional bool` | Whether users can sign in directly with a username or email address and password. Absent on older servers, where clients should treat direct login as enabled. |
 
 
 
@@ -4258,6 +5262,22 @@ Fit mode used when generating transformed image URLs.
 | `IMAGE_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
 
 
+<a id="chatto-api-v1-RoomThreadingMode"></a>
+
+### RoomThreadingMode
+
+Policy governing thread creation and reply placement in a channel room.
+Direct-message rooms do not support threads and use UNSPECIFIED.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_THREADING_MODE_UNSPECIFIED` | `0` | No mode was supplied. CreateRoom treats this as ENABLED so older stored rooms and omitted request fields preserve Chatto's default behavior. |
+| `ROOM_THREADING_MODE_REQUIRED` | `1` | Every new root message establishes a thread, and replies to root messages must be posted in that root's thread. |
+| `ROOM_THREADING_MODE_ENCOURAGED` | `2` | Clients should steer replies into threads, but the server accepts both threaded and ordinary in-room replies. |
+| `ROOM_THREADING_MODE_ENABLED` | `3` | Threads are available and clients may freely choose whether to use them. |
+| `ROOM_THREADING_MODE_DISABLED` | `4` | New threads, thread replies, and channel echoes are rejected. Existing threads and echoes remain readable and ordinary in-room reply attribution remains available. |
+
+
 <a id="chatto-api-v1-PresenceStatus"></a>
 
 ### PresenceStatus
@@ -4275,21 +5295,6 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
-
-
-<a id="chatto-api-v1-NotificationLevel"></a>
-
-### NotificationLevel
-
-Notification delivery level for a room.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `NOTIFICATION_LEVEL_UNSPECIFIED` | `0` | The level was not specified. |
-| `NOTIFICATION_LEVEL_DEFAULT` | `1` | Use the inherited default for the room. |
-| `NOTIFICATION_LEVEL_MUTED` | `2` | Do not notify for this room. |
-| `NOTIFICATION_LEVEL_NORMAL` | `3` | Notify according to the normal room rules. |
-| `NOTIFICATION_LEVEL_ALL_MESSAGES` | `4` | Notify for every message in the room. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>
@@ -4334,6 +5339,50 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
 
 
+<a id="chatto-api-v1-CredentialLastUsedState"></a>
+
+### CredentialLastUsedState
+
+Availability of best-effort credential last-use telemetry.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `CREDENTIAL_LAST_USED_STATE_UNSPECIFIED` | `0` | The server did not return a last-use state. |
+| `CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED` | `1` | The server has no recorded use for the credential. |
+| `CREDENTIAL_LAST_USED_STATE_RECORDED` | `2` | last_used_at contains the most recent recorded authentication time. |
+| `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
+
+
+<a id="chatto-api-v1-MessageSearchOrder"></a>
+
+### MessageSearchOrder
+
+Ordering for message-search results.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `MESSAGE_SEARCH_ORDER_UNSPECIFIED` | `0` | Use relevance order. |
+| `MESSAGE_SEARCH_ORDER_RELEVANCE` | `1` | Return the most relevant messages first. |
+| `MESSAGE_SEARCH_ORDER_NEWEST` | `2` | Return the most recently created messages first. |
+
+
+<a id="chatto-api-v1-MessageSearchState"></a>
+
+### MessageSearchState
+
+Current availability of message search on this server.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `MESSAGE_SEARCH_STATE_UNSPECIFIED` | `0` | The server did not report a meaningful state. |
+| `MESSAGE_SEARCH_STATE_DISABLED` | `1` | Search is disabled by the server operator. |
+| `MESSAGE_SEARCH_STATE_STARTING` | `2` | Search is enabled but its provider has not established index state yet. |
+| `MESSAGE_SEARCH_STATE_INDEXING` | `3` | The provider is rebuilding or catching up and cannot answer queries yet. |
+| `MESSAGE_SEARCH_STATE_READY` | `4` | Search is ready to answer queries. |
+| `MESSAGE_SEARCH_STATE_DEGRADED` | `5` | Search can answer queries but has a known non-fatal limitation. |
+| `MESSAGE_SEARCH_STATE_UNAVAILABLE` | `6` | Search is enabled but no provider can currently answer. |
+
+
 <a id="chatto-api-v1-RoomKind"></a>
 
 ### RoomKind
@@ -4347,6 +5396,37 @@ Kind of room represented by the public API.
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
 
 
+<a id="chatto-api-v1-NotificationAttentionLevel"></a>
+
+### NotificationAttentionLevel
+
+Visual importance of an unread notification. This is independent from
+whether the notification is eligible for sound or push delivery.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED` | `0` | No attention level was provided. |
+| `NOTIFICATION_ATTENTION_LEVEL_AMBIENT` | `1` | Ambient activity appears with a neutral unread indicator. |
+| `NOTIFICATION_ATTENTION_LEVEL_IMPORTANT` | `2` | Important activity appears with Chatto's notification orange. |
+
+
+<a id="chatto-api-v1-NotificationDeliveryMode"></a>
+
+### NotificationDeliveryMode
+
+Delivery behavior for one notification signal class.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_DELIVERY_MODE_UNSPECIFIED` | `0` | No delivery mode was specified. This value is not a valid override. |
+| `NOTIFICATION_DELIVERY_MODE_OFF` | `1` | Matching activity does not create user attention. |
+| `NOTIFICATION_DELIVERY_MODE_SILENT` | `2` | Deprecated alias for NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION. |
+| `NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION` | `2` | Matching activity creates an in-app notification but does not send push. |
+| `NOTIFICATION_DELIVERY_MODE_ALERT` | `3` | Deprecated alias for NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION. |
+| `NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION` | `3` | Matching activity creates an in-app notification and may send push. |
+| `NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE` | `4` | Matching activity adds a neutral unread indicator without creating a notification occurrence, playing a sound, or sending push. |
+
+
 <a id="chatto-api-v1-RoomDirectoryScope"></a>
 
 ### RoomDirectoryScope
@@ -4355,7 +5435,32 @@ Room kinds to include in directory responses.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include both visible channel rooms and the caller's active DM rooms. |
-| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include both visible channel rooms and the caller's active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include visible channel rooms and readable active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include visible channel rooms and readable active DM rooms. |
 | `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
-| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's active DM rooms only. |
+| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's readable active DM rooms only. |
+
+
+<a id="chatto-api-v1-AccountCreationPolicy"></a>
+
+### AccountCreationPolicy
+
+Policy controlling whether self-service account creation requires an invitation.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
+| `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
+| `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
+
+
+<a id="chatto-api-v1-CallMediaPublisherKind"></a>
+
+### CallMediaPublisherKind
+
+Native companion publisher kind.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED` | `0` | The publisher kind was not specified. |
+| `CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE` | `1` | Native game-window video and application audio. |

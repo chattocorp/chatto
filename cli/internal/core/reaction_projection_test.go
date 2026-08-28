@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestReactionProjection_AddRemoveAndBatch(t *testing.T) {
@@ -112,9 +112,9 @@ func TestReactionProjection_CanonicalizesEchoReactionReplay(t *testing.T) {
 func TestReactionProjection_MutationSnapshotTracksRoomSeq(t *testing.T) {
 	p := NewReactionProjection()
 
-	roomEvent := &corev1.Event{
-		Event: &corev1.Event_RoomUpdated{
-			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: "R1", Name: "general"},
+	roomEvent := &evtv1.Event{
+		Event: &evtv1.Event_RoomUpdated{
+			RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: "R1", Name: "general"},
 		},
 	}
 	if err := p.Apply(roomEvent, 7); err != nil {
@@ -142,9 +142,9 @@ func TestReactionProjection_MutationSnapshotTracksRoomSeq(t *testing.T) {
 		t.Fatalf("reaction snapshot seq = %d, want 8", snapshot.Seq)
 	}
 
-	otherRoomEvent := &corev1.Event{
-		Event: &corev1.Event_RoomUpdated{
-			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: "R2", Name: "other"},
+	otherRoomEvent := &evtv1.Event{
+		Event: &evtv1.Event_RoomUpdated{
+			RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: "R2", Name: "other"},
 		},
 	}
 	if err := p.Apply(otherRoomEvent, 9); err != nil {
@@ -158,13 +158,43 @@ func TestReactionProjection_MutationSnapshotTracksRoomSeq(t *testing.T) {
 	}
 }
 
+func TestReactionProjection_MutationSnapshotCountsUserReactionsOnCanonicalMessage(t *testing.T) {
+	p := NewReactionProjection()
+
+	applyReactionProjectionEvent(t, p, messagePostedProjectionEvent("M1", ""))
+	applyReactionProjectionEvent(t, p, messagePostedProjectionEvent("ECHO1", "M1"))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R1", "M1", "U1", "heart", 1))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R2", "ECHO1", "U1", "thumbsup", 2))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R3", "M1", "U2", "tada", 3))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R4", "M2", "U1", "rocket", 4))
+
+	snapshot := p.ReactionMutationSnapshot("R1", "ECHO1", "fire", "U1")
+	if snapshot.Exists {
+		t.Fatal("fire reaction unexpectedly exists")
+	}
+	if snapshot.UserReactionCount != 2 {
+		t.Fatalf("U1 canonical-message reaction count = %d, want 2", snapshot.UserReactionCount)
+	}
+
+	existing := p.ReactionMutationSnapshot("R1", "M1", "heart", "U1")
+	if !existing.Exists || existing.UserReactionCount != 2 {
+		t.Fatalf("existing reaction snapshot = %+v, want exists with count 2", existing)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M1", "fire", "U2").UserReactionCount; got != 1 {
+		t.Fatalf("U2 M1 reaction count = %d, want 1", got)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M2", "fire", "U1").UserReactionCount; got != 1 {
+		t.Fatalf("U1 M2 reaction count = %d, want 1", got)
+	}
+}
+
 func TestReactionProjection_IgnoresNonRoomEventsForSnapshotSeq(t *testing.T) {
 	p := NewReactionProjection()
 
-	assetEvent := &corev1.Event{
-		Event: &corev1.Event_AssetCreated{
-			AssetCreated: &corev1.AssetCreatedEvent{
-				Asset: &corev1.AssetRecord{Id: "A1"},
+	assetEvent := &evtv1.Event{
+		Event: &evtv1.Event_AssetCreated{
+			AssetCreated: &evtv1.AssetCreatedEvent{
+				Asset: &evtv1.AssetRecord{Id: "A1"},
 			},
 		},
 	}
@@ -179,21 +209,21 @@ func TestReactionProjection_IgnoresNonRoomEventsForSnapshotSeq(t *testing.T) {
 func TestReactionProjection_MutationSnapshotTracksLegacyRoomAssetEvents(t *testing.T) {
 	p := NewReactionProjection()
 
-	message := &corev1.Event{
+	message := &evtv1.Event{
 		Id: "M1",
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
+		Event: &evtv1.Event_MessagePosted{
+			MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"},
 		},
 	}
 	if err := p.Apply(message, 9); err != nil {
 		t.Fatalf("apply message event: %v", err)
 	}
 
-	assetCreated := &corev1.Event{
-		Event: &corev1.Event_AssetCreated{
-			AssetCreated: &corev1.AssetCreatedEvent{
+	assetCreated := &evtv1.Event{
+		Event: &evtv1.Event_AssetCreated{
+			AssetCreated: &evtv1.AssetCreatedEvent{
 				RoomId: "R1",
-				Asset:  &corev1.AssetRecord{Id: "A1"},
+				Asset:  &evtv1.AssetRecord{Id: "A1"},
 			},
 		},
 	}
@@ -204,9 +234,9 @@ func TestReactionProjection_MutationSnapshotTracksLegacyRoomAssetEvents(t *testi
 		t.Fatalf("snapshot seq after legacy asset-created event = %d, want 10", got)
 	}
 
-	assetStarted := &corev1.Event{
-		Event: &corev1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+	assetStarted := &evtv1.Event{
+		Event: &evtv1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{
 				AssetId:        "A2",
 				MessageEventId: "M1",
 			},
@@ -219,9 +249,9 @@ func TestReactionProjection_MutationSnapshotTracksLegacyRoomAssetEvents(t *testi
 		t.Fatalf("snapshot seq after legacy asset-processing event = %d, want 11", got)
 	}
 
-	assetDeleted := &corev1.Event{
-		Event: &corev1.Event_AssetDeleted{
-			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: "A1"},
+	assetDeleted := &evtv1.Event{
+		Event: &evtv1.Event_AssetDeleted{
+			AssetDeleted: &evtv1.AssetDeletedEvent{AssetId: "A1"},
 		},
 	}
 	if err := p.Apply(assetDeleted, 12); err != nil {
@@ -239,8 +269,8 @@ func TestRoomLayoutProjection_ReorderCloneAndIgnore(t *testing.T) {
 		t.Fatalf("fresh order = %v, want empty", got)
 	}
 
-	if err := p.Apply(&corev1.Event{Event: &corev1.Event_RoomGroupsReordered{
-		RoomGroupsReordered: &corev1.RoomGroupsReorderedEvent{GroupIds: []string{"G1", "G2"}},
+	if err := p.Apply(&evtv1.Event{Event: &evtv1.Event_RoomGroupsReordered{
+		RoomGroupsReordered: &evtv1.RoomGroupsReorderedEvent{GroupIds: []string{"G1", "G2"}},
 	}}, 1); err != nil {
 		t.Fatalf("apply reorder: %v", err)
 	}
@@ -254,8 +284,8 @@ func TestRoomLayoutProjection_ReorderCloneAndIgnore(t *testing.T) {
 		t.Fatalf("projection order mutated through returned slice: %v", got)
 	}
 
-	if err := p.Apply(&corev1.Event{Event: &corev1.Event_RoomGroupCreated{
-		RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G3"},
+	if err := p.Apply(&evtv1.Event{Event: &evtv1.Event_RoomGroupCreated{
+		RoomGroupCreated: &evtv1.RoomGroupCreatedEvent{GroupId: "G3"},
 	}}, 2); err != nil {
 		t.Fatalf("apply unrelated event: %v", err)
 	}
@@ -264,11 +294,11 @@ func TestRoomLayoutProjection_ReorderCloneAndIgnore(t *testing.T) {
 	}
 }
 
-func messagePostedProjectionEvent(id, echoOfEventID string) *corev1.Event {
-	return &corev1.Event{
+func messagePostedProjectionEvent(id, echoOfEventID string) *evtv1.Event {
+	return &evtv1.Event{
 		Id: id,
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
+		Event: &evtv1.Event_MessagePosted{
+			MessagePosted: &evtv1.MessagePostedEvent{
 				RoomId:        "R1",
 				EchoOfEventId: echoOfEventID,
 			},
@@ -276,13 +306,13 @@ func messagePostedProjectionEvent(id, echoOfEventID string) *corev1.Event {
 	}
 }
 
-func reactionAddedProjectionEvent(id, messageID, actorID, emoji string, second int) *corev1.Event {
-	return &corev1.Event{
+func reactionAddedProjectionEvent(id, messageID, actorID, emoji string, second int) *evtv1.Event {
+	return &evtv1.Event{
 		Id:        id,
 		ActorId:   actorID,
 		CreatedAt: timestamppb.New(time.Date(2026, 5, 26, 12, 0, second, 0, time.UTC)),
-		Event: &corev1.Event_ReactionAdded{
-			ReactionAdded: &corev1.ReactionAddedEvent{
+		Event: &evtv1.Event_ReactionAdded{
+			ReactionAdded: &evtv1.ReactionAddedEvent{
 				RoomId:         "R1",
 				MessageEventId: messageID,
 				Emoji:          emoji,
@@ -291,12 +321,12 @@ func reactionAddedProjectionEvent(id, messageID, actorID, emoji string, second i
 	}
 }
 
-func reactionRemovedProjectionEvent(id, messageID, actorID, emoji string) *corev1.Event {
-	return &corev1.Event{
+func reactionRemovedProjectionEvent(id, messageID, actorID, emoji string) *evtv1.Event {
+	return &evtv1.Event{
 		Id:      id,
 		ActorId: actorID,
-		Event: &corev1.Event_ReactionRemoved{
-			ReactionRemoved: &corev1.ReactionRemovedEvent{
+		Event: &evtv1.Event_ReactionRemoved{
+			ReactionRemoved: &evtv1.ReactionRemovedEvent{
 				RoomId:         "R1",
 				MessageEventId: messageID,
 				Emoji:          emoji,
@@ -305,7 +335,7 @@ func reactionRemovedProjectionEvent(id, messageID, actorID, emoji string) *corev
 	}
 }
 
-func applyReactionProjectionEvent(t *testing.T, p *ReactionProjection, event *corev1.Event) {
+func applyReactionProjectionEvent(t *testing.T, p *ReactionProjection, event *evtv1.Event) {
 	t.Helper()
 	if err := p.Apply(event, 0); err != nil {
 		t.Fatalf("apply event: %v", err)

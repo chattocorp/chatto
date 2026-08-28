@@ -214,7 +214,8 @@ describe('createPermissionAPI', () => {
             permission: 'room.create',
             scopeId: 'group:G1',
             override: PermissionDecision.NONE,
-            effective: PermissionDecision.NONE
+            effective: PermissionDecision.NONE,
+            allowPermitted: false
           }
         ]
       }
@@ -232,7 +233,8 @@ describe('createPermissionAPI', () => {
           permission: 'room.create',
           scopeId: 'group:G1',
           override: 'NONE',
-          effective: 'NONE'
+          effective: 'NONE',
+          allowPermitted: false
         }
       ]
     });

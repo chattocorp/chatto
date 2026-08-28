@@ -2,6 +2,8 @@ package core
 
 import (
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"testing"
 	"time"
 
@@ -9,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func subscribeRoomReadLiveEvents(t *testing.T, nc *nats.Conn, userID string) *nats.Subscription {
@@ -32,7 +34,7 @@ func expectRoomReadLiveEvent(t *testing.T, sub *nats.Subscription, roomID string
 	if err != nil {
 		t.Fatalf("waiting for room_read live event: %v", err)
 	}
-	var live corev1.LiveEvent
+	var live livev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal room_read live event: %v", err)
 	}
@@ -49,7 +51,7 @@ func expectNoRoomReadLiveEvent(t *testing.T, sub *nats.Subscription) {
 	t.Helper()
 
 	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
-		var live corev1.LiveEvent
+		var live livev1.LiveEvent
 		if unmarshalErr := proto.Unmarshal(msg.Data, &live); unmarshalErr != nil {
 			t.Fatalf("unexpected room_read live event with invalid payload: %v", unmarshalErr)
 		}
@@ -71,6 +73,12 @@ func TestReadStateModel_MarkRoomAsReadSkipsLiveEventWhenCursorUnchanged(t *testi
 	}
 	if _, err := core.JoinRoom(ctx, reader.Id, KindChannel, reader.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom reader: %v", err)
+	}
+	if _, err := core.NotificationPolicy().SetRoomNotificationMode(
+		ctx, reader.Id, room.Id, notificationTestSignalRoomMessage,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+	); err != nil {
+		t.Fatalf("disable room-message Badge: %v", err)
 	}
 
 	posted, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "already read", nil, "", "", nil, false)
@@ -122,7 +130,7 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenCursorAdvances(t *te
 	expectRoomReadLiveEvent(t, sub, room.Id)
 }
 
-func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenNotificationsDismissed(t *testing.T) {
+func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRead(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -147,13 +155,23 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenNotificationsDismiss
 	if err := core.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, second.Id); err != nil {
 		t.Fatalf("SetLastReadEventID: %v", err)
 	}
-	notification, err := core.CreateNotification(ctx, reader.Id, poster.Id, &corev1.Notification{
-		Notification: &corev1.Notification_Mention{
-			Mention: &corev1.MentionNotification{RoomId: room.Id, EventId: first.Id},
-		},
+	firstEntry, ok := core.roomModel.timelineEntry(first.Id)
+	if !ok {
+		t.Fatal("first message missing from timeline")
+	}
+	notification, _, err := core.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:          reader.Id,
+		SourceEventID:        first.Id,
+		SourceCreated:        first.GetCreatedAt().AsTime(),
+		ActorID:              poster.Id,
+		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, first.Id),
+		Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		SkipReadLookup:       true,
+		SourceStreamSequence: firstEntry.StreamSeq,
 	})
 	if err != nil {
-		t.Fatalf("CreateNotification: %v", err)
+		t.Fatalf("Create occurrence: %v", err)
 	}
 
 	sub := subscribeRoomReadLiveEvents(t, nc, reader.Id)
@@ -162,13 +180,116 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenNotificationsDismiss
 	}
 
 	expectRoomReadLiveEvent(t, sub, room.Id)
-	remaining, err := core.GetNotifications(ctx, reader.Id)
+	remaining, err := core.NotificationOccurrences().List(ctx, reader.Id)
 	if err != nil {
-		t.Fatalf("GetNotifications: %v", err)
+		t.Fatalf("List occurrences: %v", err)
 	}
 	for _, item := range remaining {
-		if item.GetId() == notification.GetId() {
-			t.Fatalf("notification %s was not dismissed", notification.GetId())
+		if item.GetId() == notification.GetId() && !item.GetRead() {
+			t.Fatalf("notification %s remains unread", notification.GetId())
 		}
+	}
+}
+
+func TestNotificationReadBoundaryReconciliationRepairsInterruptedHandshake(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, _ := chattoCore.CreateRoom(ctx, "test-user", KindChannel, "", "Read repair", "")
+	poster, _ := chattoCore.CreateUser(ctx, SystemActorID, "read-repair-poster", "Read Repair Poster", "password123")
+	reader, _ := chattoCore.CreateUser(ctx, SystemActorID, "read-repair-reader", "Read Repair Reader", "password123")
+	for _, userID := range []string{poster.Id, reader.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, poster.Id, "covered", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	entry, ok := chattoCore.roomModel.timelineEntry(posted.Id)
+	if !ok {
+		t.Fatal("posted message missing from timeline")
+	}
+	occurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: reader.Id, SourceEventID: posted.Id, SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
+		Signal: testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
+		Mode:   evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		SourceStreamSequence: entry.StreamSeq, SkipReadLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("Create occurrence: %v", err)
+	}
+
+	before, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
+	if err != nil || before.GetRead() {
+		t.Fatalf("before repair = %+v, %v, want unread", before, err)
+	}
+	// Simulate a stop after the durable boundary write but before the matching
+	// NOTIFICATIONS read fact was appended.
+	if _, err := chattoCore.NotificationOccurrences().recordNotificationReadBoundary(ctx, reader.Id, room.Id, "", posted.Id); err != nil {
+		t.Fatalf("record read boundary: %v", err)
+	}
+	for {
+		after, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
+		if err == nil && after.GetRead() {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("watched boundary did not repair occurrence: %+v, %v", after, err)
+		case <-time.After(time.Millisecond):
+		}
+	}
+	if repaired, err := chattoCore.NotificationOccurrences().reconcileCoveredUnread(ctx); err != nil || repaired != 0 {
+		t.Fatalf("idempotent reconcileCoveredUnread = (%d, %v), want (0, nil)", repaired, err)
+	}
+}
+
+func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-read-author", "Reaction Read Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reactor, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-read-reactor", "Reaction Read Reactor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reactor: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "reaction-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, reactor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "react here", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if added, err := chattoCore.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction = (%v, %v)", added, err)
+	}
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, author.Id)
+	if err != nil || len(occurrences) != 1 {
+		t.Fatalf("List reaction occurrences = (%d, %v), want one", len(occurrences), err)
+	}
+	if occurrences[0].GetRead() {
+		t.Fatal("reaction occurrence starts read, want unread")
+	}
+
+	if _, err := chattoCore.ReadState().MarkRoomAsRead(ctx, author.Id, room.Id, posted.Id); err != nil {
+		t.Fatalf("MarkRoomAsRead: %v", err)
+	}
+	updated, err := chattoCore.NotificationOccurrences().Get(ctx, author.Id, occurrences[0].GetId())
+	if err != nil {
+		t.Fatalf("Get reaction occurrence: %v", err)
+	}
+	if !updated.GetRead() {
+		t.Fatal("reaction occurrence remains unread")
 	}
 }

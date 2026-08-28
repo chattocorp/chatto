@@ -1,5 +1,5 @@
 import { test, expect } from './setup';
-import { csrfHeaders } from './fixtures/csrf';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { connectPost } from './fixtures/connectHelpers';
 import * as routes from './routes';
@@ -46,7 +46,7 @@ test.describe('Return URL after login', () => {
     const testPassword = 'testpassword123';
 
     // Try to access a protected route directly (unauthenticated)
-    await page.goto(routes.admin);
+    await page.goto(routes.serverAdminGeneral);
 
     // The [serverId] layout detects no auth and redirects to /login,
     // saving the returnUrl in sessionStorage
@@ -56,7 +56,7 @@ test.describe('Return URL after login', () => {
     await authPage.register(testLogin, testEmail, testPassword);
 
     // Should be redirected to the original URL, not /chat
-    await page.waitForURL(routes.admin);
+    await page.waitForURL(routes.serverAdminGeneral);
   });
 
   test('redirects to original URL after OAuth login', async ({ page, authPage }) => {
@@ -173,30 +173,26 @@ test.describe('Authentication', () => {
     await page.waitForURL((url) => url.pathname.startsWith('/chat'));
     await expect(page.getByTitle('Sign out')).toBeVisible();
 
-    const strippedOriginTokens = await page.evaluate(() => {
+    const originAuthState = await page.evaluate(() => {
       const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]');
-      let stripped = 0;
-      localStorage.setItem(
-        'chatto:instances',
-        JSON.stringify(
-          instances.map((instance: { url?: string; token?: string | null }) => {
-            if (instance.url) {
-              try {
-                if (new URL(instance.url).origin === window.location.origin) {
-                  if (instance.token) stripped += 1;
-                  return { ...instance, token: null };
-                }
-              } catch {
-                // Ignore malformed test state; the app will handle it on reload.
-              }
+      let matches = 0;
+      let bearerTokens = 0;
+      for (const instance of instances as Array<{ url?: string; token?: string | null }>) {
+        if (instance.url) {
+          try {
+            if (new URL(instance.url).origin === window.location.origin) {
+              matches += 1;
+              if (instance.token) bearerTokens += 1;
             }
-            return instance;
-          })
-        )
-      );
-      return stripped;
+          } catch {
+            // Ignore malformed test state; the app will handle it on reload.
+          }
+        }
+      }
+      return { matches, bearerTokens };
     });
-    expect(strippedOriginTokens).toBeGreaterThan(0);
+    expect(originAuthState.matches).toBeGreaterThan(0);
+    expect(originAuthState.bearerTokens).toBe(0);
 
     await page.reload();
     await page.waitForURL((url) => url.pathname.startsWith('/chat'));
@@ -205,8 +201,7 @@ test.describe('Authentication', () => {
 
     await page.getByTitle('Sign out').click();
     await page.getByRole('dialog').getByRole('button', { name: 'Current Server' }).click();
-    await page.waitForURL('/');
-    await page.goto('/login');
+    await page.waitForURL(routes.login);
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   });
 
@@ -494,7 +489,7 @@ test.describe('Authentication', () => {
       await authPage.expectLoggedIn();
     });
 
-    test('can confirm logout and be redirected to home', async ({ authPage }) => {
+    test('can confirm logout and be redirected to sign in', async ({ authPage }) => {
       const timestamp = Date.now();
       const testLogin = `logoutconfirmyes${timestamp}`;
       const testPassword = 'testpassword123';
@@ -507,7 +502,7 @@ test.describe('Authentication', () => {
       // Confirm logout
       await authPage.logoutViaUI();
 
-      // Should be redirected to home page
+      // Should be redirected to the sign-in page.
       await authPage.expectLoggedOut();
     });
   });
@@ -584,7 +579,10 @@ test.describe('Authentication', () => {
       const userId = firstData.user.id;
 
       // Clear session by logging out
-      await page.request.post('/auth/logout', { headers: await csrfHeaders(page) });
+      await page.request.post('/auth/browser/logout', {
+        headers: await browserAuthenticationHeaders(page),
+        data: {}
+      });
 
       // Second OAuth login - should find existing user by verified email
       const secondData = await authPage.simulateOAuthCallback(oauthEmail, 'Existing OAuth User');

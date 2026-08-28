@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import Dialog from './Dialog.svelte';
@@ -14,7 +14,6 @@ function renderDialog(props: {
 }
 
 const FRAME = 'dialog > div';
-const WELL = 'dialog > div > div';
 
 describe('Dialog', () => {
   describe('dialog element', () => {
@@ -79,6 +78,7 @@ describe('Dialog', () => {
       });
 
       await expect.element(q(container, 'dialog')).toHaveClass('w-100');
+      await expect.element(q(container, 'dialog')).toHaveClass('max-w-[calc(100vw-2rem)]');
     });
 
     it('applies large size class when size is lg', async () => {
@@ -99,55 +99,54 @@ describe('Dialog', () => {
         children: testSnippet('<span>Test Content</span>')
       });
 
-      await expect.element(q(container, `${WELL} > div.text-text`)).toBeInTheDocument();
+      await expect.element(q(container, `${FRAME} > div.text-text`)).toBeInTheDocument();
     });
   });
 
   describe('frame styling', () => {
-    it('outer frame uses surface-100 with subtle border and shadow', async () => {
+    it('outer frame uses surface with subtle border and shadow', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
       const frame = q(container, FRAME);
-      await expect.element(frame).toHaveClass('bg-surface-100');
+      await expect.element(frame).toHaveClass('bg-surface');
       await expect.element(frame).toHaveClass('border');
       await expect.element(frame).toHaveClass('rounded-lg');
       await expect.element(frame).toHaveClass('shadow-xl');
     });
   });
 
-  describe('well styling', () => {
-    it('inner well sits on the page background color', async () => {
+  describe('flat surface styling', () => {
+    it('does not nest a second background well', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      const well = q(container, WELL);
-      await expect.element(well).toHaveClass('bg-background');
-      await expect.element(well).toHaveClass('rounded-md');
+      expect(q(container, `${FRAME} > .bg-background`)).toBeNull();
     });
 
-    it('well has padding', async () => {
+    it('keeps content padding on the surface frame', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      await expect.element(q(container, WELL)).toHaveClass('p-3');
+      await expect.element(q(container, FRAME)).toHaveClass('p-5');
     });
   });
 
   describe('overflow handling', () => {
-    it('well has vertical overflow auto', async () => {
+    it('keeps dialog chrome fixed while the content area scrolls', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      await expect.element(q(container, WELL)).toHaveClass('overflow-y-auto');
+      await expect.element(q(container, FRAME)).toHaveClass('overflow-hidden');
+      await expect.element(q(container, `${FRAME} > div.text-text`)).toHaveClass('overflow-y-auto');
     });
   });
 
@@ -171,6 +170,61 @@ describe('Dialog', () => {
 
       const closeButton = q(container, 'button[aria-label="Close"]');
       await expect.element(closeButton).toBeInTheDocument();
+      await expect.element(closeButton).toHaveClass('icon-action');
+    });
+  });
+
+  describe('default action', () => {
+    it('clicks the marked default action when Enter is pressed outside a form', () => {
+      const { container } = render(Dialog, {
+        props: {
+          visible: true,
+          children: testSnippet('<button data-dialog-default>Confirm</button>')
+        }
+      });
+
+      const defaultAction = vi.fn();
+      q(container, '[data-dialog-default]')?.addEventListener('click', defaultAction);
+
+      q(container, 'dialog')?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+
+      expect(defaultAction).toHaveBeenCalledOnce();
+    });
+
+    it('leaves Enter in a textarea alone', () => {
+      const { container } = render(Dialog, {
+        props: {
+          visible: true,
+          children: testSnippet(
+            '<div><textarea data-testid="message"></textarea><button data-dialog-default>Confirm</button></div>'
+          )
+        }
+      });
+
+      const defaultAction = vi.fn();
+      q(container, '[data-dialog-default]')?.addEventListener('click', defaultAction);
+
+      q(container, '[data-testid="message"]')?.dispatchEvent(
+        new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })
+      );
+
+      expect(defaultAction).not.toHaveBeenCalled();
+    });
+
+    it('does not click a disabled marked action', () => {
+      const { container } = render(Dialog, {
+        props: {
+          visible: true,
+          children: testSnippet('<button data-dialog-default disabled>Confirm</button>')
+        }
+      });
+
+      const defaultAction = vi.fn();
+      q(container, '[data-dialog-default]')?.addEventListener('click', defaultAction);
+
+      q(container, 'dialog')?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+
+      expect(defaultAction).not.toHaveBeenCalled();
     });
   });
 
@@ -184,9 +238,7 @@ describe('Dialog', () => {
       // for the bug that closed AddServerDialog after probe.
       const { container } = renderDialog({
         visible: true,
-        children: testSnippet(
-          '<button type="button" data-testid="inside">Inside</button>'
-        )
+        children: testSnippet('<button type="button" data-testid="inside">Inside</button>')
       });
 
       const dialog = q(container, 'dialog') as HTMLDialogElement;

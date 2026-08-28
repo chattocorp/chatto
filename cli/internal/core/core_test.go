@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strings"
 	"testing"
 	"time"
@@ -10,7 +11,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/core/subjects"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -28,11 +30,22 @@ func testContext(t *testing.T) context.Context {
 }
 
 // setupTestCore is a shared test helper that creates a ChattoCore instance
-// with an embedded NATS server for testing. Used by all test files in this package.
+// with an isolated embedded NATS server. A fresh server prevents background
+// lifecycle work from one core from writing into a later test's recreated
+// JetStream resources.
 func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 	t.Helper()
+	core, nc := newTestCore(t)
+	startCoreServices(t, core)
+	return core, nc
+}
 
-	_, nc := testutil.StartSharedNATS(t)
+// newTestCore constructs but does not start a core, allowing tests to install
+// startup-only provider seams before background workers begin.
+func newTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
+	t.Helper()
+
+	_, nc := testutil.StartNATS(t)
 
 	ctx := testContext(t)
 
@@ -47,8 +60,6 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
-
-	startCoreServices(t, core)
 
 	return core, nc
 }
@@ -81,19 +92,45 @@ func startCoreServices(t testing.TB, core *ChattoCore) {
 	// calls would seed rooms without a group assignment.
 	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer bootCancel()
-	if err := core.WaitForBoot(bootCtx); err != nil {
-		t.Fatalf("WaitForBoot: %v", err)
+	select {
+	case err := <-done:
+		done <- err
+		t.Fatalf("core.Run stopped before boot completed: %v", err)
+	case <-core.bootDone:
+	case <-bootCtx.Done():
+		t.Fatalf("WaitForBoot: %v", bootCtx.Err())
 	}
 }
 
 func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if core.NotificationPreferences() == nil {
-		t.Fatal("NotificationPreferences() = nil")
+	if core.roomModel == nil {
+		t.Fatal("roomModel = nil")
+	}
+	if core.assetModel == nil {
+		t.Fatal("assetModel = nil")
+	}
+	if core.mediaModel == nil {
+		t.Fatal("mediaModel = nil")
+	}
+	if core.myEventsModel == nil {
+		t.Fatal("myEventsModel = nil")
+	}
+	if core.assetUploadModel == nil {
+		t.Fatal("assetUploadModel = nil")
+	}
+	if core.AssetUploads() != core.assetUploadModel {
+		t.Fatal("AssetUploads() did not return the eagerly wired model")
+	}
+	if core.NotificationPolicy() == nil {
+		t.Fatal("NotificationPolicy() = nil")
 	}
 	if core.RoomTimelineReads() == nil {
 		t.Fatal("RoomTimelineReads() = nil")
+	}
+	if core.MessageSearchReads() == nil {
+		t.Fatal("MessageSearchReads() = nil")
 	}
 	if core.ReadState() == nil {
 		t.Fatal("ReadState() = nil")
@@ -257,6 +294,14 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 		stopFirst()
 		t.Fatalf("seed default rooms: %v", err)
 	}
+	if err := first.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+		stopFirst()
+		t.Fatalf("clear message.read before restart: %v", err)
+	}
+	if err := first.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
+		stopFirst()
+		t.Fatalf("clear message.read.interactions before restart: %v", err)
+	}
 	eventsAfterFirstBoot := eventStreamMsgCount(t, first)
 	stopFirst()
 
@@ -273,6 +318,12 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 
 	if eventsAfterSecondBoot != eventsAfterFirstBoot {
 		t.Fatalf("expected restart boot to append no events, got %d -> %d", eventsAfterFirstBoot, eventsAfterSecondBoot)
+	}
+	if got := second.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessageRead); got != DecisionNone {
+		t.Fatalf("message.read after restart = %s, want no reconciled decision", got)
+	}
+	if got := second.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessageReadInteractions); got != DecisionNone {
+		t.Fatalf("message.read.interactions after restart = %s, want no reconciled decision", got)
 	}
 }
 
@@ -548,9 +599,9 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 // ============================================================================
 
 func TestNewSpaceEvent_PopulatesId(t *testing.T) {
-	event := newEvent("test-actor", &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{
+	event := newEvent("test-actor", &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{
 				RoomId: "test-room",
 				Name:   "Test Room",
 			},
@@ -572,10 +623,10 @@ func TestNewSpaceEvent_PopulatesId(t *testing.T) {
 
 func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 	existingId := "E12345678901234"
-	event := newEvent("test-actor", &corev1.Event{
+	event := newEvent("test-actor", &evtv1.Event{
 		Id: existingId,
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{
 				RoomId: "test-room",
 				Name:   "Test Room",
 			},
@@ -588,9 +639,9 @@ func TestNewSpaceEvent_DoesNotOverwriteExistingId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
-	event := newEvent("test-actor", &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{},
+	event := newEvent("test-actor", &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{},
 		},
 	})
 
@@ -600,9 +651,9 @@ func TestNewSpaceEvent_PopulatesActorId(t *testing.T) {
 }
 
 func TestNewSpaceEvent_PopulatesCreatedAt(t *testing.T) {
-	event := newEvent("test-actor", &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{},
+	event := newEvent("test-actor", &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{},
 		},
 	})
 
@@ -759,7 +810,7 @@ func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
 
 	event, ok := core.filterLiveSyncEvent(ctx, "U1", map[string]struct{}{}, &nats.Msg{
 		Subject: "live.sync.config.server_updated",
-	}, &corev1.LiveEvent{
+	}, &livev1.LiveEvent{
 		Id:      "LIVE-empty",
 		ActorId: "U1",
 	})
@@ -769,5 +820,126 @@ func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
 	}
 	if event != nil {
 		t.Fatalf("expected no delivered event, got %+v", event)
+	}
+}
+
+func TestFilterLiveSyncEvent_DropsTypingWithoutMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "typing-viewer", "Typing Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "typing-author", "Typing Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "typing-read-boundary", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.GetId(), author.GetId()} {
+		if _, err := chatto.JoinRoom(ctx, SystemActorID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+
+	live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+		UserTyping: &livev1.UserTypingEvent{RoomId: room.GetId()},
+	}})
+	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{room.GetId(): {}}, &nats.Msg{
+		Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
+	}, live)
+	if ok || event != nil {
+		t.Fatalf("typing event = %+v, delivered=%v; want denied", event, ok)
+	}
+}
+
+func TestFilterLiveSyncEventAllowsRelatedThreadTyping(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "typing-interaction-viewer", "Typing Interaction Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "typing-interaction-author", "Typing Interaction Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "typing-interactions", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.GetId(), author.GetId()} {
+		if _, err := chatto.JoinRoom(ctx, userID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	root, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "typing target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	unrelated, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "typing unrelated", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage unrelated root: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "typing ping @typing-interaction-viewer", nil, root.GetId(), "", nil, false); err != nil {
+		t.Fatalf("PostMessage mention: %v", err)
+	}
+	memberRooms := map[string]struct{}{room.GetId(): {}}
+	typing := func(threadRootEventID string) (EventEnvelope, bool) {
+		live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+			UserTyping: &livev1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
+		}})
+		return chatto.filterLiveSyncEvent(ctx, viewer.GetId(), memberRooms, &nats.Msg{
+			Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
+		}, live)
+	}
+	if event, ok := typing(root.GetId()); !ok || event == nil {
+		t.Fatalf("related thread typing = %+v, %v; want delivered", event, ok)
+	}
+	for name, threadRootEventID := range map[string]string{"main room": "", "unrelated thread": unrelated.GetId()} {
+		if event, ok := typing(threadRootEventID); ok || event != nil {
+			t.Errorf("%s typing = %+v, %v; want denied", name, event, ok)
+		}
+	}
+}
+
+func TestFilterLiveSyncEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "dm-typing-viewer", "DM Typing Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "dm-typing-author", "DM Typing Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	dm, _, err := chatto.FindOrCreateDM(ctx, viewer.GetId(), []string{author.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+
+	live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+		UserTyping: &livev1.UserTypingEvent{RoomId: dm.GetId()},
+	}})
+	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{dm.GetId(): {}}, &nats.Msg{
+		Subject: subjects.LiveSyncRoomEvent(string(KindDM), dm.GetId(), "user_typing"),
+	}, live)
+	if !ok || event == nil {
+		t.Fatalf("DM typing event = %+v, delivered=%v; want delivered", event, ok)
 	}
 }

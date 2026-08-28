@@ -2,59 +2,257 @@ package core
 
 import (
 	"context"
+	"errors"
+	"sort"
+	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
-// UserModel owns user-derived projections and their readiness barriers.
+var errContentKeyProjectionUnavailable = errors.New("content key projection is unavailable")
+
+// UserModel owns user-derived projection reads and readiness barriers.
 type UserModel struct {
-	publisher *events.Publisher
+	publisher *evtstream.Publisher
 
-	users          *UserProjection
-	usersProjector *events.Projector
-
-	contentKeys          *ContentKeyProjection
-	contentKeysProjector *events.Projector
+	users       events.ProjectionHandle[*UserProjection]
+	auth        events.ProjectionHandle[*UserAuthProjection]
+	contentKeys events.ProjectionHandle[*ContentKeyProjection]
 }
 
 func newUserModel(
-	publisher *events.Publisher,
-	users *UserProjection,
-	usersProjector *events.Projector,
-	contentKeys *ContentKeyProjection,
-	contentKeysProjector *events.Projector,
+	publisher *evtstream.Publisher,
+	users events.ProjectionHandle[*UserProjection],
+	auth events.ProjectionHandle[*UserAuthProjection],
+	contentKeys events.ProjectionHandle[*ContentKeyProjection],
 ) *UserModel {
 	return &UserModel{
-		publisher:            publisher,
-		users:                users,
-		usersProjector:       usersProjector,
-		contentKeys:          contentKeys,
-		contentKeysProjector: contentKeysProjector,
+		publisher:   publisher,
+		users:       users,
+		auth:        auth,
+		contentKeys: contentKeys,
 	}
 }
 
 func (m *UserModel) waitForUsers(ctx context.Context, pos events.StreamPosition) error {
-	return waitForPositionAll(ctx, pos, waitForProjection("users", m.usersProjector))
+	return waitForPositionAll(ctx, pos, waitForProjection("users", m.users.Projector()))
 }
 
 func (m *UserModel) waitForContentKeys(ctx context.Context, pos events.StreamPosition) error {
-	return waitForPositionAll(ctx, pos, waitForProjection("content key", m.contentKeysProjector))
+	return waitForPositionAll(ctx, pos, waitForProjection("content key", m.contentKeys.Projector()))
 }
 
 func (m *UserModel) waitForUsersCurrent(ctx context.Context, name string, subjects ...string) error {
-	if m.publisher == nil || m.usersProjector == nil {
+	if m.publisher == nil || m.users.Projector() == nil {
 		return nil
 	}
-	return waitForProjectionSubjectsCurrent(ctx, m.publisher, name, m.usersProjector, subjects...)
+	if err := waitForProjectionSubjectsCurrent(ctx, m.publisher, name, m.users.Projector(), subjects...); err != nil {
+		return err
+	}
+	return m.waitForUserAuthCurrent(ctx, name)
+}
+
+func (m *UserModel) waitForUserAuth(ctx context.Context, pos events.StreamPosition) error {
+	if m.auth.Projector() == nil {
+		return nil
+	}
+	return waitForPositionAll(ctx, pos, waitForProjection("user auth", m.auth.Projector()))
+}
+
+func (m *UserModel) waitForUserAuthCurrent(ctx context.Context, name string) error {
+	if m.publisher == nil || m.auth.Projector() == nil || m.auth.Projection() == nil {
+		return nil
+	}
+	return waitForProjectionSubjectsCurrent(ctx, m.publisher, name+" auth", m.auth.Projector(), m.auth.Projection().Subjects()...)
 }
 
 func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string) error {
-	if m.publisher == nil || m.contentKeysProjector == nil {
+	if m.publisher == nil || m.contentKeys.Projector() == nil {
 		return nil
 	}
-	agg := events.UserAggregate(userID)
-	return waitForProjectionSubjectsCurrent(ctx, m.publisher, "content key", m.contentKeysProjector,
-		agg.Subject(events.EventUserDEKGenerated),
-		agg.Subject(events.EventUserKeyShredded),
+	agg := evtstream.UserAggregate(userID)
+	return waitForProjectionSubjectsCurrent(ctx, m.publisher, "content key", m.contentKeys.Projector(),
+		agg.Subject(evtstream.EventUserDEKGenerated),
+		agg.Subject(evtstream.EventUserKeyShreddingRequested),
+		agg.Subject(evtstream.EventUserKeyShredded),
 	)
+}
+
+func (m *UserModel) keyShreddingRequested(userID string) bool {
+	return m.users.Projection() != nil && m.users.Projection().KeyShreddingRequested(userID)
+}
+
+// activeContentKey returns the newest projected DEK for a purpose. The
+// projection preserves compatibility with legacy purpose-unspecified DEKs.
+func (m *UserModel) activeContentKey(userID string, purpose evtv1.UserDEKPurpose) (*evtv1.UserDEKGeneratedEvent, bool, error) {
+	if m.contentKeys.Projection() == nil {
+		return nil, false, errContentKeyProjectionUnavailable
+	}
+	event, ok := m.contentKeys.Projection().Active(userID, purpose)
+	return event, ok, nil
+}
+
+// contentKeyAtEpoch returns a projected DEK at an exact epoch. The projection
+// preserves compatibility with legacy purpose-unspecified DEKs.
+func (m *UserModel) contentKeyAtEpoch(userID string, purpose evtv1.UserDEKPurpose, epoch int32) (*evtv1.UserDEKGeneratedEvent, bool, error) {
+	if m.contentKeys.Projection() == nil {
+		return nil, false, errContentKeyProjectionUnavailable
+	}
+	event, ok := m.contentKeys.Projection().Get(userID, purpose, epoch)
+	return event, ok, nil
+}
+
+func (m *UserModel) user(ctx context.Context, userID string) (*evtv1.User, bool, error) {
+	return m.users.Projection().GetContext(ctx, userID)
+}
+
+func (m *UserModel) userReference(ctx context.Context, userID string) (*evtv1.User, bool, error) {
+	return m.users.Projection().GetReferenceContext(ctx, userID)
+}
+
+func (m *UserModel) userReferences(ctx context.Context, userIDs []string) ([]*evtv1.User, error) {
+	return m.users.Projection().GetReferencesContext(ctx, userIDs)
+}
+
+func (m *UserModel) userByLogin(ctx context.Context, login string) (*evtv1.User, bool, error) {
+	return m.users.Projection().GetByLoginContext(ctx, login)
+}
+
+func (m *UserModel) userByEmail(ctx context.Context, email string) (*evtv1.User, bool, error) {
+	return m.users.Projection().GetByEmailContext(ctx, email)
+}
+
+func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject string) (*evtv1.User, bool, error) {
+	userID, ok := m.auth.Projection().ExternalIdentityOwnerID(issuer, subject)
+	if !ok {
+		return nil, false, nil
+	}
+	return m.users.Projection().GetContext(ctx, userID)
+}
+
+func (m *UserModel) userByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*evtv1.User, uint64, bool, error) {
+	userID, authGeneration, ok := m.auth.Projection().ExternalIdentityAuthentication(issuer, subject)
+	if !ok {
+		return nil, 0, false, nil
+	}
+	user, ok, err := m.users.Projection().GetContext(ctx, userID)
+	return user, authGeneration, ok, err
+}
+
+func (m *UserModel) loginExists(login string) bool {
+	return m.users.Projection().LoginExists(login)
+}
+
+func (m *UserModel) emailClaimed(email string) bool {
+	return m.users.Projection().EmailClaimed(email)
+}
+
+func (m *UserModel) emailOwnerID(email string) (string, bool) {
+	return m.users.Projection().EmailOwnerID(email)
+}
+
+func (m *UserModel) externalIdentityOwnerID(issuer, subject string) (string, bool) {
+	return m.auth.Projection().ExternalIdentityOwnerID(issuer, subject)
+}
+
+func (m *UserModel) externalIdentities(userID string) []ExternalIdentity {
+	return m.auth.Projection().ExternalIdentities(userID)
+}
+
+func (m *UserModel) passwordHash(userID string) ([]byte, bool) {
+	hash, _, ok := m.auth.Projection().PasswordHashWithSetAt(userID)
+	return hash, ok
+}
+
+func (m *UserModel) passwordHashWithSetAt(userID string) ([]byte, time.Time, bool) {
+	return m.auth.Projection().PasswordHashWithSetAt(userID)
+}
+
+func (m *UserModel) authGeneration(userID string) (uint64, bool) {
+	return m.auth.Projection().AuthGeneration(userID)
+}
+
+func (m *UserModel) botAPIKeyCredential(userID string) (BotAPIKeyCredential, bool) {
+	return m.auth.Projection().BotAPIKeyCredential(userID)
+}
+
+func (m *UserModel) botIncomingWebhookCredential(userID, webhookID string) (BotIncomingWebhookCredential, bool) {
+	return m.auth.Projection().BotIncomingWebhookCredential(userID, webhookID)
+}
+
+func (m *UserModel) botIncomingWebhookCredentials(userID string) []BotIncomingWebhookCredential {
+	return m.auth.Projection().BotIncomingWebhookCredentials(userID)
+}
+
+func (m *UserModel) avatar(userID string) (*evtv1.AssetRecord, bool) {
+	return m.users.Projection().Avatar(userID)
+}
+
+func (m *UserModel) isPublicAvatarAsset(assetID string) bool {
+	if m == nil || m.users.Projection() == nil {
+		return false
+	}
+	return m.users.Projection().IsPublicAvatarAsset(assetID)
+}
+
+func (m *UserModel) verifiedEmails(ctx context.Context, userID string) ([]VerifiedEmail, error) {
+	return m.users.Projection().VerifiedEmailsContext(ctx, userID)
+}
+
+func (m *UserModel) hasVerifiedEmail(userID string) bool {
+	return m.users.Projection().HasVerifiedEmail(userID)
+}
+
+func (m *UserModel) hasVerifiedFactor(userID string) bool {
+	return m.users.Projection().HasVerifiedEmail(userID) || m.auth.Projection().HasExternalIdentity(userID)
+}
+
+func (m *UserModel) hasOAuthConsent(userID, redirectOrigin string) bool {
+	return m.auth.Projection().HasOAuthConsent(userID, redirectOrigin)
+}
+
+func (m *UserModel) loginChangedAt(userID string) time.Time {
+	return m.users.Projection().LoginChangedAt(userID)
+}
+
+func (m *UserModel) allUsers(ctx context.Context) ([]*evtv1.User, error) {
+	return m.users.Projection().UsersContext(ctx)
+}
+
+func (m *UserModel) verifiedUserIDs() []string {
+	return m.users.Projection().VerifiedUserIDs()
+}
+
+func (m *UserModel) verifiedAccountIDs() []string {
+	seen := make(map[string]struct{})
+	for _, userID := range m.users.Projection().VerifiedUserIDs() {
+		seen[userID] = struct{}{}
+	}
+	for _, userID := range m.auth.Projection().VerifiedAccountIDs() {
+		seen[userID] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for userID := range seen {
+		out = append(out, userID)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (m *UserModel) userCount() int {
+	return m.users.Projection().Count()
+}
+
+func (m *UserModel) botIDsOwnedBy(ownerUserID string) []string {
+	return m.users.Projection().BotIDsOwnedBy(ownerUserID)
+}
+
+func (m *UserModel) botIDs() []string {
+	return m.users.Projection().BotIDs()
+}
+
+func (m *UserModel) isBotAndOwner(userID string) (bool, string, bool) {
+	return m.users.Projection().IsBotAndOwner(userID)
 }

@@ -37,6 +37,10 @@ func TestIsValidInternalRedirect(t *testing.T) {
 		{"backslash at start", "\\evil.com", false},
 		{"backslash in path", "/chat\\..\\evil", false},
 		{"mixed slashes", "/path\\to\\evil", false},
+		{"tab before protocol-relative host", "/\t/evil.com", false},
+		{"carriage return before protocol-relative host", "/\r/evil.com", false},
+		{"newline before protocol-relative host", "/\n/evil.com", false},
+		{"delete control before protocol-relative host", "/\x7f/evil.com", false},
 
 		// Edge cases
 		{"empty string", "", false},
@@ -80,6 +84,8 @@ func TestIsValidLogin(t *testing.T) {
 		{"consecutive periods start", "..john", false},
 		{"consecutive periods end", "john..", false},
 		{"triple periods", "john...doe", false},
+		{"trailing period", "john.", false},
+		{"minimum length trailing period", "j.", false},
 
 		// Invalid - length
 		{"too short", "a", false},

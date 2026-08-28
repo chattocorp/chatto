@@ -5,6 +5,44 @@ import (
 	"testing"
 )
 
+func permissionMetadata(permission Permission, displayName, description string, category PermissionCategory, scopes []PermissionScope) PermissionMetadata {
+	return PermissionMetadata{
+		Permission:  permission,
+		DisplayName: displayName,
+		Description: description,
+		Category:    category,
+		Scopes:      scopes,
+	}
+}
+
+func installTestPermissionChain(t testing.TB) (Permission, Permission, Permission) {
+	t.Helper()
+	broad := Permission("test.manage")
+	middle := Permission("test.manage.items")
+	narrow := Permission("test.manage.items.publish")
+	testCatalog := []PermissionMetadata{
+		permissionMetadata(broad, "Manage", "Manage", CategoryServer, []PermissionScope{ScopeServer}),
+		permissionMetadata(middle, "Manage Items", "Manage items", CategoryServer, []PermissionScope{ScopeServer}),
+		permissionMetadata(narrow, "Publish Items", "Publish items", CategoryServer, []PermissionScope{ScopeServer}),
+	}
+	validated, err := validatePermissionCatalog(testCatalog)
+	if err != nil {
+		t.Fatalf("validate test permission chain: %v", err)
+	}
+	previous := permissionIndex
+	permissionIndex = make(map[Permission]PermissionMetadata, len(previous)+len(validated))
+	for permission, metadata := range previous {
+		permissionIndex[permission] = metadata
+	}
+	for permission, metadata := range validated {
+		permissionIndex[permission] = metadata
+	}
+	t.Cleanup(func() {
+		permissionIndex = previous
+	})
+	return broad, middle, narrow
+}
+
 // ============================================================================
 // GetPermissionMetadata Tests
 // ============================================================================
@@ -251,68 +289,114 @@ func TestPermissionsForCategory(t *testing.T) {
 // ============================================================================
 
 func TestDefaultEveryonePermissions(t *testing.T) {
-	perms := DefaultEveryonePermissions()
-
-	mustInclude := []Permission{
+	want := []Permission{
 		PermUserDeleteSelf,
 		PermRoomList,
 		PermRoomJoin,
+		PermMessageRead,
 		PermMessagePost,
 		PermMessagePostInThread,
+		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
+		PermBotCreate,
 	}
-	for _, want := range mustInclude {
-		if !slices.Contains(perms, want) {
-			t.Errorf("Expected %v in everyone defaults", want)
-		}
-	}
-
-	// Admin-level and seed-only permissions must not leak into the boot backfill list.
-	for _, mustNotInclude := range []Permission{PermServerManage, PermRoleManage, PermRoomCreate, PermAdminUsersView, PermMessageAttach} {
-		if slices.Contains(perms, mustNotInclude) {
-			t.Errorf("everyone defaults must not include %v", mustNotInclude)
-		}
+	if !slices.Equal(DefaultEveryonePermissions(), want) {
+		t.Errorf("everyone server defaults = %v, want %v", DefaultEveryonePermissions(), want)
 	}
 }
 
-func TestDefaultSeedEveryonePermissions(t *testing.T) {
-	perms := DefaultSeedEveryonePermissions()
+func TestPermissionKeyPartsAllowAdditionalComponents(t *testing.T) {
+	parts := PermMessageReadInteractions.KeyParts()
+	if parts.ObjectType != "message" || parts.Verb != "read.interactions" {
+		t.Fatalf("message.read.interactions key parts = %+v", parts)
+	}
+	if got := ReconstructPermission(parts.Verb, parts.ObjectType); got != PermMessageReadInteractions {
+		t.Fatalf("reconstructed permission = %q, want %q", got, PermMessageReadInteractions)
+	}
+}
 
-	for _, want := range append(DefaultEveryonePermissions(), PermMessageAttach) {
-		if !slices.Contains(perms, want) {
-			t.Errorf("Expected %v in fresh seed everyone defaults", want)
-		}
+func TestPermissionNamesDefineInclusion(t *testing.T) {
+	if got := includingPermissions(PermMessageReadInteractions); !slices.Equal(got, []Permission{PermMessageRead}) {
+		t.Fatalf("including permissions = %v, want [%s]", got, PermMessageRead)
+	}
+	if got := includingPermissions(PermMessageRead); len(got) != 0 {
+		t.Fatalf("message.read must not be included by its child: %v", got)
+	}
+	if got := includingPermissions("message.read.unknown"); len(got) != 0 {
+		t.Fatalf("unknown permission must not inherit a registered prefix: %v", got)
+	}
+}
+
+func TestValidatePermissionCatalog(t *testing.T) {
+	scopes := []PermissionScope{ScopeServer}
+	valid := []PermissionMetadata{
+		permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
+		permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, scopes),
+		permissionMetadata("server.manage.neighbors.publish", "Publish", "Publish", CategoryServer, scopes),
+	}
+	index, err := validatePermissionCatalog(valid)
+	if err != nil {
+		t.Fatalf("valid catalog: %v", err)
+	}
+	if got := includingPermissionsFrom(index, "server.manage.neighbors.publish"); !slices.Equal(got, []Permission{"server.manage.neighbors", "server.manage"}) {
+		t.Fatalf("transitive parents = %v, want [server.manage.neighbors server.manage]", got)
+	}
+
+	tests := []struct {
+		name    string
+		catalog []PermissionMetadata
+	}{
+		{
+			name: "invalid identifier",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server", "Server", "Server", CategoryServer, scopes),
+			},
+		},
+		{
+			name: "missing parent",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, scopes),
+			},
+		},
+		{
+			name: "different category",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryAdmin, scopes),
+			},
+		},
+		{
+			name: "different scopes",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeRoom}),
+			},
+		},
+		{
+			name: "duplicate scopes do not match",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, []PermissionScope{ScopeServer, ScopeGroup}),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeServer}),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := validatePermissionCatalog(test.catalog); err == nil {
+				t.Fatal("invalid catalog was accepted")
+			}
+		})
 	}
 }
 
 func TestDefaultModeratorPermissions(t *testing.T) {
-	perms := DefaultModeratorPermissions()
-
-	mustInclude := []Permission{
+	want := []Permission{
 		PermMessageManage,
 		PermRoomMemberBan,
 	}
-	for _, want := range mustInclude {
-		if !slices.Contains(perms, want) {
-			t.Errorf("Expected %v in moderator defaults", want)
-		}
-	}
-
-	// Moderators can moderate content and bans, but do not get admin visibility
-	// or general server administration by default.
-	for _, mustNotInclude := range []Permission{PermAdminUsersView, PermRoomCreate, PermRoomManage, PermServerManage, PermRoleManage} {
-		if slices.Contains(perms, mustNotInclude) {
-			t.Errorf("moderator defaults must not include %v", mustNotInclude)
-		}
-	}
-}
-
-func TestDefaultRoomEveryonePermissions(t *testing.T) {
-	perms := DefaultRoomEveryonePermissions()
-
-	if len(perms) != 0 {
-		t.Errorf("Expected room everyone defaults to be empty, got %v", perms)
+	if !slices.Equal(DefaultModeratorPermissions(), want) {
+		t.Errorf("moderator server defaults = %v, want %v", DefaultModeratorPermissions(), want)
 	}
 }
 
@@ -362,14 +446,6 @@ func TestPermissionConsistency(t *testing.T) {
 		}
 	})
 
-	t.Run("everyone seed defaults are valid", func(t *testing.T) {
-		for _, perm := range DefaultSeedEveryonePermissions() {
-			if err := ValidatePermission(perm); err != nil {
-				t.Errorf("Invalid permission in everyone seed defaults: %v", perm)
-			}
-		}
-	})
-
 	t.Run("moderator defaults are valid", func(t *testing.T) {
 		for _, perm := range DefaultModeratorPermissions() {
 			if err := ValidatePermission(perm); err != nil {
@@ -387,18 +463,27 @@ func TestPermissionConsistency(t *testing.T) {
 	})
 
 	t.Run("admin defaults grant room administration and message management", func(t *testing.T) {
-		for _, want := range []Permission{
+		want := []Permission{
+			PermServerManage,
+			PermUserInvite,
 			PermRoomCreate,
 			PermRoomJoin,
 			PermRoomList,
 			PermRoomManage,
 			PermRoomMemberBan,
 			PermMessageManage,
+			PermRoleManage,
+			PermRoleAssign,
+			PermAdminUsersView,
+			PermAdminAuditView,
+			PermUserDeleteAny,
+			PermUserDeleteSelf,
 			PermUserManageAccounts,
-		} {
-			if !slices.Contains(DefaultAdminPermissions(), want) {
-				t.Errorf("admin server defaults should include %v", want)
-			}
+			PermUserManagePermissions,
+			PermBotManage,
+		}
+		if !slices.Equal(DefaultAdminPermissions(), want) {
+			t.Errorf("admin server defaults = %v, want %v", DefaultAdminPermissions(), want)
 		}
 		for _, mustNotInclude := range []Permission{
 			PermMessagePost,

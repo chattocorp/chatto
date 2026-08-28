@@ -21,13 +21,13 @@
 
 <Story name="Default" asChild>
   <div class="flex h-96 flex-col">
-    <EmptyState icon="uil--bell-slash" title="No notifications">You're all caught up!</EmptyState>
+    <EmptyState icon="icon-[uil--bell-slash]" title="No notifications">You're all caught up!</EmptyState>
   </div>
 </Story>
 
 <Story name="Icon only" asChild>
   <div class="flex h-96 flex-col">
-    <EmptyState icon="uil--message">Select a room from the sidebar to start chatting.</EmptyState>
+    <EmptyState icon="icon-[uil--message]">Select a room from the sidebar to start chatting.</EmptyState>
   </div>
 </Story>
 

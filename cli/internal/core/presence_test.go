@@ -1,10 +1,10 @@
 package core
 
 import (
+	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"testing"
 
 	"github.com/nats-io/nats.go/jetstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ============================================================================
@@ -15,37 +15,37 @@ func TestPresenceStatusFromString(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		expected corev1.UserPresenceStatus
+		expected cachestatev1.UserPresenceStatus
 	}{
 		{
 			name:     "ONLINE status",
 			input:    PresenceStatusOnline,
-			expected: corev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
+			expected: cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
 		},
 		{
 			name:     "AWAY status",
 			input:    PresenceStatusAway,
-			expected: corev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY,
+			expected: cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY,
 		},
 		{
 			name:     "DO_NOT_DISTURB status",
 			input:    PresenceStatusDoNotDisturb,
-			expected: corev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB,
+			expected: cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB,
 		},
 		{
 			name:     "unknown status defaults to ONLINE",
 			input:    "UNKNOWN",
-			expected: corev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
+			expected: cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
 		},
 		{
 			name:     "empty string defaults to ONLINE",
 			input:    "",
-			expected: corev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
+			expected: cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
 		},
 		{
 			name:     "OFFLINE defaults to ONLINE (should not be stored)",
 			input:    PresenceStatusOffline,
-			expected: corev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
+			expected: cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
 		},
 	}
 
@@ -62,32 +62,32 @@ func TestPresenceStatusFromString(t *testing.T) {
 func TestPresenceStatusToString(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    corev1.UserPresenceStatus
+		input    cachestatev1.UserPresenceStatus
 		expected string
 	}{
 		{
 			name:     "ONLINE status",
-			input:    corev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
+			input:    cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE,
 			expected: PresenceStatusOnline,
 		},
 		{
 			name:     "AWAY status",
-			input:    corev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY,
+			input:    cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY,
 			expected: PresenceStatusAway,
 		},
 		{
 			name:     "DO_NOT_DISTURB status",
-			input:    corev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB,
+			input:    cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB,
 			expected: PresenceStatusDoNotDisturb,
 		},
 		{
 			name:     "unspecified enum value defaults to ONLINE",
-			input:    corev1.UserPresenceStatus_USER_PRESENCE_STATUS_UNSPECIFIED,
+			input:    cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_UNSPECIFIED,
 			expected: PresenceStatusOnline,
 		},
 		{
 			name:     "unknown enum value defaults to ONLINE",
-			input:    corev1.UserPresenceStatus(999),
+			input:    cachestatev1.UserPresenceStatus(999),
 			expected: PresenceStatusOnline,
 		},
 	}

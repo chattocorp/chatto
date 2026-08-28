@@ -2,6 +2,25 @@
 
 **Date:** 2026-06-15
 
+**Status:** Partially superseded
+
+> **Amended 2026-08-11:** Configured owner emails now converge on the durable
+> `owner` role instead of acting as a separate permission-time fallback. This
+> keeps live authorization and event-time visibility on one representation.
+>
+> **Amended 2026-08-26:** Permission identifiers can contain more than two
+> dot-separated components. A dotted prefix has no automatic meaning.
+> Permission inclusion must be explicit.
+>
+> **Amended 2026-08-28:** This amendment supersedes the permission-name rule
+> from 2026-08-26. Registered dotted prefixes now define transitive permission
+> inclusion.
+>
+> **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
+> The effective-owner override, permission-only gates, and non-ranking role
+> positions remain active. ADR-052 replaces the literal all-subject,
+> all-scope deny-wins combination rule.
+
 ## Context
 
 Chatto's earlier RBAC resolver used role position as part of authorization:
@@ -24,9 +43,13 @@ The main pressure points were:
 
 Use a permission-only RBAC model for everyone except effective owners.
 
-- Effective owners are users with the durable `owner` role or a verified email
-  matching `owners.emails` in Chatto configuration. Owners are always granted
-  all permissions regardless of stored allow/deny state.
+- Effective owners are users with the durable `owner` role. A verified email
+  matching `owners.emails` is materialized into that role at boot and through a
+  retryable durable worker after verification; verification waits for the
+  materialization before reporting success. Owners are always granted all
+  permissions regardless of stored allow/deny state.
+- Every other role, including `admin`, confers only its explicit permission
+  decisions. Runtime code does not attach additional authority to role names.
 - For non-owners, permission resolution is deny-wins: any applicable user or
   role deny blocks the permission; otherwise any applicable allow grants it;
   otherwise the result is no decision and the API treats it as denied.
@@ -36,10 +59,26 @@ Use a permission-only RBAC model for everyone except effective owners.
   `role.assign` gates role assignment, `user.manage-accounts` gates account
   lifecycle and recovery actions, `room.ban-member` gates room bans, and
   `user.manage-permissions` gates direct per-user permission overrides.
+- Authorization-sensitive writes normally evaluate permission checks inside
+  their target aggregate's OCC retry. RBAC, relevant user lifecycle, and
+  room-group/layout changes advance a narrow durable authorization fence
+  atomically with their domain facts. Message posts and authorized edits check
+  that fence without advancing it, so a concurrent classified authority change
+  reruns their complete decision. Reactions and message retractions use room
+  OCC with request-time authorization and accept eventual consistency for a
+  cross-aggregate revocation already in flight.
 - Default channel-room member permissions are granted at server scope on
   `everyone`, so normal rooms work immediately. Room and group decisions are
   local exceptions; the built-in announcements room adds a room-level
   `everyone` deny for `message.post`.
+- Permission identifiers contain two or more non-empty dot-separated
+  components. A component can contain hyphens. Each registered dotted prefix
+  is a broader permission. For example, `message.read` includes
+  `message.read.interactions`. Inclusion is transitive.
+- An allow for a broader permission satisfies its narrower descendants. An
+  allow for a descendant does not include an ancestor. A descendant deny
+  cannot restrict an effective ancestor allow. An ancestor deny does not
+  restrict a separate descendant allow.
 
 This supersedes ADR-005.
 
@@ -53,9 +92,24 @@ This supersedes ADR-005.
   `message.post`. Because deny-wins is literal, that deny blocks every
   non-owner in the room.
 - Deny-wins enables future broad restriction roles such as a suspended role.
-- Operators cannot lock out effective owners through RBAC state, but owner
-  access now depends on protecting `owners.emails` configuration and verified
-  email ownership.
+- Operators cannot revoke the durable owner role while its verified email
+  remains in `owners.emails`. Existing matching users are repaired at boot and
+  new verifications are repaired by durable redelivery, so protecting the
+  configuration and verified-email ownership remains security-critical.
 - Existing role position fields and protobuf event fields remain for
   compatibility. Removing or reserving them can be considered separately if the
   persisted event contract is migrated.
+- Permission inclusion changes effective authorization only. It does not write
+  or synthesize an additional RBAC grant.
+- A new permission name can change authority if it is below an existing
+  permission. Each new nested permission must therefore have a registered
+  immediate parent with the same category and scopes.
+- The authorization fence adds an empty operational fact to protected batches.
+  During a mixed-version rollout, its full concurrency guarantee starts only
+  after all writing replicas understand and advance the fence.
+- An authorized message edit cannot commit across a classified role or
+  permission change that advanced the authorization fence after its decision.
+  Unrelated EVT traffic does not contend. An in-flight reaction or message
+  retraction can still commit before the serving replica projects a
+  cross-aggregate revocation; room membership and lifecycle changes remain
+  room-OCC guarded.

@@ -4,9 +4,10 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type roomDirectoryService struct {
@@ -120,24 +121,30 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 		return nil
 	}
 	state := room.ViewerState
+	viewerState := &apiv1.RoomViewerState{
+		IsMember:  state.IsMember,
+		HasUnread: state.HasUnread,
+		Permissions: permissionGrants(
+			permissionGrant(core.PermRoomList, state.CanListRoom),
+			permissionGrant(core.PermRoomJoin, state.CanJoinRoom),
+			permissionGrant(core.PermMessageRead, state.CanReadMessages),
+			permissionGrant(core.PermMessageReadInteractions, state.CanReadInteractions),
+			permissionGrant(core.PermMessagePost, state.CanPostMessage),
+			permissionGrant(core.PermMessagePostInThread, state.CanPostInThread),
+			permissionGrant(core.PermMessageAttach, state.CanAttach),
+			permissionGrant(core.PermMessageReact, state.CanReact),
+			permissionGrant(core.PermMessageEcho, state.CanEchoMessage),
+			permissionGrant(core.PermMessageManage, state.CanManageOthersMessage),
+			permissionGrant(core.PermRoomManage, state.CanManageRoom),
+			permissionGrant(core.PermRoomMemberBan, state.CanBanRoomMembers),
+		),
+	}
+	if !state.SlowModeNextPostAt.IsZero() {
+		viewerState.SlowModeNextPostAt = timestamppb.New(state.SlowModeNextPostAt)
+	}
 	return &apiv1.RoomWithViewerState{
-		Room: apiRoom(room.Room),
-		ViewerState: &apiv1.RoomViewerState{
-			IsMember:  state.IsMember,
-			HasUnread: state.HasUnread,
-			Permissions: permissionGrants(
-				permissionGrant(core.PermRoomList, state.CanListRoom),
-				permissionGrant(core.PermRoomJoin, state.CanJoinRoom),
-				permissionGrant(core.PermMessagePost, state.CanPostMessage),
-				permissionGrant(core.PermMessagePostInThread, state.CanPostInThread),
-				permissionGrant(core.PermMessageAttach, state.CanAttach),
-				permissionGrant(core.PermMessageReact, state.CanReact),
-				permissionGrant(core.PermMessageEcho, state.CanEchoMessage),
-				permissionGrant(core.PermMessageManage, state.CanManageOthersMessage),
-				permissionGrant(core.PermRoomManage, state.CanManageRoom),
-				permissionGrant(core.PermRoomMemberBan, state.CanBanRoomMembers),
-			),
-		},
+		Room:        apiRoom(room.Room),
+		ViewerState: viewerState,
 	}
 }
 
@@ -150,7 +157,10 @@ func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
 		Name:        group.Group.GetName(),
 		Description: group.Group.GetDescription(),
 		ViewerState: &apiv1.RoomGroupViewerState{
-			Permissions: permissionGrants(permissionGrant(core.PermRoomCreate, group.ViewerState.CanCreateRoom)),
+			Permissions: permissionGrants(
+				permissionGrant(core.PermRoomCreate, group.ViewerState.CanCreateRoom),
+				permissionGrant(core.PermRoomManage, group.ViewerState.CanManageRoomGroup),
+			),
 		},
 	}
 	for _, item := range group.Items {
@@ -191,7 +201,7 @@ func roomDirectoryScopeIncludesDMs(scope apiv1.RoomDirectoryScope) bool {
 		scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS
 }
 
-func apiSidebarLink(link *corev1.SidebarLink) *apiv1.SidebarLink {
+func apiSidebarLink(link *evtv1.SidebarLink) *apiv1.SidebarLink {
 	if link == nil {
 		return nil
 	}

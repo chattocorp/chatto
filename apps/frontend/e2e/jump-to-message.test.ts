@@ -11,7 +11,7 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 const GET_ROOM_EVENTS_AROUND_ROUTE = '**/api/connect/chatto.api.v1.RoomService/GetRoomEventsAround';
-const ASSET_ROUTE = '**/assets/**';
+const ASSET_FILE_ROUTE = '**/assets/files/**';
 
 type DeferredRequest = {
   waitUntilBlocked: () => Promise<void>;
@@ -57,6 +57,22 @@ async function deferNextResponse(page: Page, url: string): Promise<DeferredReque
 
 async function deferNextAroundRequest(page: Page): Promise<DeferredRequest> {
   return deferNextResponse(page, GET_ROOM_EVENTS_AROUND_ROUTE);
+}
+
+async function navigateClientSide(page: Page, href: string): Promise<void> {
+  const link = page.getByTestId('e2e-client-navigation');
+  await page.evaluate((target) => {
+    document.querySelector('[data-testid="e2e-client-navigation"]')?.remove();
+    const anchor = document.createElement('a');
+    anchor.dataset.testid = 'e2e-client-navigation';
+    anchor.href = target;
+    anchor.textContent = 'Navigate';
+    anchor.style.position = 'fixed';
+    anchor.style.inset = '0 auto auto 0';
+    anchor.style.zIndex = '2147483647';
+    document.body.append(anchor);
+  }, href);
+  await link.click();
 }
 
 async function expectMessageCentered(page: Page, eventId: string): Promise<void> {
@@ -380,10 +396,10 @@ test.describe('jump to message', () => {
     await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const deferred = await deferNextAroundRequest(page);
-    await page.goto(routes.messageLink(roomId, firstEventId));
+    await navigateClientSide(page, routes.messageLink(roomId, firstEventId));
     await deferred.waitUntilBlocked();
 
-    await page.goto(routes.messageLink(roomId, secondEventId));
+    await navigateClientSide(page, routes.messageLink(roomId, secondEventId));
     await expectMessageCentered(page, secondEventId);
     deferred.release();
     await deferred.waitUntilDelivered();
@@ -402,6 +418,7 @@ test.describe('jump to message', () => {
     const timestamp = Date.now();
     const targetBody = `Interrupted room target - ${timestamp}`;
     const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
+    const latestBody = `Interrupted room filler 60 - ${timestamp}`;
     await postMessagesViaConnect(
       page,
       roomId,
@@ -411,6 +428,13 @@ test.describe('jump to message', () => {
       )
     );
 
+    // Establish a fully projected latest window before testing room-switch
+    // cancellation. Otherwise the return navigation can fetch between the EVT
+    // append and projection update, leaving this test waiting on unrelated
+    // projection convergence rather than the delayed jump response.
+    await page.reload();
+    await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
     const deferred = await deferNextAroundRequest(page);
     await page.goto(routes.messageLink(roomId, targetEventId));
     await deferred.waitUntilBlocked();
@@ -419,7 +443,7 @@ test.describe('jump to message', () => {
     await deferred.waitUntilDelivered();
 
     await chatPage.enterRoom('general');
-    await expect(page.getByText(`Interrupted room filler 60 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(latestBody)).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
     await expect(page.locator(`[data-event-id="${targetEventId}"]`)).not.toBeVisible();
@@ -456,8 +480,10 @@ test.describe('jump to message', () => {
       Array.from({ length: 80 }, (_, index) => `Variable filler ${index + 1} - ${timestamp}`)
     );
 
-    const deferredImage = await deferNextResponse(page, ASSET_ROUTE);
-    await page.goto(routes.messageLink(roomId, targetEventId));
+    const deferredImage = await deferNextResponse(page, ASSET_FILE_ROUTE);
+    await page.goto(routes.messageLink(roomId, targetEventId), {
+      waitUntil: 'domcontentloaded'
+    });
 
     await expectMessageCentered(page, targetEventId);
     await expect(page.locator(`[data-event-id="${targetEventId}"]`)).toContainText(

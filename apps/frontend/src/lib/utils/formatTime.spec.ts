@@ -7,21 +7,17 @@ import {
   formatDateTime,
   formatMonthYear,
   formatDayLabel,
-  isSameDay
+  isSameDay,
+  type TimeFormatSettings
 } from './formatTime';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 
-function settings(timezone: string | undefined, hour12?: boolean): UserSettingsState {
+function settings(timezone: string | undefined, hour12?: boolean): TimeFormatSettings {
   return {
-    get effectiveTimezone() {
-      return timezone;
-    },
-    get effectiveHour12() {
-      return hour12;
-    }
-  } as unknown as UserSettingsState;
+    effectiveTimezone: timezone,
+    effectiveHour12: hour12
+  };
 }
 
 const utc12 = settings('UTC', false);
@@ -34,14 +30,12 @@ function setBrowserLocale(locale: string): void {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('formatMessageTime', () => {
-  it('uses an en-GB browser region for the automatic time format', () => {
-    setBrowserLocale('en-GB');
-    expect(formatMessageTime('2025-04-27T14:30:00Z', settings('UTC'), 'en')).toBe('14:30');
+  it('uses the selected British English region for the automatic time format', () => {
+    expect(formatMessageTime('2025-04-27T14:30:00Z', settings('UTC'), 'en-GB')).toBe('14:30');
   });
 
-  it('uses an en-US browser region for the automatic time format', () => {
-    setBrowserLocale('en-US');
-    expect(formatMessageTime('2025-04-27T14:30:00Z', settings('UTC'), 'en')).toBe('02:30 PM');
+  it('uses the selected US English region for the automatic time format', () => {
+    expect(formatMessageTime('2025-04-27T14:30:00Z', settings('UTC'), 'en-US')).toBe('02:30 PM');
   });
 
   it('keeps the browser time cycle when the active language differs', () => {
@@ -68,9 +62,8 @@ describe('formatMessageTime', () => {
 });
 
 describe('formatDate', () => {
-  it('uses the browser region with the active language', () => {
-    setBrowserLocale('en-GB');
-    expect(formatDate('2025-04-27T14:30:00Z', utc12, 'en')).toBe('27 Apr 2025');
+  it('uses the selected regional English date order', () => {
+    expect(formatDate('2025-04-27T14:30:00Z', utc12, 'en-GB')).toBe('27 Apr 2025');
   });
 
   it('keeps translated date text while applying the browser region', () => {
@@ -89,7 +82,7 @@ describe('formatDate', () => {
   });
 
   it('formats a date in long-month/short style', () => {
-    expect(formatDate('2025-04-27T14:30:00Z', utc12)).toMatch(/Apr\s*27,?\s*2025/);
+    expect(formatDate('2025-04-27T14:30:00Z', utc12)).toMatch(/27\s*Apr\s*2025/);
   });
 
   it('uses an explicit locale for visible date labels', () => {
@@ -99,14 +92,14 @@ describe('formatDate', () => {
   it('crosses midnight in non-UTC zone correctly', () => {
     // 2025-04-27T01:00Z is still 2025-04-26 in Los Angeles
     const la = settings('America/Los_Angeles', false);
-    expect(formatDate('2025-04-27T01:00:00Z', la)).toMatch(/Apr\s*26/);
+    expect(formatDate('2025-04-27T01:00:00Z', la)).toMatch(/26\s*Apr/);
   });
 });
 
 describe('formatDateTime', () => {
   it('includes both date and time', () => {
     const out = formatDateTime('2025-04-27T14:30:00Z', utc12);
-    expect(out).toMatch(/April\s*27,?\s*2025/);
+    expect(out).toMatch(/27\s*April\s*2025/);
     expect(out).toContain('14:30');
   });
 
@@ -185,15 +178,15 @@ describe('formatDayLabel', () => {
   });
 
   it('uses the active locale for relative and formatted labels', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
 
     try {
       expect(formatDayLabel('2025-04-27T08:00:00Z', utc12)).toBe('Heute');
       expect(formatDayLabel('2025-03-10T12:00:00Z', utc12, 'de-DE')).toMatch(/Montag/);
     } finally {
-      await loadLocaleMessages('en');
-      setReactiveLocale('en');
+      await loadLocaleMessages('en-GB');
+      setReactiveLocale('en-GB');
     }
   });
 });
@@ -208,14 +201,14 @@ describe('firstDayOfWeekForLocale', () => {
     expect(firstDayOfWeekForLocale('invalid_locale')).toBe(1);
   });
 
-  it('uses the browser locale when no explicit locale is passed', () => {
+  it('uses the active regional content locale when no explicit locale is passed', () => {
     setBrowserLocale('en-US');
-    expect(firstDayOfWeekForLocale()).toBe(0);
+    expect(firstDayOfWeekForLocale()).toBe(1);
   });
 
   it('combines a language-only locale with the browser region', () => {
-    setBrowserLocale('en-GB');
-    expect(firstDayOfWeekForLocale('en')).toBe(1);
+    setBrowserLocale('en-US');
+    expect(firstDayOfWeekForLocale('de')).toBe(0);
   });
 });
 
@@ -290,8 +283,8 @@ describe('fileDateGroup', () => {
   });
 
   it('uses the active locale for group labels', async () => {
-    await loadLocaleMessages('de');
-    setReactiveLocale('de');
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
 
     try {
       expect(fileDateGroup('2026-06-16T08:00:00Z', utc12, now, 'de-DE')).toEqual({
@@ -303,8 +296,8 @@ describe('fileDateGroup', () => {
         label: 'Diese Woche'
       });
     } finally {
-      await loadLocaleMessages('en');
-      setReactiveLocale('en');
+      await loadLocaleMessages('en-GB');
+      setReactiveLocale('en-GB');
     }
   });
 });

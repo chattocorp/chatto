@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { TimeFormat } from '$lib/api-client/renderTypes';
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { createAccountAPI } from '$lib/api-client/account';
 
 const mocks = vi.hoisted(() => ({
@@ -85,14 +84,16 @@ describe('createAccountAPI', () => {
         id: 'U1',
         login: 'alice2',
         displayName: 'Alice Two',
-        avatarUrl: 'https://cdn/avatar.webp'
+        avatarUrl: 'https://cdn/avatar.webp',
+        bio: null
       }
     );
     await expect(api.deleteAvatar()).resolves.toEqual({
       id: 'U1',
       login: 'alice2',
       displayName: 'Alice Two',
-      avatarUrl: null
+      avatarUrl: null,
+      bio: null
     });
     await expect(
       api.uploadAvatar(new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' }))
@@ -100,7 +101,8 @@ describe('createAccountAPI', () => {
       id: 'U1',
       login: 'alice2',
       displayName: 'Alice Two',
-      avatarUrl: 'https://cdn/new-avatar.webp'
+      avatarUrl: 'https://cdn/new-avatar.webp',
+      bio: null
     });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
@@ -131,7 +133,7 @@ describe('createAccountAPI', () => {
     mocks.updateSettings.mockResolvedValue({
       settings: {
         timezone: 'Europe/Berlin',
-        timeFormat: APITimeFormat.TIME_FORMAT_24_HOUR
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
       }
     });
 
@@ -143,17 +145,17 @@ describe('createAccountAPI', () => {
     await expect(
       api.updateSettings({
         timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TwentyFourHour
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
       })
     ).resolves.toEqual({
       timezone: 'Europe/Berlin',
-      timeFormat: TimeFormat.TwentyFourHour
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
     });
 
     expect(mocks.updateSettings).toHaveBeenCalledWith(
       {
         timezone: 'Europe/Berlin',
-        timeFormat: APITimeFormat.TIME_FORMAT_24_HOUR
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
       },
       { headers: undefined }
     );
@@ -180,7 +182,7 @@ describe('createAccountAPI', () => {
   it('sends empty timezone when clearing settings', async () => {
     mocks.updateSettings.mockResolvedValue({
       settings: {
-        timeFormat: APITimeFormat.TIME_FORMAT_AUTO
+        timeFormat: TimeFormat.TIME_FORMAT_AUTO
       }
     });
 
@@ -191,7 +193,7 @@ describe('createAccountAPI', () => {
 
     await expect(api.updateSettings({ timezone: null })).resolves.toEqual({
       timezone: null,
-      timeFormat: TimeFormat.Auto
+      timeFormat: TimeFormat.TIME_FORMAT_AUTO
     });
 
     expect(mocks.updateSettings).toHaveBeenCalledWith(

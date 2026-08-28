@@ -5,9 +5,11 @@ import { ServerInfoState } from './state.svelte';
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
     name: 'Acme',
-    version: 'test',
+    version: '0.5.0',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: false,
+    directLoginEnabled: false,
+    accountCreationPolicy: 'open',
     welcomeMessage: 'welcome',
     description: 'a server for acme',
     iconUrl: 'https://icon',
@@ -38,48 +40,38 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
+    expect(state.version).toBe('0.5.0');
+    expect(state.supportsRealtimeProjection).toBe(true);
+    expect(state.lastDiscoveredAt).not.toBeNull();
+    expect(state.compatibility.status).toBe('supported');
     expect(state.welcomeMessage).toBe('welcome');
     expect(state.description).toBe('a server for acme');
     expect(state.directRegistrationEnabled).toBe(false);
+    expect(state.directLoginEnabled).toBe(false);
     expect(state.videoProcessingEnabled).toBe(false);
     expect(state.messageEditWindowSeconds).toBe(3 * 60 * 60);
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('loads authenticated runtime settings separately', async () => {
-    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(publicServerInfo());
-    const authenticatedLoader = vi.fn().mockResolvedValue({
-      motd: 'hello',
-      pushNotificationsEnabled: true,
-      vapidPublicKey: 'vap',
-      livekitUrl: 'wss://lk',
-      videoProcessingEnabled: true,
-      maxUploadSize: 100,
-      maxVideoUploadSize: 200,
-      messageEditWindowSeconds: 7200
-    });
-    const state = new ServerInfoState(
-      'https://acme.test',
-      loader,
-      { baseUrl: 'https://acme.test/api/connect', bearerToken: 'token' },
-      authenticatedLoader
+  it('coalesces concurrent discovery requests', async () => {
+    let resolve!: (info: PublicServerInfo) => void;
+    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        })
     );
+    const state = new ServerInfoState('https://acme.test', loader);
 
-    await state.init();
-    await state.refreshAuthenticatedSettings();
+    const first = state.init();
+    const second = state.init();
+    expect(loader).toHaveBeenCalledTimes(1);
 
-    expect(authenticatedLoader).toHaveBeenCalledWith({
-      baseUrl: 'https://acme.test/api/connect',
-      bearerToken: 'token'
-    });
-    expect(state.motd).toBe('hello');
-    expect(state.pushNotificationsEnabled).toBe(true);
-    expect(state.vapidPublicKey).toBe('vap');
-    expect(state.livekitUrl).toBe('wss://lk');
-    expect(state.videoProcessingEnabled).toBe(true);
-    expect(state.maxUploadSize).toBe(100);
-    expect(state.maxVideoUploadSize).toBe(200);
-    expect(state.messageEditWindowSeconds).toBe(7200);
+    resolve(publicServerInfo());
+    await Promise.all([first, second]);
+
+    expect(state.name).toBe('Acme');
+    expect(state.loading).toBe(false);
   });
 
   it('refreshes profile fields without toggling initial loading state', async () => {
@@ -117,6 +109,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBe('[Network] Failed to fetch');
     expect(state.name).toBe('Chatto'); // default unchanged
+    expect(state.compatibility.status).toBe('unreachable');
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
     expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');
@@ -166,5 +159,20 @@ describe('ServerInfoState.init()', () => {
     expect(state.description).toBe('protobuf path');
     expect(state.iconUrl).toBe('https://cdn/icon.webp');
     expect(state.bannerUrl).toBe('https://cdn/banner.webp');
+  });
+
+  it('rejects a legacy pre-0.5 server without the projection stream', async () => {
+    const loader = vi
+      .fn<() => Promise<PublicServerInfo>>()
+      .mockResolvedValue(publicServerInfo({ version: '0.4.12' }));
+    const state = new ServerInfoState('https://legacy.test', loader);
+
+    await state.init();
+
+    expect(state.compatibility).toMatchObject({
+      status: 'unsupported',
+      reason: 'server-too-old'
+    });
+    expect(state.supportsRealtimeProjection).toBe(false);
   });
 });

@@ -37,6 +37,8 @@ type oidcProvider struct {
 	ready        bool
 }
 
+const accountInvitationSessionKey = "account_invitation_id"
+
 func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -59,6 +61,11 @@ func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL strin
 		Endpoint:     provider.Endpoint(),
 		RedirectURL:  redirectURL,
 		Scopes:       append([]string(nil), scopes...),
+	}
+	if clientSecret == "" {
+		// Public clients identify themselves in the token request body and must
+		// not send an empty HTTP Basic credential before retrying.
+		o.oauth2Config.Endpoint.AuthStyle = oauth2.AuthStyleInParams
 	}
 	o.verifier = provider.Verifier(&oidc.Config{ClientID: clientID})
 	o.ready = true
@@ -163,6 +170,13 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 	} else {
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
+		invitationID, _ := session.Get(accountInvitationSessionKey).(string)
+		session.Delete(accountInvitationSessionKey)
+		if s.config.Auth.InvitationRequired() && invitationID != "" {
+			session.Set(providerSessionKey(providerRuntime.config.ID, "invitation_id"), invitationID)
+		} else {
+			session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
+		}
 	}
 
 	// Store redirect URL if provided
@@ -236,6 +250,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "code_verifier"))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
 		_ = session.Save()
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return
@@ -244,8 +259,10 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
 	intent, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "intent")).(string)
 	linkUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "link_user_id")).(string)
+	invitationID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "invitation_id")).(string)
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "intent"))
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
+	session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
 
 	// Check for error from provider
 	if errCode := c.Query("error"); errCode != "" {
@@ -276,7 +293,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
 	_ = session.Save()
 
-	user, err := s.core.GetUserByExternalIdentity(ctx, identity.issuer, identity.subject)
+	user, authGeneration, err := s.core.GetUserByExternalIdentityForAuthentication(ctx, identity.issuer, identity.subject)
 	if err != nil {
 		log.Error("Failed to lookup user by external identity", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
@@ -284,7 +301,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	}
 	if user == nil {
 		log.Info("Provider login has no linked account", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
-		s.redirectPendingExternalIdentity(c, session, providerRuntime.config, identity, intent, linkUserID)
+		s.redirectPendingExternalIdentity(c, session, providerRuntime.config, identity, intent, linkUserID, invitationID)
 		return
 	}
 
@@ -308,7 +325,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		}
 	}
 
-	if err := s.completeProviderLogin(c, session, user.Id, providerRuntime.config); err != nil {
+	if err := s.completeProviderLogin(c, session, user.Id, authGeneration, providerRuntime.config); err != nil {
 		log.Error("Failed to complete provider login", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "userId", user.Id, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return
@@ -399,11 +416,11 @@ func hasScope(scopes []string, target string) bool {
 }
 
 func (s *HTTPServer) providerCallbackURL(providerID string) string {
-	return strings.TrimRight(s.config.Webserver.URL, "/") + "/auth/providers/" + url.PathEscape(providerID) + "/callback"
+	return configuredWebserverOrigin(s.config.Webserver.URL) + "/auth/providers/" + url.PathEscape(providerID) + "/callback"
 }
 
 func (s *HTTPServer) legacyOIDCCallbackURL() string {
-	return strings.TrimRight(s.config.Webserver.URL, "/") + "/auth/oidc/callback"
+	return configuredWebserverOrigin(s.config.Webserver.URL) + "/auth/oidc/callback"
 }
 
 func providerSessionKey(providerID, name string) string {
@@ -610,7 +627,7 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, accessToken string) (s
 	return "", fmt.Errorf("github account has no verified primary email")
 }
 
-func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID string) {
+func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID, invitationID string) {
 	ctx := c.Request.Context()
 	flow := core.PendingExternalIdentityFlow{
 		ProviderID:      providerConfig.ID,
@@ -639,6 +656,13 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		if !providerConfig.AutoProvisionOrDefault() {
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
 			return
+		}
+		if s.config.Auth.InvitationRequired() {
+			if invitationID == "" {
+				c.Redirect(http.StatusTemporaryRedirect, "/login?error=invalid_invitation")
+				return
+			}
+			flow.InvitationID = invitationID
 		}
 		token, err = s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
 	}
@@ -731,36 +755,36 @@ func displayNameHintFromParts(parts ...string) string {
 	return ""
 }
 
-func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Session, userID string, providerConfig config.AuthProviderConfig) error {
+func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Session, userID string, authGeneration uint64, providerConfig config.AuthProviderConfig) error {
 	ctx := c.Request.Context()
 	source := providerConfig.Type + "_login"
-	if err := s.createCookieSession(c, userID, source); err != nil {
+	if err := s.createCookieSessionForGeneration(c, userID, source, authGeneration); err != nil {
 		return fmt.Errorf("save cookie session: %w", err)
 	}
 	if err := s.ensureCSRFToken(c); err != nil {
 		session = sessions.Default(c)
-		cookieCredential, _ := cookieCredentialFromSession(session)
-		_ = s.core.RevokeCookieSession(ctx, userID, cookieCredential.sessionID)
-		session.Clear()
-		_ = session.Save()
+		cookieCredentialID, _ := s.browserSessionID(c)
+		_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
+		s.clearBrowserSessionCookie(c)
 		clearCSRFCookie(c)
 		return fmt.Errorf("create csrf token: %w", err)
 	}
 	if err := s.core.RecordLoginSucceeded(ctx, userID, providerConfig.Type+":"+providerConfig.ID); err != nil {
 		session = sessions.Default(c)
-		cookieCredential, _ := cookieCredentialFromSession(session)
-		_ = s.core.RevokeCookieSession(ctx, userID, cookieCredential.sessionID)
-		session.Clear()
-		_ = session.Save()
+		cookieCredentialID, _ := s.browserSessionID(c)
+		_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
+		s.clearBrowserSessionCookie(c)
 		clearCSRFCookie(c)
 		return fmt.Errorf("append login audit event: %w", err)
 	}
 
 	if hasPendingOAuthAuthorize(session) {
-		authGeneration, err := s.core.CurrentAuthGeneration(ctx, userID)
-		if err != nil {
-			return fmt.Errorf("read auth generation for OAuth authorize: %w", err)
-		}
+		// A provider-hinted authorize flow stores this return path for the
+		// unlinked-account confirmation path. A matched account continues the
+		// pending authorize request directly, so do not leave a stale redirect
+		// in the browser session.
+		session.Delete("oauth_redirect")
+		_ = session.Save()
 		s.continueOAuthAuthorize(c, userID, authGeneration)
 		return nil
 	}

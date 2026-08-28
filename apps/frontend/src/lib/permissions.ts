@@ -4,7 +4,7 @@
  * and explanation surfaces. Defined in the frontend to support future i18n.
  */
 
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 
 export type PermissionMetadata = {
   description: () => string;
@@ -14,81 +14,112 @@ export type PermissionMetadata = {
  * Map of permission IDs to their metadata.
  * Keep in sync with cli/internal/core/permission.go
  *
- * Permission IDs follow the "{objectType}.{verb}" convention, matching the KV key format.
+ * Permission IDs contain at least two dot-separated components. Additional
+ * components define a narrower permission below their registered prefix.
  */
 export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Server permissions
   'server.manage': {
-    description: m['rbac.permission_descriptions.server_manage']
+    description: () => m('rbac.permission_descriptions.server_manage')
   },
 
   // Room permissions
   'room.create': {
-    description: m['rbac.permission_descriptions.room_create']
+    description: () => m('rbac.permission_descriptions.room_create')
   },
   'room.join': {
-    description: m['rbac.permission_descriptions.room_join']
+    description: () => m('rbac.permission_descriptions.room_join')
   },
   'room.list': {
-    description: m['rbac.permission_descriptions.room_list']
+    description: () => m('rbac.permission_descriptions.room_list')
   },
   'room.manage': {
-    description: m['rbac.permission_descriptions.room_manage']
+    description: () => m('rbac.permission_descriptions.room_manage')
   },
   'room.ban-member': {
-    description: m['rbac.permission_descriptions.room_ban_member']
+    description: () => m('rbac.permission_descriptions.room_ban_member')
   },
 
   // Message permissions
+  'message.read': {
+    description: () => m('rbac.permission_descriptions.message_read')
+  },
+  'message.read.interactions': {
+    description: () => m('rbac.permission_descriptions.message_read_interactions')
+  },
   'message.post': {
-    description: m['rbac.permission_descriptions.message_post']
+    description: () => m('rbac.permission_descriptions.message_post')
   },
   'message.post-in-thread': {
-    description: m['rbac.permission_descriptions.message_post_in_thread']
+    description: () => m('rbac.permission_descriptions.message_post_in_thread')
   },
   'message.attach': {
-    description: m['rbac.permission_descriptions.message_attach']
+    description: () => m('rbac.permission_descriptions.message_attach')
   },
   'message.echo': {
-    description: m['rbac.permission_descriptions.message_echo']
+    description: () => m('rbac.permission_descriptions.message_echo')
   },
   'message.manage': {
-    description: m['rbac.permission_descriptions.message_manage']
+    description: () => m('rbac.permission_descriptions.message_manage')
   },
   'message.react': {
-    description: m['rbac.permission_descriptions.message_react']
+    description: () => m('rbac.permission_descriptions.message_react')
   },
 
   // Role management
   'role.manage': {
-    description: m['rbac.permission_descriptions.role_manage']
+    description: () => m('rbac.permission_descriptions.role_manage')
   },
   'role.assign': {
-    description: m['rbac.permission_descriptions.role_assign']
+    description: () => m('rbac.permission_descriptions.role_assign')
   },
 
   // Admin panel
   'admin.view-users': {
-    description: m['rbac.permission_descriptions.admin_view_users']
+    description: () => m('rbac.permission_descriptions.admin_view_users')
   },
   'admin.view-audit': {
-    description: m['rbac.permission_descriptions.admin_view_audit']
+    description: () => m('rbac.permission_descriptions.admin_view_audit')
   },
 
   // User management
   'user.delete-any': {
-    description: m['rbac.permission_descriptions.user_delete_any']
+    description: () => m('rbac.permission_descriptions.user_delete_any')
   },
   'user.delete-self': {
-    description: m['rbac.permission_descriptions.user_delete_self']
+    description: () => m('rbac.permission_descriptions.user_delete_self')
+  },
+  'user.invite': {
+    description: () => m('rbac.permission_descriptions.user_invite')
   },
   'user.manage-accounts': {
-    description: m['rbac.permission_descriptions.user_manage_accounts']
+    description: () => m('rbac.permission_descriptions.user_manage_accounts')
   },
   'user.manage-permissions': {
-    description: m['rbac.permission_descriptions.user_manage_permissions']
+    description: () => m('rbac.permission_descriptions.user_manage_permissions')
   }
 };
+
+/** Return the registered immediate parent encoded in a permission name. */
+export function getIncludedByPermission(
+  permissions: readonly string[],
+  id: string
+): string | null {
+  return getIncludingPermissions(permissions, id)[0] ?? null;
+}
+
+/** Return registered dotted ancestors from the immediate parent to the root. */
+export function getIncludingPermissions(permissions: readonly string[], id: string): string[] {
+  const registered = new Set(permissions);
+  if (!registered.has(id)) return [];
+  const result: string[] = [];
+  let name = id;
+  for (let separator = name.lastIndexOf('.'); separator >= 0; separator = name.lastIndexOf('.')) {
+    name = name.slice(0, separator);
+    if (registered.has(name)) result.push(name);
+  }
+  return result;
+}
 
 /**
  * Get the description for a permission.

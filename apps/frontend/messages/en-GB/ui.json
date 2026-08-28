@@ -1,0 +1,101 @@
+{
+  "ui": {
+    "toggle_sidebar": "Toggle sidebar",
+    "notifications": "Notifications",
+    "open_quick_switcher": "Open quick switcher",
+    "quick_switcher_shortcut": "Quick switcher (Cmd+K)",
+    "realtime_paused": "Real-time updates paused. Reconnecting...",
+    "update_available": "A new version is available",
+    "reload": "Reload",
+    "sign_out": "Sign out",
+    "close": "Close",
+    "auth_status": {
+      "origin_title": "Session expired",
+      "origin_message": "You can keep reading what is already loaded. Sign in again to send messages and refresh data.",
+      "origin_action": "Sign in again",
+      "remote_title": "{server} needs sign-in",
+      "remote_message": "This server rejected the stored sign-in. Reconnect it to resume live updates and actions.",
+      "remote_action": "Reconnect",
+      "remote_failed": "Failed to start reconnect",
+      "sidebar_reauth": "{server} needs sign-in"
+    },
+    "access_denied": {
+      "title": "Access Denied",
+      "message": "You do not have permission to access this page.",
+      "back": "Return to Chat",
+      "back_to_server": "Return to Server"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "More information",
+      "about": "About {subject}"
+    },
+    "easter_egg": {
+      "fire": "Fire a ready laser at Chatto",
+      "points": "{count} points",
+      "laser_guns_count": {
+        "one": "{count} laser gun",
+        "other": "{count} laser guns"
+      },
+      "laser_ready": "Laser {number}, power {power}, ready",
+      "laser_cooldown": "Laser {number}, power {power}: {seconds} seconds of cooldown remaining",
+      "upgrade_power": "Upgrade laser {number} to power level {level} for {cost} points",
+      "buy_laser": "Buy laser gun {number} for {cost} points",
+      "maximum_lasers": "Maximum of {count} laser guns reached"
+    },
+    "pane_header": {
+      "back": "Back"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Back to Chat"
+    },
+    "resize_handle": {
+      "resize": "Resize",
+      "resize_sidebar": "Resize sidebar"
+    },
+    "data_table": {
+      "empty": "No data",
+      "loading_more": "Loading more..."
+    },
+    "loading_page": {
+      "loading": "Loading..."
+    },
+    "image_modal": {
+      "previous": "Previous image",
+      "next": "Next image",
+      "fallback_alt": "Image"
+    },
+    "toast": {
+      "dismiss": "Dismiss notification"
+    },
+    "combobox": {
+      "loading": "Loading...",
+      "empty": "No matches",
+      "clear": "Clear"
+    },
+    "expiry": {
+      "label": "Expires",
+      "24h": "24 hours",
+      "7d": "7 days",
+      "30d": "30 days",
+      "indefinite": "No expiry",
+      "custom": "Custom",
+      "custom_label": "Custom expiry",
+      "error_required": "Choose an expiry date.",
+      "error_invalid": "Enter a valid expiry.",
+      "error_future": "Expiry must be in the future."
+    },
+    "form": {
+      "required": "Required",
+      "max_bytes": "Maximum {max} bytes; some characters use more than one byte."
+    },
+    "dates": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "this_week": "This week",
+      "this_month": "This month"
+    }
+  }
+}

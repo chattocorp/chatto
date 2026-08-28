@@ -43,4 +43,16 @@ func TestGetAdminDiagnosticsRequiresOwner(t *testing.T) {
 	if len(diagnostics.Projections) == 0 {
 		t.Fatal("Projections len = 0, want projection diagnostics")
 	}
+	if !diagnostics.ProjectionsAvailable {
+		t.Fatal("ProjectionsAvailable = false, want true")
+	}
+
+	core.assetModel.cleanupConsumer = nil
+	diagnostics, err = core.GetAdminDiagnostics(ctx, owner.Id)
+	if err != nil {
+		t.Fatalf("GetAdminDiagnostics with unavailable cleanup consumer: %v", err)
+	}
+	if diagnostics.AssetCleanup.Health != AssetCleanupHealthUnavailable {
+		t.Fatalf("AssetCleanup health = %v, want unavailable", diagnostics.AssetCleanup.Health)
+	}
 }

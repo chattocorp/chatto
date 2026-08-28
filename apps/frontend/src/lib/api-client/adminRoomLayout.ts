@@ -6,7 +6,8 @@ import {
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem
 } from '@chatto/api-types/admin/v1/room_layout_pb';
 import type { DirectorySidebarLink } from './roomDirectory.js';
-import type { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomKind, type Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
 
 export type AdminRoomLayoutAPIConfig = {
   serverId?: string;
@@ -21,6 +22,13 @@ export type AdminRoomInfo = {
   description?: string | null;
   archived: boolean;
   isUniversal: boolean;
+  slowModeSeconds: number;
+  threadingMode: RoomThreadingMode;
+};
+
+export type AdminManagedRoom = AdminRoomInfo & {
+  canManageRoom: boolean;
+  canManagePermissions: boolean;
 };
 
 export type AdminSidebarLinkInfo = {
@@ -44,9 +52,16 @@ export type AdminSidebarItem =
 export type AdminRoomGroup = {
   id: string;
   name: string;
+  description?: string | null;
   canCreateRoom: boolean;
   rooms: AdminRoomInfo[];
   items: AdminSidebarItem[];
+};
+
+export type AdminManagedRoomGroup = {
+  group: AdminRoomGroup;
+  canManageGroup: boolean;
+  canManagePermissions: boolean;
 };
 
 export type AdminRoomLayoutItemMutationInput = {
@@ -58,6 +73,48 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
   const layout = createChattoClient(AdminRoomLayoutService, config);
   const headers = () => authHeaders(config);
   return {
+    async getRoom(
+      roomId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminManagedRoom | null> {
+      try {
+        const response = await layout.getRoom(
+          { roomId },
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        );
+        return response.room
+          ? {
+              ...mapAdminRoom(response.room),
+              canManageRoom: response.viewerCanManageRoom,
+              canManagePermissions: response.viewerCanManagePermissions
+            }
+          : null;
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
+    async getRoomGroup(
+      groupId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminManagedRoomGroup | null> {
+      try {
+        const response = await layout.getRoomGroup(
+          { groupId },
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        );
+        return response.group
+          ? {
+              group: mapAdminRoomLayoutGroup(response.group),
+              canManageGroup: response.viewerCanManageGroup,
+              canManagePermissions: response.viewerCanManagePermissions
+            }
+          : null;
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
     async listRoomGroups(): Promise<AdminRoomGroup[]> {
       try {
         const response = await layout.listRoomGroups({}, { headers: headers() });
@@ -84,7 +141,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
 
     async updateRoomGroup(input: {
       groupId: string;
-      name: string;
+      name?: string;
       description?: string | null;
     }): Promise<AdminRoomGroup | null> {
       try {
@@ -92,7 +149,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
           {
             groupId: input.groupId,
             name: input.name,
-            description: input.description ?? ''
+            description: input.description === null ? '' : input.description
           },
           { headers: headers() }
         );
@@ -211,6 +268,7 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
   return {
     id: group.id,
     name: group.name,
+    description: group.description || null,
     canCreateRoom: group.canCreateRoom ?? false,
     rooms: roomsFromSidebarItems(items),
     items
@@ -235,7 +293,9 @@ function mapAdminRoom(room: Room): AdminRoomInfo {
     name: room.name,
     description: room.description || null,
     archived: room.archived ?? false,
-    isUniversal: room.universal ?? false
+    isUniversal: room.universal ?? false,
+    slowModeSeconds: room.slowModeSeconds ?? 0,
+    threadingMode: normalizeRoomThreadingMode(RoomKind.CHANNEL, room.threadingMode)
   };
 }
 

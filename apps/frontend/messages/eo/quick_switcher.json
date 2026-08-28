@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "Iru ien aŭ tajpu ? por serĉi mesaĝojn...",
+    "no_results": "Neniuj rezultoj",
+    "recent": "Lastatempa",
+    "kind": {
+      "destination": "Iru al",
+      "server": "Servilo",
+      "room": "Ĉambro",
+      "dm": "DM",
+      "user": "Uzanto",
+      "message": "Mesaĝo"
+    },
+    "message_search": {
+      "prompt": "Tajpu post ? por serĉi mesaĝojn en ĉiuj viaj serviloj",
+      "no_results": "Neniuj mesaĝoj trovitaj"
+    }
+  }
+}

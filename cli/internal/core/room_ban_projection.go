@@ -5,8 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type RoomBan struct {
@@ -35,10 +36,10 @@ func NewRoomBanProjection() *RoomBanProjection {
 }
 
 func (p *RoomBanProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
-func (p *RoomBanProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *RoomBanProjection) Apply(event *evtv1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -46,7 +47,7 @@ func (p *RoomBanProjection) Apply(event *corev1.Event, _ uint64) error {
 	defer p.Unlock()
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_RoomMemberBanned:
+	case *evtv1.Event_RoomMemberBanned:
 		banned := e.RoomMemberBanned
 		roomID := banned.GetRoomId()
 		userID := banned.GetUserId()
@@ -77,9 +78,9 @@ func (p *RoomBanProjection) Apply(event *corev1.Event, _ uint64) error {
 			CreatedAt:   createdAt,
 			ExpiresAt:   expiresAt,
 		}
-	case *corev1.Event_RoomMemberUnbanned:
+	case *evtv1.Event_RoomMemberUnbanned:
 		p.removeLocked(e.RoomMemberUnbanned.GetRoomId(), e.RoomMemberUnbanned.GetUserId())
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		delete(p.byRoom, e.RoomDeleted.GetRoomId())
 	default:
 	}

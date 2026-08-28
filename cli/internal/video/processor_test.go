@@ -2,12 +2,120 @@ package video
 
 import (
 	"context"
-	"sync"
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/charmbracelet/log"
 )
+
+func TestHLSSegmentMetadata(t *testing.T) {
+	tmp := t.TempDir()
+	playlist := filepath.Join(tmp, "index.m3u8")
+	if err := os.WriteFile(playlist, []byte("#EXTM3U\n#EXTINF:6.0,\none.ts\n#EXTINF:2.0,\ntwo.ts\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile playlist: %v", err)
+	}
+	segments := []string{filepath.Join(tmp, "one.ts"), filepath.Join(tmp, "two.ts")}
+	if err := os.WriteFile(segments[0], make([]byte, 6000), 0o600); err != nil {
+		t.Fatalf("WriteFile first segment: %v", err)
+	}
+	if err := os.WriteFile(segments[1], make([]byte, 4000), 0o600); err != nil {
+		t.Fatalf("WriteFile second segment: %v", err)
+	}
+	got, durations, err := hlsSegmentMetadata(playlist, segments)
+	if err != nil {
+		t.Fatalf("hlsSegmentMetadata: %v", err)
+	}
+	if got != 16_000 {
+		t.Fatalf("bandwidth = %d, want 16000", got)
+	}
+	if len(durations) != 2 || durations[0] != 6000 || durations[1] != 2000 {
+		t.Fatalf("durations = %v, want [6000 2000]", durations)
+	}
+}
+
+func TestVideoProcessingFinalizationContextSurvivesCancelledParent(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+
+	ctx, cancel := videoProcessingFinalizationContext(parent)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		t.Fatalf("finalization context inherited cancellation: %v", err)
+	}
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("finalization context has no deadline")
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 || remaining > videoProcessingFinalizationTimeout {
+		t.Fatalf("finalization deadline remaining = %v, want within (0, %v]", remaining, videoProcessingFinalizationTimeout)
+	}
+}
+
+func TestPackageHLSRenditionWithFFmpeg(t *testing.T) {
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	ffprobePath, err := exec.LookPath("ffprobe")
+	if err != nil {
+		t.Skip("ffprobe is not installed")
+	}
+	tmp := t.TempDir()
+	input := filepath.Join(tmp, "input.mp4")
+	output := filepath.Join(tmp, "output.mp4")
+	generate := exec.Command(
+		ffmpegPath,
+		"-f", "lavfi", "-i", "testsrc=size=160x90:rate=24:duration=13",
+		"-f", "lavfi", "-i", "anullsrc=channel_layout=quad:sample_rate=48000:duration=13",
+		"-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+		"-c:a", "aac", "-shortest",
+		"-y", input,
+	)
+	if output, err := generate.CombinedOutput(); err != nil {
+		t.Fatalf("generate ffmpeg fixture: %v\n%s", err, output)
+	}
+
+	service := &Service{ffmpegPath: ffmpegPath}
+	if err := service.transcode(context.Background(), input, output, 90, true, nil); err != nil {
+		t.Fatalf("transcode quad-audio fixture: %v", err)
+	}
+	playlistPath, segmentPaths, err := service.packageHLSRendition(context.Background(), output, filepath.Join(tmp, "hls"))
+	if err != nil {
+		t.Fatalf("packageHLSRendition: %v", err)
+	}
+	if len(segmentPaths) != 3 {
+		t.Fatalf("segment count = %d, want 3", len(segmentPaths))
+	}
+	raw, err := os.ReadFile(playlistPath)
+	if err != nil {
+		t.Fatalf("ReadFile playlist: %v", err)
+	}
+	if !strings.Contains(string(raw), "#EXT-X-INDEPENDENT-SEGMENTS") || !strings.Contains(string(raw), "#EXT-X-ENDLIST") {
+		t.Fatalf("unexpected media playlist: %s", raw)
+	}
+	for _, segmentPath := range segmentPaths {
+		probe := exec.Command(
+			ffprobePath,
+			"-v", "error", "-select_streams", "a:0",
+			"-show_entries", "stream=sample_rate,channels,channel_layout",
+			"-of", "default=nw=1", segmentPath,
+		)
+		probeOutput, err := probe.CombinedOutput()
+		if err != nil {
+			t.Fatalf("probe HLS segment %s: %v\n%s", filepath.Base(segmentPath), err, probeOutput)
+		}
+		metadata := string(probeOutput)
+		if !strings.Contains(metadata, "sample_rate=48000") ||
+			!strings.Contains(metadata, "channels=2") ||
+			!strings.Contains(metadata, "channel_layout=stereo") {
+			t.Fatalf("HLS segment %s has incompatible audio metadata:\n%s", filepath.Base(segmentPath), metadata)
+		}
+	}
+}
 
 func TestSelectVariantHeights(t *testing.T) {
 	tests := []struct {
@@ -196,35 +304,44 @@ func TestThumbnailDimensions(t *testing.T) {
 	}
 }
 
-func TestServiceRunReturnsWhenShutdownWaitTimesOut(t *testing.T) {
-	internalCtx, internalCancel := context.WithCancel(context.Background())
-	svc := &Service{
-		logger: log.WithPrefix("test.video"),
-		ctx:    internalCtx,
-		cancel: internalCancel,
-	}
-
-	var release sync.WaitGroup
-	release.Add(1)
-	svc.wg.Add(1)
-	go func() {
-		release.Wait()
-		svc.wg.Done()
-	}()
-	t.Cleanup(release.Done)
-
+func TestProcessingInterruptedUsesAttemptContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- svc.run(ctx, 25*time.Millisecond) }()
-
 	cancel()
 
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("Run did not return after shutdown wait timeout")
+	if !processingInterrupted(ctx, errors.New("ffmpeg exited after cancellation")) {
+		t.Fatal("cancelled processing attempt must remain retryable even when the tool error does not wrap context.Canceled")
+	}
+	if processingInterrupted(context.Background(), errors.New("invalid media")) {
+		t.Fatal("ordinary processing failure must remain terminal")
+	}
+}
+
+func TestProcessingAttemptFailureMakesLocalBudgetTerminal(t *testing.T) {
+	parent := context.Background()
+	attempt, cancelAttempt := context.WithDeadline(parent, time.Now().Add(-time.Second))
+	defer cancelAttempt()
+
+	err := processingAttemptFailure(parent, attempt, context.DeadlineExceeded)
+	if processingInterrupted(parent, err) {
+		t.Fatalf("local attempt deadline remained retryable: %v", err)
+	}
+	if !strings.Contains(err.Error(), "attempt budget") {
+		t.Fatalf("local attempt deadline error = %q, want attempt budget explanation", err)
+	}
+}
+
+func TestProcessingAttemptFailureKeepsShutdownRetryable(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+	attempt, cancelAttempt := context.WithCancel(parent)
+	defer cancelAttempt()
+	originalErr := errors.New("ffmpeg exited after shutdown")
+
+	err := processingAttemptFailure(parent, attempt, originalErr)
+	if !errors.Is(err, originalErr) {
+		t.Fatalf("shutdown error = %v, want original interruption", err)
+	}
+	if !processingInterrupted(parent, err) {
+		t.Fatal("shutdown cancellation must remain retryable")
 	}
 }

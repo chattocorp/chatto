@@ -75,6 +75,7 @@ Request to create a new passwordless account from a pending provider identity.
 | --- | --- | --- |
 | `token` | `string` | Raw pending create token from the provider callback redirect. |
 | `login` | `string` | Desired username. |
+| `display_name` | `string` | Desired display name. When omitted, the server uses a valid provider hint and otherwise falls back to the requested username. |
 
 
 <a id="chatto-auth-v1-CreateExternalIdentityAccountResponse"></a>
@@ -87,7 +88,10 @@ Result of creating an account from a pending provider identity.
 | --- | --- | --- |
 | `user_id` | `string` | Newly created user ID. |
 | `login` | `string` | Newly created username. |
-| `token` | `string` | Bearer token for the new session. |
+| `token` | `string` | Short-lived bearer access token for the new session. |
+| `refresh_token` | `string` | Rotating refresh credential for renewing the bearer session. |
+| `expires_in` | `int64` | Lifetime of the access token in seconds. |
+| `refresh_token_expires_in` | `int64` | Remaining lifetime of the current renewable-session window in seconds. A successful refresh can advance this window for an active session. |
 
 
 <a id="chatto-auth-v1-ExternalIdentityAuthService-ConfirmExternalIdentityLink"></a>

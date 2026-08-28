@@ -1,18 +1,581 @@
 name: release
 
 on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches:
+      - main
+      - 'release-[0-9]*'
   push:
-    tags: ["v*"]
+    tags:
+      - "v*"
+      - "chatto-desktop/v*"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Artifact to build"
+        required: true
+        default: image
+        type: choice
+        options:
+          - image
+          - desktop
+      ref:
+        description: "Git ref or SHA to build. Defaults to the selected workflow ref."
+        required: false
+        type: string
 
 permissions:
-  contents: write
-  packages: write
-  id-token: write
+  contents: read
 
 jobs:
-  release:
+  release-please:
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-please-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
+    env:
+      TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      CONFIG_FILE: .release-please-config.json
+      MANIFEST_FILE: .release-please-manifest.json
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_PAT }}
+          config-file: ${{ env.CONFIG_FILE }}
+          manifest-file: ${{ env.MANIFEST_FILE }}
+          target-branch: ${{ env.TARGET_BRANCH }}
+
+  build-image:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'image' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref_name }}
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Resolve image metadata
+        id: image
+        run: |
+          set -euo pipefail
+
+          sha="$(git rev-parse HEAD)"
+          development_version="$(mise env --json | jq -r '.CHATTO_DEVELOPMENT_VERSION // empty')"
+          if [[ -n "$development_version" ]]; then
+            version="${development_version}+${sha:0:12}"
+          else
+            # Historical refs predate CHATTO_DEVELOPMENT_VERSION. Preserve the
+            # arbitrary-ref build contract by using their checked-in release
+            # version instead.
+            release_version="$(sed -n 's/.*Version = "\([^"]*\)".*/\1/p' cli/version.go)"
+            if [[ -z "$release_version" ]]; then
+              echo "::error::Could not determine the Chatto version."
+              exit 1
+            fi
+            version="${release_version}+${sha:0:12}"
+          fi
+
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Image"
+            echo
+            echo "- Commit: \`${sha}\`"
+            echo "- Version: \`${version}\`"
+            echo "- Image: \`ghcr.io/chattocorp/chatto:${sha}\`"
+            echo "- Platform: \`linux/amd64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build frontend assets for CLI image
+        run: mise build-frontend
+        env:
+          CHATTO_BUILD_VERSION: ${{ steps.image.outputs.version }}
+          CHATTO_FRONTEND_PRECOMPRESS: "1"
+
+      - name: Prepare Docker context
+        env:
+          VERSION: ${{ steps.image.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          context="/tmp/chatto-docker/linux-amd64"
+          mkdir -p "$context"
+          cp docker/Dockerfile.goreleaser "$context/Dockerfile"
+          mkdir -p "$context/docker"
+          cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
+          cp docker/nats-wrapper.sh "$context/docker/nats-wrapper.sh"
+          mkdir -p "$context/LICENSES"
+          cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/AGPL-3.0-or-later.txt"
+          cp NOTICE "$context/NOTICE"
+
+          (
+            cd cli
+            # Chatto does not expose Gin's MessagePack binding; omit its large codec.
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+              -tags=nomsgpack \
+              -ldflags="-s -w -X main.Version=${VERSION}" \
+              -o "$context/chatto" .
+          )
+
+      - name: Build and push Chatto image
+        uses: docker/build-push-action@v6
+        with:
+          context: /tmp/chatto-docker/linux-amd64
+          file: /tmp/chatto-docker/linux-amd64/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/chattocorp/chatto:${{ steps.image.outputs.sha }}
+          cache-from: type=gha,scope=chatto-manual-amd64
+          cache-to: type=gha,mode=max,scope=chatto-manual-amd64
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
+            org.opencontainers.image.version=${{ steps.image.outputs.version }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+  build-desktop-release:
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
+    name: build-desktop-release (${{ matrix.platform }})
+    environment: ${{ matrix.environment }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-latest
+            environment: desktop-signing
+          - platform: macos
+            os: macos-15
+            environment: desktop-signing
+          - platform: windows
+            os: windows-latest
+            environment: desktop-windows-signing
+    runs-on: ${{ matrix.os }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Verify trusted desktop ref
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin '+refs/heads/main:refs/remotes/origin/main'
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Desktop signing is restricted to commits reachable from origin/main."
+            exit 1
+          fi
+
+      - name: Verify immutable GitHub OIDC subject
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SUBJECT_PREFIX: repo:chattocorp@261891647/chatto@1205013299
+        run: |
+          set -euo pipefail
+
+          if ! configuration="$(
+            gh api \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "repos/${GITHUB_REPOSITORY}/actions/oidc/customization/sub" \
+              --jq '[.use_default, .use_immutable_subject, .sub_claim_prefix] | @tsv'
+          )"; then
+            echo "::error::Could not read the repository's GitHub OIDC configuration."
+            exit 1
+          fi
+
+          expected_configuration="$(printf 'true\ttrue\t%s' "$EXPECTED_SUBJECT_PREFIX")"
+          if [[ "$configuration" != "$expected_configuration" ]]; then
+            echo "::error::Enable the repository's default immutable GitHub OIDC subject before configuring Azure federation. Expected prefix '${EXPECTED_SUBJECT_PREFIX}'."
+            exit 1
+          fi
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+
+      - name: Resolve desktop version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            version="${GITHUB_REF_NAME#chatto-desktop/v}"
+          else
+            version="$(jq -r '.version' apps/desktop/package.json)"
+          fi
+          sha="$(git rev-parse HEAD)"
+
+          if [[ -z "$version" || "$version" == "null" ]]; then
+            echo "::error::Could not determine the Chatto Desktop version."
+            exit 1
+          fi
+          if [[ -z "$sha" ]]; then
+            echo "::error::Could not determine the checked-out commit."
+            exit 1
+          fi
+
+          frontend_version="${version}+${sha:0:12}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "frontend_version=${frontend_version}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Chatto Desktop"
+            echo
+            echo "- Commit: \`${sha}\`"
+            echo "- Desktop version: \`${version}\`"
+            echo "- Bundled frontend version: \`${frontend_version}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check and test desktop shell
+        run: mise test-desktop
+
+      - name: Test macOS game-capture helper
+        if: runner.os == 'macOS'
+        run: mise test-desktop-macos-capture
+
+      - name: Configure macOS signing
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.CHATTO_MACOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CHATTO_MACOS_CERTIFICATE_PASSWORD }}
+          NOTARY_API_KEY_BASE64: ${{ secrets.CHATTO_MACOS_NOTARY_API_KEY_BASE64 }}
+          NOTARY_API_KEY_ID: ${{ secrets.CHATTO_MACOS_NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER_ID: ${{ secrets.CHATTO_MACOS_NOTARY_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+
+          for variable in \
+            CERTIFICATE_BASE64 \
+            CERTIFICATE_PASSWORD \
+            NOTARY_API_KEY_BASE64 \
+            NOTARY_API_KEY_ID \
+            NOTARY_API_ISSUER_ID; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::The ${variable} macOS release secret is not configured."
+              exit 1
+            fi
+          done
+
+          certificate_path="$RUNNER_TEMP/chatto-developer-id.p12"
+          api_key_path="$RUNNER_TEMP/AuthKey_${NOTARY_API_KEY_ID}.p8"
+          keychain_path="$RUNNER_TEMP/chatto-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+
+          {
+            echo "CHATTO_MACOS_NOTARY_API_KEY=${api_key_path}"
+            echo "CHATTO_MACOS_SIGNING_KEYCHAIN=${keychain_path}"
+            echo "CHATTO_MACOS_SIGNING_CERTIFICATE=${certificate_path}"
+          } >> "$GITHUB_ENV"
+
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          printf '%s' "$NOTARY_API_KEY_BASE64" | base64 --decode > "$api_key_path"
+          chmod 600 "$certificate_path" "$api_key_path"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+
+          signing_identity="$(
+            security find-identity -v -p codesigning "$keychain_path" |
+              awk '/Developer ID Application:/ { print $2; exit }'
+          )"
+          if [[ -z "$signing_identity" ]]; then
+            echo "::error::The certificate does not contain a Developer ID Application identity."
+            exit 1
+          fi
+
+          {
+            echo "CHATTO_MACOS_SIGN_IDENTITY=${signing_identity}"
+            echo "CHATTO_MACOS_NOTARY_API_KEY_ID=${NOTARY_API_KEY_ID}"
+            echo "CHATTO_MACOS_NOTARY_API_ISSUER_ID=${NOTARY_API_ISSUER_ID}"
+          } >> "$GITHUB_ENV"
+
+      - name: Validate Windows signing configuration
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CHATTO_WINDOWS_AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.CHATTO_WINDOWS_AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID }}
+          SIGNING_ENDPOINT: ${{ vars.CHATTO_WINDOWS_SIGNING_ENDPOINT }}
+          SIGNING_ACCOUNT_NAME: ${{ vars.CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME }}
+          CERTIFICATE_PROFILE_NAME: ${{ vars.CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME }}
+          EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
+        run: |
+          $required = @{
+            CHATTO_WINDOWS_AZURE_CLIENT_ID = $env:AZURE_CLIENT_ID
+            CHATTO_WINDOWS_AZURE_TENANT_ID = $env:AZURE_TENANT_ID
+            CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID = $env:AZURE_SUBSCRIPTION_ID
+            CHATTO_WINDOWS_SIGNING_ENDPOINT = $env:SIGNING_ENDPOINT
+            CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME = $env:SIGNING_ACCOUNT_NAME
+            CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME = $env:CERTIFICATE_PROFILE_NAME
+            CHATTO_WINDOWS_EXPECTED_PUBLISHER = $env:EXPECTED_PUBLISHER
+          }
+          $missing = @($required.GetEnumerator() | Where-Object {
+            [string]::IsNullOrWhiteSpace([string]$_.Value)
+          } | ForEach-Object Key)
+          if ($missing.Count -gt 0) {
+            Write-Error "The following Windows release settings are not configured: $($missing -join ', ')"
+            exit 1
+          }
+
+      - name: Build desktop bundle
+        shell: bash
+        env:
+          CHATTO_BUILD_VERSION: ${{ steps.version.outputs.frontend_version }}
+          DEBUG: ${{ runner.os == 'macOS' && 'electron-notarize*' || '' }}
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            mise desktop-build 2>&1 | tee "$RUNNER_TEMP/chatto-macos-notarization.log"
+          else
+            mise desktop-build
+          fi
+
+      - name: Log in to Azure for Windows signing
+        if: runner.os == 'Windows'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.CHATTO_WINDOWS_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.CHATTO_WINDOWS_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign Windows desktop bundle
+        if: runner.os == 'Windows'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.CHATTO_WINDOWS_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ vars.CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}\apps\desktop\dist\windows
+          files-folder-filter: exe,dll,node
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Chatto Desktop
+          description-url: https://chatto.run
+
+      - name: Verify bundled frontend version
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.frontend_version }}
+        run: |
+          jq -e --arg expected "$EXPECTED_VERSION" \
+            '.version == $expected' \
+            apps/frontend/build/_app/version.json
+
+      - name: Verify Windows bundle signatures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
+        run: |
+          $bundle = Resolve-Path "apps/desktop/dist/windows"
+          $files = @(Get-ChildItem -LiteralPath $bundle -File -Recurse | Where-Object {
+            $_.Extension -in '.exe', '.dll', '.node'
+          })
+          if ($files.Count -eq 0) {
+            Write-Error "The Windows bundle contains no executable files to verify."
+            exit 1
+          }
+          $application = Join-Path $bundle "chatto-desktop.exe"
+          if (-not (Test-Path -LiteralPath $application -PathType Leaf)) {
+            Write-Error "The Windows bundle does not contain chatto-desktop.exe."
+            exit 1
+          }
+
+          $failed = $false
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            $publisher = $signature.SignerCertificate.Subject
+            $hasExpectedPublisher = [string]::Equals(
+              $publisher,
+              $env:EXPECTED_PUBLISHER,
+              [System.StringComparison]::OrdinalIgnoreCase
+            )
+            $requiresExpectedPublisher = [string]::Equals(
+              $file.FullName,
+              $application,
+              [System.StringComparison]::OrdinalIgnoreCase
+            )
+            if (
+              $signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
+              ($requiresExpectedPublisher -and -not $hasExpectedPublisher) -or
+              $null -eq $signature.TimeStamperCertificate
+            ) {
+              Write-Error "$($file.FullName): status=$($signature.Status), publisher='$publisher', timestamped=$($null -ne $signature.TimeStamperCertificate)"
+              $failed = $true
+            }
+          }
+          if ($failed) {
+            exit 1
+          }
+          Write-Host "Verified $($files.Count) valid, timestamped Windows executable signatures; chatto-desktop.exe is published by '$env:EXPECTED_PUBLISHER'."
+
+      - name: Package macOS release
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          helper="apps/desktop/dist/Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
+          test -x "$helper"
+          codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
+          xcrun stapler validate "apps/desktop/dist/Chatto Desktop.app"
+          spctl --assess --type execute --verbose=4 "apps/desktop/dist/Chatto Desktop.app"
+          mkdir -p .context/desktop-release
+          ditto -c -k --sequesterRsrc --keepParent \
+            "apps/desktop/dist/Chatto Desktop.app" \
+            ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${RUNNER_ARCH}.zip"
+
+      - name: Upload macOS notarisation log
+        if: runner.os == 'macOS' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-notarisation-log-${{ github.run_id }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/chatto-macos-notarization.log
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Remove macOS signing credentials
+        if: runner.os == 'macOS' && always()
+        shell: bash
+        run: |
+          if [[ -n "${CHATTO_MACOS_SIGNING_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$CHATTO_MACOS_SIGNING_KEYCHAIN" || true
+          fi
+          rm -f \
+            "${CHATTO_MACOS_SIGNING_CERTIFICATE:-$RUNNER_TEMP/chatto-developer-id.p12}" \
+            "${CHATTO_MACOS_NOTARY_API_KEY:-$RUNNER_TEMP/chatto-notary-api-key.p8}"
+
+      - name: Package Linux release
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p .context/desktop-release
+          tar -C apps/desktop/dist -czf \
+            ".context/desktop-release/chatto-desktop_${VERSION}_Linux_${RUNNER_ARCH}.tar.gz" \
+            chatto-desktop
+
+      - name: Package Windows release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          New-Item -ItemType Directory -Force .context/desktop-release | Out-Null
+          Compress-Archive `
+            -Path "apps/desktop/dist/windows" `
+            -DestinationPath ".context/desktop-release/chatto-desktop_$env:VERSION`_Windows_$env:RUNNER_ARCH.zip"
+
+      - name: Upload desktop release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-${{ matrix.platform }}-${{ runner.arch }}
+          path: .context/desktop-release
+          if-no-files-found: error
+          retention-days: 1
+
+  assemble-desktop-release:
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
+    needs: build-desktop-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download desktop release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-release-*
+          path: .context/desktop-release
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd .context/desktop-release
+          sha256sum chatto-desktop_* > chatto-desktop_checksums.txt
+
+      - name: Upload desktop release verification
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-verification-${{ github.run_id }}
+          path: .context/desktop-release
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload and publish desktop release
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" .context/desktop-release/* --clobber
+          gh release edit "$GITHUB_REF_NAME" --draft=false
+
+  release:
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    outputs:
+      is_stable: ${{ steps.release_meta.outputs.is_stable }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -20,10 +583,7 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch release branches
-        shell: bash
-        run: |
-          git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
-          git fetch origin '+refs/heads/next:refs/remotes/origin/next' || true
+        run: git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
 
       - name: Verify release-please tag
         id: release_meta
@@ -36,19 +596,17 @@ jobs:
           source_branch=""
           if git merge-base --is-ancestor "$tag_commit" origin/main; then
             source_branch="main"
-          elif git show-ref --verify --quiet refs/remotes/origin/next && git merge-base --is-ancestor "$tag_commit" origin/next; then
-            source_branch="next"
           else
             while IFS= read -r ref; do
               if git merge-base --is-ancestor "$tag_commit" "$ref"; then
                 source_branch="${ref#refs/remotes/origin/}"
                 break
               fi
-            done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/release-)
+            done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/release-*')
           fi
 
           if [[ -z "$source_branch" ]]; then
-            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main, origin/next, or an origin/release-* branch."
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main or an origin/release-* branch."
             exit 1
           fi
 
@@ -85,7 +643,9 @@ jobs:
 
           version="${GITHUB_REF_NAME#v}"
           push_latest=false
+          is_stable=false
           if [[ "$version" != *-* ]]; then
+            is_stable=true
             highest_stable="$(
               git tag --list 'v[0-9]*.[0-9]*.[0-9]*' |
                 sed 's/^v//' |
@@ -100,6 +660,7 @@ jobs:
           fi
 
           echo "push_latest=${push_latest}" >> "$GITHUB_OUTPUT"
+          echo "is_stable=${is_stable}" >> "$GITHUB_OUTPUT"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -278,3 +839,15 @@ jobs:
           git -C "${tap_dir}" add Formula/chatto.rb
           git -C "${tap_dir}" commit -m "chore: update chatto to v${VERSION}"
           git -C "${tap_dir}" push origin HEAD:main
+
+  publish-stable-docs:
+    needs: release
+    if: ${{ github.event_name == 'push' && needs.release.outputs.is_stable == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-docs-image.yml
+    with:
+      channel: stable
+      ref: ${{ github.ref }}
+    secrets: inherit

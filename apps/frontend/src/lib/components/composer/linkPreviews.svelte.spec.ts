@@ -18,7 +18,10 @@ describe('LinkPreviewState', () => {
     const fetchLinkPreview = vi.fn<FetchLinkPreview>();
     const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
 
-    const cleanup = state.scheduleDetection('See http://localhost/chat/-/room_456/m/evt_123', false);
+    const cleanup = state.scheduleDetection(
+      'See http://localhost/chat/-/room_456/m/evt_123',
+      false
+    );
     await vi.advanceTimersByTimeAsync(500);
     cleanup();
 
@@ -36,6 +39,8 @@ describe('LinkPreviewState', () => {
       '\\`https://example.com\\`',
       '```\nhttps://example.com\n```',
       '> https://example.com',
+      '<https://example.com>',
+      '<https://example.com',
       'mail user@example.com',
       'ftp://example.com/file'
     ]) {
@@ -49,7 +54,7 @@ describe('LinkPreviewState', () => {
     expect(fetchLinkPreview).not.toHaveBeenCalled();
   });
 
-  it('fetches non-message links and converts the active preview into mutation input', async () => {
+  it('fetches non-message links and exposes the active preview token', async () => {
     vi.useFakeTimers();
     const url = 'https://example.com/story';
     const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockResolvedValue({
@@ -65,14 +70,16 @@ describe('LinkPreviewState', () => {
     });
     const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
 
-    const cleanup = state.scheduleDetection(`Look ${url}`, false);
+    const cleanup = state.scheduleDetection(
+      `<https://suppressed.example/story> Look ${url}`,
+      false
+    );
     await vi.advanceTimersByTimeAsync(500);
     await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledOnce());
     cleanup();
 
-    expect(state.buildInput()).toMatchObject({
-      previewToken: 'cht_LPpreviewtoken'
-    });
+    expect(fetchLinkPreview).toHaveBeenCalledWith(url);
+    expect(state.buildToken()).toBe('cht_LPpreviewtoken');
   });
 
   it('dismisses active URLs and clears preview state', async () => {

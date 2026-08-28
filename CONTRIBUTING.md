@@ -1,6 +1,10 @@
 # Contributing
 
-Chatto is not accepting outside contributions at this time, but feedback, bug reports, and ideas are welcome by [email](mailto:hendrik.mans@chattocorp.eu), or just drop by our [Chatto HQ community server](https://chat.chatto.run/).
+Chatto is not accepting outside contributions at this time. Report bugs in the
+`#bug-reports` channel on the [Chatto HQ community
+server](https://chat.chatto.run/); maintainers will create GitHub issues for
+actionable reports. Other feedback and ideas are welcome there or by
+[email](mailto:hendrik.mans@chattocorp.eu).
 
 ## Agentic Engineering
 
@@ -18,19 +22,30 @@ machine-specific settings, and private prompts out of tracked files; use local
 settings such as `.conductor/settings.local.toml` or your tool's user-level
 configuration for those.
 
-## Local Development with Conductor or Paseo
+## Local Development with Conductor
 
-[Conductor](https://conductor.build) and Paseo workspaces run the live local development stack. The default Conductor `chatto` run script in `.conductor/settings.toml` and the Paseo `dev` service in `paseo.json` both delegate to `mise dev`. The mise task uses Conductor's assigned `$CONDUCTOR_PORT`, Paseo's assigned `$PASEO_PORT`, or `4000` outside either tool, then reserves the next ports for bundled services:
+[Conductor](https://conductor.build) runs the regular root `mise dev` stack as
+native processes. Start the default **Dev stack** run mode to launch the Chatto
+backend and Vite frontend, Authling, Mailpit, and LiveKit on the workspace's ten
+allocated ports. Portless exposes Chatto at
+`https://chatto.<workspace>.localhost:42444`; Authling, Mailpit, and LiveKit use
+the same HTTPS URL shape with their respective service names. The
+[Local Development Stack](README.md#local-development-stack) section lists the
+complete layout. Vite live-reloads frontend source; restart the stack after
+changing Chatto or Authling Go code.
 
-| Port                              | Process                                       |
-| --------------------------------- | --------------------------------------------- |
-| `$CONDUCTOR_PORT` / `$PASEO_PORT` | Vite frontend (user-facing URL)               |
-| `+1`                              | Chatto backend webserver                      |
-| `+2`                              | Embedded NATS                                 |
-| `+3`                              | Prometheus metrics                            |
-| `+4`                              | Deployment-wide exporter metrics              |
-
-The repository-level Conductor settings are shared in `.conductor/settings.toml`, and the repository-level Paseo settings are shared in `paseo.json`. Both wire per-workspace ports before starting the backend and frontend development servers so multiple workspaces can run side by side. Conductor also exposes a `docs-website` run script, and Paseo exposes a separate `dev-docs-website` service; both are backed by `mise dev-docs-website` and reuse the workspace base port for the docs website. Put machine-specific Conductor overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
+The repository-level Conductor settings are shared in
+`.conductor/settings.toml`, while the root `mise.toml` defines the native
+development stack. Together with Portless's workspace-named routes and
+Conductor's allocated ports, they isolate concurrent workspaces. Put
+machine-specific Conductor overrides in `.conductor/settings.local.toml`; that
+file is gitignored and wins over shared settings on your machine. Conductor
+reads `.worktreeinclude` to copy gitignored local environment files, such as
+`.env` and `.env.*`, into new workspaces. Stopping the run command stops all
+five child processes and unregisters their Portless routes. The first run may
+require launching
+`mise x node@24 npm:portless@0.15.5 -- portless trust` in an
+interactive terminal so macOS can trust Portless's development CA.
 
 ## Developing Outside of Conductor
 
@@ -41,7 +56,8 @@ mise trust
 mise run setup
 ```
 
-To run the same live development stack Conductor and Paseo use:
+To run the regular development stack outside Conductor after the setup
+described in the README:
 
 ```sh
 mise dev
@@ -65,7 +81,13 @@ To check SPDX/REUSE license metadata:
 mise license-check
 ```
 
-When both `CONDUCTOR_PORT` and `PASEO_PORT` are unset, `mise dev` uses `4000` for the Vite frontend, `4001` for the Chatto backend, `4002` for embedded NATS, `4003` for Prometheus metrics, and `4004` for exporter metrics. `mise dev-docs-website` uses `4000` for the docs website. `mise run chatto run` still uses the bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS, `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit CLI arguments after the task name, for example `mise chatto version`.
+`mise dev` uses Conductor's allocated port block and falls back to base port
+`4000` outside Conductor. `mise dev-docs-website` also uses `4000` when
+`CONDUCTOR_PORT` and `CHATTO_DOCS_WEBSITE_PORT` are unset.
+`mise run chatto run` uses the
+bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS,
+`4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit
+CLI arguments after the task name, for example `mise chatto version`.
 
 ## Local Bootstrap Users
 

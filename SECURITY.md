@@ -31,3 +31,13 @@ Reports about Chatto itself, the bundled frontend, Docker images, and deployment
 examples are in scope. Reports about third-party services or user-managed
 infrastructure are only in scope when Chatto's documented configuration creates
 the issue.
+
+## Asset Isolation
+
+Public server assets and room-scoped files use separate HTTP authorization
+boundaries even when a deployment stores their bytes in shared infrastructure.
+`/assets/server/*` serves only positively classified public avatars, branding,
+and link-preview images. New NATS public assets use the explicit `public/`
+object namespace; historical flat-key public assets remain behind durable
+compatibility classification. Room files remain behind ticket and current-membership
+checks on `/assets/files/*`; transform signatures do not replace those checks.

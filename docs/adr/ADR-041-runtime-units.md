@@ -29,8 +29,9 @@ Introduce **runtime units** as the convention for optional Chatto processes.
 A runtime unit:
 
 - can run standalone as `chatto <unit>`
-- can run embedded in `chatto run` when its config section has
-  `enabled = true`
+- can run embedded in `chatto run` when its provider or unit config section has
+  `enabled = true`; this selects process composition rather than whether a
+  separate consumer-facing feature is exposed
 - receives shared config, NATS, JetStream, logger, and version through a small
   runtime environment
 - decides explicitly which existing resources or domain services it opens
@@ -41,6 +42,22 @@ single-process embedded-NATS installs, operators either enable the embedded TCP
 listener or set the unit's `enabled = true` flag so `chatto run` starts it in
 process using the already-established NATS connection.
 
+Runtime units use a shared explicit registration catalogue for composition and
+diagnostics. `chatto run` starts enabled registrations under one coordinated
+lifecycle, while a standalone unit command starts the same implementation
+regardless of its embedded `enabled` setting. Feature-consumer configuration
+stays separate when a replaceable provider is involved. For example,
+`search.enabled` exposes message search through the main app, while
+`search_provider.enabled` decides whether `chatto run` embeds Chatto's bundled
+provider.
+
+`chatto run` supervises enabled optional units independently. A unit that
+returns unexpectedly is restarted with exponential backoff capped at 30
+seconds, while the main app remains available. Standalone commands instead
+return the unit failure to their process supervisor. Units must therefore make
+startup and repeated execution safe; durable workers resume through their
+application-owned consumer rather than process-local state.
+
 Runtime units are classified by behavior:
 
 - **Observer:** reads existing resources and exposes diagnostics, such as the
@@ -49,7 +66,7 @@ Runtime units are classified by behavior:
   model, and exposes a NATS service, such as future search. Usually no durable
   writes.
 - **Worker:** performs background work and may append durable facts through the
-  owning service or `events.Publisher`, such as future media processing.
+  owning service or `evtstream.Publisher`, such as future media processing.
 - **Main app:** the ConnectRPC/web/realtime-delivery process that owns
   `ChattoCore` boot and HTTP compatibility facades.
 
@@ -62,6 +79,12 @@ process.
 Standalone workers and embedded single-process deployments can share one unit
 implementation instead of maintaining separate boot paths.
 
+An embedded optional capability can recover from missing executables,
+projection failures, deleted durable consumers, and other unit-local failures
+without forcing the main app to restart. Persistent failures remain visible in
+logs at the bounded restart cadence instead of silently leaving the capability
+stopped.
+
 The main `chatto run` process remains the only path that starts embedded NATS
 and runs the full `ChattoCore` boot sequence. Side units stay explicit about
 whether they are read-only projections, request/reply services, or durable
@@ -72,3 +95,6 @@ setup, signal handling, NATS connection logic, or ad hoc embedded-mode flags.
 Workers that need singleton behavior must still coordinate through NATS
 primitives such as `MEMORY_CACHE` leases; embedding a unit in `chatto run` is an
 operator convenience, not a correctness boundary.
+
+Replaceable provider units communicate with the main app through the same
+versioned NATS contract in embedded and standalone topologies. See ADR-053.

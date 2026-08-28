@@ -12,6 +12,7 @@ import {
   postMessageViaConnect,
   postThreadReplyViaConnect,
   postThreadReplyWithEchoViaConnect,
+  updateScopedNotificationPolicy,
   waitForRoomReadViaConnect,
   waitForServerUnreadViaConnect
 } from './fixtures/connectHelpers';
@@ -38,6 +39,7 @@ async function selectTextInside(locator: Locator, selectedText: string): Promise
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(range);
+        node.parentElement?.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
         return;
       }
 
@@ -49,7 +51,7 @@ async function selectTextInside(locator: Locator, selectedText: string): Promise
 }
 
 test.describe('Thread Reply Echo ("Also send to channel")', () => {
-  test('"Also send to channel" checkbox is visible in thread composer', async ({
+  test('"Also send to channel" toggle is visible in thread composer', async ({
     page,
     chatPage,
     roomPage
@@ -60,20 +62,20 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await chatPage.enterRoom('general');
     });
 
-    const rootMessage = `Root for checkbox test ${Date.now()}`;
+    const rootMessage = `Root for toggle test ${Date.now()}`;
     const rootMessageComponent = await roomPage.sendMessage(rootMessage);
 
-    await test.step('Open thread and verify checkbox is visible', async () => {
+    await test.step('Open thread and verify toggle is visible', async () => {
       await rootMessageComponent.openThread();
       await roomPage.expectThreadPaneVisible();
 
-      // Verify the checkbox is visible
-      const checkbox = page.getByLabel('Also send to channel');
-      await expect(checkbox).toBeVisible();
+      // Verify the toggle is visible
+      const toggle = page.getByLabel('Also send to channel');
+      await expect(toggle).toBeVisible();
     });
   });
 
-  test('echo appears in main channel when checkbox is checked', async ({
+  test('echo appears in main channel when toggle is checked', async ({
     page,
     chatPage,
     roomPage
@@ -89,14 +91,14 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     const rootMessageComponent = await roomPage.sendMessage(rootMessage);
 
-    await test.step('Open thread, check checkbox, and post reply', async () => {
+    await test.step('Open thread, check toggle, and post reply', async () => {
       await rootMessageComponent.openThread();
       await roomPage.expectThreadPaneVisible();
 
-      // Check the checkbox
-      const checkbox = page.getByLabel('Also send to channel');
-      await checkbox.check();
-      await expect(checkbox).toBeChecked();
+      // Check the toggle
+      const toggle = page.getByLabel('Also send to channel');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
 
       // Post the reply
       await roomPage.postThreadReply(replyMessage);
@@ -120,7 +122,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
   });
 
-  test('reply without checkbox does not echo to channel', async ({ page, chatPage, roomPage }) => {
+  test('reply without toggle does not echo to channel', async ({ page, chatPage, roomPage }) => {
     await test.step('Setup: User loads the server and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
@@ -132,14 +134,14 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     const rootMessageComponent = await roomPage.sendMessage(rootMessage);
 
-    await test.step('Open thread and post reply WITHOUT checking checkbox', async () => {
+    await test.step('Open thread and post reply WITHOUT checking toggle', async () => {
       await rootMessageComponent.openThread();
       await roomPage.expectThreadPaneVisible();
 
-      // Make sure checkbox is NOT checked
-      const checkbox = page.getByLabel('Also send to channel');
-      if (await checkbox.isChecked()) {
-        await checkbox.uncheck();
+      // Make sure toggle is NOT checked
+      const toggle = page.getByLabel('Also send to channel');
+      if ((await toggle.getAttribute('aria-pressed')) === 'true') {
+        await toggle.click();
       }
 
       // Post the reply
@@ -190,9 +192,9 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
           await rootMessageComponent.openThread();
           await roomPage.expectThreadPaneVisible();
 
-          // Check the checkbox and post
-          const checkbox = page.getByLabel('Also send to channel');
-          await checkbox.check();
+          // Check the toggle and post
+          const toggle = page.getByLabel('Also send to channel');
+          await toggle.click();
           await roomPage.postThreadReply(replyMessage);
         });
 
@@ -229,9 +231,9 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await rootMessageComponent.openThread();
       await roomPage.expectThreadPaneVisible();
 
-      // Check checkbox and post
-      const checkbox = page.getByLabel('Also send to channel');
-      await checkbox.check();
+      // Check toggle and post
+      const toggle = page.getByLabel('Also send to channel');
+      await toggle.click();
       await roomPage.postThreadReply(replyMessage);
     });
 
@@ -343,7 +345,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Select echo text and open the thread as navigation only', async () => {
       const echoMessage = roomPage.getMessage(echoedReply);
       await selectTextInside(echoMessage.locator, selectedText);
-      await echoMessage.openThread();
+      await echoMessage.openEchoThread();
 
       await roomPage.expectThreadPaneVisible();
       await expect(page.getByTestId('thread-reply-input').locator('blockquote')).toHaveCount(0);
@@ -405,7 +407,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         await waitForRoomReady(page2, 'general');
 
         await roomPage2.expectMessageVisible(echoedReply);
-        await roomPage2.getMessage(echoedReply).openThread();
+        await roomPage2.getMessage(echoedReply).openEchoThread();
         await roomPage2.expectThreadPaneVisible();
       }
     );
@@ -587,15 +589,15 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await roomPage.postThreadReply(replyMessage);
     });
 
-    await test.step('Edit the reply, check the echo checkbox, and save', async () => {
+    await test.step('Edit the reply, check the echo toggle, and save', async () => {
       const threadReply = roomPage.getThreadMessage(replyMessage);
       await threadReply.startEdit();
       await roomPage.expectThreadEditModeActive();
 
-      const checkbox = page.getByLabel('Also send to channel');
-      await expect(checkbox).toBeVisible();
-      await expect(checkbox).not.toBeChecked();
-      await checkbox.check();
+      const toggle = page.getByLabel('Also send to channel');
+      await expect(toggle).toBeVisible();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await toggle.click();
 
       await roomPage.completeThreadEdit(editedMessage);
     });
@@ -632,15 +634,15 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await roomPage.postThreadReplyWithEcho(replyMessage);
     });
 
-    await test.step('Edit the reply, uncheck the echo checkbox, and save', async () => {
+    await test.step('Edit the reply, uncheck the echo toggle, and save', async () => {
       const threadReply = roomPage.getThreadMessage(replyMessage);
       await threadReply.startEdit();
       await roomPage.expectThreadEditModeActive();
 
-      const checkbox = page.getByLabel('Also send to channel');
-      await expect(checkbox).toBeVisible();
-      await expect(checkbox).toBeChecked();
-      await checkbox.uncheck();
+      const toggle = page.getByLabel('Also send to channel');
+      await expect(toggle).toBeVisible();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      await toggle.click();
 
       await roomPage.completeThreadEdit(editedMessage);
     });
@@ -684,15 +686,15 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       echoEventId = await echo.getEventId();
     });
 
-    await test.step('Edit the echo, uncheck the echo checkbox, and save', async () => {
+    await test.step('Edit the echo, uncheck the echo toggle, and save', async () => {
       const echo = roomPage.getMessage(replyMessage);
       await echo.startEdit();
       await roomPage.expectEditModeActive();
 
-      const checkbox = page.getByLabel('Also send to channel');
-      await expect(checkbox).toBeVisible();
-      await expect(checkbox).toBeChecked();
-      await checkbox.uncheck();
+      const toggle = page.getByLabel('Also send to channel');
+      await expect(toggle).toBeVisible();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      await toggle.click();
 
       await roomPage.completeEdit(editedMessage);
     });
@@ -776,7 +778,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
   });
 
-  test('deleting thread original tombstones both thread original and echo', async ({
+  test('deleting thread original removes both context-free rows', async ({
     page,
     chatPage,
     roomPage
@@ -803,27 +805,19 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       const threadReply = roomPage.getThreadMessage(replyMessage);
       replyEventId = await threadReply.getEventId();
       expect(replyEventId).not.toBeNull();
-      await page.clock.install({ time: Date.now() });
       await threadReply.delete();
     });
 
-    await test.step('Verify thread reply shows the deleted tombstone', async () => {
+    await test.step('Verify the context-free thread reply disappears', async () => {
       await expect(roomPage.threadPane.getByText(replyMessage)).not.toBeVisible();
-      await expect(
-        roomPage.threadPane.getByText('This message has been deleted').first()
-      ).toBeVisible();
+      await expect(roomPage.getMessageByEventId(replyEventId!).locator).toHaveCount(0);
     });
 
-    await test.step('Close thread and verify echo in main room also shows tombstone', async () => {
+    await test.step('Close thread and verify the context-free echo is absent', async () => {
       await roomPage.closeThread();
       await roomPage.expectThreadRouteClosed();
 
       await expect(page.getByText(replyMessage)).not.toBeVisible();
-      await expect(page.getByText('This message has been deleted').first()).toBeVisible();
-    });
-
-    await test.step('Natural expiry removes both the channel echo and thread reply', async () => {
-      await page.clock.fastForward(61 * 60 * 1000);
       await expect(page.getByText('This message has been deleted')).toHaveCount(0);
       await expect(page.getByText(rootMessage)).toBeVisible();
 
@@ -976,7 +970,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
   });
 
-  test('checkbox resets to unchecked after posting with echo', async ({
+  test('toggle resets to unchecked after posting with echo', async ({
     page,
     chatPage,
     roomPage
@@ -996,21 +990,21 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await rootMessageComponent.openThread();
       await roomPage.expectThreadPaneVisible();
 
-      const checkbox = page.getByLabel('Also send to channel');
-      await checkbox.check();
-      await expect(checkbox).toBeChecked();
+      const toggle = page.getByLabel('Also send to channel');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
 
       await roomPage.postThreadReply(firstReply);
       await roomPage.expectTextInThreadPane(firstReply);
     });
 
-    await test.step('Verify checkbox is unchecked for the next reply', async () => {
-      const checkbox = page.getByLabel('Also send to channel');
-      await expect(checkbox).not.toBeChecked();
+    await test.step('Verify toggle is unchecked for the next reply', async () => {
+      const toggle = page.getByLabel('Also send to channel');
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     });
   });
 
-  test('checkbox is hidden when message.echo permission is denied', async ({
+  test('toggle is hidden when message.echo permission is denied', async ({
     page,
     chatPage,
     roomPage,
@@ -1065,20 +1059,20 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
           await waitForRoomReady(page2, 'general');
         });
 
-        await test.step('User B opens thread and checkbox is NOT visible', async () => {
+        await test.step('User B opens thread and toggle is NOT visible', async () => {
           await roomPage2.expectMessageVisible(rootMessage);
           const rootMsg = roomPage2.getMessage(rootMessage);
           await rootMsg.openThread();
           await roomPage2.expectThreadPaneVisible();
 
-          const checkbox = page2.getByLabel('Also send to channel');
-          await expect(checkbox).not.toBeVisible();
+          const toggle = page2.getByLabel('Also send to channel');
+          await expect(toggle).not.toBeVisible();
         });
       }
     );
   });
 
-  test('echo triggers unread indicator for other users', async ({
+  test('echoed followed-thread reply triggers Badge attention for followers', async ({
     page,
     chatPage,
     roomPage,
@@ -1092,48 +1086,73 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
 
     const rootMessage = `Root for unread test ${Date.now()}`;
+    const firstReply = `First reply for unread test ${Date.now()}`;
     const replyMessage = `Echo for unread test ${Date.now()}`;
 
     const rootMessageComponent = await roomPage.sendMessage(rootMessage);
 
-    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
-      await test.step('User B opens the server and marks room as read', async () => {
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
-
-        // Wait for markRoomAsRead to complete on server before navigating away.
-        const roomId = await getRoomIdByNameViaConnect(page2, 'general');
-        await waitForRoomReadViaConnect(page2, roomId);
-
-        // Navigate to announcements so general is no longer active.
-        // Note: navigating to /chat/-/${spaceId} doesn't work because the route
-        // auto-redirects to the last visited room (general), which re-mounts the
-        // room component and auto-marks it as read — preventing unread detection.
-        await chatPage2.enterRoom('announcements');
-        await waitForRoomReady(page2, 'announcements');
-      });
-
-      await test.step('User A posts reply with echo', async () => {
-        await rootMessageComponent.openThread();
-        await roomPage.expectThreadPaneVisible();
-        await roomPage.postThreadReplyWithEcho(replyMessage);
-      });
-
-      await test.step('User B sees unread indicator from echo', async () => {
-        // Wait for server to register unread state
-        await waitForServerUnreadViaConnect(page2, true);
-
-        // Verify UI shows the unread dot
-        await expect(async () => {
-          const generalLink = page2.locator('nav').locator('a', { hasText: '# general' });
-          const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
-          await expect(unreadDot).toBeVisible();
-        }).toPass({
-          timeout: TIMEOUTS.REALTIME_EVENT,
-          intervals: [100, 250, 500, 1000]
-        });
-      });
+    await test.step('User A creates the thread', async () => {
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await roomPage.postThreadReply(firstReply);
+      await roomPage.closeThread();
     });
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await test.step('User B follows the thread with Badge delivery and marks the room as read', async () => {
+          await updateScopedNotificationPolicy(
+            page2,
+            { server: {} },
+            { followedThreads: 'UNREAD_BADGE' }
+          );
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
+
+          const rootMessageForUserB = roomPage2.getMessage(rootMessage);
+          await rootMessageForUserB.openThread();
+          await roomPage2.expectThreadPaneVisible();
+          await roomPage2.expectThreadPaneNotFollowing();
+          await roomPage2.toggleThreadFollow();
+          await roomPage2.expectThreadPaneFollowing();
+
+          // Wait for markRoomAsRead to complete on server before navigating away.
+          const roomId = await getRoomIdByNameViaConnect(page2, 'general');
+          await waitForRoomReadViaConnect(page2, roomId);
+
+          // Navigate to announcements so general is no longer active.
+          // Note: navigating to /chat/-/${spaceId} doesn't work because the route
+          // auto-redirects to the last visited room (general), which re-mounts the
+          // room component and auto-marks it as read — preventing unread detection.
+          await chatPage2.enterRoom('announcements');
+          await waitForRoomReady(page2, 'announcements');
+        });
+
+        await test.step('User A posts reply with echo', async () => {
+          await rootMessageComponent.openThread();
+          await roomPage.expectThreadPaneVisible();
+          await roomPage.postThreadReplyWithEcho(replyMessage);
+        });
+
+        await test.step('User B sees Badge attention from followed-thread activity', async () => {
+          // The echo remains a thread reply for notification purposes. It must
+          // use Followed threads, never the Root messages in rooms policy.
+          await waitForServerUnreadViaConnect(page2, true);
+
+          // Verify UI shows the unread dot.
+          await expect(async () => {
+            const generalLink = page2.locator('nav').locator('a', { hasText: '# general' });
+            const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
+            await expect(unreadDot).toBeVisible();
+          }).toPass({
+            timeout: TIMEOUTS.REALTIME_EVENT,
+            intervals: [100, 250, 500, 1000]
+          });
+        });
+      }
+    );
   });
 
   test('echo reply attribution highlight works for non-root target after thread was already opened', async ({
@@ -1357,10 +1376,10 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       // Post the reply
       const replyBody = `Reply to target ${timestamp}`;
       await page.getByTestId('thread-reply-input').fill(replyBody);
-      await page.getByTestId('thread-reply-input').press('Enter');
+      await page.getByTestId('thread-reply-input').press('Control+Enter');
 
       // Wait for reply to appear
-      await expect(page.getByTestId('thread-pane').getByText(replyBody)).toBeVisible({
+      await expect(roomPage.getThreadMessage(replyBody).locator).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
     });
@@ -1436,16 +1455,16 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
       // Type the echo reply and check "Also send to channel"
       const echoBody = `UI echo reply ${timestamp}`;
-      const checkbox = page.getByLabel('Also send to channel');
-      await expect(checkbox).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-      await checkbox.check();
+      const toggle = page.getByLabel('Also send to channel');
+      await expect(toggle).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+      await toggle.click();
 
       // Post the reply
       await page.getByTestId('thread-reply-input').fill(echoBody);
-      await page.getByTestId('thread-reply-input').press('Enter');
+      await page.getByTestId('thread-reply-input').press('Control+Enter');
 
       // Wait for the echo reply to appear in the thread
-      await expect(page.getByTestId('thread-pane').getByText(echoBody)).toBeVisible({
+      await expect(roomPage.getThreadMessage(echoBody).locator).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
     });

@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "Ga ergens heen of typ ? om berichten te zoeken...",
+    "no_results": "Geen resultaten",
+    "recent": "Recent",
+    "kind": {
+      "destination": "Ga naar",
+      "server": "Server",
+      "room": "Kamer",
+      "dm": "Stuur een bericht",
+      "user": "Gebruiker",
+      "message": "Bericht"
+    },
+    "message_search": {
+      "prompt": "Typ na ? om berichten op al je servers te zoeken",
+      "no_results": "Geen berichten gevonden"
+    }
+  }
+}

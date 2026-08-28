@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "Gå någonstans eller skriv ? för att söka meddelanden...",
+    "no_results": "Inga resultat",
+    "recent": "Nyligen",
+    "kind": {
+      "destination": "Gå till",
+      "server": "Server",
+      "room": "Rum",
+      "dm": "DM",
+      "user": "Användare",
+      "message": "Meddelande"
+    },
+    "message_search": {
+      "prompt": "Skriv efter ? för att söka meddelanden på alla dina servrar",
+      "no_results": "Inga meddelanden hittades"
+    }
+  }
+}

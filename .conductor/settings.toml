@@ -2,32 +2,48 @@
 
 [[preview_urls]]
 name = "Chatto"
-url = "http://localhost:$CONDUCTOR_PORT"
+url = "https://chatto.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+
+[[preview_urls]]
+name = "Authling"
+url = "https://authling.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
 
 [[preview_urls]]
 name = "Mailpit"
-url = "http://localhost:$CONDUCTOR_PORT+9"
+url = "https://mailpit.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+
+[[preview_urls]]
+name = "LiveKit"
+url = "https://livekit.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
 
 [[preview_urls]]
 name = "Storybook"
-url = "http://localhost:$CONDUCTOR_PORT"
+url = "https://storybook.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+
+[[preview_urls]]
+name = "Docs website"
+url = "https://docs.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
 
 [scripts]
-setup = "mise trust && mise setup"
+setup = "mise trust && mise install && mise setup && (cd authling && mise trust && mise install && mise deps)"
+archive = "exec tools/stop-workspace-dev.sh"
 run_mode = "concurrent"
 
-[scripts.run.chatto]
-command = "mise dev"
+[scripts.run.dev]
+command = "exec mise dev"
+available_in = [ "local" ]
 default = true
-icon = "message-square"
-
-[scripts.run.docs-website]
-command = "mise dev-docs-website"
-icon = "book-open"
+icon = "network"
 
 [scripts.run.storybook]
-command = "mise storybook"
-icon = "palette"
+command = "exec mise storybook"
+available_in = [ "local" ]
+icon = "component"
+
+[scripts.run.docs_website]
+command = "exec mise dev-docs-website"
+available_in = [ "local" ]
+icon = "book-open"
 
 [prompts]
 create_pr = "Create a full GitHub pull request for the current branch, not a draft PR."

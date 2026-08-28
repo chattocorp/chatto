@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
+import "google/protobuf/timestamp.proto";
+
+// How a public OAuth client establishes its identity with this server.
+enum OAuthClientSource {
+  // The server does not recognize the source value.
+  OAUTH_CLIENT_SOURCE_UNSPECIFIED = 0;
+  // The client identifies itself with an HTTPS Client ID Metadata Document.
+  OAUTH_CLIENT_SOURCE_CIMD = 1;
+  // The client uses a registration built into this Chatto release.
+  OAUTH_CLIENT_SOURCE_BUILT_IN = 2;
+}
+
+// Administrator policy for a public OAuth client. Trusted is an informational
+// blessing and never bypasses individual user consent.
+enum OAuthClientPolicy {
+  // No valid policy was supplied.
+  OAUTH_CLIENT_POLICY_UNSPECIFIED = 0;
+  // The client follows the normal open-client authorization policy.
+  OAUTH_CLIENT_POLICY_DEFAULT = 1;
+  // Administrators have labelled the client as trusted without changing consent.
+  OAUTH_CLIENT_POLICY_TRUSTED = 2;
+  // The client cannot authorize or use its existing OAuth access tokens.
+  OAUTH_CLIENT_POLICY_BLOCKED = 3;
+}
+
+// An OAuth client that completed at least one successful user authorization.
+message OAuthClient {
+  // Stable client identifier: a CIMD URL or built-in application URI.
+  string client_id = 1;
+  // Display name from validated client metadata.
+  string client_name = 2;
+  // Privacy-safe canonical origin derived from validated client metadata.
+  string client_origin = 3;
+  // How the client identity was established.
+  OAuthClientSource source = 4;
+  // Current server-administrator policy for the client.
+  OAuthClientPolicy policy = 5;
+  // When this server first completed an authorization for the client.
+  google.protobuf.Timestamp first_authorization_at = 6;
+  // When this server most recently completed an authorization for the client.
+  google.protobuf.Timestamp last_authorization_at = 7;
+  // Canonical web origins or native callback schemes seen during authorization.
+  repeated string redirect_origins = 8;
+  // Number of distinct users who have authorized this client.
+  uint32 authorized_user_count = 9;
+}
+
+// Lists OAuth clients with recorded authorizations using offset pagination.
+message ListOAuthClientsRequest {
+  // Requested offset and page size.
+  chatto.api.v1.PageRequest page = 1;
+}
+
+// One page of OAuth clients in stable first-authorization order.
+message ListOAuthClientsResponse {
+  // Clients visible to the caller in this page.
+  repeated OAuthClient oauth_clients = 1;
+  // Total count and whether another page is available.
+  chatto.api.v1.PageInfo page = 2;
+}
+
+// Identifies one OAuth client by its exact stable client ID.
+message GetOAuthClientRequest {
+  // Exact CIMD URL or built-in application URI.
+  string client_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 2048
+  }];
+}
+
+// Returns one OAuth client with a recorded authorization.
+message GetOAuthClientResponse {
+  // The requested client.
+  OAuthClient oauth_client = 1;
+}
+
+// Replaces the administrative policy for one OAuth client.
+message UpdateOAuthClientPolicyRequest {
+  // Exact CIMD URL or built-in application URI.
+  string client_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 2048
+  }];
+  // New complete policy value. Default removes any trusted or blocked label.
+  OAuthClientPolicy policy = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+// Returns the OAuth client with its updated policy.
+message UpdateOAuthClientPolicyResponse {
+  // The updated client.
+  OAuthClient oauth_client = 1;
+}
+
+// Manages OAuth clients authorized through this server. Requires server.manage.
+service AdminOAuthClientService {
+  // Lists clients that completed at least one authorization. Requires server.manage.
+  rpc ListOAuthClients(ListOAuthClientsRequest) returns (ListOAuthClientsResponse);
+  // Gets one recorded client or returns NOT_FOUND. Requires server.manage.
+  rpc GetOAuthClient(GetOAuthClientRequest) returns (GetOAuthClientResponse);
+  // Replaces a client's policy and revokes tokens when blocked. Requires server.manage.
+  rpc UpdateOAuthClientPolicy(UpdateOAuthClientPolicyRequest) returns (UpdateOAuthClientPolicyResponse);
+}

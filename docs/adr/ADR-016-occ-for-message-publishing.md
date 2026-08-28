@@ -14,14 +14,38 @@ The options are:
 
 ## Decision
 
-Use OCC via `WithExpectLastSequencePerSubject`. Before publishing, the publisher reads the current last sequence for the subject. The publish includes this expected sequence as a header. If another publish landed first (sequence mismatch), JetStream rejects the publish and the client retries.
+Publish each message body and its `MessagePostedEvent` in one atomic JetStream
+batch. The first entry checks the last sequence matching the room aggregate's
+`evt.room.{roomId}.>` filter. A concurrent room fact therefore rejects the
+whole batch rather than allowing the body and public message fact to split or
+land against stale room state.
 
-Retry policy: up to 5 attempts with exponential backoff (1ms, 2ms, 4ms, 8ms, 16ms) plus random jitter to avoid thundering herd on contention.
+User-facing message posts also evaluate authorization inside every OCC
+attempt. Before the check, the writer:
+
+1. captures the existing server authorization-fence sequence;
+2. captures and waits for the room directory, room-group layout, RBAC, and
+   posting user's projections through their relevant EVT tails;
+3. reruns the complete membership, archive, and permission decision; and
+4. attaches the captured authorization-fence expectation to a second entry in
+   the same message batch.
+
+Authorization-changing RBAC, room-group, and relevant user writes advance the
+singleton fence atomically with their domain facts. Message posts only check
+that fence; they do not advance it. A concurrent authority change rejects the
+message batch and causes the projections and authorization decision to be
+refreshed on retry.
+
+Retry OCC conflicts up to five times with bounded exponential backoff. Reuse
+the same event IDs and payloads across attempts so JetStream message
+deduplication remains effective.
 
 ## Consequences
 
 - **No distributed locks**: Message publishing doesn't require per-room locks, lock servers, or lock TTL management. This simplifies multi-process deployments.
-- **Correct ordering under contention**: Two concurrent posts to the same room are serialized by JetStream's sequence check. One succeeds; the other retries with the updated sequence.
-- **Low latency in the common case**: When there's no contention (the vast majority of publishes), OCC adds zero overhead — it's a single publish with a header. Retries only happen under genuine contention.
-- **Bounded retries**: 5 attempts with ~31ms total max backoff. If contention is so high that 5 retries fail, the publish errors out. This is a safety valve, not a normal path.
-- **Used beyond messages**: The same OCC mechanism is used for room layout updates and space config updates — any operation that appends to a subject where ordering matters.
+- **Correct ordering under contention**: Concurrent facts in one room are serialized by the room-filter check. One batch succeeds; the other retries from the updated room tail.
+- **Commit-time authorization**: Membership removal, room archival, RBAC changes, room moves, and effective-owner input changes cannot race an already-completed preflight and leave an unauthorized message behind.
+- **No global message serialization**: Successful posts check but do not advance the authorization fence, so ordinary posts in unrelated rooms do not conflict through that lane.
+- **Broader same-room contention**: The room guard intentionally covers every room fact, not only `message_posted`; busy rooms can cause retries when membership, messages, reactions, calls, or other room events race.
+- **Bounded retries**: If contention exhausts five attempts, the publish fails instead of weakening either guard.
+- **Used beyond messages**: The same filter-scoped OCC mechanism protects room layout, server configuration, RBAC, and other ordered event-sourced mutations.

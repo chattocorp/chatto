@@ -75,6 +75,73 @@ func (ImageFitMode) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_api_v1_common_proto_rawDescGZIP(), []int{0}
 }
 
+// Policy governing thread creation and reply placement in a channel room.
+// Direct-message rooms do not support threads and use UNSPECIFIED.
+type RoomThreadingMode int32
+
+const (
+	// No mode was supplied. CreateRoom treats this as ENABLED so older stored
+	// rooms and omitted request fields preserve Chatto's default behavior.
+	RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED RoomThreadingMode = 0
+	// Every new root message establishes a thread, and replies to root messages
+	// must be posted in that root's thread.
+	RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED RoomThreadingMode = 1
+	// Clients should steer replies into threads, but the server accepts both
+	// threaded and ordinary in-room replies.
+	RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED RoomThreadingMode = 2
+	// Threads are available and clients may freely choose whether to use them.
+	RoomThreadingMode_ROOM_THREADING_MODE_ENABLED RoomThreadingMode = 3
+	// New threads, thread replies, and channel echoes are rejected. Existing
+	// threads and echoes remain readable and ordinary in-room reply attribution
+	// remains available.
+	RoomThreadingMode_ROOM_THREADING_MODE_DISABLED RoomThreadingMode = 4
+)
+
+// Enum value maps for RoomThreadingMode.
+var (
+	RoomThreadingMode_name = map[int32]string{
+		0: "ROOM_THREADING_MODE_UNSPECIFIED",
+		1: "ROOM_THREADING_MODE_REQUIRED",
+		2: "ROOM_THREADING_MODE_ENCOURAGED",
+		3: "ROOM_THREADING_MODE_ENABLED",
+		4: "ROOM_THREADING_MODE_DISABLED",
+	}
+	RoomThreadingMode_value = map[string]int32{
+		"ROOM_THREADING_MODE_UNSPECIFIED": 0,
+		"ROOM_THREADING_MODE_REQUIRED":    1,
+		"ROOM_THREADING_MODE_ENCOURAGED":  2,
+		"ROOM_THREADING_MODE_ENABLED":     3,
+		"ROOM_THREADING_MODE_DISABLED":    4,
+	}
+)
+
+func (x RoomThreadingMode) Enum() *RoomThreadingMode {
+	p := new(RoomThreadingMode)
+	*p = x
+	return p
+}
+
+func (x RoomThreadingMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RoomThreadingMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_common_proto_enumTypes[1].Descriptor()
+}
+
+func (RoomThreadingMode) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_common_proto_enumTypes[1]
+}
+
+func (x RoomThreadingMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RoomThreadingMode.Descriptor instead.
+func (RoomThreadingMode) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_common_proto_rawDescGZIP(), []int{1}
+}
+
 // Image transform parameters for generated image URLs.
 type ImageTransformOptions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -213,7 +280,13 @@ type ProviderMetadata struct {
 	// Human-readable provider label.
 	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
 	// URL that starts login for this provider.
-	LoginUrl      string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
+	LoginUrl string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
+	// OIDC issuer URL. Absent for providers that do not use OpenID Connect.
+	// Clients can compare this value with their own trusted issuer selection;
+	// the server does not select the client's identity provider.
+	IssuerUrl *string `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3,oneof" json:"issuer_url,omitempty"`
+	// Whether an unlinked identity may create a new account through this provider.
+	AutoProvision *bool `protobuf:"varint,6,opt,name=auto_provision,json=autoProvision,proto3,oneof" json:"auto_provision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -276,6 +349,20 @@ func (x *ProviderMetadata) GetLoginUrl() string {
 	return ""
 }
 
+func (x *ProviderMetadata) GetIssuerUrl() string {
+	if x != nil && x.IssuerUrl != nil {
+		return *x.IssuerUrl
+	}
+	return ""
+}
+
+func (x *ProviderMetadata) GetAutoProvision() bool {
+	if x != nil && x.AutoProvision != nil {
+		return *x.AutoProvision
+	}
+	return false
+}
+
 var File_chatto_api_v1_common_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_common_proto_rawDesc = "" +
@@ -290,16 +377,27 @@ const file_chatto_api_v1_common_proto_rawDesc = "" +
 	"\vImageUpload\x12\x14\n" +
 	"\x05image\x18\x01 \x01(\fR\x05image\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"i\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"\xdb\x01\n" +
 	"\x10ProviderMetadata\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
-	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl*d\n" +
+	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\x12\"\n" +
+	"\n" +
+	"issuer_url\x18\x05 \x01(\tH\x00R\tissuerUrl\x88\x01\x01\x12*\n" +
+	"\x0eauto_provision\x18\x06 \x01(\bH\x01R\rautoProvision\x88\x01\x01B\r\n" +
+	"\v_issuer_urlB\x11\n" +
+	"\x0f_auto_provision*d\n" +
 	"\fImageFitMode\x12\x1e\n" +
 	"\x1aIMAGE_FIT_MODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16IMAGE_FIT_MODE_CONTAIN\x10\x01\x12\x18\n" +
-	"\x14IMAGE_FIT_MODE_COVER\x10\x02B\xa7\x01\n" +
+	"\x14IMAGE_FIT_MODE_COVER\x10\x02*\xc1\x01\n" +
+	"\x11RoomThreadingMode\x12#\n" +
+	"\x1fROOM_THREADING_MODE_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cROOM_THREADING_MODE_REQUIRED\x10\x01\x12\"\n" +
+	"\x1eROOM_THREADING_MODE_ENCOURAGED\x10\x02\x12\x1f\n" +
+	"\x1bROOM_THREADING_MODE_ENABLED\x10\x03\x12 \n" +
+	"\x1cROOM_THREADING_MODE_DISABLED\x10\x04B\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vCommonProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -314,13 +412,14 @@ func file_chatto_api_v1_common_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_common_proto_rawDescData
 }
 
-var file_chatto_api_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chatto_api_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_chatto_api_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_api_v1_common_proto_goTypes = []any{
 	(ImageFitMode)(0),             // 0: chatto.api.v1.ImageFitMode
-	(*ImageTransformOptions)(nil), // 1: chatto.api.v1.ImageTransformOptions
-	(*ImageUpload)(nil),           // 2: chatto.api.v1.ImageUpload
-	(*ProviderMetadata)(nil),      // 3: chatto.api.v1.ProviderMetadata
+	(RoomThreadingMode)(0),        // 1: chatto.api.v1.RoomThreadingMode
+	(*ImageTransformOptions)(nil), // 2: chatto.api.v1.ImageTransformOptions
+	(*ImageUpload)(nil),           // 3: chatto.api.v1.ImageUpload
+	(*ProviderMetadata)(nil),      // 4: chatto.api.v1.ProviderMetadata
 }
 var file_chatto_api_v1_common_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.ImageTransformOptions.fit:type_name -> chatto.api.v1.ImageFitMode
@@ -336,12 +435,13 @@ func file_chatto_api_v1_common_proto_init() {
 	if File_chatto_api_v1_common_proto != nil {
 		return
 	}
+	file_chatto_api_v1_common_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_common_proto_rawDesc), len(file_chatto_api_v1_common_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,

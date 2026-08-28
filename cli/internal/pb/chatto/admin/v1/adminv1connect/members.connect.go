@@ -72,9 +72,11 @@ type AdminUserServiceClient interface {
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Gets server member rows for multiple users. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
-	// Assigns a role to a user. Requires role.assign.
+	// Assigns a role to a user. Requires role.assign, and non-owner callers may
+	// only assign roles whose granted authority they already possess.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a role from a user. Requires role.assign.
+	// Revokes a role from a user. Requires role.assign, and non-owner callers may
+	// only revoke roles whose permission decisions are within their authority.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates another user's login and/or display name as an admin action.
 	// Requires user.manage-accounts; the caller cannot target their own account.
@@ -87,8 +89,7 @@ type AdminUserServiceClient interface {
 	// user.manage-accounts.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 	// Deletes a user account as an admin action. Requires user.delete-any for
-	// other users, user.delete-self for the caller, and a fresh credential for
-	// the caller.
+	// other users or user.delete-self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 
@@ -228,9 +229,11 @@ type AdminUserServiceHandler interface {
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Gets server member rows for multiple users. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
-	// Assigns a role to a user. Requires role.assign.
+	// Assigns a role to a user. Requires role.assign, and non-owner callers may
+	// only assign roles whose granted authority they already possess.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a role from a user. Requires role.assign.
+	// Revokes a role from a user. Requires role.assign, and non-owner callers may
+	// only revoke roles whose permission decisions are within their authority.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates another user's login and/or display name as an admin action.
 	// Requires user.manage-accounts; the caller cannot target their own account.
@@ -243,8 +246,7 @@ type AdminUserServiceHandler interface {
 	// user.manage-accounts.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 	// Deletes a user account as an admin action. Requires user.delete-any for
-	// other users, user.delete-self for the caller, and a fresh credential for
-	// the caller.
+	// other users or user.delete-self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 

@@ -2,11 +2,17 @@
 
 **Date:** 2026-05-06
 
-**Status:** Accepted
+**Updated:** 2026-08-19
+
+**Status:** Partially superseded
+
+**Partially superseded by:** [ADR-076](ADR-076-deterministic-notification-occurrences.md)
+for user-visible Badge attention. Event-ID-keyed room and thread cursors remain
+current.
 
 **Tracking issue:** [#330](https://github.com/chattocorp/chatto/issues/330)
 
-**Related:** [ADR-026](ADR-026-event-identity-via-nanoid.md), [ADR-027](ADR-027-instance-space-server-consolidation.md), [ADR-029](ADR-029-instance-to-server-rename.md), [ADR-030](ADR-030-space-tier-retirement.md)
+**Related:** [ADR-026](ADR-026-event-identity-via-nanoid.md), [ADR-027](ADR-027-instance-space-server-consolidation.md), [ADR-029](ADR-029-instance-to-server-rename.md), [ADR-030](ADR-030-space-tier-retirement.md), [ADR-076](ADR-076-deterministic-notification-occurrences.md)
 
 **Naming note:** This ADR was written during the consolidation work and refers to subjects like `space.{s}.room.{r}.msg.*` and the legacy `SPACE_{id}_RUNTIME` KV bucket. Post-ADR-029/030, the subject became `server.room.{kind}.{roomId}.msg.*`; post-#596 read markers live in `RUNTIME_STATE` as `read.room.{userId}.{roomId}`. The core event-ID keying decision is unchanged.
 
@@ -20,13 +26,15 @@ ADR-026 already removed JetStream sequences from the public API and the event mo
 
 Persist the **stable event ID** (14-char NanoID, see ADR-022/ADR-026) as the read marker instead of the volatile JetStream sequence number. Use a **new key prefix** (`room_read_event.*` instead of `room_read_status.*`) so the legacy 8-byte uint64 entries are simply orphaned, not translated.
 
-**Comparison logic in `HasUnread`:**
+**Current use of the cursor:** Room and thread read operations advance the
+stable event-ID marker. Timestamp responses resolve the event from the room
+timeline projection, not from a subject-specific JetStream lookup.
 
-1. Fetch the room's current last-root event via `GetLastMsgForSubject("space.{s}.room.{r}.msg.*")`. Extract the event ID from the returned subject and the timestamp from the message.
-2. Fetch the user's stored event ID. If it equals the room's last-root ID, they're caught up (fast path — no further lookups).
-3. Otherwise, resolve the stored event ID's timestamp via `GetLastMsgForSubject(SpaceRoomMessage(s, r, storedID))` and compare to the room's last-root timestamp.
-
-A missing stored event (deleted message) is treated as "unread"; the user re-marks and state self-corrects.
+ADR-076 separated user-visible Badge attention from this navigation cursor.
+`HasUnread` now reads projected notification-occurrence Badge state and does
+not compare the cursor with the latest room event. Marking a room or thread as
+read still advances its cursor and durably covers matching notification
+occurrences through the read-boundary handshake below.
 
 ### Lazy "caught up at first read post-deploy"
 
@@ -40,12 +48,49 @@ A related consequence: on a deploy-era user's *first* `markRoomAsRead` call, the
 
 Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. If another writer (`MarkRoomAsRead`, `JoinRoom`, `PostMessage` auto-mark) wrote a real marker between our not-found read and our write, `Create` returns `ErrKeyExists` and we re-read instead of clobbering. This follows the project convention spelled out in `cli/AGENTS.md`.
 
+### Process-wide read index
+
+Room and thread markers remain authoritative in `RUNTIME_STATE`, but normal
+reads come from a process-local index owned by `ReadStateModel`. One filtered
+KV watcher per Chatto process receives the initial latest value for every
+`read.room.>` and `read.thread.>` key, signals readiness after that finite
+snapshot, and then applies local and remote updates.
+
+Writes retain KV `Create`/revision `Update` OCC. A successful write waits until
+the watcher has applied the returned revision before returning, which preserves
+local read-your-writes without treating process memory as a distributed lock.
+OCC conflicts wait for the conflicting revision to reach the index before
+retrying. Membership and DM initialization use create-only writes so delayed
+initialization cannot replace a newer user-facing marker. No watcher belongs to
+an API request or WebSocket connection.
+
+### Notification read-boundary handshake
+
+Room and thread reads also cover matching notification occurrences. Because the
+read marker lives in `RUNTIME_STATE` while notification lifecycle facts live in
+the separate bounded `NOTIFICATIONS` event stream, the write first persists a
+bounded notification read boundary in `RUNTIME_STATE`, then appends the covered
+`NotificationRead` facts. A process-wide watcher gates startup and local
+read-your-writes for these boundaries. Background repair replays unfinished
+boundaries, so a crash between the two writes cannot leave covered occurrences
+permanently unread. See ADR-076.
+
 ## Consequences
 
 - **Phase 4 of #330 doesn't have to translate read state.** Event IDs are stream-renumber-proof; the bulk stream copy doesn't touch the read-state bucket. Legacy `room_read_status.*` entries can be deleted at any time (or never — they're tiny). Caveat: if Phase 4 ends up dropping and recreating the per-space RUNTIME KV bucket (rather than just renumbering the stream), all `room_read_event.*` markers go with it and every user becomes a deploy-era user under the lazy-init semantics above. That's likely tolerable but worth noting in the Phase 4 plan.
-- **`HasUnread` does up to one extra `GetLastMsgForSubject` call** in the "user has unread" case (the rare case where their marker is older than the latest root and not equal). Still O(1) per call.
-- **`GetSequenceTimestamp` is gone.** It only existed to resolve the old read-state seqs to timestamps for `markRoomAsRead`'s response. Replaced by `GetEventTimestamp(spaceID, roomID, eventID)`, which uses subject-based O(1) lookup. (`GetEventSequence` remains — it serves a different use case: deriving a JetStream consumer start position from an event ID.)
+- **Read-marker lookup no longer performs a KV request per room/thread.**
+  Cursor reads use the process-wide marker index. Startup cost and memory are
+  proportional to the number of persisted markers, while steady-state cursor
+  reads are process-local. `HasUnread` uses the separate notification
+  occurrence model.
+- **`GetSequenceTimestamp` is gone.** It only existed to resolve the old
+  sequence markers for the mark-read response. `GetEventTimestamp` now resolves
+  an event ID from the room timeline projection. `GetEventSequence` remains for
+  the separate task of deriving a JetStream consumer start position.
 - **`JoinRoom` / `joinDMRoom` always write a marker**, even for empty rooms. The empty-string sentinel is what lets `GetLastReadEventID` distinguish "fresh member, nothing read" from "deploy-era user, no marker at all".
 - **Auto-mark on `PostMessage` for thread replies looks up the room's last root event** (one extra subject lookup per thread-reply auto-mark) so the marker always points to a real root event ID. Previously this worked by accident because seqs are linear across root and thread events; with event IDs, we have to be explicit. Whether thread replies should dismiss room-level unread *at all* is a separate question for a future ADR.
 - **Lazy init can silently swallow messages that arrived between deploy and a user's first post-deploy read.** Documented above; accepted.
 - **API contract is unchanged.** `MarkRoomAsReadResult` still returns `lastReadAt` and `previousLastReadAt` times — the same shape the frontend already consumed under ADR-026.
+- **Room and thread reads cross a bounded log boundary.** The durable
+  read-boundary handshake makes notification reconciliation retryable without
+  moving read cursors or notification work into permanent domain history.

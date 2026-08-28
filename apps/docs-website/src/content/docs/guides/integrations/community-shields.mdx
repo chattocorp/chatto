@@ -1,0 +1,48 @@
+---
+title: Community Shields
+description: Embed public Shields.io badges for aggregate Chatto community counts.
+---
+
+Chatto can expose public Shields.io-compatible badge data for project READMEs, websites, and other pages that can embed images.
+
+Shields are disabled by default because they publish aggregate community size and current activity.
+
+## Enable Shields
+
+Set the option in `chatto.toml`:
+
+```toml
+[webserver.shields]
+enabled = true
+```
+
+Or use the environment variable:
+
+```sh
+CHATTO_WEBSERVER_SHIELDS_ENABLED=true
+```
+
+## Badge URLs
+
+Use the well-known Chatto URLs with normal Markdown image syntax. Chatto redirects these image URLs to Shields.io, and Shields.io reads the matching public JSON endpoint from your server.
+
+```md
+![Chatto online](https://chat.example/.well-known/chatto/shields/online.png)
+![Chatto registered](https://chat.example/.well-known/chatto/shields/registered.png)
+```
+
+`online.png` counts users with any current live presence record, including Online, Away, and Do Not Disturb. `registered.png` counts verified accounts. The backing JSON endpoints are also public:
+
+```txt
+https://chat.example/.well-known/chatto/shields/online.json
+https://chat.example/.well-known/chatto/shields/registered.json
+```
+
+If your Markdown host does not follow redirects for images, point directly at Shields.io:
+
+```md
+![Chatto online](https://img.shields.io/endpoint?url=https%3A%2F%2Fchat.example%2F.well-known%2Fchatto%2Fshields%2Fonline.json)
+![Chatto registered](https://img.shields.io/endpoint?url=https%3A%2F%2Fchat.example%2F.well-known%2Fchatto%2Fshields%2Fregistered.json)
+```
+
+The Chatto-provided labels, colors, and counts are fixed in v1.

@@ -1,0 +1,53 @@
+{
+  "common": {
+    "cancel": "Zrušit",
+    "close_sidebar": "Zavřít postranní panel",
+    "or": "nebo",
+    "loading": "Načítání...",
+    "continue": "Pokračovat",
+    "submit": "Odeslat",
+    "retry": "Zkuste to znovu",
+    "dismiss": "Odmítnout",
+    "sign_in": "Přihlaste se",
+    "create_account": "Vytvořit účet",
+    "email": "Email",
+    "password": "Heslo",
+    "username": "Uživatelské jméno",
+    "you": "vy",
+    "current_call": "Aktuální hovor",
+    "confirm_password": "Potvrďte heslo",
+    "new_password": "Nové heslo",
+    "password_placeholder": "Vaše heslo",
+    "email_placeholder": "vy@example.com",
+    "username_placeholder": "your_username",
+    "password_min_placeholder": "Minimálně 8 znaků",
+    "password_confirm_placeholder": "Zadejte heslo znovu",
+    "validation": {
+      "email": "Zadejte prosím platnou e-mailovou adresu",
+      "password_min": "Musí mít alespoň 8 znaků",
+      "username_min": "Musí mít alespoň 2 znaky",
+      "username_max": "Musí mít maximálně 32 znaků",
+      "username_charset": "Pouze písmena, čísla, tečky, pomlčky, podtržítka",
+      "username_end_alphanumeric": "Musí končit písmenem nebo číslem",
+      "username_no_consecutive_periods": "Nejsou povolena žádná po sobě jdoucí období",
+      "passwords_match": "Hesla se neshodují",
+      "fix_errors": "Opravte prosím výše uvedené chyby"
+    },
+    "error": {
+      "network": "Chyba sítě. Zkuste to prosím znovu.",
+      "generic": "Něco se pokazilo"
+    },
+    "delete": "Smazat",
+    "save": "Uložit",
+    "confirm": "Potvrďte",
+    "back": "Zpět",
+    "clear": "Jasný",
+    "unknown": "Neznámý",
+    "deleted_user": "[smazaný uživatel]",
+    "got_it": "Rozumím",
+    "saved": "Uloženo!",
+    "rooms": "Pokoje",
+    "copy_to_clipboard": "Kopírovat do schránky",
+    "copied_to_clipboard": "Zkopírováno do schránky"
+  }
+}

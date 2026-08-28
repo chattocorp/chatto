@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
@@ -20,7 +20,7 @@ export const MyAccountService = {
   typeName: "chatto.api.v1.MyAccountService",
   methods: {
     /**
-     * Updates the authenticated user's login and/or display name.
+     * Updates the authenticated user's login, display name, and/or bio.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.UpdateProfile
      */
@@ -51,6 +51,7 @@ export const MyAccountService = {
       I: DeleteAvatarRequest,
       O: DeleteAvatarResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
     /**
      * Updates or adds the authenticated user's password.
@@ -146,9 +147,11 @@ export const MyAccountService = {
       I: DeleteCustomStatusRequest,
       O: DeleteCustomStatusResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
     /**
-     * Issues a short-lived token used to confirm self-deletion.
+     * Issues a short-lived token used to confirm self-deletion. Requires
+     * user.delete-self.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.RequestAccountDeletion
      */
@@ -160,6 +163,7 @@ export const MyAccountService = {
     },
     /**
      * Permanently deletes the authenticated account after token validation.
+     * Requires user.delete-self.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.DeleteMyAccount
      */

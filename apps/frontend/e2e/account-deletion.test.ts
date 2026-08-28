@@ -77,7 +77,7 @@ test.describe('Account Deletion', () => {
   });
 
   test.describe('Deleted User Effects', () => {
-    test('messages from deleted user show "Deleted User" and content is unavailable', async ({
+    test('context-free messages from deleted users disappear with their unavailable content', async ({
       page,
       chatPage,
       roomPage,
@@ -90,7 +90,9 @@ test.describe('Account Deletion', () => {
       await chatPage.enterRoom('general');
 
       const messageText = `Hello from ${userA.login} at ${Date.now()}`;
-      await roomPage.sendMessage(messageText);
+      const message = await roomPage.sendMessage(messageText);
+      const messageEventId = await message.getEventId();
+      expect(messageEventId).not.toBeNull();
 
       // User B opens the server
       await withServerUser(
@@ -121,13 +123,12 @@ test.describe('Account Deletion', () => {
           await page2.waitForURL(routes.patterns.chatRedirect, { timeout: TIMEOUTS.UI_STANDARD });
           await waitForRoomReady(page2, 'general');
 
-          // Body was crypto-shredded; the message is now rendered as a tombstone.
+          // The body was crypto-shredded and no visible context remains, so the
+          // timeline omits the row.
           await expect(page2.getByText(messageText)).not.toBeVisible({
             timeout: TIMEOUTS.REALTIME_EVENT
           });
-          await expect(page2.getByText('This message has been deleted').first()).toBeVisible({
-            timeout: TIMEOUTS.REALTIME_EVENT
-          });
+          await expect(roomPage2.getMessageByEventId(messageEventId!).locator).toHaveCount(0);
 
           // User A's clickable display-name button is gone (the actor is gone).
           await expect(
@@ -150,7 +151,9 @@ test.describe('Account Deletion', () => {
       await chatPage.enterRoom('general');
 
       const messageText = `Real-time test from ${userA.login} at ${Date.now()}`;
-      await roomPage.sendMessage(messageText);
+      const message = await roomPage.sendMessage(messageText);
+      const messageEventId = await message.getEventId();
+      expect(messageEventId).not.toBeNull();
 
       // User B opens the server
       await withServerUser(
@@ -172,27 +175,23 @@ test.describe('Account Deletion', () => {
           await accountPage.goto();
           await accountPage.deleteAccount();
 
-          // WITHOUT REFRESHING: User B should see the body replaced by the tombstone
-          // in real-time — ServerMemberDeletedEvent triggers a refetch and the body
+          // WITHOUT REFRESHING: User B should see the context-free row disappear
+          // in real time. ServerMemberDeletedEvent triggers a refetch, and the body
           // has been crypto-shredded.
           await expect(page2.getByText(messageText)).not.toBeVisible({
             timeout: TIMEOUTS.REALTIME_EVENT
           });
+          await expect(roomPage2.getMessageByEventId(messageEventId!).locator).toHaveCount(0);
 
           // User A's clickable display-name button is gone (the actor is gone).
           await expect(
             page2.locator('[role="article"]').getByRole('button', { name: userA.displayName })
           ).not.toBeVisible();
-
-          // The message renders as a tombstone now that bodies are always replaced rather than hidden.
-          await expect(page2.getByText('This message has been deleted').first()).toBeVisible({
-            timeout: TIMEOUTS.REALTIME_EVENT
-          });
         }
       );
     });
 
-    test('system events from deleted user show "Deleted User"', async ({
+    test('join events from deleted users are hidden', async ({
       page,
       chatPage,
       browser,
@@ -228,12 +227,9 @@ test.describe('Account Deletion', () => {
           await page.reload();
           await waitForRoomReady(page, 'general');
 
-          // User A should now see "Deleted User joined the room"
-          await expect(page.getByText(/Deleted User joined the room/)).toBeVisible({
-            timeout: TIMEOUTS.REALTIME_EVENT
-          });
-
-          // User B's original display name should no longer be visible in system events
+          // The historical membership fact remains stored, but its deleted actor
+          // provides no useful timeline context and should not be rendered.
+          await expect(page.getByText(/\[deleted user\] joined the room/)).not.toBeVisible();
           await expect(page.getByText(new RegExp(`${userB.displayName} joined`))).not.toBeVisible();
         }
       );
@@ -265,6 +261,8 @@ test.describe('Account Deletion', () => {
           // count among general's members.
           await page.reload();
           await waitForRoomReady(page, 'general');
+          await roomPage.openMembersPanel();
+          await roomPage2.openMembersPanel();
           await expect(roomPage.memberCount).toHaveText('Members (3)');
           await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
@@ -279,6 +277,7 @@ test.describe('Account Deletion', () => {
           // User B refreshes to see updated state
           await page2.reload();
           await waitForRoomReady(page2, 'general');
+          await roomPage2.openMembersPanel();
 
           // User B should see e2eadmin + themselves (not 0, not 3)
           await expect(roomPage2.memberCount).toHaveText('Members (2)', {
@@ -295,6 +294,7 @@ test.describe('Account Deletion', () => {
             async ({ page: page3, user: userC, chatPage: chatPage3, roomPage: roomPage3 }) => {
               await chatPage3.enterRoom('general');
               await waitForRoomReady(page3, 'general');
+              await roomPage3.openMembersPanel();
 
               // User C should see 3 members (e2eadmin + User B + themselves)
               await expect(roomPage3.memberCount).toHaveText('Members (3)');
@@ -302,6 +302,7 @@ test.describe('Account Deletion', () => {
               // User B refreshes and should also see 3 members
               await page2.reload();
               await waitForRoomReady(page2, 'general');
+              await roomPage2.openMembersPanel();
               await expect(roomPage2.memberCount).toHaveText('Members (3)');
 
               // Both User B and User C should be visible in the member list

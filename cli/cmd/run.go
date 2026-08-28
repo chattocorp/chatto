@@ -2,16 +2,19 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
@@ -20,10 +23,12 @@ import (
 	"hmans.de/chatto/internal/embedded_nats"
 	"hmans.de/chatto/internal/exporter"
 	"hmans.de/chatto/internal/http_server"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/push"
 	"hmans.de/chatto/internal/runtimeunit"
+	searchbleve "hmans.de/chatto/internal/search/bleve"
 	"hmans.de/chatto/internal/video"
+	"hmans.de/chatto/pkg/natsruntime"
 )
 
 // devStartupHook is called after core is initialized. Set by build-tagged init().
@@ -32,6 +37,11 @@ import (
 // builds this applies the [bootstrap] section from chatto.toml; in release
 // builds this is a no-op.
 var devStartupHook func(ctx context.Context, core *core.ChattoCore, cfg config.ChattoConfig)
+
+const (
+	optionalRuntimeUnitInitialRetry = time.Second
+	optionalRuntimeUnitMaxRetry     = 30 * time.Second
+)
 
 func init() {
 	gin.SetMode(gin.ReleaseMode)
@@ -48,6 +58,29 @@ var banner = `
 `
 
 var configFile string
+
+func runtimeUnitRegistrations() []runtimeunit.Registration {
+	return []runtimeunit.Registration{
+		{
+			Unit: exporter.Unit{},
+			StartWithRun: func(cfg config.ChattoConfig) bool {
+				return cfg.Exporter.Enabled
+			},
+		},
+		{
+			Unit: searchbleve.Unit{},
+			StartWithRun: func(cfg config.ChattoConfig) bool {
+				return cfg.SearchProvider.Enabled
+			},
+		},
+		{
+			Unit: video.Unit{},
+			StartWithRun: func(cfg config.ChattoConfig) bool {
+				return cfg.AssetProcessing.Enabled
+			},
+		},
+	}
+}
 
 var runCmd = &cobra.Command{
 	Use:     "run",
@@ -115,7 +148,7 @@ func runServer(configPath string) {
 	g, ctx := errgroup.WithContext(ctx)
 
 	// Start embedded NATS if enabled (must be ready before other services)
-	var embeddedNATS *server.Server
+	var embeddedNATS *natsruntime.Server
 	if cfg.NATS.Embedded.Enabled {
 		var err error
 		embeddedNATS, err = embedded_nats.StartServer(&cfg.NATS.Embedded)
@@ -136,17 +169,18 @@ func runServer(configPath string) {
 
 	// Create Chatto core
 	cfg.Core.AuthTokenTTL = cfg.Auth.TokenTTLOrDefault()
+	cfg.Core.AuthAccessTokenTTL = cfg.Auth.AccessTokenTTLOrDefault()
 	cfg.Core.EmailOTP = cfg.Auth.EmailOTP
 	cfg.Core.Replicas = cfg.NATS.ReplicasOrDefault()
 	cfg.Core.Limits = cfg.Limits
 	cfg.Core.Owners = cfg.Owners
+	cfg.Core.Version = Version
 	chattoCore, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
 		log.Error("Failed to create Chatto core", "error", err)
 		exitCode = 1
 		return
 	}
-
 	// Set asset base URL for absolute asset URLs (required for cross-origin clients)
 	if cfg.Webserver.URL != "" {
 		if parsed, err := url.Parse(cfg.Webserver.URL); err == nil {
@@ -157,6 +191,7 @@ func runServer(configPath string) {
 	// Set video upload limit if video processing is enabled
 	if cfg.Video.Enabled {
 		chattoCore.VideoMaxUploadSize = int64(cfg.Video.MaxUploadSizeOrDefault())
+		chattoCore.VideoUploadsEnabled = true
 	}
 
 	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
@@ -206,31 +241,26 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
-	if cfg.Exporter.Enabled {
-		env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix("exporter"), Version)
+	unitRegistrations := runtimeUnitRegistrations()
+	if err := runtimeunit.ValidateRegistrations(unitRegistrations); err != nil {
+		log.Error("Failed to configure runtime units", "error", err)
+		exitCode = 1
+		return
+	}
+	for _, registration := range unitRegistrations {
+		if !registration.Enabled(cfg) {
+			continue
+		}
+		unit := registration.Unit
+		env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix(unit.Name()), Version)
 		if err != nil {
-			log.Error("Failed to create exporter environment", "error", err)
+			log.Error("Failed to create runtime unit environment", "unit", unit.Name(), "error", err)
 			exitCode = 1
 			return
 		}
 		g.Go(func() error {
-			return runtimeunit.Run(ctx, env, exporter.Unit{})
+			return runOptionalRuntimeUnit(ctx, env, unit)
 		})
-	}
-
-	// Start video processing service if enabled before the HTTP server begins
-	// accepting uploads. The service registers a process-local callback on
-	// core, so no transient NATS worker subject is involved.
-	if cfg.Video.Enabled {
-		videoSvc, err := video.NewService(chattoCore, cfg.Video, log.WithPrefix("video"))
-		if err != nil {
-			log.Error("ffmpeg not found — video processing disabled", "error", err)
-			log.Error("Install ffmpeg: brew install ffmpeg (macOS) or apk add ffmpeg (Alpine)")
-		} else {
-			g.Go(func() error {
-				return videoSvc.Run(ctx)
-			})
-		}
 	}
 
 	// Create and run HTTP server
@@ -256,6 +286,51 @@ func runServer(configPath string) {
 		log.Error("Server failed", "error", err)
 		exitCode = 1
 	}
+}
+
+func runOptionalRuntimeUnit(ctx context.Context, env runtimeunit.Env, unit runtimeunit.Unit) error {
+	return superviseOptionalRuntimeUnit(ctx, env, unit, optionalRuntimeUnitRetryDelay)
+}
+
+func superviseOptionalRuntimeUnit(
+	ctx context.Context,
+	env runtimeunit.Env,
+	unit runtimeunit.Unit,
+	retryDelay func(int) time.Duration,
+) error {
+	for attempt := 1; ; attempt++ {
+		err := runtimeunit.Run(ctx, env, unit)
+		if ctx.Err() != nil {
+			return nil
+		}
+		delay := retryDelay(attempt)
+		if err != nil {
+			env.Logger.Error("Optional runtime unit stopped; restarting", "error", err, "restart_attempt", attempt, "retry_delay", delay)
+		} else {
+			env.Logger.Warn("Optional runtime unit stopped unexpectedly; restarting", "restart_attempt", attempt, "retry_delay", delay)
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil
+		case <-timer.C:
+		}
+	}
+}
+
+func optionalRuntimeUnitRetryDelay(attempt int) time.Duration {
+	if attempt <= 1 {
+		return optionalRuntimeUnitInitialRetry
+	}
+	delay := optionalRuntimeUnitInitialRetry
+	for range attempt - 1 {
+		if delay >= optionalRuntimeUnitMaxRetry/2 {
+			return optionalRuntimeUnitMaxRetry
+		}
+		delay *= 2
+	}
+	return min(delay, optionalRuntimeUnitMaxRetry)
 }
 
 func printBanner() {
@@ -332,146 +407,159 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 
 	logger.Info("Push notifications enabled")
 
-	// Set the callback that will be invoked when notifications are created
-	chattoCore.OnNotificationCreated = func(ctx context.Context, notification *corev1.Notification) {
-		// Get user's push subscriptions
-		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, notification.RecipientId)
+	chattoCore.OnPushTestRequested = func(ctx context.Context, userID string) error {
+		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, userID)
 		if err != nil {
-			logger.Warn("Failed to get push subscriptions",
-				"user_id", notification.RecipientId,
-				"error", err)
-			return
+			return err
 		}
-
 		if len(subscriptions) == 0 {
-			return
+			return errors.New("no push subscriptions registered")
 		}
+		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions)
+		if err != nil {
+			return fmt.Errorf("revalidate push endpoint ownership: %w", err)
+		}
+		if len(subscriptions) == 0 {
+			return errors.New("no current push subscriptions registered")
+		}
+		results := sender.SendToManyMapped(ctx, subscriptions, func(subscription *runtimestatev1.PushSubscription) *push.Payload {
+			return &push.Payload{
+				Title: "Test notification",
+				Body:  "Push notifications are working.",
+				URL:   push.NavigationBaseURL(subscription, cfg.Webserver.URL),
+				Icon:  "/icons/icon-192.png",
+				Badge: "/icons/icon-192.png",
+				Tag:   "push-test",
+			}
+		})
+		var sendErr error
+		accepted := false
+		for _, result := range results {
+			if result.Gone {
+				_ = chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint)
+			}
+			if result.Error == nil && result.Success {
+				accepted = true
+			}
+			if result.Error != nil {
+				sendErr = result.Error
+			}
+		}
+		if accepted {
+			return nil
+		}
+		if sendErr != nil {
+			return sendErr
+		}
+		return errors.New("push provider did not accept the test notification")
+	}
 
-		// Get actor's display name for the notification
+	chattoCore.SetNotificationAlertHandler(notificationAlertHandler(chattoCore, cfg, sender, logger))
+}
+
+type notificationPushSender interface {
+	SendToManyMapped(context.Context, []*runtimestatev1.PushSubscription, func(*runtimestatev1.PushSubscription) *push.Payload) []*push.SendResult
+}
+
+// notificationAlertHandler keeps the production provider seam independently
+// testable while ChattoCore owns durable signal consumption and terminal occurrence state.
+func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, sender notificationPushSender, logger *log.Logger) func(context.Context, *notificationv1.NotificationOccurrence) error {
+	return func(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) error {
+		if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
+			return core.ErrUnsupportedNotificationSignal
+		}
+		if core.NotificationOccurrenceMessageReference(occurrence) == nil {
+			return core.ErrNotificationAlertSuppressed
+		}
+		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, occurrence.GetRecipientId())
+		if err != nil {
+			return fmt.Errorf("get push subscriptions: %w", err)
+		}
+		if len(subscriptions) == 0 {
+			return core.ErrNotificationAlertSuppressed
+		}
 		actorName := "Someone"
-		if notification.ActorId != "" {
-			actor, err := chattoCore.GetUser(ctx, notification.ActorId)
-			if err == nil && actor != nil {
+		if occurrence.GetActorId() != "" {
+			if actor, actorErr := chattoCore.GetUser(ctx, occurrence.GetActorId()); actorErr == nil && actor != nil {
 				actorName = actor.DisplayName
 				if actorName == "" {
 					actorName = actor.Login
 				}
 			}
 		}
-
-		// Build payload context with message preview and room name
-		payloadCtx := fetchPayloadContext(ctx, chattoCore, notification, logger)
-
-		// Build and send push notification
-		payload := push.BuildPayloadFromNotification(notification, actorName, cfg.Webserver.URL, payloadCtx)
-		if pushNotificationUsesCountBadge(notification) {
-			if count, err := chattoCore.GetNotificationCount(ctx, notification.RecipientId); err == nil {
-				payload.AppBadge = strconv.Itoa(count)
-			} else {
-				logger.Warn("Failed to get notification count for push app badge",
-					"user_id", notification.RecipientId,
-					"error", err)
-			}
+		payloadCtx := fetchOccurrencePayloadContext(ctx, chattoCore, occurrence, logger)
+		appBadge := ""
+		if count, countErr := chattoCore.NotificationOccurrences().UnreadCount(ctx, occurrence.GetRecipientId()); countErr == nil {
+			appBadge = strconv.Itoa(count)
 		}
 
-		// Creation and dismissal callbacks run asynchronously. A dismissal can
-		// overtake a slow creation callback, so fail closed if the notification is
-		// no longer pending immediately before delivery.
-		pending, err := chattoCore.GetNotification(ctx, notification.RecipientId, notification.Id)
+		// Revalidate after hydration so a concurrent delete or visibility purge
+		// cannot overtake a slow alert preparation.
+		eligible, err := chattoCore.NotificationAlertEligible(ctx, occurrence)
 		if err != nil {
-			logger.Warn("Failed to revalidate notification before push delivery",
-				"user_id", notification.RecipientId,
-				"notification_id", notification.Id,
-				"error", err)
-			return
+			return err
 		}
-		if pending == nil {
-			logger.Debug("Skipped stale push for dismissed notification",
-				"user_id", notification.RecipientId,
-				"notification_id", notification.Id)
-			return
+		if !eligible {
+			return core.ErrNotificationAlertSuppressed
 		}
-
-		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, notification.RecipientId, subscriptions, logger)
+		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, occurrence.GetRecipientId(), subscriptions)
+		if err != nil {
+			return fmt.Errorf("revalidate push endpoint ownership: %w", err)
+		}
 		if len(subscriptions) == 0 {
-			return
+			return core.ErrNotificationAlertSuppressed
 		}
-		results := sender.SendToMany(ctx, subscriptions, payload)
-
-		// Process results - clean up expired subscriptions
+		status, err := chattoCore.GetUserPresence(ctx, occurrence.GetRecipientId())
+		if err != nil {
+			return fmt.Errorf("revalidate notification presence before delivery: %w", err)
+		}
+		if status == core.PresenceStatusDoNotDisturb {
+			return core.ErrNotificationAlertSuppressed
+		}
+		alertDeadline := core.NotificationAlertDeadline(occurrence)
+		remaining := time.Until(alertDeadline)
+		if remaining <= 0 {
+			return core.ErrNotificationAlertSuppressed
+		}
+		sendCtx, cancel := context.WithDeadline(ctx, alertDeadline)
+		defer cancel()
+		results := sender.SendToManyMapped(sendCtx, subscriptions, func(subscription *runtimestatev1.PushSubscription) *push.Payload {
+			payload := push.BuildPayloadFromOccurrenceForSubscription(
+				occurrence,
+				actorName,
+				cfg.Webserver.URL,
+				subscription,
+				payloadCtx,
+			)
+			payload.AppBadge = appBadge
+			payload.DeliveryDeadline = alertDeadline
+			return payload
+		})
+		var sendErr error
+		accepted := false
 		for _, result := range results {
 			if result.Gone {
-				// Subscription is no longer valid, delete it
-				if err := chattoCore.DeletePushSubscription(ctx, notification.RecipientId, result.Endpoint); err != nil {
-					logger.Warn("Failed to delete expired push subscription",
-						"endpoint_id", push.EndpointLogID(result.Endpoint),
-						"error", err)
-				} else {
-					logger.Debug("Deleted expired push subscription",
-						"endpoint_id", push.EndpointLogID(result.Endpoint))
-				}
-			} else if result.Error != nil {
-				logger.Warn("Failed to send push notification",
-					"endpoint_id", push.EndpointLogID(result.Endpoint),
-					"error", result.Error)
-			} else if result.Success {
-				logger.Debug("Push notification sent",
-					"user_id", notification.RecipientId,
-					"notification_id", notification.Id)
+				_ = chattoCore.DeletePushSubscription(ctx, occurrence.GetRecipientId(), result.Endpoint)
+				continue
+			}
+			if result.Success {
+				accepted = true
+				continue
+			}
+			if result.Error != nil {
+				sendErr = result.Error
 			}
 		}
-	}
-
-	// Set the callback that will be invoked when notifications are dismissed
-	chattoCore.OnNotificationDismissed = func(ctx context.Context, userID string, notification *corev1.Notification) {
-		// Get user's push subscriptions
-		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, userID)
-		if err != nil {
-			logger.Warn("Failed to get push subscriptions for dismiss",
-				"user_id", userID,
-				"error", err)
-			return
+		// Delivery is occurrence-scoped: once any current device accepts the
+		// alert, complete delivery. Retrying the whole occurrence for another
+		// failing endpoint would duplicate alerts on every successful device.
+		if accepted {
+			return nil
 		}
-
-		if len(subscriptions) == 0 {
-			return
+		if sendErr == nil {
+			return core.ErrNotificationAlertSuppressed
 		}
-
-		// Get the notification tag for dismissal
-		tag := push.NotificationTag(notification)
-		if tag == "" {
-			return
-		}
-
-		// Send dismiss push to all devices
-		payload := &push.Payload{
-			Action: "dismiss",
-			Tag:    tag,
-		}
-		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions, logger)
-		if len(subscriptions) == 0 {
-			return
-		}
-		results := sender.SendToMany(ctx, subscriptions, payload)
-
-		// Process results - clean up expired subscriptions
-		for _, result := range results {
-			if result.Gone {
-				if err := chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint); err != nil {
-					logger.Warn("Failed to delete expired push subscription",
-						"endpoint_id", push.EndpointLogID(result.Endpoint),
-						"error", err)
-				}
-			} else if result.Error != nil {
-				logger.Debug("Failed to send dismiss push",
-					"endpoint_id", push.EndpointLogID(result.Endpoint),
-					"error", result.Error)
-			} else if result.Success {
-				logger.Debug("Dismiss push sent",
-					"user_id", userID,
-					"tag", tag)
-			}
-		}
+		return sendErr
 	}
 }
 
@@ -479,49 +567,30 @@ func filterOwnedPushSubscriptions(
 	ctx context.Context,
 	chattoCore *core.ChattoCore,
 	userID string,
-	subscriptions []*corev1.PushSubscription,
-	logger *log.Logger,
-) []*corev1.PushSubscription {
-	owned := make([]*corev1.PushSubscription, 0, len(subscriptions))
+	subscriptions []*runtimestatev1.PushSubscription,
+) ([]*runtimestatev1.PushSubscription, error) {
+	owned := make([]*runtimestatev1.PushSubscription, 0, len(subscriptions))
 	for _, subscription := range subscriptions {
 		isOwned, err := chattoCore.PushSubscriptionCurrentForUser(ctx, userID, subscription)
 		if err != nil {
-			logger.Warn("Failed to revalidate push endpoint ownership",
-				"user_id", userID,
-				"endpoint_id", push.EndpointLogID(subscription.Endpoint),
-				"error", err)
-			continue
+			return nil, err
 		}
 		if isOwned {
 			owned = append(owned, subscription)
 		}
 	}
-	return owned
+	return owned, nil
 }
 
-// fetchPayloadContext builds the payload context with message preview and room name.
-// This is best-effort - if fetching fails, returns nil and the notification will have a generic body.
-func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notification *corev1.Notification, logger *log.Logger) *push.PayloadContext {
-	var roomID, eventID string
-	var kind core.RoomKind
-
-	switch n := notification.Notification.(type) {
-	case *corev1.Notification_DmMessage:
-		kind = core.KindDM
-		roomID = n.DmMessage.RoomId
-		eventID = n.DmMessage.EventId
-	case *corev1.Notification_Mention:
-		roomID = n.Mention.RoomId
-		eventID = n.Mention.EventId
-	case *corev1.Notification_Reply:
-		roomID = n.Reply.RoomId
-		eventID = n.Reply.EventId
-	case *corev1.Notification_RoomMessage:
-		roomID = n.RoomMessage.RoomId
-		eventID = n.RoomMessage.EventId
-	default:
+// fetchOccurrencePayloadContext builds a best-effort message preview and room
+// name for an occurrence-backed push payload.
+func fetchOccurrencePayloadContext(ctx context.Context, chattoCore *core.ChattoCore, occurrence *notificationv1.NotificationOccurrence, logger *log.Logger) *push.PayloadContext {
+	target := core.NotificationOccurrenceMessageReference(occurrence)
+	if target == nil {
 		return nil
 	}
+	roomID := target.GetRoomId()
+	eventID := target.GetEventId()
 
 	if eventID == "" {
 		return nil
@@ -529,16 +598,11 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 
 	payloadCtx := &push.PayloadContext{}
 
-	if kind == "" {
-		// Mention and reply notifications no longer carry a kind on the
-		// wire — recover from the room record (mostly channels in practice).
-		var err error
-		kind, err = chattoCore.FindRoomKind(ctx, roomID)
-		if err != nil {
-			logger.Debug("Failed to resolve room kind for push notification preview",
-				"room_id", roomID, "error", err)
-			return nil
-		}
+	kind, err := chattoCore.FindRoomKind(ctx, roomID)
+	if err != nil {
+		logger.Debug("Failed to resolve room kind for push notification preview",
+			"room_id", roomID, "error", err)
+		return nil
 	}
 
 	// Fetch the message to get its body
@@ -554,8 +618,8 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	}
 
 	// Extract message body from the event
-	if _, ok := event.Event.(*corev1.Event_MessagePosted); ok {
-		body, err := chattoCore.GetMessageBody(ctx, kind, event.Id)
+	if _, ok := event.Event.(*evtv1.Event_MessagePosted); ok {
+		body, err := chattoCore.GetMessageBody(ctx, event.Id)
 		if err != nil {
 			logger.Debug("Failed to fetch message body for push notification preview",
 				"event_id", event.Id,
@@ -565,9 +629,7 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 		}
 	}
 
-	// For notifications shown as channel activity, also fetch the room name.
-	switch notification.Notification.(type) {
-	case *corev1.Notification_Mention, *corev1.Notification_Reply, *corev1.Notification_RoomMessage:
+	if kind != core.KindDM {
 		room, err := chattoCore.GetRoom(ctx, kind, roomID)
 		if err != nil {
 			logger.Debug("Failed to fetch room for push notification",
@@ -579,9 +641,4 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	}
 
 	return payloadCtx
-}
-
-func pushNotificationUsesCountBadge(notification *corev1.Notification) bool {
-	_, ok := notification.GetNotification().(*corev1.Notification_DmMessage)
-	return ok
 }

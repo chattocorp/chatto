@@ -1,0 +1,17 @@
+{
+  "name": "chatto-desktop",
+  "productName": "Chatto Desktop",
+  "version": "0.1.0-alpha.2",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "build": "install-electron && node scripts/build.mjs",
+    "check": "node --check main.mjs && node --check preload.cjs && node --check frontend_protocol.mjs && node --check game_capture.mjs && node --check scripts/build.mjs && node --check scripts/macos-capture-helper.mjs && node --test",
+    "dev": "electron ."
+  },
+  "devDependencies": {
+    "@electron/packager": "20.2.0",
+    "electron": "43.3.0"
+  }
+}

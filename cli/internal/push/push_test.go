@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,13 +17,14 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/config"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/pushendpoint"
 )
 
 type contextBlockingHTTPClient struct {
@@ -150,6 +153,9 @@ func TestPayloadMarshal(t *testing.T) {
 		if result["mutable"] != true {
 			t.Errorf("Expected mutable true, got %v", result["mutable"])
 		}
+		if result["app_badge"] != "7" {
+			t.Errorf("Expected top-level app_badge '7', got %v", result["app_badge"])
+		}
 
 		notification, ok := result["notification"].(map[string]interface{})
 		if !ok {
@@ -213,38 +219,6 @@ func TestPayloadMarshal(t *testing.T) {
 		}
 	})
 
-	t.Run("dismiss payload stays imperative only", func(t *testing.T) {
-		payload := &Payload{
-			Action: "dismiss",
-			Tag:    "test-tag",
-		}
-
-		data, err := json.Marshal(payload)
-		if err != nil {
-			t.Fatalf("Failed to marshal payload: %v", err)
-		}
-
-		var result map[string]interface{}
-		if err := json.Unmarshal(data, &result); err != nil {
-			t.Fatalf("Failed to unmarshal: %v", err)
-		}
-
-		if result["action"] != "dismiss" {
-			t.Errorf("Expected dismiss action, got %v", result["action"])
-		}
-		if result["tag"] != "test-tag" {
-			t.Errorf("Expected tag 'test-tag', got %v", result["tag"])
-		}
-		if _, ok := result["web_push"]; ok {
-			t.Error("Expected dismiss payload to omit web_push")
-		}
-		if _, ok := result["mutable"]; ok {
-			t.Error("Expected dismiss payload to omit mutable")
-		}
-		if _, ok := result["notification"]; ok {
-			t.Error("Expected dismiss payload to omit declarative notification")
-		}
-	})
 }
 
 func TestNormalizeVAPIDSubject(t *testing.T) {
@@ -279,24 +253,66 @@ func TestNormalizeVAPIDSubject(t *testing.T) {
 	}
 }
 
-func TestBuildPayloadFromNotification(t *testing.T) {
+type notificationTestSignalKind string
+
+const (
+	notificationTestSignalDirectMessage  notificationTestSignalKind = "direct_message"
+	notificationTestSignalDirectMention  notificationTestSignalKind = "direct_mention"
+	notificationTestSignalReply          notificationTestSignalKind = "reply"
+	notificationTestSignalFollowedThread notificationTestSignalKind = "followed_thread"
+	notificationTestSignalFollowedRoom   notificationTestSignalKind = "followed_room"
+	notificationTestSignalReaction       notificationTestSignalKind = "reaction"
+	notificationTestSignalRoomMessage    notificationTestSignalKind = "room_message"
+)
+
+func notificationOccurrenceForTest(id, recipientID, actorID, roomID, eventID, threadRootID string, reasons ...notificationTestSignalKind) *notificationv1.NotificationOccurrence {
+	occurrence := &notificationv1.NotificationOccurrence{
+		Id:          id,
+		RecipientId: recipientID,
+		ActorId:     actorID,
+	}
+	if len(reasons) > 0 {
+		message := &notificationv1.NotificationMessageReference{RoomId: roomID, EventId: eventID, ThreadRootEventId: optionalString(threadRootID)}
+		occurrence.Signal = notificationSignalForTest(reasons[0], message)
+	}
+	return occurrence
+}
+
+func notificationSignalForTest(kind notificationTestSignalKind, message *notificationv1.NotificationMessageReference) *notificationv1.NotificationSignal {
+	signal := &notificationv1.NotificationSignal{}
+	switch kind {
+	case notificationTestSignalDirectMessage:
+		signal.Kind = &notificationv1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &notificationv1.DirectMessageReceived{Message: message}}
+	case notificationTestSignalReply:
+		signal.Kind = &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: message}}
+	case notificationTestSignalReaction:
+		signal.Kind = &notificationv1.NotificationSignal_ReactionReceived{ReactionReceived: &notificationv1.ReactionReceived{Message: message}}
+	case notificationTestSignalDirectMention:
+		signal.Kind = &notificationv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &notificationv1.DirectMentionReceived{Message: message}}
+	case notificationTestSignalFollowedThread:
+		signal.Kind = &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: message}}
+	case notificationTestSignalRoomMessage:
+		signal.Kind = &notificationv1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &notificationv1.RoomMessageReceived{Message: message}}
+	default:
+		signal.Kind = &notificationv1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &notificationv1.FollowedRoomActivity{Message: message}}
+	}
+	return signal
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func TestBuildPayloadFromOccurrence(t *testing.T) {
 	baseURL := "https://chatto.example.com"
 
 	t.Run("builds DM message payload without context", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id:          "notif-123",
-			RecipientId: "user-1",
-			ActorId:     "user-2",
-			CreatedAt:   timestamppb.Now(),
-			Notification: &corev1.Notification_DmMessage{
-				DmMessage: &corev1.DMMessageNotification{
-					RoomId:  "dm-room-456",
-					EventId: "event-789",
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-123", "user-1", "user-2", "dm-room-456", "event-789", "", notificationTestSignalDirectMessage)
 
-		payload := BuildPayloadFromNotification(notif, "Alice", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Alice", baseURL, nil)
 
 		if payload.Title != "@Alice sent you a new DM" {
 			t.Errorf("Expected '@Alice sent you a new DM', got %s", payload.Title)
@@ -316,17 +332,10 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds DM message payload with preview", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-123",
-			Notification: &corev1.Notification_DmMessage{
-				DmMessage: &corev1.DMMessageNotification{
-					RoomId: "dm-room-456",
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-123", "", "", "dm-room-456", "", "", notificationTestSignalDirectMessage)
 		ctx := &PayloadContext{MessagePreview: "Hey, how are you?"}
 
-		payload := BuildPayloadFromNotification(notif, "Alice", baseURL, ctx)
+		payload := BuildPayloadFromOccurrence(notif, "Alice", baseURL, ctx)
 
 		if payload.Title != "@Alice sent you a new DM" {
 			t.Errorf("Expected '@Alice sent you a new DM', got %s", payload.Title)
@@ -337,17 +346,9 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds mention payload without context", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-456",
-			Notification: &corev1.Notification_Mention{
-				Mention: &corev1.MentionNotification{
-					RoomId:  "room-2",
-					EventId: "event-3",
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-456", "", "", "room-2", "event-3", "", notificationTestSignalDirectMention)
 
-		payload := BuildPayloadFromNotification(notif, "Bob", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Bob", baseURL, nil)
 
 		if payload.Title != "@Bob mentioned you" {
 			t.Errorf("Expected '@Bob mentioned you', got %s", payload.Title)
@@ -361,18 +362,10 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds mention payload with room name and preview", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-456",
-			Notification: &corev1.Notification_Mention{
-				Mention: &corev1.MentionNotification{
-					RoomId:  "room-2",
-					EventId: "event-3",
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-456", "", "", "room-2", "event-3", "", notificationTestSignalDirectMention)
 		ctx := &PayloadContext{MessagePreview: "Hey @Bob check this out", RoomName: "general"}
 
-		payload := BuildPayloadFromNotification(notif, "Alice", baseURL, ctx)
+		payload := BuildPayloadFromOccurrence(notif, "Alice", baseURL, ctx)
 
 		if payload.Title != "@Alice mentioned you in #general" {
 			t.Errorf("Expected '@Alice mentioned you in #general', got %s", payload.Title)
@@ -383,17 +376,9 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds mention payload without event ID", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-789",
-			Notification: &corev1.Notification_Mention{
-				Mention: &corev1.MentionNotification{
-					RoomId: "room-2",
-					// No EventId
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-789", "", "", "room-2", "", "", notificationTestSignalDirectMention)
 
-		payload := BuildPayloadFromNotification(notif, "Charlie", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Charlie", baseURL, nil)
 
 		if payload.URL != "https://chatto.example.com/chat/-/room-2" {
 			t.Errorf("Expected URL without event param, got %s", payload.URL)
@@ -401,18 +386,9 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds thread mention payload", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-thread-mention",
-			Notification: &corev1.Notification_Mention{
-				Mention: &corev1.MentionNotification{
-					RoomId:   "room-2",
-					EventId:  "mention-event",
-					InThread: "thread-root",
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-thread-mention", "", "", "room-2", "mention-event", "thread-root", notificationTestSignalDirectMention)
 
-		payload := BuildPayloadFromNotification(notif, "Bob", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Bob", baseURL, nil)
 
 		expectedURL := "https://chatto.example.com/chat/-/room-2/thread-root?highlight=mention-event"
 		if payload.URL != expectedURL {
@@ -421,19 +397,9 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds room-level reply payload without context", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-abc",
-			Notification: &corev1.Notification_Reply{
-				Reply: &corev1.ReplyNotification{
-					RoomId:      "room-y",
-					EventId:     "reply-event",
-					InReplyToId: "root-event",
-					// InThread empty — room-level reply
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", notificationTestSignalReply)
 
-		payload := BuildPayloadFromNotification(notif, "Diana", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, nil)
 
 		if payload.Title != "@Diana replied to you" {
 			t.Errorf("Expected '@Diana replied to you', got %s", payload.Title)
@@ -451,19 +417,9 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds thread reply payload without context", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-abc",
-			Notification: &corev1.Notification_Reply{
-				Reply: &corev1.ReplyNotification{
-					RoomId:      "room-y",
-					EventId:     "reply-event",
-					InReplyToId: "mid-thread-msg", // The specific message replied to (not the root)
-					InThread:    "thread-root",    // The actual thread root
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "thread-root", notificationTestSignalReply)
 
-		payload := BuildPayloadFromNotification(notif, "Diana", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, nil)
 
 		if payload.Title != "@Diana replied to you" {
 			t.Errorf("Expected '@Diana replied to you', got %s", payload.Title)
@@ -476,19 +432,10 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds reply payload with preview", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-abc",
-			Notification: &corev1.Notification_Reply{
-				Reply: &corev1.ReplyNotification{
-					RoomId:      "room-y",
-					EventId:     "reply-event",
-					InReplyToId: "root-event",
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", notificationTestSignalReply)
 		ctx := &PayloadContext{MessagePreview: "Thanks for the update!"}
 
-		payload := BuildPayloadFromNotification(notif, "Diana", baseURL, ctx)
+		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, ctx)
 
 		if payload.Title != "@Diana replied to you" {
 			t.Errorf("Expected '@Diana replied to you', got %s", payload.Title)
@@ -499,19 +446,10 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds reply payload with room name and preview", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-abc",
-			Notification: &corev1.Notification_Reply{
-				Reply: &corev1.ReplyNotification{
-					RoomId:      "room-y",
-					EventId:     "reply-event",
-					InReplyToId: "root-event",
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", notificationTestSignalReply)
 		ctx := &PayloadContext{MessagePreview: "Thanks for the update!", RoomName: "general"}
 
-		payload := BuildPayloadFromNotification(notif, "Diana", baseURL, ctx)
+		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, ctx)
 
 		if payload.Title != "@Diana replied to you in #general" {
 			t.Errorf("Expected '@Diana replied to you in #general', got %s", payload.Title)
@@ -521,19 +459,32 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 		}
 	})
 
-	t.Run("builds room message payload with room name and preview", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-room-message",
-			Notification: &corev1.Notification_RoomMessage{
-				RoomMessage: &corev1.RoomMessageNotification{
-					RoomId:  "room-news",
-					EventId: "room-event",
-				},
-			},
+	t.Run("builds reaction payload from reaction occurrence", func(t *testing.T) {
+		notif := notificationOccurrenceForTest("notif-reaction", "user-author", "user-reactor", "room-y", "message-event", "", notificationTestSignalReaction)
+		notif.GetSignal().GetReactionReceived().Emoji = "thumbsup"
+		ctx := &PayloadContext{MessagePreview: "The message that was reacted to", RoomName: "general"}
+
+		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, ctx)
+
+		if payload.Title != "@Diana reacted to your message in #general" {
+			t.Errorf("unexpected reaction title: %s", payload.Title)
 		}
+		if payload.Body != ":thumbsup: · The message that was reacted to" {
+			t.Errorf("unexpected reaction body: %s", payload.Body)
+		}
+		if payload.Tag != "reaction-message-event" {
+			t.Errorf("unexpected reaction tag: %s", payload.Tag)
+		}
+		if payload.URL != "https://chatto.example.com/chat/-/room-y?highlight=message-event" {
+			t.Errorf("unexpected reaction URL: %s", payload.URL)
+		}
+	})
+
+	t.Run("builds room message payload with room name and preview", func(t *testing.T) {
+		notif := notificationOccurrenceForTest("notif-room-message", "", "", "room-news", "room-event", "", notificationTestSignalRoomMessage)
 		ctx := &PayloadContext{MessagePreview: "A watched room has a new message", RoomName: "news"}
 
-		payload := BuildPayloadFromNotification(notif, "Eve", baseURL, ctx)
+		payload := BuildPayloadFromOccurrence(notif, "Eve", baseURL, ctx)
 
 		if payload.Title != "@Eve posted in #news" {
 			t.Errorf("Expected '@Eve posted in #news', got %s", payload.Title)
@@ -551,17 +502,9 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("escapes notification URL path segments and highlight query", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-escaped",
-			Notification: &corev1.Notification_Mention{
-				Mention: &corev1.MentionNotification{
-					RoomId:  "room with spaces",
-					EventId: "event+plus",
-				},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-escaped", "", "", "room with spaces", "event+plus", "", notificationTestSignalDirectMention)
 
-		payload := BuildPayloadFromNotification(notif, "Bob", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Bob", baseURL, nil)
 
 		expectedURL := "https://chatto.example.com/chat/-/room%20with%20spaces?highlight=event%2Bplus"
 		if payload.URL != expectedURL {
@@ -570,12 +513,9 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("builds default payload for unknown type", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-unknown",
-			// No notification type set
-		}
+		notif := notificationOccurrenceForTest("notif-unknown", "", "", "", "", "")
 
-		payload := BuildPayloadFromNotification(notif, "Unknown", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Unknown", baseURL, nil)
 
 		if payload.Title != "New notification" {
 			t.Errorf("Expected 'New notification', got %s", payload.Title)
@@ -586,14 +526,9 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("sets icon and badge URLs", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-icons",
-			Notification: &corev1.Notification_DmMessage{
-				DmMessage: &corev1.DMMessageNotification{RoomId: "room"},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-icons", "", "", "room", "", "", notificationTestSignalDirectMessage)
 
-		payload := BuildPayloadFromNotification(notif, "Test", baseURL, nil)
+		payload := BuildPayloadFromOccurrence(notif, "Test", baseURL, nil)
 
 		expectedIcon := "https://chatto.example.com/icons/icon-192.png"
 		if payload.Icon != expectedIcon {
@@ -605,17 +540,12 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 
 	t.Run("truncates long message preview", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Id: "notif-long",
-			Notification: &corev1.Notification_DmMessage{
-				DmMessage: &corev1.DMMessageNotification{RoomId: "room"},
-			},
-		}
+		notif := notificationOccurrenceForTest("notif-long", "", "", "room", "", "", notificationTestSignalDirectMessage)
 		// Create a preview longer than maxPreviewLength
 		longPreview := "This is a very long message that exceeds the maximum preview length and should be truncated with an ellipsis at the end to fit within the allowed characters"
 		ctx := &PayloadContext{MessagePreview: longPreview}
 
-		payload := BuildPayloadFromNotification(notif, "Test", baseURL, ctx)
+		payload := BuildPayloadFromOccurrence(notif, "Test", baseURL, ctx)
 
 		// Body should be truncated (just the preview, no prefix)
 		if len(payload.Body) > maxPreviewLength+3 { // +3 for ellipsis
@@ -627,58 +557,164 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 	})
 }
 
-func TestNotificationTag(t *testing.T) {
+func TestBuildPayloadFromOccurrenceForSubscription(t *testing.T) {
+	notif := notificationOccurrenceForTest(
+		"notif-remote",
+		"",
+		"",
+		"room-remote",
+		"event-remote",
+		"",
+		notificationTestSignalDirectMention,
+	)
+	subscription := &runtimestatev1.PushSubscription{
+		ClientHost: "app.example.com",
+	}
+
+	payload := BuildPayloadFromOccurrenceForSubscription(
+		notif,
+		"Alice",
+		"https://remote.example.com",
+		subscription,
+		nil,
+	)
+
+	if payload.URL != "https://app.example.com/chat/remote.example.com/room-remote?highlight=event-remote" {
+		t.Fatalf("URL = %q", payload.URL)
+	}
+	if payload.Icon != "https://remote.example.com/icons/icon-192.png" {
+		t.Fatalf("Icon = %q", payload.Icon)
+	}
+}
+
+func TestNavigationBaseURL(t *testing.T) {
+	tests := []struct {
+		name          string
+		subscription  *runtimestatev1.PushSubscription
+		serverBaseURL string
+		want          string
+	}{
+		{
+			name:          "legacy subscription uses bundled client",
+			subscription:  &runtimestatev1.PushSubscription{},
+			serverBaseURL: "https://chat.example.com",
+			want:          "https://chat.example.com/chat/-",
+		},
+		{
+			name:          "remote server opens in stored client host",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://remote.example.com",
+			want:          "https://app.example.com/chat/remote.example.com",
+		},
+		{
+			name:          "remote route lowercases the server hostname",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://REMOTE.EXAMPLE.COM",
+			want:          "https://app.example.com/chat/remote.example.com",
+		},
+		{
+			name:          "remote route uses the browser IDNA hostname",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://b\u00fccher.example",
+			want:          "https://app.example.com/chat/xn--bcher-kva.example",
+		},
+		{
+			name:          "remote route preserves browser IPv6 brackets",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://[0:0::1]:8443",
+			want:          "https://app.example.com/chat/[::1]",
+		},
+		{
+			name:          "remote client preserves a non-default port",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com:8443"},
+			serverBaseURL: "https://remote.example.com",
+			want:          "https://app.example.com:8443/chat/remote.example.com",
+		},
+		{
+			name:          "same origin uses bundled client route",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "chat.example.com"},
+			serverBaseURL: "https://chat.example.com",
+			want:          "https://chat.example.com/chat/-",
+		},
+		{
+			name:          "default port is the same origin",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "chat.example.com:443"},
+			serverBaseURL: "https://chat.example.com",
+			want:          "https://chat.example.com:443/chat/-",
+		},
+		{
+			name:          "loopback remote client uses HTTP",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "localhost:5173"},
+			serverBaseURL: "https://remote.example.com",
+			want:          "http://localhost:5173/chat/remote.example.com",
+		},
+		{
+			name:          "same loopback origin preserves HTTPS",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "localhost:8443"},
+			serverBaseURL: "https://localhost:8443",
+			want:          "https://localhost:8443/chat/-",
+		},
+		{
+			name:          "malformed persisted host falls back safely",
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "https://app.example.com"},
+			serverBaseURL: "https://remote.example.com",
+			want:          "https://remote.example.com/chat/-",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := NavigationBaseURL(test.subscription, test.serverBaseURL); got != test.want {
+				t.Fatalf("NavigationBaseURL() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestOccurrenceTag(t *testing.T) {
 	t.Run("returns DM tag with event ID", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Notification: &corev1.Notification_DmMessage{
-				DmMessage: &corev1.DMMessageNotification{RoomId: "room-123", EventId: "event-abc"},
-			},
-		}
-		tag := NotificationTag(notif)
+		notif := notificationOccurrenceForTest("", "", "", "room-123", "event-abc", "", notificationTestSignalDirectMessage)
+		tag := OccurrenceTag(notif)
 		if tag != "dm-event-abc" {
 			t.Errorf("Expected 'dm-event-abc', got %s", tag)
 		}
 	})
 
 	t.Run("returns mention tag with event ID", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Notification: &corev1.Notification_Mention{
-				Mention: &corev1.MentionNotification{RoomId: "room-456", EventId: "event-def"},
-			},
-		}
-		tag := NotificationTag(notif)
+		notif := notificationOccurrenceForTest("", "", "", "room-456", "event-def", "", notificationTestSignalDirectMention)
+		tag := OccurrenceTag(notif)
 		if tag != "mention-event-def" {
 			t.Errorf("Expected 'mention-event-def', got %s", tag)
 		}
 	})
 
 	t.Run("returns reply tag with event ID", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Notification: &corev1.Notification_Reply{
-				Reply: &corev1.ReplyNotification{RoomId: "room-789", EventId: "event-ghi"},
-			},
-		}
-		tag := NotificationTag(notif)
+		notif := notificationOccurrenceForTest("", "", "", "room-789", "event-ghi", "", notificationTestSignalReply)
+		tag := OccurrenceTag(notif)
 		if tag != "reply-event-ghi" {
 			t.Errorf("Expected 'reply-event-ghi', got %s", tag)
 		}
 	})
 
-	t.Run("returns room message tag with event ID", func(t *testing.T) {
-		notif := &corev1.Notification{
-			Notification: &corev1.Notification_RoomMessage{
-				RoomMessage: &corev1.RoomMessageNotification{RoomId: "room-101", EventId: "event-room"},
-			},
+	t.Run("returns reaction tag with message event ID", func(t *testing.T) {
+		notif := notificationOccurrenceForTest("", "", "", "room-789", "event-reacted", "", notificationTestSignalReaction)
+		tag := OccurrenceTag(notif)
+		if tag != "reaction-event-reacted" {
+			t.Errorf("Expected 'reaction-event-reacted', got %s", tag)
 		}
-		tag := NotificationTag(notif)
+	})
+
+	t.Run("returns room message tag with event ID", func(t *testing.T) {
+		notif := notificationOccurrenceForTest("", "", "", "room-101", "event-room", "", notificationTestSignalFollowedRoom)
+		tag := OccurrenceTag(notif)
 		if tag != "room-message-event-room" {
 			t.Errorf("Expected 'room-message-event-room', got %s", tag)
 		}
 	})
 
 	t.Run("returns empty for unknown type", func(t *testing.T) {
-		notif := &corev1.Notification{}
-		tag := NotificationTag(notif)
+		notif := notificationOccurrenceForTest("", "", "", "", "", "")
+		tag := OccurrenceTag(notif)
 		if tag != "" {
 			t.Errorf("Expected empty string, got %s", tag)
 		}
@@ -699,11 +735,40 @@ func TestTruncatePreview(t *testing.T) {
 		text := "This is a test message that is slightly longer than one hundred characters and should be truncated properly"
 		result := truncatePreview(text)
 
-		if len(result) > maxPreviewLength+3 { // +3 for ellipsis rune
-			t.Errorf("Result too long: %d chars", len(result))
+		if got := utf8.RuneCountInString(result); got > maxPreviewLength {
+			t.Errorf("Result too long: %d characters", got)
 		}
 		if !strings.HasSuffix(result, "…") {
 			t.Errorf("Expected ellipsis at end")
+		}
+	})
+
+	t.Run("keeps exactly the character limit unchanged", func(t *testing.T) {
+		text := strings.Repeat("界", maxPreviewLength)
+		if result := truncatePreview(text); result != text {
+			t.Fatalf("truncatePreview changed a preview at the limit")
+		}
+	})
+
+	t.Run("truncates multibyte text without splitting UTF-8", func(t *testing.T) {
+		result := truncatePreview(strings.Repeat("界", maxPreviewLength+1))
+		want := strings.Repeat("界", maxPreviewLength-1) + "…"
+		if result != want {
+			t.Fatalf("truncatePreview() = %q, want %q", result, want)
+		}
+		if !utf8.ValidString(result) {
+			t.Fatal("truncatePreview returned invalid UTF-8")
+		}
+		if got := utf8.RuneCountInString(result); got != maxPreviewLength {
+			t.Fatalf("truncatePreview character count = %d, want %d", got, maxPreviewLength)
+		}
+	})
+
+	t.Run("truncates text without nearby whitespace at the hard limit", func(t *testing.T) {
+		result := truncatePreview(strings.Repeat("x", maxPreviewLength+20))
+		want := strings.Repeat("x", maxPreviewLength-1) + "…"
+		if result != want {
+			t.Fatalf("truncatePreview() = %q, want %q", result, want)
 		}
 	})
 }
@@ -730,6 +795,20 @@ func TestSendResult(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
+	t.Run("rejects an unsafe endpoint before using the HTTP client", func(t *testing.T) {
+		client := &concurrencyTrackingHTTPClient{}
+		sender := newTestSender(t, client)
+		sender.validateEndpoint = pushendpoint.Validate
+		result := sender.Send(context.Background(), newTestPushSubscription(t, "http://127.0.0.1/internal"), &Payload{Title: "Test"})
+
+		if result.Error == nil {
+			t.Fatal("expected unsafe endpoint error")
+		}
+		if client.calls.Load() != 0 {
+			t.Fatalf("HTTP client calls = %d, want 0", client.calls.Load())
+		}
+	})
+
 	t.Run("cancels an in-flight provider request with the caller context", func(t *testing.T) {
 		client := &contextBlockingHTTPClient{started: make(chan struct{})}
 		sender := newTestSender(t, client)
@@ -761,9 +840,10 @@ func TestSend(t *testing.T) {
 		var bodyLen int
 		var contentEncoding string
 		var ttl string
+		var urgency string
 		var readErr error
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var body []byte
 			body, readErr = io.ReadAll(r.Body)
 			if readErr != nil {
@@ -773,6 +853,7 @@ func TestSend(t *testing.T) {
 			bodyLen = len(body)
 			contentEncoding = r.Header.Get("Content-Encoding")
 			ttl = r.Header.Get("TTL")
+			urgency = r.Header.Get("Urgency")
 			w.WriteHeader(http.StatusCreated)
 		}))
 		defer server.Close()
@@ -804,9 +885,151 @@ func TestSend(t *testing.T) {
 		if ttl != "86400" {
 			t.Fatalf("TTL = %q, want 86400", ttl)
 		}
+		if urgency != "high" {
+			t.Fatalf("Urgency = %q, want high", urgency)
+		}
 	})
 
-	t.Run("includes provider response body for non-gone failures", func(t *testing.T) {
+	t.Run("uses the notification alert remaining lifetime as provider TTL", func(t *testing.T) {
+		var ttl string
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ttl = r.Header.Get("TTL")
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		sender := newTestSender(t, server.Client())
+		result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), &Payload{
+			Title:      "Test",
+			TTLSeconds: 73,
+		})
+
+		if result.Error != nil {
+			t.Fatalf("Send error: %v", result.Error)
+		}
+		if ttl != "73" {
+			t.Fatalf("TTL = %q, want 73", ttl)
+		}
+	})
+
+	t.Run("calculates an absolute alert deadline after request slot admission", func(t *testing.T) {
+		var ttl string
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ttl = r.Header.Get("TTL")
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		sender := newTestSender(t, server.Client())
+		for range cap(sender.requestSlots) {
+			sender.requestSlots <- struct{}{}
+		}
+		started := make(chan struct{})
+		sender.validateEndpoint = func(string) error {
+			close(started)
+			return nil
+		}
+		base := time.Now().UTC()
+		current := base
+		sender.now = func() time.Time { return current }
+		subscription := newTestPushSubscription(t, server.URL)
+		result := make(chan *SendResult, 1)
+		go func() {
+			result <- sender.Send(context.Background(), subscription, &Payload{
+				Title:            "Test",
+				DeliveryDeadline: base.Add(1500 * time.Millisecond),
+			})
+		}()
+		<-started
+		current = base.Add(1100 * time.Millisecond)
+		<-sender.requestSlots
+		got := <-result
+		if got.Error != nil {
+			t.Fatalf("Send error: %v", got.Error)
+		}
+		if ttl != "0" {
+			t.Fatalf("TTL after request-slot contention = %q, want 0", ttl)
+		}
+	})
+
+	t.Run("sends a notification at the accepted client host boundary", func(t *testing.T) {
+		var bodyLen int
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("ReadAll request body: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			bodyLen = len(body)
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		clientHost := strings.Join([]string{
+			strings.Repeat("a", 63),
+			strings.Repeat("b", 63),
+			strings.Repeat("c", 63),
+			strings.Repeat("d", 61),
+		}, ".") + ":1"
+		if len(clientHost) != core.MaxPushClientHostLength {
+			t.Fatalf("test client host length = %d, want %d", len(clientHost), core.MaxPushClientHostLength)
+		}
+		payload := BuildPayloadFromOccurrenceForSubscription(
+			notificationOccurrenceForTest(
+				strings.Repeat("n", 64),
+				"",
+				"",
+				strings.Repeat("r", 64),
+				strings.Repeat("e", 64),
+				strings.Repeat("t", 64),
+				notificationTestSignalDirectMention,
+			),
+			strings.Repeat("a", 80),
+			"https://remote.example.com",
+			&runtimestatev1.PushSubscription{ClientHost: clientHost},
+			&PayloadContext{
+				MessagePreview: strings.Repeat("p", maxPreviewLength),
+				RoomName:       strings.Repeat("q", 100),
+			},
+		)
+
+		sender := newTestSender(t, server.Client())
+		result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), payload)
+		if result.Error != nil || !result.Success {
+			t.Fatalf("Send at route boundary = %+v, want success", result)
+		}
+		if bodyLen <= int(pushRecordSize) {
+			t.Fatalf("request body length = %d, want adaptive record above %d", bodyLen, pushRecordSize)
+		}
+		if bodyLen > int(maxPushRecordSize) {
+			t.Fatalf("request body length = %d, want at most %d", bodyLen, maxPushRecordSize)
+		}
+	})
+
+	t.Run("uses normal urgency for silent dismiss pushes", func(t *testing.T) {
+		var urgency string
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			urgency = r.Header.Get("Urgency")
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		sender := newTestSender(t, server.Client())
+		result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), &Payload{
+			Action: "dismiss",
+			Tag:    "notification-1",
+		})
+
+		if result.Error != nil {
+			t.Fatalf("Send error: %v", result.Error)
+		}
+		if urgency != "normal" {
+			t.Fatalf("Urgency = %q, want normal", urgency)
+		}
+	})
+
+	t.Run("does not disclose provider response body for non-gone failures", func(t *testing.T) {
 		tests := []struct {
 			name       string
 			statusCode int
@@ -818,7 +1041,7 @@ func TestSend(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(tt.statusCode)
 					_, _ = w.Write([]byte(tt.body))
 				}))
@@ -835,8 +1058,8 @@ func TestSend(t *testing.T) {
 				if result.Gone {
 					t.Fatal("expected non-gone failure")
 				}
-				if !strings.Contains(result.Error.Error(), tt.body) {
-					t.Fatalf("error %q does not contain provider body %q", result.Error, tt.body)
+				if strings.Contains(result.Error.Error(), tt.body) {
+					t.Fatalf("error %q disclosed provider body %q", result.Error, tt.body)
 				}
 				if !strings.Contains(result.Error.Error(), strconv.Itoa(tt.statusCode)) {
 					t.Fatalf("error %q does not contain status %d", result.Error, tt.statusCode)
@@ -856,7 +1079,7 @@ func TestSend(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(tt.statusCode)
 					_, _ = w.Write([]byte("subscription is gone"))
 				}))
@@ -878,11 +1101,27 @@ func TestSend(t *testing.T) {
 	})
 }
 
+func TestRecordSizeForPayload(t *testing.T) {
+	if got, err := recordSizeForPayload(100); err != nil || got != pushRecordSize {
+		t.Fatalf("compact record = %d, %v; want %d, nil", got, err, pushRecordSize)
+	}
+
+	expandedPayloadLength := int(pushRecordSize) - pushRecordOverhead + 1
+	if got, err := recordSizeForPayload(expandedPayloadLength); err != nil || got != uint32(expandedPayloadLength+pushRecordOverhead) {
+		t.Fatalf("expanded record = %d, %v; want %d, nil", got, err, expandedPayloadLength+pushRecordOverhead)
+	}
+
+	tooLargePayloadLength := int(maxPushRecordSize) - pushRecordOverhead + 1
+	if _, err := recordSizeForPayload(tooLargePayloadLength); err == nil {
+		t.Fatal("oversized payload error = nil, want rejection")
+	}
+}
+
 func TestSendToMany(t *testing.T) {
 	client := &concurrencyTrackingHTTPClient{}
 	sender := newTestSender(t, client)
 	subscription := newTestPushSubscription(t, "https://push.example.com/many")
-	subscriptions := make([]*corev1.PushSubscription, maxConcurrentPushRequests*2)
+	subscriptions := make([]*runtimestatev1.PushSubscription, maxConcurrentPushRequests*2)
 	for i := range subscriptions {
 		subscriptions[i] = subscription
 	}
@@ -892,16 +1131,16 @@ func TestSendToMany(t *testing.T) {
 		Body:  "Test body",
 	})
 
-	if len(results) != len(subscriptions) {
-		t.Fatalf("results = %d, want %d", len(results), len(subscriptions))
+	if len(results) != pushendpoint.MaxSubscriptionsPerUser {
+		t.Fatalf("results = %d, want capped fan-out of %d", len(results), pushendpoint.MaxSubscriptionsPerUser)
 	}
 	for i, result := range results {
 		if result == nil || !result.Success || result.Error != nil {
 			t.Fatalf("result[%d] = %+v, want success", i, result)
 		}
 	}
-	if got := int(client.calls.Load()); got != len(subscriptions) {
-		t.Fatalf("provider calls = %d, want %d", got, len(subscriptions))
+	if got := int(client.calls.Load()); got != pushendpoint.MaxSubscriptionsPerUser {
+		t.Fatalf("provider calls = %d, want %d", got, pushendpoint.MaxSubscriptionsPerUser)
 	}
 	if got := int(client.maximum.Load()); got > maxConcurrentPushRequests {
 		t.Fatalf("maximum concurrent requests = %d, want at most %d", got, maxConcurrentPushRequests)
@@ -928,10 +1167,13 @@ func newTestSender(t *testing.T, client webpush.HTTPClient) *Sender {
 		t.Fatal("expected configured sender")
 	}
 	sender.httpClient = client
+	// Individual sender tests use private TLS fixtures. Production endpoint
+	// validation and dial-time destination enforcement are covered separately.
+	sender.validateEndpoint = func(string) error { return nil }
 	return sender
 }
 
-func newTestPushSubscription(t *testing.T, endpoint string) *corev1.PushSubscription {
+func newTestPushSubscription(t *testing.T, endpoint string) *runtimestatev1.PushSubscription {
 	t.Helper()
 
 	_, x, y, err := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
@@ -944,7 +1186,7 @@ func newTestPushSubscription(t *testing.T, endpoint string) *corev1.PushSubscrip
 		t.Fatalf("Read auth: %v", err)
 	}
 
-	return &corev1.PushSubscription{
+	return &runtimestatev1.PushSubscription{
 		Endpoint: endpoint,
 		P256Dh:   base64.RawURLEncoding.EncodeToString(elliptic.Marshal(elliptic.P256(), x, y)),
 		Auth:     base64.RawURLEncoding.EncodeToString(auth),

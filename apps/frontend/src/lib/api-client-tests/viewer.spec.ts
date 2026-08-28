@@ -1,9 +1,9 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { NotificationLevel, PresenceStatus, TimeFormat } from '$lib/api-client/renderTypes';
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+
 import { getCurrentUserViaConnect, getViewerStateViaConnect } from '$lib/api-client/viewer';
 
 const mocks = vi.hoisted(() => ({
@@ -54,10 +54,9 @@ describe('getCurrentUserViaConnect', () => {
         lastLoginChange: Timestamp.fromDate(new Date('2026-05-20T09:30:00Z')),
         settings: {
           timezone: 'Europe/Berlin',
-          timeFormat: APITimeFormat.TIME_FORMAT_24_HOUR
+          timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
         }
-      },
-      roomNotificationPreferences: []
+      }
     });
 
     const user = await getCurrentUserViaConnect({
@@ -78,19 +77,20 @@ describe('getCurrentUserViaConnect', () => {
       login: 'alice',
       displayName: 'Alice',
       avatarUrl: 'https://cdn/avatar.webp',
+      bio: null,
       customStatus: {
         emoji: ':wave:',
         text: 'here',
         expiresAt: '2026-06-01T12:00:00.000Z'
       },
-      presenceStatus: PresenceStatus.Away,
+      presenceStatus: PresenceStatus.AWAY,
       hasVerifiedEmail: true,
       hasPassword: true,
       viewerCanDeleteAccount: true,
       lastLoginChange: '2026-05-20T09:30:00.000Z',
       settings: {
         timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TwentyFourHour
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
       }
     });
   });
@@ -105,9 +105,8 @@ describe('getCurrentUserViaConnect', () => {
           presenceStatus: APIPresenceStatus.UNSPECIFIED
         },
         hasVerifiedEmail: false,
-        settings: { timeFormat: APITimeFormat.TIME_FORMAT_UNSPECIFIED }
-      },
-      roomNotificationPreferences: []
+        settings: { timeFormat: TimeFormat.TIME_FORMAT_UNSPECIFIED }
+      }
     });
 
     const user = await getCurrentUserViaConnect({
@@ -116,15 +115,15 @@ describe('getCurrentUserViaConnect', () => {
     });
 
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
-    expect(user.presenceStatus).toBe(PresenceStatus.Offline);
-    expect(user.settings?.timeFormat).toBe(TimeFormat.Auto);
+    expect(user.presenceStatus).toBe(PresenceStatus.OFFLINE);
+    expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
     expect(user.customStatus).toBeNull();
     expect(user.hasPassword).toBe(false);
     expect(user.viewerCanDeleteAccount).toBe(false);
     expect(user.lastLoginChange).toBeNull();
   });
 
-  it('loads viewer capabilities and notification preferences', async () => {
+  it('loads viewer capabilities', async () => {
     mocks.getViewer.mockResolvedValue({
       user: {
         profile: {
@@ -146,35 +145,25 @@ describe('getCurrentUserViaConnect', () => {
           { capability: 'role.manage', granted: false },
           { capability: 'admin.view-system', granted: true },
           { capability: 'admin.view-audit', granted: true },
-          { capability: 'user.manage-permissions', granted: true }
+          { capability: 'user.manage-permissions', granted: true },
+          { capability: 'user.invite', granted: true }
         ]
-      },
-      serverNotificationPreference: {
-        level: APINotificationLevel.ALL_MESSAGES,
-        effectiveLevel: APINotificationLevel.ALL_MESSAGES
-      },
-      roomNotificationPreferences: [
-        {
-          roomId: 'room-1',
-          preference: {
-            level: APINotificationLevel.MUTED,
-            effectiveLevel: APINotificationLevel.MUTED
-          }
-        },
-        {
-          roomId: 'room-2',
-          preference: {
-            level: APINotificationLevel.DEFAULT,
-            effectiveLevel: APINotificationLevel.NORMAL
-          }
-        }
-      ]
+      }
     });
 
-    const viewer = await getViewerStateViaConnect({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    const signal = new AbortController().signal;
+    const viewer = await getViewerStateViaConnect(
+      {
+        baseUrl: '/api/connect',
+        bearerToken: 'token'
+      },
+      { signal }
+    );
+
+    expect(mocks.getViewer).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
 
     expect(viewer).toEqual(
       expect.objectContaining({
@@ -188,45 +177,8 @@ describe('getCurrentUserViaConnect', () => {
         canAdminViewSystem: true,
         canAdminViewAudit: true,
         canManageUserPermissions: true,
-        serverNotificationPreference: {
-          level: NotificationLevel.AllMessages,
-          effectiveLevel: NotificationLevel.AllMessages
-        },
-        roomNotificationPreferences: [
-          {
-            roomId: 'room-1',
-            level: NotificationLevel.Muted,
-            effectiveLevel: NotificationLevel.Muted
-          },
-          {
-            roomId: 'room-2',
-            level: NotificationLevel.Default,
-            effectiveLevel: NotificationLevel.Normal
-          }
-        ]
+        canManageInvites: true
       })
     );
-  });
-
-  it('rejects room notification preference rows without shared preference metadata', async () => {
-    mocks.getViewer.mockResolvedValue({
-      user: {
-        profile: {
-          id: 'U3',
-          login: 'carol',
-          displayName: 'Carol',
-          presenceStatus: APIPresenceStatus.ONLINE
-        },
-        hasVerifiedEmail: true
-      },
-      roomNotificationPreferences: [{ roomId: 'room-1' }]
-    });
-
-    await expect(
-      getViewerStateViaConnect({
-        baseUrl: '/api/connect',
-        bearerToken: 'token'
-      })
-    ).rejects.toThrow('room notification preference response did not include preference metadata');
   });
 });

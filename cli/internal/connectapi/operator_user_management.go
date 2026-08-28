@@ -29,7 +29,7 @@ func (s *operatorUserService) CreateUser(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member, err := s.operatorMember(ctx, created)
+	member, err := operatorAdminMember(ctx, s.api, created)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (s *operatorUserService) ListUsers(ctx context.Context, req *connect.Reques
 		Page:  apiPageInfo(users.TotalCount, users.HasMore),
 	}
 	for _, user := range users.Users {
-		member, err := s.operatorMember(ctx, user)
+		member, err := operatorAdminMember(ctx, s.api, user)
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +90,7 @@ func (s *operatorUserService) GetUser(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member, err := s.operatorMember(ctx, user)
+	member, err := operatorAdminMember(ctx, s.api, user)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *operatorUserService) AssignRole(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member, err := s.operatorMember(ctx, user)
+	member, err := operatorAdminMember(ctx, s.api, user)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (s *operatorUserService) RevokeRole(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member, err := s.operatorMember(ctx, user)
+	member, err := operatorAdminMember(ctx, s.api, user)
 	if err != nil {
 		return nil, err
 	}
@@ -153,11 +153,11 @@ func (s *operatorUserService) UpdateUser(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member, err := s.operatorMember(ctx, updated)
+	member, err := operatorAdminMember(ctx, s.api, updated)
 	if err != nil {
 		return nil, err
 	}
-	user, err := (&accountService{api: s.api}).accountUser(ctx, updated.User)
+	user, err := requiredUserSummary(ctx, s.api, updated.User)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (s *operatorUserService) SetUserPassword(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member, err := s.operatorMember(ctx, updated)
+	member, err := operatorAdminMember(ctx, s.api, updated)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (s *operatorUserService) AddVerifiedEmail(ctx context.Context, req *connect
 	if err != nil {
 		return nil, connectError(err)
 	}
-	member, err := s.operatorMember(ctx, updated)
+	member, err := operatorAdminMember(ctx, s.api, updated)
 	if err != nil {
 		return nil, err
 	}
@@ -205,8 +205,26 @@ func (s *operatorUserService) ClearUsernameCooldown(ctx context.Context, req *co
 	return connect.NewResponse(&operatorv1.ClearUsernameCooldownResponse{Cleared: true}), nil
 }
 
-func (s *operatorUserService) operatorMember(ctx context.Context, user *core.AdminUserView) (*adminv1.AdminMember, error) {
-	return (&adminUserManagementService{api: s.api}).adminMemberForOperator(ctx, user)
+func operatorAdminMember(ctx context.Context, api *API, user *core.AdminUserView) (*adminv1.AdminMember, error) {
+	if user == nil || user.User == nil {
+		return nil, connectError(core.ErrNotFound)
+	}
+	verifiedEmails := make([]string, 0, len(user.VerifiedEmails))
+	for _, email := range user.VerifiedEmails {
+		verifiedEmails = append(verifiedEmails, email.Email)
+	}
+	apiUser, err := userSummary(ctx, api, user.User, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &adminv1.AdminMember{
+		Roles:                  append([]string(nil), user.RoleNames...),
+		CreatedAt:              user.User.GetCreatedAt(),
+		HasVerifiedEmail:       len(verifiedEmails) > 0,
+		VerifiedEmails:         verifiedEmails,
+		ViewerCanDeleteAccount: true,
+		User:                   apiUser,
+	}, nil
 }
 
 func operatorAdminMemberRoles(roles []core.RoleWithPermissions) []*adminv1.AdminRole {

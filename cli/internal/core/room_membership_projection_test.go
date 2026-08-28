@@ -4,23 +4,23 @@ import (
 	"sort"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-func joinEvent(roomID, userID string) *corev1.Event {
-	return &corev1.Event{
+func joinEvent(roomID, userID string) *evtv1.Event {
+	return &evtv1.Event{
 		ActorId: userID,
-		Event: &corev1.Event_UserJoinedRoom{
-			UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
+		Event: &evtv1.Event_UserJoinedRoom{
+			UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID},
 		},
 	}
 }
 
-func leaveEvent(roomID, userID string) *corev1.Event {
-	return &corev1.Event{
+func leaveEvent(roomID, userID string) *evtv1.Event {
+	return &evtv1.Event{
 		ActorId: userID,
-		Event: &corev1.Event_UserLeftRoom{
-			UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: roomID},
+		Event: &evtv1.Event_UserLeftRoom{
+			UserLeftRoom: &evtv1.UserLeftRoomEvent{RoomId: roomID},
 		},
 	}
 }
@@ -80,10 +80,10 @@ func TestRoomMembershipProjection_BanRemovesTarget(t *testing.T) {
 	p := NewRoomMembershipProjection()
 
 	mustApply(t, p, joinEvent("R1", "target"))
-	mustApply(t, p, &corev1.Event{
+	mustApply(t, p, &evtv1.Event{
 		ActorId: "moderator",
-		Event: &corev1.Event_RoomMemberBanned{
-			RoomMemberBanned: &corev1.RoomMemberBannedEvent{
+		Event: &evtv1.Event_RoomMemberBanned{
+			RoomMemberBanned: &evtv1.RoomMemberBannedEvent{
 				RoomId: "R1",
 				UserId: "target",
 				Reason: "moderation test",
@@ -127,10 +127,10 @@ func TestRoomMembershipProjection_RoomDeletedDropsAllMembers(t *testing.T) {
 	mustApply(t, p, joinEvent("R1", "U2"))
 	mustApply(t, p, joinEvent("R2", "U1"))
 
-	deleted := &corev1.Event{
+	deleted := &evtv1.Event{
 		ActorId: "system",
-		Event: &corev1.Event_RoomDeleted{
-			RoomDeleted: &corev1.RoomDeletedEvent{RoomId: "R1"},
+		Event: &evtv1.Event_RoomDeleted{
+			RoomDeleted: &evtv1.RoomDeletedEvent{RoomId: "R1"},
 		},
 	}
 	mustApply(t, p, deleted)
@@ -157,10 +157,10 @@ func TestRoomMembershipProjection_MalformedEventsRejected(t *testing.T) {
 	p := NewRoomMembershipProjection()
 
 	// Missing room_id.
-	noRoom := &corev1.Event{
+	noRoom := &evtv1.Event{
 		ActorId: "U1",
-		Event: &corev1.Event_UserJoinedRoom{
-			UserJoinedRoom: &corev1.UserJoinedRoomEvent{},
+		Event: &evtv1.Event_UserJoinedRoom{
+			UserJoinedRoom: &evtv1.UserJoinedRoomEvent{},
 		},
 	}
 	if err := p.Apply(noRoom, 1); err == nil {
@@ -168,9 +168,9 @@ func TestRoomMembershipProjection_MalformedEventsRejected(t *testing.T) {
 	}
 
 	// Missing user_id and actor_id.
-	noUser := &corev1.Event{
-		Event: &corev1.Event_UserJoinedRoom{
-			UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
+	noUser := &evtv1.Event{
+		Event: &evtv1.Event_UserJoinedRoom{
+			UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"},
 		},
 	}
 	if err := p.Apply(noUser, 2); err == nil {
@@ -178,10 +178,10 @@ func TestRoomMembershipProjection_MalformedEventsRejected(t *testing.T) {
 	}
 
 	// Unrelated event type: silently ignored.
-	other := &corev1.Event{
+	other := &evtv1.Event{
 		ActorId: "U1",
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1"},
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1"},
 		},
 	}
 	if err := p.Apply(other, 3); err != nil {
@@ -191,7 +191,7 @@ func TestRoomMembershipProjection_MalformedEventsRejected(t *testing.T) {
 
 // ---- helpers ----
 
-func mustApply(t *testing.T, p *RoomMembershipProjection, e *corev1.Event) {
+func mustApply(t *testing.T, p *RoomMembershipProjection, e *evtv1.Event) {
 	t.Helper()
 	if err := p.Apply(e, 0); err != nil {
 		t.Fatalf("Apply: %v", err)

@@ -1,5 +1,9 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  loginAsAdmin,
+  openServer
+} from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import {
@@ -38,6 +42,7 @@ async function selectTextInside(locator: Locator, selectedText: string): Promise
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(range);
+        node.parentElement?.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
         return;
       }
 
@@ -83,6 +88,168 @@ async function postMessagesForSetupViaConnect(
 }
 
 test.describe('Message Threading', () => {
+  test('root author can post an empty thread without leaving the room', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Author-created thread ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await page.getByRole('button', { name: 'Post as thread' }).click();
+    await roomPage.messageInput.fill(rootMessage);
+    await roomPage.messageInput.press('Control+Enter');
+
+    await expect(roomPage.threadPane).toBeHidden();
+    await roomPage.expectThreadRouteClosed();
+    const root = roomPage.getMessage(rootMessage);
+    await expect(root.locator.getByRole('link', { name: 'Thread' })).toBeVisible();
+    await root.expectFollowingThread();
+
+    await root.openThread();
+    await roomPage.expectTextInThreadPane(rootMessage);
+    await roomPage.expectThreadPaneFollowing();
+  });
+
+  test('recent threaded root offers to receive the next message', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Recent thread ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await page.getByRole('button', { name: 'Post as thread' }).click();
+    await roomPage.sendMessage(rootMessage);
+
+    const followup = `Recent follow-up ${Date.now()}`;
+    await roomPage.messageInput.fill(followup);
+    await roomPage.messageInput.press('Control+Enter');
+
+    await expect(roomPage.recentThreadConfirmationDialog).toBeVisible();
+    await expect(roomPage.messageInput).toHaveText(followup);
+    await roomPage.recentThreadConfirmationDialog
+      .getByRole('button', { name: 'Continue in thread' })
+      .click();
+
+    await expect(roomPage.recentThreadConfirmationDialog).toBeHidden();
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.expectTextInThreadPane(rootMessage);
+    await roomPage.expectTextInThreadPane(followup);
+  });
+
+  test('another user attaching a thread triggers the safeguard for the root author', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Externally threaded root ${Date.now()}`;
+    const root = await roomPage.sendMessage(rootMessage);
+    const externalReply = `External thread reply ${Date.now()}`;
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+
+        const rootForB = roomPage2.getMessage(rootMessage);
+        await rootForB.openThread();
+        await roomPage2.expectThreadPaneVisible();
+        await roomPage2.postThreadReply(externalReply);
+
+        await expect(root.locator.getByRole('link', { name: '1 reply' })).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+      }
+    );
+
+    const followup = `Separate root after external thread ${Date.now()}`;
+    await roomPage.messageInput.fill(followup);
+    await roomPage.messageInput.press('Control+Enter');
+
+    await expect(roomPage.recentThreadConfirmationDialog).toBeVisible();
+    await expect(roomPage.messageInput).toHaveText(followup);
+    await roomPage.recentThreadConfirmationDialog
+      .getByRole('button', { name: 'Post as new message' })
+      .click();
+
+    await expect(roomPage.getMessage(followup).locator).toBeVisible();
+    await root.openThread();
+    await roomPage.expectTextInThreadPane(externalReply);
+    await roomPage.expectTextNotInThreadPane(followup);
+  });
+
+  test('threading mode changes update the composer and appear in the timeline live', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await roomPage.waitForInputEditable();
+
+    const threadToggle = page.getByRole('button', { name: 'Post as thread' });
+    await expect(threadToggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(threadToggle).toBeEnabled();
+
+    const adminContext = await browser.newContext({ baseURL: serverURL });
+    const adminPage = await adminContext.newPage();
+    try {
+      await loginAsAdmin(adminPage);
+      await openServer(adminPage);
+      await adminPage.goto(routes.serverAdminRooms);
+      const generalRow = adminPage.locator('.cursor-grab', { hasText: 'general' });
+      await generalRow.getByTitle('Edit room').click();
+
+      const threadingModes = adminPage.getByRole('radiogroup', { name: 'Threading mode' });
+      const setThreadingMode = async (mode: 'Encouraged' | 'Required' | 'Disabled') => {
+        await threadingModes.getByRole('radio', { name: new RegExp(`^${mode}`) }).click();
+        await adminPage.getByRole('button', { name: 'Save Changes' }).click();
+      };
+
+      await setThreadingMode('Encouraged');
+      await expect(page.getByText(/changed threading mode to Encouraged/)).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(threadToggle).toHaveAttribute('aria-pressed', 'true');
+      await expect(threadToggle).toBeEnabled();
+      await threadToggle.click();
+      await expect(threadToggle).toHaveAttribute('aria-pressed', 'false');
+
+      await setThreadingMode('Required');
+      await expect(page.getByText(/changed threading mode to Required/)).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(threadToggle).toHaveAttribute('aria-pressed', 'true');
+      await expect(threadToggle).toBeDisabled();
+
+      await setThreadingMode('Disabled');
+      await expect(page.getByText(/changed threading mode to Disabled/)).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(threadToggle).toHaveCount(0);
+    } finally {
+      await adminContext.close();
+    }
+  });
+
   test('thread reply from another user appears in real-time', async ({
     page,
     chatPage,
@@ -174,15 +341,15 @@ test.describe('Message Threading', () => {
 
         // User A deletes the reply.
         const replyForA = roomPage.getThreadMessage(replyText);
+        const replyEventId = await replyForA.getEventId();
+        expect(replyEventId).not.toBeNull();
         await replyForA.delete();
 
-        // User B should see the reply replaced by the tombstone — without refresh.
+        // User B should see the context-free reply disappear without a refresh.
         await expect(roomPage2.threadPane.getByText(replyText)).not.toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
-        await expect(
-          roomPage2.threadPane.getByText('This message has been deleted').first()
-        ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(roomPage2.getMessageByEventId(replyEventId!).locator).toHaveCount(0);
       }
     );
   });
@@ -228,9 +395,9 @@ test.describe('Message Threading', () => {
         await roomPage.expectThreadEditModeActive();
         const editedReply = `Edited reply ${Date.now()}`;
         await roomPage.threadReplyInput.fill(editedReply);
-        await roomPage.threadReplyInput.press('Enter');
+        await roomPage.threadReplyInput.press('Control+Enter');
 
-        // User B should see the new content and the (edited) marker.
+        // User B should see the new content and the edit marker.
         await expect(roomPage2.threadPane.getByText(editedReply)).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
@@ -363,6 +530,31 @@ test.describe('Message Threading', () => {
     await expect(reply.locator.getByTestId('reply-attribution-author')).toContainText(
       user.displayName
     );
+  });
+
+  test('dismissing message actions clears the selected reply quote', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const selectedText = `discarded room quote ${Date.now()}`;
+    const rootMsg = await roomPage.sendMessage(`Before ${selectedText} after`);
+
+    await selectTextInside(rootMsg.locator, selectedText);
+    await rootMsg.revealHoverToolbar();
+    await rootMsg.hoverToolbar.getByLabel('More actions').click();
+    await expect(rootMsg.contextMenu).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await page.keyboard.press('Escape');
+    await expect(rootMsg.contextMenu).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await rootMsg.replyInRoom();
+
+    await expect(page.getByText('Replying to')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(roomPage.messageInput.locator('blockquote')).toHaveCount(0);
   });
 
   test('reply in thread quotes selected message text in the thread composer', async ({
@@ -741,8 +933,12 @@ test.describe('Message Threading', () => {
     // Resize to mobile viewport — thread pane switches to slideover mode
     await page.setViewportSize({ width: 375, height: 667 });
 
-    // Close thread using back button
-    await roomPage.closeThreadWithBackButton();
+    // Click the leftmost part of the back button. This area must remain usable
+    // now that sidebar swipes no longer rely on a fixed edge target.
+    const backButtonBox = await roomPage.threadBackButton.boundingBox();
+    expect(backButtonBox).not.toBeNull();
+    if (!backButtonBox) return;
+    await roomPage.threadBackButton.click({ position: { x: 2, y: backButtonBox.height / 2 } });
     await roomPage.expectThreadRouteClosed();
 
     // Room view should be visible again
@@ -777,6 +973,87 @@ test.describe('Message Threading', () => {
     await expect(page.getByTestId('message-input')).toBeVisible();
   });
 
+  test('wide room containers split, resize, and yield to surrounding sidebars', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    // Keep enough room for the default sidebar to split the conversation panes,
+    // while letting either surrounding sidebar reduce their container below 768px.
+    await page.setViewportSize({ width: 1250, height: 900 });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Split thread layout ${Date.now()}`;
+    const message = await roomPage.sendMessage(rootMessage);
+    await message.openThread();
+    await roomPage.expectThreadPaneVisible();
+
+    const roomRegion = page.getByTestId('room-view-region');
+    const roomMainPane = page.getByTestId('room-main-pane');
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+    await expect
+      .poll(() => roomMainPane.evaluate((element) => element.closest('[inert]') === null))
+      .toBe(true);
+
+    const initialThreadBox = await roomPage.threadPane.boundingBox();
+    const roomBox = await roomMainPane.boundingBox();
+    expect(initialThreadBox).not.toBeNull();
+    expect(roomBox).not.toBeNull();
+    if (!initialThreadBox || !roomBox) return;
+    expect(roomBox.x + roomBox.width).toBeLessThanOrEqual(initialThreadBox.x + 1);
+
+    const threadResizeTarget = roomPage.threadPane.getByTestId('resize-handle-hit-target');
+    await threadResizeTarget.press('End');
+
+    await expect
+      .poll(async () => (await roomPage.threadPane.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(initialThreadBox.width + 60);
+    expect(await page.evaluate(() => localStorage.getItem('chatto:threadPaneWidth'))).toBe('720');
+
+    await page.reload();
+    await roomPage.expectThreadPaneVisible();
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+    await expect
+      .poll(async () => (await roomPage.threadPane.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(initialThreadBox.width + 60);
+
+    const resizeTargetBox = await threadResizeTarget.boundingBox();
+    expect(resizeTargetBox).not.toBeNull();
+    if (!resizeTargetBox) return;
+    await page.mouse.move(
+      resizeTargetBox.x + resizeTargetBox.width / 2,
+      resizeTargetBox.y + resizeTargetBox.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(resizeTargetBox.x - 400, resizeTargetBox.y, { steps: 5 });
+    await page.mouse.up();
+    await expect
+      .poll(() => page.evaluate(() => document.body.dataset.resizingSidebar ?? null))
+      .toBeNull();
+
+    const serverSidebar = page.getByTestId('server-sidebar');
+    const serverResizeTarget = serverSidebar.getByTestId('resize-handle-hit-target');
+    await serverResizeTarget.press('End');
+
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    await expect
+      .poll(() => roomMainPane.evaluate((element) => element.closest('[inert]') !== null))
+      .toBe(true);
+
+    await serverResizeTarget.dblclick();
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+
+    await page
+      .locator('[data-testid="room-sidebar-toggle"]:visible')
+      .getByLabel('Show members')
+      .click();
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    await expect(page.getByTestId('room-sidebar-desktop-pane')).toBeVisible();
+    await expect(page).toHaveURL(/\/chat\/-\/[^/]+\/[^/]+$/);
+  });
+
   test('close button in thread pane header closes the thread', async ({
     page,
     chatPage,
@@ -795,8 +1072,23 @@ test.describe('Message Threading', () => {
     // The close button should be visible
     await roomPage.expectThreadCloseButtonVisible();
 
-    // Close thread using the close button
-    await roomPage.closeThreadWithCloseButton();
+    await roomPage.threadPane.evaluate((pane) => {
+      pane.addEventListener(
+        'outrostart',
+        () => {
+          document.body.dataset.threadPaneOutroStarted = 'true';
+        },
+        { once: true }
+      );
+    });
+
+    // Close thread using the close button. The nested pane's global transition
+    // must run while the room route removes the thread block.
+    await roomPage.threadCloseButton.click();
+    await expect
+      .poll(() => page.evaluate(() => document.body.dataset.threadPaneOutroStarted))
+      .toBe('true');
+    await expect(roomPage.threadPane).toBeHidden();
     await roomPage.expectThreadRouteClosed();
 
     // Room view should be visible
@@ -1194,11 +1486,7 @@ test.describe('Message Threading', () => {
     await roomPage.expectThreadRouteClosed();
   });
 
-  test('clicking outside thread pane closes it (sidebar area)', async ({
-    page,
-    chatPage,
-    roomPage
-  }) => {
+  test('clicking the room list keeps the thread open', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -1214,9 +1502,9 @@ test.describe('Message Threading', () => {
     const sidebar = page.locator('.room-list');
     await sidebar.click({ position: { x: 10, y: 10 } });
 
-    // Thread should close
-    await roomPage.expectThreadRouteClosed();
-    await expect(page.getByRole('heading', { name: /^Thread in #/ })).not.toBeVisible();
+    // App navigation is outside the thread's dimmed room dismissal surface.
+    await roomPage.expectThreadRouteActive();
+    await roomPage.expectThreadPaneVisible();
   });
 
   test('thread reply does not scroll main chat to bottom', async ({ page, chatPage, roomPage }) => {

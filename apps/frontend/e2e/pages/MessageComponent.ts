@@ -3,7 +3,7 @@ import { TIMEOUTS } from '../constants';
 
 /**
  * Component for interacting with a single message in the chat.
- * Uses hover toolbar for quick actions and "more actions" menu for full context menu.
+ * Uses hover toolbar for quick actions and message right-click for the full context menu.
  */
 export class MessageComponent {
   constructor(
@@ -32,11 +32,10 @@ export class MessageComponent {
   }
 
   /**
-   * Open the context menu via the toolbar's "More actions" button.
+   * Open the context menu by right-clicking the message content.
    */
   private async openContextMenu(): Promise<void> {
-    await this.revealHoverToolbar();
-    await this.hoverToolbar.getByLabel('More actions').click();
+    await this.locator.locator('.message-content-stack').click({ button: 'right' });
     await expect(this.contextMenu).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
   }
 
@@ -219,6 +218,14 @@ export class MessageComponent {
     }
     await this.contextMenu
       .getByRole('menuitem', { name: 'Reply in thread', exact: true })
+      .click({ timeout: TIMEOUTS.REALTIME_EVENT });
+  }
+
+  /** Open an echo's original thread without starting a reply to the echoed message. */
+  async openEchoThread(): Promise<void> {
+    await this.openContextMenu();
+    await this.contextMenu
+      .getByRole('menuitem', { name: 'Open thread', exact: true })
       .click({ timeout: TIMEOUTS.REALTIME_EVENT });
   }
 
@@ -413,18 +420,14 @@ export class MessageComponent {
     });
   }
 
-  /**
-   * Assert that the message shows (edited) indicator.
-   */
+  /** Assert that the message shows the edit marker. */
   async expectEdited(): Promise<void> {
-    await expect(this.locator.getByText('(edited)')).toBeVisible();
+    await expect(this.locator.locator('.edited-marker')).toBeVisible();
   }
 
-  /**
-   * Assert that the message does NOT show (edited) indicator.
-   */
+  /** Assert that the message does not show the edit marker. */
   async expectNotEdited(): Promise<void> {
-    await expect(this.locator.getByText('(edited)')).not.toBeVisible();
+    await expect(this.locator.locator('.edited-marker')).not.toBeVisible();
   }
 
   /**

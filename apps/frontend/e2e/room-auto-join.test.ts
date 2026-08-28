@@ -17,16 +17,14 @@ test.describe('Room auto-join', () => {
     await chatPage.goto();
 
     // User B: Create account and open the server
-    await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
+    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
       // Verify User B sees both default auto-join rooms in the sidebar
-      const roomList = page2.locator('.room-list');
-
       // "general" should be visible (auto-joined)
-      const generalRoom = roomList.getByRole('link', { name: '# general' });
+      const generalRoom = chatPage2.getRoomLink('general');
       await expect(generalRoom).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // "announcements" should be visible (auto-joined)
-      const announcementsRoom = roomList.getByRole('link', { name: '# announcements' });
+      const announcementsRoom = chatPage2.getRoomLink('announcements');
       await expect(announcementsRoom).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
       // User B can click on a room and see its content (confirming they're a member)

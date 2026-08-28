@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/jetstreamutil"
 )
 
 // Presence status constants used by public API and storage mappings.
@@ -34,23 +35,23 @@ const (
 
 // presenceStatusFromString converts a stored presence status string to protobuf enum.
 // Note: OFFLINE should never be stored - callers should delete the key instead.
-func presenceStatusFromString(s string) corev1.UserPresenceStatus {
+func presenceStatusFromString(s string) cachestatev1.UserPresenceStatus {
 	switch s {
 	case PresenceStatusAway:
-		return corev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY
+		return cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY
 	case PresenceStatusDoNotDisturb:
-		return corev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB
+		return cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB
 	default:
-		return corev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE
+		return cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE
 	}
 }
 
 // presenceStatusToString converts a protobuf UserPresenceStatus enum to storage string.
-func presenceStatusToString(status corev1.UserPresenceStatus) string {
+func presenceStatusToString(status cachestatev1.UserPresenceStatus) string {
 	switch status {
-	case corev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY:
+	case cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY:
 		return PresenceStatusAway
-	case corev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB:
+	case cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB:
 		return PresenceStatusDoNotDisturb
 	default:
 		return PresenceStatusOnline
@@ -107,7 +108,7 @@ func (s *PresenceModel) GetUserPresence(ctx context.Context, userID string) (str
 		entry.Operation() == jetstream.KeyValuePurge {
 		return PresenceStatusOffline, nil
 	}
-	presence := &corev1.UserPresence{}
+	presence := &cachestatev1.UserPresence{}
 	if err := proto.Unmarshal(entry.Value(), presence); err != nil {
 		s.logger.Warn("Failed to unmarshal presence, treating user as offline",
 			"error", err, "user_id", userID)
@@ -127,7 +128,7 @@ func (s *PresenceModel) SetPresence(ctx context.Context, userID string, status s
 // manuallySet marks explicit user-selected Away/DND so automatic reports from
 // other clients do not overwrite the user's chosen availability.
 func (s *PresenceModel) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
-	presence := &corev1.UserPresence{
+	presence := &cachestatev1.UserPresence{
 		Status:      presenceStatusFromString(status),
 		ManuallySet: manuallySet && status != PresenceStatusOnline,
 	}
@@ -161,11 +162,11 @@ func (s *PresenceModel) refreshPresence(ctx context.Context, userID string) erro
 	// Re-put the same value to refresh TTL using optimistic locking.
 	// If a concurrent SetPresence modified the entry, Update fails and
 	// the newer status is preserved — which is the correct behavior.
-	_, err = s.putPresenceWithTTL(ctx, key, entry.Value(), entry.Revision())
+	_, err = s.putWithTTL(ctx, key, entry.Value(), entry.Revision())
 	if err != nil {
-		// ErrKeyExists means the revision changed (concurrent write) — that's fine,
+		// A sequence conflict means the revision changed (concurrent write) — that's fine,
 		// the newer value already has a fresh TTL from the concurrent Put.
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			return nil
 		}
 		return fmt.Errorf("failed to refresh presence: %w", err)
@@ -179,7 +180,7 @@ func (s *PresenceModel) writePresence(ctx context.Context, key string, data []by
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				_, err = s.memoryCacheKV.Create(ctx, key, data, jetstream.KeyTTL(PresenceTTL))
-				if errors.Is(err, jetstream.ErrKeyExists) {
+				if jetstreamutil.IsSequenceConflict(err) {
 					continue
 				}
 				return err
@@ -191,11 +192,11 @@ func (s *PresenceModel) writePresence(ctx context.Context, key string, data []by
 			return nil
 		}
 
-		_, err = s.putPresenceWithTTL(ctx, key, data, entry.Revision())
+		_, err = s.putWithTTL(ctx, key, data, entry.Revision())
 		if err == nil {
 			return nil
 		}
-		if errors.Is(err, jetstream.ErrKeyExists) {
+		if jetstreamutil.IsSequenceConflict(err) {
 			continue
 		}
 		return err
@@ -205,14 +206,14 @@ func (s *PresenceModel) writePresence(ctx context.Context, key string, data []by
 }
 
 func shouldIgnoreAutomaticPresenceWrite(existingData, incomingData []byte) bool {
-	var existing corev1.UserPresence
+	var existing cachestatev1.UserPresence
 	if err := proto.Unmarshal(existingData, &existing); err != nil {
 		return false
 	}
 	if !existing.ManuallySet {
 		return false
 	}
-	var incoming corev1.UserPresence
+	var incoming cachestatev1.UserPresence
 	if err := proto.Unmarshal(incomingData, &incoming); err != nil {
 		return false
 	}
@@ -239,6 +240,12 @@ func (c *ChattoCore) GetUserPresence(ctx context.Context, userID string) (string
 	return c.presenceModel.GetUserPresence(ctx, userID)
 }
 
+// GetUserPresences returns watcher-backed presence for bulk read hydration.
+// Singular reads remain KV-backed so mutation responses retain read-your-writes.
+func (c *ChattoCore) GetUserPresences(ctx context.Context, userIDs []string) (map[string]string, error) {
+	return c.presenceModel.GetUserPresences(ctx, userIDs)
+}
+
 // SetPresence writes/refreshes a user's live presence in MEMORY_CACHE.
 // Authorization: Caller must verify the user is authenticated before calling.
 func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status string) error {
@@ -247,6 +254,12 @@ func (c *ChattoCore) SetPresence(ctx context.Context, userID string, status stri
 
 func (c *ChattoCore) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
 	return c.presenceModel.SetPresenceWithOptions(ctx, userID, status, manuallySet)
+}
+
+// LivePresenceCount returns how many users currently have live presence,
+// regardless of whether that status is Online, Away, or Do Not Disturb.
+func (c *ChattoCore) LivePresenceCount(ctx context.Context) (int, error) {
+	return c.presenceModel.LivePresenceCount(ctx)
 }
 
 func (c *ChattoCore) refreshPresence(ctx context.Context, userID string) error {

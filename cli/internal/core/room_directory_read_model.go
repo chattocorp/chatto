@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // RoomDirectoryReads returns the operation-level model for public room
@@ -21,6 +23,10 @@ type RoomDirectoryReadModel struct {
 type RoomDirectoryListOptions struct {
 	IncludeChannels bool
 	IncludeDMs      bool
+	// IncludeEmptyDMs is for exhaustive projection/authorization reads. Public
+	// directory lists keep the conversation-list policy of hiding DMs until
+	// they contain a message.
+	IncludeEmptyDMs bool
 }
 
 type RoomDirectoryGroupOptions struct {
@@ -28,7 +34,7 @@ type RoomDirectoryGroupOptions struct {
 }
 
 type DirectoryRoom struct {
-	Room        *corev1.Room
+	Room        *evtv1.Room
 	ViewerState DirectoryRoomViewerState
 }
 
@@ -37,6 +43,8 @@ type DirectoryRoomViewerState struct {
 	HasUnread              bool
 	CanListRoom            bool
 	CanJoinRoom            bool
+	CanReadMessages        bool
+	CanReadInteractions    bool
 	CanPostMessage         bool
 	CanPostInThread        bool
 	CanAttach              bool
@@ -45,22 +53,24 @@ type DirectoryRoomViewerState struct {
 	CanManageOthersMessage bool
 	CanManageRoom          bool
 	CanBanRoomMembers      bool
+	SlowModeNextPostAt     time.Time
 }
 
 type DirectoryRoomGroup struct {
-	Group       *corev1.RoomGroup
+	Group       *evtv1.RoomGroup
 	ViewerState DirectoryRoomGroupViewerState
 	Rooms       []*DirectoryRoom
 	Items       []DirectoryRoomGroupItem
 }
 
 type DirectoryRoomGroupViewerState struct {
-	CanCreateRoom bool
+	CanCreateRoom      bool
+	CanManageRoomGroup bool
 }
 
 type DirectoryRoomGroupItem struct {
 	Room        *DirectoryRoom
-	SidebarLink *corev1.SidebarLink
+	SidebarLink *evtv1.SidebarLink
 }
 
 func (s *RoomDirectoryReadModel) ListRooms(ctx context.Context, actorID string, opts RoomDirectoryListOptions) ([]*DirectoryRoom, error) {
@@ -77,7 +87,7 @@ func (s *RoomDirectoryReadModel) ListRooms(ctx context.Context, actorID string, 
 		rooms = append(rooms, channelRooms...)
 	}
 	if opts.IncludeDMs {
-		dmRooms, err := s.visibleDMRooms(ctx, actorID)
+		dmRooms, err := s.visibleDMRooms(ctx, actorID, opts.IncludeEmptyDMs)
 		if err != nil {
 			return nil, err
 		}
@@ -273,31 +283,47 @@ func (s *RoomDirectoryReadModel) visibleChannelRooms(ctx context.Context, actorI
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID string) ([]*DirectoryRoom, error) {
-	rooms, err := s.core.ListMemberRooms(ctx, KindDM, actorID, MemberRoomListOptions{
-		RequireLastMessage:    true,
-		SortByLastMessageDesc: true,
-	})
+func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID string, includeEmpty bool) ([]*DirectoryRoom, error) {
+	rooms, err := s.core.ListMemberRooms(ctx, KindDM, actorID, MemberRoomListOptions{})
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*DirectoryRoom, 0, len(rooms))
+	type visibleDMRoom struct {
+		room          *DirectoryRoom
+		lastMessageAt time.Time
+	}
+	visible := make([]visibleDMRoom, 0, len(rooms))
 	for _, room := range rooms {
+		lastMessageAt, err := s.core.GetRoomLastMessageAt(ctx, KindDM, room.GetId())
+		if err != nil {
+			return nil, err
+		}
+		if !includeEmpty && lastMessageAt.IsZero() {
+			continue
+		}
 		dirRoom, err := s.directoryRoom(ctx, actorID, room)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, dirRoom)
+		visible = append(visible, visibleDMRoom{room: dirRoom, lastMessageAt: lastMessageAt})
+	}
+	// DM membership authorizes message activity, so active DMs sort newest-first.
+	sort.SliceStable(visible, func(i, j int) bool {
+		return visible[i].lastMessageAt.After(visible[j].lastMessageAt)
+	})
+	result := make([]*DirectoryRoom, len(visible))
+	for i, room := range visible {
+		result[i] = room.room
 	}
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, actorID string, includeArchived bool) (map[string]*corev1.Room, error) {
+func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, actorID string, includeArchived bool) (map[string]*evtv1.Room, error) {
 	rooms, err := s.core.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[string]*corev1.Room, len(rooms))
+	result := make(map[string]*evtv1.Room, len(rooms))
 	for _, room := range rooms {
 		if room.GetArchived() && !includeArchived {
 			continue
@@ -313,7 +339,7 @@ func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, acto
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID string, group *corev1.RoomGroup, visibleRooms map[string]*corev1.Room) (*DirectoryRoomGroup, error) {
+func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID string, group *evtv1.RoomGroup, visibleRooms map[string]*evtv1.Room) (*DirectoryRoomGroup, error) {
 	state, err := s.roomGroupViewerState(ctx, actorID, group.GetId())
 	if err != nil {
 		return nil, err
@@ -331,13 +357,13 @@ func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID str
 		dirGroup.Rooms = append(dirGroup.Rooms, dirRoom)
 	}
 
-	sidebarLinks := make(map[string]*corev1.SidebarLink, len(group.GetSidebarLinks()))
+	sidebarLinks := make(map[string]*evtv1.SidebarLink, len(group.GetSidebarLinks()))
 	for _, link := range group.GetSidebarLinks() {
 		sidebarLinks[link.GetId()] = link
 	}
 	for _, entry := range group.GetEntries() {
 		switch entry.GetKind() {
-		case corev1.SidebarGroupEntry_ROOM:
+		case evtv1.SidebarGroupEntry_ROOM:
 			room := visibleRooms[entry.GetId()]
 			if room == nil {
 				continue
@@ -347,7 +373,7 @@ func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID str
 				return nil, err
 			}
 			dirGroup.Items = append(dirGroup.Items, DirectoryRoomGroupItem{Room: dirRoom})
-		case corev1.SidebarGroupEntry_SIDEBAR_LINK:
+		case evtv1.SidebarGroupEntry_SIDEBAR_LINK:
 			link := sidebarLinks[entry.GetId()]
 			if link == nil {
 				continue
@@ -363,10 +389,17 @@ func (s *RoomDirectoryReadModel) roomGroupViewerState(ctx context.Context, actor
 	if err != nil {
 		return DirectoryRoomGroupViewerState{}, err
 	}
-	return DirectoryRoomGroupViewerState{CanCreateRoom: canCreateRoom}, nil
+	canManageRoomGroup, err := s.core.CanManageRoomGroup(ctx, actorID, groupID)
+	if err != nil {
+		return DirectoryRoomGroupViewerState{}, err
+	}
+	return DirectoryRoomGroupViewerState{
+		CanCreateRoom:      canCreateRoom,
+		CanManageRoomGroup: canManageRoomGroup,
+	}, nil
 }
 
-func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID string, room *corev1.Room) (*DirectoryRoom, error) {
+func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID string, room *evtv1.Room) (*DirectoryRoom, error) {
 	state, err := s.roomViewerState(ctx, actorID, room)
 	if err != nil {
 		return nil, err
@@ -374,14 +407,22 @@ func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID stri
 	return &DirectoryRoom{Room: room, ViewerState: state}, nil
 }
 
-func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID string, room *corev1.Room) (DirectoryRoomViewerState, error) {
+func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID string, room *evtv1.Room) (DirectoryRoomViewerState, error) {
 	kind := KindOfRoom(room)
 	isMember, err := s.core.RoomMembershipExists(ctx, kind, actorID, room.Id)
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
 	}
+	canReadMessages, err := s.core.CanReadMessages(ctx, actorID, kind, room.Id)
+	if err != nil {
+		return DirectoryRoomViewerState{}, err
+	}
+	canReadInteractions, err := s.core.CanReadMessageInteractions(ctx, actorID, kind, room.Id)
+	if err != nil {
+		return DirectoryRoomViewerState{}, err
+	}
 	hasUnread := false
-	if isMember {
+	if isMember && (canReadMessages || canReadInteractions) {
 		hasUnread, err = s.core.HasUnread(ctx, kind, actorID, room.Id)
 		if err != nil {
 			return DirectoryRoomViewerState{}, err
@@ -441,12 +482,18 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		canManageRoom = false
 		canBanRoomMembers = false
 	}
+	slowModeNextPostAt := time.Time{}
+	if isMember {
+		slowModeNextPostAt = s.core.Messages().slowModeNextPostAt(room, actorID, canManageRoom || canManageOthersMessage, time.Now())
+	}
 
 	return DirectoryRoomViewerState{
 		IsMember:               isMember,
 		HasUnread:              hasUnread,
 		CanListRoom:            canList,
 		CanJoinRoom:            canJoin,
+		CanReadMessages:        isMember && canReadMessages,
+		CanReadInteractions:    isMember && canReadInteractions,
 		CanPostMessage:         canPostMessage,
 		CanPostInThread:        canPostInThread,
 		CanAttach:              canAttach,
@@ -455,6 +502,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		CanManageOthersMessage: canManageOthersMessage,
 		CanManageRoom:          canManageRoom,
 		CanBanRoomMembers:      canBanRoomMembers,
+		SlowModeNextPostAt:     slowModeNextPostAt,
 	}, nil
 }
 

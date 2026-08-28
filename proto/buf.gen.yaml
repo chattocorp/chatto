@@ -4,6 +4,8 @@ managed:
   disable:
     - file_option: go_package
       module: buf.build/bufbuild/protovalidate
+    - file_option: go_package
+      path: chatto/core
   override:
     - file_option: go_package_prefix
       value: hmans.de/chatto/internal/pb
@@ -39,30 +41,30 @@ plugins:
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
     out: ../apps/docs-website/src/generated/connectrpc-api
     opt:
-      - ../proto/templates/connectrpc-starlight.md.tmpl,api.raw.mdx:chatto/admin/v1/*,chatto/auth/v1/*,chatto/discovery/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/v1/*
+      - ../proto/templates/connectrpc-starlight.md.tmpl,api.raw.mdx:chatto/admin/v1/*,chatto/auth/v1/*,chatto/discovery/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/cache_state/v1/*,chatto/core/evt/v1/*,chatto/core/key_material/v1/*,chatto/core/live/v1/*,chatto/core/notification/v1/*,chatto/core/projection/v1/*,chatto/core/runtime_state/v1/*
     types:
       - chatto.api.v1
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
     out: ../apps/docs-website/src/generated/connectrpc-api
     opt:
-      - ../proto/templates/connectrpc-starlight.md.tmpl,auth.raw.mdx:chatto/api/v1/*,chatto/admin/v1/*,chatto/discovery/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/v1/*
+      - ../proto/templates/connectrpc-starlight.md.tmpl,auth.raw.mdx:chatto/api/v1/*,chatto/admin/v1/*,chatto/discovery/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/cache_state/v1/*,chatto/core/evt/v1/*,chatto/core/key_material/v1/*,chatto/core/live/v1/*,chatto/core/notification/v1/*,chatto/core/projection/v1/*,chatto/core/runtime_state/v1/*
     types:
       - chatto.auth.v1
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
     out: ../apps/docs-website/src/generated/connectrpc-api
     opt:
-      - ../proto/templates/connectrpc-starlight.md.tmpl,admin.raw.mdx:chatto/api/v1/*,chatto/auth/v1/*,chatto/discovery/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/v1/*
+      - ../proto/templates/connectrpc-starlight.md.tmpl,admin.raw.mdx:chatto/api/v1/*,chatto/auth/v1/*,chatto/discovery/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/cache_state/v1/*,chatto/core/evt/v1/*,chatto/core/key_material/v1/*,chatto/core/live/v1/*,chatto/core/notification/v1/*,chatto/core/projection/v1/*,chatto/core/runtime_state/v1/*
     types:
       - chatto.admin.v1
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
     out: ../apps/docs-website/src/generated/connectrpc-api
     opt:
-      - ../proto/templates/connectrpc-starlight.md.tmpl,discovery.raw.mdx:chatto/api/v1/*,chatto/admin/v1/*,chatto/auth/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/v1/*
+      - ../proto/templates/connectrpc-starlight.md.tmpl,discovery.raw.mdx:chatto/api/v1/*,chatto/admin/v1/*,chatto/auth/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/cache_state/v1/*,chatto/core/evt/v1/*,chatto/core/key_material/v1/*,chatto/core/live/v1/*,chatto/core/notification/v1/*,chatto/core/projection/v1/*,chatto/core/runtime_state/v1/*
     types:
       - chatto.discovery.v1
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
     out: ../apps/docs-website/src/generated/connectrpc-api
     opt:
-      - ../proto/templates/connectrpc-starlight.md.tmpl,realtime.raw.mdx:chatto/api/v1/*,chatto/admin/v1/*,chatto/auth/v1/*,chatto/discovery/v1/*,chatto/config/v1/*,chatto/core/v1/*
+      - ../proto/templates/connectrpc-starlight.md.tmpl,realtime.raw.mdx:chatto/api/v1/*,chatto/admin/v1/*,chatto/auth/v1/*,chatto/discovery/v1/*,chatto/config/v1/*,chatto/core/cache_state/v1/*,chatto/core/evt/v1/*,chatto/core/key_material/v1/*,chatto/core/live/v1/*,chatto/core/notification/v1/*,chatto/core/projection/v1/*,chatto/core/runtime_state/v1/*
     types:
       - chatto.realtime.v1

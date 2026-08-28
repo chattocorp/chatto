@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import type { RoomPermissions } from '$lib/state/room';
 import { findLastEditableMessage } from './lastEditableMessage';
 
@@ -15,6 +14,8 @@ const canEchoRoomPermissions: RoomPermissions = {
   canManageOthersMessage: false,
   canEchoMessage: true,
   canManageRoom: false,
+  canViewPinnedMessages: false,
+  canPinMessages: false,
   canBanRoomMembers: false
 };
 
@@ -29,7 +30,7 @@ function makeMessageEvent(
     echoFromThreadRootEventId: string | null;
     channelEchoEventId: string | null;
   }> = {}
-): RoomEventView {
+): TimelineEventView {
   const actorId = overrides.actorId ?? 'user_self';
   return {
     id: overrides.id ?? 'evt_' + Math.random().toString(36).slice(2),
@@ -37,7 +38,7 @@ function makeMessageEvent(
     actorId,
     actor: { id: actorId, login: 'tester', avatarUrl: null },
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room_test',
       body: 'body' in overrides ? overrides.body : 'hello',
       attachments: [],
@@ -54,10 +55,10 @@ function makeMessageEvent(
       threadParticipants: [],
       viewerIsFollowingThread: null
     }
-  } as unknown as RoomEventView;
+  } as unknown as TimelineEventView;
 }
 
-function find(events: RoomEventView[]) {
+function find(events: TimelineEventView[]) {
   return findLastEditableMessage({
     events,
     currentUserId: 'user_self',

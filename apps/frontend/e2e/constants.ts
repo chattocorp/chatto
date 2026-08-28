@@ -41,6 +41,12 @@ export const TIMEOUTS = {
   POLLING_EXTENDED: 20000,
 
   /**
+   * Inactive servers resume through a jittered one-minute background poll
+   * instead of retaining their own persistent WebSocket.
+   */
+  BACKGROUND_SERVER_POLL: 80000,
+
+  /**
    * Server mutation completion - wait for async mutations (like markRoomAsRead) to
    * complete and sync to server-side state. Use when a subsequent operation depends
    * on server state that was updated by a mutation triggered by page load.

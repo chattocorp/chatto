@@ -1,7 +1,7 @@
 # FDR-020: Server Branding & Configuration
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -9,10 +9,13 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ## Behavior
 
-- **Server name** — appears in page titles, the chat header, and OG metadata. Defaults to "Chatto".
+- **Server name** — appears in page titles, the chat header, installed app metadata, and OG metadata. Defaults to "Chatto".
 - **Description** — used in OG metadata for link previews when sharing the server URL.
 - **Welcome message** — shown on the login page. Markdown is supported.
-- **MOTD (message of the day)** — appears in a banner across the top of the chat surface for all members. Broadcasts to live clients when changed.
+- **MOTD (message of the day)** — appears in a banner across the top of the
+  chat surface for all members. It supports the same constrained Markdown
+  renderer as other trusted Chatto presentation text and broadcasts to live
+  clients when changed.
 - **Logo** — shown in the chat header, login page, and OG image fallback. Uploaded as an image; the public server profile exposes its canonical URL without transform arguments.
 - **Banner** — shown on the login page and in OG previews. Same upload/serve pipeline as the logo.
 - **Blocked usernames** — newline-separated list checked at signup. Matches are rejected before account creation.
@@ -26,11 +29,11 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** Partial-update semantics let UI forms send only changed fields without GET-then-PUT round-trips and without overwriting other fields with whatever defaults the form thinks they should be. It also makes API clients (CLI tools, scripts) safer.
 **Tradeoff:** Two ways to "clear" a string field: empty-string vs unset. The API treats empty string as a clear and nil as "leave alone". Documented; consistent across all string fields.
 
-### 2. Public profile/config changes broadcast as one live event
+### 2. Public profile/config changes publish one internal live signal
 
-**Decision:** Public server profile/config changes publish one transient `ServerUpdatedEvent` on `live.sync.config.server_updated` and are delivered to every authenticated user. Clients treat the event as a refetch signal for `Server.profile` and related authenticated settings they display.
-**Why:** Server name, MOTD, logo, banner, description, and welcome copy are visible across the UI. One event keeps profile/config live behavior clear and avoids duplicate broadcasts from text updates.
-**Tradeoff:** Every connected client gets every public profile/config change event, including fields they may not render. Volume is low (operators don't tweak branding constantly) so this is fine.
+**Decision:** Public server profile/config changes publish one transient `ServerUpdatedEvent` on `live.sync.config.server_updated`. The realtime service consumes that internal invalidation signal and emits an authoritative server projection replacement to each authenticated client; the internal event is not part of the public wire protocol.
+**Why:** Server name, MOTD, logo, banner, description, and welcome copy are visible across the UI. One internal signal keeps profile/config live behavior clear, avoids duplicate broadcasts from text updates, and lets the public stream converge without a client-side refetch.
+**Tradeoff:** Every connected client rebuilds the small projected server resource when public profile/config changes, including fields it may not render. Volume is low (operators don't tweak branding constantly), so this is preferable to exposing invalidation mechanics to clients.
 
 ### 3. Logo and banner have their own upload mutations
 
@@ -44,11 +47,15 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** The event log should record durable domain state and audit history, not inline image bytes. This matches the broader asset model while still making the user-visible branding selection replayable from EVT.
 **Tradeoff:** Backup/restore still needs the object-store bucket alongside EVT. A replay can reconstruct which logo or banner is current, but not the image bytes unless the asset store is preserved too.
 
-### 5. Markdown in the welcome message, plain text in MOTD
+### 5. Constrained Markdown for welcome and MOTD text
 
-**Decision:** The login welcome message supports markdown; the MOTD is plain text.
-**Why:** The login page has room for formatted content (a paragraph, a link, a bit of structure). The MOTD is a one-line banner where formatting would add visual noise. Different surfaces, different needs.
-**Tradeoff:** Operators may expect MOTD to support links. If demand emerges, a future tweak could allow a single link.
+**Decision:** The login welcome message and MOTD use Chatto's shared,
+sanitizing Markdown renderer.
+**Why:** Operators can add a link or small amount of emphasis without giving
+configuration text an unrestricted HTML boundary. One reviewed renderer keeps
+the two presentation surfaces consistent.
+**Tradeoff:** Complex layout and unrestricted HTML are not supported. An MOTD
+with rich structure can be visually noisy in the compact banner.
 
 ### 6. Blocked usernames as a dedicated security mutation
 

@@ -12,6 +12,7 @@
     error,
     description,
     required = false,
+    labelHidden = false,
     disabled = false,
     autocomplete,
     minlength,
@@ -31,12 +32,14 @@
     error?: string;
     description?: string;
     required?: boolean;
+    /** Keep the label available to assistive technology without displaying it. */
+    labelHidden?: boolean;
     disabled?: boolean;
     autocomplete?: HTMLInputAttributes['autocomplete'];
     minlength?: number;
     maxlength?: number;
     autofocus?: boolean;
-    /** Iconify class name (e.g. `'uil--search'`). Renders a leading icon inside the input. */
+    /** Iconify class name (e.g. `'icon-[uil--search]'`). Renders a leading icon inside the input. */
     leadingIcon?: string;
     /** Short trailing label rendered inside the input (e.g. a unit like `"px"`). */
     trailingText?: string;
@@ -45,12 +48,12 @@
   } = $props();
 </script>
 
-<FormField {label} {id} {error} {description} {required}>
+<FormField {label} {id} {error} {description} {required} {labelHidden}>
   <div class="relative">
     {#if leadingIcon}
       <span
         class={[
-          'iconify pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-base text-muted',
+          'pointer-events-none absolute start-2 top-1/2 iconify -translate-y-1/2 text-base text-muted',
           leadingIcon
         ]}
         aria-hidden="true"
@@ -71,13 +74,13 @@
       {autofocus}
       {onkeydown}
       {oninput}
-      class={['input', leadingIcon && 'pl-7', trailingText && 'pr-10']}
+      class={['input', leadingIcon && 'ps-8', trailingText && 'pe-10']}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
     />
     {#if trailingText}
       <span
-        class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-sm text-muted"
+        class="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 text-sm text-muted"
         aria-hidden="true"
       >
         {trailingText}

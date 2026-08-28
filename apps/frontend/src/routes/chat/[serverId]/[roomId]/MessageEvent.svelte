@@ -1,91 +1,86 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { startDMWith } from '$lib/dm/startDM';
   import { resolve } from '$app/paths';
-  import MessageContent from '$lib/components/MessageContent.svelte';
-  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
+  import MessageView from '$lib/components/messages/MessageView.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
-  import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
-  import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
-  import BottomSheet from '$lib/ui/BottomSheet.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { useRenderData } from '$lib/render/data';
-  import type { RoomEventView } from '$lib/render/types';
+  import type { TimelineEventView } from '$lib/render/timelineEvents';
   import {
     getRoomPermissions,
     getRoomMembers,
     getMentionRoles,
     getComposerContext,
     type MessagesStore,
-    type QuoteInsertionContent,
-    type RoomMember
+    type QuoteInsertionContent
   } from '$lib/state/room';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
 
-  const stores = serverRegistry.getStore(getActiveServer());
-  const notificationStore = stores.notifications;
-  const serverInfo = stores.serverInfo;
-  const activeCallRooms = stores.activeCallRooms;
+  const serverScope = useServerScope();
+  const stores = $derived(serverScope.store);
+  const notificationStore = $derived(stores.notifications);
+  const serverInfo = $derived(stores.serverInfo);
+  const activeCallRooms = $derived(stores.activeCallRooms);
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import MessageActionSheet from './MessageActionSheet.svelte';
-  import MessageContextMenu from '$lib/components/menus/MessageContextMenu.svelte';
   import MessageHoverBar from './MessageHoverBar.svelte';
-  import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import MessageAttachments from './MessageAttachments.svelte';
   import MessageMetaBar from './MessageMetaBar.svelte';
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { formatMessageTime } from '$lib/utils/formatTime';
+  import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import { useMessageActions } from '$lib/hooks';
-  import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
-  import {
-    copyMessageLinkToClipboard,
-    parseMessageLink,
-    type MessageLink
-  } from '$lib/messageLinks';
+  import { copyMessageLinkToClipboard } from '$lib/messageLinks';
   import { serverIdToSegment } from '$lib/navigation';
-  import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import { createThreadAPI } from '$lib/api-client/threads';
-  import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
-  import * as m from '$lib/i18n/messages';
-
-  // Long-press thresholds in milliseconds
-  const HIGHLIGHT_DELAY_MS = 150; // Delay before showing visual feedback (avoids flicker on scroll)
-  const LONG_PRESS_MS = 500; // Total time before action sheet appears
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
+  import { m } from '$lib/i18n/messages';
+  import MessageReplyAttribution from './MessageReplyAttribution.svelte';
+  import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
+  import { MessageEventInteractionState } from './messageEventInteractions.svelte';
+  import MessageUserOverlays from './MessageUserOverlays.svelte';
+  import { MessageUserInteractionState } from './messageUserInteractions.svelte';
+  import {
+    buildMessageReplyPreview,
+    canEditMessage,
+    embeddedMessageLinks,
+    isDeletedMessage,
+    resolveMessageEventReferences
+  } from './messageEventModel';
+  import { ThreadFollowState } from './threadFollowState.svelte';
+  import { buildMessageActionModel } from './messageActionModel';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     event,
     compact = false,
     roomId,
+    permalinkThreadRootEventId = null,
     messageStore = null,
-    onOpenThread
+    onOpenThread,
+    onOpenProfile,
+    threadingMode = RoomThreadingMode.ENABLED
   }: {
-    event: RoomEventView;
+    event: TimelineEventView;
     compact?: boolean;
     roomId: string;
+    permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
+    onOpenProfile?: (userId: string) => void;
+    threadingMode?: RoomThreadingMode;
   } = $props();
 
-  const connection = useConnection();
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const connection = () => serverScope.connection;
+  const activeServerId = $derived(serverScope.serverId);
+  const currentUser = $derived(stores.currentUser);
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
-  const userSettings = getUserSettings();
+  const userSettings = $derived(timeFormatSettingsFor(currentUser.user?.settings));
   const activeLocale = $derived(getLocale());
   const prefersTouch = prefersTouchActions();
   const canUseHoverActions = supportsHoverActions();
@@ -96,16 +91,19 @@
       .filter((role) => role.pingable && role.name !== 'everyone')
       .map((role) => role.name)
   );
-  // Actor may be null if the user has been deleted.
+  // Deleted actors may be absent or retained as a deleted reference.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
-  const actor = $derived(event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null);
+  const actor = $derived(event?.actor ?? null);
+  const deletedActor = $derived(!actor || actor.deleted);
 
   // Display name with live updates from profile cache
   const displayName = $derived(
-    actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : 'Deleted User'
+    !deletedActor && actor
+      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
+      : m('common.deleted_user')
   );
   const actorCallPresence = $derived(
-    actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
+    !deletedActor && actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
   );
 
   // Permission checks for message actions. Authors can always edit (within
@@ -113,168 +111,113 @@
   // messages requires message.manage.
   const isAuthor = $derived(currentUser.user?.id === event?.actorId);
   const canEdit = $derived(
-    (isAuthor &&
-      event &&
-      Date.now() - new Date(event.createdAt).getTime() <
-        serverInfo.messageEditWindowSeconds * 1000) ||
-      roomPermissions.canManageOthersMessage
+    canEditMessage({
+      isAuthor,
+      createdAt: event.createdAt,
+      now: Date.now(),
+      editWindowSeconds: serverInfo.messageEditWindowSeconds,
+      canManageOthersMessage: roomPermissions.canManageOthersMessage
+    })
   );
   const canDelete = $derived(isAuthor || roomPermissions.canManageOthersMessage);
 
-  // Mobile action sheet state
-  let showActionSheet = $state(false);
-  let longPressActive = $state(false);
-  let highlightTimer: ReturnType<typeof setTimeout> | null = null;
-  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
-
-  // Desktop context menu state
-  let contextMenuPos = $state<{
-    x: number;
-    y: number;
-    alignRight?: boolean;
-    centerX?: boolean;
-  } | null>(null);
+  const interactions = new MessageEventInteractionState();
+  $effect(() => () => interactions.dispose());
+  const userInteractions = new MessageUserInteractionState(() => members);
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
 
-  // Emoji picker state (position doubles as visibility flag in floating mode)
-  let emojiPickerPos = $state<{ x: number; y: number } | null>(null);
-  let emojiPickerPresentation = $state<'auto' | 'sheet'>('auto');
-  const emojiActions = useMessageActions();
-
-  function openEmojiPicker(presentation: 'auto' | 'sheet' = 'auto') {
-    emojiPickerPresentation = presentation;
-    // Capture context menu position before it closes. Sheet presentation ignores
-    // this fallback, but ContextMenu still requires a visibility anchor.
-    emojiPickerPos = contextMenuPos ?? { x: 0, y: 0 };
-  }
-
-  function openEmojiPickerFromEvent(e: MouseEvent) {
-    emojiPickerPresentation = 'auto';
-    emojiPickerPos = { x: e.clientX, y: e.clientY };
-  }
-
-  function openEmojiPickerFromToolbar(e: MouseEvent) {
-    emojiPickerPresentation = 'auto';
-    const button = e.currentTarget as HTMLElement;
-    const rect = button.getBoundingClientRect();
-    emojiPickerPos = { x: rect.left, y: rect.bottom + 4 };
-  }
-
-  async function handleEmojiSelect(emoji: string) {
-    emojiPickerPresentation = 'auto';
-    emojiPickerPos = null;
-
-    if (!msg) return;
-
-    const params = {
-      serverId: getActiveServer(),
-      roomId,
-      messageEventId: event.id,
-      eventId: isEcho ? messageEvent!.echoOfEventId! : event.id,
-      messageBody: msg.body ?? '',
-      messageStore
-    };
-    const name = emojiToName(emoji);
-    const alreadyReacted = msg.reactions.some((r) => r.emoji === name && r.hasReacted);
-    await emojiActions.toggleReaction(params, emoji, alreadyReacted);
-  }
-
-  function closeEmojiPicker() {
-    emojiPickerPresentation = 'auto';
-    emojiPickerPos = null;
-  }
-
-  function startLongPress() {
-    // Stage 1: Show highlight after short delay (avoids flicker during scroll)
-    highlightTimer = setTimeout(() => {
-      longPressActive = true;
-    }, HIGHLIGHT_DELAY_MS);
-
-    // Stage 2: Show action sheet after full long-press duration
-    longPressTimer = setTimeout(() => {
-      showActionSheet = true;
-      longPressActive = false;
-    }, LONG_PRESS_MS);
-  }
-
-  function cancelLongPress() {
-    longPressActive = false;
-    if (highlightTimer) {
-      clearTimeout(highlightTimer);
-      highlightTimer = null;
-    }
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
-  }
+  const messageActions = useMessageActions();
 
   // Touch handlers for mobile
   function handleTouchStart() {
-    startLongPress();
+    interactions.startLongPress();
   }
 
   function handleTouchEnd() {
-    cancelLongPress();
+    interactions.cancelLongPress();
   }
 
   function handleTouchMove() {
     // Cancel long-press if user moves finger (scrolling)
-    cancelLongPress();
+    interactions.cancelLongPress();
   }
 
   // Mouse fallback for pure touch-primary devices. Hybrid devices with a hover-capable
   // pointer use the normal hover toolbar instead.
   function handleMouseDown(e: MouseEvent) {
+    // Capture selected quote text before a right-click can collapse the browser selection.
+    if (e.button === 2) {
+      selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
+      return;
+    }
     if (!prefersTouch || canUseHoverActions) return;
     // Only handle left mouse button
     if (e.button !== 0) return;
-    startLongPress();
+    interactions.startLongPress();
   }
 
-  function handleMouseUp() {
-    cancelLongPress();
+  function handleMouseUp(event: MouseEvent) {
+    if (event.button !== 0) return;
+    if (prefersTouch && !canUseHoverActions) {
+      interactions.cancelLongPress();
+    }
+    if (!(event.target instanceof Element && event.target.closest('[role="toolbar"]'))) {
+      selectedReplyQuoteSnapshot = getSelectedReplyQuote();
+    }
   }
 
   function handleMouseLeave() {
-    cancelLongPress();
+    if (prefersTouch && !canUseHoverActions) {
+      interactions.cancelLongPress();
+    }
+    if (!interactions.hasOpenActionSurface) {
+      selectedReplyQuoteSnapshot = null;
+    }
   }
 
   // Open context menu from the toolbar's "more actions" button,
   // positioned to cover the toolbar exactly.
   function openMenuFromToolbar(e: MouseEvent) {
-    selectedReplyQuoteSnapshot = getSelectedReplyQuote();
-    const button = e.currentTarget as HTMLElement;
-    const toolbar = button.closest('[role="toolbar"]') as HTMLElement;
-    const rect = toolbar?.getBoundingClientRect() ?? button.getBoundingClientRect();
-    contextMenuPos = { x: rect.right, y: rect.top, alignRight: true };
+    selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
+    interactions.openContextMenuFromToolbar(e);
+  }
+
+  function openMenuFromMessage(e: MouseEvent) {
+    e.preventDefault();
+    // Browsers may synthesize this event during a touch long press, including
+    // on hybrid devices; that gesture already owns the action sheet.
+    if (interactions.hasActiveLongPressGesture) return;
+    selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
+    interactions.openContextMenuAtPointer(e);
   }
 
   // MessagePostedEvent-specific data (threading, inReplyTo, etc.)
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions
   const messageEvent = $derived(isMessagePostedEvent(event?.event) ? event.event : null);
 
-  // Check if this is an echo (MessagePostedEvent with echoOfEventId set)
-  const isEcho = $derived(messageEvent?.echoOfEventId != null);
-
-  const editEventId = $derived(isEcho ? messageEvent!.echoOfEventId! : event.id);
-  const editThreadRootEventId = $derived(
-    isEcho
-      ? (messageEvent?.echoFromThreadRootEventId ?? null)
-      : (messageEvent?.threadRootEventId ?? null)
+  const eventReferences = $derived(
+    messageEvent ? resolveMessageEventReferences(event.id, messageEvent) : null
   );
-  const editChannelEchoEventId = $derived(
-    isEcho ? event.id : (messageEvent?.channelEchoEventId ?? null)
+  const isEcho = $derived(eventReferences?.isEcho ?? false);
+  const editEventId = $derived(eventReferences?.editEventId ?? event.id);
+  const editThreadRootEventId = $derived(eventReferences?.editThreadRootEventId ?? null);
+  const editChannelEchoEventId = $derived(eventReferences?.editChannelEchoEventId ?? null);
+  const threadRootEventId = $derived(eventReferences?.threadRootEventId ?? null);
+  const pinsStore = $derived(
+    roomPermissions.canViewPinnedMessages ? stores.pinsForRoom(roomId) : null
   );
-  const threadRootEventId = $derived(
-    isEcho ? (messageEvent?.echoFromThreadRootEventId ?? null) : event.id
+  const canPin = $derived(roomPermissions.canPinMessages && Boolean(pinsStore));
+  const isPinned = $derived(
+    pinsStore?.isPinned(editEventId, messageEvent?.pinned ?? false) ?? messageEvent?.pinned ?? false
   );
   const canReconcileChannelEcho = $derived(
     isAuthor &&
       !!editThreadRootEventId &&
       (!!editChannelEchoEventId ||
-        (roomPermissions.canEchoMessage && roomPermissions.canPostMessage))
+        (threadingMode !== RoomThreadingMode.DISABLED &&
+          roomPermissions.canEchoMessage &&
+          roomPermissions.canPostMessage))
   );
 
   // Common message data for rendering (body, attachments, reactions, updatedAt)
@@ -285,110 +228,141 @@
   );
 
   // Message links referenced in this message's body — rendered inline as previews.
-  const embeddedMessageLinks = $derived.by<MessageLink[]>(() => {
-    if (!msg?.body) return [];
-    return extractURLs(msg.body, 5)
-      .map(parseMessageLink)
-      .filter((link): link is MessageLink => link !== null);
-  });
+  const messageLinks = $derived(embeddedMessageLinks(msg?.body));
 
   async function copyMessageLink(e: MouseEvent) {
     if (!event) return;
     e.preventDefault();
     e.stopPropagation();
-    await copyMessageLinkToClipboard(getActiveServer(), roomId, event.id);
+    await copyMessageLinkToClipboard(activeServerId, roomId, event.id, permalinkThreadRootEventId);
   }
 
-  // Check if message has been edited (updatedAt is non-null)
   const isEdited = $derived(msg?.updatedAt != null);
 
   // Threading: check if this is a root message with replies (echoes never have replies)
   // Uses threadRootEventId (thread membership), not inReplyTo (attribution)
   const isRootMessage = $derived(!isEcho && messageEvent?.threadRootEventId == null);
   const hasReplies = $derived(isRootMessage && (messageEvent?.replyCount ?? 0) > 0);
+  const hasThread = $derived(
+    isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
+  );
+  const isInThreadPane = $derived(!!permalinkThreadRootEventId);
+  const isEchoedToChannel = $derived(
+    isInThreadPane && !isEcho && !!messageEvent?.channelEchoEventId
+  );
   const replyInRoomActionLabel = $derived(
-    isEcho ? m['room.message.actions.reply_thread']() : m['room.message.actions.reply']()
+    isEcho ? m('room.message.actions.reply_thread') : m('room.message.actions.reply')
   );
   const replyThreadActionLabel = $derived(
-    isEcho ? m['room.message.actions.open_thread']() : m['room.message.actions.reply_thread']()
+    isEcho || (isRootMessage && threadingMode === RoomThreadingMode.DISABLED && hasThread)
+      ? m('room.message.actions.open_thread')
+      : m('room.message.actions.reply_thread')
   );
-  const canUseReplyAction = $derived(
-    isEcho
-      ? roomPermissions.canPostInThread &&
-          !!onOpenThread &&
-          !!messageEvent?.echoFromThreadRootEventId
-      : roomPermissions.canPostMessage
+  const canUseReplyAction = $derived.by(() => {
+    if (threadingMode === RoomThreadingMode.DISABLED && isInThreadPane) return false;
+    if (isEcho) {
+      return (
+        threadingMode !== RoomThreadingMode.DISABLED &&
+        roomPermissions.canPostInThread &&
+        !!onOpenThread &&
+        !!messageEvent?.echoFromThreadRootEventId
+      );
+    }
+    if (isInThreadPane) return roomPermissions.canPostInThread;
+    if (isRootMessage && threadingMode === RoomThreadingMode.REQUIRED) {
+      return roomPermissions.canPostInThread && !!onOpenThread;
+    }
+    if (isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED) {
+      return (roomPermissions.canPostInThread && !!onOpenThread) || roomPermissions.canPostMessage;
+    }
+    return roomPermissions.canPostMessage;
+  });
+  const canUseSecondaryRoomReply = $derived(
+    isRootMessage &&
+      !isInThreadPane &&
+      threadingMode === RoomThreadingMode.ENCOURAGED &&
+      roomPermissions.canPostInThread &&
+      !!onOpenThread &&
+      roomPermissions.canPostMessage
   );
   const canUseThreadAction = $derived(
     isEcho
       ? !!onOpenThread && !!messageEvent?.echoFromThreadRootEventId
-      : roomPermissions.canPostInThread && !!onOpenThread
+      : threadingMode === RoomThreadingMode.DISABLED
+        ? !permalinkThreadRootEventId && isRootMessage && hasThread && !!onOpenThread
+        : roomPermissions.canPostInThread && !!onOpenThread
+  );
+  const actionModel = $derived(
+    buildMessageActionModel({
+      actions: messageActions,
+      params: {
+        serverId: activeServerId,
+        roomId,
+        messageEventId: event.id,
+        eventId: editEventId,
+        deleteEventId: event.id,
+        messageBody: msg?.body ?? '',
+        permalinkThreadRootEventId,
+        threadRootEventId: editThreadRootEventId,
+        channelEchoEventId: editChannelEchoEventId,
+        canAddChannelEcho: canReconcileChannelEcho,
+        messageStore
+      },
+      reactions: msg?.reactions ?? [],
+      canReact: roomPermissions.canReact,
+      canEdit,
+      canDelete,
+      canPin,
+      isPinned,
+      togglePin: async () => {
+        const pins = pinsStore;
+        if (!pins) return;
+        try {
+          if (pins.isPinned(editEventId, messageEvent?.pinned ?? false))
+            await pins.remove(editEventId);
+          else await pins.create(editEventId);
+        } catch {
+          toast.error(m('room.pins.update_failed'));
+        }
+      },
+      replyInRoomLabel: replyInRoomActionLabel,
+      replyThreadLabel: replyThreadActionLabel,
+      replyInRoom: canUseReplyAction ? handleReply : undefined,
+      replyThread: canUseThreadAction ? handleOpenThread : undefined,
+      secondaryReplyInRoomLabel: canUseSecondaryRoomReply
+        ? m('room.message.actions.reply_room')
+        : undefined,
+      secondaryReplyInRoom: canUseSecondaryRoomReply ? handleReplyInCurrentComposer : undefined
+    })
   );
 
-  // Overridable derived state: backing event data is the default, while
-  // mutations/live events can update the row immediately.
-  let isFollowingThread = $derived(messageEvent?.viewerIsFollowingThread ?? false);
-  let threadFollowRequestId = 0;
-  let isThreadFollowPending = $state(false);
+  const threadFollow = new ThreadFollowState({
+    getConnection: connection,
+    getSnapshot: () => ({
+      roomId,
+      threadRootEventId: event.id,
+      following: messageEvent ? (messageEvent.viewerIsFollowingThread ?? false) : null
+    }),
+    beginOptimistic: ({ threadRootEventId }, following) =>
+      messageStore?.beginOptimisticThreadFollow(threadRootEventId, following),
+    commit: ({ threadRootEventId }, following) =>
+      messageStore?.setThreadRootFollowState(threadRootEventId, following)
+  });
 
-  function setThreadFollowState(value: boolean) {
-    if (!event) return;
-    threadFollowRequestId += 1;
-    isThreadFollowPending = false;
-    isFollowingThread = value;
-    messageStore?.setThreadRootFollowState(event.id, value);
-  }
-
-  function syncThreadFollowEvents() {
-    return onThreadFollowChanged((update) => {
-      if (update.roomId === roomId && update.threadRootEventId === event.id) {
-        setThreadFollowState(update.isFollowing);
-      }
-    });
-  }
-
-  async function toggleThreadFollow(e: MouseEvent) {
+  function toggleThreadFollow(e: MouseEvent) {
     e.stopPropagation();
-    if (!event || isThreadFollowPending) return;
-
-    const wasFollowing = isFollowingThread;
-    const nextFollowing = !wasFollowing;
-    const requestId = ++threadFollowRequestId;
-    const optimistic = messageStore?.beginOptimisticThreadFollow(event.id, nextFollowing);
-
-    isThreadFollowPending = true;
-    isFollowingThread = nextFollowing;
-
-    try {
-      const conn = connection();
-      const api = createThreadAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
-      const input = { roomId, threadRootEventId: event.id };
-      const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
-      if (threadFollowRequestId !== requestId) return;
-      setThreadFollowState(result.following);
-    } catch {
-      if (threadFollowRequestId !== requestId) return;
-      isThreadFollowPending = false;
-      isFollowingThread = wasFollowing;
-      optimistic?.rollback();
-    }
+    void threadFollow.toggle();
   }
 
-  // Check if message has attachments
   const hasAttachments = $derived((msg?.attachments?.length ?? 0) > 0);
   const hasVisualEmbed = $derived(
-    hasAttachments || !!messageEvent?.linkPreview || embeddedMessageLinks.length > 0
+    hasAttachments || !!messageEvent?.linkPreview || messageLinks.length > 0
   );
 
   // Message is "deleted" if it has no body AND no attachments.
-  // Deleted messages always render as a tombstone — hiding them entirely opened up
-  // moderation-evading and inconsistency vectors (e.g. event numbering gaps, lost
-  // reply-attribution context, deleted-then-reacted-to messages disappearing).
-  const isDeleted = $derived(!msg?.body && !hasAttachments);
+  // Deleted rows that reach this component have visible context and render as
+  // tombstones. EventList omits context-free tombstones before rendering.
+  const isDeleted = $derived(msg ? isDeletedMessage(msg) : true);
 
   const replyTarget = $derived.by(() => {
     const replyToId = messageEvent?.inReplyTo;
@@ -409,26 +383,26 @@
     const replyToId = messageEvent?.inReplyTo;
     if (!replyToId) return null;
 
-    if (!replyTarget) return { name: 'a message', body: null as string | null, actor: null };
-
-    const repliedActor = replyTarget.actor
-      ? useRenderData(UserAvatarViewData, replyTarget.actor)
-      : null;
-    const name = repliedActor
-      ? getLiveDisplayName(repliedActor.id, repliedActor.displayName || repliedActor.login)
-      : 'Deleted User';
-    const body = isMessagePostedEvent(replyTarget.event) ? (replyTarget.event.body ?? null) : null;
-    return { name, body, actor: repliedActor };
+    return buildMessageReplyPreview({
+      target: replyTarget,
+      missingName: 'a message',
+      deletedName: m('common.deleted_user'),
+      getDisplayName: (member) => getLiveDisplayName(member.id, member.displayName || member.login)
+    });
   });
 
   // Check if this thread has pending reply notifications
   const hasThreadNotification = $derived(
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
   );
+  const hasThreadUnread = $derived(
+    hasReplies && event && messageEvent?.viewerHasUnreadThread === true
+  );
   const hasMessageFooter = $derived(
     (isEcho && !!onOpenThread) ||
-      (hasReplies && !!onOpenThread) ||
-      (msg?.reactions?.length ?? 0) > 0
+      (hasThread && !!onOpenThread) ||
+      (msg?.reactions?.length ?? 0) > 0 ||
+      isPinned
   );
 
   // Check if current user is mentioned (but not by themselves)
@@ -442,117 +416,18 @@
     })
   );
 
-  // User profile popover state
-  const serverPerms = getServerPermissions();
-  const canStartDMs = $derived(serverPerms.current.canStartDMs);
-  let popoverUser = $state<RoomMember | null>(null);
-  let popoverAnchorRect = $state<DOMRect | null>(null);
-  let banningMemberId = $state<string | null>(null);
-  let banDialogUser = $state<RoomMember | null>(null);
-  let banError = $state<string | null>(null);
-
-  const canBanPopoverUser = $derived.by(() => {
-    if (
-      !popoverUser ||
-      popoverUser.deleted ||
-      !roomPermissions.canBanRoomMembers ||
-      popoverUser.id === currentUser.user?.id
-    ) {
-      return false;
-    }
-    const targetUserId = popoverUser.id;
-    return members.some((member) => member.id === targetUserId);
-  });
-
-  function openBanDialog(member: RoomMember) {
-    if (member.deleted) return;
-
-    banDialogUser = member;
-    banError = null;
-    closePopover();
-  }
-
-  async function banFromRoom(member: RoomMember, reason: string, expiresAt: string | null) {
-    if (banningMemberId) return;
-
-    banningMemberId = member.id;
-    banError = null;
-    const displayName = member.displayName || member.login;
-    try {
-      const conn = connection();
-      const api = createRoomCommandAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
-      await api.banMember({ roomId, userId: member.id, reason, expiresAt });
-    } catch (error) {
-      banningMemberId = null;
-      banError = m['room.sidebar.ban_failed']();
-      toast.error(banError);
-      console.error('Failed to ban member from room:', error);
-      return;
-    }
-    banningMemberId = null;
-
-    toast.success(m['room.sidebar.ban_success']({ name: displayName }));
-    banDialogUser = null;
-  }
+  const canStartDMs = $derived(stores.permissions.canStartDMs);
 
   function showPopoverForActor(e: MouseEvent) {
-    if (!actor) return;
-    // Capture the bounding rect of the clicked button for popover positioning
-    const button = (e.target as HTMLElement).closest('button');
-    popoverAnchorRect = button?.getBoundingClientRect() ?? null;
-
-    // Look up the full member from the members list (includes live presence)
-    const member = members.find((m) => m.id === actor.id);
-    if (member) {
-      popoverUser = member;
-    } else {
-      // Actor not in current members list (e.g., left the room) — use actor data directly
-      popoverUser = {
-        id: actor.id,
-        login: actor.login,
-        displayName: actor.displayName,
-        avatarUrl: actor.avatarUrl,
-        presenceStatus: actor.presenceStatus
-      };
-    }
+    userInteractions.showUserFromEvent(actor, e);
   }
 
   function showPopoverForMember(userId: string, anchorRect: DOMRect) {
-    const member = members.find((m) => m.id === userId);
-    if (member) {
-      popoverUser = member;
-      popoverAnchorRect = anchorRect;
-    }
+    userInteractions.showMember(userId, anchorRect);
   }
 
   function showPopoverForReplyAuthor(e: MouseEvent) {
-    const replyActor = replyPreview?.actor;
-    if (!replyActor) return;
-
-    const button = (e.target as HTMLElement).closest('button');
-    popoverAnchorRect = button?.getBoundingClientRect() ?? null;
-
-    const member = members.find((m) => m.id === replyActor.id);
-    if (member) {
-      popoverUser = member;
-    } else {
-      popoverUser = {
-        id: replyActor.id,
-        login: replyActor.login,
-        displayName: replyActor.displayName,
-        avatarUrl: replyActor.avatarUrl,
-        presenceStatus: replyActor.presenceStatus
-      };
-    }
-  }
-
-  function closePopover() {
-    popoverUser = null;
-    popoverAnchorRect = null;
+    userInteractions.showUserFromEvent(replyPreview?.actor ?? null, e);
   }
 
   function scrollToReplyTarget() {
@@ -594,7 +469,14 @@
     return quote;
   }
 
-  function handleReplyInRoom() {
+  function discardSelectedReplyQuote(): void {
+    selectedReplyQuoteSnapshot = null;
+    if (getSelectedReplyQuote()) {
+      window.getSelection()?.removeAllRanges();
+    }
+  }
+
+  function handleReply() {
     const quote = takeSelectedReplyQuote();
     const excerpt = (msg?.body ?? '').slice(0, 80);
     if (isEcho && messageEvent?.echoOfEventId && messageEvent.echoFromThreadRootEventId) {
@@ -609,6 +491,39 @@
       });
       return;
     }
+
+    if (isInThreadPane) {
+      startReplyInCurrentComposer(quote);
+      return;
+    }
+
+    if (
+      isRootMessage &&
+      (threadingMode === RoomThreadingMode.REQUIRED ||
+        (threadingMode === RoomThreadingMode.ENCOURAGED &&
+          roomPermissions.canPostInThread &&
+          !!onOpenThread))
+    ) {
+      onOpenThread?.(event.id, {
+        quoteText: quote ?? undefined,
+        reply: {
+          eventId: roomReplyTargetEventId(event),
+          actorDisplayName: displayName,
+          excerpt
+        }
+      });
+      return;
+    }
+
+    startReplyInCurrentComposer(quote);
+  }
+
+  function handleReplyInCurrentComposer() {
+    startReplyInCurrentComposer(takeSelectedReplyQuote());
+  }
+
+  function startReplyInCurrentComposer(quote: QuoteInsertionContent | null) {
+    const excerpt = (msg?.body ?? '').slice(0, 80);
     replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt);
     if (quote) {
       composerContext.quoteInsertionState.requestInsertQuote(quote);
@@ -618,7 +533,10 @@
   function handleOpenThread() {
     if (onOpenThread) {
       // For echoes, use the original thread root event ID (not the echo's wrapper event ID)
-      const threadRoot = (isEcho ? messageEvent?.echoFromThreadRootEventId : null) ?? event.id;
+      const threadRoot =
+        (isEcho ? messageEvent?.echoFromThreadRootEventId : null) ??
+        permalinkThreadRootEventId ??
+        event.id;
       if (isEcho) {
         selectedReplyQuoteSnapshot = null;
         onOpenThread(threadRoot);
@@ -636,8 +554,8 @@
   {#if kind}
     <span
       class={[
-        'iconify shrink-0 text-xs leading-none text-accent',
-        kind === 'video' ? 'uil--video' : 'uil--phone'
+        'iconify shrink-0 text-xs leading-none text-action',
+        kind === 'video' ? 'icon-[uil--video]' : 'icon-[uil--phone]'
       ]}
       title={kind === 'video' ? 'In a video call' : 'In a voice call'}
       aria-label={kind === 'video' ? 'In a video call' : 'In a voice call'}
@@ -647,375 +565,176 @@
 {/snippet}
 
 {#if msg}
-  <div
+  <MessageView
+    eventId={event.id}
+    {actor}
+    {displayName}
+    body={msg.body}
+    deleted={isDeleted}
+    edited={isEdited}
+    echoedToChannel={isEchoedToChannel}
+    viewerLogin={currentUser.user?.login}
+    {compact}
+    avatarOffset={!!replyPreview}
+    hasFooter={hasMessageFooter}
     class={[
-      'group relative hover:z-10',
       compact ? (hasVisualEmbed ? 'mt-1.5' : '') : 'mt-4',
       isCurrentUserMentioned ? 'bg-warning/10' : ''
     ]}
-    role="article"
-    data-event-id={event.id}
-    {@attach syncThreadFollowEvents}
+    rowClass={interactions.longPressActive || interactions.hasOpenActionSurface ? 'bg-surface' : ''}
+    {members}
+    roleHandles={mentionRoleHandles}
+    timestampSettings={userSettings}
+    timestampLocale={activeLocale}
+    onMentionClick={showPopoverForMember}
+    onActorClick={showPopoverForActor}
+    onActorTouchStart={(e) => e.stopPropagation()}
+    onActorContextMenu={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showPopoverForActor(e);
+    }}
+    ontouchstart={handleTouchStart}
+    ontouchend={handleTouchEnd}
+    ontouchmove={handleTouchMove}
+    ontouchcancel={handleTouchEnd}
+    oncontextmenu={isDeleted ? undefined : openMenuFromMessage}
+    onmousedown={handleMouseDown}
+    onmouseup={handleMouseUp}
+    onmouseleave={handleMouseLeave}
+    bind:bodyElement={messageBodySelectionRoot}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class={[
-        'group/msg group/badges message-row',
-        hasMessageFooter ? 'message-row-footer' : '',
-        compact && msg?.body ? 'items-baseline' : 'items-start',
-        longPressActive || showActionSheet || contextMenuPos ? 'bg-surface-100' : ''
-      ]}
-      ontouchstart={handleTouchStart}
-      ontouchend={handleTouchEnd}
-      ontouchmove={handleTouchMove}
-      ontouchcancel={handleTouchEnd}
-      onmousedown={handleMouseDown}
-      onmouseup={handleMouseUp}
-      onmouseleave={handleMouseLeave}
-    >
-      <!-- Left column: timestamp (compact) or avatar (full) -->
-      {#if compact}
-        <div class="flex w-11 shrink-0 items-center justify-center">
-          <a
-            href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-              serverId: serverIdToSegment(getActiveServer()),
-              roomId,
-              messageId: event.id
-            })}
-            onclick={copyMessageLink}
-            oncontextmenu={(e) => e.stopPropagation()}
-            title={m['room.message.meta.copy_link_title']()}
-            class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100 hover:underline"
-          >
-            {timestamp}
-          </a>
+    {#snippet compactLeading()}
+      <a
+        href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+          serverId: serverIdToSegment(activeServerId),
+          roomId,
+          messageId: event.id
+        })}
+        onclick={copyMessageLink}
+        oncontextmenu={(e) => e.stopPropagation()}
+        title={m('room.message.meta.copy_link_title')}
+        class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100 hover:underline"
+      >
+        {timestamp}
+      </a>
+    {/snippet}
+
+    {#snippet prelude()}
+      {#if replyPreview}
+        <MessageReplyAttribution
+          preview={replyPreview}
+          {compact}
+          callPresence={replyPreview.actor
+            ? activeCallRooms.getParticipantCallPresence(roomId, replyPreview.actor.id)
+            : null}
+          onJump={scrollToReplyTarget}
+          onAuthorClick={showPopoverForReplyAuthor}
+        />
+      {/if}
+    {/snippet}
+
+    {#snippet authorSuffix()}
+      {@render callPresenceIcon(actorCallPresence)}
+    {/snippet}
+
+    {#snippet headerMeta()}
+      <a
+        href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+          serverId: serverIdToSegment(activeServerId),
+          roomId,
+          messageId: event.id
+        })}
+        onclick={copyMessageLink}
+        oncontextmenu={(e) => e.stopPropagation()}
+        title={m('room.message.meta.copy_link_title')}
+        class="shrink-0 text-xs leading-none text-muted hover:underline"
+      >
+        {timestamp}
+      </a>
+    {/snippet}
+
+    {#snippet afterBody()}
+      <MessageAttachments
+        attachments={msg.attachments ?? []}
+        serverId={activeServerId}
+        {roomId}
+        eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
+        canDeleteAttachment={isAuthor}
+      />
+
+      {#if messageEvent?.linkPreview}
+        <div class="mt-2">
+          <LinkPreviewCard
+            preview={messageEvent.linkPreview}
+            showDismiss={false}
+            canDelete={isAuthor}
+            serverId={activeServerId}
+            {roomId}
+            eventId={event.id}
+          />
         </div>
-      {:else}
-        <!-- Spacer maintains left column width; avatar is absolutely positioned
-					 so it doesn't inflate row height for short (single-line) messages -->
-        <div class="w-11 shrink-0"></div>
-        {#if actor}
-          <button
-            type="button"
-            class={['absolute left-2 z-10 cursor-pointer', replyPreview ? 'top-8' : 'top-1']}
-            onclick={showPopoverForActor}
-            ontouchstart={(e) => e.stopPropagation()}
-            oncontextmenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              showPopoverForActor(e);
-            }}
-          >
-            <UserAvatar user={actor} size="md" class="!h-11 !w-11 shadow-md" />
-          </button>
-        {:else}
-          <!-- Deleted user placeholder avatar -->
-          <div
-            class={[
-              'absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-200 text-muted shadow-md ring-1 ring-surface-200/30',
-              replyPreview ? 'top-8' : 'top-1'
-            ]}
-          >
-            <span class="iconify text-xl uil--user-times"></span>
-          </div>
-        {/if}
       {/if}
 
-      <!-- Message content column -->
-      <div class="message-content-stack">
-        {#if replyPreview}
-          {@const replyJumpText =
-            replyPreview.body ??
-            (replyPreview.actor
-              ? m['room.message.meta.reply_preview_fallback']()
-              : replyPreview.name)}
-          {@const replyJumpLabel = `${m['room.message.meta.in_reply_to']()} ${replyJumpText}`}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <div
-            data-testid="reply-attribution"
-            aria-label={m['room.message.meta.in_reply_to']()}
-            title={m['room.message.meta.in_reply_to']()}
-            class={[
-              'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
-              compact ? '' : '-ml-[39px] pl-[39px]'
-            ]}
-            onclick={scrollToReplyTarget}
-            onmousedown={(e) => e.stopPropagation()}
-          >
-            {#if compact}
-              <span
-                aria-hidden="true"
-                class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
-              ></span>
-            {:else}
-              <span
-                aria-hidden="true"
-                class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-300/30 transition-colors group-hover/reply:border-surface-300/55"
-              ></span>
-            {/if}
-            {#if replyPreview.actor}
-              {@const replyCallPresence = activeCallRooms.getParticipantCallPresence(
-                roomId,
-                replyPreview.actor.id
-              )}
-              <button
-                type="button"
-                data-testid="reply-attribution-author"
-                class="inline-flex max-w-[45%] min-w-0 shrink-0 cursor-pointer items-center gap-1 hover:underline"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  showPopoverForReplyAuthor(e);
-                }}
-              >
-                <UserAvatar user={replyPreview.actor} size="xs" />
-                <strong class="truncate font-medium">{replyPreview.name}</strong>
-                {@render callPresenceIcon(replyCallPresence)}
-              </button>
-            {:else if replyPreview.body}
-              <strong class="max-w-[45%] shrink-0 truncate font-medium">{replyPreview.name}</strong>
-            {/if}
-            <button
-              type="button"
-              class="min-w-0 flex-1 cursor-pointer truncate text-left opacity-75 hover:text-text"
-              aria-label={replyJumpLabel}
-              title={replyJumpLabel}
-            >
-              {replyJumpText}
-            </button>
-          </div>
-        {/if}
+      {#each messageLinks as link, i (link.messageId + ':' + i)}
+        <div class="mt-2">
+          <MessagePreviewCard {link} />
+        </div>
+      {/each}
 
-        <!-- Author and timestamp -->
-        {#if !compact}
-          <div class="flex min-w-0 items-center gap-2">
-            {#if actor}
-              <button
-                type="button"
-                class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 leading-none font-semibold hover:underline"
-                onclick={showPopoverForActor}
-                ontouchstart={(e) => e.stopPropagation()}
-                oncontextmenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  showPopoverForActor(e);
-                }}
-              >
-                <span>{displayName}</span>
-                {@render callPresenceIcon(actorCallPresence)}
-              </button>
-            {:else}
-              <strong class="shrink-0 leading-none font-semibold text-muted">{displayName}</strong>
-            {/if}
-            <a
-              href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-                serverId: serverIdToSegment(getActiveServer()),
-                roomId,
-                messageId: event.id
-              })}
-              onclick={copyMessageLink}
-              oncontextmenu={(e) => e.stopPropagation()}
-              title={m['room.message.meta.copy_link_title']()}
-              class="shrink-0 text-xs leading-none text-muted hover:underline"
-            >
-              {timestamp}
-            </a>
-          </div>
-        {/if}
-
-        <!-- Message body - re-enable text selection on desktop (pointer-fine variant) -->
-        {#if isDeleted}
-          <!-- Message deleted or encryption key removed -->
-          <span class="text-muted/50 italic">{m['room.message.meta.deleted']()}</span>
-        {:else if msg.body}
-          <div bind:this={messageBodySelectionRoot} class="pointer-fine:select-text">
-            <MessageContent
-              body={msg.body}
-              {members}
-              roleHandles={mentionRoleHandles}
-              edited={isEdited}
-              onMentionClick={showPopoverForMember}
-            />
-          </div>
-        {/if}
-
-        <!-- Message attachments -->
-        <MessageAttachments
-          attachments={msg.attachments ?? []}
-          serverId={getActiveServer()}
+      {#if hasMessageFooter}
+        <MessageMetaBar
           {roomId}
-          eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
-          canDeleteAttachment={isAuthor}
+          serverSegment={serverIdToSegment(activeServerId)}
+          {threadRootEventId}
+          reactions={msg?.reactions ?? []}
+          action={actionModel}
+          replyCount={messageEvent?.replyCount}
+          threadExists={messageEvent?.threadExists}
+          threadParticipants={messageEvent?.threadParticipants}
+          {hasThreadNotification}
+          {hasThreadUnread}
+          isFollowingThread={threadFollow.following}
+          isThreadFollowPending={threadFollow.pending}
+          onToggleThreadFollow={hasThread ? toggleThreadFollow : undefined}
+          onOpenThread={onOpenThread ? handleOpenThread : undefined}
+          onOpenEmojiPicker={roomPermissions.canReact
+            ? (event) => interactions.openEmojiPickerFromEvent(event)
+            : undefined}
+          isEchoEvent={isEcho}
         />
+      {/if}
+    {/snippet}
 
-        <!-- Link preview (only for MessagePostedEvent) -->
-        {#if messageEvent?.linkPreview}
-          <div class="mt-2">
-            <LinkPreviewCard
-              preview={messageEvent.linkPreview}
-              showDismiss={false}
-              canDelete={isAuthor}
-              {roomId}
-              eventId={event.id}
-            />
-          </div>
-        {/if}
-
-        <!-- Embedded Chatto message link previews -->
-        {#each embeddedMessageLinks as link, i (link.messageId + ':' + i)}
-          <div class="mt-2">
-            <MessagePreviewCard {link} />
-          </div>
-        {/each}
-
-        <!-- Thread echo indicator, thread replies, and reactions -->
-        {#if hasMessageFooter}
-          <MessageMetaBar
-            {roomId}
-            messageEventId={event.id}
-            serverSegment={serverIdToSegment(getActiveServer())}
-            {threadRootEventId}
-            reactions={msg?.reactions ?? []}
-            replyCount={messageEvent?.replyCount}
-            threadParticipants={messageEvent?.threadParticipants}
-            {hasThreadNotification}
-            canReact={roomPermissions.canReact}
-            {messageStore}
-            {isFollowingThread}
-            {isThreadFollowPending}
-            onToggleThreadFollow={hasReplies ? toggleThreadFollow : undefined}
-            onOpenThread={onOpenThread ? handleOpenThread : undefined}
-            onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPickerFromEvent : undefined}
-            isEchoEvent={isEcho}
-          />
-        {/if}
-      </div>
-      <!-- Quick actions toolbar (hover-capable input; pure touch uses long-press sheet) -->
+    {#snippet actions()}
       {#if !isDeleted && canUseHoverActions}
         <MessageHoverBar
-          serverId={getActiveServer()}
-          {roomId}
-          messageEventId={event.id}
-          eventId={editEventId}
-          deleteEventId={event.id}
-          messageBody={msg.body ?? ''}
-          threadRootEventId={editThreadRootEventId}
-          channelEchoEventId={editChannelEchoEventId}
-          canAddChannelEcho={canReconcileChannelEcho}
-          {messageStore}
-          reactions={msg?.reactions ?? []}
-          canReact={roomPermissions.canReact}
-          {canEdit}
-          forceVisible={!!emojiPickerPos || !!contextMenuPos}
-          replyInRoomLabel={replyInRoomActionLabel}
-          replyThreadLabel={replyThreadActionLabel}
-          onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
-          onReply={canUseThreadAction ? handleOpenThread : undefined}
-          onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPickerFromToolbar : undefined}
+          action={actionModel}
+          forceVisible={interactions.forceHoverActionsVisible}
+          onOpenEmojiPicker={roomPermissions.canReact
+            ? (event) => interactions.openEmojiPickerFromToolbar(event)
+            : undefined}
           onOpenMenu={openMenuFromToolbar}
         />
       {/if}
-    </div>
-  </div>
+    {/snippet}
+  </MessageView>
 
-  <!-- User profile popover (outside article div to avoid content-visibility containment) -->
-  {#if popoverUser && popoverAnchorRect}
-    <UserContextMenu
-      user={popoverUser}
-      anchorRect={popoverAnchorRect}
-      canSendMessage={canStartDMs && !popoverUser.deleted}
-      canBanFromRoom={canBanPopoverUser}
-      banningFromRoom={banningMemberId === popoverUser.id}
-      onSendMessage={() => startDMWith(getActiveServer(), popoverUser!.id)}
-      onBanFromRoom={() => openBanDialog(popoverUser!)}
-      onClose={closePopover}
+  <MessageUserOverlays
+    interactions={userInteractions}
+    serverId={activeServerId}
+    {roomId}
+    currentUserId={currentUser.user?.id}
+    {canStartDMs}
+    canBanRoomMembers={roomPermissions.canBanRoomMembers}
+    {onOpenProfile}
+  />
+
+  {#if !isDeleted}
+    <MessageEventActionOverlays
+      {interactions}
+      action={actionModel}
+      onClose={discardSelectedReplyQuote}
     />
-  {/if}
-
-  {#if banDialogUser}
-    <BanRoomMemberModal
-      user={banDialogUser}
-      submitting={banningMemberId === banDialogUser.id}
-      error={banError}
-      onconfirm={(reason, expiresAt) => banFromRoom(banDialogUser!, reason, expiresAt)}
-      onclose={() => (banDialogUser = null)}
-    />
-  {/if}
-
-  <!-- Desktop context menu (via toolbar "more actions" button) -->
-  {#if contextMenuPos && !isDeleted}
-    <ContextMenu
-      position={contextMenuPos}
-      class="min-w-72"
-      onclose={() => {
-        contextMenuPos = null;
-      }}
-    >
-      <MessageContextMenu
-        serverId={getActiveServer()}
-        {roomId}
-        messageEventId={event.id}
-        eventId={editEventId}
-        deleteEventId={event.id}
-        messageBody={msg.body ?? ''}
-        threadRootEventId={editThreadRootEventId}
-        channelEchoEventId={editChannelEchoEventId}
-        canAddChannelEcho={canReconcileChannelEcho}
-        {messageStore}
-        reactions={msg?.reactions ?? []}
-        canReact={roomPermissions.canReact}
-        {canEdit}
-        {canDelete}
-        replyInRoomLabel={replyInRoomActionLabel}
-        replyThreadLabel={replyThreadActionLabel}
-        onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
-        onReply={canUseThreadAction ? handleOpenThread : undefined}
-        onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPicker : undefined}
-        onClose={() => (contextMenuPos = null)}
-      />
-    </ContextMenu>
-  {/if}
-
-  <!-- Emoji picker (ContextMenu handles floating vs sheet presentation) -->
-  {#if emojiPickerPos && !isDeleted}
-    <ContextMenu
-      position={emojiPickerPos}
-      presentation={emojiPickerPresentation}
-      onclose={closeEmojiPicker}
-    >
-      <EmojiPicker
-        serverId={getActiveServer()}
-        onSelect={handleEmojiSelect}
-        onClose={closeEmojiPicker}
-      />
-    </ContextMenu>
-  {/if}
-
-  <!-- Mobile action sheet (long-press menu, mounted on demand) -->
-  {#if showActionSheet && !isDeleted}
-    <BottomSheet bind:visible={showActionSheet}>
-      <MessageActionSheet
-        serverId={getActiveServer()}
-        {roomId}
-        messageEventId={event.id}
-        eventId={editEventId}
-        deleteEventId={event.id}
-        messageBody={msg.body ?? ''}
-        threadRootEventId={editThreadRootEventId}
-        channelEchoEventId={editChannelEchoEventId}
-        canAddChannelEcho={canReconcileChannelEcho}
-        {messageStore}
-        reactions={msg?.reactions ?? []}
-        canReact={roomPermissions.canReact}
-        {canEdit}
-        {canDelete}
-        replyInRoomLabel={replyInRoomActionLabel}
-        replyThreadLabel={replyThreadActionLabel}
-        onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
-        onReply={canUseThreadAction ? handleOpenThread : undefined}
-        onOpenEmojiPicker={roomPermissions.canReact ? () => openEmojiPicker('sheet') : undefined}
-        onClose={() => (showActionSheet = false)}
-      />
-    </BottomSheet>
   {/if}
 {/if}

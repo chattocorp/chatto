@@ -3,8 +3,8 @@
   import ToggleChip from './ToggleChip.svelte';
 
   const componentDescription = `
-    Use ToggleChip for compact binary or mutually exclusive toggles inside dense editors. It is
-    interactive; use Pill for passive labels with similar visual density.
+    Use ToggleChip for compact binary or independently selectable toggles inside dense editors. It
+    is interactive; use SegmentedControl for one-of-many modes and Pill for passive labels.
   `.trim();
 
   const { Story } = defineMeta({
@@ -20,7 +20,7 @@
 </script>
 
 <script lang="ts">
-  const tones = ['success', 'danger', 'warning', 'primary', 'neutral'] as const;
+  const tones = ['success', 'danger', 'warning', 'action', 'neutral'] as const;
 
   let pressedAllow = $state(false);
   let pressedDeny = $state(false);

@@ -1,7 +1,8 @@
 <script module lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import VideoThumbnail from './VideoThumbnail.svelte';
-  import { PresenceStatus } from '$lib/render/types';
+
   import type { Track } from 'livekit-client';
 
   const { Story } = defineMeta({
@@ -11,8 +12,7 @@
     parameters: {
       docs: {
         description: {
-          component:
-            'LiveKit video track thumbnail used by camera and screen-share call tiles.'
+          component: 'LiveKit video track thumbnail used by camera and screen-share call tiles.'
         }
       }
     }
@@ -23,7 +23,7 @@
     login: 'alice',
     displayName: 'Alice',
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Online
+    presenceStatus: PresenceStatus.ONLINE
   } as const;
 
   function posterTrack(svg: string): Track {
@@ -66,13 +66,13 @@
 </script>
 
 <Story name="Camera cover" asChild>
-  <div class="w-96 rounded-md border border-border bg-surface-100 p-1.5">
+  <div class="w-96 rounded-md border border-border bg-surface p-1.5">
     <VideoThumbnail track={cameraTrack} name="Alice" {user} showIdentityOverlay={false} />
   </div>
 </Story>
 
 <Story name="Screen share contain" asChild>
-  <div class="w-[720px] rounded-md border border-border bg-surface-100 p-1.5">
+  <div class="w-[720px] rounded-md border border-border bg-surface p-1.5">
     <VideoThumbnail
       track={screenTrack}
       name="Alice's screen"

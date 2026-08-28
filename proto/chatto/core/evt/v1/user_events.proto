@@ -1,0 +1,225 @@
+syntax = "proto3";
+
+package chatto.core.evt.v1;
+
+import "chatto/core/evt/v1/user_preferences.proto";
+import "chatto/core/evt/v1/models.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+
+// ============================================================================
+// USER EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 700-725: durable user aggregate events on evt.user.{userId}.*
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
+// ============================================================================
+// DURABLE USER EVENTS (evt.user.{userId})
+// ============================================================================
+
+message EncryptedUserString {
+  bytes encrypted_value = 1;
+  bytes nonce = 2;
+  int32 content_key_epoch = 3;
+}
+
+message UserAccountCreatedEvent {
+  string user_id = 1;
+  bool is_bot = 2;
+  // Required for bot accounts and empty for human accounts.
+  string bot_owner_user_id = 3;
+  EncryptedUserString encrypted_login = 10;
+  EncryptedUserString encrypted_display_name = 11;
+}
+
+// BotApiKeyCreatedEvent records the verifier for a bot's initial API key. The
+// raw bearer credential is returned once and is never persisted.
+message BotApiKeyCreatedEvent {
+  string user_id = 1;
+  bytes verifier = 2;
+}
+
+// BotApiKeyRotatedEvent replaces the verifier for a bot's sole active API key.
+// Historical verifiers remain audit history but are never accepted.
+message BotApiKeyRotatedEvent {
+  string user_id = 1;
+  bytes verifier = 2;
+}
+
+// BotOwnerReassignedEvent records an administrative change to the human
+// account responsible for a bot. The bot's API-key verifier is unchanged.
+message BotOwnerReassignedEvent {
+  string user_id = 1;
+  string previous_owner_user_id = 2;
+  string owner_user_id = 3;
+}
+
+// BotIncomingWebhookCreatedEvent records the verifier and safe metadata for
+// one bot incoming webhook. The raw credential is returned once and is never
+// persisted. webhook_id and name are empty only in legacy singular events.
+message BotIncomingWebhookCreatedEvent {
+  string user_id = 1;
+  bytes verifier = 2;
+  string webhook_id = 3;
+  string name = 4;
+}
+
+// BotIncomingWebhookRotatedEvent replays a replacement verifier written by an
+// unreleased implementation. Current servers do not write this event.
+// webhook_id is empty only in a legacy singular event.
+message BotIncomingWebhookRotatedEvent {
+  string user_id = 1;
+  bytes verifier = 2;
+  string webhook_id = 3;
+}
+
+// BotIncomingWebhookRevokedEvent invalidates one incoming webhook credential.
+// webhook_id is empty only in a legacy singular event.
+message BotIncomingWebhookRevokedEvent {
+  string user_id = 1;
+  string webhook_id = 2;
+}
+
+message UserLoginChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_login = 10;
+}
+
+message UserDisplayNameChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_display_name = 10;
+}
+
+// UserBioChangedEvent is the authoritative durable fact for a change to a
+// user's self-authored bio. An empty encrypted value clears the bio. Bio text
+// is user PII and stays encrypted at rest.
+message UserBioChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_bio = 10;
+}
+
+message UserAvatarSetEvent {
+  // Deprecated: legacy avatar storage pointer retained for decoding old
+  // user events. New avatar writes append AssetCreatedEvent with
+  // UserAvatarAssetOwner instead.
+  string user_id = 1;
+  DeprecatedAsset avatar = 2;
+}
+
+message UserAvatarClearedEvent {
+  string user_id = 1;
+}
+
+message UserVerifiedEmailAddedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_email = 10;
+}
+
+message UserPasswordHashChangedEvent {
+  string user_id = 1;
+  bytes password_hash = 2;
+  // True when adding the first password to a passwordless account. Existing
+  // sessions remain valid; later password changes and password resets leave
+  // this false so they advance auth generation and revoke old credentials.
+  bool preserve_existing_credentials = 3;
+}
+
+message UserOIDCSubjectLinkedEvent {
+  string user_id = 1;
+  // New writes include issuer/subject so the event is inspectable. Legacy
+  // imports may only have the hash, because the old KV index key is one-way.
+  string issuer = 2;
+  string subject = 3;
+  string subject_hash = 4;
+}
+
+message UserExternalIdentityLinkedEvent {
+  string user_id = 1;
+  // Durable identity namespace used for lookup. For OIDC providers this is the
+  // verified issuer URL from the ID token, which lets the link survive local
+  // provider ID or label changes. For OAuth-only providers this is the stable
+  // configured local provider ID because there is no verified issuer URL.
+  string issuer = 2;
+  // Raw provider subjects are included only for events written after this
+  // field existed. Projections prefer subject_hash when present.
+  string subject = 3;
+  string subject_hash = 4;
+  // Event-time metadata about the configured provider that created the link.
+  // This is not dereferenced against current config during replay; providers
+  // may be renamed, removed, or reconfigured without changing existing links.
+  string provider_id = 5;
+  string provider_type = 6;
+}
+
+message UserExternalIdentityUnlinkedEvent {
+  string user_id = 1;
+  // Stable one-way identity hash previously written by
+  // UserExternalIdentityLinkedEvent or legacy UserOIDCSubjectLinkedEvent.
+  string subject_hash = 2;
+}
+
+message UserServerPreferencesChangedEvent {
+  string user_id = 1;
+  ServerUserPreferences preferences = 2;
+}
+
+message UserLoginCooldownStartedEvent {
+  string user_id = 1;
+}
+
+message UserLoginCooldownClearedEvent {
+  string user_id = 1;
+}
+
+message UserAccountDeletedEvent {
+  string user_id = 1;
+}
+
+message UserCustomStatusSetEvent {
+  string user_id = 1;
+  CustomUserStatus status = 2;
+}
+
+message UserCustomStatusClearedEvent {
+  string user_id = 1;
+}
+
+// UserKeyShreddedEvent records physical completion of a user's
+// crypto-shredding request. Historical readers also treat this event as the
+// logical privacy boundary because events written before
+// UserKeyShreddingRequestedEvent existed have no separate request fact.
+message UserKeyShreddedEvent {
+  string user_id = 1;
+}
+
+// UserKeyShreddingRequestedEvent is the durable logical privacy boundary for
+// user crypto-shredding. Workers reconstruct affected key coordinates from
+// the user's immutable DEK-generation facts and surviving runtime DEK records
+// before destructive work starts.
+message UserKeyShreddingRequestedEvent {
+  string user_id = 1;
+}
+
+enum UserDEKPurpose {
+  USER_DEK_PURPOSE_UNSPECIFIED = 0;
+  USER_DEK_PURPOSE_MESSAGE_BODY = 1;
+  USER_DEK_PURPOSE_USER_PII = 2;
+}
+
+// UserDEKGeneratedEvent records the creation of one per-user data-encryption
+// key epoch. Message bodies and PII payloads reference purpose-specific
+// epochs; the wrapped key material lives in RUNTIME_STATE under
+// content_key_ref so it can be shredded independently of immutable EVT history.
+message UserDEKGeneratedEvent {
+  string user_id = 1;
+  UserDEKPurpose purpose = 2;
+  int32 epoch = 3;
+  string content_key_ref = 4;
+  string wrapping_key_ref = 5;
+  string wrapping_algorithm = 6;
+  bytes wrapping_metadata = 7;
+}

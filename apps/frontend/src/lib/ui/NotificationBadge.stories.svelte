@@ -22,14 +22,15 @@
 <Story name="Counts" asChild>
   <div class="flex items-center gap-4">
     <NotificationBadge count={1} />
+    <NotificationBadge count={4} color="ambient" />
     <NotificationBadge count={12} />
     <NotificationBadge count={120} />
   </div>
 </Story>
 
 <Story name="Overlay" asChild>
-  <div class="relative inline-block rounded-md bg-surface-200 p-3">
-    <span class="iconify text-xl uil--server"></span>
+  <div class="relative inline-block rounded-md bg-surface-emphasized p-3">
+    <span class="iconify text-xl icon-[uil--server]"></span>
     <NotificationBadge count={7} overlay class="absolute -top-1 -right-1" />
   </div>
 </Story>

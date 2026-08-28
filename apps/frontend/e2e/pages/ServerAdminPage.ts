@@ -10,13 +10,13 @@ export class ServerAdminPage {
 
   // --- Locators ---
 
-  /** The server-admin gear link in the server header. */
-  get adminLink(): Locator {
-    return this.page.getByRole('link', { name: 'Server administration' });
+  /** The Settings link in the top section of the server sidebar. */
+  get settingsLink(): Locator {
+    return this.page.getByRole('link', { name: 'Settings', exact: true });
   }
 
-  /** Dedicated server-admin sidebar link container. */
-  get adminLinks(): Locator {
+  /** Unified Settings sidebar link container. */
+  get serverSettingsLinks(): Locator {
     return this.page.locator('nav').first();
   }
 
@@ -27,22 +27,27 @@ export class ServerAdminPage {
 
   /** Sidebar navigation item for General settings */
   get generalNavItem(): Locator {
-    return this.adminLinks.getByRole('link', { name: 'General', exact: true });
+    return this.serverSettingsLinks.getByRole('link', { name: 'General', exact: true });
   }
 
   /** Sidebar navigation item for Rooms settings */
   get roomsNavItem(): Locator {
-    return this.adminLinks.getByRole('link', { name: 'Rooms', exact: true });
+    return this.serverSettingsLinks.getByRole('link', { name: 'Rooms', exact: true });
   }
 
   /** Sidebar navigation item for Permissions settings */
   get rolesNavItem(): Locator {
-    return this.adminLinks.getByRole('link', { name: 'Permissions', exact: true });
+    return this.serverSettingsLinks.getByRole('link', { name: 'Permissions', exact: true });
   }
 
   /** Sidebar navigation item for the Members settings page. */
   get membersNavItem(): Locator {
-    return this.adminLinks.getByRole('link', { name: 'Members', exact: true });
+    return this.serverSettingsLinks.getByRole('link', { name: 'Members', exact: true });
+  }
+
+  /** Sidebar navigation item for bot accounts. */
+  get botsNavItem(): Locator {
+    return this.serverSettingsLinks.getByRole('link', { name: 'Bots', exact: true });
   }
 
   /** Access Denied heading */
@@ -146,8 +151,8 @@ export class ServerAdminPage {
    * Navigate to chat and then to its admin page via the sidebar link.
    */
   async goto(_spaceId: string): Promise<void> {
-    await this.page.goto(routes.space());
-    await this.adminLink.click();
+    await this.page.goto(routes.chat);
+    await this.settingsLink.click();
     await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
@@ -157,15 +162,6 @@ export class ServerAdminPage {
    */
   async gotoDirectly(spaceId: string): Promise<void> {
     await this.page.goto(routes.serverAdminGeneral);
-    await expect(this.pageHeading).toBeVisible();
-  }
-
-  /**
-   * Click the Admin link in the sidebar from a chat page.
-   */
-  async clickAdminLink(_spaceId: string): Promise<void> {
-    await this.adminLink.click();
-    await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -271,17 +267,10 @@ export class ServerAdminPage {
   }
 
   /**
-   * Assert the admin link in sidebar is visible.
+   * Assert the Settings link in the sidebar is visible.
    */
-  async expectAdminLinkVisible(): Promise<void> {
-    await expect(this.adminLink).toBeVisible();
-  }
-
-  /**
-   * Assert the admin link in sidebar is NOT visible.
-   */
-  async expectAdminLinkNotVisible(): Promise<void> {
-    await expect(this.adminLink).not.toBeVisible();
+  async expectSettingsLinkVisible(): Promise<void> {
+    await expect(this.settingsLink).toBeVisible();
   }
 
   /**
@@ -463,6 +452,11 @@ export class ServerAdminPage {
     await expect(this.membersNavItem).toBeVisible();
   }
 
+  /** Assert that bot administration is visible in the admin sidebar. */
+  async expectBotsNavVisible(): Promise<void> {
+    await expect(this.botsNavItem).toBeVisible();
+  }
+
   /**
    * Assert that the Members nav item is NOT visible in the admin sidebar.
    */
@@ -519,7 +513,7 @@ export class ServerAdminPage {
    * Navigate directly to the Roles admin page URL.
    */
   async gotoRolesDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminRoles);
+    await this.page.goto(routes.serverAdminPermissions);
   }
 
   /**

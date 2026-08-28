@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -21,8 +22,10 @@ import (
 	"github.com/nats-io/nats.go"
 	"golang.org/x/crypto/acme/autocert"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	"hmans.de/chatto/internal/search"
 )
 
 // HTTPServerConfig holds configuration for creating an HTTPServer.
@@ -36,19 +39,33 @@ type HTTPServerConfig struct {
 
 // HTTPServer serves the HTTP APIs and static frontend.
 type HTTPServer struct {
-	config     config.ChattoConfig
-	nc         *nats.Conn
-	router     *gin.Engine
-	core       *core.ChattoCore
-	mailer     email.Sender
-	mockMailer *email.MockSender // Non-nil when test email endpoint is enabled
-	addr       string
-	version    string
-	logger     *log.Logger
-	metrics    *processMetrics
+	config              config.ChattoConfig
+	nc                  *nats.Conn
+	router              *gin.Engine
+	core                *core.ChattoCore
+	connectAPI          *connectapi.API
+	mailer              email.Sender
+	mockMailer          *email.MockSender // Non-nil when test email endpoint is enabled
+	addr                string
+	version             string
+	logger              *log.Logger
+	metrics             *processMetrics
+	realtimeCatchUps    *realtimeCatchUpAdmission
+	trustedProxies      trustedProxySet
+	oauthClientResolver *OAuthClientResolver
+	browserSessions     *scs.SessionManager
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
+
+	// Optional test hook for deterministic OAuth client metadata resolution.
+	oauthClientResolveHook func(context.Context, string) (OAuthClient, bool, error)
+
+	// Optional test hook for deterministic cookie-session renewal timing.
+	cookieSessionRenewalNow func() time.Time
+
+	// Optional test hook for established realtime credential checks.
+	realtimeCredentialCheckEvery time.Duration
 }
 
 const (
@@ -109,23 +126,38 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 
 	// Create Gin router with Recovery middleware, and optionally Logger
 	router := gin.New()
+	if err := router.SetTrustedProxies(cfg.Config.Webserver.TrustedProxies); err != nil {
+		return nil, fmt.Errorf("configure trusted proxies: %w", err)
+	}
 	router.Use(gin.Recovery())
 	if cfg.Config.Webserver.RequestLoggingEnabled() {
 		router.Use(requestLogger(logger))
 	}
 
-	s := &HTTPServer{
-		config:     cfg.Config,
-		nc:         cfg.NC,
-		router:     router,
-		core:       cfg.Core,
-		mailer:     mailer,
-		mockMailer: mockMailer,
-		addr:       cfg.Addr,
-		version:    cfg.Version,
-		logger:     logger,
-		metrics:    newProcessMetrics(),
+	trustedProxies, err := newTrustedProxySet(cfg.Config.Webserver.TrustedProxies)
+	if err != nil {
+		return nil, err
 	}
+	s := &HTTPServer{
+		config:           cfg.Config,
+		nc:               cfg.NC,
+		router:           router,
+		core:             cfg.Core,
+		connectAPI:       connectapi.New(cfg.Core, cfg.Config, cfg.Version, connectapi.WithMessageSearchProviderClient(search.NewClient(cfg.NC))),
+		mailer:           mailer,
+		mockMailer:       mockMailer,
+		addr:             cfg.Addr,
+		version:          cfg.Version,
+		logger:           logger,
+		metrics:          newProcessMetrics(),
+		realtimeCatchUps: newRealtimeCatchUpAdmission(),
+		trustedProxies:   trustedProxies,
+	}
+	oauthClientResolver, err := newOAuthClientResolver(cfg.Config.Webserver.URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	s.oauthClientResolver = oauthClientResolver
 
 	// Set up all routes
 	if err := s.setupRoutes(); err != nil {
@@ -160,7 +192,7 @@ func newAppHTTPServer(addr string, handler http.Handler) *http.Server {
 func requestLogger(logger *log.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-		path := c.Request.URL.Path
+		path := requestLogPath(c.Request.URL.Path)
 		hasQuery := c.Request.URL.RawQuery != ""
 
 		c.Next()
@@ -193,10 +225,25 @@ func requestLogger(logger *log.Logger) gin.HandlerFunc {
 	}
 }
 
+func requestLogPath(path string) string {
+	if strings.HasPrefix(path, "/invite/") {
+		return "/invite/:token"
+	}
+	if strings.HasPrefix(path, "/webhooks/incoming/") {
+		return "/webhooks/incoming/:credential"
+	}
+	return path
+}
+
 func (s *HTTPServer) setupRoutes() error {
 	// SESSION MANAGEMENT
+	secureCookies := strings.HasPrefix(s.config.Webserver.URL, "https")
+	browserSessionStore := newJetStreamBrowserSessionStore(s.core)
+	s.browserSessions = newBrowserSessionManager(browserSessionStore, s.config.Auth.TokenTTLOrDefault(), secureCookies)
 
-	// Configure session middleware
+	// The legacy encrypted session is retained only for short-lived provider,
+	// invitation, and OAuth browser-flow state. Authentication uses the separate
+	// opaque SCS cookie above.
 	authKey := []byte(s.config.Webserver.CookieSigningSecret)
 	var sessionStore sessions.Store
 	encKey, err := s.config.Webserver.CookieEncryptionKey()
@@ -209,26 +256,26 @@ func (s *HTTPServer) setupRoutes() error {
 		s.logger.Warn("webserver.cookie_encryption_secret is not set; session cookies are signed but NOT encrypted. Run `chatto init` on a fresh server to generate one, or add a hex-encoded 32-byte value to chatto.toml.")
 		sessionStore = cookie.NewStore(authKey)
 	}
-	sessionStore.Options(cookieSessionOptions(s.config.Auth.TokenTTLOrDefault(), strings.HasPrefix(s.config.Webserver.URL, "https")))
+	sessionStore.Options(cookieSessionOptions(s.config.Auth.TokenTTLOrDefault(), secureCookies))
 	sessionStore = newDebugSessionStore(sessionStore, s.logger)
 	s.router.Use(sessions.Sessions("chatto_session", sessionStore))
 
-	// Build allowed origins list once and share between CORS middleware and WebSocket CheckOrigin
-	allowedOrigins := s.buildAllowedOrigins()
-
-	// CORS middleware for cross-origin API access (token-based auth)
-	s.router.Use(s.corsMiddleware(allowedOrigins))
+	// Cross-origin API access is open to bearer-token clients. Cookie
+	// authentication remains same-origin only.
+	s.router.Use(s.corsMiddleware())
 	s.router.Use(s.csrfMiddleware())
 
 	// Set up feature-specific routes
 	s.setupHealthRoutes()
 	s.setupWebhookRoutes()
 	s.setupConnectAPI()
-	s.setupRealtimeAPI(allowedOrigins)
+	s.setupRealtimeAPI()
+	s.setupCIMDRoutes()
 	s.setupOIDCRoutes()
 	s.setupAuthRoutes()
 	s.setupOAuthRoutes()
 	s.setupAssetRoutes()
+	s.setupShieldRoutes()
 
 	if err := s.setupFrontendRoutes(); err != nil {
 		return err
@@ -250,10 +297,11 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	if s.config.Webserver.TLS.Enabled {
 		tlsConfig := s.config.Webserver.TLS
 
-		// Ensure certificate cache directory exists
+		// Ensure certificate cache directory exists and remains private even when
+		// reusing a path created with more permissive permissions.
 		cacheDir := tlsConfig.CacheDirOrDefault()
-		if err := os.MkdirAll(cacheDir, 0700); err != nil {
-			return fmt.Errorf("failed to create certificate cache directory: %w", err)
+		if err := ensureAutocertCacheDir(cacheDir); err != nil {
+			return err
 		}
 
 		// Create autocert manager for Let's Encrypt
@@ -351,6 +399,64 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		}
 		return nil
 	}
+}
+
+const autocertCacheDirMode os.FileMode = 0o700
+
+func ensureAutocertCacheDir(cacheDir string) error {
+	if err := os.MkdirAll(cacheDir, autocertCacheDirMode); err != nil {
+		return fmt.Errorf("failed to create certificate cache directory: %w", err)
+	}
+
+	info, err := os.Lstat(cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to inspect certificate cache directory: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("certificate cache path %q is not a directory", cacheDir)
+	}
+	uid, _, ownerAvailable := fileOwnerIDs(info)
+	if ownerAvailable && uid != uint32(os.Geteuid()) {
+		return fmt.Errorf("certificate cache directory %q is owned by uid %d, want uid %d", cacheDir, uid, os.Geteuid())
+	}
+	if ownerAvailable {
+		parent := filepath.Dir(filepath.Clean(cacheDir))
+		parentInfo, err := os.Lstat(parent)
+		if err != nil {
+			return fmt.Errorf("failed to inspect certificate cache parent directory: %w", err)
+		}
+		if parentInfo.Mode()&os.ModeSymlink != 0 || !parentInfo.IsDir() {
+			return fmt.Errorf("certificate cache parent path %q is not a directory", parent)
+		}
+		parentUID, _, ok := fileOwnerIDs(parentInfo)
+		if !ok {
+			return fmt.Errorf("failed to inspect owner of certificate cache parent directory %q", parent)
+		}
+		if parentUID != uint32(os.Geteuid()) && parentUID != 0 {
+			return fmt.Errorf("certificate cache parent directory %q is owned by uid %d, want uid %d or root", parent, parentUID, os.Geteuid())
+		}
+		if got := parentInfo.Mode().Perm(); got&0o022 != 0 {
+			return fmt.Errorf("certificate cache parent directory %q is writable by group or other users; mode is %04o", parent, got)
+		}
+	}
+
+	if err := os.Chmod(cacheDir, autocertCacheDirMode); err != nil {
+		return fmt.Errorf("failed to secure certificate cache directory: %w", err)
+	}
+	info, err = os.Lstat(cacheDir)
+	if err != nil {
+		return fmt.Errorf("failed to verify certificate cache directory permissions: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("certificate cache path %q changed while securing it", cacheDir)
+	}
+	if verifiedUID, _, ok := fileOwnerIDs(info); ownerAvailable && (!ok || verifiedUID != uint32(os.Geteuid())) {
+		return fmt.Errorf("certificate cache directory ownership changed while securing it")
+	}
+	if got := info.Mode().Perm(); ownerAvailable && got != autocertCacheDirMode {
+		return fmt.Errorf("certificate cache directory has mode %04o after securing, want %04o", got, autocertCacheDirMode)
+	}
+	return nil
 }
 
 func metricsServerURL(addr, path string) string {

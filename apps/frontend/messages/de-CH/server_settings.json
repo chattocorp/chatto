@@ -1,0 +1,6 @@
+{
+  "server_settings": {
+    "name_trim": "Name darf keine führenden oder abschliessenden Leerzeichen enthalten",
+    "banner_description": "Lade ein Banner für deine Instanz hoch. Das Banner dient auch als Linkvorschau-Bild - Bilder werden auf 1200x630 Pixel verkleinert (das standardmässige OpenGraph-Seitenverhältnis)."
+  }
+}

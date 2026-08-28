@@ -10,7 +10,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -86,6 +86,9 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 		ViewerCanAssignRoles:           details.ViewerCanAssignRoles,
 		ViewerCanManageRoles:           details.ViewerCanManageRoles,
 		ViewerCanManageUserPermissions: details.ViewerCanManageUserPermissions,
+		AssignableRoleNames:            details.AssignableRoleNames,
+		RevocableRoleNames:             details.RevocableRoleNames,
+		RoleAssignmentLimitsEnforced:   true,
 	}
 	return connect.NewResponse(response), nil
 }
@@ -174,7 +177,7 @@ func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	updatedUser, err := (&accountService{api: s.api}).accountUser(ctx, updated)
+	updatedUser, err := requiredUserSummary(ctx, s.api, updated)
 	if err != nil {
 		return nil, err
 	}
@@ -246,9 +249,6 @@ func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connec
 	if !canDelete {
 		return nil, connectError(core.ErrPermissionDenied)
 	}
-	if err := s.api.requireFreshCredential(ctx, caller, req.Msg.GetCurrentPassword()); err != nil {
-		return nil, connectError(err)
-	}
 	if err := s.api.core.AdminDeleteUserAs(ctx, caller.UserID, req.Msg.GetUserId()); err != nil {
 		return nil, connectError(err)
 	}
@@ -283,6 +283,7 @@ func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member
 		Login:          member.Login,
 		DisplayName:    member.DisplayName,
 		Deleted:        member.Deleted,
+		IsBot:          member.IsBot,
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(member.CustomStatus),
 	}
@@ -296,7 +297,7 @@ func (s *adminUserManagementService) adminMemberAfterMutation(ctx context.Contex
 	return s.adminMemberAfterMutationForUser(ctx, actorID, user)
 }
 
-func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context.Context, actorID string, user *corev1.User) (*adminv1.AdminMember, error) {
+func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context.Context, actorID string, user *evtv1.User) (*adminv1.AdminMember, error) {
 	if user == nil {
 		return nil, connectError(core.ErrNotFound)
 	}
@@ -311,7 +312,7 @@ func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context
 	if err != nil {
 		return nil, connectError(err)
 	}
-	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user, nil)
+	apiUser, err := userSummary(ctx, s.api, user, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -319,29 +320,6 @@ func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context
 		Roles:     append([]string{}, roles...),
 		CreatedAt: user.GetCreatedAt(),
 		User:      apiUser,
-	}
-	return response, nil
-}
-
-func (s *adminUserManagementService) adminMemberForOperator(ctx context.Context, user *core.AdminUserView) (*adminv1.AdminMember, error) {
-	if user == nil || user.User == nil {
-		return nil, connectError(core.ErrNotFound)
-	}
-	verifiedEmails := make([]string, 0, len(user.VerifiedEmails))
-	for _, email := range user.VerifiedEmails {
-		verifiedEmails = append(verifiedEmails, email.Email)
-	}
-	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user.User, nil)
-	if err != nil {
-		return nil, err
-	}
-	response := &adminv1.AdminMember{
-		Roles:                  append([]string(nil), user.RoleNames...),
-		CreatedAt:              user.User.GetCreatedAt(),
-		HasVerifiedEmail:       len(verifiedEmails) > 0,
-		VerifiedEmails:         verifiedEmails,
-		ViewerCanDeleteAccount: true,
-		User:                   apiUser,
 	}
 	return response, nil
 }

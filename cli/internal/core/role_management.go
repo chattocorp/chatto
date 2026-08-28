@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type RoleUserSummary struct {
@@ -12,7 +12,8 @@ type RoleUserSummary struct {
 	Login        string
 	DisplayName  string
 	Deleted      bool
-	CustomStatus *corev1.CustomUserStatus
+	IsBot  bool
+	CustomStatus *evtv1.CustomUserStatus
 }
 
 type RoleCatalog struct {
@@ -185,6 +186,7 @@ func (c *ChattoCore) serverRoleUsers(ctx context.Context, roleName string) ([]Ro
 			Login:        user.GetLogin(),
 			DisplayName:  user.GetDisplayName(),
 			Deleted:      user.GetDeleted(),
+			IsBot:  user.GetIsBot(),
 			CustomStatus: user.GetCustomStatus(),
 		})
 	}

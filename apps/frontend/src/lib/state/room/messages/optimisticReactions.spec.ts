@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  TimelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
 import { beginOptimisticReaction } from './optimisticReactions';
 
 type ReactionSummary = Extract<
-  NonNullable<RoomEventView['event']>,
-  { kind: typeof RoomEventKind.MessagePosted }
+  TimelineEventView['event'],
+  { kind: typeof TimelineEventKind.MessagePosted }
 >['reactions'][number];
 
 function messageEvent(
@@ -14,18 +16,18 @@ function messageEvent(
   reactions: ReactionSummary[] = [],
   links: Partial<
     Pick<
-      Extract<NonNullable<RoomEventView['event']>, { kind: typeof RoomEventKind.MessagePosted }>,
+      Extract<TimelineEventView['event'], { kind: typeof TimelineEventKind.MessagePosted }>,
       'echoOfEventId' | 'echoFromThreadRootEventId' | 'channelEchoEventId'
     >
   > = {}
-): RoomEventView {
+): TimelineEventView {
   return {
     id,
     createdAt: '2026-05-27T00:00:00Z',
     actorId: 'u1',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: id,
       attachments: [],
@@ -50,20 +52,20 @@ function reaction(emoji: string, count: number, hasReacted: boolean): ReactionSu
   return { emoji, count, hasReacted, users: [] };
 }
 
-function reactionsOf(event: RoomEventView): ReactionSummary[] {
-  if (event.event?.kind !== RoomEventKind.MessagePosted) throw new Error('expected message');
+function reactionsOf(event: TimelineEventView): ReactionSummary[] {
+  if (event.event.kind !== TimelineEventKind.MessagePosted) throw new Error('expected message');
   return event.event.reactions;
 }
 
 function begin(input: {
-  events?: RoomEventView[];
-  previews?: Map<string, RoomEventView | null>;
+  events?: TimelineEventView[];
+  previews?: Map<string, TimelineEventView | null>;
   messageEventId: string;
   emoji: string;
   action: 'add' | 'remove';
 }) {
   const events = input.events ?? [];
-  const previews = input.previews ?? new Map<string, RoomEventView | null>();
+  const previews = input.previews ?? new Map<string, TimelineEventView | null>();
   return beginOptimisticReaction({
     messageEventId: input.messageEventId,
     emoji: input.emoji,
@@ -121,9 +123,9 @@ describe('optimistic reactions', () => {
     const registry = new OptimisticMutationRegistry();
     const input = {
       getEvents: () => events,
-      previews: new Map<string, RoomEventView | null>(),
+      previews: new Map<string, TimelineEventView | null>(),
       registry,
-      setEvent: (eventId: string, event: RoomEventView) => {
+      setEvent: (eventId: string, event: TimelineEventView) => {
         const index = events.findIndex((candidate) => candidate.id === eventId);
         if (index !== -1) events[index] = event;
       },
@@ -199,7 +201,7 @@ describe('optimistic reactions', () => {
       action: 'add'
     });
     const event = events[0].event;
-    if (event?.kind !== RoomEventKind.MessagePosted) throw new Error('expected message');
+    if (event?.kind !== TimelineEventKind.MessagePosted) throw new Error('expected message');
     events[0] = {
       ...events[0],
       event: {
@@ -236,7 +238,7 @@ describe('optimistic reactions', () => {
   });
 
   it('patches and rolls back preview cache rows', () => {
-    const previews = new Map<string, RoomEventView | null>([
+    const previews = new Map<string, TimelineEventView | null>([
       ['room-1\u0000preview', messageEvent('preview', [reaction('heart', 1, false)])]
     ]);
 

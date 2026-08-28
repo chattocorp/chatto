@@ -17,7 +17,12 @@ Chatto runs on Kubernetes with the same building blocks as any other horizontall
 - A public HTTP/WebSocket ingress for Chatto
 - Optional LiveKit, SMTP, Web Push, and S3-compatible object storage services
 
-Use `/readyz` for readiness and startup probes, and `/healthz` for liveness probes. See the horizontal-scaling guide for probe examples and the required shared settings.
+Use `/readyz` for readiness and startup probes, and `/healthz` for liveness
+probes. A recoverable NATS outage removes the replica from service without
+restarting it. A permanently closed NATS client or a recovery that remains
+stuck for five minutes fails liveness so Kubernetes can replace the replica.
+See the horizontal-scaling guide for probe examples and the required shared
+settings.
 
 <CardGrid>
   <LinkCard title="Docker Compose" href="/guides/deployment/docker-compose/" description="Current recommended self-hosting guide." />

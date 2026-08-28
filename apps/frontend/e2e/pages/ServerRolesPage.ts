@@ -27,13 +27,9 @@ export class ServerRolesPage {
     return this.page.getByRole('heading', { name: 'Permissions', exact: true, level: 1 });
   }
 
-  /**
-   * The Create Role action. Renders as an `<a>` (with button styling) when
-   * the page wires it via `href`, but we keep the method name and match
-   * either tag so existing tests keep working.
-   */
+  /** The create-role action at the end of the permission matrix header. */
   get createRoleButton(): Locator {
-    return this.page.locator('a, button').filter({ hasText: /^Create Role$/ });
+    return this.page.getByTestId('new-role-column');
   }
 
   /** Sidebar navigation item for General settings */
@@ -102,7 +98,7 @@ export class ServerRolesPage {
    * Navigate to the roles list page.
    */
   async gotoRolesList(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminRoles);
+    await this.page.goto(routes.serverAdminPermissions);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -110,7 +106,7 @@ export class ServerRolesPage {
    * Navigate to the create role page.
    */
   async gotoCreateRole(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminRolesNew);
+    await this.page.goto(routes.serverAdminPermissionsNew);
     // Wait for either the form (if user has permission) or Access Denied message
     await expect(
       this.nameInput.or(this.page.getByText('Access Denied', { exact: true }))
@@ -127,7 +123,7 @@ export class ServerRolesPage {
   async gotoEditRole(spaceId: string, roleName: string): Promise<void> {
     this.currentRoleName = roleName;
     this.currentSpaceId = spaceId;
-    await this.page.goto(routes.serverAdminRole(roleName));
+    await this.page.goto(routes.serverAdminPermission(roleName));
     await expect(this.page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
   }
 
@@ -258,11 +254,11 @@ export class ServerRolesPage {
   private async ensureOnMatrix(): Promise<void> {
     if (!this.currentSpaceId) {
       throw new Error(
-        'ServerRolesPage permission helpers require a current space — call gotoEditRole(...) first.'
+        'ServerRolesPage permission helpers require a current server — call gotoEditRole(...) first.'
       );
     }
-    if (!this.page.url().endsWith(`/server-admin/permissions`)) {
-      await this.page.goto(routes.serverAdminRoles);
+    if (!this.page.url().endsWith(`/manage/server/permissions`)) {
+      await this.page.goto(routes.serverAdminPermissions);
       await expect(this.pageHeading).toBeVisible();
     }
   }
@@ -515,7 +511,7 @@ export class ServerRolesPage {
 
   /**
    * Clicking a role's column header at server scope routes to the role
-   * detail page (`/server-admin/permissions/[name]`), which carries "Edit Role" + the
+   * detail page (`/manage/server/permissions/[name]`), which carries "Edit Role" + the
    * role slug as a `<code>` value.
    */
   async expectRoleDetailPage(roleName: string): Promise<void> {

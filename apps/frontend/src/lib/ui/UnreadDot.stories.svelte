@@ -16,8 +16,16 @@
       <span class="text-sm">warning</span>
     </div>
     <div class="flex items-center gap-2">
-      <UnreadDot color="primary" />
-      <span class="text-sm">primary</span>
+      <UnreadDot color="ambient" />
+      <span class="text-sm">ambient</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <UnreadDot color="action" />
+      <span class="text-sm">action</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <UnreadDot color="neutral" />
+      <span class="text-sm">neutral</span>
     </div>
     <div class="flex items-center gap-2">
       <UnreadDot color="muted" />
@@ -28,13 +36,13 @@
 
 <Story name="Overlay" asChild>
   <div class="flex gap-6">
-    <div class="relative inline-block rounded-md bg-surface-200 p-3">
-      <span class="iconify uil--bell text-xl"></span>
+    <div class="relative inline-block rounded-md bg-surface-emphasized p-3">
+      <span class="iconify text-xl icon-[uil--bell]"></span>
       <UnreadDot overlay color="warning" class="absolute -top-1 -right-1" />
     </div>
-    <div class="relative inline-block rounded-md bg-surface-200 p-3">
-      <span class="iconify uil--message text-xl"></span>
-      <UnreadDot overlay color="primary" class="absolute -top-1 -right-1" />
+    <div class="relative inline-block rounded-md bg-surface-emphasized p-3">
+      <span class="iconify text-xl icon-[uil--message]"></span>
+      <UnreadDot overlay color="action" class="absolute -top-1 -right-1" />
     </div>
   </div>
 </Story>

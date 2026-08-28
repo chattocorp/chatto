@@ -5,13 +5,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-func groupCreatedEvent(groupID, name, description string) *corev1.Event {
-	return &corev1.Event{
-		Event: &corev1.Event_RoomGroupCreated{
-			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{
+func groupCreatedEvent(groupID, name, description string) *evtv1.Event {
+	return &evtv1.Event{
+		Event: &evtv1.Event_RoomGroupCreated{
+			RoomGroupCreated: &evtv1.RoomGroupCreatedEvent{
 				GroupId:     groupID,
 				Name:        name,
 				Description: description,
@@ -20,10 +20,10 @@ func groupCreatedEvent(groupID, name, description string) *corev1.Event {
 	}
 }
 
-func groupUpdatedEvent(groupID, name, description string) *corev1.Event {
-	return &corev1.Event{
-		Event: &corev1.Event_RoomGroupUpdated{
-			RoomGroupUpdated: &corev1.RoomGroupUpdatedEvent{
+func groupUpdatedEvent(groupID, name, description string) *evtv1.Event {
+	return &evtv1.Event{
+		Event: &evtv1.Event_RoomGroupUpdated{
+			RoomGroupUpdated: &evtv1.RoomGroupUpdatedEvent{
 				GroupId:     groupID,
 				Name:        name,
 				Description: description,
@@ -32,18 +32,18 @@ func groupUpdatedEvent(groupID, name, description string) *corev1.Event {
 	}
 }
 
-func groupDeletedEvent(groupID string) *corev1.Event {
-	return &corev1.Event{
-		Event: &corev1.Event_RoomGroupDeleted{
-			RoomGroupDeleted: &corev1.RoomGroupDeletedEvent{GroupId: groupID},
+func groupDeletedEvent(groupID string) *evtv1.Event {
+	return &evtv1.Event{
+		Event: &evtv1.Event_RoomGroupDeleted{
+			RoomGroupDeleted: &evtv1.RoomGroupDeletedEvent{GroupId: groupID},
 		},
 	}
 }
 
-func roomAddedToGroupEvent(groupID, roomID string) *corev1.Event {
-	return &corev1.Event{
-		Event: &corev1.Event_RoomAddedToGroup{
-			RoomAddedToGroup: &corev1.RoomAddedToGroupEvent{
+func roomAddedToGroupEvent(groupID, roomID string) *evtv1.Event {
+	return &evtv1.Event{
+		Event: &evtv1.Event_RoomAddedToGroup{
+			RoomAddedToGroup: &evtv1.RoomAddedToGroupEvent{
 				GroupId: groupID,
 				RoomId:  roomID,
 			},
@@ -51,10 +51,10 @@ func roomAddedToGroupEvent(groupID, roomID string) *corev1.Event {
 	}
 }
 
-func roomRemovedFromGroupEvent(groupID, roomID string) *corev1.Event {
-	return &corev1.Event{
-		Event: &corev1.Event_RoomRemovedFromGroup{
-			RoomRemovedFromGroup: &corev1.RoomRemovedFromGroupEvent{
+func roomRemovedFromGroupEvent(groupID, roomID string) *evtv1.Event {
+	return &evtv1.Event{
+		Event: &evtv1.Event_RoomRemovedFromGroup{
+			RoomRemovedFromGroup: &evtv1.RoomRemovedFromGroupEvent{
 				GroupId: groupID,
 				RoomId:  roomID,
 			},
@@ -62,10 +62,10 @@ func roomRemovedFromGroupEvent(groupID, roomID string) *corev1.Event {
 	}
 }
 
-func roomsReorderedEvent(groupID string, roomIDs []string) *corev1.Event {
-	return &corev1.Event{
-		Event: &corev1.Event_RoomsInGroupReordered{
-			RoomsInGroupReordered: &corev1.RoomsInGroupReorderedEvent{
+func roomsReorderedEvent(groupID string, roomIDs []string) *evtv1.Event {
+	return &evtv1.Event{
+		Event: &evtv1.Event_RoomsInGroupReordered{
+			RoomsInGroupReordered: &evtv1.RoomsInGroupReorderedEvent{
 				GroupId: groupID,
 				RoomIds: roomIDs,
 			},
@@ -198,9 +198,9 @@ func TestRoomGroupProjection_UnrelatedEventsIgnored(t *testing.T) {
 
 	// A non-group event under no particular filter — projection
 	// shouldn't react, and shouldn't panic.
-	other := &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Name: "general"},
+	other := &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Name: "general"},
 		},
 	}
 	require.NoError(t, p.Apply(other, 1))
@@ -211,7 +211,7 @@ func TestRoomGroupProjection_MoveSnapshotTracksIgnoredGroupSeq(t *testing.T) {
 	p := NewRoomGroupProjection()
 	require.NoError(t, p.Apply(groupCreatedEvent("G1", "Target", ""), 10))
 
-	ignoredGroupEvent := &corev1.Event{}
+	ignoredGroupEvent := &evtv1.Event{}
 	require.NoError(t, p.Apply(ignoredGroupEvent, 11))
 
 	snapshot := p.MoveSnapshot("R1", "G1")

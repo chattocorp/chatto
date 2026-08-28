@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type voiceCallService struct {
@@ -26,13 +26,13 @@ func (s *voiceCallService) ListActiveCalls(ctx context.Context, _ *connect.Reque
 		return connect.NewResponse(&apiv1.ListActiveCallsResponse{}), nil
 	}
 
-	roomIDs, err := s.api.core.GetActiveCallRoomIDs(ctx, core.LegacySpaceIDForRoomKind(core.KindChannel))
+	roomIDs, err := s.api.core.GetActiveCallRoomIDs(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	calls := make([]*apiv1.ActiveCall, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
-		call, err := s.activeCall(ctx, caller.UserID, roomID)
+		call, err := activeCall(ctx, s.api, caller.UserID, roomID)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) ||
 				errors.Is(err, core.ErrPermissionDenied) ||
@@ -51,7 +51,7 @@ func (s *voiceCallService) GetActiveCall(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, err
 	}
-	call, err := s.activeCall(ctx, caller.UserID, req.Msg.GetRoomId())
+	call, err := activeCall(ctx, s.api, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -75,7 +75,7 @@ func (s *voiceCallService) BatchGetActiveCalls(ctx context.Context, req *connect
 		}
 		seen[roomID] = struct{}{}
 
-		call, err := s.activeCall(ctx, caller.UserID, roomID)
+		call, err := activeCall(ctx, s.api, caller.UserID, roomID)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) ||
 				errors.Is(err, core.ErrPermissionDenied) ||
@@ -102,14 +102,14 @@ func (s *voiceCallService) ListCallParticipants(ctx context.Context, req *connec
 		return connect.NewResponse(&apiv1.ListCallParticipantsResponse{}), nil
 	}
 
-	participants, err := s.api.core.GetCallParticipants(ctx, core.LegacySpaceIDForRoomKind(core.KindOfRoom(room)), room.GetId())
+	participants, err := s.api.core.GetCallParticipants(room.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
 
 	responseParticipants := make([]*apiv1.CallParticipant, 0, len(participants))
 	for _, participant := range participants {
-		mapped, err := s.callParticipant(ctx, participant)
+		mapped, err := callParticipant(ctx, s.api, participant)
 		if err != nil {
 			return nil, err
 		}
@@ -125,14 +125,13 @@ func (s *voiceCallService) JoinCall(ctx context.Context, req *connect.Request[ap
 	if err != nil {
 		return nil, err
 	}
-	_, kind, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId())
-	if err != nil {
+	if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
 		return nil, connectError(err)
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.JoinCallResponse{}), nil
 	}
-	if err := s.api.core.RecordCallParticipantJoined(ctx, kind, req.Msg.GetRoomId(), caller.UserID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.api.core.RecordCallParticipantJoined(ctx, req.Msg.GetRoomId(), caller.UserID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.JoinCallResponse{Joined: true}), nil
@@ -155,17 +154,16 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	activeCall, ok := s.api.core.CallState.ActiveCall(req.Msg.GetRoomId())
-	if !ok {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
-	}
-	e2eeKey, err := s.api.core.GetVoiceCallE2EEKey(ctx, req.Msg.GetRoomId())
+	access, err := s.api.core.GetVoiceCallAccessMaterial(ctx, req.Msg.GetRoomId())
 	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
+		}
 		return nil, connectError(err)
 	}
 	avatarSize := 96
 	avatarURL, _ := s.api.core.GetUserAvatarURL(ctx, caller.UserID, &avatarSize, &avatarSize, "cover")
-	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, core.LegacySpaceIDForRoomKind(kind), req.Msg.GetRoomId(), activeCall.CallID)
+	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
 	token, err := core.GenerateVoiceCallToken(
 		s.api.config.LiveKit.APIKey,
 		s.api.config.LiveKit.APISecret,
@@ -174,8 +172,9 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 		user.GetDisplayName(),
 		user.GetLogin(),
 		s.api.absolutizeAssetURL(ctx, avatarURL),
-		e2eeKey,
-		activeCall.CallID,
+		user.GetIsBot(),
+		access.E2EEKey,
+		access.CallID,
 	)
 	if err != nil {
 		return nil, connectError(err)
@@ -188,7 +187,7 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
-func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[apiv1.LeaveCallRequest]) (*connect.Response[apiv1.LeaveCallResponse], error) {
+func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, req *connect.Request[apiv1.CreateCallMediaPublisherTokenRequest]) (*connect.Response[apiv1.CreateCallMediaPublisherTokenResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -198,34 +197,91 @@ func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[a
 		return nil, connectError(err)
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("voice calls are not configured"))
+	}
+
+	publisherKind := ""
+	switch req.Msg.GetKind() {
+	case apiv1.CallMediaPublisherKind_CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE:
+		publisherKind = core.ParticipantPublisherKindGameShare
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported call media publisher kind"))
+	}
+
+	user, err := s.api.core.GetUser(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	access, err := s.api.core.GetVoiceCallPublisherAccessMaterial(ctx, req.Msg.GetRoomId(), caller.UserID)
+	if err != nil {
+		if errors.Is(err, core.ErrCallParticipationRequired) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("join the active voice call before publishing media"))
+		}
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
+		}
+		return nil, connectError(err)
+	}
+	publisherIdentity := core.NewCallMediaPublisherID()
+	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
+	token, err := core.GenerateCallMediaPublisherToken(
+		s.api.config.LiveKit.APIKey,
+		s.api.config.LiveKit.APISecret,
+		roomName,
+		publisherIdentity,
+		caller.UserID,
+		user.GetDisplayName(),
+		access.E2EEKey,
+		access.CallID,
+		publisherKind,
+	)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&apiv1.CreateCallMediaPublisherTokenResponse{
+		Token:   token.Token,
+		E2EeKey: token.E2EEKey,
+		CallId:  token.CallID,
+	}), nil
+}
+
+func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[apiv1.LeaveCallRequest]) (*connect.Response[apiv1.LeaveCallResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
+		return nil, connectError(err)
+	}
+	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.LeaveCallResponse{}), nil
 	}
-	if err := s.api.core.RecordCallParticipantLeft(ctx, kind, req.Msg.GetRoomId(), caller.UserID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.api.core.RecordCallParticipantLeft(ctx, req.Msg.GetRoomId(), caller.UserID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.LeaveCallResponse{Left: true}), nil
 }
 
-func (s *voiceCallService) activeCall(ctx context.Context, actorID, roomID string) (*apiv1.ActiveCall, error) {
-	room, _, err := s.api.core.VoiceCallRoomForMember(ctx, actorID, roomID)
+func activeCall(ctx context.Context, api *API, actorID, roomID string) (*apiv1.ActiveCall, error) {
+	room, _, err := api.core.VoiceCallRoomForMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}
-	if !s.api.config.LiveKit.IsConfigured() {
+	if !api.config.LiveKit.IsConfigured() {
 		return nil, core.ErrNotFound
 	}
-	activeCall, ok := s.api.core.CallState.ActiveCall(room.GetId())
-	if !ok {
+	snapshot, err := api.core.GetCallSnapshot(room.GetId())
+	if err != nil {
+		return nil, err
+	}
+	if snapshot.Call.CallID == "" {
 		return nil, core.ErrNotFound
 	}
 
-	participants, err := s.api.core.GetCallParticipants(ctx, core.LegacySpaceIDForRoomKind(core.KindOfRoom(room)), room.GetId())
-	if err != nil {
-		return nil, err
-	}
-	responseParticipants := make([]*apiv1.CallParticipant, 0, len(participants))
-	for _, participant := range participants {
-		mapped, err := s.callParticipant(ctx, participant)
+	responseParticipants := make([]*apiv1.CallParticipant, 0, len(snapshot.Participants))
+	for _, participant := range snapshot.Participants {
+		mapped, err := callParticipant(ctx, api, participant)
 		if err != nil {
 			return nil, err
 		}
@@ -235,13 +291,13 @@ func (s *voiceCallService) activeCall(ctx context.Context, actorID, roomID strin
 	}
 	return &apiv1.ActiveCall{
 		Room:         apiRoomSummary(room),
-		CallId:       activeCall.CallID,
+		CallId:       snapshot.Call.CallID,
 		Participants: responseParticipants,
 	}, nil
 }
 
-func (s *voiceCallService) callParticipant(ctx context.Context, participant core.CallParticipant) (*apiv1.CallParticipant, error) {
-	user, err := s.api.core.GetUser(ctx, participant.UserID)
+func callParticipant(ctx context.Context, api *API, participant core.CallParticipant) (*apiv1.CallParticipant, error) {
+	user, err := api.core.GetUser(ctx, participant.UserID)
 	if err != nil {
 		if errors.Is(err, core.ErrNotFound) {
 			return nil, nil
@@ -249,7 +305,7 @@ func (s *voiceCallService) callParticipant(ctx context.Context, participant core
 		return nil, connectError(err)
 	}
 	avatarSize := 96
-	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user, &apiv1.ImageTransformOptions{
+	apiUser, err := userSummary(ctx, api, user, &apiv1.ImageTransformOptions{
 		Width:  int32(avatarSize),
 		Height: int32(avatarSize),
 		Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,

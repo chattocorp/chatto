@@ -607,9 +607,12 @@ type PermissionMatrixCell struct {
 	// Explicit decision at this scope.
 	Override PermissionDecision `protobuf:"varint,3,opt,name=override,proto3,enum=chatto.admin.v1.PermissionDecision" json:"override,omitempty"`
 	// Effective decision at this scope.
-	Effective     PermissionDecision `protobuf:"varint,4,opt,name=effective,proto3,enum=chatto.admin.v1.PermissionDecision" json:"effective,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Effective PermissionDecision `protobuf:"varint,4,opt,name=effective,proto3,enum=chatto.admin.v1.PermissionDecision" json:"effective,omitempty"`
+	// Whether an explicit allow may currently be stored for this target. Absent
+	// when no additional delegation ceiling applies.
+	AllowPermitted *bool `protobuf:"varint,5,opt,name=allow_permitted,json=allowPermitted,proto3,oneof" json:"allow_permitted,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PermissionMatrixCell) Reset() {
@@ -668,6 +671,13 @@ func (x *PermissionMatrixCell) GetEffective() PermissionDecision {
 		return x.Effective
 	}
 	return PermissionDecision_PERMISSION_DECISION_UNSPECIFIED
+}
+
+func (x *PermissionMatrixCell) GetAllowPermitted() bool {
+	if x != nil && x.AllowPermitted != nil {
+		return *x.AllowPermitted
+	}
+	return false
 }
 
 // Permission matrix for one role across all scopes.
@@ -1255,7 +1265,7 @@ type PermissionTraceEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Level at which this decision was observed.
 	Level PermissionDecisionLevel `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.admin.v1.PermissionDecisionLevel" json:"level,omitempty"`
-	// Role name or policy marker that produced the decision.
+	// Role name, user ID, or policy marker that produced the decision.
 	RoleName string `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
 	// Decision observed at this trace step.
 	Decision PermissionDecision `protobuf:"varint,3,opt,name=decision,proto3,enum=chatto.admin.v1.PermissionDecision" json:"decision,omitempty"`
@@ -1328,16 +1338,19 @@ type PermissionExplanation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Permission identifier.
 	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
-	// Overall decision after applying deny-wins resolution.
+	// Overall decision after resolving named subjects and the everyone baseline.
 	State PermissionDecision `protobuf:"varint,2,opt,name=state,proto3,enum=chatto.admin.v1.PermissionDecision" json:"state,omitempty"`
 	// Level of the winning decision, when state is not NONE.
 	DecidedAt PermissionDecisionLevel `protobuf:"varint,3,opt,name=decided_at,json=decidedAt,proto3,enum=chatto.admin.v1.PermissionDecisionLevel" json:"decided_at,omitempty"`
-	// Role name or policy marker that produced the winning decision.
+	// Role name, user ID, or policy marker that produced the winning decision.
 	DecidedByRole string `protobuf:"bytes,4,opt,name=decided_by_role,json=decidedByRole,proto3" json:"decided_by_role,omitempty"`
 	// Ordered decision trace. The first entry is the winning decision.
-	Trace         []*PermissionTraceEntry `protobuf:"bytes,5,rep,name=trace,proto3" json:"trace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Trace []*PermissionTraceEntry `protobuf:"bytes,5,rep,name=trace,proto3" json:"trace,omitempty"`
+	// Permission whose effective allow includes this permission. Empty when the
+	// permission was resolved directly.
+	IncludedByPermission string `protobuf:"bytes,6,opt,name=included_by_permission,json=includedByPermission,proto3" json:"included_by_permission,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *PermissionExplanation) Reset() {
@@ -1403,6 +1416,13 @@ func (x *PermissionExplanation) GetTrace() []*PermissionTraceEntry {
 		return x.Trace
 	}
 	return nil
+}
+
+func (x *PermissionExplanation) GetIncludedByPermission() string {
+	if x != nil {
+		return x.IncludedByPermission
+	}
+	return ""
 }
 
 // Request permission explanations for a user at server or room scope.
@@ -1863,14 +1883,16 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x128\n" +
 	"\x04kind\x18\x03 \x01(\x0e2$.chatto.admin.v1.PermissionScopeKindR\x04kind\x12&\n" +
-	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\xd5\x01\n" +
+	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\x97\x02\n" +
 	"\x14PermissionMatrixCell\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
 	"permission\x12\x19\n" +
 	"\bscope_id\x18\x02 \x01(\tR\ascopeId\x12?\n" +
 	"\boverride\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\boverride\x12A\n" +
-	"\teffective\x18\x04 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\teffective\"\xe7\x01\n" +
+	"\teffective\x18\x04 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\teffective\x12,\n" +
+	"\x0fallow_permitted\x18\x05 \x01(\bH\x00R\x0eallowPermitted\x88\x01\x01B\x12\n" +
+	"\x10_allow_permitted\"\xe7\x01\n" +
 	"\x14RolePermissionMatrix\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\x125\n" +
 	"\x16applicable_permissions\x18\x02 \x03(\tR\x15applicablePermissions\x12>\n" +
@@ -1912,7 +1934,7 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\x05level\x18\x01 \x01(\x0e2(.chatto.admin.v1.PermissionDecisionLevelR\x05level\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12?\n" +
 	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\bdecision\x12\x18\n" +
-	"\aapplied\x18\x04 \x01(\bR\aapplied\"\xa0\x02\n" +
+	"\aapplied\x18\x04 \x01(\bR\aapplied\"\xd6\x02\n" +
 	"\x15PermissionExplanation\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
@@ -1921,7 +1943,8 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\n" +
 	"decided_at\x18\x03 \x01(\x0e2(.chatto.admin.v1.PermissionDecisionLevelR\tdecidedAt\x12&\n" +
 	"\x0fdecided_by_role\x18\x04 \x01(\tR\rdecidedByRole\x12;\n" +
-	"\x05trace\x18\x05 \x03(\v2%.chatto.admin.v1.PermissionTraceEntryR\x05trace\"V\n" +
+	"\x05trace\x18\x05 \x03(\v2%.chatto.admin.v1.PermissionTraceEntryR\x05trace\x124\n" +
+	"\x16included_by_permission\x18\x06 \x01(\tR\x14includedByPermission\"V\n" +
 	"\x19ExplainPermissionsRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"h\n" +
@@ -2088,6 +2111,7 @@ func file_chatto_admin_v1_permissions_proto_init() {
 	if File_chatto_admin_v1_permissions_proto != nil {
 		return
 	}
+	file_chatto_admin_v1_permissions_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

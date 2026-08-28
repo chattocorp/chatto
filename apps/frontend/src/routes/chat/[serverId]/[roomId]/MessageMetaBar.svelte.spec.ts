@@ -3,15 +3,18 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import MessageMetaBar from './MessageMetaBar.svelte';
+import { buildMessageActionModel } from './messageActionModel';
 
 const mocks = vi.hoisted(() => ({
-  reactionActions: {
-    toggleReaction: vi.fn()
+  actions: {
+    addReaction: vi.fn(),
+    removeReaction: vi.fn(),
+    toggleReaction: vi.fn(),
+    startEdit: vi.fn(),
+    openDeleteConfirmation: vi.fn(),
+    copyMessageText: vi.fn(),
+    copyMessageLink: vi.fn()
   }
-}));
-
-vi.mock('$lib/hooks', () => ({
-  useReactionActions: () => mocks.reactionActions
 }));
 
 vi.mock('$app/paths', () => ({
@@ -24,26 +27,65 @@ vi.mock('$app/paths', () => ({
       .replace('[threadId]', params?.threadId ?? '')
 }));
 
-vi.mock('$lib/render/data', () => ({
-  useRenderData: (_document: unknown, value: unknown) => value
-}));
-
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    client: {
-      mutation: vi.fn().mockResolvedValue({ error: null })
-    }
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'server-1',
+    store: {},
+    connection: {
+      client: {
+        mutation: vi.fn().mockResolvedValue({ error: null })
+      }
+    },
+    isCurrent: () => true
   })
 }));
 
 const baseProps = {
   roomId: 'room-1',
-  messageEventId: 'thread-1',
   serverSegment: '-',
   threadRootEventId: 'thread-1',
   reactions: [],
+  action: buildAction(),
   onOpenThread: vi.fn()
 };
+
+function buildAction({
+  canReact = false,
+  reactions = [],
+  messageStore,
+  canPin = false,
+  isPinned = false,
+  togglePin = vi.fn().mockResolvedValue(undefined)
+}: {
+  canReact?: boolean;
+  reactions?: { emoji: string; hasReacted: boolean }[];
+  messageStore?: never;
+  canPin?: boolean;
+  isPinned?: boolean;
+  togglePin?: () => Promise<void>;
+} = {}) {
+  return buildMessageActionModel({
+    actions: mocks.actions,
+    params: {
+      serverId: 'server-1',
+      roomId: 'room-1',
+      messageEventId: 'thread-1',
+      eventId: 'thread-1',
+      messageBody: '',
+      threadRootEventId: 'thread-1',
+      messageStore
+    },
+    reactions,
+    canReact,
+    canEdit: false,
+    canDelete: false,
+    canPin,
+    isPinned,
+    togglePin,
+    replyInRoomLabel: 'Reply',
+    replyThreadLabel: 'Reply in thread'
+  });
+}
 
 function reaction(
   overrides: Partial<{
@@ -82,6 +124,44 @@ describe('MessageMetaBar', () => {
 
     await expect.element(link).toBeInTheDocument();
     expect(link.textContent?.replace(/\s+/g, ' ').trim()).toContain('2 replies');
+    expect(link.classList).toContain('whitespace-nowrap');
+  });
+
+  it('renders an explicitly created empty thread', async () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        threadExists: true,
+        replyCount: 0
+      }
+    });
+
+    const link = q(container, 'a[href="/chat/-/room-1/thread-1"]') as HTMLAnchorElement;
+
+    await expect.element(link).toBeInTheDocument();
+    expect(link.textContent?.trim()).toContain('Thread');
+  });
+
+  it('uses a neutral dot for Badge unread and lets notification orange win', () => {
+    const badge = render(MessageMetaBar, {
+      props: { ...baseProps, replyCount: 1, hasThreadUnread: true }
+    });
+    const badgeDot = q(badge.container, '[data-testid="thread-unread-dot"]')!;
+    expect(badgeDot.classList).toContain('bg-neutral-action');
+    expect(q(badge.container, '[data-testid="thread-notification-dot"]')).toBeNull();
+    badge.unmount();
+
+    const notification = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        replyCount: 1,
+        hasThreadUnread: true,
+        hasThreadNotification: true
+      }
+    });
+    const notificationDot = q(notification.container, '[data-testid="thread-notification-dot"]')!;
+    expect(notificationDot.classList).toContain('bg-attention');
+    expect(q(notification.container, '[data-testid="thread-unread-dot"]')).toBeNull();
   });
 
   it('renders the echo thread badge as a native thread link', async () => {
@@ -96,6 +176,10 @@ describe('MessageMetaBar', () => {
 
     await expect.element(link).toBeInTheDocument();
     expect(link.textContent).toContain('Thread');
+    expect(link.classList).toContain('whitespace-nowrap');
+    const icon = link.querySelector('.iconify');
+    expect(icon?.classList).toContain('icon-[uil--corner-up-right]');
+    expect(icon?.classList).toContain('rtl:-scale-x-100');
   });
 
   it('opens the thread through the existing callback for plain primary clicks', () => {
@@ -207,6 +291,53 @@ describe('MessageMetaBar', () => {
     expect(onToggleThreadFollow).not.toHaveBeenCalled();
   });
 
+  it('shows a pinned indicator and confirms before removing the pin', async () => {
+    const togglePin = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        action: buildAction({ canPin: true, isPinned: true, togglePin })
+      }
+    });
+
+    const pinButton = q(container, 'button[aria-label="Unpin message"]') as HTMLButtonElement;
+    expect(pinButton).not.toBeNull();
+    expect(pinButton.querySelector('span.iconify')).not.toBeNull();
+
+    pinButton.click();
+    await vi.waitFor(() => expect(q(document.body, 'dialog[open]')).not.toBeNull());
+    const dialog = q(document.body, 'dialog[open]')!;
+    expect(dialog.textContent).toContain('Are you sure you want to remove this pin?');
+    expect(togglePin).not.toHaveBeenCalled();
+
+    const confirmButton = q(dialog, 'button[type="submit"]') as HTMLButtonElement;
+    confirmButton.click();
+    await vi.waitFor(() => expect(togglePin).toHaveBeenCalledOnce());
+  });
+
+  it('does not render a pin indicator for unpinned messages', () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        action: buildAction({ canPin: true, isPinned: false })
+      }
+    });
+
+    expect(q(container, 'button[aria-label="Unpin message"]')).toBeNull();
+  });
+
+  it('keeps the pinned indicator visible when the viewer cannot remove the pin', () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        action: buildAction({ isPinned: true })
+      }
+    });
+
+    expect(q(container, '[role="img"][aria-label="Pinned message"]')).not.toBeNull();
+    expect(q(container, 'button[aria-label="Unpin message"]')).toBeNull();
+  });
+
   it('shows reaction tooltips with the readable reaction name and reacting users', () => {
     const { container } = render(MessageMetaBar, {
       props: {
@@ -293,7 +424,7 @@ describe('MessageMetaBar', () => {
         reactions: [
           reaction({ emoji: 'heart', count: 1, users: [{ id: 'user-1', displayName: 'Alice' }] })
         ],
-        canReact: false
+        action: buildAction()
       }
     });
 
@@ -316,15 +447,18 @@ describe('MessageMetaBar', () => {
       props: {
         ...baseProps,
         reactions: [reaction({ hasReacted: true })],
-        canReact: true,
-        messageStore: messageStore as never
+        action: buildAction({
+          canReact: true,
+          reactions: [reaction({ hasReacted: true })],
+          messageStore: messageStore as never
+        })
       }
     });
 
     (q(container, 'button[aria-label="Remove 👍 reaction (2)"]') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
-      expect(mocks.reactionActions.toggleReaction).toHaveBeenCalledWith(
+      expect(mocks.actions.toggleReaction).toHaveBeenCalledWith(
         expect.objectContaining({
           roomId: 'room-1',
           messageEventId: 'thread-1',

@@ -172,7 +172,10 @@ test.describe('Admin Access Control', () => {
 
     // Should see access denied message
     await adminPage.expectAccessDenied();
-    await adminPage.expectAdminGearNotVisible();
+    // The unified Settings shell remains available because every member can
+    // manage User Preferences even when this specific route is denied.
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
     await expect(page.getByText('You do not have permission to access this page.')).toBeVisible();
 
     // Should have a link to return to chat
@@ -241,14 +244,7 @@ test.describe('Admin Users Page', () => {
     await adminPage.expectUserCountVisible();
   });
 
-  // The previous "admin can see verified emails for multiple OAuth users"
-  // test was retired when /admin/users folded into the server-admin Members
-  // page. The Members page intentionally doesn't surface email addresses —
-  // that level of identity is a deliberate scope reduction.
 });
-
-// Admin Spaces page retired in PR(a) — instance metadata is managed via the
-// Server Admin → General page now; the old spaces tier is gone.
 
 test.describe('Admin System Page', () => {
   test('admin can view system information', async ({ page, adminPage }) => {
@@ -268,19 +264,22 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
-  test('server header gear opens the first permitted admin page', async ({ page, adminPage }) => {
+  test('sidebar Settings entry opens the first permitted server settings page', async ({
+    page,
+    adminPage
+  }) => {
     await createAndLoginAdminUser(page);
 
-    await page.goto(routes.space());
+    await page.goto(routes.chat);
 
-    await adminPage.expectAdminGearVisible();
-    await adminPage.navigateToAdminViaGear();
+    await adminPage.expectSettingsLinkVisible();
+    await adminPage.navigateToSettings();
     await adminPage.expectGeneralPageVisible();
     await adminPage.expectBackToChatVisible();
     await adminPage.expectSidebarLinkActive('General');
   });
 
-  test('admin pages use the dedicated server-admin sidebar shell', async ({ page, adminPage }) => {
+  test('admin pages use the dedicated manage/server sidebar shell', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await adminPage.gotoUsers();
@@ -313,7 +312,7 @@ test.describe('Admin Navigation', () => {
 
     await adminPage.goto();
 
-    // Click back to chat - may redirect to /chat/spaces for users with no joined spaces
+    // Click back to chat. Users without joined rooms land on the home server.
     await adminPage.navigateBackToChat();
   });
 });
@@ -536,22 +535,9 @@ test.describe('User Permission Management', () => {
       }
     );
   });
-
-  // The "deny `space.list` blocks the Browse Spaces page" pair was retired
-  // with the Browse Spaces UI in PR(a), and `space.list` itself was removed
-  // afterwards. The deny-role mechanism is covered by the other
-  // permission-denial tests in this file.
 });
 
 test.describe('Role Assignment', () => {
-  // The "instance-admin" / instance-role assignment tests previously lived
-  // here. They targeted the legacy /admin/users/[id] and /admin/roles/[name]
-  // pages, which used a separate RBAC engine for instance-scoped roles.
-  // After the instance-admin → server-admin consolidation, instance roles
-  // are not surfaced in the unified server-admin role detail; merging the
-  // two RBAC engines lands in the planned PR(c). Restore equivalent
-  // coverage there once the role concepts unify.
-
   test('everyone role page shows special message instead of user list', async ({
     page,
     adminPage
@@ -564,16 +550,7 @@ test.describe('Role Assignment', () => {
     // Should see special message about implicit membership
     await adminPage.expectMemberRoleMessage();
   });
-
-  // The "clicking user in role page navigates to user management" test
-  // depended on the instance-admin role surfacing on the role detail page
-  // — same story as the suite header note above. Restore once PR(c) merges
-  // the remaining RBAC concepts.
 });
-
-// "Browse Spaces Permission" describe block was retired with the Browse
-// Spaces UI in PR(a); the `space.list` permission has since been removed.
-// Deny-role behaviour is exercised by the other admin permission tests.
 
 test.describe('Instance Settings', () => {
   // No per-test cleanup needed: every e2e test spawns its own isolated
@@ -696,7 +673,7 @@ test.describe('Instance Settings', () => {
 
     await withServerUser(browser, serverURL, async ({ page: page2 }) => {
       // Second context - a regular user viewing the chat
-      await page2.goto(routes.spaces);
+      await page2.goto(routes.chat);
 
       // Verify initial page title contains *some* instance name (post-PR(a)
       // this is the bootstrap server's name when no override is configured —
@@ -730,10 +707,10 @@ test.describe('Instance Settings', () => {
     // Verify page-specific prefixes also include instance name. The exact
     // page titles changed when instance admin folded into server admin —
     // we just check the instance name appears as a suffix.
-    await page.goto(routes.admin);
+    await page.goto(routes.serverAdminGeneral);
     await expect(page).toHaveTitle(/My Chat Server$/);
 
-    await page.goto(routes.adminUsers);
+    await page.goto(routes.serverAdminMembers);
     await expect(page).toHaveTitle(/My Chat Server$/);
   });
 });

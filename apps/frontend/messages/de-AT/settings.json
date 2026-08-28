@@ -1,0 +1,11 @@
+{
+  "settings": {
+    "profile": {
+      "status": {
+        "template": {
+          "out_for_lunch": "Auf Jause"
+        }
+      }
+    }
+  }
+}

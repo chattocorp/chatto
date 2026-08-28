@@ -105,6 +105,66 @@ describe('useUnreadMarker', () => {
     rendered.unmount();
   });
 
+  it('resolves a marker when eligible timeline events arrive', async () => {
+    const markedAtMs = Date.parse('2026-07-08T10:00:30.000Z');
+    vi.spyOn(Date, 'now').mockReturnValue(markedAtMs);
+    const markAsRead = vi.fn().mockResolvedValue({
+      previousLastReadAt: '2026-07-08T09:00:00.000Z',
+      lastReadAt: '2026-07-08T10:00:00.000Z'
+    });
+    let api: HarnessAPI | undefined;
+    const onReady = (nextApi: HarnessAPI) => {
+      api = nextApi;
+    };
+
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        events: [],
+        skipActorId: 'current-user',
+        onReady
+      }
+    });
+    flushSync();
+    const currentApi = getApi(api);
+    await vi.waitFor(() => expect(currentApi.unreadMarkerWindow).not.toBeNull());
+
+    await rendered.rerender({
+      targetId: 'room-1',
+      markAsRead,
+      events: [
+        {
+          id: 'at-lower-bound',
+          actorId: 'other-user',
+          createdAt: '2026-07-08T09:00:00.000Z'
+        },
+        {
+          id: 'current-users-event',
+          actorId: 'current-user',
+          createdAt: '2026-07-08T09:15:00.000Z'
+        },
+        {
+          id: 'first-eligible-event',
+          actorId: 'other-user',
+          createdAt: '2026-07-08T09:30:00.000Z'
+        },
+        {
+          id: 'after-upper-bound',
+          actorId: 'other-user',
+          createdAt: '2026-07-08T10:01:00.000Z'
+        }
+      ],
+      skipActorId: 'current-user',
+      onReady
+    });
+    flushSync();
+
+    await vi.waitFor(() => expect(currentApi.unreadMarkerEventId).toBe('first-eligible-event'));
+    expect(currentApi.unreadMarkerWindow).toBeNull();
+    rendered.unmount();
+  });
+
   it('clears the marker when refocus returns no previous read state', async () => {
     const markedAtMs = Date.UTC(2026, 6, 8, 10, 0, 30);
     vi.spyOn(Date, 'now').mockReturnValue(markedAtMs);
@@ -250,6 +310,54 @@ describe('useUnreadMarker', () => {
 
     await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
     expect(markAsRead).toHaveBeenLastCalledWith('room-2', undefined);
+    rendered.unmount();
+  });
+
+  it('ignores a stale read-state window after the target changes', async () => {
+    let resolveFirstRead!: (value: {
+      previousLastReadAt: string;
+      lastReadAt: string;
+    }) => void;
+    const firstRead = new Promise<{
+      previousLastReadAt: string;
+      lastReadAt: string;
+    }>((resolve) => {
+      resolveFirstRead = resolve;
+    });
+    const markAsRead = vi.fn().mockReturnValueOnce(firstRead).mockResolvedValueOnce(null);
+    let api: HarnessAPI | undefined;
+    const onReady = (nextApi: HarnessAPI) => {
+      api = nextApi;
+    };
+
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        onReady
+      }
+    });
+    flushSync();
+    const currentApi = getApi(api);
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+
+    await rendered.rerender({
+      targetId: 'room-2',
+      markAsRead,
+      onReady
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
+
+    resolveFirstRead({
+      previousLastReadAt: '2026-07-08T09:00:00.000Z',
+      lastReadAt: '2026-07-08T10:00:00.000Z'
+    });
+    await firstRead;
+    flushSync();
+
+    expect(currentApi.unreadMarkerWindow).toBeNull();
+    expect(currentApi.unreadMarkerEventId).toBeNull();
     rendered.unmount();
   });
 });

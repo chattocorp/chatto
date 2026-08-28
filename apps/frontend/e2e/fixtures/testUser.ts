@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { csrfHeaders } from './csrf';
+import { browserAuthenticationHeaders } from './csrf';
 import {
   connectPost,
   expectPermissionDecisionUpdate,
@@ -22,6 +22,37 @@ export interface TestUser {
  * Must match what's configured in e2e/fixtures/chatto.toml
  */
 const ADMIN_EMAIL = 'admin@e2e-test.example.com';
+const E2E_COMPOSER_PREFERENCES = JSON.stringify({
+  composerEditor: 'visual',
+  composerSendMode: 'modifier-enter'
+});
+
+/**
+ * Keep unrelated E2E scenarios on their established composer baseline without
+ * relying on the application's product defaults.
+ */
+export function composerTestStorageState(baseURL: string) {
+  return {
+    cookies: [],
+    origins: [
+      {
+        origin: new URL(baseURL).origin,
+        localStorage: [{ name: 'chatto:preferences', value: E2E_COMPOSER_PREFERENCES }]
+      }
+    ]
+  };
+}
+
+/** Reload with absent composer fields so the application's real defaults apply. */
+export async function reloadWithProductComposerDefaults(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
+    delete stored.composerEditor;
+    delete stored.composerSendMode;
+    localStorage.setItem('chatto:preferences', JSON.stringify(stored));
+  });
+  await page.reload();
+}
 
 interface ViewerResponse {
   user?: {
@@ -107,7 +138,8 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
   };
 
   // Login via HTTP endpoint (user already created by bootstrap)
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: {
       login: adminUser.login,
       password: adminUser.password
@@ -129,9 +161,9 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
  * app while the session is still valid, then perform the logout request.
  */
 export async function logoutCurrentUser(page: Page): Promise<void> {
-  const headers = await csrfHeaders(page);
+  const headers = await browserAuthenticationHeaders(page);
   await unloadPageForIdentitySwitch(page);
-  const response = await page.request.post('/auth/logout', { headers });
+  const response = await page.request.post('/auth/browser/logout', { headers, data: {} });
   expect(response.ok()).toBeTruthy();
 }
 
@@ -280,7 +312,8 @@ export async function clearUserPermissionOverride(
  * Useful for multi-tab tests where the same user needs to be logged into multiple pages.
  */
 export async function loginTestUser(page: Page, user: TestUser): Promise<void> {
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: {
       login: user.login,
       password: user.password

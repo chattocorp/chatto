@@ -87,6 +87,8 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
     await expect(page.getByText('GitHub verified your identity')).toBeVisible();
     await expect(page.getByLabel('Username')).toHaveValue(login);
+    await expect(page.getByLabel('Display Name')).toHaveValue('GitHub SSO User');
+    await page.getByLabel('Display Name').fill('Chosen SSO Name');
     await expect(page.getByRole('link', { name: 'Sign in with existing account' })).toHaveAttribute(
       'href',
       '/login'
@@ -97,6 +99,11 @@ test.describe('External identity confirmation flows', () => {
 
     await page.goto(routes.settingsAccount);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
+
+    await page.goto(routes.settings);
+    await expect(page.getByPlaceholder('Enter your display name')).toHaveValue('Chosen SSO Name');
+
+    await page.goto(routes.settingsAccount);
     await expect(page.getByText('GitHub', { exact: true })).toBeVisible();
     const githubRow = page.locator('div.rounded.border').filter({ hasText: 'GitHub' });
     await expect(githubRow.getByText('Linked')).toBeVisible();
@@ -118,7 +125,7 @@ test.describe('External identity confirmation flows', () => {
     expect(disconnectRequestCount).toBe(0);
     await page.getByRole('dialog').getByText('Close').click();
     await expect(githubRow.getByText('Linked')).toBeVisible();
-    await expect(githubRow.locator('.uil--link-broken')).toBeVisible();
+    await expect(githubRow.locator('[class~="icon-[uil--link-broken]"]')).toBeVisible();
 
     await page.getByLabel('New Password').fill('newpassword456');
     await page.getByLabel('Confirm Password').fill('newpassword456');
@@ -200,7 +207,7 @@ test.describe('External identity confirmation flows', () => {
     });
 
     const disconnectButton = discordRow.getByRole('button', { name: 'Disconnect' });
-    await expect(disconnectButton).toHaveClass(/hover:!from-danger/);
+    await expect(disconnectButton).toHaveClass(/btn-danger-secondary/);
     await disconnectButton.click();
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
@@ -263,7 +270,7 @@ test.describe('External identity confirmation flows', () => {
     await page.goto(flow.confirmUrl);
     await page.getByRole('button', { name: 'Link Account' }).click();
     await confirmRequestStarted;
-    await page.waitForURL('/');
+    await page.waitForURL(routes.login);
   });
 
   test('cancels a pending provider identity flow', async ({ page, authPage }) => {

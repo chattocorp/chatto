@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/encryption"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // DecryptedMessageBody is the public view of a message body with
@@ -16,41 +16,22 @@ import (
 type DecryptedMessageBody struct {
 	AuthorId    string
 	Body        string
-	Attachments []*corev1.Attachment
-	LinkPreview *corev1.LinkPreview
+	Attachments []*evtv1.Attachment
+	LinkPreview *evtv1.LinkPreview
 	CreatedAt   time.Time
 	UpdatedAt   *time.Time
 }
 
-// GetFullMessageBody returns the decrypted message body for a message.
-//
-// `messageBodyKey` is the legacy compound key `{userId}.{eventId}`
-// retained for API compatibility with older resolver call sites. We
-// extract the eventId from the second segment, look the message up in
-// the RoomTimelineProjection, and fold any subsequent edit / retract
-// events to produce the current body. The userId prefix on the key is
-// not consulted — the projection knows the author from the event
-// envelope.
-//
+// GetFullMessageBody returns the decrypted message body for a message event,
+// folding any subsequent edit or retract events to produce the current body.
 // Returns nil if the message has been retracted or doesn't exist, or
 // if the author's encryption key has been crypto-shredded.
-func (c *ChattoCore) GetFullMessageBody(ctx context.Context, kind RoomKind, messageBodyKey string) (*DecryptedMessageBody, error) {
-	eventID := eventIDFromBodyKey(messageBodyKey)
-	if eventID == "" {
-		return nil, nil
-	}
-	return c.GetFullMessageBodyByEventID(ctx, eventID)
-}
-
-// GetFullMessageBodyByEventID is the canonical post-cutover body
-// accessor — look the message up directly by its envelope event id
-// without the legacy compound key indirection.
-func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID string) (*DecryptedMessageBody, error) {
+func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*DecryptedMessageBody, error) {
 	if eventID == "" {
 		return nil, nil
 	}
 
-	entry, ok := c.rooms().timelineEntry(eventID)
+	entry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok {
 		return nil, nil
 	}
@@ -59,7 +40,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 		return nil, nil
 	}
 
-	body, retracted, _ := c.rooms().latestBody(eventID)
+	body, retracted, _ := c.roomModel.latestBody(eventID)
 	if retracted || body == nil {
 		// Retracted message: same shape as a legacy GDPR delete —
 		// resolver renders "[Message unavailable]".
@@ -77,7 +58,7 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 	result := &DecryptedMessageBody{
 		AuthorId:    body.GetAuthorId(),
 		Body:        string(plaintext),
-		Attachments: c.MessageBodyAttachments(body),
+		Attachments: c.mediaModel.MessageBodyAttachments(body),
 		LinkPreview: body.GetLinkPreview(),
 		CreatedAt:   entry.Event.GetCreatedAt().AsTime(),
 	}
@@ -93,10 +74,10 @@ func (c *ChattoCore) GetFullMessageBodyByEventID(ctx context.Context, eventID st
 }
 
 // GetMessageBody is a thin wrapper returning just the plaintext body
-// text. Same semantics as GetFullMessageBody — retracted / crypto-
+// text. Same semantics as GetFullMessageBody: retracted or crypto-
 // shredded messages return empty string.
-func (c *ChattoCore) GetMessageBody(ctx context.Context, kind RoomKind, messageBodyKey string) (string, error) {
-	body, err := c.GetFullMessageBody(ctx, kind, messageBodyKey)
+func (c *ChattoCore) GetMessageBody(ctx context.Context, eventID string) (string, error) {
+	body, err := c.GetFullMessageBody(ctx, eventID)
 	if err != nil {
 		return "", err
 	}
@@ -106,26 +87,12 @@ func (c *ChattoCore) GetMessageBody(ctx context.Context, kind RoomKind, messageB
 	return body.Body, nil
 }
 
-// GetMessageAuthorID returns the author of a message by its compound body key.
-// Used by public operation models to check ownership before edit/delete.
-func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, messageBodyID string) (string, error) {
-	eventID := eventIDFromBodyKey(messageBodyID)
-	if eventID == "" {
-		return "", nil
-	}
-	entry, ok := c.rooms().timelineEntry(eventID)
-	if !ok {
-		return "", nil
-	}
-	return entry.Event.GetActorId(), nil
-}
-
 // decryptMessageBody decrypts an encrypted message body. Legacy bodies are
 // decrypted directly with the author's per-user key. V2 bodies resolve the
 // author's message-body DEK epoch and authenticate the event context as AAD.
 // Bodies carried by MessageBodyEvent additionally bind the body event envelope
 // ID into AAD so payloads cannot be replayed under a different body event.
-func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID string, msg *corev1.MessageBody) ([]byte, error) {
+func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID string, msg *evtv1.MessageBody) ([]byte, error) {
 	if msg.GetEncryptionVersion() >= encryption.EnvelopeVersionV2 || msg.GetContentKeyEpoch() > 0 {
 		version := msg.GetEncryptionVersion()
 		if version != encryption.EnvelopeVersionV2 {
@@ -135,7 +102,10 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 		if epoch <= 0 {
 			return nil, fmt.Errorf("%w: missing content key epoch for v%d message body", ErrMessageBodyCorrupt, version)
 		}
-		contentKeyEvent, ok := c.ContentKeys.Get(msg.GetAuthorId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, epoch)
+		contentKeyEvent, ok, err := c.userModel.contentKeyAtEpoch(msg.GetAuthorId(), evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, epoch)
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			return nil, encryption.ErrKeyNotFound
 		}
@@ -179,8 +149,3 @@ func messageBodyEnvelopeError(err error) error {
 	}
 	return err
 }
-
-// (eventIDFromBodyKey is defined in core.go and shared with the
-// publish path. Body keys have the legacy format {userId}.{eventId};
-// the projection-backed body readers in this file consult it to
-// extract the event-id portion.)

@@ -1,0 +1,53 @@
+{
+  "common": {
+    "cancel": "Annulla",
+    "close_sidebar": "Chiudi la barra laterale",
+    "or": "o",
+    "loading": "Caricamento...",
+    "continue": "Continua",
+    "submit": "Invia",
+    "retry": "Riprova",
+    "dismiss": "Ignora",
+    "sign_in": "Accedi",
+    "create_account": "Crea account",
+    "email": "E-mail",
+    "password": "Parola d'ordine",
+    "username": "Nome utente",
+    "you": "Tu",
+    "current_call": "Chiamata attuale",
+    "confirm_password": "Conferma password",
+    "new_password": "Nuova parola d'ordine",
+    "password_placeholder": "La tua password",
+    "email_placeholder": "tu@esempio.com",
+    "username_placeholder": "your_username",
+    "password_min_placeholder": "Almeno 8 caratteri",
+    "password_confirm_placeholder": "Immettere nuovamente la password",
+    "validation": {
+      "email": "Inserisci un indirizzo email valido",
+      "password_min": "Deve contenere almeno 8 caratteri",
+      "username_min": "Deve contenere almeno 2 caratteri",
+      "username_max": "Deve contenere al massimo 32 caratteri",
+      "username_charset": "Solo lettere, numeri, punti, trattini, trattini bassi",
+      "username_end_alphanumeric": "Deve terminare con una lettera o un numero",
+      "username_no_consecutive_periods": "Non sono ammessi periodi consecutivi",
+      "passwords_match": "Le password non corrispondono",
+      "fix_errors": "Correggi gli errori riportati sopra"
+    },
+    "error": {
+      "network": "Errore di rete. Per favore riprova.",
+      "generic": "Qualcosa è andato storto"
+    },
+    "delete": "Elimina",
+    "save": "Salva",
+    "confirm": "Conferma",
+    "back": "Indietro",
+    "clear": "Chiaro",
+    "unknown": "Sconosciuto",
+    "deleted_user": "[utente eliminato]",
+    "got_it": "Capito",
+    "saved": "Salvato!",
+    "rooms": "Camere",
+    "copy_to_clipboard": "Copia negli appunti",
+    "copied_to_clipboard": "Copiato negli appunti"
+  }
+}

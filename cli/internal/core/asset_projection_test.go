@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestAssetProjectionReadsCanonicalAndLegacyLifecycleEvents(t *testing.T) {
@@ -18,10 +18,10 @@ func TestAssetProjectionReadsCanonicalAndLegacyLifecycleEvents(t *testing.T) {
 		t.Fatalf("AssetCreation = %+v, %v; want room R-assets", got, ok)
 	}
 
-	started := &corev1.Event{
+	started := &evtv1.Event{
 		Id: "E-started",
-		Event: &corev1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: "A-source"},
+		Event: &evtv1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{AssetId: "A-source"},
 		},
 	}
 	// The projector now subscribes to evt.asset.>, but Apply intentionally does
@@ -40,18 +40,18 @@ func TestAssetProjectionTerminalProcessingStateDoesNotRegress(t *testing.T) {
 	if err := projection.Apply(testCoreAssetCreatedEvent("R-assets", "A-video", "video/mp4"), 1); err != nil {
 		t.Fatalf("Apply asset created: %v", err)
 	}
-	if err := projection.Apply(&corev1.Event{
+	if err := projection.Apply(&evtv1.Event{
 		Id: "E-succeeded",
-		Event: &corev1.Event_AssetProcessingSucceeded{
-			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"},
+		Event: &evtv1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &evtv1.AssetProcessingSucceededEvent{AssetId: "A-video"},
 		},
 	}, 2); err != nil {
 		t.Fatalf("Apply succeeded: %v", err)
 	}
-	if err := projection.Apply(&corev1.Event{
+	if err := projection.Apply(&evtv1.Event{
 		Id: "E-failed",
-		Event: &corev1.Event_AssetProcessingFailed{
-			AssetProcessingFailed: &corev1.AssetProcessingFailedEvent{AssetId: "A-video"},
+		Event: &evtv1.Event_AssetProcessingFailed{
+			AssetProcessingFailed: &evtv1.AssetProcessingFailedEvent{AssetId: "A-video"},
 		},
 	}, 3); err != nil {
 		t.Fatalf("Apply failed: %v", err)
@@ -67,10 +67,10 @@ func TestAssetProjectionDeletedAssetIgnoresLaterProcessing(t *testing.T) {
 	if err := projection.Apply(testCoreAssetCreatedEvent("R-assets", "A-video", "video/mp4"), 1); err != nil {
 		t.Fatalf("Apply asset created: %v", err)
 	}
-	if err := projection.Apply(&corev1.Event{
+	if err := projection.Apply(&evtv1.Event{
 		Id: "E-deleted",
-		Event: &corev1.Event_AssetDeleted{
-			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: "A-video"},
+		Event: &evtv1.Event_AssetDeleted{
+			AssetDeleted: &evtv1.AssetDeletedEvent{AssetId: "A-video"},
 		},
 	}, 2); err != nil {
 		t.Fatalf("Apply deleted: %v", err)
@@ -78,10 +78,10 @@ func TestAssetProjectionDeletedAssetIgnoresLaterProcessing(t *testing.T) {
 	if !projection.AssetDeleted("A-video") {
 		t.Fatal("AssetDeleted returned false after deletion event")
 	}
-	if err := projection.Apply(&corev1.Event{
+	if err := projection.Apply(&evtv1.Event{
 		Id: "E-stale-succeeded",
-		Event: &corev1.Event_AssetProcessingSucceeded{
-			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{AssetId: "A-video"},
+		Event: &evtv1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &evtv1.AssetProcessingSucceededEvent{AssetId: "A-video"},
 		},
 	}, 3); err != nil {
 		t.Fatalf("Apply stale succeeded: %v", err)
@@ -94,16 +94,256 @@ func TestAssetProjectionDeletedAssetIgnoresLaterProcessing(t *testing.T) {
 	}
 }
 
+func TestAssetProjectionOwnsMessageAssetReferences(t *testing.T) {
+	projection := NewAssetProjection()
+	bodyEvent := bodyEventWithAssets("E-body", "M1", "R1", "U1", "", []string{"A-video"}, 1)
+	previewAssetID := "A-preview"
+	bodyEvent.GetMessageBody().GetBody().LinkPreview = &evtv1.LinkPreview{ImageAssetId: &previewAssetID}
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatalf("Apply message body: %v", err)
+	}
+
+	roomID, messageID, ok := projection.AssetMessageOwner("A-video")
+	if !ok || roomID != "R1" || messageID != "M1" {
+		t.Fatalf("AssetMessageOwner = %q, %q, %v; want R1, M1, true", roomID, messageID, ok)
+	}
+	owned := projection.MessageAssetsByAuthor("U1")
+	if len(owned) != 1 || owned[0].AssetID != "A-video" {
+		t.Fatalf("MessageAssetsByAuthor = %+v, want A-video", owned)
+	}
+	if !projection.IsPublicLinkPreviewAsset("A-preview") {
+		t.Fatal("IsPublicLinkPreviewAsset returned false")
+	}
+
+	if err := projection.Apply(&evtv1.Event{
+		Id: "E-deleted",
+		Event: &evtv1.Event_AssetDeleted{
+			AssetDeleted: &evtv1.AssetDeletedEvent{AssetId: "A-video"},
+		},
+	}, 2); err != nil {
+		t.Fatalf("Apply asset deletion: %v", err)
+	}
+	roomID, messageID, ok = projection.AssetMessageOwner("A-video")
+	if !ok || roomID != "R1" || messageID != "M1" {
+		t.Fatalf("AssetMessageOwner after deletion = %q, %q, %v; want R1, M1, true", roomID, messageID, ok)
+	}
+}
+
+func TestAssetProjectionUsesFirstDurableAssetAttachment(t *testing.T) {
+	projection := NewAssetProjection()
+	attached := &evtv1.Event{
+		Id: "E-attached",
+		Event: &evtv1.Event_AssetAttached{AssetAttached: &evtv1.AssetAttachedEvent{
+			AssetId: "A-video", RoomId: "R1", MessageEventId: "M1", UserId: "U1",
+		}},
+	}
+	if err := projection.Apply(attached, 1); err != nil {
+		t.Fatalf("Apply asset attachment: %v", err)
+	}
+	if err := projection.Apply(&evtv1.Event{
+		Id: "E-alias",
+		Event: &evtv1.Event_AssetAttached{AssetAttached: &evtv1.AssetAttachedEvent{
+			AssetId: "A-video", RoomId: "R1", MessageEventId: "M2", UserId: "U2",
+		}},
+	}, 2); err != nil {
+		t.Fatalf("Apply duplicate asset attachment: %v", err)
+	}
+
+	owner, ok := projection.assetMessageAttachment("A-video")
+	if !ok || owner.roomID != "R1" || owner.messageEventID != "M1" || owner.authorID != "U1" {
+		t.Fatalf("asset attachment = %+v, %v; want first attachment", owner, ok)
+	}
+}
+
+func TestAssetProjectionLegacyOwnershipRejectsDifferentUploader(t *testing.T) {
+	projection := NewAssetProjection()
+	created := testCoreAssetCreatedEvent("R1", "A-video", "video/mp4")
+	created.GetAssetCreated().UserId = "U1"
+	if err := projection.Apply(created, 1); err != nil {
+		t.Fatalf("Apply asset creation: %v", err)
+	}
+	if err := projection.Apply(bodyEventWithAssets("E-alias", "M-alias", "R1", "U2", "", []string{"A-video"}, 2), 2); err != nil {
+		t.Fatalf("Apply attacker alias: %v", err)
+	}
+	if _, _, ok := projection.AssetMessageOwner("A-video"); ok {
+		t.Fatal("different uploader became legacy asset owner")
+	}
+	if err := projection.Apply(bodyEventWithAssets("E-owner", "M-owner", "R1", "U1", "", []string{"A-video"}, 3), 3); err != nil {
+		t.Fatalf("Apply uploader message: %v", err)
+	}
+	roomID, messageID, ok := projection.AssetMessageOwner("A-video")
+	if !ok || roomID != "R1" || messageID != "M-owner" {
+		t.Fatalf("legacy owner = %q, %q, %v; want uploader message", roomID, messageID, ok)
+	}
+}
+
+func TestAssetProjectionRejectsMismatchedMessageBodyEnvelope(t *testing.T) {
+	projection := NewAssetProjection()
+	bodyEvent := bodyEventWithAssets("E-envelope", "M1", "R1", "U1", "", []string{"A-video"}, 1)
+	body := bodyEvent.GetMessageBody().GetBody()
+	body.BodyEventId = "E-different"
+	previewAssetID := "A-preview"
+	body.LinkPreview = &evtv1.LinkPreview{ImageAssetId: &previewAssetID}
+
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatalf("Apply mismatched message body: %v", err)
+	}
+	if roomID, messageID, ok := projection.AssetMessageOwner("A-video"); ok {
+		t.Fatalf("AssetMessageOwner = %q, %q, true; want unattached", roomID, messageID)
+	}
+	if projection.IsPublicLinkPreviewAsset(previewAssetID) {
+		t.Fatal("mismatched message body classified link-preview asset as public")
+	}
+}
+
+func TestAssetProjectionVideoManifestTerminalStateDoesNotRegress(t *testing.T) {
+	projection := NewAssetProjection()
+	processed := &evtv1.Event{
+		Id: "E-video-ok",
+		Event: &evtv1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &evtv1.AssetProcessingSucceededEvent{
+				AssetId: "A-video",
+				Video: &evtv1.AssetProcessedVideo{
+					DurationMs: 1200,
+					Variants: []*evtv1.AssetVideoVariant{{
+						Quality: "480p",
+						AssetId: "A-video-480",
+					}},
+				},
+			},
+		},
+	}
+	failed := &evtv1.Event{
+		Id: "E-video-fail",
+		Event: &evtv1.Event_AssetProcessingFailed{
+			AssetProcessingFailed: &evtv1.AssetProcessingFailedEvent{
+				AssetId:     "A-video",
+				FailureCode: evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING,
+			},
+		},
+	}
+
+	applyAll(t, projection, []*evtv1.Event{attachmentDeclaredEvent("R1", "A-video", "video/mp4"), processed, failed})
+	manifest, ok := projection.VideoAttachmentManifest("A-video")
+	if !ok || manifest.Succeeded == nil {
+		t.Fatalf("VideoAttachmentManifest = %#v, want original processed manifest", manifest)
+	}
+	manifest.Succeeded.GetVideo().Variants[0].Quality = "mutated"
+	again, _ := projection.VideoAttachmentManifest("A-video")
+	if again.Succeeded.GetVideo().Variants[0].Quality != "480p" {
+		t.Error("VideoAttachmentManifest should return clones")
+	}
+}
+
+func TestAssetProjectionAssetStateIsConsistentAndDetached(t *testing.T) {
+	projection := NewAssetProjection()
+	created := attachmentDeclaredEvent("R1", "A-video", "video/mp4")
+	created.GetAssetCreated().GetAsset().Filename = "clip.mp4"
+	processed := &evtv1.Event{
+		Id: "E-video-ok",
+		Event: &evtv1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &evtv1.AssetProcessingSucceededEvent{
+				AssetId: "A-video",
+				Video: &evtv1.AssetProcessedVideo{
+					Variants: []*evtv1.AssetVideoVariant{{
+						Quality: "480p",
+						AssetId: "A-video-480",
+					}},
+				},
+			},
+		},
+	}
+	applyAll(t, projection, []*evtv1.Event{created, processed})
+
+	state := projection.AssetState("A-video")
+	if state.Creation == nil || state.RoomID != "R1" || state.VideoManifest == nil || state.VideoManifest.Succeeded == nil || state.Deleted {
+		t.Fatalf("AssetState = %#v, want declared processed asset in R1", state)
+	}
+	state.Creation.GetAsset().Filename = "mutated"
+	state.VideoManifest.Succeeded.GetVideo().Variants[0].Quality = "mutated"
+
+	again := projection.AssetState("A-video")
+	if again.Creation.GetAsset().GetFilename() != "clip.mp4" {
+		t.Error("AssetState creation was not detached")
+	}
+	if again.VideoManifest.Succeeded.GetVideo().Variants[0].GetQuality() != "480p" {
+		t.Error("AssetState manifest was not detached")
+	}
+
+	if err := projection.Apply(&evtv1.Event{
+		Id: "E-deleted",
+		Event: &evtv1.Event_AssetDeleted{
+			AssetDeleted: &evtv1.AssetDeletedEvent{AssetId: "A-video"},
+		},
+	}, 3); err != nil {
+		t.Fatalf("Apply deleted: %v", err)
+	}
+	deleted := projection.AssetState("A-video")
+	if !deleted.Deleted || deleted.RoomID != "R1" || deleted.Creation != nil || deleted.VideoManifest != nil {
+		t.Fatalf("AssetState after deletion = %#v, want room-scoped tombstone", deleted)
+	}
+}
+
+func TestAssetModelUnmanifestedVideoAttachmentsUsesAssetOwnershipAndTimelineTombstones(t *testing.T) {
+	assets := NewAssetProjection()
+	timeline := NewRoomTimelineProjection()
+	core := &ChattoCore{
+		roomModel: newTestRoomModel(t, nil, nil, nil, nil, timeline, nil, nil, nil, nil, nil),
+	}
+	model := newTestAssetModel(t, core, assets, nil)
+	post := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 1})
+	body := bodyEventWithAssets("E-body", "M1", "R1", "U1", "", []string{"A-video"}, 2)
+	applyAll(t, assets, []*evtv1.Event{body, attachmentDeclaredEvent("R1", "A-video", "video/mp4")})
+	applyAll(t, timeline, []*evtv1.Event{post, body})
+
+	got := model.UnmanifestedVideoAttachments()
+	if len(got) != 1 || got[0].Attachment.GetId() != "A-video" {
+		t.Fatalf("UnmanifestedVideoAttachments = %+v, want A-video", got)
+	}
+
+	retract := &evtv1.Event{
+		Id: "E-retract",
+		Event: &evtv1.Event_MessageRetracted{
+			MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"},
+		},
+	}
+	if err := timeline.Apply(retract, 3); err != nil {
+		t.Fatalf("Apply retract: %v", err)
+	}
+	if got := model.UnmanifestedVideoAttachments(); len(got) != 0 {
+		t.Fatalf("UnmanifestedVideoAttachments after retract = %+v, want none", got)
+	}
+}
+
+func TestAssetProjectionRoomIDCycleGuardDoesNotHang(t *testing.T) {
+	projection := NewAssetProjection()
+	cyclicAsset := func(id, parentID string) *evtv1.Event {
+		return &evtv1.Event{
+			Id: "E-" + id,
+			Event: &evtv1.Event_AssetCreated{
+				AssetCreated: &evtv1.AssetCreatedEvent{
+					Asset:         &evtv1.AssetRecord{Id: id},
+					ParentAssetId: parentID,
+				},
+			},
+		}
+	}
+	applyAll(t, projection, []*evtv1.Event{cyclicAsset("A", "B"), cyclicAsset("B", "A")})
+	if roomID, ok := projection.AssetRoomID("A"); ok || roomID != "" {
+		t.Fatalf("AssetRoomID for cyclic parents = %q, %v; want empty, false", roomID, ok)
+	}
+}
+
 func TestAssetAggregateSubjectHelpers(t *testing.T) {
-	subject := events.AssetAggregate("A-123").Subject(events.EventAssetCreated)
-	assetID, ok := events.ParseAssetSubject(subject)
+	subject := evtstream.AssetAggregate("A-123").Subject(evtstream.EventAssetCreated)
+	assetID, ok := evtstream.ParseAssetSubject(subject)
 	if !ok {
 		t.Fatalf("ParseAssetSubject(%q) failed", subject)
 	}
 	if assetID != "A-123" {
 		t.Fatalf("ParseAssetSubject = %q; want A-123", assetID)
 	}
-	if got := events.AssetSubjectFilter(); got != "evt.asset.>" {
+	if got := evtstream.AssetSubjectFilter(); got != "evt.asset.>" {
 		t.Fatalf("AssetSubjectFilter = %q, want evt.asset.>", got)
 	}
 }
@@ -116,13 +356,13 @@ func TestAssetProjectionApplyDoesNotMutateInputEvents(t *testing.T) {
 	assertApplyDoesNotMutateEvent(t, projection, started, 2)
 }
 
-func testCoreAssetCreatedEvent(roomID, attachmentID, contentType string) *corev1.Event {
-	return &corev1.Event{
+func testCoreAssetCreatedEvent(roomID, attachmentID, contentType string) *evtv1.Event {
+	return &evtv1.Event{
 		Id: "E-created-" + attachmentID,
-		Event: &corev1.Event_AssetCreated{
-			AssetCreated: &corev1.AssetCreatedEvent{
+		Event: &evtv1.Event_AssetCreated{
+			AssetCreated: &evtv1.AssetCreatedEvent{
 				OriginalBinaryAvailable: true,
-				Asset: &corev1.AssetRecord{
+				Asset: &evtv1.AssetRecord{
 					Id:          attachmentID,
 					ContentType: contentType,
 				},
@@ -132,11 +372,11 @@ func testCoreAssetCreatedEvent(roomID, attachmentID, contentType string) *corev1
 	}
 }
 
-func testCoreAssetProcessingStartedEvent(eventID, assetID string) *corev1.Event {
-	return &corev1.Event{
+func testCoreAssetProcessingStartedEvent(eventID, assetID string) *evtv1.Event {
+	return &evtv1.Event{
 		Id: eventID,
-		Event: &corev1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: assetID},
+		Event: &evtv1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{AssetId: assetID},
 		},
 	}
 }

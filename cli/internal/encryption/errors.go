@@ -1,18 +1,22 @@
 package encryption
 
-import "errors"
+import (
+	"errors"
+
+	"hmans.de/chatto/pkg/datacrypto"
+)
 
 var (
 	// ErrDecryptionFailed indicates the ciphertext couldn't be decrypted
 	// (wrong key, corrupted data, or tampered ciphertext).
-	ErrDecryptionFailed = errors.New("decryption failed: invalid key or corrupted data")
+	ErrDecryptionFailed = datacrypto.ErrDecryptionFailed
 
 	// ErrKeyNotFound indicates no encryption key exists for the requested entity.
 	ErrKeyNotFound = errors.New("encryption key not found")
 
 	// ErrInvalidKeySize indicates the provided key has an incorrect size.
-	ErrInvalidKeySize = errors.New("invalid key size")
+	ErrInvalidKeySize = datacrypto.ErrInvalidKeySize
 
 	// ErrInvalidNonceSize indicates the provided nonce has an incorrect size.
-	ErrInvalidNonceSize = errors.New("invalid nonce size")
+	ErrInvalidNonceSize = datacrypto.ErrInvalidNonceSize
 )

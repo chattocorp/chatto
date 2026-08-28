@@ -1,0 +1,474 @@
+{
+  "settings": {
+    "nav": {
+      "title": "設定",
+      "back_to_server": "返回伺服器",
+      "profile": "個人檔案",
+      "display": "偏好設定",
+      "notifications": "通知",
+      "account": "帳號",
+      "bots": "機器人",
+      "user_preferences": "使用者偏好設定",
+      "app_preferences": "應用程式偏好設定",
+      "your_account": "你的帳號",
+      "server_configuration": "伺服器"
+    },
+    "app_preferences": {
+      "title": "應用程式偏好設定",
+      "subtitle": "此應用程式中適用於所有已註冊伺服器的選項",
+      "appearance": {
+        "title": "外觀"
+      },
+      "composer": {
+        "title": "訊息編輯"
+      }
+    },
+    "profile": {
+      "title": "個人檔案",
+      "subtitle": "管理您的個人檔案資訊",
+      "avatar": {
+        "title": "大頭貼",
+        "drop_title": "拖放圖片",
+        "drop_subtitle": "上傳為您的大頭貼",
+        "alt": "您的大頭貼",
+        "description": "上傳大頭貼。圖片將調整為 256x256 像素。",
+        "uploading": "正在上傳...",
+        "upload": "上傳大頭貼",
+        "change": "更換大頭貼",
+        "removing": "正在移除...",
+        "remove": "移除",
+        "invalid_type": "請選擇圖片檔案",
+        "too_large": "圖片必須小於 10MB",
+        "uploaded": "大頭貼上傳成功",
+        "upload_failed": "無法上傳大頭貼",
+        "removed": "已移除大頭貼",
+        "delete_failed": "無法刪除大頭貼"
+      },
+      "display_name": {
+        "label": "顯示名稱",
+        "placeholder": "輸入您的顯示名稱",
+        "invalid": "顯示名稱無效"
+      },
+      "username": {
+        "label": "使用者名稱",
+        "placeholder": "輸入您的使用者名稱",
+        "invalid": "使用者名稱無效",
+        "cooldown_error": "每 30 天只能變更一次使用者名稱。請在 {remaining} 後再試。",
+        "cooldown_notice": "您可以在 {remaining} 後再次變更使用者名稱。",
+        "confirm_title": "變更使用者名稱",
+        "confirm_prompt": "確定要將使用者名稱變更為 @{login} 嗎？",
+        "confirm_cooldown": "每 30 天只能變更一次使用者名稱。",
+        "confirm_button": "變更使用者名稱"
+      },
+      "status": {
+        "title": "自訂狀態",
+        "dialog_title": "設定狀態",
+        "set_custom_status": "設定自訂狀態",
+        "edit_button": "編輯狀態",
+        "emoji": {
+          "label": "狀態表情符號",
+          "placeholder": "🌿",
+          "choose": "選擇表情符號"
+        },
+        "text": {
+          "label": "狀態文字",
+          "placeholder": "專注模式中"
+        },
+        "expires_at": {
+          "label": "自動清除時間"
+        },
+        "expiry": {
+          "today": "今天",
+          "thirty_minutes": "30 分鐘",
+          "one_hour": "1 小時",
+          "four_hours": "4 小時",
+          "tomorrow": "明天",
+          "never": "不要清除",
+          "custom": "自訂",
+          "custom_date": "自訂清除時間"
+        },
+        "suggestions": "建議",
+        "template": {
+          "label": "範本",
+          "none": "無狀態",
+          "out_for_lunch": "外出用餐",
+          "vacation": "休假中",
+          "sick": "病假中",
+          "custom": "自訂"
+        },
+        "emoji_required": "請為您的狀態選擇表情符號",
+        "text_required": "請輸入狀態文字",
+        "saved": "狀態已更新",
+        "save_failed": "無法儲存狀態",
+        "cleared": "狀態已清除",
+        "clear_failed": "無法清除狀態",
+        "save_button": "儲存狀態",
+        "clear_button": "清除狀態"
+      },
+      "presence": {
+        "button": "上線狀態：{status}",
+        "title": "上線狀態",
+        "online": "上線",
+        "away": "離開",
+        "do_not_disturb": "請勿打擾",
+        "offline": "離線",
+        "invisible": "顯示為離線"
+      },
+      "saved": "個人檔案已更新",
+      "save_failed": "無法儲存個人檔案",
+      "save_button": "儲存變更",
+      "bio": {
+        "label": "個人簡介",
+        "description": "最多 {max} 個字元，顯示在你的個人資料中。",
+        "placeholder": "簡單介紹一下自己",
+        "too_long": "簡介不能超過 {max} 個字元。"
+      }
+    },
+    "preferences": {
+      "title": "時間與地區",
+      "subtitle": "選擇此伺服器為你顯示日期與時間的方式",
+      "browser_scope": "此選擇適用於這個瀏覽器中的所有 Chatto 伺服器。",
+      "theme": {
+        "title": "佈景主題",
+        "system": {
+          "label": "系統",
+          "description": "依照瀏覽器或作業系統的外觀設定"
+        },
+        "light": {
+          "label": "淺色",
+          "description": "在此瀏覽器使用淺色介面"
+        },
+        "dark": {
+          "label": "深色",
+          "description": "在此瀏覽器使用深色介面"
+        }
+      },
+      "editor": {
+        "title": "訊息編輯器",
+        "visual": {
+          "label": "視覺化",
+          "description": "不顯示 Markdown 語法即可設定訊息格式"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "使用語法醒目提示編輯 Markdown 原始碼"
+        }
+      },
+      "send_mode": {
+        "title": "傳送訊息的按鍵",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter 傳送訊息；Cmd/Ctrl+Enter 執行編輯器一般的 Enter 操作"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter 傳送訊息；Enter 執行編輯器的一般操作"
+        }
+      },
+      "language": {
+        "title": "語言",
+        "description": "選擇此瀏覽器使用的語言與地區用語。",
+        "english_uk": "英文（英國）",
+        "english_us": "英文（美國）",
+        "german": "德文"
+      },
+      "timezone": {
+        "title": "時區",
+        "description": "設定時區，以當地時間顯示時間戳記。留空則使用瀏覽器的預設值。",
+        "browser_default": "瀏覽器預設值",
+        "clear": "清除時區（使用瀏覽器預設值）",
+        "invalid": "請從清單中選擇有效的時區",
+        "more_results": "另有 {count} 個結果，請輸入文字縮小範圍",
+        "current_time": "當地目前時間：{time}"
+      },
+      "time_format": {
+        "title": "時間格式",
+        "browser_default": {
+          "label": "瀏覽器預設值",
+          "description": "依瀏覽器的地區設定決定使用 12 小時制或 24 小時制"
+        },
+        "12h": {
+          "label": "12 小時制",
+          "description": "例如下午 2:30"
+        },
+        "24h": {
+          "label": "24 小時制",
+          "description": "例如 14:30"
+        }
+      },
+      "save_button": "儲存時間設定",
+      "saved": "已儲存時間設定",
+      "save_failed": "無法儲存時間設定"
+    },
+    "notifications": {
+      "title": "通知",
+      "subtitle": "設定通知接收方式",
+      "push": {
+        "title": "推播通知",
+        "not_configured": "此伺服器尚未設定推播通知",
+        "not_supported": "此瀏覽器不支援推播通知。",
+        "ios_home_screen_title": "將 Chatto 加入主畫面",
+        "ios_home_screen_description": "在支援的 iOS/iPadOS 版本中，請將 Chatto 加入主畫面，並從 App 圖示開啟，以啟用推播通知。",
+        "blocked_title": "推播通知已封鎖",
+        "blocked_description": "請在瀏覽器或作業系統設定中啟用通知，然後重新開啟 Chatto。",
+        "enabled_title": "推播通知已啟用",
+        "enabled_description": "Chatto 會以瀏覽器或作業系統的通知權限控制通知。若要關閉通知，請在瀏覽器或作業系統設定中停用此網站的通知。",
+        "test_button": "傳送測試通知",
+        "testing": "正在傳送…",
+        "test_sent": "測試通知已傳送。",
+        "test_failed": "無法傳送測試通知。請再次嘗試啟用推播通知。",
+        "enable_title": "啟用推播通知",
+        "enable_description": "即使 Chatto 已關閉或在背景執行，仍可收到新訊息通知。",
+        "enable_button": "啟用",
+        "enabling": "正在啟用...",
+        "blocked_error": "推播通知已在瀏覽器或作業系統設定中遭到封鎖。",
+        "enable_failed": "無法啟用推播通知，請再試一次。",
+        "enable_error": "啟用推播通知時發生錯誤"
+      },
+      "push_prompt": {
+        "title": "啟用推播通知",
+        "message": "接收私訊、提及及回覆的通知。",
+        "ios_home_screen_title": "將 Chatto 加入主畫面",
+        "ios_home_screen_message": "在支援的 iOS/iPadOS 版本中，請先從主畫面圖示開啟 Chatto，再啟用推播通知。",
+        "enabled": "推播通知已啟用",
+        "blocked": "推播通知已在瀏覽器或作業系統設定中遭到封鎖",
+        "enable_failed": "無法啟用推播通知",
+        "enabling": "正在啟用...",
+        "enable": "啟用",
+        "dismiss": "不用了"
+      },
+      "sound": {
+        "title": "通知音效",
+        "shape_title": "音效效果",
+        "preview": "預聽",
+        "reset": "重設",
+        "off": "關閉",
+        "volume": "音量",
+        "tinny": "尖細",
+        "muffled": "低沉",
+        "echo": "回音",
+        "reverb": "殘響",
+        "crunch": "破音",
+        "category": {
+          "silent": "無聲",
+          "simple": "簡約",
+          "playful": "活潑",
+          "robots": "機器人",
+          "musical": "音樂",
+          "here_be_dragons": "奇幻異境"
+        },
+        "name": {
+          "silent": "無聲",
+          "ding": "叮咚",
+          "chime_up": "上揚鐘聲",
+          "chime_down": "下行鐘聲",
+          "pop": "輕柔啵聲",
+          "bubble": "泡泡",
+          "retro": "復古嗶聲",
+          "coin": "收集金幣",
+          "powerup": "能量提升",
+          "fanfare": "8 位元號角",
+          "laser": "雷射光",
+          "robot": "機器人語音",
+          "ufo": "UFO",
+          "beepboop": "嗶啵",
+          "dialup": "撥接上網",
+          "r2d2": "R2-D2",
+          "harp": "豎琴花奏",
+          "music_box": "音樂盒",
+          "celesta": "夢幻鋼片琴",
+          "synth": "合成器和弦",
+          "orchestra": "管弦樂重擊",
+          "la_cucaracha": "蟑螂之歌",
+          "chaos": "混沌",
+          "glitch": "故障雜訊",
+          "siren": "警報器",
+          "dubstep": "迴響貝斯落拍",
+          "circus": "馬戲團"
+        }
+      },
+      "policy": {
+        "title": "通知政策",
+        "description": "選擇每類動態在伺服器、房間群組和房間範圍內的提醒方式。房間會先繼承其群組設定，再繼承伺服器設定。",
+        "load_failed": "無法載入通知政策",
+        "save_failed": "無法儲存通知政策",
+        "effective": "目前生效：{mode}",
+        "filter_label": "篩選通知範圍",
+        "filter_placeholder": "篩選房間群組和房間…",
+        "no_filter_matches": "沒有通知範圍符合此篩選條件。",
+        "legend": "通知傳送模式",
+        "cell_aria": "{cause}，{scope}。覆寫：{override}。目前生效：{effective}。啟用以設定為{next}。",
+        "server_default_cell_aria": "{cause}，{scope}。預設：{current}。啟用以設定為{next}。",
+        "not_applicable_cell_aria": "{cause}，{scope}。不適用。",
+        "delivery_mode": {
+          "inherit": "繼承",
+          "off": "關閉",
+          "badge": "徽章",
+          "badge_hint": "只會新增表示未讀的灰色圓點。不會建立通知、播放音效或傳送推播通知。",
+          "notification": "通知",
+          "push_notification": "推播通知"
+        },
+        "reason": {
+          "room_message": "房間訊息",
+          "direct_message": "私訊",
+          "direct_mention": "直接提及",
+          "reply": "對你訊息的回覆",
+          "role_mention": "身分組提及",
+          "here": "@here 提及",
+          "all": "@all 提及",
+          "followed_thread": "已關注的討論串",
+          "reaction": "對你訊息的回應",
+          "activity": "動態",
+          "room_invitation": "房間邀請"
+        },
+        "reason_hint": {
+          "room_message": "其他成員直接發佈在頻道房間中的根訊息，不包括討論串中的訊息。",
+          "direct_message": "其他成員在私訊對話中傳送的訊息。",
+          "direct_mention": "直接提及你的使用者名稱的訊息。",
+          "reply": "回覆你某則訊息的訊息。",
+          "role_mention": "提及已指派給你的身分組的訊息。",
+          "here": "當你的上線狀態不是離線時使用 @here 的訊息。",
+          "all": "在你已加入的房間中使用 @all 的訊息。",
+          "followed_thread": "你所關注討論串中的新回覆。",
+          "reaction": "其他成員新增到你訊息上的回應。"
+        }
+      }
+    },
+    "account": {
+      "title": "帳號",
+      "subtitle": "管理您的帳號設定",
+      "info_title": "帳號資訊",
+      "username": "使用者名稱",
+      "display_name": "顯示名稱",
+      "danger_title": "危險操作",
+      "danger_description": "刪除帳號後將無法復原。您的所有資料都會被移除。",
+      "delete_button": "刪除帳號",
+      "delete_failed": "無法刪除帳號",
+      "delete_request_failed": "無法提出帳號刪除要求",
+      "password": {
+        "title": "密碼",
+        "add_description": "新增密碼，即可直接登入並中斷最後一個 SSO 供應商的連結。",
+        "change_description": "變更直接登入所使用的密碼。",
+        "current_label": "目前密碼",
+        "current_required": "請輸入目前密碼。",
+        "add_button": "新增密碼",
+        "change_button": "變更密碼",
+        "saving": "正在儲存密碼...",
+        "saved": "密碼已新增",
+        "changed": "密碼已變更",
+        "save_failed": "無法儲存密碼",
+        "fresh_auth_required": "請重新登入後再新增密碼。",
+        "already_set": "此帳號已有密碼。"
+      },
+      "sso": {
+        "title": "單一登入",
+        "loading": "正在載入登入供應商...",
+        "load_failed": "無法載入登入供應商",
+        "none_configured": "尚未設定外部登入供應商。",
+        "linked": "已連結",
+        "not_linked": "未連結",
+        "link_button": "連結",
+        "link_failed": "無法連結登入供應商",
+        "fresh_auth_required": "請重新登入後再連結其他供應商。",
+        "provider_unconfigured": "已不再設定此供應商",
+        "disconnect_button": "中斷連結",
+        "disconnecting": "正在中斷連結...",
+        "disconnect_failed": "無法中斷登入供應商的連結",
+        "disconnect_last_method": "請先新增密碼或其他登入方式，再中斷此供應商的連結。",
+        "disconnect_fresh_auth_required": "請重新登入後再中斷此供應商的連結。",
+        "disconnect_modal": {
+          "title": "中斷供應商連結",
+          "body": "要中斷 {provider} 與此帳號的連結嗎？",
+          "action": "中斷連結"
+        },
+        "disconnect_blocked_modal": {
+          "title": "無法中斷供應商連結",
+          "body": "{provider} 是您唯一的登入方式。請先新增密碼或連結其他供應商。"
+        },
+        "fresh_auth_modal": {
+          "title": "確認密碼",
+          "body": "連結 {provider} 前，請輸入目前密碼。",
+          "action": "繼續"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "確認密碼",
+          "body": "中斷 {provider} 的連結前，請輸入目前密碼。",
+          "action": "中斷連結"
+        }
+      },
+      "delete_modal": {
+        "title": "刪除帳號",
+        "warning_label": "警告：",
+        "warning_text": "此操作無法復原。",
+        "intro": "這將永久刪除您的帳號，並會：",
+        "remove_from_rooms": "將您從所有空間和聊天室移除",
+        "delete_messages": "刪除您的所有訊息（內容將無法復原）",
+        "delete_profile": "刪除您的個人檔案、大頭貼及相關資料",
+        "confirm_label": "輸入 DELETE 以確認",
+        "confirm_placeholder": "DELETE",
+        "cancel": "取消",
+        "deleting": "正在刪除..."
+      }
+    },
+    "bots": {
+      "title": "機器人",
+      "subtitle": "建立 API 帳戶並準確控制他們可以執行的操作",
+      "singular": "機器人",
+      "unsupported": "此伺服器版本不支援機器人帳號。",
+      "list_title": "機器人帳號",
+      "loading": "正在載入機器人...",
+      "empty_title": "還沒有機器人",
+      "empty_body": "當整合需要自己的身分和權限時創建機器人。",
+      "create_permission_required": "你可以管理現有機器人，但沒有建立新機器人的權限。",
+      "create": "創建機器人",
+      "create_title": "建立機器人帳號",
+      "create_failed": "創建機器人失敗",
+      "created": "機器人已建立",
+      "username": "使用者名稱",
+      "username_hint": "機器人使用者名稱必須以 _bot 結尾。",
+      "display_name": "顯示名稱",
+      "owner": "擁有者",
+      "reassign_owner": "重新指派擁有者",
+      "reassign_owner_warning": "機器人的 API 金鑰和已設定權限將維持不變。有效權限將立即改為受新擁有者限制。",
+      "owner_reassigned": "已重新指派機器人擁有者",
+      "owner_reassign_failed": "無法重新指派機器人擁有者",
+      "api_key_title": "儲存此 API 金鑰",
+      "api_key_warning": "該鍵僅顯示一次。在關閉此視窗之前將其儲存在安全的地方。",
+      "key_created": "API 金鑰已建立",
+      "key_rotated_at": "上次旋轉",
+      "key_copied": "API 金鑰已複製",
+      "rotate_key": "旋轉鑰匙",
+      "rotate_title": "輪換 API 金鑰",
+      "rotate_warning": "目前金鑰將立即停止運作。任何使用它的整合都必須更新。",
+      "key_rotated": "API 金鑰已輪替",
+      "rotate_failed": "輪換 API 金鑰失敗",
+      "webhook_title": "傳入 Webhook",
+      "webhook_description": "透過外部工具以此機器人身分發佈訊息。",
+      "webhook_created": "已建立傳入 Webhook",
+      "webhook_url_title": "儲存此 Webhook URL",
+      "webhook_url_warning": "此 URL 僅顯示一次，且包含憑證。請在關閉此視窗前將其儲存至安全位置。",
+      "webhook_url_copied": "Webhook URL 已複製",
+      "delete_title": "刪除機器人",
+      "delete_warning": "刪除{name}？其 API 金鑰將立即停止運作，且該帳戶無法復原。",
+      "deleted": "機器人已刪除",
+      "delete_failed": "刪除機器人失敗",
+      "permissions": {
+        "owner_ceiling": "選擇這個機器人可以執行的操作。你只能授予自己擁有的權限。如果你失去某項權限，機器人也將無法再使用該權限。",
+        "save_failed": "無法更新機器人權限"
+      },
+      "webhook_empty_description": "尚未建立任何傳入 Webhook。",
+      "webhook_create": "建立 Webhook",
+      "webhook_name": "名稱",
+      "webhook_created_at": "建立時間",
+      "webhook_create_failed": "無法建立傳入 Webhook",
+      "webhook_revoke": "撤銷 Webhook",
+      "webhook_revoke_warning": "目前的 Webhook URL 將立即停止運作。",
+      "webhook_revoked": "已撤銷傳入 Webhook",
+      "webhook_revoke_failed": "無法撤銷傳入 Webhook",
+      "webhook_last_used": "上次使用時間",
+      "webhook_no_use_recorded": "未記錄使用情況",
+      "webhook_last_used_unavailable": "暫時無法使用",
+      "webhook_limit_reached": "已達到 20 個傳入 Webhook 的上限。"
+    }
+  }
+}

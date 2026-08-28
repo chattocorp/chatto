@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "rooms_admin": {
+      "subtitle": "Create, edit, organize, and archive rooms",
+      "empty_groups_body": "Create a set to start organizing rooms.",
+      "drag_hint": "Drag rooms between groups to organize them. Drag group headers to reorder groups. Archived rooms stay in their set but are hidden from members."
+    },
+    "system": {
+      "asset_cleanup_initializing": "Initializing"
+    }
+  }
+}

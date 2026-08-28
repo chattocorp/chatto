@@ -4,20 +4,19 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"net"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const maxAuditUserAgentBytes = 256
 
-func (s *HTTPServer) auditRequestMetadata(c *gin.Context) *corev1.AuditRequestMetadata {
-	metadata := &corev1.AuditRequestMetadata{}
+func (s *HTTPServer) auditRequestMetadata(c *gin.Context) *evtv1.AuditRequestMetadata {
+	metadata := &evtv1.AuditRequestMetadata{}
 	if c == nil || c.Request == nil {
 		return metadata
 	}
@@ -50,28 +49,10 @@ func capAuditUserAgent(userAgent string) string {
 }
 
 func auditSourceIP(c *gin.Context) string {
-	if forwardedFor := c.GetHeader("X-Forwarded-For"); forwardedFor != "" {
-		for _, part := range strings.Split(forwardedFor, ",") {
-			if ip := strings.TrimSpace(part); ip != "" {
-				return ip
-			}
-		}
-	}
-	if realIP := strings.TrimSpace(c.GetHeader("X-Real-IP")); realIP != "" {
-		return realIP
-	}
-	if c.Request == nil {
+	if c == nil || c.Request == nil {
 		return ""
 	}
-	remoteAddr := strings.TrimSpace(c.Request.RemoteAddr)
-	if remoteAddr == "" {
-		return ""
-	}
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err == nil {
-		return host
-	}
-	return remoteAddr
+	return c.ClientIP()
 }
 
 func hmacSHA256Hex(secret, value string) string {

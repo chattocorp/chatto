@@ -3,8 +3,9 @@ package core
 import (
 	"fmt"
 
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // RoomMembershipProjection is the first event-sourced projection (ADR-033).
@@ -18,10 +19,8 @@ import (
 //
 // Room kind ("channel" or "dm") is intentionally NOT tracked here. The
 // subject scheme is `evt.room.{roomID}.{eventType}` — kind is a property
-// of the room itself, not of any individual event. Kind-filtered
-// membership queries (e.g. "list this user's DMs") still consult the
-// Room KV during the transition; a follow-up can either add a small
-// RoomKind projection or fold the lookup into the resolver layer.
+// of the room itself, not of any individual event. Kind-filtered membership
+// queries compose this index with RoomModel's projected room catalog.
 type RoomMembershipProjection struct {
 	events.MemoryProjection
 	// byRoom: room ID → set of user IDs in that room.
@@ -40,45 +39,45 @@ func NewRoomMembershipProjection() *RoomMembershipProjection {
 	}
 }
 
-// Subjects implements events.Projection. Room membership is a room-derived
+// Subjects implements evtstream.Projection. Room membership is a room-derived
 // read model, so it follows the projection policy of subscribing to the
 // owning aggregate namespace and ignoring room events it does not handle.
 func (p *RoomMembershipProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
-// Apply implements events.Projection. Apply runs from a single
+// Apply implements evtstream.Projection. Apply runs from a single
 // goroutine in stream order, so the write path locks only to publish
 // state to concurrent readers.
-func (p *RoomMembershipProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *RoomMembershipProjection) Apply(event *evtv1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_UserJoinedRoom:
+	case *evtv1.Event_UserJoinedRoom:
 		roomID := e.UserJoinedRoom.GetRoomId()
 		userID := event.GetActorId()
 		if roomID == "" || userID == "" {
 			return fmt.Errorf("UserJoinedRoom missing roomID or userID")
 		}
 		p.addLocked(roomID, userID)
-	case *corev1.Event_UserLeftRoom:
+	case *evtv1.Event_UserLeftRoom:
 		roomID := e.UserLeftRoom.GetRoomId()
 		userID := event.GetActorId()
 		if roomID == "" || userID == "" {
 			return fmt.Errorf("UserLeftRoom missing roomID or userID")
 		}
 		p.removeLocked(roomID, userID)
-	case *corev1.Event_RoomMemberBanned:
+	case *evtv1.Event_RoomMemberBanned:
 		roomID := e.RoomMemberBanned.GetRoomId()
 		userID := e.RoomMemberBanned.GetUserId()
 		if roomID == "" || userID == "" {
 			return fmt.Errorf("RoomMemberBanned missing roomID or userID")
 		}
 		p.removeLocked(roomID, userID)
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		roomID := e.RoomDeleted.GetRoomId()
 		if roomID == "" {
 			return fmt.Errorf("RoomDeleted missing roomID")

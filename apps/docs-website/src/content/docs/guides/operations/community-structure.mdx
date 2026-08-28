@@ -30,6 +30,8 @@ Use groups for durable categories such as `Announcements`, `General`, `Project T
 
 Fresh servers start with a `Lobby` group containing `#announcements` and `#general`. You can rename the group, move rooms, add sidebar links, or replace the layout entirely.
 
+Give discoverable rooms a concise description. Before joining, eligible members see the room's group and description together with a compact membership preview, but not its messages, files, or activity. Rooms they are not allowed to join do not expose this preview.
+
 ## Universal Rooms
 
 Use a universal room when membership should be automatic for everyone who is allowed to join the room.
@@ -38,7 +40,7 @@ Good universal-room candidates:
 
 | Room | Typical policy |
 | ---- | -------------- |
-| `#announcements` | Everyone sees it; only owners or trusted staff can post. |
+| `#announcements` | Everyone sees it; owners and admins can post by default. |
 | `#general` | Everyone can participate unless your community is invite-only or segmented. |
 | `#rules` | Everyone sees it; posts are restricted. |
 
@@ -47,6 +49,61 @@ Universal rooms do not write one membership record per user. Chatto derives effe
 <Aside type="tip">
   Members cannot leave a universal room. Tell members to mute noisy universal rooms instead of trying to leave them.
 </Aside>
+
+## Explicit Room Members
+
+Use explicit membership for private or opt-in channel rooms. Open **Server Admin → Rooms**, select the room, and use its **Members** section to search the server directory, add a user, or remove an existing member with confirmation. You need effective `room.manage` permission for that room.
+
+Explicit membership can grant access independently of `room.list` and `room.join`. Review the member list when tightening a room's permissions, because denying discovery or self-join does not remove people who are already explicit members. Membership cannot be edited while the room is archived. Universal rooms derive membership automatically and therefore do not expose add or remove controls.
+
+## Slow Mode
+
+Use **Server Admin → Rooms → [room] → General → Slow Mode** when a busy
+channel needs a steadier pace. Choose an interval from 5 seconds through 6
+hours, or Off. Each member gets one timer for the whole room: root messages,
+thread replies, and attachment-only messages all share it.
+
+Changing the interval applies immediately using each member's latest
+successful post, even when that post was sent before Slow Mode was enabled.
+Increasing an interval can therefore start a wait immediately; decreasing or
+disabling it can make members eligible sooner. Drafts, edits, reactions, and
+attachment selection remain available while a member waits.
+
+Members with effective `room.manage` or `message.manage` permission are exempt
+so room managers and moderators can respond when necessary. Their composer
+still shows the configured interval and identifies the exemption. Slow Mode is
+not available for DMs and does not replace posting permissions: use
+`message.post` and `message.post-in-thread` when a room should be read-only.
+
+<Aside type="caution">
+  In a multi-replica deployment, upgrade every Chatto replica before enabling
+  Slow Mode. Older replicas do not understand or enforce the new room fact
+  during a mixed-version rolling window.
+</Aside>
+
+## Threading Mode
+
+Use **Server Admin → Rooms → [room] → General → Threading Mode** to choose how
+conversation should branch in a channel:
+
+| Mode | Member experience |
+| ---- | ----------------- |
+| **Required** | Every new root message automatically gets a thread. The composer shows **Thread** selected and locked. Both root reply actions open the thread, and **Reply** keeps reply attribution. The server rejects flat replies to roots. |
+| **Encouraged** | **Reply** opens the thread with attribution, while **Reply in room** remains in the expanded menu. The reply icons keep their normal order. **Thread** starts selected for each new root draft, but members may turn it off. |
+| **Enabled** | The default. Members freely choose between room replies and threads, and may use **Post as thread**. |
+| **Disabled** | New threads, thread replies, and channel echoes are unavailable. Existing threads and echoes remain readable, and members can still use ordinary reply attribution in the room. |
+
+Changing the mode affects future posts only. It neither creates threads for
+old roots nor removes existing threads. Threading Mode also does not replace
+permissions: `message.post` controls room posts and `message.post-in-thread`
+controls actual thread replies. Required rooms automatically establish each
+root's empty thread with `message.post` alone.
+
+Mode changes appear in the room timeline with the member who changed the
+setting. If your latest root gained a thread and you try to post another root
+within five minutes, Chatto asks whether to continue in that thread or keep the
+new message in the room. The choice is offered only when both destinations are
+currently allowed; cancelling keeps the draft intact.
 
 ## Permissions Strategy
 
@@ -60,7 +117,7 @@ Start broad and add local exceptions:
 | One exceptional user | User permission override |
 | Reusable staff capability | Custom role |
 
-Avoid server-scope denies unless you really want to block a capability everywhere. Chatto uses deny-wins resolution, so a broad deny can be hard to reason about later.
+Use `everyone` for broad ordinary-member defaults. Use named roles for reusable access, and attach a deny directly to a user or restriction role when it must beat other named grants. Room and group values override less-specific values for the same subject; a named allow overrides an `everyone` deny only at the same or a nearer scope.
 
 ## Common Structures
 
@@ -93,11 +150,12 @@ Use these fields deliberately:
 
 | Field | Operator use |
 | ----- | ------------ |
-| Server name | The human name members recognize. |
+| Server name | The human name members recognize, including the installed app name. |
 | Description | Link previews and server metadata. |
 | Welcome message | Login-page context, onboarding notes, terms, or support links. |
 | Message of the day | Short operational or community-wide notice for signed-in members. |
-| Logo and banner | Visual identity for the server and login page. |
+| Logo | Visual identity in browser tabs, installed apps, server navigation, and the login page. |
+| Banner | Large-format branding on the login page and link previews. |
 | Blocked usernames | Prevent impersonation, reserved names, or offensive handles before signup. |
 
 ## Related Guides

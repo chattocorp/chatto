@@ -9,7 +9,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"filippo.io/age"
@@ -50,11 +52,12 @@ type BackupStats struct {
 }
 
 var (
-	backupConfigFile  string
-	backupOutput      string
-	backupEncrypt     bool
-	backupPassphrase  string
-	backupIncludeKeys bool
+	backupConfigFile      string
+	backupOutput          string
+	backupEncrypt         bool
+	backupPassphraseFile  string
+	backupPassphraseStdin bool
+	backupIncludeKeys     bool
 )
 
 const (
@@ -68,20 +71,19 @@ var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Create a backup of all Chatto data",
 	Long: `Creates a complete backup of all NATS JetStream data including:
-- Instance-level KV buckets (users, spaces, memberships)
-- Instance event streams (audit trail)
-- Instance assets (avatars, icons)
-- Per-space KV buckets (rooms, memberships)
-- Per-space event streams (messages)
-- Per-space bodies (message bodies)
-- Per-space reactions
-- Per-space assets (attachments)
+- The EVT domain event stream
+- Runtime state such as sessions, read markers, and pending workflows
+- Notification occurrence history
+- NATS-backed user, server, and room assets
+- NATS-backed projection snapshots
 
 Excluded from backups by default:
 - Encryption keys (security: keeps backup data encrypted at rest)
 - User presence (ephemeral, memory-only)
-- Retired standalone link preview cache, if present (regeneratable)
+- Link preview cache (regeneratable)
 - Asset cache (regeneratable)
+- Search indexes (regeneratable from retained EVT history)
+- S3-backed assets and projection snapshots (back them up through S3)
 
 Pass --include-keys to include KV_ENCRYPTION_KEYS in the archive. This
 makes the backup self-contained (encrypted message bodies become
@@ -99,7 +101,8 @@ func init() {
 	backupCmd.Flags().StringVarP(&backupConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
 	backupCmd.Flags().StringVarP(&backupOutput, "output", "o", "", "output path for the backup archive (default: backups/<timestamp>.tar.gz)")
 	backupCmd.Flags().BoolVar(&backupEncrypt, "encrypt", false, "encrypt the backup with a passphrase (age encryption)")
-	backupCmd.Flags().StringVar(&backupPassphrase, "passphrase", "", "encryption passphrase (if not set, prompts interactively)")
+	backupCmd.Flags().StringVar(&backupPassphraseFile, "passphrase-file", "", "file containing the encryption passphrase")
+	backupCmd.Flags().BoolVar(&backupPassphraseStdin, "passphrase-stdin", false, "read the encryption passphrase from stdin")
 	backupCmd.Flags().BoolVar(&backupIncludeKeys, "include-keys", false, "include KV_ENCRYPTION_KEYS in the archive (treat the archive as sensitive)")
 }
 
@@ -115,7 +118,10 @@ func runBackup(cmd *cobra.Command, args []string) {
 	var passphrase string
 	if backupEncrypt {
 		var err error
-		passphrase, err = getPassphrase(backupPassphrase, "Enter passphrase for backup encryption: ", true)
+		passphrase, err = getPassphrase(passphraseInput{
+			file:  backupPassphraseFile,
+			stdin: backupPassphraseStdin,
+		}, "Enter passphrase for backup encryption: ", true)
 		if err != nil {
 			log.Fatal("Failed to read passphrase", "error", err)
 		}
@@ -303,7 +309,31 @@ func enumerateStreams(ctx context.Context, js jetstream.JetStream) ([]string, er
 		return nil, err
 	}
 
+	orderBackupStreams(names)
 	return names, nil
+}
+
+// orderBackupStreams preserves notification materialization across independently
+// captured snapshots. EVT captures the durable consumer floor first,
+// RUNTIME_STATE captures read/visibility boundaries, and NOTIFICATIONS captures
+// deterministic derived lifecycle facts last. A handoff racing the snapshots
+// is therefore either present or replayable after restore.
+func orderBackupStreams(names []string) {
+	priority := func(name string) int {
+		switch name {
+		case "EVT":
+			return 0
+		case "KV_RUNTIME_STATE":
+			return 1
+		case "NOTIFICATIONS":
+			return 2
+		default:
+			return 1
+		}
+	}
+	sort.SliceStable(names, func(i, j int) bool {
+		return priority(names[i]) < priority(names[j])
+	})
 }
 
 // backupStream backs up a single stream and returns info about the backup
@@ -354,12 +384,14 @@ func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir 
 
 	streamDir := filepath.Join(streamsDir, streamName)
 
-	var bytesReceived uint64
+	var bytesReceived atomic.Uint64
 
 	_, err = stream.SnapshotToDirectory(ctx, streamDir,
 		jsm.SnapshotConsumers(),
 		jsm.SnapshotNotify(func(p jsm.SnapshotProgress) {
-			bytesReceived = p.BytesReceived()
+			received := p.BytesReceived()
+			for current := bytesReceived.Load(); received > current && !bytesReceived.CompareAndSwap(current, received); current = bytesReceived.Load() {
+			}
 		}),
 	)
 	if err != nil {
@@ -371,13 +403,14 @@ func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir 
 		}
 	}
 
-	log.Info(fmt.Sprintf("%s  Done: %s", prefix, formatBytes(bytesReceived)))
+	received := bytesReceived.Load()
+	log.Info(fmt.Sprintf("%s  Done: %s", prefix, formatBytes(received)))
 
 	return StreamBackupInfo{
 		Name:     streamName,
 		Type:     streamType,
 		Messages: state.Msgs,
-		Bytes:    bytesReceived,
+		Bytes:    received,
 	}
 }
 

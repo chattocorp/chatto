@@ -1,0 +1,19 @@
+{
+  "quick_switcher": {
+    "placeholder": "Go somewhere, or type ? to search messages...",
+    "no_results": "No results",
+    "recent": "Recent",
+    "kind": {
+      "destination": "Go to",
+      "server": "Server",
+      "room": "Room",
+      "dm": "DM",
+      "user": "User",
+      "message": "Message"
+    },
+    "message_search": {
+      "prompt": "Type after ? to search messages across your servers",
+      "no_results": "No messages found"
+    }
+  }
+}

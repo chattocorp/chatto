@@ -1,6 +1,6 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createContext, untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import type { PresenceStatus } from '$lib/render/types';
 
 export type PresenceCacheScope = {
   serverId: string;
@@ -31,6 +31,20 @@ export class PresenceCache {
       this.#entries.clear();
       for (const [scope, status] of retainedEntries) {
         this.#entries.set(presenceCacheKey(scope), status);
+      }
+      this.#version++;
+    });
+  }
+
+  /** Atomically replace every cached presence entry for one server. */
+  replaceServer(serverId: string, statuses: ReadonlyMap<string, PresenceStatus>) {
+    untrack(() => {
+      const prefix = `${serverId}\u0000`;
+      for (const key of this.#entries.keys()) {
+        if (key.startsWith(prefix)) this.#entries.delete(key);
+      }
+      for (const [userId, status] of statuses) {
+        this.#entries.set(presenceCacheKey({ serverId, userId }), status);
       }
       this.#version++;
     });

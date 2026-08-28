@@ -3,25 +3,170 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+func TestAuthorizedRoomAttachmentReadsRequireMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, user := setupRoomAttachmentTest(t, chatto, ctx)
+	attachment := uploadRoomAttachment(t, chatto, ctx, user.Id, room.Id, "private.png")
+	message, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "private file", []string{attachment.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
+	}
+
+	reads := map[string]func() error{
+		"room list": func() error {
+			_, err := chatto.ListRoomAttachments(ctx, ListRoomAttachmentsInput{ActorID: user.Id, RoomID: room.Id})
+			return err
+		},
+		"asset": func() error {
+			_, err := chatto.GetRoomAsset(ctx, RoomAssetInput{ActorID: user.Id, RoomID: room.Id, AssetID: attachment.Id})
+			return err
+		},
+		"message attachments": func() error {
+			_, err := chatto.MessageAttachments(ctx, MessageAttachmentsInput{ActorID: user.Id, RoomID: room.Id, EventID: message.Id})
+			return err
+		},
+	}
+	for name, read := range reads {
+		if err := read(); !errors.Is(err, ErrPermissionDenied) {
+			t.Errorf("%s error = %v, want ErrPermissionDenied", name, err)
+		}
+	}
+}
+
+func TestAuthorizedDMAttachmentReadsIgnoreMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "dm-attachment-reader", "DM Attachment Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "dm-attachment-author", "DM Attachment Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	dm, _, err := chatto.FindOrCreateDM(ctx, reader.GetId(), []string{author.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	attachment := uploadRoomAttachment(t, chatto, ctx, author.GetId(), dm.GetId(), "direct-message.png")
+	message, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), author.GetId(), "direct message file", []string{attachment.GetId()}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
+
+	roomAttachments, err := chatto.ListRoomAttachments(ctx, ListRoomAttachmentsInput{ActorID: reader.GetId(), RoomID: dm.GetId()})
+	if err != nil {
+		t.Fatalf("ListRoomAttachments after DM denial: %v", err)
+	}
+	if got := attachmentNames(roomAttachments.Items); !sameStrings(got, []string{"direct-message.png"}) {
+		t.Fatalf("attachment names = %v, want [direct-message.png]", got)
+	}
+	if _, err := chatto.GetRoomAsset(ctx, RoomAssetInput{ActorID: reader.GetId(), RoomID: dm.GetId(), AssetID: attachment.GetId()}); err != nil {
+		t.Fatalf("GetRoomAsset after DM denial: %v", err)
+	}
+	if assets, err := chatto.BatchGetRoomAssets(ctx, BatchRoomAssetsInput{ActorID: reader.GetId(), RoomID: dm.GetId(), AssetIDs: []string{attachment.GetId()}}); err != nil || len(assets) != 1 {
+		t.Fatalf("BatchGetRoomAssets after DM denial = %d assets, %v; want 1, nil", len(assets), err)
+	}
+	if attachments, err := chatto.MessageAttachments(ctx, MessageAttachmentsInput{ActorID: reader.GetId(), RoomID: dm.GetId(), EventID: message.GetId()}); err != nil || len(attachments) != 1 {
+		t.Fatalf("MessageAttachments after DM denial = %d attachments, %v; want 1, nil", len(attachments), err)
+	}
+	if sets, err := chatto.BatchMessageAttachments(ctx, BatchMessageAttachmentsInput{ActorID: reader.GetId(), RoomID: dm.GetId(), EventIDs: []string{message.GetId()}}); err != nil || len(sets) != 1 || len(sets[0].Attachments) != 1 {
+		t.Fatalf("BatchMessageAttachments after DM denial = %+v, %v; want one attachment set", sets, err)
+	}
+}
+
+func TestAuthorizedRoomAttachmentReadsUseThreadInteractions(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, author := setupRoomAttachmentTest(t, chatto, ctx)
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "interaction-attachment-reader", "Interaction Attachment Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	if _, err := chatto.JoinRoom(ctx, reader.GetId(), KindChannel, reader.GetId(), room.GetId()); err != nil {
+		t.Fatalf("JoinRoom reader: %v", err)
+	}
+	visibleAsset := uploadRoomAttachment(t, chatto, ctx, author.GetId(), room.GetId(), "visible-thread.png")
+	visibleRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "visible attachment root", []string{visibleAsset.GetId()}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage visible root: %v", err)
+	}
+	hiddenAsset := uploadRoomAttachment(t, chatto, ctx, author.GetId(), room.GetId(), "hidden-thread.png")
+	hiddenRoot, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "hidden attachment root", []string{hiddenAsset.GetId()}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage hidden root: %v", err)
+	}
+	pendingAsset := uploadRoomAttachment(t, chatto, ctx, author.GetId(), room.GetId(), "pending.png")
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "attachment ping @interaction-attachment-reader", nil, visibleRoot.GetId(), "", nil, false); err != nil {
+		t.Fatalf("PostMessage mention: %v", err)
+	}
+
+	page, err := chatto.ListRoomAttachments(ctx, ListRoomAttachmentsInput{ActorID: reader.GetId(), RoomID: room.GetId(), Limit: 20})
+	if err != nil || len(page.Items) != 1 || page.Items[0].Attachment.GetId() != visibleAsset.GetId() {
+		t.Fatalf("ListRoomAttachments = %+v, %v; want visible thread asset", page, err)
+	}
+	if _, err := chatto.GetRoomAsset(ctx, RoomAssetInput{ActorID: reader.GetId(), RoomID: room.GetId(), AssetID: visibleAsset.GetId()}); err != nil {
+		t.Fatalf("GetRoomAsset visible: %v", err)
+	}
+	for name, assetID := range map[string]string{"hidden": hiddenAsset.GetId(), "pending": pendingAsset.GetId()} {
+		if _, err := chatto.GetRoomAsset(ctx, RoomAssetInput{ActorID: reader.GetId(), RoomID: room.GetId(), AssetID: assetID}); !errors.Is(err, ErrPermissionDenied) {
+			t.Errorf("GetRoomAsset %s error = %v, want ErrPermissionDenied", name, err)
+		}
+	}
+	assets, err := chatto.BatchGetRoomAssets(ctx, BatchRoomAssetsInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), AssetIDs: []string{hiddenAsset.GetId(), visibleAsset.GetId(), pendingAsset.GetId()},
+	})
+	if err != nil || len(assets) != 1 || assets[0].GetId() != visibleAsset.GetId() {
+		t.Fatalf("BatchGetRoomAssets = %+v, %v; want only visible asset", assets, err)
+	}
+	attachments, err := chatto.MessageAttachments(ctx, MessageAttachmentsInput{ActorID: reader.GetId(), RoomID: room.GetId(), EventID: visibleRoot.GetId()})
+	if err != nil || len(attachments) != 1 || attachments[0].GetId() != visibleAsset.GetId() {
+		t.Fatalf("MessageAttachments visible root = %+v, %v", attachments, err)
+	}
+	sets, err := chatto.BatchMessageAttachments(ctx, BatchMessageAttachmentsInput{
+		ActorID: reader.GetId(), RoomID: room.GetId(), EventIDs: []string{hiddenRoot.GetId(), visibleRoot.GetId()},
+	})
+	if err != nil || len(sets) != 1 || sets[0].EventID != visibleRoot.GetId() {
+		t.Fatalf("BatchMessageAttachments = %+v, %v; want only visible root", sets, err)
+	}
+}
 
 func TestChattoCore_GetRoomAttachmentsIncludesRootAndThreadFiles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
 
-	rootA := uploadRoomAttachment(t, core, ctx, room.Id, "root-a.png")
-	rootB := uploadRoomAttachment(t, core, ctx, room.Id, "root-b.png")
+	rootA := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "root-a.png")
+	rootB := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "root-b.png")
 	rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root with files", []string{rootA.Id, rootB.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Post root message: %v", err)
 	}
 
-	threadAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "thread.png")
+	threadAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "thread.png")
 	threadEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "thread with file", []string{threadAttachment.Id}, rootEvent.Id, "", nil, false)
 	if err != nil {
 		t.Fatalf("Post thread reply: %v", err)
@@ -58,12 +203,12 @@ func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
 
-	oldAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "old.png")
+	oldAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "old.png")
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "old", []string{oldAttachment.Id}, "", "", nil, false); err != nil {
 		t.Fatalf("Post old message: %v", err)
 	}
 
-	newAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "new.png")
+	newAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "new.png")
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "new", []string{newAttachment.Id}, "", "", nil, false); err != nil {
 		t.Fatalf("Post new message: %v", err)
 	}
@@ -90,8 +235,8 @@ func TestChattoCore_GetRoomAttachmentsExcludesRemovedAndRetractedFiles(t *testin
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
 
-	removedAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "removed.png")
-	keptAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "kept.png")
+	removedAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "removed.png")
+	keptAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "kept.png")
 	editedEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "edit target", []string{removedAttachment.Id, keptAttachment.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Post edit target: %v", err)
@@ -100,7 +245,7 @@ func TestChattoCore_GetRoomAttachmentsExcludesRemovedAndRetractedFiles(t *testin
 		t.Fatalf("DeleteAttachmentFromMessage: %v", err)
 	}
 
-	retractedAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "retracted.png")
+	retractedAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "retracted.png")
 	retractedEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "delete target", []string{retractedAttachment.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Post delete target: %v", err)
@@ -124,7 +269,7 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
 
-	attachment := uploadRoomAttachment(t, core, ctx, room.Id, "file.png")
+	attachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "file.png")
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with file", []string{attachment.Id}, "", "", nil, false); err != nil {
 		t.Fatalf("Post file message: %v", err)
 	}
@@ -132,19 +277,19 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	messageEventID := NewEventID()
 	bodyEventID := NewEventID()
 	createdAt := timestamppb.Now()
-	corruptBody := &corev1.MessageBody{
+	corruptBody := &evtv1.MessageBody{
 		AuthorId:        user.Id,
 		CreatedAt:       createdAt,
 		BodyEventId:     bodyEventID,
 		EncryptedBody:   []byte("not-valid-ciphertext"),
 		EncryptionNonce: []byte("bad-nonce"),
 	}
-	if err := core.RoomTimeline.Apply(&corev1.Event{
+	if err := core.roomModel.timeline.Projection().Apply(&evtv1.Event{
 		Id:        bodyEventID,
 		ActorId:   user.Id,
 		CreatedAt: createdAt,
-		Event: &corev1.Event_MessageBody{
-			MessageBody: &corev1.MessageBodyEvent{
+		Event: &evtv1.Event_MessageBody{
+			MessageBody: &evtv1.MessageBodyEvent{
 				RoomId:  room.Id,
 				EventId: messageEventID,
 				Body:    corruptBody,
@@ -153,12 +298,12 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	}, 1_000_000); err != nil {
 		t.Fatalf("Apply corrupt text body: %v", err)
 	}
-	if err := core.RoomTimeline.Apply(&corev1.Event{
+	if err := core.roomModel.timeline.Projection().Apply(&evtv1.Event{
 		Id:        messageEventID,
 		ActorId:   user.Id,
 		CreatedAt: createdAt,
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
+		Event: &evtv1.Event_MessagePosted{
+			MessagePosted: &evtv1.MessagePostedEvent{
 				RoomId: room.Id,
 			},
 		},
@@ -175,7 +320,7 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	}
 }
 
-func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context) (*corev1.Room, *corev1.User) {
+func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context) (*evtv1.Room, *evtv1.User) {
 	t.Helper()
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	if err != nil {
@@ -191,9 +336,9 @@ func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context
 	return room, user
 }
 
-func uploadRoomAttachment(t *testing.T, core *ChattoCore, ctx context.Context, roomID string, filename string) *corev1.Attachment {
+func uploadRoomAttachment(t *testing.T, core *ChattoCore, ctx context.Context, actorID, roomID, filename string) *evtv1.Attachment {
 	t.Helper()
-	attachment, err := core.UploadAttachment(ctx, SystemActorID, roomID, filename, "image/png", bytes.NewReader(createTestPNG(16, 16)))
+	attachment, err := core.UploadAttachment(ctx, actorID, roomID, filename, "image/png", bytes.NewReader(createTestPNG(16, 16)))
 	if err != nil {
 		t.Fatalf("UploadAttachment %s: %v", filename, err)
 	}

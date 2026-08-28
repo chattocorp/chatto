@@ -6,11 +6,20 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/docs-website/package.json apps/docs-website/package.json
-RUN pnpm install --frozen-lockfile --filter docs-website...
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter docs-website...
 
 COPY apps/docs-website apps/docs-website
 WORKDIR /app/apps/docs-website
-RUN pnpm build
+ARG CHATTO_DOCS_CHANNEL=dev
+ARG CHATTO_DOCS_VERSION=main
+ARG CHATTO_DOCS_REVISION=local
+ARG CHATTO_DOCS_SITE_URL=https://dev-docs.chatto.run
+RUN CHATTO_DOCS_CHANNEL="$CHATTO_DOCS_CHANNEL" \
+    CHATTO_DOCS_VERSION="$CHATTO_DOCS_VERSION" \
+    CHATTO_DOCS_REVISION="$CHATTO_DOCS_REVISION" \
+    CHATTO_DOCS_SITE_URL="$CHATTO_DOCS_SITE_URL" \
+    pnpm build
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 

@@ -1,5 +1,6 @@
 import { defineRouteMiddleware } from "@astrojs/starlight/route-data";
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
+import { docsChannel } from "./docsMetadata";
 
 type Head = StarlightRouteData["head"];
 
@@ -46,4 +47,8 @@ export const onRequest = defineRouteMiddleware(({ locals, site }) => {
   upsertMeta(route.head, "name", "twitter:description", description);
   upsertMeta(route.head, "name", "twitter:image", imageUrl);
   upsertMeta(route.head, "name", "twitter:image:alt", imageAlt);
+
+  if (docsChannel === "dev") {
+    upsertMeta(route.head, "name", "robots", "noindex, nofollow");
+  }
 });

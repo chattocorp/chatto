@@ -3,6 +3,7 @@ import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
+import { MessageComponent } from './pages/MessageComponent';
 
 // Video processing (ffmpeg transcode) can take up to 45s for small test videos.
 const VIDEO_PROCESSING_TIMEOUT = 45_000;
@@ -22,10 +23,17 @@ test.describe('video player @ffmpeg', () => {
     // Track JS errors so that subscription callback failures are caught.
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
+    const hlsResponses: Array<{ pathname: string; status: number }> = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
     page.on('pageerror', (err) => pageErrors.push(err.message));
+    page.on('response', (response) => {
+      const pathname = new URL(response.url()).pathname;
+      if (pathname.includes('/assets/hls/')) {
+        hlsResponses.push({ pathname, status: response.status() });
+      }
+    });
 
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -47,7 +55,7 @@ test.describe('video player @ffmpeg', () => {
         });
 
         // Send the message
-        await roomPage.messageInput.press('Enter');
+        await roomPage.messageInput.press('Control+Enter');
 
         // Wait for preview to clear (message sent)
         await expect(roomPage.videoAttachmentPreview).not.toBeVisible({
@@ -61,9 +69,57 @@ test.describe('video player @ffmpeg', () => {
         // Verify Vidstack rendered its default video layout with controls.
         await expect(roomPage.mediaControls).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
+        // The embedded-NATS server cannot seek within one stored object. Verify
+        // that the player instead loads the authorised HLS hierarchy, exposes a
+        // finite duration, and can seek backwards through its media timeline.
+        const video = roomPage.mediaPlayer.locator('video');
+        await expect(video).toBeAttached({ timeout: TIMEOUTS.UI_STANDARD });
+        const seekResult = await video.evaluate(async (element) => {
+          if (element.readyState < HTMLMediaElement.HAVE_METADATA) {
+            await new Promise<void>((resolve) =>
+              element.addEventListener('loadedmetadata', () => resolve(), { once: true })
+            );
+          }
+
+          const seek = async (time: number) => {
+            await new Promise<void>((resolve) => {
+              element.addEventListener('seeked', () => resolve(), { once: true });
+              element.currentTime = time;
+            });
+            return element.currentTime;
+          };
+
+          const forwardTime = await seek(element.duration * 0.75);
+          const backwardTime = await seek(element.duration * 0.2);
+          return { duration: element.duration, forwardTime, backwardTime };
+        });
+        expect(seekResult.duration).toBeGreaterThan(0);
+        expect(Number.isFinite(seekResult.duration)).toBe(true);
+        expect(seekResult.forwardTime).toBeGreaterThan(seekResult.backwardTime);
+
+        await expect
+          .poll(() => hlsResponses, { timeout: TIMEOUTS.UI_STANDARD })
+          .toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                pathname: expect.stringMatching(/\/master\.m3u8$/),
+                status: 200
+              }),
+              expect.objectContaining({
+                pathname: expect.stringMatching(/\/renditions\/\d+\/playlist\.m3u8$/),
+                status: 200
+              }),
+              expect.objectContaining({
+                pathname: expect.stringMatching(/\/renditions\/\d+\/segments\/\d+\.ts$/),
+                status: 200
+              })
+            ])
+          );
+
         const mediaBox = await roomPage.mediaPlayer.boundingBox();
         expect(mediaBox).not.toBeNull();
-        expect(mediaBox!.width / mediaBox!.height).toBeCloseTo(16 / 9, 1);
+        // The fixture is 320x240; the player must preserve its 4:3 display ratio.
+        expect(mediaBox!.width / mediaBox!.height).toBeCloseTo(4 / 3, 1);
 
         // The settings menu should be hidden (via CSS).
         if ((await roomPage.videoSettingsMenu.count()) > 0) {
@@ -72,6 +128,32 @@ test.describe('video player @ffmpeg', () => {
           );
           expect(computedDisplay).toBe('none');
         }
+
+        // Updating message reactions must not recreate the playing media node.
+        const videoMessageLocator = page
+          .locator('[role="article"]')
+          .filter({ has: roomPage.mediaPlayer });
+        const videoMessage = new MessageComponent(page, videoMessageLocator);
+        const inlineVideo = videoMessageLocator.locator('media-provider video');
+        await inlineVideo.evaluate(async (video) => {
+          video.dataset.reactionPlaybackMarker = 'preserve-me';
+          video.muted = true;
+          video.loop = true;
+          await video.play();
+        });
+        await expect(inlineVideo).not.toHaveJSProperty('paused', true);
+
+        await videoMessage.reactViaToolbar('👍');
+        await videoMessage.expectReaction('👍', 1);
+
+        await expect(inlineVideo).toHaveAttribute('data-reaction-playback-marker', 'preserve-me');
+        await expect(inlineVideo).not.toHaveJSProperty('paused', true);
+
+        await videoMessage.toggleReaction('👍');
+        await videoMessage.expectNoReaction('👍');
+
+        await expect(inlineVideo).toHaveAttribute('data-reaction-playback-marker', 'preserve-me');
+        await expect(inlineVideo).not.toHaveJSProperty('paused', true);
 
         // User 2: the asset processing completion event must also be delivered
         // via the subscription so that the second user sees the player without reloading.
@@ -119,7 +201,7 @@ test.describe('video player @ffmpeg', () => {
       });
       await expect(roomPage.videoAttachmentPreview).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      await roomPage.messageInput.press('Enter');
+      await roomPage.messageInput.press('Control+Enter');
       await expect(roomPage.videoAttachmentPreview).not.toBeVisible({
         timeout: TIMEOUTS.COMPLEX_OPERATION
       });

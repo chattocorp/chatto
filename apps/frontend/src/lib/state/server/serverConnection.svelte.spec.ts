@@ -1,9 +1,27 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockHandleAuthenticationRequired, mockServers } = vi.hoisted(() => ({
+const {
+  mockCsrfFetch,
+  mockHandleAuthenticationRequired,
+  mockRenewServerAuthentication,
+  mockServers
+} = vi.hoisted(() => ({
+  mockCsrfFetch: vi.fn(),
   mockHandleAuthenticationRequired: vi.fn(),
-  mockServers: new Map<string, { id: string; url: string; token: string | null }>()
+  mockRenewServerAuthentication: vi.fn(),
+  mockServers: new Map<
+    string,
+    {
+      id: string;
+      url: string;
+      token: string | null;
+      accessTokenExpiresAt?: number | null;
+      refreshTokenExpiresAt?: number | null;
+    }
+  >()
 }));
+
+vi.mock('$lib/auth/csrf', () => ({ csrfFetch: mockCsrfFetch }));
 
 vi.mock('./registry.svelte', () => ({
   serverRegistry: {
@@ -12,7 +30,8 @@ vi.mock('./registry.svelte', () => ({
     get originServer() {
       return [...mockServers.values()].find((s) => s.url === window.location.origin);
     },
-    handleAuthenticationRequired: mockHandleAuthenticationRequired
+    handleAuthenticationRequired: mockHandleAuthenticationRequired,
+    renewServerAuthentication: mockRenewServerAuthentication
   }
 }));
 
@@ -29,6 +48,16 @@ function makeConfig(overrides: Partial<ServerConnectionConfig> = {}): ServerConn
     ...overrides
   };
 }
+
+const requestLockImmediately = (async (
+  name: string,
+  optionsOrCallback: LockOptions | LockGrantedCallback<unknown>,
+  callback?: LockGrantedCallback<unknown>
+) => {
+  const operation = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+  if (!operation) throw new Error('Missing lock callback');
+  return operation({ name, mode: 'exclusive' });
+}) as LockManager['request'];
 
 describe('httpToWsUrl', () => {
   it('converts http to ws', () => {
@@ -52,6 +81,19 @@ describe('ServerConnection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockServers.clear();
+    mockCsrfFetch.mockResolvedValue(new Response(null, { status: 200 }));
+    mockRenewServerAuthentication.mockImplementation(async (id: string) => {
+      mockHandleAuthenticationRequired(id);
+      return null;
+    });
+    // Real Web Locks are shared by parallel browser specs on this test origin.
+    // Keep this unit spec deterministic while still exercising the lock path.
+    vi.spyOn(navigator.locks, 'request').mockImplementation(requestLockImmediately);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('derives origin Connect and realtime endpoints', () => {
@@ -73,10 +115,9 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
-  it('starts with status "connecting" and reconnectCount 0', () => {
+  it('starts with status "connecting"', () => {
     const client = new ServerConnection(makeConfig());
     expect(client.status).toBe('connecting');
-    expect(client.reconnectCount).toBe(0);
     client.dispose();
   });
 
@@ -92,8 +133,57 @@ describe('ServerConnection', () => {
     client.setRealtimeConnectionStatus('connecting', 6);
     client.setRealtimeConnectionStatus('connected');
     expect(client.status).toBe('connected');
-    expect(client.reconnectCount).toBe(1);
     expect(client.showConnectionLostBanner).toBe(false);
+    client.dispose();
+  });
+
+  it('does not present intentional dormant transport as a connection failure', () => {
+    const client = new ServerConnection(makeConfig());
+
+    client.setRealtimeConnectionStatus('dormant');
+
+    expect(client.status).toBe('dormant');
+    expect(client.isConnected).toBe(false);
+    expect(client.showConnectionLostIcon).toBe(false);
+    expect(client.showConnectionLostBanner).toBe(false);
+    client.dispose();
+  });
+
+  it('creates each API facade once with this connection configuration', () => {
+    const client = new ServerConnection(
+      makeConfig({
+        serverUrl: 'https://remote.example.com',
+        token: 'my-token',
+        serverId: 'remote-1'
+      })
+    );
+    const factory = vi.fn((config) => ({ config }));
+
+    const first = client.getAPI(factory);
+    const second = client.getAPI(factory);
+
+    expect(first).toBe(second);
+    expect(factory).toHaveBeenCalledOnce();
+    expect(factory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverId: 'remote-1',
+        baseUrl: 'https://remote.example.com/api/connect',
+        bearerToken: 'my-token'
+      })
+    );
+    client.dispose();
+  });
+
+  it('drops cached API facades when disposed', () => {
+    const client = new ServerConnection(makeConfig());
+    const factory = vi.fn(() => ({}));
+
+    const first = client.getAPI(factory);
+    client.dispose();
+    const second = client.getAPI(factory);
+
+    expect(second).not.toBe(first);
+    expect(factory).toHaveBeenCalledTimes(2);
     client.dispose();
   });
 
@@ -146,12 +236,215 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
-  it('notifies the registry on realtime authentication-required signals', () => {
+  it('replaces a connected transport after a meaningful hidden interval', () => {
+    const originalVisibility = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    const now = vi.spyOn(Date, 'now');
+    let currentTime = 1_000;
+    now.mockImplementation(() => currentTime);
+    const client = new ServerConnection(makeConfig());
+    const reconnect = vi.fn();
+    client.setRealtimeConnectionStatus('connected');
+    client.registerRealtimeReconnect(reconnect);
+
+    try {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        configurable: true
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      currentTime += 29_999;
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(reconnect).not.toHaveBeenCalled();
+
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        configurable: true
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      currentTime += 30_000;
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(reconnect).toHaveBeenCalledWith('tab visible after 30s hidden');
+    } finally {
+      client.dispose();
+      now.mockRestore();
+      if (originalVisibility) {
+        Object.defineProperty(document, 'visibilityState', originalVisibility);
+      }
+    }
+  });
+
+  it('asks the registry to renew on realtime authentication-required signals', async () => {
     const client = new ServerConnection(makeConfig({ token: 'my-token', serverId: 'remote-1' }));
 
-    client.handleAuthenticationRequired();
+    await client.handleAuthenticationRequired();
 
+    expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
     expect(mockHandleAuthenticationRequired).toHaveBeenCalledWith('remote-1');
+    client.dispose();
+  });
+
+  it('renews an origin cookie through the dedicated browser endpoint', async () => {
+    mockServers.set('origin', {
+      id: 'origin',
+      url: window.location.origin,
+      token: null
+    });
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+
+    await expect(client.renewBrowserSession()).resolves.toBe(true);
+
+    expect(mockCsrfFetch).toHaveBeenCalledOnce();
+    expect(mockCsrfFetch).toHaveBeenCalledWith('/auth/browser/session/renew', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Chatto-Authentication-Mode': 'cookie'
+      },
+      body: '{}'
+    });
+    client.dispose();
+  });
+
+  it('coalesces concurrent origin-cookie renewal requests', async () => {
+    mockServers.set('origin', {
+      id: 'origin',
+      url: window.location.origin,
+      token: null
+    });
+    let finishRenewal!: (response: Response) => void;
+    mockCsrfFetch.mockReturnValue(
+      new Promise<Response>((resolve) => {
+        finishRenewal = resolve;
+      })
+    );
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+
+    const first = client.renewBrowserSession();
+    const second = client.renewBrowserSession();
+    finishRenewal(new Response(null, { status: 200 }));
+
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
+    expect(mockCsrfFetch).toHaveBeenCalledOnce();
+    client.dispose();
+  });
+
+  it('uses the server renewal deadline without requiring realtime transport', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockServers.set('origin', {
+      id: 'origin',
+      url: window.location.origin,
+      token: null
+    });
+    mockCsrfFetch
+      .mockResolvedValueOnce(
+        Response.json({ renewAfter: new Date(61_000).toISOString() }, { status: 200 })
+      )
+      .mockResolvedValue(
+        Response.json({ renewAfter: new Date(86_461_000).toISOString() }, { status: 200 })
+      );
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+
+    await client.renewBrowserSession();
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(mockCsrfFetch).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mockCsrfFetch).toHaveBeenCalledTimes(2);
+    client.dispose();
+  });
+
+  it('retries initial browser-session maintenance after a transient failure', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockServers.set('origin', {
+      id: 'origin',
+      url: window.location.origin,
+      token: null
+    });
+    mockCsrfFetch
+      .mockRejectedValueOnce(new Error('temporarily unavailable'))
+      .mockResolvedValue(
+        Response.json({ renewAfter: new Date(86_401_000).toISOString() }, { status: 200 })
+      );
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+
+    client.maintainBrowserSession();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockCsrfFetch).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(mockCsrfFetch).toHaveBeenCalledTimes(2);
+    client.dispose();
+  });
+
+  it('schedules short-lived access renewal before expiry without an immediate loop', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockRenewServerAuthentication.mockResolvedValue('renewed-token');
+    const client = new ServerConnection(
+      makeConfig({
+        token: 'my-token',
+        serverId: 'remote-1',
+        accessTokenExpiresAt: 31_000
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(23_999);
+    expect(mockRenewServerAuthentication).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
+    expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
+    client.dispose();
+  });
+
+  it('renews before the current session window ends', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockRenewServerAuthentication.mockResolvedValue('renewed-token');
+    const currentWindowExpiry = 31_000;
+    const client = new ServerConnection(
+      makeConfig({
+        token: 'my-token',
+        serverId: 'remote-1',
+        accessTokenExpiresAt: currentWindowExpiry
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(24_000);
+
+    expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
+    expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
+    client.dispose();
+  });
+
+  it('reschedules renewal when rotation reaches the current session window expiry', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockRenewServerAuthentication.mockResolvedValue('renewed-token');
+    const currentWindowExpiry = 61_000;
+    const client = new ServerConnection(
+      makeConfig({
+        token: 'my-token',
+        serverId: 'remote-1',
+        accessTokenExpiresAt: 31_000
+      })
+    );
+
+    client.updateBearerSession('rotated-token', currentWindowExpiry);
+    await vi.advanceTimersByTimeAsync(48_000);
+
+    expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
+    expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
     client.dispose();
   });
 });
@@ -169,6 +462,9 @@ describe('ServerConnectionManager', () => {
 
   it('originClient uses relative URL', async () => {
     const mod = await import('./serverConnection.svelte');
+    expect(mod.serverConnectionManager.originConnectBaseUrl).toBe(
+      `${window.location.origin}/api/connect`
+    );
     expect(mod.serverConnectionManager.originClient).toBeDefined();
     expect(mod.serverConnectionManager.originClient.status).toBe('connecting');
   });
@@ -185,7 +481,7 @@ describe('ServerConnectionManager', () => {
     expect(client).toBe(mod.serverConnectionManager.originClient);
   });
 
-  it('originClient uses the registered origin token when present', async () => {
+  it('originClient ignores stored bearer credentials', async () => {
     const mod = await import('./serverConnection.svelte');
     mockServers.set('my-home', {
       id: 'my-home',
@@ -194,7 +490,7 @@ describe('ServerConnectionManager', () => {
     });
 
     mod.serverConnectionManager.destroyClient('my-home');
-    expect(mod.serverConnectionManager.originClient.bearerToken).toBe('origin-token');
+    expect(mod.serverConnectionManager.originClient.bearerToken).toBeNull();
   });
 
   it('getClient throws for unknown instance IDs', async () => {

@@ -108,7 +108,7 @@ func NormalizeDisplayName(name string) string {
 
 // ValidateLogin validates a login/username for allowed characters and length.
 // Allowed: ASCII letters, digits, periods, underscores, hyphens.
-// Must start with a letter or digit.
+// Must start with a letter or digit and must not end with a period.
 // Length: MinLoginLength to MaxLoginLength characters.
 func ValidateLogin(login string) error {
 	if len(login) < MinLoginLength {
@@ -130,6 +130,33 @@ func ValidateLogin(login string) error {
 		}
 	}
 
+	if strings.HasSuffix(login, ".") {
+		return ErrLoginInvalidCharacter
+	}
+
+	return nil
+}
+
+// ValidateHumanLogin applies the shared username syntax and reserves `_bot`
+// for explicitly typed bot accounts.
+func ValidateHumanLogin(login string) error {
+	if err := ValidateLogin(login); err != nil {
+		return err
+	}
+	if strings.HasSuffix(strings.ToLower(login), "_bot") {
+		return ErrHumanLoginReservedForBot
+	}
+	return nil
+}
+
+// ValidateBotLogin applies the shared username syntax and requires `_bot`.
+func ValidateBotLogin(login string) error {
+	if err := ValidateLogin(login); err != nil {
+		return err
+	}
+	if !strings.HasSuffix(strings.ToLower(login), "_bot") {
+		return ErrBotLoginSuffixRequired
+	}
 	return nil
 }
 

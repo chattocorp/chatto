@@ -27,8 +27,18 @@ message CreateMessageRequest {
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Message body text. Required unless attachment_asset_ids is non-empty.
   string body = 2;
-  // Existing room-scoped attachment asset IDs to include with the message.
-  repeated string attachment_asset_ids = 3;
+  // Completed room-scoped asset IDs uploaded by the caller and not yet attached
+  // to a message. The server attaches them exclusively and atomically to this
+  // message. At most 10 IDs may be supplied.
+  repeated string attachment_asset_ids = 3 [(buf.validate.field).repeated = {
+    max_items: 10
+    items: {
+      string: {
+        min_len: 1
+        max_bytes: 15
+      }
+    }
+  }];
   // Event ID of the thread root message when posting a thread reply.
   string thread_root_event_id = 4;
   // Event ID this message replies to for attribution.
@@ -38,6 +48,10 @@ message CreateMessageRequest {
   // Short-lived token returned by FetchLinkPreview for the selected URL. The
   // server resolves the token to cached, server-fetched metadata during post.
   string link_preview_token = 10;
+  // True to establish the new root message as a thread immediately. Requires
+  // both message.post and message.post-in-thread. Channel rooms only; cannot
+  // be combined with thread_root_event_id.
+  bool create_thread = 11;
 }
 
 // Result of creating a message.
@@ -193,11 +207,15 @@ service MessageService {
   // Creates a message for the current user. The user must be a room member and
   // must have message.post for room messages or message.post-in-thread for
   // thread replies. Echoing a thread reply also requires message.echo and
-  // message.post.
+  // message.post. The room's Threading Mode may automatically establish a root
+  // thread or reject a thread placement that the mode does not allow.
   rpc CreateMessage(CreateMessageRequest) returns (CreateMessageResponse);
   // Edits a message body. Authors can edit their own messages within the edit
   // window. Non-authors need message.manage and cannot change channel echo
-  // state.
+  // state. Disabled rooms reject creation of a new channel echo while allowing
+  // an existing echo to be removed. Room membership is also required.
+  // Channel-room edits require message.read or a matching thread relationship
+  // with message.read.interactions. DM membership authorizes the DM read.
   rpc UpdateMessage(UpdateMessageRequest) returns (UpdateMessageResponse);
   // Retracts a message. Authors can delete their own messages. Non-authors need
   // message.manage.
@@ -207,19 +225,29 @@ service MessageService {
   // Removes the accepted link preview from the author's own message.
   rpc DeleteLinkPreview(DeleteLinkPreviewRequest) returns (DeleteLinkPreviewResponse);
   // Reads one renderable message, including current body, attachment metadata,
-  // link preview, reactions, and thread metadata. Authentication and room
-  // membership are required. Returns NOT_FOUND when the event does not exist,
-  // is not a message, has been retracted, or belongs to a different room.
+  // link preview, reactions, thread metadata, and pin state. Authentication
+  // and room membership are required. Channel-room reads also require
+  // message.read or a matching thread relationship with
+  // message.read.interactions. DM membership authorizes DM reads. Returns
+  // NOT_FOUND when the event does not exist, is not a message, has been
+  // retracted, or belongs to a different room.
   rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
-  // Reads many renderable messages in one room. Authentication and room
-  // membership are required. Missing, retracted, non-message, and wrong-room
-  // event IDs are omitted. Results preserve first-seen request order and
-  // repeated event IDs are de-duplicated.
+  // Reads many renderable messages and their current pin state in one room.
+  // Authentication and room membership are required. Channel-room reads also
+  // require message.read or a matching thread relationship with
+  // message.read.interactions. DM membership authorizes DM reads. Missing,
+  // retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
+  // Results preserve first-seen request order, and repeated event IDs are
+  // de-duplicated.
   rpc BatchGetMessages(BatchGetMessagesRequest) returns (BatchGetMessagesResponse);
   // Adds a reaction to a message. The user must be a room member and have
-  // message.react in the target room.
+  // message.react. Channel-room reactions also require message.read or a
+  // matching thread relationship with message.read.interactions. DM membership
+  // authorizes the DM read.
   rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
   // Removes a reaction from a message. The user must be a room member and have
-  // message.react in the target room.
+  // message.react. Channel-room reactions also require message.read or a
+  // matching thread relationship with message.read.interactions. DM membership
+  // authorizes the DM read.
   rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
 }

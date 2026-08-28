@@ -1,0 +1,474 @@
+{
+  "settings": {
+    "nav": {
+      "title": "Configuración",
+      "back_to_server": "Volver al servidor",
+      "profile": "Perfil",
+      "display": "Preferencias",
+      "notifications": "Notificaciones",
+      "account": "Cuenta",
+      "bots": "bots",
+      "user_preferences": "Preferencias del usuario",
+      "app_preferences": "Preferencias de la aplicación",
+      "your_account": "Tu cuenta",
+      "server_configuration": "Servidor"
+    },
+    "app_preferences": {
+      "title": "Preferencias de la aplicación",
+      "subtitle": "Opciones de esta aplicación que se aplican a todos tus servidores registrados",
+      "appearance": {
+        "title": "Apariencia"
+      },
+      "composer": {
+        "title": "Redacción"
+      }
+    },
+    "profile": {
+      "title": "Perfil",
+      "subtitle": "Administra la información de tu perfil",
+      "avatar": {
+        "title": "Avatar",
+        "drop_title": "Soltar imagen",
+        "drop_subtitle": "Subir como tu avatar",
+        "alt": "Tu avatar",
+        "description": "Sube un avatar. Las imágenes cambiarán de tamaño a 256x256 píxeles.",
+        "uploading": "Subiendo...",
+        "upload": "Subir Avatar",
+        "change": "Cambiar Avatar",
+        "removing": "Eliminando...",
+        "remove": "Eliminar",
+        "invalid_type": "Por favor seleccione un archivo de imagen",
+        "too_large": "La imagen debe tener menos de 10MB",
+        "uploaded": "Avatar subido exitosamente",
+        "upload_failed": "No se pudo cargar el avatar",
+        "removed": "Avatar eliminado",
+        "delete_failed": "No se pudo eliminar el avatar"
+      },
+      "display_name": {
+        "label": "Nombre para mostrar",
+        "placeholder": "Ingresa tu nombre para mostrar",
+        "invalid": "Nombre para mostrar no válido"
+      },
+      "username": {
+        "label": "Nombre de usuario",
+        "placeholder": "Ingresa tu nombre de usuario",
+        "invalid": "Nombre de usuario no válido",
+        "cooldown_error": "Solo puedes cambiar tu nombre de usuario una vez cada 30 días. Inténtelo de nuevo en {remaining}.",
+        "cooldown_notice": "Puedes cambiar tu nombre de usuario nuevamente en {remaining}.",
+        "confirm_title": "Cambiar nombre de usuario",
+        "confirm_prompt": "¿Estás seguro de que deseas cambiar tu nombre de usuario a @{login}?",
+        "confirm_cooldown": "Solo puedes cambiar tu nombre de usuario una vez cada 30 días.",
+        "confirm_button": "Cambiar nombre de usuario"
+      },
+      "status": {
+        "title": "Estado personalizado",
+        "dialog_title": "Establecer un estado",
+        "set_custom_status": "Establecer estado personalizado",
+        "edit_button": "Editar estado",
+        "emoji": {
+          "label": "Emoji de estado",
+          "placeholder": "🌿",
+          "choose": "Elige emoji"
+        },
+        "text": {
+          "label": "Texto de estado",
+          "placeholder": "En modo de enfoque"
+        },
+        "expires_at": {
+          "label": "Borrar automáticamente en"
+        },
+        "expiry": {
+          "today": "Hoy",
+          "thirty_minutes": "30 minutos",
+          "one_hour": "1 hora",
+          "four_hours": "4 horas",
+          "tomorrow": "Mañana",
+          "never": "No borrar",
+          "custom": "Personalizado",
+          "custom_date": "Tiempo de limpieza personalizado"
+        },
+        "suggestions": "Sugerencias",
+        "template": {
+          "label": "Plantilla",
+          "none": "Sin estado",
+          "out_for_lunch": "He salido a comer",
+          "vacation": "De vacaciones",
+          "sick": "Enfermo",
+          "custom": "Personalizado"
+        },
+        "emoji_required": "Elige un emoji para tu estado",
+        "text_required": "Introduce un texto de estado",
+        "saved": "Estado actualizado",
+        "save_failed": "No se pudo guardar el estado",
+        "cleared": "Estado borrado",
+        "clear_failed": "No se pudo borrar el estado",
+        "save_button": "Guardar estado",
+        "clear_button": "Borrar Estado"
+      },
+      "presence": {
+        "button": "Presencia: {status}",
+        "title": "Presencia",
+        "online": "En línea",
+        "away": "Ausente",
+        "do_not_disturb": "No molestar",
+        "offline": "Sin conexión",
+        "invisible": "Buscar sin conexión"
+      },
+      "saved": "Perfil actualizado exitosamente",
+      "save_failed": "No se pudo guardar el perfil",
+      "save_button": "Guardar cambios",
+      "bio": {
+        "label": "Bio",
+        "description": "Hasta {max} caracteres, visible en tu perfil.",
+        "placeholder": "Cuéntales algo breve sobre ti",
+        "too_long": "La bio no puede tener más de {max} caracteres."
+      }
+    },
+    "preferences": {
+      "title": "Hora y región",
+      "subtitle": "Elige cómo muestra este servidor las fechas y horas para ti",
+      "browser_scope": "Esta opción se aplica a todos los servidores de Chatto en este navegador.",
+      "theme": {
+        "title": "Tema",
+        "system": {
+          "label": "Sistema",
+          "description": "Siga la apariencia de su navegador o sistema operativo"
+        },
+        "light": {
+          "label": "Luz",
+          "description": "Utiliza la interfaz ligera en este navegador"
+        },
+        "dark": {
+          "label": "Oscuro",
+          "description": "Usa la interfaz oscura en este navegador"
+        }
+      },
+      "editor": {
+        "title": "Editor de mensajes",
+        "visual": {
+          "label": "Visual",
+          "description": "Da formato a los mensajes sin ver la sintaxis de Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Edita el código Markdown con resaltado de sintaxis"
+        }
+      },
+      "send_mode": {
+        "title": "Enviar mensajes con",
+        "enter": {
+          "label": "Return",
+          "description": "Return envía; Cmd/Ctrl+Return realiza la acción normal de Return en el editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return envía; Return realiza la acción normal del editor"
+        }
+      },
+      "language": {
+        "title": "Idioma",
+        "description": "Elija el idioma y la redacción regional para este navegador.",
+        "english_uk": "Inglés (Reino Unido)",
+        "english_us": "Inglés (Estados Unidos)",
+        "german": "Alemán"
+      },
+      "timezone": {
+        "title": "Zona horaria",
+        "description": "Configure su zona horaria para mostrar marcas de tiempo en su hora local. Déjelo vacío para usar el predeterminado de su navegador.",
+        "browser_default": "Navegador predeterminado",
+        "clear": "Borrar zona horaria (usar el navegador predeterminado)",
+        "invalid": "Seleccione una zona horaria válida de la lista",
+        "more_results": "{count} más - escriba para limitar los resultados",
+        "current_time": "Hora actual allí: {time}"
+      },
+      "time_format": {
+        "title": "Formato de hora",
+        "browser_default": {
+          "label": "Navegador predeterminado",
+          "description": "Utilice la configuración regional de su navegador para determinar el formato de 12 h o 24 h"
+        },
+        "12h": {
+          "label": "12 horas",
+          "description": "por ejemplo, 2:30 p.m."
+        },
+        "24h": {
+          "label": "24 horas",
+          "description": "por ejemplo, 14:30"
+        }
+      },
+      "save_button": "Guardar ajustes de hora",
+      "saved": "Ajustes de hora guardados",
+      "save_failed": "No se pudieron guardar los ajustes de hora"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "subtitle": "Configura cómo recibes notificaciones",
+      "push": {
+        "title": "Notificaciones Push",
+        "not_configured": "Las notificaciones push no están configuradas en este servidor",
+        "not_supported": "Las notificaciones push no son compatibles con este navegador.",
+        "ios_home_screen_title": "Agrega Chatto a tu pantalla de inicio",
+        "ios_home_screen_description": "En las versiones compatibles de iOS/iPadOS, agregue Chatto a la pantalla de inicio y ábrala desde el ícono de la aplicación para habilitar las notificaciones automáticas.",
+        "blocked_title": "Notificaciones push bloqueadas",
+        "blocked_description": "Habilite las notificaciones en su navegador o en la configuración del sistema operativo, luego abra Chatto nuevamente.",
+        "enabled_title": "Notificaciones push habilitadas",
+        "enabled_description": "Chatto utiliza el permiso de notificación de su navegador o sistema operativo como interruptor. Para desactivar las notificaciones, desactívelas para este sitio en su navegador o en la configuración del sistema operativo.",
+        "test_button": "Enviar notificación de prueba",
+        "testing": "Enviando…",
+        "test_sent": "Notificación de prueba enviada.",
+        "test_failed": "No se pudo enviar una notificación de prueba. Intente habilitar las notificaciones automáticas nuevamente.",
+        "enable_title": "Habilitar notificaciones push",
+        "enable_description": "Recibe notificaciones sobre nuevos mensajes mientras Chatto está cerrado o ejecutándose en segundo plano.",
+        "enable_button": "Habilitar",
+        "enabling": "Habilitando...",
+        "blocked_error": "Las notificaciones push están bloqueadas en la configuración de su navegador o sistema operativo.",
+        "enable_failed": "No se pudieron habilitar las notificaciones push. Por favor inténtalo de nuevo.",
+        "enable_error": "Ocurrió un error al habilitar las notificaciones push"
+      },
+      "push_prompt": {
+        "title": "Habilitar notificaciones push",
+        "message": "Recibe notificaciones sobre mensajes directos, menciones y respuestas.",
+        "ios_home_screen_title": "Agrega Chatto a tu pantalla de inicio",
+        "ios_home_screen_message": "En las versiones compatibles de iOS/iPadOS, abra Chatto desde el ícono de su pantalla de inicio antes de habilitar las notificaciones automáticas.",
+        "enabled": "Notificaciones push habilitadas",
+        "blocked": "Las notificaciones push están bloqueadas en tu navegador o en la configuración del sistema operativo",
+        "enable_failed": "No se pudieron habilitar las notificaciones push",
+        "enabling": "Habilitando...",
+        "enable": "Habilitar",
+        "dismiss": "No, gracias"
+      },
+      "sound": {
+        "title": "Sonido de notificación",
+        "shape_title": "Forma del sonido",
+        "preview": "Vista previa",
+        "reset": "Restablecer",
+        "off": "Desactivado",
+        "volume": "Volumen",
+        "tinny": "Pequeño",
+        "muffled": "Amortiguado",
+        "echo": "Eco",
+        "reverb": "Reverberación",
+        "crunch": "Crujido",
+        "category": {
+          "silent": "Silencio",
+          "simple": "Sencillo",
+          "playful": "Juguetón",
+          "robots": "Robots",
+          "musical": "Música",
+          "here_be_dragons": "Aquí hay dragones"
+        },
+        "name": {
+          "silent": "Silencio",
+          "ding": "Ding",
+          "chime_up": "Campanilla ascendente",
+          "chime_down": "Campanilla que cae",
+          "pop": "Pop suave",
+          "bubble": "Burbuja",
+          "retro": "Pitido retro",
+          "coin": "Recolección de monedas",
+          "powerup": "Encendido",
+          "fanfare": "Fanfarria de 8 bits",
+          "laser": "Descarga láser",
+          "robot": "Voz de Robot",
+          "ufo": "OVNI",
+          "beepboop": "Bip-boop",
+          "dialup": "Acceso telefónico",
+          "r2d2": "R2-D2",
+          "harp": "Florecimiento del Arpa",
+          "music_box": "Caja de música",
+          "celesta": "Celesta Sueño",
+          "synth": "Acorde de sintetizador",
+          "orchestra": "Golpe de orquesta",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Caos",
+          "glitch": "Fallo",
+          "siren": "Sirena de Alerta",
+          "dubstep": "Lanzamiento de Dubstep",
+          "circus": "Circo"
+        }
+      },
+      "policy": {
+        "title": "Política de notificaciones",
+        "description": "Elige cómo te avisa cada actividad en el servidor, grupo de salas y sala. Las salas heredan de su grupo y después del servidor.",
+        "load_failed": "No se pudo cargar la política de notificaciones",
+        "save_failed": "No se pudo guardar la política de notificaciones",
+        "effective": "Efectivo: {mode}",
+        "filter_label": "Filtrar ámbitos de notificación",
+        "filter_placeholder": "Filtrar grupos y salas…",
+        "no_filter_matches": "Ningún ámbito de notificación coincide con este filtro.",
+        "legend": "Modos de entrega de notificaciones",
+        "cell_aria": "{cause}, {scope}. Anulación: {override}. Efectivo: {effective}. Activa para establecer {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Predeterminado: {current}. Activa para establecer {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. No se aplica.",
+        "delivery_mode": {
+          "inherit": "Heredar",
+          "off": "Desactivado",
+          "badge": "Indicador",
+          "badge_hint": "Solo añade un punto neutro de contenido no leído. No crea una notificación, reproduce un sonido ni envía una notificación push.",
+          "notification": "Notificación",
+          "push_notification": "Notificación push"
+        },
+        "reason": {
+          "room_message": "Mensajes de salas",
+          "direct_message": "Mensajes directos",
+          "direct_mention": "Menciones directas",
+          "reply": "Respuestas a tus mensajes",
+          "role_mention": "Menciones de roles",
+          "here": "Menciones @here",
+          "all": "Menciones @all",
+          "followed_thread": "Hilos seguidos",
+          "reaction": "Reacciones a tus mensajes",
+          "activity": "Actividad",
+          "room_invitation": "Invitaciones a salas"
+        },
+        "reason_hint": {
+          "room_message": "Mensajes raíz que otros miembros publican directamente en salas de canales, no dentro de hilos.",
+          "direct_message": "Mensajes que otros miembros envían en conversaciones de mensajes directos.",
+          "direct_mention": "Mensajes que mencionan directamente tu nombre de usuario.",
+          "reply": "Mensajes que responden a uno de tus mensajes.",
+          "role_mention": "Mensajes que mencionan un rol que tienes asignado.",
+          "here": "Mensajes que usan @here cuando tu presencia no figura como desconectada.",
+          "all": "Mensajes que usan @all en una sala a la que perteneces.",
+          "followed_thread": "Nuevas respuestas en hilos que sigues.",
+          "reaction": "Reacciones que otros miembros añaden a tus mensajes."
+        }
+      }
+    },
+    "account": {
+      "title": "Cuenta",
+      "subtitle": "Administra la configuración de tu cuenta",
+      "info_title": "Información de la cuenta",
+      "username": "Nombre de usuario",
+      "display_name": "Nombre para mostrar",
+      "danger_title": "Zona de Peligro",
+      "danger_description": "La eliminación de tu cuenta es permanente y no se puede deshacer. Todos tus datos serán eliminados.",
+      "delete_button": "Eliminar Cuenta",
+      "delete_failed": "No se pudo eliminar la cuenta",
+      "delete_request_failed": "No se pudo solicitar la eliminación de la cuenta",
+      "password": {
+        "title": "Contraseña",
+        "add_description": "Agrega una contraseña para que puedas iniciar sesión directamente y desconectar tu último proveedor de SSO.",
+        "change_description": "Cambiar la contraseña utilizada para el inicio de sesión directo.",
+        "current_label": "Contraseña actual",
+        "current_required": "Ingresa tu contraseña actual.",
+        "add_button": "Agregar Contraseña",
+        "change_button": "Cambiar Contraseña",
+        "saving": "Guardando contraseña...",
+        "saved": "Contraseña agregada",
+        "changed": "Contraseña cambiada",
+        "save_failed": "No se pudo guardar la contraseña",
+        "fresh_auth_required": "Inicia sesión nuevamente antes de agregar una contraseña.",
+        "already_set": "Esta cuenta ya tiene contraseña."
+      },
+      "sso": {
+        "title": "Inicio de sesión único",
+        "loading": "Cargando proveedores de inicio de sesión...",
+        "load_failed": "Error al cargar proveedores de inicio de sesión",
+        "none_configured": "No hay proveedores de inicio de sesión externos configurados.",
+        "linked": "Vinculado",
+        "not_linked": "No vinculado",
+        "link_button": "Enlace",
+        "link_failed": "No se pudo vincular el proveedor de inicio de sesión",
+        "fresh_auth_required": "Ingresa nuevamente antes de vincular otro proveedor.",
+        "provider_unconfigured": "Proveedor ya no configurado",
+        "disconnect_button": "Desconectar",
+        "disconnecting": "Desconectando...",
+        "disconnect_failed": "No se pudo desconectar el proveedor de inicio de sesión",
+        "disconnect_last_method": "Agregue una contraseña u otro método de inicio de sesión antes de desconectar este proveedor.",
+        "disconnect_fresh_auth_required": "Inicie sesión nuevamente antes de desconectar este proveedor.",
+        "disconnect_modal": {
+          "title": "Desconectar proveedor",
+          "body": "¿Desconectar {provider} de esta cuenta?",
+          "action": "Desconectar"
+        },
+        "disconnect_blocked_modal": {
+          "title": "El proveedor no se puede desconectar",
+          "body": "{provider} es su único método de inicio de sesión. Agregue una contraseña o vincule otro proveedor primero."
+        },
+        "fresh_auth_modal": {
+          "title": "Confirmar contraseña",
+          "body": "Ingresa tu contraseña actual antes de vincular {provider}.",
+          "action": "Continuar"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Confirmar contraseña",
+          "body": "Ingresa tu contraseña actual antes de desconectar {provider}.",
+          "action": "Desconectar"
+        }
+      },
+      "delete_modal": {
+        "title": "Eliminar Cuenta",
+        "warning_label": "Advertencia:",
+        "warning_text": "Esta acción es permanente y no se puede deshacer.",
+        "intro": "Esto eliminará permanentemente tu cuenta y:",
+        "remove_from_rooms": "Eliminarte de todos los espacios y salas",
+        "delete_messages": "Elimina todos tus mensajes (el contenido será irrecuperable)",
+        "delete_profile": "Elimina tu perfil, avatar y datos asociados",
+        "confirm_label": "Escribe DELETE para confirmar",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Cancelar",
+        "deleting": "Eliminando..."
+      }
+    },
+    "bots": {
+      "title": "bots",
+      "subtitle": "Crea cuentas API y controla exactamente lo que pueden hacer",
+      "singular": "robot",
+      "unsupported": "Esta versión del servidor no admite cuentas de bot.",
+      "list_title": "Cuentas de bot",
+      "loading": "Cargando robots...",
+      "empty_title": "Aún no hay robots",
+      "empty_body": "Crea un bot cuando una integración necesite su propia identidad y permisos.",
+      "create_permission_required": "Puedes administrar los bots existentes, pero no tienes permiso para crear uno nuevo.",
+      "create": "Crear robot",
+      "create_title": "Crear cuenta de bot",
+      "create_failed": "Error al crear el bot",
+      "created": "Bot creado",
+      "username": "Nombre de usuario",
+      "username_hint": "Los nombres de usuario de los bots deben terminar en _bot.",
+      "display_name": "Nombre para mostrar",
+      "owner": "Propietario",
+      "reassign_owner": "Reasignar propietario",
+      "reassign_owner_warning": "La clave de API y los permisos configurados del bot no cambiarán. Los permisos efectivos pasarán a depender de inmediato del nuevo propietario.",
+      "owner_reassigned": "Propietario del bot reasignado",
+      "owner_reassign_failed": "No se pudo reasignar el propietario del bot",
+      "api_key_title": "Guardar esta clave API",
+      "api_key_warning": "Esta clave se muestra solo una vez. Guárdelo en un lugar seguro antes de cerrar esta ventana.",
+      "key_created": "Clave API creada",
+      "key_rotated_at": "Última rotación",
+      "key_copied": "Clave API copiada",
+      "rotate_key": "Girar clave",
+      "rotate_title": "Rotar clave API",
+      "rotate_warning": "La clave actual dejará de funcionar inmediatamente. Cualquier integración que lo utilice debe estar actualizada.",
+      "key_rotated": "Clave API rotada",
+      "rotate_failed": "Error al rotar la clave API",
+      "webhook_title": "Webhooks entrantes",
+      "webhook_description": "Publica mensajes como este bot desde herramientas externas.",
+      "webhook_created": "Webhook entrante creado",
+      "webhook_url_title": "Guardar esta URL de webhook",
+      "webhook_url_warning": "Esta URL se muestra una sola vez y contiene una credencial. Guárdala en un lugar seguro antes de cerrar esta ventana.",
+      "webhook_url_copied": "URL del webhook copiada",
+      "delete_title": "Eliminar bot",
+      "delete_warning": "¿Eliminar {name}? Su clave API dejará de funcionar inmediatamente y la cuenta no podrá recuperarse.",
+      "deleted": "Bot eliminado",
+      "delete_failed": "Error al eliminar el bot",
+      "permissions": {
+        "owner_ceiling": "Elige qué puede hacer este bot. Solo puedes concederle permisos que tú también tengas. Si pierdes un permiso, el bot tampoco podrá usarlo.",
+        "save_failed": "Error al actualizar el permiso del bot"
+      },
+      "webhook_empty_description": "Todavía no se ha creado ningún webhook entrante.",
+      "webhook_create": "Crear webhook",
+      "webhook_name": "Nombre",
+      "webhook_created_at": "Creado",
+      "webhook_create_failed": "No se ha podido crear el webhook entrante",
+      "webhook_revoke": "Revocar webhook",
+      "webhook_revoke_warning": "La URL actual del webhook dejará de funcionar inmediatamente.",
+      "webhook_revoked": "Webhook entrante revocado",
+      "webhook_revoke_failed": "No se ha podido revocar el webhook entrante",
+      "webhook_last_used": "Último uso",
+      "webhook_no_use_recorded": "No se ha registrado ningún uso",
+      "webhook_last_used_unavailable": "No disponible temporalmente",
+      "webhook_limit_reached": "Has alcanzado el límite de 20 webhooks entrantes."
+    }
+  }
+}

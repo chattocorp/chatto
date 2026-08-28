@@ -10,12 +10,13 @@
   --composer-code-title: #8250df;
   --composer-code-literal: #0550ae;
   --composer-code-attribute: #953800;
-  --prose-quote-border: color-mix(in srgb, var(--color-muted), var(--color-accent) 42%);
+  --prose-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
   --prose-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
 
   font-size: inherit;
   line-height: 1.5;
   overflow: hidden;
+  text-align: start;
 
   /* Block element spacing */
   & > * + * {
@@ -40,7 +41,7 @@
   }
 
   /* Blockquotes keep their top margin even as the first child, so the
-     left border has breathing room from whatever sits above (e.g. the
+     start border has breathing room from whatever sits above (e.g. the
      message header). */
   & > blockquote:first-child {
     margin-top: 0.25em;
@@ -61,7 +62,7 @@
   /* Lists */
   & ul,
   & ol {
-    padding-left: 1.5em;
+    padding-inline-start: 1.5em;
   }
 
   & ul {
@@ -69,7 +70,28 @@
   }
 
   & ol {
-    list-style-type: decimal;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 0.4em;
+    padding-inline-start: 0;
+    list-style: none;
+  }
+
+  & ol > li {
+    counter-increment: list-item;
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  & ol > li::before {
+    content: counter(list-item) '.';
+    grid-column: 1;
+    text-align: end;
+  }
+
+  & ol > li > * {
+    grid-column: 2;
   }
 
   & li {
@@ -84,8 +106,9 @@
 
   /* Blockquotes */
   & blockquote {
-    border-left: 3px solid var(--prose-quote-border);
-    padding: 0.35em 0 0.35em 0.9em;
+    border-inline-start: 3px solid var(--prose-quote-border);
+    padding-block: 0.35em;
+    padding-inline-start: 0.9em;
     color: var(--prose-quote-text);
     font-style: italic;
   }
@@ -100,18 +123,22 @@
 
   /* Inline code */
   & code:not(pre code) {
-    @apply rounded bg-surface-200 px-1.5 py-0.5 font-mono text-[0.9em];
+    @apply rounded bg-surface-emphasized px-1.5 py-0.5 font-mono text-[0.9em];
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 
   /* Code blocks */
   & pre {
-    @apply overflow-x-auto rounded-md bg-surface-200 p-3 font-mono text-sm;
+    @apply overflow-x-auto rounded-md bg-surface-emphasized p-3 font-mono text-sm;
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 
   /* Highlighted code block styling - overflow moved to code element so the
 	   language label (positioned on pre) stays fixed during horizontal scroll */
   & pre.hljs {
-    @apply relative overflow-hidden border border-surface-200 py-2 shadow-xs;
+    @apply relative overflow-hidden border border-surface-emphasized py-2 shadow-xs;
     background-color: transparent !important;
     color: var(--composer-code-text);
     line-height: 1.5;
@@ -120,7 +147,7 @@
   /* Language label */
   & pre.hljs[data-language]::after {
     content: attr(data-language);
-    @apply absolute right-0 bottom-0 rounded-tl-md bg-surface-200 px-2 py-0.5 text-xs tracking-wide text-muted uppercase;
+    @apply absolute right-0 bottom-0 rounded-tl-md bg-surface-emphasized px-2 py-0.5 text-xs tracking-wide text-muted uppercase;
   }
 
   /* Line numbers */
@@ -203,8 +230,19 @@
   }
 
   /* Tables */
+  & .table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+
+    &:focus-visible {
+      outline: 2px solid var(--color-action);
+      outline-offset: -2px;
+    }
+  }
+
   & table {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
     font-size: 0.875em;
   }
@@ -213,12 +251,20 @@
   & td {
     border: 1px solid var(--color-border);
     padding: 0.5em 0.75em;
-    text-align: left;
+    text-align: start;
+  }
+
+  & p,
+  & li,
+  & blockquote,
+  & th,
+  & td {
+    unicode-bidi: plaintext;
   }
 
   & th {
     font-weight: 600;
-    background-color: var(--color-surface-100);
+    background-color: var(--color-surface);
   }
 }
 

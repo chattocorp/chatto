@@ -1,0 +1,83 @@
+package core
+
+import (
+	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"sort"
+
+	"google.golang.org/protobuf/proto"
+
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+)
+
+var contentKeySnapshotContractID = snapshotContractID("v1", &projectionv1.ContentKeyProjectionSnapshot{})
+
+func (*ContentKeyProjection) SnapshotContractID() string {
+	return contentKeySnapshotContractID
+}
+
+func (p *ContentKeyProjection) Snapshot() ([]byte, error) {
+	p.RLock()
+	defer p.RUnlock()
+	snapshot := &projectionv1.ContentKeyProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot.ShreddedUserIds = sortedMapKeys(p.shreddedUsers)
+	for _, userID := range sortedMapKeys(p.byUserPurposeEpoch) {
+		purposes := make([]int, 0, len(p.byUserPurposeEpoch[userID]))
+		for purpose := range p.byUserPurposeEpoch[userID] {
+			purposes = append(purposes, int(purpose))
+		}
+		sort.Ints(purposes)
+		for _, rawPurpose := range purposes {
+			purpose := evtv1.UserDEKPurpose(rawPurpose)
+			epochs := make([]int, 0, len(p.byUserPurposeEpoch[userID][purpose]))
+			for epoch := range p.byUserPurposeEpoch[userID][purpose] {
+				epochs = append(epochs, int(epoch))
+			}
+			sort.Ints(epochs)
+			for _, epoch := range epochs {
+				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.byUserPurposeEpoch[userID][purpose][int32(epoch)]).(*evtv1.UserDEKGeneratedEvent))
+			}
+		}
+	}
+	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
+}
+
+func (p *ContentKeyProjection) Restore(data []byte) error {
+	snapshot := &projectionv1.ContentKeyProjectionSnapshot{}
+	if len(data) > 0 {
+		if err := proto.Unmarshal(data, snapshot); err != nil {
+			return fmt.Errorf("unmarshal content key snapshot: %w", err)
+		}
+	}
+	guard, err := restoreReplayGuard(snapshot.GetReplayGuard())
+	if err != nil {
+		return fmt.Errorf("content key snapshot replay guard: %w", err)
+	}
+	restored := NewContentKeyProjection()
+	restored.replayGuard = guard
+	for _, userID := range snapshot.GetShreddedUserIds() {
+		if userID == "" {
+			return fmt.Errorf("content key snapshot has empty shredded user id")
+		}
+		if _, duplicate := restored.shreddedUsers[userID]; duplicate {
+			return fmt.Errorf("content key snapshot repeats shredded user %q", userID)
+		}
+		restored.shreddedUsers[userID] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(snapshot.GetKeys()))
+	for _, key := range snapshot.GetKeys() {
+		if key.GetUserId() == "" || key.GetEpoch() <= 0 || key.GetContentKeyRef() == "" {
+			return fmt.Errorf("content key snapshot has invalid key")
+		}
+		identity := fmt.Sprintf("%s\x00%d\x00%d", key.GetUserId(), key.GetPurpose(), key.GetEpoch())
+		if _, duplicate := seen[identity]; duplicate {
+			return fmt.Errorf("content key snapshot repeats key %q", identity)
+		}
+		seen[identity] = struct{}{}
+		restored.applyDEKGeneratedLocked(key)
+	}
+	p.Lock()
+	p.byUserPurposeEpoch, p.activeEpoch, p.shreddedUsers, p.replayGuard = restored.byUserPurposeEpoch, restored.activeEpoch, restored.shreddedUsers, restored.replayGuard
+	p.Unlock()
+	return nil
+}

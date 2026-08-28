@@ -1,0 +1,70 @@
+{
+  "composer": {
+    "attach_file": "Joindre un fichier",
+    "send": "Envoyer un message",
+    "send_label": "Envoyer",
+    "also_send_to_channel": "Envoyer également au canal",
+    "post_as_thread": "Publier comme fil de discussion",
+    "thread_label": "Sujet",
+    "echo_label": "Écho",
+    "replying_to": "Répondre à",
+    "esc_to_cancel": "pour annuler",
+    "editing": "Modification du message",
+    "send_anyway": "Envoyer quand même",
+    "role_mention_confirm_title": "Envoyer une mention ?",
+    "role_mention_confirm_body": "Ce message contient une mention pouvant avertir plusieurs personnes.",
+    "link_url": "Lien URL",
+    "open_link": "Ouvrir le lien",
+    "remove_link": "Supprimer le lien",
+    "code_language": "Langage des codes",
+    "placeholder": "Saisissez un message...",
+    "editing_placeholder": "Modification du message...",
+    "drop_files_title": "Déposez les fichiers ici",
+    "drop_files_subtitle": "Des images et des vidéos seront ajoutées à votre message",
+    "send_failed": "Échec de l'envoi du message",
+    "slow_mode_ready": "Mode lent : un message toutes les {interval}.",
+    "slow_mode_waiting": "Mode lent : nouvel envoi dans {countdown}.",
+    "slow_mode_bypassed": "Mode lent : {interval} (vous êtes exempté).",
+    "slow_mode_rejected": "Le mode lent est activé. Attendez avant d’envoyer un autre message.",
+    "threads_encouraged": "L’utilisation des fils de discussion est encouragée dans ce salon.",
+    "recent_thread_confirm_title": "Continuer dans votre fil précédent ?",
+    "recent_thread_confirm_body": "Votre message précédent possède déjà un fil. Où souhaitez-vous publier ce message ?",
+    "post_as_new_message": "Publier comme nouveau message",
+    "continue_in_thread": "Continuer dans le fil",
+    "edit_failed": "Échec de la modification du message",
+    "upload": {
+      "preparing": "Préparation…",
+      "uploading": "{percentage} % téléversé",
+      "uploaded": "Téléversé",
+      "failed": "Échec du téléversement",
+      "remove": "Supprimer {filename}"
+    },
+    "format": {
+      "bold": "Gras",
+      "italic": "Italique",
+      "inline_code": "Code en ligne",
+      "heading": "Titre",
+      "bullet_list": "Liste à puces",
+      "ordered_list": "Liste numérotée",
+      "blockquote": "Citation",
+      "code_block": "Bloc de code",
+      "outdent": "Diminuer le retrait",
+      "indent": "Augmenter le retrait"
+    },
+    "timestamp": {
+      "title": "Insérer un horodatage",
+      "insert_label": "Insérer un horodatage",
+      "date_time": "Date et heure",
+      "timezone": "Fuseau horaire",
+      "insert": "Insérer",
+      "error_required": "Choisissez une date et une heure.",
+      "error_timezone": "Choisissez un fuseau horaire IANA valide.",
+      "error_invalid": "Choisissez une date et une heure valides pour ce fuseau horaire."
+    },
+    "mention": {
+      "all_room_members": "Tous les membres du salon",
+      "members_here": "Membres actuellement ici",
+      "role": "Rôle"
+    }
+  }
+}

@@ -6,11 +6,47 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type adminRoomLayoutService struct {
 	api *API
+}
+
+func (s *adminRoomLayoutService) GetRoom(ctx context.Context, req *connect.Request[adminv1.GetRoomRequest]) (*connect.Response[adminv1.GetRoomResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	details, err := s.api.core.GetAdminRoom(ctx, caller.UserID, req.Msg.GetRoomId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.GetRoomResponse{
+		Room:                       apiRoom(details.Room),
+		ViewerCanManageRoom:        details.CanManageRoom,
+		ViewerCanManagePermissions: details.CanManagePermissions,
+	}), nil
+}
+
+func (s *adminRoomLayoutService) GetRoomGroup(ctx context.Context, req *connect.Request[adminv1.GetRoomGroupRequest]) (*connect.Response[adminv1.GetRoomGroupResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	details, err := s.api.core.GetAdminRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.GetRoomGroupResponse{
+		Group: &adminv1.AdminRoomLayoutGroup{
+			Id:          details.Group.GetId(),
+			Name:        details.Group.GetName(),
+			Description: details.Group.GetDescription(),
+		},
+		ViewerCanManageGroup:       details.CanManageGroup,
+		ViewerCanManagePermissions: details.CanManagePermissions,
+	}), nil
 }
 
 func (s *adminRoomLayoutService) ListRoomGroups(ctx context.Context, req *connect.Request[adminv1.ListRoomGroupsRequest]) (*connect.Response[adminv1.ListRoomGroupsResponse], error) {
@@ -18,11 +54,11 @@ func (s *adminRoomLayoutService) ListRoomGroups(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	canManageRoles, err := s.api.core.CanManageRoles(ctx, caller.UserID)
+	canManageRooms, err := s.api.core.CanManageAnyRoom(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if !canManageRoles {
+	if !canManageRooms {
 		return nil, connectError(core.ErrPermissionDenied)
 	}
 
@@ -58,7 +94,7 @@ func (s *adminRoomLayoutService) UpdateRoomGroup(ctx context.Context, req *conne
 	if err != nil {
 		return nil, connectError(err)
 	}
-	roomsByID, err := s.visibleChannelRoomsByID(ctx, caller.UserID)
+	roomsByID, err := s.channelRoomsByID(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -118,7 +154,7 @@ func (s *adminRoomLayoutService) ReorderSidebarItemsInGroup(ctx context.Context,
 	if err != nil {
 		return nil, connectError(err)
 	}
-	roomsByID, err := s.visibleChannelRoomsByID(ctx, caller.UserID)
+	roomsByID, err := s.channelRoomsByID(ctx)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -183,7 +219,7 @@ func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, u
 	if err != nil {
 		return nil, err
 	}
-	roomsByID, err := s.visibleChannelRoomsByID(ctx, userID)
+	roomsByID, err := s.channelRoomsByID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -200,25 +236,19 @@ func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, u
 	return apiGroups, nil
 }
 
-func (s *adminRoomLayoutService) visibleChannelRoomsByID(ctx context.Context, userID string) (map[string]*corev1.Room, error) {
+func (s *adminRoomLayoutService) channelRoomsByID(ctx context.Context) (map[string]*evtv1.Room, error) {
 	rooms, err := s.api.core.ListRooms(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err
 	}
-	roomsByID := make(map[string]*corev1.Room, len(rooms))
+	roomsByID := make(map[string]*evtv1.Room, len(rooms))
 	for _, room := range rooms {
-		visible, err := s.api.core.CanSeeRoom(ctx, userID, core.KindChannel, room.GetId())
-		if err != nil {
-			return nil, err
-		}
-		if visible {
-			roomsByID[room.GetId()] = room
-		}
+		roomsByID[room.GetId()] = room
 	}
 	return roomsByID, nil
 }
 
-func (s *adminRoomLayoutService) roomGroup(ctx context.Context, groupID string) (*corev1.RoomGroup, error) {
+func (s *adminRoomLayoutService) roomGroup(ctx context.Context, groupID string) (*evtv1.RoomGroup, error) {
 	groups, err := s.api.core.ListRoomGroupsOrdered(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err
@@ -231,7 +261,7 @@ func (s *adminRoomLayoutService) roomGroup(ctx context.Context, groupID string) 
 	return nil, core.ErrRoomGroupNotFound
 }
 
-func apiAdminRoomLayoutGroup(group *corev1.RoomGroup, roomsByID map[string]*corev1.Room) *adminv1.AdminRoomLayoutGroup {
+func apiAdminRoomLayoutGroup(group *evtv1.RoomGroup, roomsByID map[string]*evtv1.Room) *adminv1.AdminRoomLayoutGroup {
 	if group == nil {
 		return nil
 	}
@@ -240,13 +270,13 @@ func apiAdminRoomLayoutGroup(group *corev1.RoomGroup, roomsByID map[string]*core
 		Name:        group.GetName(),
 		Description: group.GetDescription(),
 	}
-	sidebarLinksByID := make(map[string]*corev1.SidebarLink, len(group.GetSidebarLinks()))
+	sidebarLinksByID := make(map[string]*evtv1.SidebarLink, len(group.GetSidebarLinks()))
 	for _, link := range group.GetSidebarLinks() {
 		sidebarLinksByID[link.GetId()] = link
 	}
 	for _, entry := range group.GetEntries() {
 		switch entry.GetKind() {
-		case corev1.SidebarGroupEntry_ROOM:
+		case evtv1.SidebarGroupEntry_ROOM:
 			room := roomsByID[entry.GetId()]
 			if room == nil {
 				continue
@@ -254,7 +284,7 @@ func apiAdminRoomLayoutGroup(group *corev1.RoomGroup, roomsByID map[string]*core
 			apiGroup.Items = append(apiGroup.Items, &adminv1.AdminRoomLayoutItem{
 				Item: &adminv1.AdminRoomLayoutItem_Room{Room: apiRoom(room)},
 			})
-		case corev1.SidebarGroupEntry_SIDEBAR_LINK:
+		case evtv1.SidebarGroupEntry_SIDEBAR_LINK:
 			link := sidebarLinksByID[entry.GetId()]
 			if link == nil {
 				continue
@@ -267,24 +297,24 @@ func apiAdminRoomLayoutGroup(group *corev1.RoomGroup, roomsByID map[string]*core
 	return apiGroup
 }
 
-func adminRoomLayoutItemInputsToCore(items []*adminv1.AdminRoomLayoutItemInput) []*corev1.SidebarGroupEntry {
-	entries := make([]*corev1.SidebarGroupEntry, 0, len(items))
+func adminRoomLayoutItemInputsToCore(items []*adminv1.AdminRoomLayoutItemInput) []*evtv1.SidebarGroupEntry {
+	entries := make([]*evtv1.SidebarGroupEntry, 0, len(items))
 	for _, item := range items {
-		var kind corev1.SidebarGroupEntry_Kind
+		var kind evtv1.SidebarGroupEntry_Kind
 		switch item.GetKind() {
 		case adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM:
-			kind = corev1.SidebarGroupEntry_ROOM
+			kind = evtv1.SidebarGroupEntry_ROOM
 		case adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK:
-			kind = corev1.SidebarGroupEntry_SIDEBAR_LINK
+			kind = evtv1.SidebarGroupEntry_SIDEBAR_LINK
 		default:
-			kind = corev1.SidebarGroupEntry_KIND_UNSPECIFIED
+			kind = evtv1.SidebarGroupEntry_KIND_UNSPECIFIED
 		}
-		entries = append(entries, &corev1.SidebarGroupEntry{Kind: kind, Id: item.GetId()})
+		entries = append(entries, &evtv1.SidebarGroupEntry{Kind: kind, Id: item.GetId()})
 	}
 	return entries
 }
 
-func sidebarLinkFromAdminRoomLayoutGroup(group *corev1.RoomGroup, linkID string) *corev1.SidebarLink {
+func sidebarLinkFromAdminRoomLayoutGroup(group *evtv1.RoomGroup, linkID string) *evtv1.SidebarLink {
 	for _, link := range group.GetSidebarLinks() {
 		if link.GetId() == linkID {
 			return link

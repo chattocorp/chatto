@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // AdminUserView is the core representation returned by operator user
 // administration workflows.
 type AdminUserView struct {
-	User           *corev1.User
+	User           *evtv1.User
 	RoleNames      []string
 	VerifiedEmails []VerifiedEmail
 }
@@ -151,7 +151,7 @@ func (c *ChattoCore) AdminCreateUserAs(ctx context.Context, actorID string, req 
 		if roleName == RoleEveryone {
 			return nil, ErrImplicitRole
 		}
-		if !c.RBAC.RoleExists(roleName) {
+		if !c.rbacModel.roleExists(roleName) {
 			return nil, ErrRoleNotFound
 		}
 	}
@@ -187,7 +187,7 @@ func (c *ChattoCore) AdminUpdateOperatorUser(ctx context.Context, req AdminUpdat
 	if req.Login == nil && req.DisplayName == nil {
 		return nil, ErrInvalidArgument
 	}
-	user, err := c.AdminUpdateUserProfile(ctx, req.UserID, req.Login, req.DisplayName)
+	user, err := c.AdminUpdateUserProfile(ctx, req.UserID, req.Login, req.DisplayName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -214,6 +214,9 @@ func (c *ChattoCore) AdminDeleteUser(ctx context.Context, userID string) error {
 
 // AdminDeleteUserAs permanently deletes a user with an explicit actor.
 func (c *ChattoCore) AdminDeleteUserAs(ctx context.Context, actorID, userID string) error {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
 	return c.DeleteUser(ctx, actorID, userID)
 }
 

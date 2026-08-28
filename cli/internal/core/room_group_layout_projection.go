@@ -1,13 +1,13 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // RoomGroupLayoutProjection combines room-group state and explicit sidebar
-// ordering. The read APIs remain split between RoomGroups and RoomLayout, but a
-// single projector now tracks the group aggregate plus the layout aggregate.
+// ordering. RoomModel owns both read surfaces and their shared projector.
 type RoomGroupLayoutProjection struct {
 	events.MemoryProjection
 	Groups *RoomGroupProjection
@@ -22,12 +22,12 @@ func NewRoomGroupLayoutProjection() *RoomGroupLayoutProjection {
 }
 
 func (p *RoomGroupLayoutProjection) Subjects() []string {
-	return []string{events.GroupSubjectFilter(), events.LayoutSubjectFilter()}
+	return []string{evtstream.GroupSubjectFilter(), evtstream.LayoutSubjectFilter()}
 }
 
-func (p *RoomGroupLayoutProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *RoomGroupLayoutProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event != nil {
-		if _, ok := event.GetEvent().(*corev1.Event_RoomGroupsReordered); ok {
+		if _, ok := event.GetEvent().(*evtv1.Event_RoomGroupsReordered); ok {
 			return p.Layout.Apply(event, seq)
 		}
 	}

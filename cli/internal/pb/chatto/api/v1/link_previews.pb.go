@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -91,7 +92,9 @@ type LinkPreview struct {
 	// Embed provider or type, when recognized.
 	EmbedType *string `protobuf:"bytes,7,opt,name=embed_type,json=embedType,proto3,oneof" json:"embed_type,omitempty"`
 	// Provider-specific embed ID, when recognized.
-	EmbedId       *string `protobuf:"bytes,8,opt,name=embed_id,json=embedId,proto3,oneof" json:"embed_id,omitempty"`
+	EmbedId *string `protobuf:"bytes,8,opt,name=embed_id,json=embedId,proto3,oneof" json:"embed_id,omitempty"`
+	// Structured, provider-neutral social-post data for native rendering.
+	SocialPost    *SocialPostPreview `protobuf:"bytes,9,opt,name=social_post,json=socialPost,proto3" json:"social_post,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -182,6 +185,370 @@ func (x *LinkPreview) GetEmbedId() string {
 	return ""
 }
 
+func (x *LinkPreview) GetSocialPost() *SocialPostPreview {
+	if x != nil {
+		return x.SocialPost
+	}
+	return nil
+}
+
+// Bounded, provider-neutral social-post data used for native preview cards.
+type SocialPostPreview struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable lowercase provider identifier, such as "bluesky".
+	Provider string `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	// Author shown on the post.
+	Author *SocialPostAuthor `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`
+	// Plain-text post body.
+	Text string `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	// Post publication time.
+	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	// Images attached directly to the post, in display order.
+	Images []*SocialPostImage `protobuf:"bytes,5,rep,name=images,proto3" json:"images,omitempty"`
+	// Website card embedded in the post, when present.
+	ExternalLink *SocialPostExternalLink `protobuf:"bytes,6,opt,name=external_link,json=externalLink,proto3" json:"external_link,omitempty"`
+	// Provider-supplied content warning, when present.
+	ContentWarning *string `protobuf:"bytes,7,opt,name=content_warning,json=contentWarning,proto3,oneof" json:"content_warning,omitempty"`
+	// Canonical URL for this post. Always set for quoted posts; the outer post
+	// may also use LinkPreview.url.
+	Url string `protobuf:"bytes,8,opt,name=url,proto3" json:"url,omitempty"`
+	// Post quoted by this post, when present. Quotes inside this snapshot are
+	// omitted so preview size and rendering depth remain bounded.
+	QuotedPost    *SocialPostPreview `protobuf:"bytes,9,opt,name=quoted_post,json=quotedPost,proto3" json:"quoted_post,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SocialPostPreview) Reset() {
+	*x = SocialPostPreview{}
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SocialPostPreview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SocialPostPreview) ProtoMessage() {}
+
+func (x *SocialPostPreview) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SocialPostPreview.ProtoReflect.Descriptor instead.
+func (*SocialPostPreview) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SocialPostPreview) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *SocialPostPreview) GetAuthor() *SocialPostAuthor {
+	if x != nil {
+		return x.Author
+	}
+	return nil
+}
+
+func (x *SocialPostPreview) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *SocialPostPreview) GetPublishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PublishedAt
+	}
+	return nil
+}
+
+func (x *SocialPostPreview) GetImages() []*SocialPostImage {
+	if x != nil {
+		return x.Images
+	}
+	return nil
+}
+
+func (x *SocialPostPreview) GetExternalLink() *SocialPostExternalLink {
+	if x != nil {
+		return x.ExternalLink
+	}
+	return nil
+}
+
+func (x *SocialPostPreview) GetContentWarning() string {
+	if x != nil && x.ContentWarning != nil {
+		return *x.ContentWarning
+	}
+	return ""
+}
+
+func (x *SocialPostPreview) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *SocialPostPreview) GetQuotedPost() *SocialPostPreview {
+	if x != nil {
+		return x.QuotedPost
+	}
+	return nil
+}
+
+// Author shown on a social-post preview.
+type SocialPostAuthor struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Author display name.
+	DisplayName string `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// Provider-native handle without a leading at-sign when applicable.
+	Handle string `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
+	// Locally served author avatar URL, when available.
+	AvatarUrl *string `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
+	// Locally stored author avatar asset ID, when available.
+	AvatarAssetId *string `protobuf:"bytes,4,opt,name=avatar_asset_id,json=avatarAssetId,proto3,oneof" json:"avatar_asset_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SocialPostAuthor) Reset() {
+	*x = SocialPostAuthor{}
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SocialPostAuthor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SocialPostAuthor) ProtoMessage() {}
+
+func (x *SocialPostAuthor) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SocialPostAuthor.ProtoReflect.Descriptor instead.
+func (*SocialPostAuthor) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SocialPostAuthor) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *SocialPostAuthor) GetHandle() string {
+	if x != nil {
+		return x.Handle
+	}
+	return ""
+}
+
+func (x *SocialPostAuthor) GetAvatarUrl() string {
+	if x != nil && x.AvatarUrl != nil {
+		return *x.AvatarUrl
+	}
+	return ""
+}
+
+func (x *SocialPostAuthor) GetAvatarAssetId() string {
+	if x != nil && x.AvatarAssetId != nil {
+		return *x.AvatarAssetId
+	}
+	return ""
+}
+
+// One image attached directly to a social post.
+type SocialPostImage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Locally served image URL.
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Locally stored image asset ID.
+	AssetId string `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Author-provided alternative text.
+	Alt *string `protobuf:"bytes,3,opt,name=alt,proto3,oneof" json:"alt,omitempty"`
+	// Source aspect-ratio width, when known.
+	Width *uint32 `protobuf:"varint,4,opt,name=width,proto3,oneof" json:"width,omitempty"`
+	// Source aspect-ratio height, when known.
+	Height        *uint32 `protobuf:"varint,5,opt,name=height,proto3,oneof" json:"height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SocialPostImage) Reset() {
+	*x = SocialPostImage{}
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SocialPostImage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SocialPostImage) ProtoMessage() {}
+
+func (x *SocialPostImage) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SocialPostImage.ProtoReflect.Descriptor instead.
+func (*SocialPostImage) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SocialPostImage) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *SocialPostImage) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *SocialPostImage) GetAlt() string {
+	if x != nil && x.Alt != nil {
+		return *x.Alt
+	}
+	return ""
+}
+
+func (x *SocialPostImage) GetWidth() uint32 {
+	if x != nil && x.Width != nil {
+		return *x.Width
+	}
+	return 0
+}
+
+func (x *SocialPostImage) GetHeight() uint32 {
+	if x != nil && x.Height != nil {
+		return *x.Height
+	}
+	return 0
+}
+
+// Website card embedded in a social post.
+type SocialPostExternalLink struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Destination URL.
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Card title, when available.
+	Title *string `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	// Card description, when available.
+	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Locally served card image URL, when available.
+	ImageUrl *string `protobuf:"bytes,4,opt,name=image_url,json=imageUrl,proto3,oneof" json:"image_url,omitempty"`
+	// Locally stored card image asset ID, when available.
+	ImageAssetId  *string `protobuf:"bytes,5,opt,name=image_asset_id,json=imageAssetId,proto3,oneof" json:"image_asset_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SocialPostExternalLink) Reset() {
+	*x = SocialPostExternalLink{}
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SocialPostExternalLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SocialPostExternalLink) ProtoMessage() {}
+
+func (x *SocialPostExternalLink) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SocialPostExternalLink.ProtoReflect.Descriptor instead.
+func (*SocialPostExternalLink) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SocialPostExternalLink) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *SocialPostExternalLink) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *SocialPostExternalLink) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *SocialPostExternalLink) GetImageUrl() string {
+	if x != nil && x.ImageUrl != nil {
+		return *x.ImageUrl
+	}
+	return ""
+}
+
+func (x *SocialPostExternalLink) GetImageAssetId() string {
+	if x != nil && x.ImageAssetId != nil {
+		return *x.ImageAssetId
+	}
+	return ""
+}
+
 // Result of fetching link preview metadata.
 type FetchLinkPreviewResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -196,7 +563,7 @@ type FetchLinkPreviewResponse struct {
 
 func (x *FetchLinkPreviewResponse) Reset() {
 	*x = FetchLinkPreviewResponse{}
-	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -208,7 +575,7 @@ func (x *FetchLinkPreviewResponse) String() string {
 func (*FetchLinkPreviewResponse) ProtoMessage() {}
 
 func (x *FetchLinkPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_link_previews_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -221,7 +588,7 @@ func (x *FetchLinkPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchLinkPreviewResponse.ProtoReflect.Descriptor instead.
 func (*FetchLinkPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_link_previews_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FetchLinkPreviewResponse) GetPreview() *LinkPreview {
@@ -242,10 +609,10 @@ var File_chatto_api_v1_link_previews_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/link_previews.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"7\n" +
+	"!chatto/api/v1/link_previews.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"7\n" +
 	"\x17FetchLinkPreviewRequest\x12\x1c\n" +
 	"\x03url\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"\xf9\x02\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"\xbc\x03\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x19\n" +
 	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
@@ -255,7 +622,9 @@ const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\tsite_name\x18\x06 \x01(\tH\x04R\bsiteName\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"embed_type\x18\a \x01(\tH\x05R\tembedType\x88\x01\x01\x12\x1e\n" +
-	"\bembed_id\x18\b \x01(\tH\x06R\aembedId\x88\x01\x01B\b\n" +
+	"\bembed_id\x18\b \x01(\tH\x06R\aembedId\x88\x01\x01\x12A\n" +
+	"\vsocial_post\x18\t \x01(\v2 .chatto.api.v1.SocialPostPreviewR\n" +
+	"socialPostB\b\n" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\f\n" +
 	"\n" +
@@ -264,7 +633,47 @@ const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\n" +
 	"_site_nameB\r\n" +
 	"\v_embed_typeB\v\n" +
-	"\t_embed_id\"u\n" +
+	"\t_embed_id\"\xd6\x03\n" +
+	"\x11SocialPostPreview\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x127\n" +
+	"\x06author\x18\x02 \x01(\v2\x1f.chatto.api.v1.SocialPostAuthorR\x06author\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\x12=\n" +
+	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x126\n" +
+	"\x06images\x18\x05 \x03(\v2\x1e.chatto.api.v1.SocialPostImageR\x06images\x12J\n" +
+	"\rexternal_link\x18\x06 \x01(\v2%.chatto.api.v1.SocialPostExternalLinkR\fexternalLink\x12,\n" +
+	"\x0fcontent_warning\x18\a \x01(\tH\x00R\x0econtentWarning\x88\x01\x01\x12\x10\n" +
+	"\x03url\x18\b \x01(\tR\x03url\x12A\n" +
+	"\vquoted_post\x18\t \x01(\v2 .chatto.api.v1.SocialPostPreviewR\n" +
+	"quotedPostB\x12\n" +
+	"\x10_content_warning\"\xc1\x01\n" +
+	"\x10SocialPostAuthor\x12!\n" +
+	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x16\n" +
+	"\x06handle\x18\x02 \x01(\tR\x06handle\x12\"\n" +
+	"\n" +
+	"avatar_url\x18\x03 \x01(\tH\x00R\tavatarUrl\x88\x01\x01\x12+\n" +
+	"\x0favatar_asset_id\x18\x04 \x01(\tH\x01R\ravatarAssetId\x88\x01\x01B\r\n" +
+	"\v_avatar_urlB\x12\n" +
+	"\x10_avatar_asset_id\"\xaa\x01\n" +
+	"\x0fSocialPostImage\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x19\n" +
+	"\basset_id\x18\x02 \x01(\tR\aassetId\x12\x15\n" +
+	"\x03alt\x18\x03 \x01(\tH\x00R\x03alt\x88\x01\x01\x12\x19\n" +
+	"\x05width\x18\x04 \x01(\rH\x01R\x05width\x88\x01\x01\x12\x1b\n" +
+	"\x06height\x18\x05 \x01(\rH\x02R\x06height\x88\x01\x01B\x06\n" +
+	"\x04_altB\b\n" +
+	"\x06_widthB\t\n" +
+	"\a_height\"\xf4\x01\n" +
+	"\x16SocialPostExternalLink\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x19\n" +
+	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12 \n" +
+	"\timage_url\x18\x04 \x01(\tH\x02R\bimageUrl\x88\x01\x01\x12)\n" +
+	"\x0eimage_asset_id\x18\x05 \x01(\tH\x03R\fimageAssetId\x88\x01\x01B\b\n" +
+	"\x06_titleB\x0e\n" +
+	"\f_descriptionB\f\n" +
+	"\n" +
+	"_image_urlB\x11\n" +
+	"\x0f_image_asset_id\"u\n" +
 	"\x18FetchLinkPreviewResponse\x124\n" +
 	"\apreview\x18\x01 \x01(\v2\x1a.chatto.api.v1.LinkPreviewR\apreview\x12#\n" +
 	"\rpreview_token\x18\x02 \x01(\tR\fpreviewTokenB\xad\x01\n" +
@@ -282,19 +691,30 @@ func file_chatto_api_v1_link_previews_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_link_previews_proto_rawDescData
 }
 
-var file_chatto_api_v1_link_previews_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_chatto_api_v1_link_previews_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chatto_api_v1_link_previews_proto_goTypes = []any{
 	(*FetchLinkPreviewRequest)(nil),  // 0: chatto.api.v1.FetchLinkPreviewRequest
 	(*LinkPreview)(nil),              // 1: chatto.api.v1.LinkPreview
-	(*FetchLinkPreviewResponse)(nil), // 2: chatto.api.v1.FetchLinkPreviewResponse
+	(*SocialPostPreview)(nil),        // 2: chatto.api.v1.SocialPostPreview
+	(*SocialPostAuthor)(nil),         // 3: chatto.api.v1.SocialPostAuthor
+	(*SocialPostImage)(nil),          // 4: chatto.api.v1.SocialPostImage
+	(*SocialPostExternalLink)(nil),   // 5: chatto.api.v1.SocialPostExternalLink
+	(*FetchLinkPreviewResponse)(nil), // 6: chatto.api.v1.FetchLinkPreviewResponse
+	(*timestamppb.Timestamp)(nil),    // 7: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_link_previews_proto_depIdxs = []int32{
-	1, // 0: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreview
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: chatto.api.v1.LinkPreview.social_post:type_name -> chatto.api.v1.SocialPostPreview
+	3, // 1: chatto.api.v1.SocialPostPreview.author:type_name -> chatto.api.v1.SocialPostAuthor
+	7, // 2: chatto.api.v1.SocialPostPreview.published_at:type_name -> google.protobuf.Timestamp
+	4, // 3: chatto.api.v1.SocialPostPreview.images:type_name -> chatto.api.v1.SocialPostImage
+	5, // 4: chatto.api.v1.SocialPostPreview.external_link:type_name -> chatto.api.v1.SocialPostExternalLink
+	2, // 5: chatto.api.v1.SocialPostPreview.quoted_post:type_name -> chatto.api.v1.SocialPostPreview
+	1, // 6: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreview
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_link_previews_proto_init() }
@@ -303,13 +723,17 @@ func file_chatto_api_v1_link_previews_proto_init() {
 		return
 	}
 	file_chatto_api_v1_link_previews_proto_msgTypes[1].OneofWrappers = []any{}
+	file_chatto_api_v1_link_previews_proto_msgTypes[2].OneofWrappers = []any{}
+	file_chatto_api_v1_link_previews_proto_msgTypes[3].OneofWrappers = []any{}
+	file_chatto_api_v1_link_previews_proto_msgTypes[4].OneofWrappers = []any{}
+	file_chatto_api_v1_link_previews_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_link_previews_proto_rawDesc), len(file_chatto_api_v1_link_previews_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

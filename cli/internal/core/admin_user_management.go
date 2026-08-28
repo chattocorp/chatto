@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type AdminMemberListInput struct {
@@ -44,11 +44,12 @@ type AdminMember struct {
 	Roles                  []string
 	CreatedAt              *timestamppb.Timestamp
 	Deleted                bool
+	IsBot            bool
 	HasVerifiedEmail       bool
 	VerifiedEmails         []string
 	ViewerCanDeleteAccount bool
 	LastLoginChange        *time.Time
-	CustomStatus           *corev1.CustomUserStatus
+	CustomStatus           *evtv1.CustomUserStatus
 }
 
 type AdminMemberList struct {
@@ -65,6 +66,8 @@ type AdminMemberDetails struct {
 	ViewerCanAssignRoles           bool
 	ViewerCanManageRoles           bool
 	ViewerCanManageUserPermissions bool
+	AssignableRoleNames            []string
+	RevocableRoleNames             []string
 }
 
 func (c *ChattoCore) ListAdminMembers(ctx context.Context, actorID string, input AdminMemberListInput) (*AdminMemberList, error) {
@@ -80,11 +83,10 @@ func (c *ChattoCore) ListAdminMembers(ctx context.Context, actorID string, input
 
 	users := make([]AdminMember, 0, len(members))
 	for _, member := range members {
-		user, err := c.GetUser(ctx, member.UserID)
-		if err != nil {
+		if member.User == nil {
 			continue
 		}
-		adminMember, err := c.adminMemberForViewer(ctx, actorID, user, explicitServerRoles(member.Roles))
+		adminMember, err := c.adminMemberForViewer(ctx, actorID, member.User, explicitServerRoles(member.Roles))
 		if err != nil {
 			return nil, err
 		}
@@ -141,6 +143,36 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 	if err != nil {
 		return nil, err
 	}
+	if user.GetIsBot() {
+		canAssignRoles = false
+		canManageRoles = false
+		canManageUserPermissions = false
+		member.ViewerCanDeleteAccount = false
+	}
+
+	assignableRoleNames := make([]string, 0, len(roles))
+	revocableRoleNames := make([]string, 0, len(roles))
+	if canAssignRoles {
+		for _, role := range roles {
+			if role.Name == RoleEveryone {
+				continue
+			}
+			canAssign, err := c.CanAssignRole(ctx, actorID, role.Name)
+			if err != nil {
+				return nil, err
+			}
+			if canAssign {
+				assignableRoleNames = append(assignableRoleNames, role.Name)
+			}
+			canRevoke, err := c.CanRevokeRoleFromUser(ctx, actorID, targetUserID, role.Name)
+			if err != nil {
+				return nil, err
+			}
+			if canRevoke {
+				revocableRoleNames = append(revocableRoleNames, role.Name)
+			}
+		}
+	}
 
 	return &AdminMemberDetails{
 		Member:                         member,
@@ -149,6 +181,8 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 		ViewerCanAssignRoles:           canAssignRoles,
 		ViewerCanManageRoles:           canManageRoles,
 		ViewerCanManageUserPermissions: canManageUserPermissions,
+		AssignableRoleNames:            assignableRoleNames,
+		RevocableRoleNames:             revocableRoleNames,
 	}, nil
 }
 
@@ -220,7 +254,7 @@ func (c *ChattoCore) AdminRevokeServerRole(ctx context.Context, actorID, targetU
 	if err := c.requireCanAssignAdminRole(ctx, actorID, targetUserID, roleName); err != nil {
 		return err
 	}
-	if actorID == targetUserID && (roleName == RoleOwner || roleName == RoleAdmin) {
+	if isProtectedSelfRoleRevocation(actorID, targetUserID, roleName) {
 		return ErrCannotRevokeSelfAdmin
 	}
 	return c.RevokeServerRoleFromExistingUser(ctx, actorID, targetUserID, roleName)
@@ -246,7 +280,7 @@ func (c *ChattoCore) requireCanAssignAdminRole(ctx context.Context, actorID, tar
 	return nil
 }
 
-func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *corev1.User, roles []string) (*AdminMember, error) {
+func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *evtv1.User, roles []string) (*AdminMember, error) {
 	avatarURL, err := c.GetUserAvatarURL(ctx, user.GetId(), nil, nil, "")
 	if err != nil {
 		return nil, err
@@ -260,6 +294,7 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		Roles:        roles,
 		CreatedAt:    user.GetCreatedAt(),
 		Deleted:      user.GetDeleted(),
+		IsBot:  user.GetIsBot(),
 		CustomStatus: user.GetCustomStatus(),
 	}
 
@@ -315,14 +350,7 @@ func (c *ChattoCore) canViewAdminMemberLastLoginChange(ctx context.Context, acto
 	if actorID == targetUserID {
 		return true, nil
 	}
-	isOwner, err := c.IsServerOwner(ctx, actorID)
-	if err != nil {
-		return false, err
-	}
-	if isOwner {
-		return true, nil
-	}
-	return c.IsServerAdmin(ctx, actorID)
+	return c.CanManageUserAccounts(ctx, actorID)
 }
 
 func adminMemberPagination(limit, offset int) (int, int) {

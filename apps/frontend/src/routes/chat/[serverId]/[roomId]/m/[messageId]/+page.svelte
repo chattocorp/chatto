@@ -7,8 +7,8 @@
 <script lang="ts" module>
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { RoomEventKind } from '$lib/api-client/eventKinds';
-  import { createRoomTimelineAPI, type RoomTimelineAPIConfig } from '$lib/api-client/roomTimeline';
+  import { TimelineEventKind } from '$lib/render/timelineEvents';
+  import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
 
   /**
@@ -17,19 +17,21 @@
    * on error, falls back to the room URL.
    */
   export async function resolveAndRedirect(
-    config: RoomTimelineAPIConfig,
+    api: Pick<RoomTimelineAPI, 'getMessage'>,
     pendingHighlights: PendingHighlightStore,
     serverSegment: string,
     roomId: string,
-    messageId: string
+    messageId: string,
+    isCurrent: () => boolean = () => true
   ): Promise<void> {
     const roomParams = { serverId: serverSegment, roomId };
 
     try {
-      const target = await createRoomTimelineAPI(config).getMessage({
+      const target = await api.getMessage({
         roomId,
         eventId: messageId
       });
+      if (!isCurrent()) return;
 
       if (!target) {
         pendingHighlights.set(roomId, null, messageId);
@@ -38,7 +40,7 @@
       }
 
       const threadRootEventId =
-        target.event?.kind === RoomEventKind.MessagePosted
+        target.event.kind === TimelineEventKind.MessagePosted
           ? (target.event.threadRootEventId ?? null)
           : null;
 
@@ -57,6 +59,7 @@
       pendingHighlights.set(roomId, null, messageId);
       goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
     } catch {
+      if (!isCurrent()) return;
       goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
     }
   }
@@ -64,31 +67,32 @@
 
 <script lang="ts">
   import { page } from '$app/state';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
 
-  const connection = useConnection();
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
+  const serverScope = useServerScope();
+  const stores = $derived(serverScope.store);
 
-  // Wait for the active server's rooms store to settle before redirecting,
+  // Wait for the active server projection to settle before redirecting,
   // so a deep-link to a DM doesn't briefly resolve as a missing channel
   // room and trigger the not-found redirect.
-  const roomsStore = $derived(stores.rooms);
+  const navigation = $derived(stores.navigation);
 
   $effect(() => {
-    if (roomsStore.isInitialLoading) return;
-    const conn = connection();
+    if (navigation.isInitialLoading) return;
+    const serverSegment = page.params.serverId!;
+    const roomId = page.params.roomId!;
+    const messageId = page.params.messageId!;
     resolveAndRedirect(
-      {
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      },
+      serverScope.connection.getAPI(createRoomTimelineAPI),
       stores.pendingHighlights,
-      page.params.serverId!,
-      page.params.roomId!,
-      page.params.messageId!
+      serverSegment,
+      roomId,
+      messageId,
+      () =>
+        serverScope.isCurrent() &&
+        serverSegment === page.params.serverId &&
+        roomId === page.params.roomId &&
+        messageId === page.params.messageId
     );
   });
 </script>

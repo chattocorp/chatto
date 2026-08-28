@@ -4,47 +4,78 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/events"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
-// AssetProjection owns durable asset lifecycle state. New writes live under
-// evt.asset.{assetId}.*, but the projection also consumes the legacy
-// evt.room.*.asset_* lanes so beta histories continue to replay.
+// AssetProjection owns durable asset lifecycle and message-ownership state.
+// New lifecycle writes live under evt.asset.{assetId}.*, including the
+// exclusive message attachment. Message bodies remain a first-reference
+// fallback for histories written before attachment events existed. The projection also
+// consumes legacy evt.room.*.asset_* lanes so beta histories replay.
 type AssetProjection struct {
 	events.MemoryProjection
-	replayGuard      projectionReplayGuard
-	assetCreations   map[string]*corev1.AssetCreatedEvent
-	assetChildren    map[string][]string
-	videoManifests   map[string]*VideoAttachmentManifest
-	deletedAssets    map[string]struct{}
-	deletedAssetRoom map[string]string
+	replayGuard             projectionReplayGuard
+	assetCreations          map[string]*evtv1.AssetCreatedEvent
+	assetChildren           map[string][]string
+	videoManifests          map[string]*VideoAttachmentManifest
+	deletedAssets           map[string]struct{}
+	deletedAssetRoom        map[string]string
+	messageOwners           map[string]assetMessageRef
+	publicLinkPreviewAssets map[string]struct{}
+}
+
+// AssetState is one detached, generation-consistent view of projected asset
+// lifecycle state. Callers cannot observe a declaration from one projection
+// generation and room or processing state from another.
+type AssetState struct {
+	// Creation is the current declaration, or nil after deletion.
+	Creation *evtv1.AssetCreatedEvent
+	// RoomID remains available for a projected tombstone.
+	RoomID string
+	// VideoManifest is the current processing state, if processing started.
+	VideoManifest *VideoAttachmentManifest
+	// Deleted reports whether the latest lifecycle fact is a tombstone.
+	Deleted bool
+	// PublicLinkPreview reports a positive durable public-preview reference.
+	PublicLinkPreview bool
 }
 
 func NewAssetProjection() *AssetProjection {
 	return &AssetProjection{
-		replayGuard:      newProjectionReplayGuard(),
-		assetCreations:   make(map[string]*corev1.AssetCreatedEvent),
-		assetChildren:    make(map[string][]string),
-		videoManifests:   make(map[string]*VideoAttachmentManifest),
-		deletedAssets:    make(map[string]struct{}),
-		deletedAssetRoom: make(map[string]string),
+		replayGuard:             newProjectionReplayGuard(),
+		assetCreations:          make(map[string]*evtv1.AssetCreatedEvent),
+		assetChildren:           make(map[string][]string),
+		videoManifests:          make(map[string]*VideoAttachmentManifest),
+		deletedAssets:           make(map[string]struct{}),
+		deletedAssetRoom:        make(map[string]string),
+		messageOwners:           make(map[string]assetMessageRef),
+		publicLinkPreviewAssets: make(map[string]struct{}),
 	}
 }
 
 func (p *AssetProjection) Subjects() []string {
 	return []string{
-		events.AssetSubjectFilter(),
-		events.RoomEventTypeFilter(events.EventAssetCreated),
-		events.RoomEventTypeFilter(events.EventAssetProcessingStarted),
-		events.RoomEventTypeFilter(events.EventAssetProcessingSucceeded),
-		events.RoomEventTypeFilter(events.EventAssetProcessingFailed),
-		events.RoomEventTypeFilter(events.EventAssetDeleted),
+		evtstream.AssetSubjectFilter(),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetCreated),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingSucceeded),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingFailed),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetDeleted),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageBody),
 	}
 }
 
-func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
-	if event == nil || !isAssetLifecycleEvent(event) {
+// ReplaySubjects uses one stream-wide physical filter for the projection's
+// canonical, legacy, and message-body lanes. Projector filters unrelated
+// subjects before decoding them.
+func (p *AssetProjection) ReplaySubjects() []string {
+	return []string{evtstream.EventSubjectFilter()}
+}
+
+func (p *AssetProjection) Apply(event *evtv1.Event, seq uint64) error {
+	if event == nil || (event.GetMessageBody() == nil && !isAssetLifecycleEvent(event)) {
 		return nil
 	}
 	p.Lock()
@@ -54,18 +85,39 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
+	if bodyEvent := event.GetMessageBody(); bodyEvent != nil {
+		body := bodyEvent.GetBody()
+		if body != nil && body.GetBodyEventId() != "" && body.GetBodyEventId() != event.GetId() {
+			return nil
+		}
+		p.rememberMessageBodyAssetsLocked(bodyEvent.GetRoomId(), bodyEvent.GetEventId(), body, event.GetActorId())
+		return nil
+	}
+
 	switch ev := event.GetEvent().(type) {
-	case *corev1.Event_AssetCreated:
+	case *evtv1.Event_AssetCreated:
 		assetID := ev.AssetCreated.GetAsset().GetId()
 		if assetID != "" {
-			p.assetCreations[assetID] = proto.Clone(ev.AssetCreated).(*corev1.AssetCreatedEvent)
+			p.assetCreations[assetID] = proto.Clone(ev.AssetCreated).(*evtv1.AssetCreatedEvent)
 			delete(p.deletedAssets, assetID)
 			delete(p.deletedAssetRoom, assetID)
 			if parentID := ev.AssetCreated.GetParentAssetId(); parentID != "" {
 				p.assetChildren[parentID] = appendIfMissing(p.assetChildren[parentID], assetID)
 			}
 		}
-	case *corev1.Event_AssetProcessingStarted:
+	case *evtv1.Event_AssetAttached:
+		attached := ev.AssetAttached
+		assetID := attached.GetAssetId()
+		if assetID != "" {
+			if _, exists := p.messageOwners[assetID]; !exists {
+				p.messageOwners[assetID] = assetMessageRef{
+					roomID:         attached.GetRoomId(),
+					messageEventID: attached.GetMessageEventId(),
+					authorID:       attached.GetUserId(),
+				}
+			}
+		}
+	case *evtv1.Event_AssetProcessingStarted:
 		assetID := ev.AssetProcessingStarted.GetAssetId()
 		if assetID != "" {
 			if _, deleted := p.deletedAssets[assetID]; deleted {
@@ -75,10 +127,10 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 				return nil
 			}
 			p.videoManifests[assetID] = &VideoAttachmentManifest{
-				Started: proto.Clone(ev.AssetProcessingStarted).(*corev1.AssetProcessingStartedEvent),
+				Started: proto.Clone(ev.AssetProcessingStarted).(*evtv1.AssetProcessingStartedEvent),
 			}
 		}
-	case *corev1.Event_AssetProcessingSucceeded:
+	case *evtv1.Event_AssetProcessingSucceeded:
 		assetID := ev.AssetProcessingSucceeded.GetAssetId()
 		if assetID != "" {
 			if _, deleted := p.deletedAssets[assetID]; deleted {
@@ -91,11 +143,11 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 			if manifest.Succeeded != nil || manifest.Failed != nil {
 				return nil
 			}
-			manifest.Succeeded = proto.Clone(ev.AssetProcessingSucceeded).(*corev1.AssetProcessingSucceededEvent)
+			manifest.Succeeded = proto.Clone(ev.AssetProcessingSucceeded).(*evtv1.AssetProcessingSucceededEvent)
 			manifest.Failed = nil
 			p.videoManifests[assetID] = manifest
 		}
-	case *corev1.Event_AssetProcessingFailed:
+	case *evtv1.Event_AssetProcessingFailed:
 		assetID := ev.AssetProcessingFailed.GetAssetId()
 		if assetID != "" {
 			if _, deleted := p.deletedAssets[assetID]; deleted {
@@ -108,11 +160,11 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 			if manifest.Succeeded != nil || manifest.Failed != nil {
 				return nil
 			}
-			manifest.Failed = proto.Clone(ev.AssetProcessingFailed).(*corev1.AssetProcessingFailedEvent)
+			manifest.Failed = proto.Clone(ev.AssetProcessingFailed).(*evtv1.AssetProcessingFailedEvent)
 			manifest.Succeeded = nil
 			p.videoManifests[assetID] = manifest
 		}
-	case *corev1.Event_AssetDeleted:
+	case *evtv1.Event_AssetDeleted:
 		assetID := ev.AssetDeleted.GetAssetId()
 		if assetID != "" {
 			p.deletedAssets[assetID] = struct{}{}
@@ -132,13 +184,54 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	return nil
 }
 
+func (p *AssetProjection) rememberMessageBodyAssetsLocked(roomID, messageEventID string, body *evtv1.MessageBody, actorID string) {
+	if roomID == "" || messageEventID == "" || body == nil {
+		return
+	}
+	authorID := body.GetAuthorId()
+	if authorID == "" {
+		authorID = actorID
+	}
+	for _, assetID := range ownedAssetIDsFromBody(body) {
+		if assetID == "" {
+			continue
+		}
+		if _, exists := p.messageOwners[assetID]; exists {
+			continue
+		}
+		// Pre-attachment histories derive ownership from message bodies. When the
+		// durable creation identifies an ordinary uploader, an alias authored by
+		// somebody else must never become the fallback owner during cold replay.
+		if creation := p.assetCreations[assetID]; creation != nil {
+			uploaderID := creation.GetUserId()
+			if uploaderID != "" && uploaderID != SystemActorID && uploaderID != authorID {
+				continue
+			}
+		}
+		p.messageOwners[assetID] = assetMessageRef{
+			roomID:         roomID,
+			messageEventID: messageEventID,
+			authorID:       authorID,
+		}
+	}
+	if preview := body.GetLinkPreview(); preview != nil {
+		assetID := preview.GetImageAssetId()
+		if embedded := preview.GetImageAsset(); embedded != nil && embedded.GetId() != "" {
+			assetID = embedded.GetId()
+		}
+		if assetID != "" {
+			p.publicLinkPreviewAssets[assetID] = struct{}{}
+		}
+	}
+}
+
 func (p *AssetProjection) CompleteStartupReplay() {
 	p.Lock()
 	defer p.Unlock()
 	p.replayGuard.completeReplay()
 }
 
-func (p *AssetProjection) AssetCreation(assetID string) (*corev1.AssetCreatedEvent, bool) {
+func (p *AssetProjection) AssetCreation(assetID string) (*evtv1.AssetCreatedEvent, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	if assetID == "" {
@@ -148,7 +241,26 @@ func (p *AssetProjection) AssetCreation(assetID string) (*corev1.AssetCreatedEve
 	if !ok || declared == nil {
 		return nil, false
 	}
-	return proto.Clone(declared).(*corev1.AssetCreatedEvent), true
+	return proto.Clone(declared).(*evtv1.AssetCreatedEvent), true
+}
+
+func (p *AssetProjection) AssetState(assetID string) AssetState {
+	p.RLock()
+	defer p.RUnlock()
+	if assetID == "" {
+		return AssetState{}
+	}
+
+	state := AssetState{RoomID: p.assetRoomIDLocked(assetID)}
+	if declared := p.assetCreations[assetID]; declared != nil {
+		state.Creation = proto.Clone(declared).(*evtv1.AssetCreatedEvent)
+	}
+	if manifest := p.videoManifests[assetID]; manifest != nil {
+		state.VideoManifest = cloneVideoAttachmentManifest(manifest)
+	}
+	_, state.Deleted = p.deletedAssets[assetID]
+	_, state.PublicLinkPreview = p.publicLinkPreviewAssets[assetID]
+	return state
 }
 
 func (p *AssetProjection) AssetRoomID(assetID string) (string, bool) {
@@ -171,17 +283,24 @@ func (p *AssetProjection) VideoAttachmentManifest(assetID string) (*VideoAttachm
 	if !ok || manifest == nil {
 		return nil, false
 	}
+	return cloneVideoAttachmentManifest(manifest), true
+}
+
+func cloneVideoAttachmentManifest(manifest *VideoAttachmentManifest) *VideoAttachmentManifest {
+	if manifest == nil {
+		return nil
+	}
 	out := &VideoAttachmentManifest{}
 	if manifest.Started != nil {
-		out.Started = proto.Clone(manifest.Started).(*corev1.AssetProcessingStartedEvent)
+		out.Started = proto.Clone(manifest.Started).(*evtv1.AssetProcessingStartedEvent)
 	}
 	if manifest.Succeeded != nil {
-		out.Succeeded = proto.Clone(manifest.Succeeded).(*corev1.AssetProcessingSucceededEvent)
+		out.Succeeded = proto.Clone(manifest.Succeeded).(*evtv1.AssetProcessingSucceededEvent)
 	}
 	if manifest.Failed != nil {
-		out.Failed = proto.Clone(manifest.Failed).(*corev1.AssetProcessingFailedEvent)
+		out.Failed = proto.Clone(manifest.Failed).(*evtv1.AssetProcessingFailedEvent)
 	}
-	return out, true
+	return out
 }
 
 func (p *AssetProjection) AssetDeleted(assetID string) bool {
@@ -194,10 +313,75 @@ func (p *AssetProjection) AssetDeleted(assetID string) bool {
 	return deleted
 }
 
-func (p *AssetProjection) PendingExpiredAssets(now time.Time) []*corev1.AssetCreatedEvent {
+// AssetMessageOwner returns the room and message to which assetID was first
+// attached in durable message history. Ownership survives asset deletion so a
+// deletion event can still be routed to the timeline row whose attachment changed.
+func (p *AssetProjection) AssetMessageOwner(assetID string) (roomID, messageEventID string, ok bool) {
 	p.RLock()
 	defer p.RUnlock()
-	var out []*corev1.AssetCreatedEvent
+	owner, ok := p.messageOwners[assetID]
+	if !ok {
+		return "", "", false
+	}
+	return owner.roomID, owner.messageEventID, true
+}
+
+func (p *AssetProjection) assetMessageAttachment(assetID string) (assetMessageRef, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	owner, ok := p.messageOwners[assetID]
+	return owner, ok
+}
+
+// MessageAssetsByAuthor returns message-owned assets attributed to userID.
+func (p *AssetProjection) MessageAssetsByAuthor(userID string) []MessageAssetRef {
+	p.RLock()
+	defer p.RUnlock()
+	if userID == "" {
+		return nil
+	}
+	var out []MessageAssetRef
+	for assetID, owner := range p.messageOwners {
+		if owner.authorID != userID {
+			continue
+		}
+		out = append(out, MessageAssetRef{
+			RoomID:         owner.roomID,
+			MessageEventID: owner.messageEventID,
+			AssetID:        assetID,
+		})
+	}
+	return out
+}
+
+// MessageAssetOwners returns every projected message-to-asset relationship.
+func (p *AssetProjection) MessageAssetOwners() []MessageAssetRef {
+	p.RLock()
+	defer p.RUnlock()
+	out := make([]MessageAssetRef, 0, len(p.messageOwners))
+	for assetID, owner := range p.messageOwners {
+		out = append(out, MessageAssetRef{
+			RoomID:         owner.roomID,
+			MessageEventID: owner.messageEventID,
+			AssetID:        assetID,
+		})
+	}
+	return out
+}
+
+// IsPublicLinkPreviewAsset reports whether durable message history references
+// assetID as a server-fetched public link-preview image.
+func (p *AssetProjection) IsPublicLinkPreviewAsset(assetID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	_, ok := p.publicLinkPreviewAssets[assetID]
+	return ok
+}
+
+func (p *AssetProjection) PendingExpiredAssets(now time.Time) []*evtv1.AssetCreatedEvent {
+	p.RLock()
+	defer p.RUnlock()
+	var out []*evtv1.AssetCreatedEvent
 	for _, declared := range p.assetCreations {
 		if declared == nil || declared.GetPendingExpiresAt() == nil {
 			continue
@@ -205,7 +389,7 @@ func (p *AssetProjection) PendingExpiredAssets(now time.Time) []*corev1.AssetCre
 		if declared.GetPendingExpiresAt().AsTime().After(now) {
 			continue
 		}
-		out = append(out, proto.Clone(declared).(*corev1.AssetCreatedEvent))
+		out = append(out, proto.Clone(declared).(*evtv1.AssetCreatedEvent))
 	}
 	return out
 }
@@ -246,7 +430,7 @@ func (p *AssetProjection) assetRoomIDLocked(assetID string) string {
 	return p.roomIDOfAssetCreatedLocked(declared)
 }
 
-func (p *AssetProjection) roomIDOfAssetCreatedLocked(event *corev1.AssetCreatedEvent) string {
+func (p *AssetProjection) roomIDOfAssetCreatedLocked(event *evtv1.AssetCreatedEvent) string {
 	seen := map[string]struct{}{}
 	for event != nil {
 		if roomID := event.GetRoomId(); roomID != "" {
@@ -284,14 +468,23 @@ func (p *AssetProjection) adminProjectionEstimate() (int64, int64, []ProjectionA
 	bytes += manifestBytes
 	deletedBytes := int64(len(p.deletedAssets)) * (projectionMapEntryOverhead + 32)
 	bytes += deletedBytes
+	var messageOwnerBytes int64
+	for assetID, owner := range p.messageOwners {
+		messageOwnerBytes += projectionMapEntryOverhead + int64(len(assetID)+len(owner.roomID)+len(owner.messageEventID)+len(owner.authorID))
+	}
+	bytes += messageOwnerBytes
+	publicPreviewBytes := estimateStringSetBytes(p.publicLinkPreviewAssets)
+	bytes += publicPreviewBytes
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	retainedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
 	bytes += retainedEventIDsBytes
 	return int64(len(p.assetCreations) + len(p.videoManifests) + len(p.deletedAssets)), bytes, []ProjectionAdminMetric{
-		{Name: "assets", Value: int64(len(p.assetCreations)), Bytes: bytes - manifestBytes - deletedBytes - retainedEventIDsBytes},
+		{Name: "assets", Value: int64(len(p.assetCreations)), Bytes: bytes - manifestBytes - deletedBytes - messageOwnerBytes - publicPreviewBytes - retainedEventIDsBytes},
 		{Name: "derivatives", Value: derivatives, Bytes: 0},
 		{Name: "video_manifests", Value: int64(len(p.videoManifests)), Bytes: manifestBytes},
 		{Name: "deleted_assets", Value: int64(len(p.deletedAssets)), Bytes: deletedBytes},
+		{Name: "message_owners", Value: int64(len(p.messageOwners)), Bytes: messageOwnerBytes},
+		{Name: "public_link_preview_assets", Value: int64(len(p.publicLinkPreviewAssets)), Bytes: publicPreviewBytes},
 		{Name: "applied_event_ids", Value: int64(len(retainedEventIDs)), Bytes: retainedEventIDsBytes},
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}

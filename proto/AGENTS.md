@@ -1,7 +1,7 @@
 # Instructions for Agents Working in `proto/`
 
-Protobuf definitions feed persisted state, generated Go/TypeScript bindings,
-ConnectRPC services, and the public API reference.
+Protobuf definitions provide persisted state, generated Go and TypeScript
+bindings, ConnectRPC services, and the public API reference.
 
 ## Public API Protos
 
@@ -17,29 +17,68 @@ For public API packages:
   unauthenticated discovery/bootstrap ConnectRPC API consistency rules.
 - Follow [chatto/realtime/v1/AGENTS.md](chatto/realtime/v1/AGENTS.md) for the
   realtime WebSocket protobuf protocol.
-- Write comments for API consumers, not Chatto maintainers.
-- Every public service, RPC, message, enum, enum value, and important field
-  should have useful comments.
-- Explain what the call reads or changes, required IDs, pagination/cursor
-  semantics, login availability, and notable response behavior.
-- Keep field comments short enough for generated tables; put longer behavior
-  notes on messages or RPCs.
-- Do not include maintainer workflow text such as "run codegen" in comments that
-  render into public docs.
+- Write comments for API users, not Chatto maintainers.
+- Add useful comments to each public service, RPC, message, enum, enum value,
+  and important field.
+- Explain what a call reads or changes, required IDs, pagination or cursor
+  rules, login availability, and important response behavior.
+- Keep field comments short for generated tables. Put longer behavior notes on
+  messages or RPCs.
+- Do not put maintainer workflow text, such as "run codegen", in comments that
+  appear in public documentation.
 
 ## Compatibility
 
-- Do not renumber fields that may be persisted or consumed by clients.
-- Do not change a field type at an existing tag. Add a new tag instead.
-- Removing a persisted field requires both `reserved <tag>` and
-  `reserved "<name>"`.
+- Follow [`chatto/core/AGENTS.md`](chatto/core/AGENTS.md) for internal package
+  ownership and storage compatibility. Put new durable `Event` payloads in the
+  applicable `chatto/core/evt/v1/*_events.proto` file. Put payloads that are used
+  only by `LiveEvent` in `chatto/core/live/v1/live_events.proto`.
+- Protobuf file placement affects generated source and descriptor names. Do not
+  move a stored symbol only to reorganize it. A transient symbol that is in the
+  wrong package can move as an approved source-breaking change. Do not keep a
+  dead alias only for generated-source compatibility. Do not create a general
+  `deprecated.proto` file.
+- The public auth, discovery, integration, admin, and realtime `v1` packages
+  are experimental while Chatto is pre-1.0. Prefer compatibility. A breaking
+  change requires explicit user approval, a design benefit, a compatibility
+  plan, generated-client and documentation updates, release-note guidance, and
+  the `api-breaking-change` PR label. A release milestone does not remove these
+  requirements.
+- Except for projection-owned snapshot payloads described below, do not
+  renumber fields that may be persisted or consumed by clients.
+- Except for projection-owned snapshot payloads, do not change a field type at
+  an existing tag. Add a new tag instead.
+- Except for projection-owned snapshot payloads, do not remove fields from
+  persisted messages. Reserving the old tag and name preserves wire safety but
+  does not satisfy Chatto's source-compatibility or storage-contract policy.
+- Projection-owned payload messages in
+  `chatto/core/projection/v1/projection_snapshots.proto` are disposable,
+  contract-scoped caches. Their fields may be removed, renumbered, or retyped
+  because the reachable-schema fingerprint automatically selects a new
+  contract namespace. The file is intentionally exempt from the general
+  storage compatibility check. Keep only each projection's current snapshot
+  schema, and bump the manual semantics token when restore equivalence changes
+  without a protobuf schema change.
 - Renames are wire-safe but code-breaking; update generated consumers in the
   same change.
-- Persisted protobufs in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and object
-  metadata need additive evolution plus repair/migration code when existing data
-  changes shape.
+- Persisted protobufs in `EVT`, `NOTIFICATIONS`, `RUNTIME_STATE`,
+  `ENCRYPTION_KEYS`, and object metadata need additive evolution plus
+  repair/migration code when existing data changes shape. Volatile protobuf
+  values in `MEMORY_CACHE` must remain readable across a rolling upgrade.
 - Transient live-event protos are less stable, but `chatto/realtime/v1` is still
   a public wire protocol and must consider mixed-version clients.
+- For bundled-client version skew, update the frontend's explicit
+  feature-to-minimum-server-version table. Negotiate realtime behavior in the
+  realtime protocol when a software-version gate is insufficient. Keep protocol
+  support distinct from server feature configuration and viewer authorization.
+- Public cursor fields are confidential, integrity-protected tokens. Never
+  serialize raw or reversibly encoded NATS/JetStream stream identities,
+  subjects, sequences, revisions, or consumer positions into them. Explicit,
+  owner-only broker diagnostics and event-log inspection messages may expose
+  clearly named operational details; do not reuse those shapes as client or
+  integration contracts.
+- The `chatto.realtime.v1` package suffix is a protobuf namespace. It currently
+  implements only behavioural protocol version 2; older handshakes are rejected.
 
 ## Presence And API Shape
 
@@ -82,7 +121,17 @@ For public API packages:
   `chatto/auth/v1`, `chatto/discovery/v1`, and `chatto/realtime/v1`, use proto3
   `optional` scalar fields when clients must distinguish
   absent/unhydrated/unknown from a scalar default.
+- When the absence of a nested message naturally means its resource or state
+  does not exist, use protobuf message-field presence. Do not populate an empty
+  nested message and add an `exists` boolean to recover that distinction; add a
+  scalar existence field only when presence and existence are independent facts.
 - Avoid parallel `*_present` booleans for simple scalar presence.
+- Prefer schema over meta-schema for finite, product-defined concepts. When
+  callers independently configure a closed set of capabilities, model each
+  capability as an explicit field instead of repeated enum-keyed rows. Use
+  keyed rows for intentionally dynamic or externally extensible keyspaces. If
+  an enum mirrors the branches of a `oneof`, treat that as a design smell and
+  document why the mirrored taxonomy is an independent domain concept.
 - Use enums or oneofs only when modeling multiple meaningful availability states
   or mutually exclusive request targets.
 - When one operation targets the same resource by multiple equivalent
@@ -102,10 +151,10 @@ For public API packages:
 - Singular `Get*` methods return `NOT_FOUND` when absence is the error result.
   `BatchGet*` and list methods may omit missing or inaccessible resources, but
   document that behavior on the RPC.
-- Generated public docs and TypeScript bindings are part of the API surface.
-  When adding public RPCs, regenerate `@chatto/api-types` and docs in the same
-  change. Do not recreate a handwritten API-client package; bundled frontend
-  adapters belong under `apps/frontend/src/lib/api-client`.
+- Generated public documentation and TypeScript bindings are part of the API.
+  When you add a public RPC, regenerate `@chatto/api-types` and the
+  documentation in the same change. Do not create a handwritten API-client
+  package. Put bundled frontend adapters in `apps/frontend/src/lib/api-client`.
 
 ## Code Generation
 

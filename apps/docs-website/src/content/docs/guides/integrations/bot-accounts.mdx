@@ -1,0 +1,215 @@
+---
+title: Bot Accounts
+description: Create a bot, grant only the permissions it needs, and authenticate API requests with its show-once key.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Bot accounts give unattended integrations their own visible user identity and
+API credential. They use the normal public ConnectRPC API and realtime
+protocol, but start with no permissions and cannot sign in through Chatto's
+login forms.
+
+<Aside type="caution">
+  A bot API key does not expire automatically. Treat it like a password: keep
+  it out of source control, logs, URLs, screenshots, and support requests.
+</Aside>
+
+## Create and configure a bot
+
+<Steps>
+
+1. Open **Server Admin → Bots** and choose **Create Bot**.
+2. Enter a username ending in `_bot` and a display name.
+3. Copy the API key before closing the dialog. Chatto cannot show this raw key
+   again. Chatto stops in-app navigation until you acknowledge the key. Your
+   browser asks for confirmation if you try to unload the page.
+4. Open the bot's detail page and enable the server, room-group, or room
+   permissions the integration needs.
+
+</Steps>
+
+Every human member receives `bot.create` on a freshly bootstrapped server.
+Administrators can remove that default through the permission matrix.
+Administrators and effective owners can manage every bot through `bot.manage`;
+the creator can always manage bots they already own.
+
+A person with `bot.manage` can also choose **Reassign owner** on a bot's detail
+page and select another active human account. Reassignment does not require the
+recipient to accept it or hold `bot.create`. It keeps the configured bot
+permissions and API key, but effective permissions immediately follow the new
+owner's permission ceiling. Rotate the key separately if its previous custody
+is a concern.
+
+Bots do not inherit `everyone`, named roles, or the owner's roles. The bot
+matrix exposes a simple enabled/disabled allowlist. A configured permission is
+effective only while the owner currently has sufficient effective authority at
+that scope; a lock marks one currently blocked by this owner ceiling. The matrix
+lists only rooms visible to both the bot owner and the person managing it,
+while retaining the directory's complete group layout so permissions such as
+`room.create` remain configurable for an empty group.
+
+Channel-room membership alone does not expose messages to a bot. Grant
+`message.read` for broad room access. Grant `message.read.interactions` when
+the bot must read only complete threads that it started or where another
+account directly mentioned it. A direct mention gives access to messages from
+before the mention. An effective `message.read` allow includes
+`message.read.interactions` for the bot and for its owner. A narrow allow does
+not grant broad access. DM membership authorizes the bot to read that DM.
+Posting remains a separate `message.post` or `message.post-in-thread`
+decision.
+
+## Post from an external webhook
+
+Open the bot's detail page and choose **Create Webhook**. Give the webhook a
+name that identifies its caller. Copy the complete URL before you close the
+dialog. Chatto cannot show the credential again. Chatto stops in-app
+navigation while it creates or shows the credential. Your browser asks for
+confirmation if you try to unload the page. A bot can have at most 20 active
+webhooks.
+
+Create a separate webhook for each external integration. To replace a webhook,
+create a new one, move the caller to it, and then revoke the old webhook. You
+can revoke one webhook without a change to the other webhooks. The detail page
+shows when each webhook was created and approximately when Chatto recorded its
+last use. Last-use telemetry is optional. **No use recorded** does not prove
+that the webhook was not used. Chatto shows **Temporarily unavailable** if it
+cannot read the telemetry.
+
+Send a JSON request with Slack-compatible `text` and `channel` fields:
+
+```http
+POST /webhooks/incoming/cht_IW_…
+Content-Type: application/json
+
+{"text":"Deployment finished","channel":"R…"}
+```
+
+Chatto also accepts `body` instead of `text`, and `room_id` instead of
+`channel`. You can put `room_id` in the query string:
+
+```http
+POST /webhooks/incoming/cht_IW_…?room_id=R…
+Content-Type: application/json
+
+{"text":"Deployment finished"}
+```
+
+If you specify more than one body or room field, the values must be equal. Use
+a stable room ID, not a room name. Set `"create_thread": true` to start a
+thread in a channel room that supports threads. The bot needs `message.post`
+and `message.post-in-thread` for explicit thread creation. A room that requires
+threads creates one automatically. Direct messages do not support threads.
+
+The bot must already be a room member and have `message.post`. A webhook can
+post to a DM only after a human starts that DM with the bot. It cannot start or
+find a DM.
+
+A successful request returns HTTP 200 and the plain-text body `ok`. The first
+version has no idempotency key. If the caller retries after it loses a
+response, Chatto can post the message more than once.
+
+Chatto records the webhook as used after successful credential authentication.
+It records this use even if the JSON is invalid or the message operation fails.
+The recorded time can be delayed by approximately one minute.
+
+<Aside type="caution">
+  The URL contains a credential. Keep it out of source control, application
+  logs, screenshots, and support requests. Configure reverse proxies to redact
+  `/webhooks/incoming/…` paths.
+</Aside>
+
+## Activate a bot from Chatto activity
+
+Use the normal `subscribe_events` realtime subscription. Chatto sends the
+bot's visible notification occurrences in
+`notification_occurrences_replace`. Chatto does not use a bot-only realtime
+channel or a separate bot-interaction event.
+
+Filter the replacement by cause. Use these notification causes to activate an
+integration:
+
+| Cause | When Chatto creates it |
+| ----- | ---------------------- |
+| `direct_message_received` | Another account sends a message in a DM that a human started with the bot. |
+| `direct_mention_received` | Another account directly mentions the bot in a channel-room root or reply. |
+| `reply_received` | Another account replies to a message from the bot. |
+| `followed_thread_activity` | Another account posts in a thread that the bot follows. |
+
+The replacement can also contain other notification causes that apply to the
+account. Ignore causes that the integration does not use.
+
+A delivered direct mention in a channel-room root or reply also attempts to
+follow that thread. Thus, a root mention can activate the bot immediately and
+later replies can activate it through `followed_thread_activity`. An explicit
+unfollow is not replaced. If direct-mention delivery is Off, Chatto creates no
+mention occurrence and does not follow the thread. The mention still creates
+the interaction relationship that controls narrow read access.
+
+Each occurrence has a stable ID and an exact message reference. Save processed
+occurrence IDs because a latest-value replacement can contain an occurrence
+more than once. One message can create multiple causes. If the integration
+must act only once for each message, also deduplicate by the referenced
+`event_id`.
+
+The realtime replacement contains the newest finite page. After a disconnect,
+use `NotificationService.ListNotificationOccurrences` for longer recovery
+within the notification retention period. Then use the message reference with
+the normal message or thread API. For example, use
+`ThreadService.GetThreadEvents` to get the complete thread. The server returns
+content only when the bot has current membership, permission, and interaction
+access.
+
+## Direct messages
+
+A bot cannot start a DM. This rule also prevents a bot from using
+`RoomService.StartDM` to get a self-DM or an existing DM. A permission grant
+cannot change the rule.
+
+A human can start a DM that includes the bot. DM membership then lets the bot
+read the complete DM. Grant `message.post` if the bot must send messages in
+that DM. The owner must also have `message.post`. Messages from another
+participant create normal `direct_message_received` occurrences for the bot.
+
+## Authenticate requests
+
+Send the key as an HTTP bearer credential to the same public API used by other
+clients:
+
+```http
+Authorization: Bearer cht_BK_…
+```
+
+The request is authorized as the bot user. For example, posting a message
+requires an explicit effective `message.post` allow and normal room access.
+The canonical `User.is_bot` field identifies bot authors to API clients;
+the bundled client also shows a robot marker on their avatars.
+
+A bot API key can update its own login, display name, and bio through
+`MyAccountService.UpdateProfile`. It cannot create or manage bots, rotate
+itself, or enrol a password, browser session, OAuth token, verified email, or
+external login identity.
+
+## Rotate or revoke a key
+
+Choose **Rotate Key** on the bot's settings page when a key is lost or may have
+been exposed. Rotation immediately invalidates the previous key and shows the
+replacement once. Realtime connections authenticated with the previous key are
+also closed. Update every consumer before dismissing it.
+
+Deleting a bot invalidates its key and permanently deletes the account through
+the normal account-deletion process. Deleting the human owner also deletes all
+bots they still own, so reassign long-lived integrations before deleting that
+account.
+
+## API reference
+
+`BotService` exposes bot lifecycle, owner reassignment, key rotation, and
+independent management for multiple named incoming webhook credentials. The bot
+can use `MyAccountService.UpdateProfile` with its API key for self-profile
+changes. The raw key appears only in `CreateBot` and `RotateBotApiKey`
+responses. Bot
+permissions use the same `AdminPermissionService` user-permission RPCs as human
+accounts, with the bot's user ID as the target. See the
+[BotService reference](/reference/connectrpc-api/bots/) and
+[AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).

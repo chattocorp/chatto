@@ -148,6 +148,45 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	}
 }
 
+func TestChattoCore_ExchangeAuthCodeBindsClientID(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, "", "client-bound-code", "Client Bound Code", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const clientID = "https://client.example/oauth/metadata.json"
+	const redirectURI = "https://client.example/callback"
+	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+	code, err := core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := core.ExchangeAuthCodeForClient(ctx, code, verifier, redirectURI, "https://other.example/oauth/metadata.json"); !errors.Is(err, ErrAuthCodeClientMismatch) {
+		t.Fatalf("mismatched client exchange err = %v", err)
+	}
+	if _, _, err := core.ExchangeAuthCodeForClient(ctx, code, verifier, redirectURI, clientID); !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("consumed code exchange err = %v", err)
+	}
+
+	code, err = core.CreateAuthCodeForClientGeneration(ctx, user.Id, clientID, redirectURI, GenerateCodeChallenge(verifier), "S256", authGeneration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := core.ExchangeAuthCodeForClient(ctx, code, verifier, redirectURI, clientID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data := readAuthTokenData(t, core, token); data.ClientID != clientID {
+		t.Fatalf("access token client_id = %q, want %q", data.ClientID, clientID)
+	}
+}
+
 func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

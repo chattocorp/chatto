@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import type { TestInfo } from '@playwright/test';
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
@@ -106,26 +106,14 @@ function postedEventId(
  * Uses parallelIndex + 5 to avoid port collisions with the primary server.
  */
 export async function startSecondServer(testInfo: TestInfo): Promise<ServerInfo> {
-  // Create a modified testInfo-like object with offset parallelIndex
-  // to get a different port range from the primary server
-  const modifiedTestInfo = {
-    ...testInfo,
-    parallelIndex: testInfo.parallelIndex + 5
-  } as TestInfo;
-
-  return startServer(modifiedTestInfo);
+  return startServer(testInfo, { instanceId: 'secondary', portOffset: 5 });
 }
 
 /**
  * Stops a second server and cleans up.
  */
 export async function stopSecondServer(server: ServerInfo, testInfo: TestInfo): Promise<void> {
-  const modifiedTestInfo = {
-    ...testInfo,
-    parallelIndex: testInfo.parallelIndex + 5
-  } as TestInfo;
-
-  await stopServer(server, modifiedTestInfo);
+  await stopServer(server, testInfo);
 }
 
 /**
@@ -436,6 +424,15 @@ export async function loginAdminOnRemote(
 }
 
 /**
+ * Resolves the current viewer with a remote bearer token. Tests use this to
+ * prove whether a client-bound token remains valid after administrative policy
+ * changes.
+ */
+export async function getViewerOnRemote(remoteBaseURL: string, token: string) {
+  return viewerClient(remoteBaseURL).getViewer({}, { headers: authHeaders(token) });
+}
+
+/**
  * Updates the MOTD on a remote server via the admin ConnectRPC.
  * The token must belong to a user with admin/owner permission.
  */
@@ -454,10 +451,10 @@ export async function setMotdOnRemote(
 }
 
 /**
- * Drives the real Add-Server dialog → /oauth/authorize → /servers/callback
+ * Drives the real Add-Server dialog → OAuth popup → /servers/callback
  * flow to add `remoteServer` as a connected instance, while bypassing the
  * human OAuth login form. The remote's `/oauth/authorize` request is
- * intercepted via Playwright's `page.route`; we POST the PKCE params to the
+ * intercepted via Playwright's browser-context routing; we POST the PKCE params to the
  * test-only `/auth/test/oauth-authorize` endpoint to mint a real authorization
  * code, then fulfill the navigation with a 302 to the callback URL. From
  * there the origin's callback page runs unchanged: PKCE verifier exchange via
@@ -475,12 +472,14 @@ export async function connectRemoteInstance(
   const remoteOrigin = new URL(remoteBaseURL).origin;
   const hostname = new URL(remoteBaseURL).host;
 
-  // Intercept the navigation to the remote's /oauth/authorize and fulfill
-  // with a 302 to the callback URL carrying a real authorization code.
-  await page.route(`${remoteOrigin}/oauth/authorize*`, async (route) => {
+  // Intercept the popup navigation to the remote's /oauth/authorize and fulfill
+  // it with a 302 to the callback URL carrying a real authorization code. The
+  // route belongs to the browser context because page routes do not cover popups.
+  await page.context().route(`${remoteOrigin}/oauth/authorize*`, async (route) => {
     const requestUrl = new URL(route.request().url());
     const codeChallenge = requestUrl.searchParams.get('code_challenge') ?? '';
     const codeChallengeMethod = requestUrl.searchParams.get('code_challenge_method') ?? '';
+    const clientId = requestUrl.searchParams.get('client_id') ?? '';
     const redirectUri = requestUrl.searchParams.get('redirect_uri') ?? '';
     const state = requestUrl.searchParams.get('state') ?? '';
 
@@ -489,6 +488,7 @@ export async function connectRemoteInstance(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId,
+        clientId,
         redirectUri,
         codeChallenge,
         codeChallengeMethod,
@@ -507,21 +507,35 @@ export async function connectRemoteInstance(
     });
   });
 
-  // Drive the real UI: open dialog from sidebar → URL → preview →
-  // would-redirect to /oauth/authorize (intercepted) → /servers/callback
-  // → token exchange → addServer.
+  // Drive the real UI: open dialog from sidebar → URL → preview → popup
+  // /oauth/authorize (intercepted) → /servers/callback → token exchange →
+  // addServer. Attach the close listener as soon as Playwright observes the
+  // popup so the fast intercepted callback cannot race the test.
   if (!/\/chat\//.test(page.url())) {
     await page.goto('/chat/-');
   }
   await page.getByTitle('Add Server').click();
   await page.getByLabel('Server URL').fill(hostname);
   await page.getByRole('button', { name: 'Connect' }).click();
+  const popupPromise = page.waitForEvent('popup');
+  const popupClosedPromise = popupPromise.then((popup) => popup.waitForEvent('close'));
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await popupClosedPromise;
 
-  // Callback page redirects into the newly-added remote instance's chat
-  // tree on success — `/chat/<hostname>/...` (post-PR(a) there is no
-  // `/chat/spaces` landing). The hostname is whatever segment was passed
-  // in (typically "127.0.0.1").
+  // The main client redirects into the newly-added remote server's chat tree
+  // after the popup reports success. The hostname is the server URL segment.
   const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
   await page.waitForURL(new RegExp(`/chat/${hostnameOnly}(/|$)`));
+
+  // URL mutation happens before SvelteKit's navigation promise and the new
+  // server projection have necessarily settled. Wait for projected private
+  // sidebar state so callers can safely initiate another client navigation
+  // without cancelling the OAuth route transition mid-hydration.
+  const serverIcon = page
+    .locator(`a[data-testid="server-icon"][href*="/chat/${hostname.split(':')[0]}"]`)
+    .first();
+  await expect(serverIcon).toBeVisible({ timeout: 30_000 });
+  await expect(serverIcon).not.toHaveAttribute('title', /connection unavailable/, {
+    timeout: 30_000
+  });
 }

@@ -1,0 +1,474 @@
+{
+  "settings": {
+    "nav": {
+      "title": "Inställningar",
+      "back_to_server": "Tillbaka till servern",
+      "profile": "Profil",
+      "display": "Inställningar",
+      "notifications": "Aviseringar",
+      "account": "Konto",
+      "bots": "Bots",
+      "user_preferences": "Användarinställningar",
+      "app_preferences": "Appinställningar",
+      "your_account": "Ditt konto",
+      "server_configuration": "Server"
+    },
+    "app_preferences": {
+      "title": "Appinställningar",
+      "subtitle": "Val för den här appen som gäller för alla dina registrerade servrar",
+      "appearance": {
+        "title": "Utseende"
+      },
+      "composer": {
+        "title": "Skriva meddelanden"
+      }
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Hantera din profilinformation",
+      "avatar": {
+        "title": "Avatar",
+        "drop_title": "Släpp bilden",
+        "drop_subtitle": "Ladda upp som din avatar",
+        "alt": "Din avatar",
+        "description": "Ladda upp en avatar. Bilderna kommer att ändras till 256x256 pixlar.",
+        "uploading": "Laddar upp...",
+        "upload": "Ladda upp avatar",
+        "change": "Byt avatar",
+        "removing": "Tar bort...",
+        "remove": "Ta bort",
+        "invalid_type": "Välj en bildfil",
+        "too_large": "Bilden måste vara mindre än 10 MB",
+        "uploaded": "Avatar har laddats upp",
+        "upload_failed": "Det gick inte att ladda upp avatar",
+        "removed": "Avatar borttagen",
+        "delete_failed": "Det gick inte att ta bort avatar"
+      },
+      "display_name": {
+        "label": "Visningsnamn",
+        "placeholder": "Ange ditt visningsnamn",
+        "invalid": "Ogiltigt visningsnamn"
+      },
+      "username": {
+        "label": "Användarnamn",
+        "placeholder": "Ange ditt användarnamn",
+        "invalid": "Ogiltigt användarnamn",
+        "cooldown_error": "Du kan bara ändra ditt användarnamn en gång var 30:e dag. Försök igen i {remaining}.",
+        "cooldown_notice": "Du kan ändra ditt användarnamn igen i {remaining}.",
+        "confirm_title": "Ändra användarnamn",
+        "confirm_prompt": "Är du säker på att du vill ändra ditt användarnamn till @{login}?",
+        "confirm_cooldown": "Du kan bara ändra ditt användarnamn en gång var 30:e dag.",
+        "confirm_button": "Ändra användarnamn"
+      },
+      "status": {
+        "title": "Anpassad status",
+        "dialog_title": "Ställ in en status",
+        "set_custom_status": "Ställ in anpassad status",
+        "edit_button": "Redigera status",
+        "emoji": {
+          "label": "Status-emoji",
+          "placeholder": "🌿",
+          "choose": "Välj emoji"
+        },
+        "text": {
+          "label": "Statustext",
+          "placeholder": "I fokusläge"
+        },
+        "expires_at": {
+          "label": "Rensa automatiskt kl"
+        },
+        "expiry": {
+          "today": "Idag",
+          "thirty_minutes": "30 minuter",
+          "one_hour": "1 timme",
+          "four_hours": "4 timmar",
+          "tomorrow": "Imorgon",
+          "never": "Rensa inte",
+          "custom": "Anpassad",
+          "custom_date": "Anpassad rensningstid"
+        },
+        "suggestions": "Förslag",
+        "template": {
+          "label": "Mall",
+          "none": "Ingen status",
+          "out_for_lunch": "Ut på lunch",
+          "vacation": "Helgdag",
+          "sick": "Sjuk",
+          "custom": "Anpassad"
+        },
+        "emoji_required": "Välj en emoji för din status",
+        "text_required": "Ange statustext",
+        "saved": "Status uppdaterad",
+        "save_failed": "Det gick inte att spara status",
+        "cleared": "Status rensad",
+        "clear_failed": "Det gick inte att rensa status",
+        "save_button": "Spara status",
+        "clear_button": "Rensa status"
+      },
+      "presence": {
+        "button": "Närvaro: {status}",
+        "title": "Närvaro",
+        "online": "Online",
+        "away": "Borta",
+        "do_not_disturb": "Stör ej",
+        "offline": "Offline",
+        "invisible": "Titta offline"
+      },
+      "saved": "Profilen har uppdaterats",
+      "save_failed": "Det gick inte att spara profilen",
+      "save_button": "Spara ändringar",
+      "bio": {
+        "label": "Bio",
+        "description": "Upp till {max} tecken, syns i din profil.",
+        "placeholder": "Berätta lite om dig själv",
+        "too_long": "Biografin får vara högst {max} tecken."
+      }
+    },
+    "preferences": {
+      "title": "Tid och region",
+      "subtitle": "Välj hur den här servern visar datum och tider för dig",
+      "browser_scope": "Det här valet gäller för alla Chatto-servrar i den här webbläsaren.",
+      "theme": {
+        "title": "Tema",
+        "system": {
+          "label": "System",
+          "description": "Följ din webbläsare eller ditt operativsystems utseende"
+        },
+        "light": {
+          "label": "Ljus",
+          "description": "Använd ljusgränssnittet i den här webbläsaren"
+        },
+        "dark": {
+          "label": "Mörkt",
+          "description": "Använd det mörka gränssnittet i den här webbläsaren"
+        }
+      },
+      "editor": {
+        "title": "Meddelanderedigerare",
+        "visual": {
+          "label": "Visuell",
+          "description": "Formatera meddelanden utan att se Markdown-syntax"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Redigera Markdown-källkod med syntaxmarkering"
+        }
+      },
+      "send_mode": {
+        "title": "Skicka meddelanden med",
+        "enter": {
+          "label": "Retur",
+          "description": "Retur skickar; Cmd/Ctrl+Retur utför redigerarens vanliga Retur-åtgärd"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Retur",
+          "description": "Cmd/Ctrl+Retur skickar; Retur utför redigerarens vanliga åtgärd"
+        }
+      },
+      "language": {
+        "title": "Språk",
+        "description": "Välj språk och regional formulering för den här webbläsaren.",
+        "english_uk": "Engelska (Storbritannien)",
+        "english_us": "Engelska (USA)",
+        "german": "Tyska"
+      },
+      "timezone": {
+        "title": "Tidszon",
+        "description": "Ställ in din tidszon för att visa tidsstämplar i din lokala tid. Lämna tomt för att använda din webbläsares standard.",
+        "browser_default": "Webbläsares standard",
+        "clear": "Rensa tidszon (använd webbläsarens standard)",
+        "invalid": "Välj en giltig tidszon från listan",
+        "more_results": "{count} mer - skriv för att begränsa resultaten",
+        "current_time": "Aktuell tid där: {time}"
+      },
+      "time_format": {
+        "title": "Tidsformat",
+        "browser_default": {
+          "label": "Webbläsares standard",
+          "description": "Använd din webbläsares språkversion för att bestämma 12h eller 24h format"
+        },
+        "12h": {
+          "label": "12 timmar",
+          "description": "t.ex. 2:30 PM"
+        },
+        "24h": {
+          "label": "24 timmar",
+          "description": "t.ex. 14:30"
+        }
+      },
+      "save_button": "Spara tidsinställningar",
+      "saved": "Tidsinställningarna har sparats",
+      "save_failed": "Det gick inte att spara tidsinställningarna"
+    },
+    "notifications": {
+      "title": "Aviseringar",
+      "subtitle": "Konfigurera hur du tar emot aviseringar",
+      "push": {
+        "title": "Push-meddelanden",
+        "not_configured": "Push-meddelanden är inte konfigurerade på den här servern",
+        "not_supported": "Push-meddelanden stöds inte i den här webbläsaren.",
+        "ios_home_screen_title": "Lägg till Chatto på din startskärm",
+        "ios_home_screen_description": "På versioner av iOS/iPadOS som stöds lägger du till Chatto på startskärmen och öppnar den från appikonen för att aktivera push-meddelanden.",
+        "blocked_title": "Push-meddelanden blockerade",
+        "blocked_description": "Aktivera aviseringar i din webbläsare eller OS-inställningar och öppna sedan Chatto igen.",
+        "enabled_title": "Push-meddelanden har aktiverats",
+        "enabled_description": "Chatto använder din webbläsar- eller OS-aviseringsbehörighet som switch. För att stänga av aviseringar, inaktivera dem för den här webbplatsen i din webbläsare eller OS-inställningar.",
+        "test_button": "Skicka testavisering",
+        "testing": "Skickar...",
+        "test_sent": "Testavisering har skickats.",
+        "test_failed": "Det gick inte att skicka ett testmeddelande. Försök att aktivera push-meddelanden igen.",
+        "enable_title": "Aktivera push-meddelanden",
+        "enable_description": "Få aviseringar om nya meddelanden medan Chatto är stängd eller körs i bakgrunden.",
+        "enable_button": "Aktivera",
+        "enabling": "Aktiverar...",
+        "blocked_error": "Push-meddelanden blockeras i din webbläsare eller OS-inställningar.",
+        "enable_failed": "Det gick inte att aktivera push-meddelanden. Försök igen.",
+        "enable_error": "Ett fel uppstod när push-meddelanden aktiverades"
+      },
+      "push_prompt": {
+        "title": "Aktivera push-meddelanden",
+        "message": "Få aviseringar om DM, omnämnanden och svar.",
+        "ios_home_screen_title": "Lägg till Chatto på din startskärm",
+        "ios_home_screen_message": "På versioner av iOS/iPadOS som stöds, öppna Chatto från dess hemskärmsikon innan du aktiverar push-meddelanden.",
+        "enabled": "Push-meddelanden har aktiverats",
+        "blocked": "Push-meddelanden blockeras i din webbläsare eller OS-inställningar",
+        "enable_failed": "Det gick inte att aktivera push-meddelanden",
+        "enabling": "Aktiverar...",
+        "enable": "Aktivera",
+        "dismiss": "Nej tack"
+      },
+      "sound": {
+        "title": "Aviseringsljud",
+        "shape_title": "Ljudform",
+        "preview": "Förhandsgranskning",
+        "reset": "Återställ",
+        "off": "Av",
+        "volume": "Volym",
+        "tinny": "Tinny",
+        "muffled": "Dämpad",
+        "echo": "Eko",
+        "reverb": "Reverb",
+        "crunch": "Crunch",
+        "category": {
+          "silent": "Tyst",
+          "simple": "Enkelt",
+          "playful": "Lekfull",
+          "robots": "Robotar",
+          "musical": "Musikal",
+          "here_be_dragons": "Here Be Dragons"
+        },
+        "name": {
+          "silent": "Tyst",
+          "ding": "Ding",
+          "chime_up": "Stigande ringsignal",
+          "chime_down": "Fallande ljudsignal",
+          "pop": "Mjuk pop",
+          "bubble": "Bubbla",
+          "retro": "Retro pip",
+          "coin": "Myntsamling",
+          "powerup": "Slå på",
+          "fanfare": "8-bitars fanfar",
+          "laser": "Laser Zap",
+          "robot": "Robotröst",
+          "ufo": "UFO",
+          "beepboop": "Pip Boop",
+          "dialup": "Uppringd",
+          "r2d2": "R2-D2",
+          "harp": "Harpa blomstra",
+          "music_box": "Musikdosa",
+          "celesta": "Celesta Dream",
+          "synth": "Synthackord",
+          "orchestra": "Orkesterhit",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Kaos",
+          "glitch": "Fel",
+          "siren": "Varningssiren",
+          "dubstep": "Dubstep Drop",
+          "circus": "Cirkus"
+        }
+      },
+      "policy": {
+        "title": "Aviseringspolicy",
+        "description": "Välj hur varje aktivitet meddelar dig på server-, rumsgrupps- och rumsnivå. Rum ärver från sin grupp och därefter från servern.",
+        "load_failed": "Det gick inte att läsa in aviseringspolicyn",
+        "save_failed": "Det gick inte att spara aviseringspolicyn",
+        "effective": "Gäller: {mode}",
+        "filter_label": "Filtrera aviseringsomfattningar",
+        "filter_placeholder": "Filtrera grupper och rum…",
+        "no_filter_matches": "Inga aviseringsomfattningar matchar filtret.",
+        "legend": "Leveranslägen för aviseringar",
+        "cell_aria": "{cause}, {scope}. Åsidosättning: {override}. Gäller: {effective}. Aktivera för att ange {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktivera för att ange {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Inte tillämpligt.",
+        "delivery_mode": {
+          "inherit": "Ärv",
+          "off": "Av",
+          "badge": "Markering",
+          "badge_hint": "Lägger bara till en neutral prick för oläst innehåll. Skapar ingen avisering, spelar inget ljud och skickar ingen pushavisering.",
+          "notification": "Avisering",
+          "push_notification": "Pushavisering"
+        },
+        "reason": {
+          "room_message": "Rumsmeddelanden",
+          "direct_message": "Direktmeddelanden",
+          "direct_mention": "Direkta omnämnanden",
+          "reply": "Svar på dina meddelanden",
+          "role_mention": "Rollomnämnanden",
+          "here": "@here-omnämnanden",
+          "all": "@all-omnämnanden",
+          "followed_thread": "Följda trådar",
+          "reaction": "Reaktioner på dina meddelanden",
+          "activity": "Aktivitet",
+          "room_invitation": "Inbjudningar till rum"
+        },
+        "reason_hint": {
+          "room_message": "Rotmeddelanden som andra medlemmar skickar direkt i kanalrum, inte i trådar.",
+          "direct_message": "Meddelanden som andra medlemmar skickar i direktmeddelandekonversationer.",
+          "direct_mention": "Meddelanden som nämner ditt användarnamn direkt.",
+          "reply": "Meddelanden som svarar på ett av dina meddelanden.",
+          "role_mention": "Meddelanden som nämner en roll som du har tilldelats.",
+          "here": "Meddelanden som använder @here när din närvaro inte är offline.",
+          "all": "Meddelanden som använder @all i ett rum som du är medlem i.",
+          "followed_thread": "Nya svar i trådar som du följer.",
+          "reaction": "Reaktioner som andra medlemmar lägger till i dina meddelanden."
+        }
+      }
+    },
+    "account": {
+      "title": "Konto",
+      "subtitle": "Hantera dina kontoinställningar",
+      "info_title": "Kontoinformation",
+      "username": "Användarnamn",
+      "display_name": "Visningsnamn",
+      "danger_title": "Farozon",
+      "danger_description": "Att ta bort ditt konto är permanent och kan inte ångras. All din data kommer att tas bort.",
+      "delete_button": "Ta bort konto",
+      "delete_failed": "Det gick inte att ta bort kontot",
+      "delete_request_failed": "Det gick inte att begära borttagning av konto",
+      "password": {
+        "title": "Lösenord",
+        "add_description": "Lägg till ett lösenord så att du kan logga in direkt och koppla bort din senaste SSO-leverantör.",
+        "change_description": "Ändra lösenordet som används för direkt inloggning.",
+        "current_label": "Aktuellt lösenord",
+        "current_required": "Ange ditt nuvarande lösenord.",
+        "add_button": "Lägg till lösenord",
+        "change_button": "Ändra lösenord",
+        "saving": "Sparar lösenord...",
+        "saved": "Lösenord har lagts till",
+        "changed": "Lösenordet har ändrats",
+        "save_failed": "Det gick inte att spara lösenordet",
+        "fresh_auth_required": "Logga in igen innan du lägger till ett lösenord.",
+        "already_set": "Detta konto har redan ett lösenord."
+      },
+      "sso": {
+        "title": "Enkel inloggning",
+        "loading": "Laddar inloggningsleverantörer...",
+        "load_failed": "Det gick inte att ladda inloggningsleverantörer",
+        "none_configured": "Inga externa inloggningsleverantörer är konfigurerade.",
+        "linked": "Länkad",
+        "not_linked": "Ej länkad",
+        "link_button": "Länk",
+        "link_failed": "Det gick inte att länka inloggningsleverantören",
+        "fresh_auth_required": "Logga in igen innan du länkar en annan leverantör.",
+        "provider_unconfigured": "Leverantören är inte längre konfigurerad",
+        "disconnect_button": "Koppla bort",
+        "disconnecting": "Kopplar bort...",
+        "disconnect_failed": "Det gick inte att koppla bort inloggningsleverantören",
+        "disconnect_last_method": "Lägg till ett lösenord eller en annan inloggningsmetod innan du kopplar bort den här leverantören.",
+        "disconnect_fresh_auth_required": "Logga in igen innan du kopplar bort den här leverantören.",
+        "disconnect_modal": {
+          "title": "Koppla bort leverantör",
+          "body": "Vill du koppla bort {provider} från det här kontot?",
+          "action": "Koppla bort"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Leverantören kan inte kopplas bort",
+          "body": "{provider} är din enda inloggningsmetod. Lägg till ett lösenord eller länka till en annan leverantör först."
+        },
+        "fresh_auth_modal": {
+          "title": "Bekräfta lösenord",
+          "body": "Ange ditt nuvarande lösenord innan du länkar {provider}.",
+          "action": "Fortsätt"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Bekräfta lösenord",
+          "body": "Ange ditt nuvarande lösenord innan du kopplar från {provider}.",
+          "action": "Koppla bort"
+        }
+      },
+      "delete_modal": {
+        "title": "Ta bort konto",
+        "warning_label": "Varning:",
+        "warning_text": "Denna åtgärd är permanent och kan inte ångras.",
+        "intro": "Detta kommer att radera ditt konto permanent och:",
+        "remove_from_rooms": "Ta bort dig från alla utrymmen och rum",
+        "delete_messages": "Radera alla dina meddelanden (innehållet kommer inte att kunna återställas)",
+        "delete_profile": "Radera din profil, avatar och tillhörande data",
+        "confirm_label": "Skriv DELETE för att bekräfta",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Avbryt",
+        "deleting": "Tar bort..."
+      }
+    },
+    "bots": {
+      "title": "Bots",
+      "subtitle": "Skapa API-konton och kontrollera exakt vad de kan göra",
+      "singular": "bot",
+      "unsupported": "Denna serverversion stöder inte botkonton.",
+      "list_title": "Botkonton",
+      "loading": "Ladder bots...",
+      "empty_title": "Inga bots ännu",
+      "empty_body": "Skapa en bot när en integration behöver sin egen identitet och behörigheter.",
+      "create_permission_required": "Du kan hantera befintliga bottar, men du har inte behörighet att skapa en ny.",
+      "create": "Skapa bot",
+      "create_title": "Skapa botkonto",
+      "create_failed": "Det gick inte att skapa bot",
+      "created": "Botten skapad",
+      "username": "Användarnamn",
+      "username_hint": "Botanvändarnamn måste sluta på _bot.",
+      "display_name": "Visningsnamn",
+      "owner": "Ägare",
+      "reassign_owner": "Tilldela ägare på nytt",
+      "reassign_owner_warning": "Bottens API-nyckel och konfigurerade behörigheter förblir oförändrade. Effektiva behörigheter följer omedelbart den nya ägaren.",
+      "owner_reassigned": "Botägaren har tilldelats på nytt",
+      "owner_reassign_failed": "Det gick inte att tilldela botägaren på nytt",
+      "api_key_title": "Spara denna API-nyckel",
+      "api_key_warning": "Denna nyckel visas bara en gång. Förvara den på ett säkert ställe innan du stänger det här fönstret.",
+      "key_created": "API-nyckel skapad",
+      "key_rotated_at": "Senast roterad",
+      "key_copied": "API-nyckel kopierad",
+      "rotate_key": "Rotera nyckel",
+      "rotate_title": "Rotera API-nyckel",
+      "rotate_warning": "Den aktuella nyckeln slutar fungera omedelbart. All integration som använder den måste uppdateras.",
+      "key_rotated": "API-nyckel roterad",
+      "rotate_failed": "Det gick inte att rotera API-nyckeln",
+      "webhook_title": "Inkommande webhooks",
+      "webhook_description": "Publicera meddelanden som den här boten från externa verktyg.",
+      "webhook_created": "Inkommande webhook skapad",
+      "webhook_url_title": "Spara denna webhook-URL",
+      "webhook_url_warning": "Den här URL:en visas bara en gång och innehåller inloggningsuppgifter. Spara den på en säker plats innan du stänger fönstret.",
+      "webhook_url_copied": "Webhook-URL kopierad",
+      "delete_title": "Ta bort bot",
+      "delete_warning": "Ta bort {name}? Dess API-nyckel slutar fungera omedelbart och kontot kan inte återställas.",
+      "deleted": "Botten raderad",
+      "delete_failed": "Det gick inte att ta bort bot",
+      "permissions": {
+        "owner_ceiling": "Välj vad den här boten får göra. Du kan bara ge den behörigheter som du själv har. Om du förlorar en behörighet kan boten inte heller använda den längre.",
+        "save_failed": "Det gick inte att uppdatera botbehörighet"
+      },
+      "webhook_empty_description": "Inga inkommande webhooks har skapats ännu.",
+      "webhook_create": "Skapa webhook",
+      "webhook_name": "Namn",
+      "webhook_created_at": "Skapad",
+      "webhook_create_failed": "Det gick inte att skapa den inkommande webhooken",
+      "webhook_revoke": "Återkalla webhook",
+      "webhook_revoke_warning": "Den aktuella webhook-URL:en slutar omedelbart att fungera.",
+      "webhook_revoked": "Inkommande webhook återkallad",
+      "webhook_revoke_failed": "Det gick inte att återkalla den inkommande webhooken",
+      "webhook_last_used": "Senast använd",
+      "webhook_no_use_recorded": "Ingen användning registrerad",
+      "webhook_last_used_unavailable": "Tillfälligt otillgänglig",
+      "webhook_limit_reached": "Gränsen på 20 inkommande webhooks har nåtts."
+    }
+  }
+}

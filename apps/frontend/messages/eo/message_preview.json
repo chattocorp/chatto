@@ -1,0 +1,9 @@
+{
+  "message_preview": {
+    "attachments_count": { "other": "{count} aldonaĵoj" },
+    "attachment_image": "Bildo",
+    "attachment_video": "Video",
+    "attachment_audio": "Aŭdio",
+    "attachment_file": "Dosiero"
+  }
+}
