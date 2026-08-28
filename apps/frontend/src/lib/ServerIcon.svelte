@@ -48,12 +48,11 @@
     /** Show a non-interactive compatibility warning marker. */
     compatibilityWarning?: boolean;
   } = $props();
-
 </script>
 
 <div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
-    href={resolve(href as '/')}
+    href={href.startsWith('/') ? resolve(href as '/') : href}
     {onclick}
     {title}
     aria-label={title ?? server?.name}
@@ -77,7 +76,7 @@
       data-testid="server-sign-in-required"
       aria-hidden="true"
     >
-      <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>
+      <span class="iconify icon-[uil--exclamation-circle] text-xs"></span>
     </span>
   {:else if compatibilityWarning}
     <span
@@ -85,7 +84,7 @@
       data-testid="server-compatibility-warning"
       aria-hidden="true"
     >
-      <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>
+      <span class="iconify icon-[uil--exclamation-circle] text-xs"></span>
     </span>
   {/if}
 
@@ -124,28 +123,26 @@
           />
         {/if}
       </button>
+    {:else if indicator === 'notification' && notificationCount > 0}
+      <NotificationBadge
+        count={notificationCount}
+        color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
+        overlay
+        class="absolute top-0 right-0 z-10"
+        testid="server-notification-badge"
+      />
+      <span class="sr-only">{notificationCount} notifications</span>
     {:else}
-      {#if indicator === 'notification' && notificationCount > 0}
-        <NotificationBadge
-          count={notificationCount}
-          color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
-          overlay
-          class="absolute top-0 right-0 z-10"
-          testid="server-notification-badge"
-        />
-        <span class="sr-only">{notificationCount} notifications</span>
-      {:else}
-        <UnreadDot
-          color={indicator === 'notification'
-            ? importantNotificationCount > 0
-              ? 'warning'
-              : 'ambient'
-            : 'muted'}
-          overlay
-          class="absolute top-0 right-0 z-10"
-          testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
-        />
-      {/if}
+      <UnreadDot
+        color={indicator === 'notification'
+          ? importantNotificationCount > 0
+            ? 'warning'
+            : 'ambient'
+          : 'muted'}
+        overlay
+        class="absolute top-0 right-0 z-10"
+        testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
+      />
     {/if}
   {/if}
 </div>
