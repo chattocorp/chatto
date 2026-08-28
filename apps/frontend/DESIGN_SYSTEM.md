@@ -47,6 +47,9 @@ action-coloured icon. Apply `sidebar-item-attention` only to unread content
 that is not the current route. Unread dots remain neutral. Notification badges
 keep their semantic priority colour.
 
+When one route path contains another navigation path, set `aria-current` only
+on the most-specific matching item.
+
 The server gutter follows the same rule. The current server uses its action
 ring and action fill. Do not add a side stripe, a shadow, or a separate accent
 colour for navigation selection.
