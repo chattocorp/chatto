@@ -27,7 +27,7 @@
   `.trim();
 
   const { Story } = defineMeta({
-    title: 'Admin/Matrix primitives',
+    title: 'UI/Matrix/Table',
     component: MatrixTable,
     tags: ['autodocs'],
     parameters: {

@@ -25,7 +25,7 @@ room-only permission queried at instance scope), pass `applicable={false}`
 to render an inert "—" cell with an explanation tooltip.
 -->
 <script lang="ts">
-  import { MatrixCellButton, type MatrixCellTone } from '$lib/components/matrix';
+  import { MatrixCellButton, type MatrixCellTone } from '$lib/ui/matrix';
 
   type State = 'allow' | 'deny' | 'neutral';
 
