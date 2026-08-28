@@ -50,8 +50,10 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 }));
 vi.mock('$lib/api-client/roles', () => ({ createRoleAPI: vi.fn() }));
 vi.mock('$lib/components/admin', async () => ({
-  Panel: (await import('./RolePageSnippetMock.svelte')).default,
   UserList: (await import('./RolePageUserListMock.svelte')).default
+}));
+vi.mock('$lib/ui/Panel.svelte', async () => ({
+  default: (await import('./RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/ui', async () => ({
   Hint: (await import('./RolePageSnippetMock.svelte')).default,

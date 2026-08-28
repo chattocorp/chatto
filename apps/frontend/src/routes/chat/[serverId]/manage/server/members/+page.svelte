@@ -3,7 +3,8 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api-client/adminUsers';
-  import { Panel, DataTable } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { Hint, PaneContent, Pill } from '$lib/ui';

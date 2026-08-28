@@ -5,7 +5,8 @@
     type RoomBanSummary,
     type RoomCommandAPI
   } from '$lib/api-client/rooms';
-  import { Panel, DataTable } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';

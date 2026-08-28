@@ -7,7 +7,8 @@
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
   import { viewerResponseToState } from '$lib/api-client/viewer';
-  import { CopyId, Panel } from '$lib/components/admin';
+  import { CopyId } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';

@@ -17,7 +17,7 @@ its permission row and scope column. The surrounding pane owns vertical
 scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { MatrixTable } from '$lib/components/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';

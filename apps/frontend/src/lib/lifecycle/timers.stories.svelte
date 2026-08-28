@@ -20,7 +20,7 @@
 </script>
 
 <script lang="ts">
-	import Panel from '$lib/components/admin/Panel.svelte';
+	import Panel from '$lib/ui/Panel.svelte';
 	import Pill from '$lib/ui/Pill.svelte';
 	import Button from '$lib/ui/form/Button.svelte';
 	import Deadline from './Deadline.svelte';

@@ -4,7 +4,8 @@
   import type { DirectoryMember } from '$lib/api-client/memberDirectory';
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { DataTable, Panel } from '$lib/components/admin';
+  import DataTable from '$lib/ui/DataTable.svelte';
+  import Panel from '$lib/ui/Panel.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import Hint from '$lib/ui/Hint.svelte';

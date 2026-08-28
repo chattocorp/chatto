@@ -1,3 +1,9 @@
+<!--
+@component
+
+The standard durable content frame. It provides a title band and an inset work
+plane for forms, summaries, record tables, and dense matrices.
+-->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 

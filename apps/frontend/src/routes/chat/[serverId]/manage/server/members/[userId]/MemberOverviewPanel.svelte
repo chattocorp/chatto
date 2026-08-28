@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AdminMember, AdminRoleDetails } from '$lib/api-client/adminUsers';
-  import { CopyId, Panel } from '$lib/components/admin';
+  import { CopyId } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';

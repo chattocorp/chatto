@@ -1,7 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api-client/account';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PaneContent, PaneHeader } from '$lib/ui';

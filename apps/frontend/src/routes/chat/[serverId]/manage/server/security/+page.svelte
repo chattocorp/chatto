@@ -17,7 +17,8 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextArea, Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { DataTable, Panel } from '$lib/components/admin';
+  import DataTable from '$lib/ui/DataTable.svelte';
+  import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';

@@ -1,7 +1,14 @@
+<!--
+@component
+
+The standard semantic record table. Consumers provide header and row snippets;
+this component provides the viewport, empty state, row interaction, grouping,
+and optional incremental loading.
+-->
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
-  import { ScrollFader } from '$lib/ui';
+  import ScrollFader from './ScrollFader.svelte';
   import { m } from '$lib/i18n/messages';
 
   let {

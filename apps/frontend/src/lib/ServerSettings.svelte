@@ -22,7 +22,7 @@
   import { queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
   import FormError from '$lib/ui/form/FormError.svelte';
   import { toast } from '$lib/ui/toast';

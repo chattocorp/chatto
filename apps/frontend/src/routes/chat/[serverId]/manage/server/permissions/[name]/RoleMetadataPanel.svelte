@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Role } from '$lib/components/rbac';
   import { untrack } from 'svelte';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
 

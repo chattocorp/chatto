@@ -2,7 +2,7 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import DataTable from './DataTable.svelte';
   import Panel from './Panel.svelte';
-  import CopyId from './CopyId.svelte';
+  import CopyId from '$lib/components/admin/CopyId.svelte';
   import Pill from '$lib/ui/Pill.svelte';
   import { Button } from '$lib/ui/form';
 
@@ -26,14 +26,14 @@
   })) satisfies SpaceRow[];
 
   const componentDescription = `
-  Admin table primitive with a standalone rounded scroll viewport, contrasting
+  Record-table primitive with a standalone rounded scroll viewport, contrasting
   header and body, empty state row, optional row hover/click affordance, and
   automatic load-more support. Inside \`Panel noPadding\`, the panel owns the
   shared radius and the table meets adjacent content at square internal seams.
   `.trim();
 
   const { Story } = defineMeta({
-    title: 'Admin/DataTable',
+    title: 'UI/DataTable',
     component: DataTable,
     tags: ['autodocs'],
     parameters: {

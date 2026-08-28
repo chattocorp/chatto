@@ -20,7 +20,7 @@
   import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint } from '$lib/ui';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';

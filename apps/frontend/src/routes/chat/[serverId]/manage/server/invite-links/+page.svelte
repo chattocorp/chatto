@@ -1,7 +1,8 @@
 <script lang="ts">
   import { createInfiniteQuery, createMutation } from '@tanstack/svelte-query';
   import { createInviteLinkAPI, type InviteLink } from '$lib/api-client/invitations';
-  import { Panel, DataTable } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';

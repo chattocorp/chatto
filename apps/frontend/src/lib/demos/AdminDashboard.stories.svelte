@@ -11,8 +11,8 @@
 
 <script lang="ts">
   import StatCard from '$lib/components/admin/StatCard.svelte';
-  import Panel from '$lib/components/admin/Panel.svelte';
-  import DataTable from '$lib/components/admin/DataTable.svelte';
+  import Panel from '$lib/ui/Panel.svelte';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import CopyId from '$lib/components/admin/CopyId.svelte';
   import { Button } from '$lib/ui/form';
   import Pill from '$lib/ui/Pill.svelte';

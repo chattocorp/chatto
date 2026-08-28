@@ -13,7 +13,8 @@
     type UpdateRoleInput
   } from '$lib/api-client/roles';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import { Panel, UserList } from '$lib/components/admin';
+  import { UserList } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
