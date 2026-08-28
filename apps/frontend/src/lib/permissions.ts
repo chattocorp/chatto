@@ -110,7 +110,7 @@ export function getIncludedByPermission(
   definitions: readonly PermissionDefinition[] | undefined,
   id: string
 ): string | null {
-  return getIncludingPermissions(definitions, id)[0] ?? null;
+  return definitions?.find((definition) => definition.permission === id)?.includedByPermission ?? null;
 }
 
 /** Return the explicit parent chain from the immediate parent to the root. */
