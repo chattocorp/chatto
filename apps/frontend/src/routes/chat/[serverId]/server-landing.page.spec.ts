@@ -44,6 +44,15 @@ describe('server landing load', () => {
     });
   });
 
+  it('preserves query parameters while redirecting to the remembered room', async () => {
+    mocks.lastRoomId = 'room-1';
+
+    await expect(routeLoad('https://chat.example.test/chat/-?welcome=true')).rejects.toMatchObject({
+      status: 302,
+      location: '/chat/-/room-1?welcome=true'
+    });
+  });
+
   it('falls through to the server overview when no room is remembered', async () => {
     await expect(routeLoad()).rejects.toMatchObject({
       status: 302,
