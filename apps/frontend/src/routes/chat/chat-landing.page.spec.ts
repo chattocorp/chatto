@@ -51,6 +51,10 @@ describe('chat landing load', () => {
     expect(mocks.takeReturnNavigationTarget).not.toHaveBeenCalled();
   });
 
+  it('keeps the unauthenticated /chat compatibility redirect to root', async () => {
+    await expectRedirect('https://chat.example.test/chat', null, '/');
+  });
+
   it('redirects authenticated users to the origin segment without waiting for a viewer projection', async () => {
     await expectRedirect('https://chat.example.test/chat', { id: 'user-1' }, '/chat/-');
   });
