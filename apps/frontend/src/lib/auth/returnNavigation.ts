@@ -28,6 +28,25 @@ export function hasPendingReturnNavigation(): boolean {
   return readSafePath(RETURN_NAVIGATION_KEY) !== null || readSafePath(RETURN_URL_KEY) !== null;
 }
 
+/** Whether an existing return navigation already owns routing. */
+export function isReturnNavigationInProgress(): boolean {
+  return readSafePath(RETURN_NAVIGATION_KEY) !== null;
+}
+
+/**
+ * Take the queued return path so a route load can redirect to it.
+ *
+ * Returns null when no path is queued or a navigation already owns the path.
+ */
+export function takeReturnNavigationTarget(): string | null {
+  if (isReturnNavigationInProgress()) return null;
+
+  const returnUrl = readSafePath(RETURN_URL_KEY);
+  if (!returnUrl) return null;
+  sessionStorage.removeItem(RETURN_URL_KEY);
+  return returnUrl;
+}
+
 /** Navigate to a safe frontend or backend path after authentication. */
 export async function navigateAfterAuthentication(path: string): Promise<void> {
   const target = isSafeInternalPath(path) ? path : '/';
@@ -46,12 +65,10 @@ export async function navigateAfterAuthentication(path: string): Promise<void> {
  * racing its default redirect against this navigation.
  */
 export async function resumeReturnNavigation(): Promise<boolean> {
-  if (readSafePath(RETURN_NAVIGATION_KEY)) return true;
+  if (isReturnNavigationInProgress()) return true;
 
-  const returnUrl = readSafePath(RETURN_URL_KEY);
+  const returnUrl = takeReturnNavigationTarget();
   if (!returnUrl) return false;
-  sessionStorage.removeItem(RETURN_URL_KEY);
-
   const currentUrl = window.location.pathname + window.location.search + window.location.hash;
   if (returnUrl === currentUrl) return true;
   if (returnUrl.startsWith('/oauth/')) {

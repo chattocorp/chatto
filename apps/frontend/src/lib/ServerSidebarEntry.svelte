@@ -186,7 +186,7 @@
     }
 
     const path = notificationStore.getCleanPath(serverId, notification);
-    await goto(path);
+    await goto(resolve(path as '/'));
   }
 
   // Handle click on icon unread dot. Channel and DM unreads both flow through

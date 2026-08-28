@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import ServerLogo from './components/ServerLogo.svelte';
   import NotificationBadge from './ui/NotificationBadge.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
@@ -51,7 +52,7 @@
 
 <div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
-    {href}
+    href={resolve(href as '/')}
     {onclick}
     {title}
     aria-label={title ?? server?.name}
