@@ -21,7 +21,11 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   import { MatrixTable } from '$lib/components/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
-  import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';
+  import {
+    getIncludedByPermission,
+    getPermissionDescription,
+    type PermissionDefinition
+  } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -44,6 +48,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   };
   export type MatrixData = {
     applicablePermissions: string[];
+    permissionDefinitions?: PermissionDefinition[];
     scopes: MatrixScope[];
     cells: MatrixCellData[];
   };
@@ -150,7 +155,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   }
 
   function includingPermission(scope: MatrixScope, permission: string): string | null {
-    const including = getIncludedByPermission(permission);
+    const including = getIncludedByPermission(data.permissionDefinitions, permission);
     if (!including) return null;
     return cellFor(scope.id, including)?.effective === 'ALLOW' ? including : null;
   }
@@ -229,7 +234,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         </span>
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        {@const includedBy = getIncludedByPermission(permission)}
+        {@const includedBy = getIncludedByPermission(data.permissionDefinitions, permission)}
         <code
           data-testid="permission-name"
           class={['text-sm', includedBy ? 'ml-4' : '', highlighted ? 'text-action' : '']}

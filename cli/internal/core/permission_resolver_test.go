@@ -111,6 +111,25 @@ func TestPermissionResolver_MessageReadInclusionTruthTable(t *testing.T) {
 	}
 }
 
+func TestPermissionResolver_ResolvesTransitiveInclusion(t *testing.T) {
+	broad, _, narrow := installTestPermissionChain(t)
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "transitive-inclusion", "Transitive Inclusion", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, user.GetId(), broad); err != nil {
+		t.Fatalf("grant broad permission: %v", err)
+	}
+	if err := core.DenyUserPermission(ctx, SystemActorID, user.GetId(), narrow); err != nil {
+		t.Fatalf("deny narrow permission: %v", err)
+	}
+	if got, err := core.PermResolver().Resolve(ctx, user.GetId(), KindChannel, "", narrow); err != nil || got != DecisionAllow {
+		t.Fatalf("transitive decision = %s, %v; want allow", got, err)
+	}
+}
+
 func TestPermissionResolver_HasServerPermission_MultiRoleDenyWins(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -60,12 +60,23 @@ message TierRole {
   chatto.api.v1.Role role = 9;
 }
 
+// Catalog metadata for one permission.
+message PermissionDefinition {
+  // Permission identifier.
+  string permission = 1;
+  // Immediate parent whose effective allow includes this permission. Absent
+  // when the permission has no parent. Dotted names do not imply inclusion.
+  optional string included_by_permission = 2;
+}
+
 // Role permission matrix for one tier.
 message TierRoles {
   // Permissions configurable at this tier.
   repeated string applicable_permissions = 1;
   // Roles sorted by position.
   repeated TierRole roles = 2;
+  // Catalog metadata for applicable permissions.
+  repeated PermissionDefinition permission_definitions = 3;
 }
 
 // Request a role-permission tier matrix.
@@ -117,6 +128,8 @@ message RolePermissionMatrix {
   repeated PermissionMatrixScope scopes = 3;
   // Sparse matrix cells.
   repeated PermissionMatrixCell cells = 4;
+  // Catalog metadata for applicable permissions.
+  repeated PermissionDefinition permission_definitions = 5;
 }
 
 // Request one role's permission matrix.
@@ -141,6 +154,8 @@ message UserPermissionMatrix {
   repeated PermissionMatrixScope scopes = 3;
   // Sparse matrix cells.
   repeated PermissionMatrixCell cells = 4;
+  // Catalog metadata for applicable permissions.
+  repeated PermissionDefinition permission_definitions = 5;
 }
 
 // One resource-oriented permission decision at a concrete scope.

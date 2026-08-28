@@ -781,7 +781,7 @@ func buildRolePermissionCell(
 	if !ok {
 		return PermissionMatrixCell{}, false
 	}
-	for _, including := range directlyIncludingPermissions(perm) {
+	for _, including := range includingPermissions(perm) {
 		includingCell, applies := buildExactRolePermissionCell(
 			including, scope,
 			serverGrants, serverDenials,

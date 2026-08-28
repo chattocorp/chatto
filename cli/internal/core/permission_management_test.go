@@ -37,3 +37,20 @@ func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 		}
 	})
 }
+
+func TestRolePermissionMatrixAppliesTransitiveInclusion(t *testing.T) {
+	broad, _, narrow := installTestPermissionChain(t)
+	cell, ok := buildRolePermissionCell(
+		narrow,
+		PermissionMatrixScope{ID: "server", Kind: MatrixScopeServer},
+		[]Permission{broad},
+		[]Permission{narrow},
+		nil, nil, nil, nil, nil,
+	)
+	if !ok {
+		t.Fatal("narrow permission did not apply at server scope")
+	}
+	if cell.Override != MatrixDecisionDeny || cell.Effective != MatrixDecisionAllow {
+		t.Fatalf("cell = %+v, want deny override and transitive allow", cell)
+	}
+}

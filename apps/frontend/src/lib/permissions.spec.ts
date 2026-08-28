@@ -38,8 +38,13 @@ describe('PERMISSION_METADATA', () => {
   });
 
   it('defines the explicit message read inclusion without a general hierarchy', () => {
-    expect(getIncludedByPermission('message.read.interactions')).toBe('message.read');
-    expect(getIncludedByPermission('message.read')).toBeNull();
-    expect(getIncludedByPermission('message.post-in-thread')).toBeNull();
+    const definitions = [
+      { permission: 'message.read' },
+      { permission: 'message.read.interactions', includedByPermission: 'message.read' }
+    ];
+    expect(getIncludedByPermission(definitions, 'message.read.interactions')).toBe('message.read');
+    expect(getIncludedByPermission(definitions, 'message.read')).toBeNull();
+    expect(getIncludedByPermission(definitions, 'message.post-in-thread')).toBeNull();
+    expect(getIncludedByPermission(undefined, 'message.read.interactions')).toBeNull();
   });
 });

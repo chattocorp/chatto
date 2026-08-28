@@ -33,7 +33,11 @@ focusing a cell highlights its permission row and role column.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';
+  import {
+    getIncludedByPermission,
+    getPermissionDescription,
+    type PermissionDefinition
+  } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
@@ -57,6 +61,7 @@ focusing a cell highlights its permission row and role column.
   };
   type TierRoles = {
     applicablePermissions: string[];
+    permissionDefinitions?: PermissionDefinition[];
     roles: TierRole[];
   };
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
@@ -222,7 +227,7 @@ focusing a cell highlights its permission row and role column.
   }
 
   function includingPermission(role: TierRole, permission: string): string | null {
-    const including = getIncludedByPermission(permission);
+    const including = getIncludedByPermission(data?.permissionDefinitions, permission);
     if (!including) return null;
     const includingOverride = overrideState(role, including);
     if (includingOverride === 'allow') return including;
@@ -412,7 +417,7 @@ focusing a cell highlights its permission row and role column.
         {/if}
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        {@const includedBy = getIncludedByPermission(permission)}
+        {@const includedBy = getIncludedByPermission(data?.permissionDefinitions, permission)}
         <div class={['flex items-center gap-2', includedBy ? 'ml-4' : '']}>
           <HelpTooltip label={`About ${permission}`}>
             {getPermissionDescription(permission)}

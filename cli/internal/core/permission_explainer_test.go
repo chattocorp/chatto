@@ -181,6 +181,29 @@ func TestPermissionExplainer_ReportsIncludedPermission(t *testing.T) {
 	}
 }
 
+func TestPermissionExplainer_ReportsTransitiveIncludedPermission(t *testing.T) {
+	broad, _, narrow := installTestPermissionChain(t)
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "transitive-explanation", "Transitive Explanation", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, user.GetId(), broad); err != nil {
+		t.Fatalf("grant broad permission: %v", err)
+	}
+	if err := core.DenyUserPermission(ctx, SystemActorID, user.GetId(), narrow); err != nil {
+		t.Fatalf("deny narrow permission: %v", err)
+	}
+	explanation, err := core.PermResolver().ExplainServerPermission(ctx, user.GetId(), narrow)
+	if err != nil {
+		t.Fatalf("ExplainServerPermission: %v", err)
+	}
+	if explanation.State != DecisionAllow || explanation.IncludedBy != broad {
+		t.Fatalf("explanation = %+v, want allow included by %s", explanation, broad)
+	}
+}
+
 func TestPermissionExplainer_AgreesWithBotReadInclusion(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

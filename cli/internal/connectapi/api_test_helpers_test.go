@@ -76,6 +76,20 @@ func findAPIPermissionDecision(decisions []*adminv1.ScopedPermissionDecision, ki
 	return nil
 }
 
+func assertPermissionDefinition(t testing.TB, definitions []*adminv1.PermissionDefinition, permission, includedBy core.Permission) {
+	t.Helper()
+	for _, definition := range definitions {
+		if definition.GetPermission() != string(permission) {
+			continue
+		}
+		if definition.IncludedByPermission == nil || definition.GetIncludedByPermission() != string(includedBy) {
+			t.Fatalf("permission definition %s included by = %q, want %q", permission, definition.GetIncludedByPermission(), includedBy)
+		}
+		return
+	}
+	t.Fatalf("permission definition %s not found", permission)
+}
+
 func findAPITierRole(roles []*adminv1.TierRole, roleName string) *adminv1.TierRole {
 	for _, role := range roles {
 		if role.GetRole().GetName() == roleName {

@@ -220,6 +220,7 @@ func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 	}
 	out := &adminv1.TierRoles{
 		ApplicablePermissions: append([]string(nil), matrix.ApplicablePermissions...),
+		PermissionDefinitions: apiPermissionDefinitions(matrix.ApplicablePermissions),
 		Roles:                 make([]*adminv1.TierRole, 0, len(matrix.Roles)),
 	}
 	for _, role := range matrix.Roles {
@@ -254,6 +255,7 @@ func apiRolePermissionMatrix(matrix *core.RolePermissionMatrix) *adminv1.RolePer
 	return &adminv1.RolePermissionMatrix{
 		RoleName:              matrix.RoleName,
 		ApplicablePermissions: append([]string(nil), matrix.ApplicablePermissions...),
+		PermissionDefinitions: apiPermissionDefinitions(matrix.ApplicablePermissions),
 		Scopes:                apiPermissionMatrixScopes(matrix.Scopes),
 		Cells:                 apiPermissionMatrixCells(matrix.Cells),
 	}
@@ -266,9 +268,23 @@ func apiUserPermissionMatrix(matrix *core.UserPermissionMatrix) *adminv1.UserPer
 	return &adminv1.UserPermissionMatrix{
 		UserId:                matrix.UserID,
 		ApplicablePermissions: append([]string(nil), matrix.ApplicablePermissions...),
+		PermissionDefinitions: apiPermissionDefinitions(matrix.ApplicablePermissions),
 		Scopes:                apiPermissionMatrixScopes(matrix.Scopes),
 		Cells:                 apiPermissionMatrixCells(matrix.Cells),
 	}
+}
+
+func apiPermissionDefinitions(permissions []string) []*adminv1.PermissionDefinition {
+	out := make([]*adminv1.PermissionDefinition, 0, len(permissions))
+	for _, permission := range permissions {
+		definition := &adminv1.PermissionDefinition{Permission: permission}
+		if metadata, ok := core.GetPermissionMetadata(core.Permission(permission)); ok && metadata.IncludedBy != "" {
+			includedBy := string(metadata.IncludedBy)
+			definition.IncludedByPermission = &includedBy
+		}
+		out = append(out, definition)
+	}
+	return out
 }
 
 func apiPermissionDecisionEntries(scopes []core.PermissionMatrixScope, cells []core.PermissionMatrixCell) []*adminv1.ScopedPermissionDecision {

@@ -320,6 +320,10 @@ describe('subject permission loaders', () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue({
       userId: 'bot-read',
       applicablePermissions: ['message.read', 'message.read.interactions'],
+      permissionDefinitions: [
+        { permission: 'message.read' },
+        { permission: 'message.read.interactions', includedByPermission: 'message.read' }
+      ],
       scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
       cells: [
         {

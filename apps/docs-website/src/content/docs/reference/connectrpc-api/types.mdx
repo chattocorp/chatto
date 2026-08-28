@@ -1432,6 +1432,17 @@ Stored permission decision returned after a write.
 | `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
 | `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Stored decision after the write. NONE means no explicit decision remains. |
 
+<a id="chatto-admin-v1-PermissionDefinition"></a>
+
+### PermissionDefinition
+
+Catalog metadata for one permission.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `included_by_permission` | `optional string` | Immediate parent whose effective allow includes this permission. Absent when the permission has no parent. Dotted names do not imply inclusion. |
+
 <a id="chatto-admin-v1-PermissionExplanation"></a>
 
 ### PermissionExplanation
@@ -1510,6 +1521,7 @@ Permission matrix for one role across all scopes.
 | `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
+| `permission_definitions` | repeated [`PermissionDefinition`](#chatto-admin-v1-PermissionDefinition) | Catalog metadata for applicable permissions. |
 
 <a id="chatto-admin-v1-ScopedPermissionDecision"></a>
 
@@ -1561,6 +1573,7 @@ Role permission matrix for one tier.
 | --- | --- | --- |
 | `applicable_permissions` | `repeated string` | Permissions configurable at this tier. |
 | `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles sorted by position. |
+| `permission_definitions` | repeated [`PermissionDefinition`](#chatto-admin-v1-PermissionDefinition) | Catalog metadata for applicable permissions. |
 
 <a id="chatto-admin-v1-UserPermissionMatrix"></a>
 
@@ -1574,6 +1587,7 @@ Permission matrix for one user across all scopes.
 | `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
+| `permission_definitions` | repeated [`PermissionDefinition`](#chatto-admin-v1-PermissionDefinition) | Catalog metadata for applicable permissions. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutGroup"></a>
 

@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -13,8 +13,9 @@ Chatto controls who can do what through role-based access control. Every authent
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
 - A permission identifier has two or more non-empty dot-separated components.
-  More components can show a relationship, but do not create an automatic
-  permission hierarchy.
+  New identifiers use `<domain>.<capability>[.<narrower-capability>...]`.
+  More components can show an explicit inclusion relationship, but do not
+  create an automatic permission hierarchy.
 - Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads. `message.read` supplies broad
@@ -98,18 +99,27 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 10. Permission names can show explicit inclusion
 
-**Decision:** Use two or more non-empty dot-separated components for permission
-identifiers. Do not infer authority from a dotted prefix. Define each inclusion
-explicitly. `message.read` includes `message.read.interactions`. The child does
-not include the parent. A child deny cannot restrict an effective parent allow,
-and a parent deny cannot restrict a separate child allow. Inclusion changes
-effective authorization only and does not store an additional grant.
+**Decision:** Use `<domain>.<capability>[.<narrower-capability>...]` for new
+permission identifiers. Use a hyphen only inside one component. Prefer no more
+than three components unless the product needs a deeper capability tree. Do not
+infer authority from a dotted prefix. The canonical permission catalog records
+at most one immediate including parent for each permission. The resolver follows
+this relationship transitively. `message.read` includes
+`message.read.interactions`. The child does not include the parent. A child deny
+cannot restrict an effective parent allow, and a parent deny cannot restrict a
+separate child allow. Inclusion changes effective authorization only and does
+not store an additional grant. Catalog validation rejects missing parents,
+cycles, non-immediate parent names, and parent-child pairs with different
+categories or scopes. The administrative permission API supplies the catalog
+relationship to clients. An older client ignores this additive metadata. A new
+client that does not receive the metadata shows a flat permission list. This
+does not change authorization.
 **Why:** The three-component name shows that interaction reads are a narrower
-part of message reads. Explicit inclusion avoids a repository-wide permission
-hierarchy before more examples exist.
-**Tradeoff:** Code and documentation must list each inclusion. If Chatto adds
-more nested permissions, it can replace the explicit logic with a general
-model in a separate decision.
+part of message reads. One catalog-owned relationship keeps authorization,
+explanations, delegation limits, and the admin UI consistent. Explicit
+inclusion prevents an accidental grant from a matching string prefix.
+**Tradeoff:** A permission can have only one immediate parent. A capability
+that needs multiple parents must use a different model.
 
 ## Permissions
 

@@ -12,6 +12,10 @@
 > dot-separated components. A dotted prefix has no automatic meaning.
 > Permission inclusion must be explicit.
 >
+> **Amended 2026-08-28:** The canonical permission catalog records one optional
+> immediate parent for each permission. Inclusion is transitive. The admin API
+> supplies this relationship to clients.
+>
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,
@@ -70,12 +74,13 @@ Use a permission-only RBAC model for everyone except effective owners.
 - Permission identifiers contain two or more non-empty dot-separated
   components. A component can contain hyphens. The identifier structure makes
   related capabilities visible, but it does not create a general hierarchy.
-- An effective allow can explicitly include another permission. The catalog
-  currently defines one inclusion: `message.read` includes
-  `message.read.interactions`. An allow for the included permission does not
-  include its parent. A deny for the included permission cannot restrict an
-  effective allow for its parent. A deny for the parent does not restrict a
-  separate allow for the included permission.
+- An effective allow can explicitly include another permission. Each permission
+  has no more than one immediate parent in the canonical catalog. The resolver
+  follows parent relationships transitively. The catalog currently defines one
+  inclusion: `message.read` includes `message.read.interactions`. An allow for
+  the included permission does not include its parent. A deny for the included
+  permission cannot restrict an effective allow for its parent. A deny for the
+  parent does not restrict a separate allow for the included permission.
 
 This supersedes ADR-005.
 

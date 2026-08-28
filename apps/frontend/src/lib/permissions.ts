@@ -10,6 +10,11 @@ export type PermissionMetadata = {
   description: () => string;
 };
 
+export type PermissionDefinition = {
+  permission: string;
+  includedByPermission?: string;
+};
+
 /**
  * Map of permission IDs to their metadata.
  * Keep in sync with cli/internal/core/permission.go
@@ -100,13 +105,12 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   }
 };
 
-const INCLUDED_BY_PERMISSION: Readonly<Record<string, string>> = {
-  'message.read.interactions': 'message.read'
-};
-
-/** Return the permission whose effective allow includes this permission. */
-export function getIncludedByPermission(id: string): string | null {
-  return INCLUDED_BY_PERMISSION[id] ?? null;
+/** Return the explicit immediate parent supplied by the server catalog. */
+export function getIncludedByPermission(
+  definitions: readonly PermissionDefinition[] | undefined,
+  id: string
+): string | null {
+  return definitions?.find((definition) => definition.permission === id)?.includedByPermission ?? null;
 }
 
 /**
