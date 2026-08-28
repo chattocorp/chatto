@@ -38,6 +38,7 @@ local to the footer.
     threadExists = false,
     threadParticipants,
     hasThreadNotification = false,
+    hasThreadUnread = false,
     isFollowingThread = false,
     isThreadFollowPending = false,
     onToggleThreadFollow,
@@ -54,6 +55,7 @@ local to the footer.
     threadExists?: boolean;
     threadParticipants?: MessagePostedPayload['threadParticipants'];
     hasThreadNotification?: boolean;
+    hasThreadUnread?: boolean;
     isFollowingThread?: boolean;
     isThreadFollowPending?: boolean;
     onToggleThreadFollow?: (e: MouseEvent) => void;
@@ -203,8 +205,11 @@ local to the footer.
       <span>
         {replyCount > 0 ? replyCountLabel : m('room.message.meta.thread')}
       </span>
-      {#if hasThreadNotification}
-        <UnreadDot testid="thread-notification-dot" />
+      {#if hasThreadNotification || hasThreadUnread}
+        <UnreadDot
+          color={hasThreadNotification ? 'warning' : 'neutral'}
+          testid={hasThreadNotification ? 'thread-notification-dot' : 'thread-unread-dot'}
+        />
       {/if}
     </a>
     {#if onToggleThreadFollow}

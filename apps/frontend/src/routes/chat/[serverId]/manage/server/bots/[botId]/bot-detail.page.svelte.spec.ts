@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { Code, ConnectError } from '@connectrpc/connect';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -12,7 +11,6 @@ const mocks = vi.hoisted(() => ({
 	getBot: vi.fn(),
 	batchGetUsers: vi.fn(),
 	listUsers: vi.fn(),
-	updateBot: vi.fn(),
 	reassignBotOwner: vi.fn(),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
@@ -23,6 +21,8 @@ const mocks = vi.hoisted(() => ({
 		login: 'helper_bot',
 		displayName: 'Helper Bot',
 		avatarUrl: null,
+		bio: 'Initial bot bio',
+		timezone: null,
 		ownerUserId: 'owner-user-id',
 		createdAt: null,
 		apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
@@ -53,7 +53,6 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 				getBot: mocks.getBot,
 				batchGetUsers: mocks.batchGetUsers,
 				listUsers: mocks.listUsers,
-				updateBot: mocks.updateBot,
 				reassignBotOwner: mocks.reassignBotOwner
 			})
 		},
@@ -71,7 +70,7 @@ vi.mock('$lib/ui/toast', () => ({
 
 import BotDetailPage from './+page.svelte';
 
-function setInput(input: HTMLInputElement, value: string): void {
+function setInput(input: HTMLInputElement | HTMLTextAreaElement, value: string): void {
 	input.value = value;
 	input.dispatchEvent(new Event('input', { bubbles: true }));
 	flushSync();
@@ -99,13 +98,6 @@ describe('Bot detail page', () => {
 		mocks.getBot.mockResolvedValue(mocks.bot);
 		mocks.batchGetUsers.mockResolvedValue([]);
 		mocks.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
-		mocks.updateBot.mockImplementation((input: { login?: string; displayName?: string }) =>
-			Promise.resolve({
-				...mocks.bot,
-				login: input.login ?? mocks.bot.login,
-				displayName: input.displayName ?? mocks.bot.displayName
-			})
-		);
 		mocks.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
 			Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
 		);
@@ -137,49 +129,6 @@ describe('Bot detail page', () => {
 		expect(container.textContent).toContain('Alice Owner');
 		expect(container.textContent).not.toContain('owner-user-id');
 		expect(container.querySelector('[data-testid="user-identity"]')).not.toBeNull();
-	});
-
-	it('sends only the bot profile field changed in the edit dialog', async () => {
-		const rendered = render(BotDetailPage);
-		await settle();
-
-		buttonByText(rendered.container, 'Edit').click();
-		flushSync();
-		setInput(
-			rendered.container.querySelector('#edit-bot-login') as HTMLInputElement,
-			'renamed_bot'
-		);
-		buttonByText(rendered.container, 'Save').click();
-		await vi.waitFor(() => expect(mocks.updateBot).toHaveBeenCalledOnce());
-
-		expect(mocks.updateBot).toHaveBeenCalledWith({
-			botUserId: 'bot-user-id',
-			login: 'renamed_bot'
-		});
-	});
-
-	it('shows a friendly toast when OCC rejects a concurrent bot edit', async () => {
-		mocks.updateBot.mockRejectedValue(new ConnectError('conflict', Code.Aborted));
-		const rendered = render(BotDetailPage);
-		await settle();
-
-		buttonByText(rendered.container, 'Edit').click();
-		flushSync();
-		setInput(
-			rendered.container.querySelector('#edit-bot-display-name') as HTMLInputElement,
-			'Changed elsewhere'
-		);
-		buttonByText(rendered.container, 'Save').click();
-
-		await vi.waitFor(() =>
-			expect(mocks.toastError).toHaveBeenCalledWith(
-				'Someone else updated this bot. Reload the page and try again.'
-			)
-		);
-		expect(mocks.updateBot).toHaveBeenCalledWith({
-			botUserId: 'bot-user-id',
-			displayName: 'Changed elsewhere'
-		});
 	});
 
 	it("formats API key timestamps with the viewer's timezone and time format", async () => {

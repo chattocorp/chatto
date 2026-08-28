@@ -75,6 +75,9 @@ intensity.
     if (current === null && inheritanceAvailable) return NotificationDeliveryMode.OFF;
     const displayed = current ?? currentEffective;
     if (displayed === NotificationDeliveryMode.OFF) {
+      return NotificationDeliveryMode.UNREAD_BADGE;
+    }
+    if (displayed === NotificationDeliveryMode.UNREAD_BADGE) {
       return NotificationDeliveryMode.IN_APP_NOTIFICATION;
     }
     if (displayed === NotificationDeliveryMode.IN_APP_NOTIFICATION) {

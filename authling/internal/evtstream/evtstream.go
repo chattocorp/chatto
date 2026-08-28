@@ -27,12 +27,22 @@ func IssuerSubject() string { return issuerSubject }
 
 // IssuerTail returns the singleton issuer aggregate's current OCC token.
 func (p *Publisher) IssuerTail(ctx context.Context) (uint64, error) {
-	return p.log.LastSubjectSeq(ctx, issuerSubject)
+	return p.LastSubjectSeq(ctx, issuerSubject)
 }
 
-// Publisher validates and appends Authling events through the shared event log.
+// Publisher validates and appends Authling events through the shared event
+// log. The embedded framework typed log supplies the mechanical encode and
+// publish mapping; this type adds only Authling's subjects, validation, and
+// aggregate-command methods.
 type Publisher struct {
-	log *events.EncodedEventLog
+	events.TypedEventLog[*corev1.Event]
+}
+
+// NewPublisher constructs an Authling protobuf publisher.
+func NewPublisher(log *events.EncodedEventLog) *Publisher {
+	return &Publisher{
+		TypedEventLog: *events.NewTypedEventLog(log, encode, decodeEventData),
+	}
 }
 
 // AccountRegistrySubject is the PII-free serialization point for local email
@@ -42,7 +52,7 @@ func AccountRegistrySubject() string { return accountRegistrySubject }
 
 // AccountRegistryTail returns the current OCC token for local account claims.
 func (p *Publisher) AccountRegistryTail(ctx context.Context) (uint64, error) {
-	return p.log.LastSubjectSeq(ctx, accountRegistrySubject)
+	return p.LastSubjectSeq(ctx, accountRegistrySubject)
 }
 
 // AccountTail returns the current OCC token for one account aggregate.
@@ -51,7 +61,7 @@ func (p *Publisher) AccountTail(ctx context.Context, accountID string) (uint64, 
 	if err != nil {
 		return 0, err
 	}
-	return p.log.LastSubjectSeq(ctx, subject)
+	return p.LastSubjectSeq(ctx, subject)
 }
 
 // AppendRegisteredAccount commits a local account against a previously read
@@ -66,17 +76,9 @@ func (p *Publisher) AppendRegisteredAccount(ctx context.Context, accountEvent, c
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	accountRecord, err := encode(accountEvent)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	claimRecord, err := encode(claimEvent)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequences, err := p.log.AppendBatch(ctx, []events.EncodedBatchEntry{
-		{Subject: accountSubject, Record: accountRecord, ExpectedSeq: 0, HasOCC: true},
-		{Subject: accountRegistrySubject, Record: claimRecord, ExpectedSeq: expectedRegistry, HasOCC: true},
+	sequences, err := p.AppendBatch(ctx, []events.TypedBatchEntry[*corev1.Event]{
+		{Subject: accountSubject, Event: accountEvent, ExpectedSeq: 0, HasOCC: true},
+		{Subject: accountRegistrySubject, Event: claimEvent, ExpectedSeq: expectedRegistry, HasOCC: true},
 	})
 	if err != nil {
 		return events.StreamPosition{}, err
@@ -84,9 +86,14 @@ func (p *Publisher) AppendRegisteredAccount(ctx context.Context, accountEvent, c
 	return events.SubjectPosition(accountRegistrySubject, sequences[1]), nil
 }
 
-// NewPublisher constructs an Authling protobuf publisher.
-func NewPublisher(log *events.EncodedEventLog) *Publisher {
-	return &Publisher{log: log}
+// appendAtPosition publishes one event at an explicitly observed aggregate
+// tail and reports its position on that aggregate.
+func (p *Publisher) appendAtPosition(ctx context.Context, subject string, event *corev1.Event, expectedTail uint64) (events.StreamPosition, error) {
+	sequence, err := p.AppendAt(ctx, subject, event, expectedTail)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(subject, sequence), nil
 }
 
 // AppendAccountCreated creates a new account aggregate at expected sequence
@@ -103,15 +110,8 @@ func (p *Publisher) AppendAccountCreated(
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, subject, record, 0)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(subject, sequence), nil
+	return p.appendAtPosition(ctx, subject, event, 0)
+
 }
 
 // AppendPasswordChanged replaces a credential at an explicitly observed
@@ -129,15 +129,8 @@ func (p *Publisher) AppendPasswordChanged(
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(subject, sequence), nil
+	return p.appendAtPosition(ctx, subject, event, expectedTail)
+
 }
 
 // AppendProfileUpdated replaces profile hints at an explicitly observed
@@ -151,15 +144,8 @@ func (p *Publisher) AppendProfileUpdated(ctx context.Context, event *corev1.Even
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(subject, sequence), nil
+	return p.appendAtPosition(ctx, subject, event, expectedTail)
+
 }
 
 // AppendPasswordResetRequested records an accepted recovery request at an
@@ -177,15 +163,8 @@ func (p *Publisher) AppendPasswordResetRequested(
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(subject, sequence), nil
+	return p.appendAtPosition(ctx, subject, event, expectedTail)
+
 }
 
 // AppendEmailChangeRequested records successful reauthentication for an email
@@ -203,15 +182,8 @@ func (p *Publisher) AppendEmailChangeRequested(
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(subject, sequence), nil
+	return p.appendAtPosition(ctx, subject, event, expectedTail)
+
 }
 
 // AppendEmailChanged atomically stages an encrypted replacement address on the
@@ -230,17 +202,9 @@ func (p *Publisher) AppendEmailChanged(
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	changeRecord, err := encode(changeEvent)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	claimRecord, err := encode(claimEvent)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequences, err := p.log.AppendBatch(ctx, []events.EncodedBatchEntry{
-		{Subject: accountSubject, Record: changeRecord, ExpectedSeq: expectedAccount, HasOCC: true},
-		{Subject: accountRegistrySubject, Record: claimRecord, ExpectedSeq: expectedRegistry, HasOCC: true},
+	sequences, err := p.AppendBatch(ctx, []events.TypedBatchEntry[*corev1.Event]{
+		{Subject: accountSubject, Event: changeEvent, ExpectedSeq: expectedAccount, HasOCC: true},
+		{Subject: accountRegistrySubject, Event: claimEvent, ExpectedSeq: expectedRegistry, HasOCC: true},
 	})
 	if err != nil {
 		return events.StreamPosition{}, err
@@ -259,15 +223,8 @@ func (p *Publisher) AppendOIDCGrantAuthorized(ctx context.Context, event *corev1
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(subject, sequence), nil
+	return p.appendAtPosition(ctx, subject, event, expectedTail)
+
 }
 
 // AppendOIDCGrantRevoked records revocation of an active OIDC grant at an
@@ -281,15 +238,8 @@ func (p *Publisher) AppendOIDCGrantRevoked(ctx context.Context, event *corev1.Ev
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(subject, sequence), nil
+	return p.appendAtPosition(ctx, subject, event, expectedTail)
+
 }
 
 // AppendIssuerEstablished creates the singleton issuer aggregate.
@@ -297,15 +247,7 @@ func (p *Publisher) AppendIssuerEstablished(ctx context.Context, event *corev1.E
 	if event.GetIssuerEstablished() == nil {
 		return events.StreamPosition{}, fmt.Errorf("append issuer established: event payload is not issuer_established")
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, issuerSubject, record, 0)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(issuerSubject, sequence), nil
+	return p.appendAtPosition(ctx, issuerSubject, event, 0)
 }
 
 // AppendIssuerLifecycle records a signing-key transition at an explicitly
@@ -320,15 +262,7 @@ func (p *Publisher) AppendIssuerLifecycle(ctx context.Context, event *corev1.Eve
 	default:
 		return events.StreamPosition{}, fmt.Errorf("append issuer lifecycle: event payload is not a signing-key lifecycle event")
 	}
-	record, err := encode(event)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	sequence, err := p.log.AppendAt(ctx, issuerSubject, record, expectedTail)
-	if err != nil {
-		return events.StreamPosition{}, err
-	}
-	return events.SubjectPosition(issuerSubject, sequence), nil
+	return p.appendAtPosition(ctx, issuerSubject, event, expectedTail)
 }
 
 // Decode validates and decodes one persisted Authling event.
@@ -341,6 +275,16 @@ func Decode(data []byte) (events.DecodedEvent[*corev1.Event], error) {
 		return events.DecodedEvent[*corev1.Event]{}, err
 	}
 	return events.DecodedEvent[*corev1.Event]{Event: &event, ID: event.GetId()}, nil
+}
+
+// decodeEventData decodes an opaque record payload for typed subject reads;
+// persisted records were validated when they were published.
+func decodeEventData(data []byte) (*corev1.Event, error) {
+	var event corev1.Event
+	if err := proto.Unmarshal(data, &event); err != nil {
+		return nil, fmt.Errorf("decode Authling event: %w", err)
+	}
+	return &event, nil
 }
 
 func encode(event *corev1.Event) (events.EncodedRecord, error) {

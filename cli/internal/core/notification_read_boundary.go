@@ -135,15 +135,7 @@ func (m *NotificationOccurrenceModel) occurrenceCoveredByBoundary(occurrence *co
 	if occurrence == nil || occurrence.GetSourceStreamSequence() == 0 {
 		return false
 	}
-	message := notificationSignalMessage(occurrence.GetSignal())
-	if message == nil {
-		return false
-	}
-	if occurrence.GetSignal().GetReactionReceived() != nil {
-		targetEntry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
-		return ok && targetEntry.StreamSeq <= boundary.targetSequence && occurrence.GetSourceStreamSequence() <= boundary.observedSequence
-	}
-	return occurrence.GetSourceStreamSequence() <= boundary.targetSequence
+	return m.notificationSignalCoveredByBoundary(occurrence.GetSignal(), occurrence.GetSourceStreamSequence(), boundary)
 }
 
 func (m *NotificationOccurrenceModel) purgeNotificationReadBoundaries(ctx context.Context, userID string) error {

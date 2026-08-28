@@ -3,15 +3,7 @@
 Key files: [`cli/internal/connectapi/api.go`](../../cli/internal/connectapi/api.go),
 [`cli/internal/http_server/connect.go`](../../cli/internal/http_server/connect.go),
 [`cli/internal/http_server/auth.go`](../../cli/internal/http_server/auth.go),
-[`cli/internal/http_server/browser_session_store.go`](../../cli/internal/http_server/browser_session_store.go),
-[`cli/internal/http_server/cimd.go`](../../cli/internal/http_server/cimd.go),
-[`cli/internal/http_server/oauth.go`](../../cli/internal/http_server/oauth.go),
-[`cli/internal/http_server/oidc.go`](../../cli/internal/http_server/oidc.go),
-[`cli/internal/http_server/assets.go`](../../cli/internal/http_server/assets.go),
 [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go),
-[`cli/internal/search/service.go`](../../cli/internal/search/service.go),
-[`cli/internal/search/client.go`](../../cli/internal/search/client.go),
-[`cli/internal/connectapi/message_search.go`](../../cli/internal/connectapi/message_search.go),
 [`proto/chatto/`](../../proto/chatto/)
 
 This inventory records mounted transport and service boundaries. The generated
@@ -68,13 +60,16 @@ ID in the signed browser session, and immediately redirects to registration.
 and show-once API-key rotation. Bot
 permission reads and writes use `AdminPermissionService`'s canonical user
 permission operations with the bot's user ID as the target. Human owners can
-manage their own bots; `bot.manage` allows global management. Matrix room
-metadata is limited to rooms visible to both the bot owner and the managing
-caller; group metadata follows the room directory's complete group layout so
-empty groups remain configurable. Bot API keys authenticate the normal public
-and realtime surfaces, but cannot call bot-management or human account-security
-operations. Reassignment requires `bot.manage`, preserves the active key and
-configured allowlist, and immediately changes the owner permission ceiling.
+manage their own bots; `bot.manage` allows global management.
+
+Matrix room metadata is limited to rooms visible to both the bot owner and the
+managing caller; group metadata follows the room directory's complete group
+layout so empty groups remain configurable. Bot API keys authenticate the
+normal public and realtime surfaces, but cannot call bot-management or human
+account-security operations. Reassignment requires `bot.manage`, preserves the
+active key and configured allowlist, and immediately changes the owner
+permission ceiling.
+
 Rotation closes established realtime connections authenticated by the
 superseded verifier generation.
 

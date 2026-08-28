@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-07-15
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -9,9 +9,10 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ## Behavior
 
-- The composer fetches a link preview as soon as the user has typed a complete URL.
-- Only the first URL in a message gets a preview. There is no multi-preview layout.
+- The composer fetches a link preview as soon as the user has typed a complete eligible URL.
+- Only the first eligible URL in a message gets a preview. There is no multi-preview layout.
 - URLs inside code spans, code blocks, pre-formatted text, and blockquotes do not trigger link previews.
+- An HTTP or HTTPS link that starts with an angle bracket, such as `<https://example.com>`, stays clickable and does not trigger a link preview. The closing angle bracket is optional. This behavior works in both message editors. A later eligible URL can get the preview instead.
 - YouTube URLs get a specialized embed-ready card without scraping the page.
 - Supported public social-post URLs use a native Chatto card populated from provider data. The card can include the provider, author, post text, attached images, an embedded website card, and one quoted post with its own common media. Bluesky and Mastodon are supported providers. Mastodon content warnings and accepted quote posts use the same common fields; warned text and media stay concealed until the reader reveals them, and boosts show the original post without boost attribution. If structured post data is unavailable, the post falls back to a normal link preview.
 - A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
@@ -30,7 +31,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 
 ### 2. One preview per message, first URL only
 
-**Decision:** Only the first URL in a message gets a preview card. Subsequent URLs render as plain links.
+**Decision:** Only the first eligible URL in a message gets a preview card. Subsequent URLs render as plain links.
 **Why:** Multi-preview layouts (Slack-style) blow up the message height and are usually visual clutter. One preview captures the most-likely-relevant link.
 **Tradeoff:** Messages that genuinely need to highlight several links can't. Authors can split into multiple messages.
 

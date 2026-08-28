@@ -21,6 +21,14 @@ describe('notification delivery mode presentation', () => {
     });
   });
 
+  it('uses a neutral filled bell for Badge', () => {
+    expect(notificationDeliveryModePresentation(NotificationDeliveryMode.UNREAD_BADGE)).toEqual({
+      icon: 'icon-[ph--bell-fill]',
+      tone: 'neutral',
+      legendClass: 'text-text'
+    });
+  });
+
   it('uses orange warning language for in-app notifications and push', () => {
     expect(
       notificationDeliveryModePresentation(NotificationDeliveryMode.IN_APP_NOTIFICATION)
@@ -40,6 +48,7 @@ describe('notification delivery mode presentation', () => {
 
   it('provides the shared localized labels, including the inheritance marker', () => {
     expect(notificationDeliveryModeLabel(NotificationDeliveryMode.OFF)).toBe('Off');
+    expect(notificationDeliveryModeLabel(NotificationDeliveryMode.UNREAD_BADGE)).toBe('Badge');
     expect(notificationDeliveryModeLabel(NotificationDeliveryMode.IN_APP_NOTIFICATION)).toBe(
       'Notification'
     );

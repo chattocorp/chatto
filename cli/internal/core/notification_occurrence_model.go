@@ -280,6 +280,8 @@ func notificationSignalMessage(signal *corev1.NotificationSignal) *corev1.Notifi
 		return payload.FollowedRoomActivity.GetMessage()
 	case *corev1.NotificationSignal_ReactionReceived:
 		return payload.ReactionReceived.GetMessage()
+	case *corev1.NotificationSignal_RoomMessageReceived:
+		return payload.RoomMessageReceived.GetMessage()
 	default:
 		return nil
 	}
@@ -317,6 +319,8 @@ func notificationSignalIdentity(signal *corev1.NotificationSignal) string {
 		return "followed_room_activity"
 	case *corev1.NotificationSignal_ReactionReceived:
 		return "reaction_received"
+	case *corev1.NotificationSignal_RoomMessageReceived:
+		return "room_message_received"
 	default:
 		return ""
 	}

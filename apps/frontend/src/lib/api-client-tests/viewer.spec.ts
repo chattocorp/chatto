@@ -77,6 +77,7 @@ describe('getCurrentUserViaConnect', () => {
       login: 'alice',
       displayName: 'Alice',
       avatarUrl: 'https://cdn/avatar.webp',
+      bio: null,
       customStatus: {
         emoji: ':wave:',
         text: 'here',

@@ -142,6 +142,28 @@ describe('MessageMetaBar', () => {
     expect(link.textContent?.trim()).toContain('Thread');
   });
 
+  it('uses a neutral dot for Badge unread and lets notification orange win', () => {
+    const badge = render(MessageMetaBar, {
+      props: { ...baseProps, replyCount: 1, hasThreadUnread: true }
+    });
+    const badgeDot = q(badge.container, '[data-testid="thread-unread-dot"]')!;
+    expect(badgeDot.classList).toContain('bg-neutral-action');
+    expect(q(badge.container, '[data-testid="thread-notification-dot"]')).toBeNull();
+    badge.unmount();
+
+    const notification = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        replyCount: 1,
+        hasThreadUnread: true,
+        hasThreadNotification: true
+      }
+    });
+    const notificationDot = q(notification.container, '[data-testid="thread-notification-dot"]')!;
+    expect(notificationDot.classList).toContain('bg-attention');
+    expect(q(notification.container, '[data-testid="thread-unread-dot"]')).toBeNull();
+  });
+
   it('renders the echo thread badge as a native thread link', async () => {
     const { container } = render(MessageMetaBar, {
       props: {

@@ -151,7 +151,7 @@ export class ServerAdminPage {
    * Navigate to chat and then to its admin page via the sidebar link.
    */
   async goto(_spaceId: string): Promise<void> {
-    await this.page.goto(routes.space());
+    await this.page.goto(routes.chat);
     await this.settingsLink.click();
     await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
@@ -513,7 +513,7 @@ export class ServerAdminPage {
    * Navigate directly to the Roles admin page URL.
    */
   async gotoRolesDirectly(spaceId: string): Promise<void> {
-    await this.page.goto(routes.serverAdminRoles);
+    await this.page.goto(routes.serverAdminPermissions);
   }
 
   /**

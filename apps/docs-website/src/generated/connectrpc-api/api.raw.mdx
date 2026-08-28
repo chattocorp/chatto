@@ -64,7 +64,7 @@ authenticated user.
 
 ### UpdateProfile
 
-Updates the authenticated user's login and/or display name.
+Updates the authenticated user's login, display name, and/or bio.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
@@ -74,13 +74,14 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
 
 #### Input: UpdateProfileRequest
 
-Request to update the authenticated user's profile. At least one field must
-be present.
+Request to update the authenticated user's profile. Human and bot accounts
+use this same self-service operation. At least one field must be present.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
 | `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
+| `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
 
 
 <a id="chatto-api-v1-UpdateProfileResponse"></a>
@@ -878,40 +879,6 @@ Result of creating a bot. api_key is shown once and cannot be retrieved.
 | --- | --- | --- |
 | `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
 | `api_key` | `string` | Newly issued API key. |
-
-
-<a id="chatto-api-v1-BotService-UpdateBot"></a>
-
-### UpdateBot
-
-Updates a bot's public identity.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/UpdateBot
-```
-
-<a id="chatto-api-v1-UpdateBotRequest"></a>
-
-#### Input: UpdateBotRequest
-
-Patch request for a bot's public identity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `login` | `optional string` | New bot login. Must end in `_bot`. |
-| `display_name` | `optional string` | New public display name. |
-
-
-<a id="chatto-api-v1-UpdateBotResponse"></a>
-
-#### Result: UpdateBotResponse
-
-Result of updating a bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot. |
 
 
 <a id="chatto-api-v1-BotService-DeleteBot"></a>
@@ -2398,8 +2365,8 @@ Request to mark a room timeline as read.
 
 Result of marking a room timeline as read.
 
-Clients can use the previous timestamp to decide whether unread badges or
-local notification state need to be reconciled.
+Clients can use the previous timestamp to place a local New messages
+separator. Notification policy controls room Badge attention separately.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -4040,6 +4007,8 @@ Public user fields.
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 | `is_bot` | `bool` | True when this identity represents an automated bot. |
+| `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
+| `timezone` | `optional string` | IANA time zone the user shares on their profile (for example "Europe/Berlin"), when set. Absent means the user has not chosen a shareable time zone. |
 
 
 
@@ -4104,7 +4073,7 @@ Non-permission server state for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `has_unread_rooms` | `bool` | Whether any joined channel room has unread messages. |
+| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
 
 
 
@@ -4409,7 +4378,7 @@ Viewer-specific state for one message thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
-| `has_unread` | `optional bool` | True when the thread has unread replies for the current user, when known. |
+| `has_unread` | `optional bool` | True when the thread has unread replies or neutral Badge attention for the current user, when known. |
 
 
 
@@ -4766,8 +4735,7 @@ A direct message sent to the viewer.
 
 ### FollowedRoomActivity
 
-Top-level activity in a room followed by the viewer. Servers without
-room-follow support can emit it for any channel room joined by the viewer.
+Deprecated compatibility payload. Chatto does not derive this signal.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -4815,8 +4783,9 @@ Presence is significant: absent fields inherit in a stored policy.
 | `here_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `all_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `followed_threads` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
-| `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for top-level activity in rooms followed by the viewer. Servers without room-follow support apply it to all joined channel rooms. |
+| `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | **Deprecated.** Deprecated compatibility slot. Use room_messages at room scope. |
 | `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `room_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for root messages posted directly to joined channel rooms. Thread messages and direct messages use their own signal classes. |
 
 
 
@@ -4912,8 +4881,9 @@ navigation semantics for them.
 | `kind.here_mention_received` | [`HereMentionReceived`](#chatto-api-v1-HereMentionReceived) | No field description provided. |
 | `kind.all_mention_received` | [`AllMentionReceived`](#chatto-api-v1-AllMentionReceived) | No field description provided. |
 | `kind.followed_thread_activity` | [`FollowedThreadActivity`](#chatto-api-v1-FollowedThreadActivity) | No field description provided. |
-| `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | No field description provided. |
+| `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | **Deprecated.** No field description provided. |
 | `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
+| `kind.room_message_received` | [`RoomMessageReceived`](#chatto-api-v1-RoomMessageReceived) | No field description provided. |
 
 
 
@@ -4952,6 +4922,18 @@ A message mentioning a role held by the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 | `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
+
+
+
+<a id="chatto-api-v1-RoomMessageReceived"></a>
+
+### RoomMessageReceived
+
+A root message posted directly to a channel room that the viewer belongs to.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
 
 
@@ -5035,7 +5017,7 @@ Viewer-specific state and permission decisions for one room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `is_member` | `bool` | True when the current user is an effective room member. |
-| `has_unread` | `bool` | True when the room has unread root messages for the current user. |
+| `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
 | `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
 
@@ -5335,11 +5317,12 @@ Delivery behavior for one notification signal class.
 | Name | Number | Description |
 | --- | --- | --- |
 | `NOTIFICATION_DELIVERY_MODE_UNSPECIFIED` | `0` | No delivery mode was specified. This value is not a valid override. |
-| `NOTIFICATION_DELIVERY_MODE_OFF` | `1` | Matching activity does not create a notification occurrence. |
+| `NOTIFICATION_DELIVERY_MODE_OFF` | `1` | Matching activity does not create user attention. |
 | `NOTIFICATION_DELIVERY_MODE_SILENT` | `2` | Deprecated alias for NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION. |
 | `NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION` | `2` | Matching activity creates an in-app notification but does not send push. |
 | `NOTIFICATION_DELIVERY_MODE_ALERT` | `3` | Deprecated alias for NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION. |
 | `NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION` | `3` | Matching activity creates an in-app notification and may send push. |
+| `NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE` | `4` | Matching activity adds a neutral unread indicator without creating a notification occurrence, playing a sound, or sending push. |
 
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>

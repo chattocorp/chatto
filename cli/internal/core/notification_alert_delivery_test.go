@@ -73,6 +73,7 @@ func TestNotificationSoundEligibleAllowsInAppNotificationWithoutPush(t *testing.
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
+	waitForNotificationMaterializer(t, chattoCore)
 	wantID := notificationOccurrenceID(recipient.Id, posted.GetId(), "direct_mention_received")
 	occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, recipient.Id, wantID)
 	if err != nil {

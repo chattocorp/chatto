@@ -23,4 +23,10 @@ message User {
   CustomUserStatus custom_status = 7;
   // True when this identity represents an automated bot.
   bool is_bot = 8;
+  // Short self-authored biography shown on the user's profile, when set.
+  optional string bio = 9;
+  // IANA time zone the user shares on their profile (for example
+  // "Europe/Berlin"), when set. Absent means the user has not chosen a
+  // shareable time zone.
+  optional string timezone = 10;
 }

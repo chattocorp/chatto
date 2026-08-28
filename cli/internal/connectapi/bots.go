@@ -105,22 +105,6 @@ func (s *botService) CreateBot(ctx context.Context, req *connect.Request[apiv1.C
 	return connect.NewResponse(&apiv1.CreateBotResponse{Bot: mapped, ApiKey: bot.APIKey}), nil
 }
 
-func (s *botService) UpdateBot(ctx context.Context, req *connect.Request[apiv1.UpdateBotRequest]) (*connect.Response[apiv1.UpdateBotResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	bot, err := s.api.core.UpdateBot(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.Login, req.Msg.DisplayName)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	mapped, err := apiBot(ctx, s.api, bot)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&apiv1.UpdateBotResponse{Bot: mapped}), nil
-}
-
 func (s *botService) DeleteBot(ctx context.Context, req *connect.Request[apiv1.DeleteBotRequest]) (*connect.Response[apiv1.DeleteBotResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

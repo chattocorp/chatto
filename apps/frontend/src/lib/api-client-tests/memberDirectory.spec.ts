@@ -93,6 +93,8 @@ describe('createMemberDirectoryAPI', () => {
           deleted: false,
           isBot: true,
           avatarUrl: 'https://cdn/avatar.webp',
+          bio: null,
+          timezone: null,
           presenceStatus: PresenceStatus.AWAY,
           customStatus: {
             emoji: ':seedling:',
@@ -190,6 +192,8 @@ describe('createMemberDirectoryAPI', () => {
           deleted: false,
           isBot: false,
           avatarUrl: null,
+          bio: null,
+          timezone: null,
           presenceStatus: PresenceStatus.DO_NOT_DISTURB,
           customStatus: null,
           roles: [],

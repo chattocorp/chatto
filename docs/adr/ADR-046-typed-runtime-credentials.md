@@ -4,6 +4,8 @@
 
 **Updated:** 2026-08-26
 
+**Status:** Partially superseded
+
 **Partially superseded by:** [ADR-079](ADR-079-renewable-bearer-sessions.md)
 for bearer renewal and
 [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md)

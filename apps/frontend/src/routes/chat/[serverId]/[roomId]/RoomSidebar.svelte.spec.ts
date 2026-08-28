@@ -189,6 +189,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+    getLiveBio: () => null,
+    getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,

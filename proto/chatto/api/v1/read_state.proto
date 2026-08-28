@@ -17,8 +17,8 @@ message MarkRoomAsReadRequest {
 
 // Result of marking a room timeline as read.
 //
-// Clients can use the previous timestamp to decide whether unread badges or
-// local notification state need to be reconciled.
+// Clients can use the previous timestamp to place a local New messages
+// separator. Notification policy controls room Badge attention separately.
 message MarkRoomAsReadResponse {
   // New room read timestamp stored for the current user.
   google.protobuf.Timestamp last_read_at = 1;

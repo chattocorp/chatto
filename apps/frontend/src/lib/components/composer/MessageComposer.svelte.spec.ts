@@ -764,6 +764,45 @@ describe('MessageComposer', () => {
     });
   });
 
+  describe('angle-bracket link preview suppression', () => {
+    it('suppresses previews and posts the autolink from the visual editor', async () => {
+      const body = '<https://example.com/visual';
+      const { container, roomId } = renderMessageComposer({ roomId: 'visual-autolink' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, body);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      expect(fetchLinkPreviewConnectMock).not.toHaveBeenCalled();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body,
+        linkPreviewToken: null
+      });
+    });
+
+    it('suppresses previews and posts the autolink from the Markdown editor', async () => {
+      userPreferences.composerEditor = 'markdown';
+      const body = '<https://example.com/markdown';
+      const { container, roomId } = renderMessageComposer({ roomId: 'markdown-autolink' });
+      const editor = await findEditor(container);
+
+      await typeEditorKeys(editor, body);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      expect(fetchLinkPreviewConnectMock).not.toHaveBeenCalled();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body,
+        linkPreviewToken: null
+      });
+    });
+  });
+
   describe('Slow Mode', () => {
     it('shows ready, waiting, and bypassed status', async () => {
       const ready = renderMessageComposer({ roomId: 'room-ready', slowModeSeconds: 30 });

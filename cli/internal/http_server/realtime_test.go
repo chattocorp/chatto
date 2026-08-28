@@ -28,6 +28,10 @@ import (
 	"hmans.de/chatto/internal/publiccursor"
 )
 
+// Keep catch-up reads open long enough to observe either the server response or
+// its configured timeout response under a loaded test runner.
+const realtimeTestCatchUpReadTimeout = realtimeCatchUpDefaultTimeout + 5*time.Second
+
 func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *testing.T) {
 	s := &HTTPServer{}
 	want := errors.New("storage unavailable")
@@ -241,7 +245,7 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retaine
 		t.Fatalf("second realtime frame = %T (%+v), want subscribed", subscribed.GetFrame(), subscribed)
 	}
 	for {
-		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, conn, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for realtime caught_up")
 		}
@@ -350,7 +354,7 @@ func waitRealtimeRoomUpsert(t testing.TB, conn *websocket.Conn, timeout time.Dur
 func readRealtimeCaughtUp(t testing.TB, conn *websocket.Conn) *realtimev1.RealtimeCaughtUp {
 	t.Helper()
 	for {
-		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, conn, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for realtime caught_up")
 		}
@@ -637,10 +641,11 @@ func TestRealtimeTransientMapperRejectsProjectionOwnedLiveEvents(t *testing.T) {
 		event *corev1.LiveEvent
 	}{
 		{"notification occurrences invalidated", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{}}}},
+		{"notification unread changed", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationUnreadChanged{NotificationUnreadChanged: &corev1.NotificationUnreadChangedEvent{RoomId: "R1"}}}},
 		{"thread follow", &corev1.LiveEvent{Event: &corev1.LiveEvent_ThreadFollowChanged{ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{RoomId: "R1", ThreadRootEventId: "M1"}}}},
 		{"room read", &corev1.LiveEvent{Event: &corev1.LiveEvent_RoomMarkedAsRead{RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{RoomId: "R1"}}}},
 		{"server updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUpdated{ServerUpdated: &corev1.ServerUpdatedEvent{}}}},
-		{"profile updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_UserProfileUpdated{UserProfileUpdated: &corev1.UserProfileUpdatedEvent{UserId: "U1"}}}},
+		{"profile updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_UserProfileUpdated{UserProfileUpdated: &corev1.UserProfileSyncEvent{UserId: "U1"}}}},
 		{"preferences updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesUpdatedEvent{}}}},
 		{"room groups updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_RoomGroupsUpdated{RoomGroupsUpdated: &corev1.RoomGroupsUpdatedEvent{}}}},
 		{"member deleted", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerMemberDeleted{ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{UserId: "U1"}}}},
@@ -1105,7 +1110,7 @@ func TestRealtimeWebSocketRateLimitsStaleCursorReuse(t *testing.T) {
 		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &staleCursor},
 	}})
 	for {
-		frame, ok := readRealtimeServerFrame(t, replay, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, replay, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for stale-cursor replay caught_up")
 		}
@@ -1170,7 +1175,7 @@ func TestRealtimeWebSocketAllowsCurrentBoundaryReconnectAfterRateLimitBurst(t *t
 		t.Fatalf("current-boundary reconnect response = %+v, want subscribed", frame)
 	}
 	for {
-		frame, ok := readRealtimeServerFrame(t, reconnected, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, reconnected, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for current-boundary reconnect caught_up")
 		}
@@ -1398,6 +1403,13 @@ func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testi
 	if err != nil {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
+	// Resume at the current boundary because this test covers post-bootstrap
+	// hydration admission. Other tests cover compacted snapshot delivery.
+	boundary, err := env.core.PlanRealtimeReplay(env.ctx, viewer.Id, "")
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	resumeCursor := boundary.BoundaryCursor
 
 	conn := env.dialRealtime(t)
 	t.Cleanup(func() { conn.Close() })
@@ -1408,7 +1420,7 @@ func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testi
 		t.Fatal("did not receive realtime hello")
 	}
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive realtime subscribed")
@@ -2242,6 +2254,93 @@ func TestRealtimeProjectionThreadFollowReplacesStateForUnretainedRoom(t *testing
 	states := operations[0].GetThreadViewerStatesReplace().GetStates()
 	if len(states) != 1 || states[0].GetRoomId() != room.Id || states[0].GetThreadRootEventId() != root.Id || !states[0].GetViewerState().GetIsFollowing() {
 		t.Fatalf("thread viewer states = %+v", states)
+	}
+}
+
+func TestRealtimeProjectionBadgeReplacesRoomThreadAndRetainedRoot(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-badge-viewer", "RT Badge Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-badge-author", "RT Badge Author", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-badge-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{viewer.Id, author.Id} {
+		if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.ReadState().MarkRoomAsRead(env.ctx, viewer.Id, room.Id, root.Id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.NotificationPolicy().UpdateNotificationPolicy(
+		env.ctx,
+		viewer.Id,
+		room.Id,
+		&corev1.NotificationDeliveryModes{FollowedThreads: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE.Enum()},
+		&fieldmaskpb.FieldMask{Paths: []string{"followed_threads"}},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "Badge reply", nil, root.Id, "", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		unread, err := env.core.HasUnread(env.ctx, core.KindChannel, viewer.Id, room.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if unread {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("Badge marker did not become visible")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id); err != nil || len(occurrences) != 0 {
+		t.Fatalf("Badge occurrences = (%+v, %v), want none", occurrences, err)
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEventWithRooms(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id: "badge-unread-1", ActorId: author.Id,
+		Event: &corev1.LiveEvent_NotificationUnreadChanged{NotificationUnreadChanged: &corev1.NotificationUnreadChangedEvent{
+			RoomId: room.Id, ThreadRootEventId: root.Id,
+		}},
+	}), map[string]struct{}{room.Id: {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !handled {
+		t.Fatal("Badge unread invalidation was not handled")
+	}
+	var roomUnread, threadUnread, rootUnread bool
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		if replacement := operation.GetRoomViewerStateReplace(); replacement != nil {
+			roomUnread = replacement.GetViewerState().GetHasUnread()
+		}
+		if replacement := operation.GetThreadViewerStatesReplace(); replacement != nil {
+			for _, state := range replacement.GetStates() {
+				threadUnread = threadUnread || state.GetThreadRootEventId() == root.Id && state.GetViewerState().GetHasUnread()
+			}
+		}
+		if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil && upsert.GetEvent().GetId() == root.Id {
+			rootUnread = upsert.GetEvent().GetMessagePosted().GetMessage().GetThread().GetViewerState().GetHasUnread()
+		}
+	}
+	if !roomUnread || !threadUnread || !rootUnread {
+		t.Fatalf("Badge projection room/thread/root unread = %v/%v/%v; frame=%+v", roomUnread, threadUnread, rootUnread, frame)
 	}
 }
 
@@ -3334,7 +3433,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 	if subscribed.GetSubscribed().GetStartCursor() == expiredCursor {
 		t.Fatal("expired resume retained the unusable cursor")
 	}
-	firstProjection, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+	firstProjection, ok := readRealtimeServerFrame(t, resumed, realtimeTestCatchUpReadTimeout)
 	if !ok || firstProjection.GetProjectionEvent() == nil {
 		t.Fatalf("expired resume first projection frame = %+v", firstProjection)
 	}
@@ -3348,7 +3447,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 
 	var foundRoom, foundTimeline, foundThreadStates, foundNotifications, foundViewer, foundPresence bool
 	for {
-		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, resumed, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for expired-resume caught_up")
 		}
@@ -3497,7 +3596,7 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 	threadViewerReconciliations := 0
 	var caughtUpCursor string
 	for caughtUpCursor == "" {
-		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, resumed, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for resumed caught_up")
 		}

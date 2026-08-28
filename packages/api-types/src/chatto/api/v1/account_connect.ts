@@ -20,7 +20,7 @@ export const MyAccountService = {
   typeName: "chatto.api.v1.MyAccountService",
   methods: {
     /**
-     * Updates the authenticated user's login and/or display name.
+     * Updates the authenticated user's login, display name, and/or bio.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.UpdateProfile
      */

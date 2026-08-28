@@ -19,6 +19,13 @@ export function notificationDeliveryModePresentation(
       legendClass: 'text-text'
     };
   }
+  if (mode === NotificationDeliveryMode.UNREAD_BADGE) {
+    return {
+      icon: 'icon-[ph--bell-fill]',
+      tone: 'neutral',
+      legendClass: 'text-text'
+    };
+  }
   if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
     return {
       icon: 'icon-[ph--bell-fill]',
@@ -43,6 +50,9 @@ export function notificationDeliveryModeLabel(mode: NotificationDeliveryMode | n
   }
   if (mode === NotificationDeliveryMode.OFF) {
     return m('settings.notifications.policy.delivery_mode.off');
+  }
+  if (mode === NotificationDeliveryMode.UNREAD_BADGE) {
+    return m('settings.notifications.policy.delivery_mode.badge');
   }
   if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
     return m('settings.notifications.policy.delivery_mode.notification');

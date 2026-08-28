@@ -125,11 +125,12 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	profileResp, err := env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
 		DisplayName: stringPtr("Connect Profile"),
 		Login:       stringPtr("connect-profile"),
+		Bio:         stringPtr("Connect profile bio"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateProfile: %v", err)
 	}
-	if user := profileResp.Msg.GetUser(); user.GetId() != env.viewer.Id || user.GetDisplayName() != "Connect Profile" || user.GetLogin() != "connect-profile" {
+	if user := profileResp.Msg.GetUser(); user.GetId() != env.viewer.Id || user.GetDisplayName() != "Connect Profile" || user.GetLogin() != "connect-profile" || user.GetBio() != "Connect profile bio" {
 		t.Fatalf("updated profile = %+v, want renamed viewer", user)
 	}
 
@@ -143,6 +144,13 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 	if settings := settingsResp.Msg.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
 		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
+	}
+	usersResp, err := env.users.BatchGetUsers(ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{env.viewer.Id}}))
+	if err != nil {
+		t.Fatalf("BatchGetUsers: %v", err)
+	}
+	if users := usersResp.Msg.GetUsers(); len(users) != 1 || users[0].GetUser().GetBio() != "Connect profile bio" || users[0].GetUser().GetTimezone() != tz {
+		t.Fatalf("public user = %+v, want bio and timezone", users)
 	}
 
 	clear := ""

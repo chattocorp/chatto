@@ -1,11 +1,7 @@
-export type UserSummaryForCache = {
-  id: string;
-  login: string;
-  displayName: string;
-  deleted: boolean;
-  isBot?: boolean;
-  avatarUrl: string | null;
-};
+import type { UserSummary } from './userSummary.js';
+
+/** Cache-priming user snapshot; structurally the shared `UserSummary`. */
+export type UserSummaryForCache = UserSummary;
 
 export type ApiClientHooks = {
   onAuthenticationRequired?: (serverId: string) => void;

@@ -128,6 +128,8 @@ vi.mock('$app/navigation', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+    getLiveBio: () => null,
+    getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback
@@ -158,7 +160,7 @@ describe('CurrentUserBar', () => {
       hasVerifiedEmail: true,
       settings: null
     };
-    presencePreference.mode = 'auto';
+    presencePreference.mode = 'online';
     presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
     voiceCallState.roomId = null;

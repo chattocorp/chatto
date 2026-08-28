@@ -2,7 +2,11 @@ package core
 
 import (
 	"testing"
+	"time"
 
+	"google.golang.org/protobuf/proto"
+
+	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -76,6 +80,51 @@ func TestChattoCore_UpdateUserSettings_SetTimezone(t *testing.T) {
 	}
 	if settings.Timezone == nil || *settings.Timezone != tz {
 		t.Errorf("Expected persisted timezone %q, got %v", tz, settings.Timezone)
+	}
+}
+
+func TestChattoCore_UpdateUserSettings_PublishesProfileOnlyForTimezoneChanges(t *testing.T) {
+	core, nc := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "timezone-live", "Timezone Live", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user.GetId(), "profile_updated"))
+	if err != nil {
+		t.Fatalf("SubscribeSync profile update: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush subscription: %v", err)
+	}
+
+	tz := "Europe/Berlin"
+	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &tz}); err != nil {
+		t.Fatalf("UpdateUserSettings timezone: %v", err)
+	}
+	msg, err := sub.NextMsg(2 * time.Second)
+	if err != nil {
+		t.Fatalf("waiting for profile update: %v", err)
+	}
+	var live corev1.LiveEvent
+	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+		t.Fatalf("unmarshal profile update: %v", err)
+	}
+	if got := live.GetUserProfileUpdated().GetTimezone(); got != tz {
+		t.Fatalf("profile timezone = %q, want %q", got, tz)
+	}
+
+	format := corev1.TimeFormat_TIME_FORMAT_24H
+	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{TimeFormat: &format}); err != nil {
+		t.Fatalf("UpdateUserSettings time format: %v", err)
+	}
+	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &tz}); err != nil {
+		t.Fatalf("UpdateUserSettings timezone no-op: %v", err)
+	}
+	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
+		t.Fatalf("unexpected profile update for private or no-op setting: %s", msg.Subject)
 	}
 }
 

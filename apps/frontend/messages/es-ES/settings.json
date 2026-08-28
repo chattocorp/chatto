@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "Preferencias de la aplicación",
       "subtitle": "Opciones de esta aplicación que se aplican a todos tus servidores registrados",
-      "appearance": { "title": "Apariencia" },
-      "composer": { "title": "Redacción" }
+      "appearance": {
+        "title": "Apariencia"
+      },
+      "composer": {
+        "title": "Redacción"
+      }
     },
     "profile": {
       "title": "Perfil",
@@ -104,7 +108,7 @@
       "presence": {
         "button": "Presencia: {status}",
         "title": "Presencia",
-        "auto": "En línea",
+        "online": "En línea",
         "away": "Ausente",
         "do_not_disturb": "No molestar",
         "offline": "Sin conexión",
@@ -112,7 +116,13 @@
       },
       "saved": "Perfil actualizado exitosamente",
       "save_failed": "No se pudo guardar el perfil",
-      "save_button": "Guardar cambios"
+      "save_button": "Guardar cambios",
+      "bio": {
+        "label": "Bio",
+        "description": "Hasta {max} caracteres, visible en tu perfil.",
+        "placeholder": "Cuéntales algo breve sobre ti",
+        "too_long": "La bio no puede tener más de {max} caracteres."
+      }
     },
     "preferences": {
       "title": "Hora y región",
@@ -293,10 +303,13 @@
         "delivery_mode": {
           "inherit": "Heredar",
           "off": "Desactivado",
+          "badge": "Indicador",
+          "badge_hint": "Solo añade un punto neutro de contenido no leído. No crea una notificación, reproduce un sonido ni envía una notificación push.",
           "notification": "Notificación",
           "push_notification": "Notificación push"
         },
         "reason": {
+          "room_message": "Mensajes de salas",
           "direct_message": "Mensajes directos",
           "direct_mention": "Menciones directas",
           "reply": "Respuestas a tus mensajes",
@@ -304,12 +317,12 @@
           "here": "Menciones @here",
           "all": "Menciones @all",
           "followed_thread": "Hilos seguidos",
-          "followed_room": "Salas seguidas",
           "reaction": "Reacciones a tus mensajes",
           "activity": "Actividad",
           "room_invitation": "Invitaciones a salas"
         },
         "reason_hint": {
+          "room_message": "Mensajes raíz que otros miembros publican directamente en salas de canales, no dentro de hilos.",
           "direct_message": "Mensajes que otros miembros envían en conversaciones de mensajes directos.",
           "direct_mention": "Mensajes que mencionan directamente tu nombre de usuario.",
           "reply": "Mensajes que responden a uno de tus mensajes.",
@@ -317,7 +330,6 @@
           "here": "Mensajes que usan @here cuando tu presencia no figura como desconectada.",
           "all": "Mensajes que usan @all en una sala a la que perteneces.",
           "followed_thread": "Nuevas respuestas en hilos que sigues.",
-          "followed_room": "Mensajes principales en salas que sigues.",
           "reaction": "Reacciones que otros miembros añaden a tus mensajes."
         }
       }
@@ -412,11 +424,6 @@
       "create_title": "Crear cuenta de bot",
       "create_failed": "Error al crear el bot",
       "created": "Bot creado",
-      "edit": "Editar",
-      "edit_title": "Editar cuenta de bot",
-      "updated": "Bot actualizado",
-      "update_failed": "Error al actualizar el bot",
-      "update_conflict": "Otra persona ha actualizado este bot. Recarga la página e inténtalo de nuevo.",
       "username": "Nombre de usuario",
       "username_hint": "Los nombres de usuario de los bots deben terminar en _bot.",
       "display_name": "Nombre para mostrar",

@@ -676,6 +676,8 @@ func occurrenceMessageReference(occurrence *corev1.NotificationOccurrence) *core
 		return payload.FollowedRoomActivity.GetMessage()
 	case *corev1.NotificationSignal_ReactionReceived:
 		return payload.ReactionReceived.GetMessage()
+	case *corev1.NotificationSignal_RoomMessageReceived:
+		return payload.RoomMessageReceived.GetMessage()
 	default:
 		return nil
 	}

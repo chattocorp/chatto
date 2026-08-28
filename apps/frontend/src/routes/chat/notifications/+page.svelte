@@ -327,6 +327,9 @@
     if (signalKind === NotificationSignalKind.DIRECT_MESSAGE) {
       return m('chat.notifications.summary.direct_message', { actor });
     }
+    if (signalKind === NotificationSignalKind.ROOM_MESSAGE) {
+      return m('chat.notifications.summary.new_message', { actor });
+    }
     if (signalKind === NotificationSignalKind.REPLY) {
       return m('chat.notifications.summary.reply', { actor });
     }

@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 )
 
@@ -341,9 +343,9 @@ func TestConfigModel_SetServerConfigSkipsUnchangedValues(t *testing.T) {
 		t.Fatalf("unchanged config write appended events: before=%d after=%d", before.State.Msgs, afterNoop.State.Msgs)
 	}
 
-	changed := *cfg
+	changed := proto.Clone(cfg).(*configv1.ServerConfig)
 	changed.Motd = "new motd"
-	if err := core.configModel.SetServerConfig(ctx, "test", &changed); err != nil {
+	if err := core.configModel.SetServerConfig(ctx, "test", changed); err != nil {
 		t.Fatalf("SetServerConfig changed value: %v", err)
 	}
 	afterChange, err := core.storage.serverEvtStream.Info(ctx)

@@ -368,9 +368,9 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 	return time.Time{}, nil
 }
 
-// HasUnread reports whether a room has unread messages for a user. Returns
-// false if the user is not a member or there are no messages. Notification
-// policy is intentionally independent from ordinary room unread state.
+// HasUnread reports whether a room has active Badge attention for a user.
+// Thread Badge markers roll up into the parent room. The result is independent
+// of the user's last-read cursor and false when the user cannot see the room.
 func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
 	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
 	if err != nil {
@@ -379,37 +379,9 @@ func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomI
 	if !isMember {
 		return false, nil
 	}
-
-	lastID, lastTime, exists, err := c.GetRoomLastReadableEvent(ctx, kind, userID, roomID)
+	badgeUnread, err := c.notificationOccurrences.HasNotificationUnread(ctx, userID, roomID, "")
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("read notification Badge state: %w", err)
 	}
-	if !exists {
-		return false, nil
-	}
-
-	readID, err := c.GetLastReadEventID(ctx, kind, userID, roomID)
-	if err != nil {
-		return false, err
-	}
-	if readID == "" {
-		// Member has a marker but no specific event read yet (joined an
-		// empty room, then messages arrived). Anything counts as unread.
-		return true, nil
-	}
-	if readID == lastID {
-		return false, nil // Caught up — fast path
-	}
-
-	// Read marker points to an older (or deleted) message. Resolve its
-	// timestamp and compare. A missing message means the marker is stale —
-	// treat as unread; the user re-marks and state self-corrects.
-	readTime, err := c.GetEventTimestamp(ctx, kind, roomID, readID)
-	if err != nil {
-		return false, err
-	}
-	if readTime.IsZero() {
-		return true, nil
-	}
-	return lastTime.After(readTime), nil
+	return badgeUnread, nil
 }

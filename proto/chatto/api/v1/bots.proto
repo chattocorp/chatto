@@ -84,22 +84,6 @@ message CreateBotResponse {
   string api_key = 2;
 }
 
-// Patch request for a bot's public identity.
-message UpdateBotRequest {
-  // Required bot user ID.
-  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New bot login. Must end in `_bot`.
-  optional string login = 2 [(buf.validate.field).string = {min_len: 2, max_len: 32}];
-  // New public display name.
-  optional string display_name = 3 [(buf.validate.field).string.max_len = 32];
-}
-
-// Result of updating a bot.
-message UpdateBotResponse {
-  // Updated bot.
-  Bot bot = 1;
-}
-
 // Request deletion of a bot account.
 message DeleteBotRequest {
   // Required bot user ID.
@@ -154,8 +138,6 @@ service BotService {
   rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
   // Creates a bot owned by the authenticated human caller. Requires bot.create.
   rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
-  // Updates a bot's public identity.
-  rpc UpdateBot(UpdateBotRequest) returns (UpdateBotResponse);
   // Deletes a bot and invalidates its API key.
   rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse) {
     option idempotency_level = IDEMPOTENT;

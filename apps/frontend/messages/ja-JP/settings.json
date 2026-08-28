@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "アプリ設定",
       "subtitle": "登録済みのすべてのサーバーに適用される、このアプリの設定",
-      "appearance": { "title": "外観" },
-      "composer": { "title": "メッセージ作成" }
+      "appearance": {
+        "title": "外観"
+      },
+      "composer": {
+        "title": "メッセージ作成"
+      }
     },
     "profile": {
       "title": "プロフィール",
@@ -104,7 +108,7 @@
       "presence": {
         "button": "プレゼンス: {status}",
         "title": "プレゼンス",
-        "auto": "オンライン",
+        "online": "オンライン",
         "away": "離れています",
         "do_not_disturb": "邪魔しないでください",
         "offline": "オフライン",
@@ -112,7 +116,13 @@
       },
       "saved": "プロフィールが正常に更新されました",
       "save_failed": "プロフィールの保存に失敗しました",
-      "save_button": "変更を保存"
+      "save_button": "変更を保存",
+      "bio": {
+        "label": "自己紹介",
+        "description": "最大{max}文字。プロフィールに表示されます。",
+        "placeholder": "自分について簡単に紹介しましょう",
+        "too_long": "自己紹介は{max}文字以内にしてください。"
+      }
     },
     "preferences": {
       "title": "時刻と地域",
@@ -293,10 +303,13 @@
         "delivery_mode": {
           "inherit": "継承",
           "off": "オフ",
+          "badge": "バッジ",
+          "badge_hint": "未読を示すグレーの点だけを追加します。通知の作成、サウンドの再生、プッシュ通知の送信は行いません。",
           "notification": "通知",
           "push_notification": "プッシュ通知"
         },
         "reason": {
+          "room_message": "ルームのメッセージ",
           "direct_message": "ダイレクトメッセージ",
           "direct_mention": "直接メンション",
           "reply": "自分のメッセージへの返信",
@@ -304,12 +317,12 @@
           "here": "@here メンション",
           "all": "@all メンション",
           "followed_thread": "フォロー中のスレッド",
-          "followed_room": "フォロー中のルーム",
           "reaction": "自分のメッセージへのリアクション",
           "activity": "アクティビティ",
           "room_invitation": "ルームへの招待"
         },
         "reason_hint": {
+          "room_message": "他のメンバーがチャンネルルームに直接投稿するルートメッセージです。スレッド内のメッセージは含みません。",
           "direct_message": "他のメンバーがダイレクトメッセージの会話で送信したメッセージです。",
           "direct_mention": "あなたのユーザー名を直接メンションしたメッセージです。",
           "reply": "あなたのメッセージに対する返信です。",
@@ -317,7 +330,6 @@
           "here": "あなたのプレゼンスがオフラインでないときに @here を使ったメッセージです。",
           "all": "あなたが参加しているルームで @all を使ったメッセージです。",
           "followed_thread": "フォロー中のスレッドへの新しい返信です。",
-          "followed_room": "フォロー中のルームに投稿されたスレッド外のメッセージです。",
           "reaction": "他のメンバーがあなたのメッセージに追加したリアクションです。"
         }
       }
@@ -412,11 +424,6 @@
       "create_title": "ボット アカウントの作成",
       "create_failed": "ボットの作成に失敗しました",
       "created": "ボットが作成されました",
-      "edit": "編集",
-      "edit_title": "ボット アカウントを編集",
-      "updated": "ボットが更新されました",
-      "update_failed": "ボットを更新できませんでした",
-      "update_conflict": "別のユーザーがこのボットを更新しました。ページを再読み込みして、もう一度お試しください。",
       "username": "ユーザー名",
       "username_hint": "ボットのユーザー名は _bot で終わる必要があります。",
       "display_name": "表示名",

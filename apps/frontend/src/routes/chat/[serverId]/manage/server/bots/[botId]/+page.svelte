@@ -4,7 +4,6 @@
   import { page } from '$app/state';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
-  import { Code, ConnectError } from '@connectrpc/connect';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
   import { viewerResponseToState } from '$lib/api-client/viewer';
@@ -28,7 +27,7 @@
     PaneContent,
     PaneHeader
   } from '$lib/ui';
-  import { Button, TextInput, validate, z } from '$lib/ui/form';
+  import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { onDestroy } from 'svelte';
@@ -84,13 +83,6 @@
     `${serverScope.serverId}:${serverScope.connection.queryScope}:${botId}`
   );
   let componentActive = true;
-  let editVisible = $state(false);
-  let editLogin = $state('');
-  let editDisplayName = $state('');
-  let initialEditLogin = $state('');
-  let initialEditDisplayName = $state('');
-  let editLoading = $state(false);
-  let editError = $state<{ targetKey: string; message: string } | null>(null);
   let apiKeyVisible = $state(false);
   let apiKey = $state('');
   let rotateVisible = $state(false);
@@ -107,22 +99,6 @@
     componentActive = false;
   });
 
-  const botLoginSchema = z
-    .string()
-    .min(2, m('common.validation.username_min'))
-    .max(32, m('common.validation.username_max'))
-    .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, m('common.validation.username_charset'))
-    .refine((value) => !value.endsWith('.'), m('common.validation.username_end_alphanumeric'))
-    .refine((value) => value.toLowerCase().endsWith('_bot'), m('settings.bots.username_hint'));
-  const normalizedEditLogin = $derived(editLogin.trim());
-  const normalizedEditDisplayName = $derived(editDisplayName.trim());
-  const editDirty = $derived(
-    normalizedEditLogin !== initialEditLogin || normalizedEditDisplayName !== initialEditDisplayName
-  );
-  const editLoginError = $derived(
-    normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
-  );
-  const visibleEditError = $derived(editError?.targetKey === targetKey ? editError.message : null);
   const timeSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
@@ -144,51 +120,6 @@
     void queryClient.invalidateQueries({
       queryKey: settingsQueryKeys.botsRoot(serverScope.serverId, serverScope.connection)
     });
-  }
-
-  function openEdit() {
-    if (!bot) return;
-    editLogin = bot.login;
-    editDisplayName = bot.displayName;
-    initialEditLogin = bot.login;
-    initialEditDisplayName = bot.displayName;
-    editError = null;
-    editVisible = true;
-  }
-
-  async function updateBot() {
-    if (!bot || !normalizedEditLogin || editLoginError || !editDirty) return;
-    const mutationTarget = targetKey;
-    editLoading = true;
-    editError = null;
-    try {
-      const updated = await botAPI().updateBot({
-        botUserId: bot.id,
-        ...(normalizedEditLogin !== initialEditLogin ? { login: normalizedEditLogin } : {}),
-        ...(normalizedEditDisplayName !== initialEditDisplayName
-          ? { displayName: normalizedEditDisplayName }
-          : {})
-      });
-      if (!isCurrentTarget(mutationTarget)) return;
-      cacheBot(updated);
-      editVisible = false;
-      toast.success(m('settings.bots.updated'));
-    } catch (error) {
-      if (!isCurrentTarget(mutationTarget)) return;
-      const conflict = error instanceof ConnectError && error.code === Code.Aborted;
-      const message = conflict
-        ? m('settings.bots.update_conflict')
-        : error instanceof Error
-          ? error.message
-          : m('settings.bots.update_failed');
-      editError = {
-        targetKey: mutationTarget,
-        message
-      };
-      if (conflict) toast.error(message);
-    } finally {
-      if (isCurrentTarget(mutationTarget)) editLoading = false;
-    }
   }
 
   async function rotateKey() {
@@ -312,10 +243,6 @@
     <div class="flex flex-col gap-6">
       <Panel title={bot.displayName} subtitle={`@${bot.login}`}>
         {#snippet actions()}
-          <Button size="sm" variant="secondary" onclick={openEdit}>
-            <span class="iconify icon-[uil--edit]" aria-hidden="true"></span>
-            {m('settings.bots.edit')}
-          </Button>
           <Button size="sm" variant="warning" onclick={() => (rotateVisible = true)}>
             <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
             {m('settings.bots.rotate_key')}
@@ -340,7 +267,10 @@
             <dt class="text-muted">{m('settings.bots.owner')}</dt>
             <dd class="mt-1">
               {#if owner}
-                <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
+                <UserIdentity
+                  user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }}
+                  viewerSettings={serverScope.store.currentUser.user?.settings}
+                />
               {:else if ownerQuery.isPending}
                 <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
                 ></span>
@@ -369,33 +299,6 @@
     </div>
   {/if}
 </PaneContent>
-
-<FormDialog
-  bind:visible={editVisible}
-  title={m('settings.bots.edit_title')}
-  submitLabel={m('common.save')}
-  loading={editLoading}
-  disabled={!normalizedEditLogin || !!editLoginError || !normalizedEditDisplayName || !editDirty}
-  error={visibleEditError}
-  onsubmit={updateBot}
-  onclose={() => (editVisible = false)}
->
-  <TextInput
-    id="edit-bot-login"
-    label={m('settings.bots.username')}
-    error={editLoginError}
-    maxlength={32}
-    required
-    bind:value={editLogin}
-  />
-  <TextInput
-    id="edit-bot-display-name"
-    label={m('settings.bots.display_name')}
-    maxlength={32}
-    required
-    bind:value={editDisplayName}
-  />
-</FormDialog>
 
 <FormDialog
   bind:visible={reassignVisible}

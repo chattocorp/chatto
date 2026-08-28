@@ -64,7 +64,8 @@ export class RoomViewerState extends Message<RoomViewerState> {
   isMember = false;
 
   /**
-   * True when the room has unread root messages for the current user.
+   * True when the room has neutral Badge attention for the current user.
+   * This state is independent of the user's last-read message cursor.
    *
    * @generated from field: bool has_unread = 2;
    */

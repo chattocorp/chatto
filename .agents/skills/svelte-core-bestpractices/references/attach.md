@@ -1,4 +1,4 @@
-Attachments are functions that run in an [effect]($effect) when an element is mounted to the DOM or when [state]($state) read inside the function updates.
+Attachments are functions that run in an [effect](https://svelte.dev/docs/svelte/$effect/llms.txt) when an element is mounted to the DOM or when [state](https://svelte.dev/docs/svelte/$state/llms.txt) read inside the function updates.
 
 Optionally, they can return a function that is called before the attachment re-runs, or after the element is later removed from the DOM.
 
@@ -48,10 +48,12 @@ A useful pattern is for a function, such as `tooltip` in this example, to _retur
 
 <input bind:value={content} />
 
-<button {@attach tooltip(content)}> Hover me </button>
+<button {@attach tooltip(content)}>
+	Hover me
+</button>
 ```
 
-Since the `tooltip(content)` expression runs inside an [effect]($effect), the attachment will be destroyed and recreated whenever `content` changes. The same thing would happen for any state read _inside_ the attachment function when it first runs. (If this isn't what you want, see [Controlling when attachments re-run](#Controlling-when-attachments-re-run).)
+Since the `tooltip(content)` expression runs inside an [effect](https://svelte.dev/docs/svelte/$effect/llms.txt), the attachment will be destroyed and recreated whenever `content` changes. The same thing would happen for any state read _inside_ the attachment function when it first runs. (If this isn't what you want, see [Controlling when attachments re-run](#Controlling-when-attachments-re-run).)
 
 ## Inline attachments
 
@@ -86,7 +88,7 @@ Falsy values like `false` or `undefined` are treated as no attachment, enabling 
 
 ## Passing attachments to components
 
-When used on a component, `{@attach ...}` will create a prop whose key is a [`Symbol`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol). If the component then [spreads](/tutorial/svelte/spread-props) props onto an element, the element will receive those attachments.
+When used on a component, `{@attach ...}` will create a prop whose key is a [`Symbol`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol). If the component then [spreads](https://svelte.dev/tutorial/svelte/spread-props/llms.txt) props onto an element, the element will receive those attachments.
 
 This allows you to create _wrapper components_ that augment elements (demo:
 
@@ -125,12 +127,14 @@ This allows you to create _wrapper components_ that augment elements (demo:
 
 <input bind:value={content} />
 
-<Button {@attach tooltip(content)}>Hover me</Button>
+<Button {@attach tooltip(content)}>
+	Hover me
+</Button>
 ```
 
 ## Controlling when attachments re-run
 
-Attachments, unlike [actions](use), are fully reactive: `{@attach foo(bar)}` will re-run on changes to `foo` _or_ `bar` (or any state read inside `foo`):
+Attachments, unlike [actions](https://svelte.dev/docs/svelte/use/llms.txt), are fully reactive: `{@attach foo(bar)}` will re-run on changes to `foo` _or_ `bar` (or any state read inside `foo`):
 
 ```js
 // @errors: 7006 2304 2552
@@ -159,8 +163,8 @@ function foo(+++getBar+++) {
 
 ## Creating attachments programmatically
 
-To add attachments to an object that will be spread onto a component or element, use [`createAttachmentKey`](svelte-attachments#createAttachmentKey).
+To add attachments to an object that will be spread onto a component or element, use [`createAttachmentKey`](https://svelte.dev/docs/svelte/svelte-attachments/llms.txt#createAttachmentKey).
 
 ## Converting actions to attachments
 
-If you're using a library that only provides actions, you can convert them to attachments with [`fromAction`](svelte-attachments#fromAction), allowing you to (for example) use them with components.
+If you're using a library that only provides actions, you can convert them to attachments with [`fromAction`](https://svelte.dev/docs/svelte/svelte-attachments/llms.txt#fromAction), allowing you to (for example) use them with components.

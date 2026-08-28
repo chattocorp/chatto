@@ -19,6 +19,7 @@ right-click and stationary touch long-press open the shared user profile menu.
 	import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import type { UserAvatarUserView } from '$lib/render/users';
+	import type { ViewerTimeSettings } from '$lib/utils/formatTime';
 	import {
 		contextMenuTrigger,
 		type ContextMenuTriggerDetails
@@ -27,25 +28,33 @@ right-click and stationary touch long-press open the shared user profile menu.
 	type IdentityUser = Omit<UserAvatarUserView, 'deleted' | 'presenceStatus'> & {
 		deleted?: boolean;
 		presenceStatus?: PresenceStatus;
+		bio?: string | null;
+		timezone?: string | null;
 	};
 
 	let {
 		user,
 		size = 'sm',
 		class: className,
+		viewerSettings,
 		userContextMenuLoader = loadUserContextMenu
 	}: {
 		user: IdentityUser;
 		size?: 'xs' | 'sm' | 'md';
 		class?: string;
+		viewerSettings?: ViewerTimeSettings | null;
 		userContextMenuLoader?: () => Promise<UserContextMenuModule>;
 	} = $props();
 
-	const profileUser = $derived<UserAvatarUserView>({
-		...user,
-		deleted: user.deleted ?? false,
-		presenceStatus: user.presenceStatus ?? PresenceStatus.OFFLINE
-	});
+	const profileUser = $derived<IdentityUser & { deleted: boolean; presenceStatus: PresenceStatus }>(
+		{
+			...user,
+			bio: user.bio,
+			timezone: user.timezone,
+			deleted: user.deleted ?? false,
+			presenceStatus: user.presenceStatus ?? PresenceStatus.OFFLINE
+		}
+	);
 	let profileMenu = $state<ContextMenuTriggerDetails | null>(null);
 	const profileMenuTrigger = contextMenuTrigger((details) => {
 		profileMenu = details;
@@ -69,6 +78,7 @@ right-click and stationary touch long-press open the shared user profile menu.
 			user={profileUser}
 			position={profileMenu.position}
 			presentation={profileMenu.presentation}
+			{viewerSettings}
 			onClose={() => (profileMenu = null)}
 		/>
 	{/await}

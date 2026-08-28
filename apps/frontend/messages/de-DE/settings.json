@@ -16,8 +16,12 @@
     "app_preferences": {
       "title": "App-Einstellungen",
       "subtitle": "Einstellungen dieser App, die für alle deine registrierten Server gelten",
-      "appearance": { "title": "Erscheinungsbild" },
-      "composer": { "title": "Nachrichten verfassen" }
+      "appearance": {
+        "title": "Erscheinungsbild"
+      },
+      "composer": {
+        "title": "Nachrichten verfassen"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -104,7 +108,7 @@
       "presence": {
         "button": "Präsenz: {status}",
         "title": "Präsenz",
-        "auto": "Online",
+        "online": "Online",
         "away": "Abwesend",
         "do_not_disturb": "Nicht stören",
         "offline": "Offline",
@@ -112,7 +116,13 @@
       },
       "saved": "Profil erfolgreich aktualisiert",
       "save_failed": "Profil konnte nicht gespeichert werden",
-      "save_button": "Änderungen speichern"
+      "save_button": "Änderungen speichern",
+      "bio": {
+        "label": "Bio",
+        "description": "Bis zu {max} Zeichen, sichtbar in deinem Profil.",
+        "placeholder": "Erzähle anderen kurz etwas über dich",
+        "too_long": "Die Bio darf höchstens {max} Zeichen lang sein."
+      }
     },
     "preferences": {
       "title": "Zeit & Region",
@@ -293,10 +303,13 @@
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
+          "badge": "Markierung",
+          "badge_hint": "Fügt nur einen neutralen Punkt für ungelesene Inhalte hinzu. Erstellt keine Benachrichtigung, spielt keinen Ton ab und sendet keine Push-Benachrichtigung.",
           "notification": "Benachrichtigung",
           "push_notification": "Push-Benachrichtigung"
         },
         "reason": {
+          "room_message": "Raumnachrichten",
           "direct_message": "Direktnachrichten",
           "direct_mention": "Direkte Erwähnungen",
           "reply": "Antworten auf deine Nachrichten",
@@ -304,12 +317,12 @@
           "here": "@here-Erwähnungen",
           "all": "@all-Erwähnungen",
           "followed_thread": "Verfolgte Threads",
-          "followed_room": "Verfolgte Räume",
           "reaction": "Reaktionen auf deine Nachrichten",
           "activity": "Aktivität",
           "room_invitation": "Raumeinladungen"
         },
         "reason_hint": {
+          "room_message": "Nachrichten, die andere Mitglieder direkt in Kanalräume und nicht in Threads schreiben.",
           "direct_message": "Direktnachrichten, die dir andere Mitglieder senden.",
           "direct_mention": "Nachrichten, in denen dein Benutzername direkt erwähnt wird.",
           "reply": "Nachrichten, die auf eine deiner Nachrichten antworten.",
@@ -317,7 +330,6 @@
           "here": "Nachrichten mit @here, wenn dein Anwesenheitsstatus nicht offline ist.",
           "all": "Nachrichten mit @all in einem Raum, dem du angehörst.",
           "followed_thread": "Neue Antworten in Threads, denen du folgst.",
-          "followed_room": "Nachrichten auf oberster Ebene in Räumen, denen du folgst.",
           "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen."
         }
       }
@@ -412,11 +424,6 @@
       "create_title": "Bot-Konto erstellen",
       "create_failed": "Bot konnte nicht erstellt werden",
       "created": "Bot erstellt",
-      "edit": "Bearbeiten",
-      "edit_title": "Bot-Konto bearbeiten",
-      "updated": "Bot aktualisiert",
-      "update_failed": "Bot konnte nicht aktualisiert werden",
-      "update_conflict": "Jemand anderes hat diesen Bot aktualisiert. Lade die Seite neu und versuche es noch einmal.",
       "username": "Benutzername",
       "username_hint": "Bot-Benutzernamen müssen auf _bot enden.",
       "display_name": "Anzeigename",

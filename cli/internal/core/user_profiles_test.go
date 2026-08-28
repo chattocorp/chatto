@@ -861,3 +861,64 @@ func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
 		t.Fatalf("custom status cleared events = %d, want 1", len(clearEvents))
 	}
 }
+
+func TestChattoCore_UpdateUserBio(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "biouser", "Bio User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser failed: %v", err)
+	}
+
+	bioEvents := func() int {
+		events, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserBioChanged))
+		if err != nil {
+			t.Fatalf("SubjectEvents bio changed failed: %v", err)
+		}
+		return len(events)
+	}
+
+	updated, err := core.UpdateUserBio(ctx, user.Id, "  Hello, I write chat software.  ")
+	if err != nil {
+		t.Fatalf("UpdateUserBio failed: %v", err)
+	}
+	if got := updated.GetBio(); got != "Hello, I write chat software." {
+		t.Fatalf("bio = %q, want trimmed text", got)
+	}
+	if got, err := core.GetUser(ctx, user.Id); err != nil || got.GetBio() != "Hello, I write chat software." {
+		t.Fatalf("projected bio = %q, err = %v", got.GetBio(), err)
+	}
+	if n := bioEvents(); n != 1 {
+		t.Fatalf("bio events after first set = %d, want 1", n)
+	}
+
+	// Unchanged bio must be a no-op: no EVT append.
+	if _, err := core.UpdateUserBio(ctx, user.Id, "Hello, I write chat software."); err != nil {
+		t.Fatalf("no-op UpdateUserBio failed: %v", err)
+	}
+	if n := bioEvents(); n != 1 {
+		t.Fatalf("bio events after unchanged update = %d, want 1 (no new event)", n)
+	}
+
+	atLimit := strings.Repeat("x", MaxBioLength)
+	if _, err := core.UpdateUserBio(ctx, user.Id, atLimit); err != nil {
+		t.Fatalf("bio at length limit failed: %v", err)
+	}
+
+	tooLong := strings.Repeat("x", MaxBioLength+1)
+	if _, err := core.UpdateUserBio(ctx, user.Id, tooLong); !errors.Is(err, ErrBioTooLong) {
+		t.Fatalf("oversized bio error = %v, want ErrBioTooLong", err)
+	}
+
+	cleared, err := core.UpdateUserBio(ctx, user.Id, "   ")
+	if err != nil {
+		t.Fatalf("clear bio failed: %v", err)
+	}
+	if cleared.GetBio() != "" {
+		t.Fatalf("bio after clear = %q, want empty", cleared.GetBio())
+	}
+	if n := bioEvents(); n != 3 {
+		t.Fatalf("bio events after clear = %d, want 3", n)
+	}
+}

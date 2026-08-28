@@ -154,6 +154,7 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 	events := []*corev1.Event{
 		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: recipientID}}},
 		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
 		{Id: "join", ActorId: recipientID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
 		source,
 	}
@@ -162,7 +163,7 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 			t.Fatalf("Apply sequence %d: %v", i+1, err)
 		}
 	}
-	snapshot, err := p.Boundary(4, source.GetCreatedAt().AsTime())
+	snapshot, err := p.Boundary(5, source.GetCreatedAt().AsTime())
 	if err != nil {
 		t.Fatalf("Boundary: %v", err)
 	}
@@ -170,8 +171,138 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
 	}
+	if len(decisions) != 1 || notificationSignalIdentity(decisions[0].signal) != string(notificationTestSignalRoomMessage) {
+		t.Fatalf("legacy decisions = %+v, want only room-message cause for %s", decisions, recipientID)
+	}
+}
+
+func TestDirectMentionAllowsInteractionScopedSourceVisibility(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	const (
+		roomID      = "R1"
+		recipientID = "U1"
+	)
+	events := []*corev1.Event{
+		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: recipientID}}},
+		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "interaction-read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, recipientID, PermMessageReadInteractions)}},
+		{Id: "join", ActorId: recipientID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
+	}
+	for index, event := range events {
+		if err := p.Apply(event, uint64(index+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", index+1, err)
+		}
+	}
+	source := &corev1.Event{
+		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+			RoomId: roomID,
+			Mentions: []*corev1.MessageMention{{
+				UserId: recipientID,
+				Cause:  &corev1.MessageMention_Direct{Direct: &corev1.DirectUserMention{}},
+			}},
+		}},
+	}
+	if err := p.Apply(source, 5); err != nil {
+		t.Fatalf("Apply source: %v", err)
+	}
+	snapshot, err := p.Boundary(5, source.GetCreatedAt().AsTime())
+	if err != nil {
+		t.Fatalf("Boundary: %v", err)
+	}
+	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
+	if err != nil {
+		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
+	}
+	if len(decisions) != 1 || decisions[0].recipientID != recipientID || notificationSignalIdentity(decisions[0].signal) != string(notificationTestSignalDirectMention) {
+		t.Fatalf("interaction-scoped decisions = %+v, want direct mention for %s", decisions, recipientID)
+	}
+}
+
+func TestRootChannelMessageFansOutToExactSourceTimeMembers(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	const (
+		roomID     = "R1"
+		authorID   = "author"
+		recipients = 250
+	)
+	sequence := uint64(1)
+	apply := func(event *corev1.Event) {
+		t.Helper()
+		if event.GetId() == "" {
+			event.Id = fmt.Sprintf("event-%d", sequence)
+		}
+		if err := p.Apply(event, sequence); err != nil {
+			t.Fatalf("Apply sequence %d: %v", sequence, err)
+		}
+		sequence++
+	}
+	apply(&corev1.Event{Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}})
+	apply(&corev1.Event{Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}})
+	for index := 0; index <= recipients; index++ {
+		userID := authorID
+		if index > 0 {
+			userID = fmt.Sprintf("recipient-%03d", index)
+		}
+		apply(&corev1.Event{Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}})
+		apply(&corev1.Event{ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}})
+	}
+	source := &corev1.Event{Id: "source", ActorId: authorID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}}
+	apply(source)
+
+	snapshot, err := p.Boundary(sequence-1, source.GetCreatedAt().AsTime())
+	if err != nil {
+		t.Fatalf("Boundary: %v", err)
+	}
+	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
+	if err != nil {
+		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
+	}
+	if len(decisions) != recipients {
+		t.Fatalf("decisions = %d, want %d", len(decisions), recipients)
+	}
+	seen := make(map[string]struct{}, recipients)
+	for _, decision := range decisions {
+		if decision.recipientID == authorID || notificationSignalIdentity(decision.signal) != string(notificationTestSignalRoomMessage) || decision.mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+			t.Fatalf("unexpected decision = %+v", decision)
+		}
+		seen[decision.recipientID] = struct{}{}
+	}
+	if len(seen) != recipients {
+		t.Fatalf("unique recipients = %d, want %d", len(seen), recipients)
+	}
+}
+
+func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	events := []*corev1.Event{
+		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "recipient"}}},
+		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
+		{Id: "join", ActorId: "recipient", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}},
+	}
+	for index, event := range events {
+		if err := p.Apply(event, uint64(index+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", index+1, err)
+		}
+	}
+	source := &corev1.Event{Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "root"}}}
+	if err := p.Apply(source, 5); err != nil {
+		t.Fatalf("Apply reply: %v", err)
+	}
+	snapshot, err := p.Boundary(5, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary: %v", err)
+	}
+	// Avoid the separate auto-follow-first-reply path. This test isolates the
+	// absence of the root room-message cause on a thread message.
+	snapshot.replyCounts["root"] = 2
+	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
+	if err != nil {
+		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
+	}
 	if len(decisions) != 0 {
-		t.Fatalf("legacy decisions = %+v, want no guessed mention cause for %s", decisions, recipientID)
+		t.Fatalf("thread decisions = %+v, want no room-message output", decisions)
 	}
 }
 

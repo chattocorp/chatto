@@ -11,8 +11,8 @@ import "chatto/api/v1/users.proto";
 import "chatto/api/v1/viewer.proto";
 import "google/protobuf/descriptor.proto";
 
-// Request to update the authenticated user's profile. At least one field must
-// be present.
+// Request to update the authenticated user's profile. Human and bot accounts
+// use this same self-service operation. At least one field must be present.
 message UpdateProfileRequest {
   // New display name, when changing it. Empty clears the explicit display
   // name. The server also rejects control and confusing invisible characters.
@@ -23,6 +23,8 @@ message UpdateProfileRequest {
     min_len: 2
     max_len: 32
   }];
+  // New Markdown biography, when changing it. Empty clears the bio.
+  optional string bio = 3 [(buf.validate.field).string.max_len = 1000];
 }
 
 // Result of a profile update.
@@ -115,7 +117,7 @@ message DeleteMyAccountResponse {
 // custom-status, external identity, and account lifecycle commands for the
 // authenticated user.
 service MyAccountService {
-  // Updates the authenticated user's login and/or display name.
+  // Updates the authenticated user's login, display name, and/or bio.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Uploads and sets the authenticated user's avatar.
   rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);

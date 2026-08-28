@@ -17,7 +17,7 @@ enum NotificationDeliveryMode {
 
   // No delivery mode was specified. This value is not a valid override.
   NOTIFICATION_DELIVERY_MODE_UNSPECIFIED = 0;
-  // Matching activity does not create a notification occurrence.
+  // Matching activity does not create user attention.
   NOTIFICATION_DELIVERY_MODE_OFF = 1;
   // Deprecated alias for NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.
   NOTIFICATION_DELIVERY_MODE_SILENT = 2 [deprecated = true];
@@ -27,6 +27,9 @@ enum NotificationDeliveryMode {
   NOTIFICATION_DELIVERY_MODE_ALERT = 3 [deprecated = true];
   // Matching activity creates an in-app notification and may send push.
   NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION = 3;
+  // Matching activity adds a neutral unread indicator without creating a
+  // notification occurrence, playing a sound, or sending push.
+  NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE = 4;
 }
 
 // Delivery modes for Chatto's finite built-in notification signal classes.
@@ -39,10 +42,12 @@ message NotificationDeliveryModes {
   optional NotificationDeliveryMode here_mentions = 5;
   optional NotificationDeliveryMode all_mentions = 6;
   optional NotificationDeliveryMode followed_threads = 7;
-  // Delivery mode for top-level activity in rooms followed by the viewer.
-  // Servers without room-follow support apply it to all joined channel rooms.
-  optional NotificationDeliveryMode followed_rooms = 8;
+  // Deprecated compatibility slot. Use room_messages at room scope.
+  optional NotificationDeliveryMode followed_rooms = 8 [deprecated = true];
   optional NotificationDeliveryMode reactions = 9;
+  // Delivery mode for root messages posted directly to joined channel rooms.
+  // Thread messages and direct messages use their own signal classes.
+  optional NotificationDeliveryMode room_messages = 10;
 }
 
 // Visual importance of an unread notification. This is independent from
@@ -104,9 +109,15 @@ message FollowedThreadActivity {
   NotificationMessageReference message = 1;
 }
 
-// Top-level activity in a room followed by the viewer. Servers without
-// room-follow support can emit it for any channel room joined by the viewer.
+// Deprecated compatibility payload. Chatto does not derive this signal.
 message FollowedRoomActivity {
+  option deprecated = true;
+
+  NotificationMessageReference message = 1;
+}
+
+// A root message posted directly to a channel room that the viewer belongs to.
+message RoomMessageReceived {
   NotificationMessageReference message = 1;
 }
 
@@ -129,8 +140,9 @@ message NotificationSignal {
     HereMentionReceived here_mention_received = 5;
     AllMentionReceived all_mention_received = 6;
     FollowedThreadActivity followed_thread_activity = 7;
-    FollowedRoomActivity followed_room_activity = 8;
+    FollowedRoomActivity followed_room_activity = 8 [deprecated = true];
     ReactionReceived reaction_received = 9;
+    RoomMessageReceived room_message_received = 10;
   }
 }
 

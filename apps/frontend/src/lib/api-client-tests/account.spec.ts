@@ -84,14 +84,16 @@ describe('createAccountAPI', () => {
         id: 'U1',
         login: 'alice2',
         displayName: 'Alice Two',
-        avatarUrl: 'https://cdn/avatar.webp'
+        avatarUrl: 'https://cdn/avatar.webp',
+        bio: null
       }
     );
     await expect(api.deleteAvatar()).resolves.toEqual({
       id: 'U1',
       login: 'alice2',
       displayName: 'Alice Two',
-      avatarUrl: null
+      avatarUrl: null,
+      bio: null
     });
     await expect(
       api.uploadAvatar(new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' }))
@@ -99,7 +101,8 @@ describe('createAccountAPI', () => {
       id: 'U1',
       login: 'alice2',
       displayName: 'Alice Two',
-      avatarUrl: 'https://cdn/new-avatar.webp'
+      avatarUrl: 'https://cdn/new-avatar.webp',
+      bio: null
     });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({

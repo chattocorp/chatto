@@ -250,23 +250,6 @@ func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, erro
 	return result, nil
 }
 
-// UpdateBot changes a bot's public identity as one aggregate mutation. An OCC
-// conflict is returned to the interactive caller instead of replaying stale
-// edit intent after an intervening write.
-func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, login, displayName *string) (*Bot, error) {
-	if login == nil && displayName == nil {
-		return nil, fmt.Errorf("%w: at least one field is required", ErrInvalidArgument)
-	}
-	if _, err := c.requireBotManager(ctx, actorID, botID); err != nil {
-		return nil, err
-	}
-	user, err := c.updateUserProfileAs(ctx, actorID, botID, login, displayName, false)
-	if err != nil {
-		return nil, err
-	}
-	return c.botFromUser(user)
-}
-
 // RotateBotAPIKey replaces the sole verifier. There is deliberately no retry:
 // concurrent rotations conflict so two callers cannot both receive keys while
 // only one remains current.

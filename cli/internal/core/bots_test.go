@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -83,6 +84,31 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	}
 	if _, err := c.SetUserCustomStatus(ctx, bot.User.GetId(), "🤖", "online", nil); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetUserCustomStatus(bot) err = %v, want ErrHumanAccountRequired", err)
+	}
+	bio := "Automates helpful tasks."
+	updated, err := c.UpdateUserBio(ctx, bot.User.GetId(), bio)
+	if err != nil {
+		t.Fatalf("UpdateUserBio bot: %v", err)
+	}
+	if got := updated.GetBio(); got != bio {
+		t.Fatalf("updated bot bio = %q, want %q", got, bio)
+	}
+	bioEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventUserBioChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents bot bio: %v", err)
+	}
+	if len(bioEvents) != 1 {
+		t.Fatalf("bot bio events = %d, want 1", len(bioEvents))
+	}
+	if _, err := c.UpdateUserBio(ctx, bot.User.GetId(), bio); err != nil {
+		t.Fatalf("UpdateUserBio bot no-op: %v", err)
+	}
+	bioEvents, _, err = c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventUserBioChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents bot bio after no-op: %v", err)
+	}
+	if len(bioEvents) != 1 {
+		t.Fatalf("bot bio events after no-op = %d, want 1", len(bioEvents))
 	}
 
 	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
@@ -1056,8 +1082,7 @@ func TestHumanAndBotUsernameSuffixRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("case-insensitive suffix CreateBot: %v", err)
 	}
-	invalidLogin := "lost-suffix"
-	if _, err := c.UpdateBot(ctx, owner.GetId(), uppercase.User.GetId(), &invalidLogin, nil); !errors.Is(err, ErrBotLoginSuffixRequired) {
+	if _, err := c.UpdateUserLogin(ctx, uppercase.User.GetId(), "lost-suffix"); !errors.Is(err, ErrBotLoginSuffixRequired) {
 		t.Fatalf("bot rename without suffix err = %v, want ErrBotLoginSuffixRequired", err)
 	}
 }

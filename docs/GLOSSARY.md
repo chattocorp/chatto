@@ -84,11 +84,13 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Mention** — `@handle` syntax in a message that notifies referenced users, pingable roles, or virtual room groups such as `@all` and `@here`. See [FDR-006](fdr/FDR-006-mentions.md).
 
-**Notification** — Persistent user-scoped attention created for activity such as a DM, reply, mention, followed conversation, or reaction. Unread occurrences carry an independent Ambient or Important visual level; notifications remain visible after being read and can be deleted independently of room read state. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification** — Persistent user-scoped attention created for activity such as a DM, root room message, reply, mention, followed conversation, or reaction. Unread occurrences carry an independent Ambient or Important visual level; notifications remain visible after being read and can be deleted independently of room read state. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Notification Group** — Client-side presentation row that combines related notification occurrences by conversation or target while retaining their exact underlying activity and jump targets. It is not a server-side resource. See [ADR-077](adr/ADR-077-persistent-notification-list.md).
 
-**Notification Delivery Mode** — Per-cause notification preference with one of three effective values: Off, Notification, or Push notification. Notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Badge, Notification, or Push notification. Badge adds only a neutral unread dot. Notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
+
+**Message Read Cursor** — Per-user position of the last root message read in a room. It places the New messages separator. It does not create a room dot; notification policy controls room attention separately. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Asset** — An uploaded or generated file stored by Chatto; it may exist before or independently of a message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
 

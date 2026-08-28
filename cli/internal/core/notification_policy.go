@@ -77,8 +77,23 @@ func notificationDeliveryModesEmpty(modes *corev1.NotificationDeliveryModes) boo
 }
 
 func validNotificationMode(mode corev1.NotificationDeliveryMode) bool {
-	return mode >= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF &&
-		mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
+	switch mode {
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// notificationModeProducesAttention accepts every concrete mode that makes
+// activity visible to the recipient. Unknown future values fail closed during
+// version skew.
+func notificationModeProducesAttention(mode corev1.NotificationDeliveryMode) bool {
+	return mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE ||
+		notificationModeProducesOccurrence(mode)
 }
 
 // notificationModeProducesOccurrence accepts only modes this binary knows how
@@ -209,6 +224,7 @@ func effectiveNotificationDeliveryModesAtScope(server, group, room *corev1.Notif
 		FollowedThreads: resolvedNotificationMode(room.FollowedThreads, group.FollowedThreads, server.FollowedThreads, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
 		FollowedRooms:   resolvedNotificationMode(room.FollowedRooms, group.FollowedRooms, server.FollowedRooms, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF).Enum(),
 		Reactions:       resolvedNotificationMode(room.Reactions, group.Reactions, server.Reactions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
+		RoomMessages:    resolvedNotificationMode(room.RoomMessages, group.RoomMessages, server.RoomMessages, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE).Enum(),
 	}
 }
 
@@ -239,6 +255,8 @@ func notificationModeForSignal(modes *corev1.NotificationDeliveryModes, signal *
 		return modes.GetFollowedRooms()
 	case *corev1.NotificationSignal_ReactionReceived:
 		return modes.GetReactions()
+	case *corev1.NotificationSignal_RoomMessageReceived:
+		return modes.GetRoomMessages()
 	default:
 		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}

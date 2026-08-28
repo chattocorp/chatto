@@ -71,20 +71,19 @@ var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Create a backup of all Chatto data",
 	Long: `Creates a complete backup of all NATS JetStream data including:
-- Instance-level KV buckets (users, spaces, memberships)
-- Instance event streams (audit trail)
-- Instance assets (avatars, icons)
-- Per-space KV buckets (rooms, memberships)
-- Per-space event streams (messages)
-- Per-space bodies (message bodies)
-- Per-space reactions
-- Per-space assets (attachments)
+- The EVT domain event stream
+- Runtime state such as sessions, read markers, and pending workflows
+- Notification occurrence history
+- NATS-backed user, server, and room assets
+- NATS-backed projection snapshots
 
 Excluded from backups by default:
 - Encryption keys (security: keeps backup data encrypted at rest)
 - User presence (ephemeral, memory-only)
-- Retired standalone link preview cache, if present (regeneratable)
+- Link preview cache (regeneratable)
 - Asset cache (regeneratable)
+- Search indexes (regeneratable from retained EVT history)
+- S3-backed assets and projection snapshots (back them up through S3)
 
 Pass --include-keys to include KV_ENCRYPTION_KEYS in the archive. This
 makes the backup self-contained (encrypted message bodies become

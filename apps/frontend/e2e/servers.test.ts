@@ -108,7 +108,7 @@ test.describe('Leave Server', () => {
 		const generalRoomId = await getRoomOnRemote(baseURL, remoteViewer.token, 'general');
 		await connectRemoteInstance(page, { ...remoteServer!, baseURL }, remoteViewer.userId);
 
-		await page.goto(routes.browseRooms);
+		await page.goto(routes.serverOverview);
 		await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 		await page.getByTitle('Sign out').click();
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });

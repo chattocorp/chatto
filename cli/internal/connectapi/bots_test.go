@@ -34,6 +34,21 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err != nil || got.Msg.GetBot().GetUser().GetLogin() != "connect_bot" {
 		t.Fatalf("GetBot = %+v, %v", got, err)
 	}
+	botCore, err := env.core.GetUser(env.ctx, bot.GetUser().GetId())
+	if err != nil {
+		t.Fatalf("GetUser bot: %v", err)
+	}
+	updated, err := env.account.UpdateProfile(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.UpdateProfileRequest{
+		Login:       stringPtr("updated_connect_bot"),
+		DisplayName: stringPtr("Updated Connect Bot"),
+		Bio:         stringPtr("**Build helper**"),
+	}))
+	if err != nil {
+		t.Fatalf("bot UpdateProfile: %v", err)
+	}
+	if user := updated.Msg.GetUser(); user.GetLogin() != "updated_connect_bot" || user.GetDisplayName() != "Updated Connect Bot" || user.GetBio() != "**Build helper**" {
+		t.Fatalf("updated bot user = %+v", user)
+	}
 	recipient, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-recipient", "Connect Recipient", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser recipient: %v", err)
@@ -69,10 +84,6 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	cell := findAPIPermissionCell(matrix.Msg.GetMatrix().GetCells(), "server", string(core.PermMessagePost))
 	if cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || cell.GetEffective() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || cell.AllowPermitted == nil || !cell.GetAllowPermitted() {
 		t.Fatalf("bot user permission matrix cell = %+v", cell)
-	}
-	botCore, err := env.core.GetUser(env.ctx, bot.GetUser().GetId())
-	if err != nil {
-		t.Fatalf("GetUser bot: %v", err)
 	}
 	viewer, err := env.viewerService.GetViewer(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {

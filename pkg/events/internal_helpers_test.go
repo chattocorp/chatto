@@ -18,6 +18,26 @@ func TestSubjectMatchesFilter(t *testing.T) {
 		{">", "evt.room.R1.user_joined", true},
 		{"", "evt.room.R1.user_joined", false},
 		{"evt.room.>", "", false},
+		// Token-count mismatches in both directions.
+		{"evt.room.*", "evt.room.R1.extra", false},
+		{"evt.room.R1.extra", "evt.room.R1", false},
+		// '*' spans exactly one token.
+		{"*", "single", true},
+		{"*", "", false},
+		// '>' is only meaningful as the final filter token.
+		{"evt.>.joined", "evt.a.joined", false},
+		{">.", "anything.here", false},
+		{">", "one", true},
+		// '>' must leave a nonempty unconsumed subject tail.
+		{"a.b.>", "a.b", false},
+		{"a.b.>", "a.b.", false},
+		// Empty tokens never match: dots delimit strictly.
+		{".a", ".a", false},
+		{"a..b", "a..b", false},
+		{"a.b", "a.b.", false},
+		// A literal '*' token in a subject matches only a literal '*'.
+		{"a.*", "a.*", true},
+		{"a.x", "a.*", false},
 	}
 	for _, test := range cases {
 		t.Run(test.filter+" matches "+test.subject, func(t *testing.T) {
