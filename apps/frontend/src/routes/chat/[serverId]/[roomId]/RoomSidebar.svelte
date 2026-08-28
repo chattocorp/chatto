@@ -49,6 +49,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
+  import RoomSidebarProfile from './RoomSidebarProfile.svelte';
   import RoomFilesPanel from './RoomFilesPanel.svelte';
   import RoomSearchPanel from './RoomSearchPanel.svelte';
   import RoomPinsPanel from './RoomPinsPanel.svelte';
@@ -57,6 +58,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     loading = false,
     roomId,
     activePanel = 'members',
+    activeProfileUserId = null,
     presentation = 'desktop',
     maximized = false,
     hasActiveCall = false,
@@ -72,11 +74,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onOpenSearchResult,
     onOpenPin,
     onToggleMaximized,
+    onOpenProfile,
     onClose
   }: {
     loading?: boolean;
     roomId: string;
     activePanel?: RoomSidebarPanel;
+    activeProfileUserId?: string | null;
     presentation?: 'desktop' | 'overlay';
     maximized?: boolean;
     hasActiveCall?: boolean;
@@ -92,6 +96,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onOpenSearchResult?: (messageEventId: string, threadRootEventId: string | null) => void;
     onOpenPin?: (messageEventId: string, threadRootEventId: string | null) => void;
     onToggleMaximized?: () => void;
+    onOpenProfile?: (userId: string) => void;
     onClose?: () => void;
   } = $props();
 
@@ -105,6 +110,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const allMembers = $derived(membersStore.members);
   const memberCount = $derived(membersStore.totalCount);
   const title = $derived.by(() => {
+    if (activeProfileUserId) return m('chat.profile.title');
     if (activePanel === 'members') return m('room.sidebar.members_title', { count: memberCount });
     if (activePanel === 'search') return m('search.in_room');
     if (activePanel === 'files') return m('room.sidebar.files');
@@ -406,7 +412,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {/snippet}
   </PaneHeader>
 
-  {#if activePanel === 'members'}
+  {#if activeProfileUserId}
+    <RoomSidebarProfile userId={activeProfileUserId} />
+  {:else if activePanel === 'members'}
     <nav class="flex flex-1 flex-col overflow-y-auto" aria-label={m('room.sidebar.members')}>
       <div class="sticky top-0 z-10 bg-background p-2">
         <label class="sr-only" for="room-member-search">{m('room.sidebar.search_members')}</label>
@@ -454,24 +462,22 @@ calls, and similar room-specific panels can plug into the same shell. See the
             </li>
           {/each}
         </ul>
+      {:else if members.length === 0}
+        <div class="px-2 py-8 text-center text-sm text-muted">
+          {m('room.sidebar.no_members')}
+        </div>
       {:else}
-        {#if members.length === 0}
-          <div class="px-2 py-8 text-center text-sm text-muted">
-            {m('room.sidebar.no_members')}
-          </div>
-        {:else}
-          {#each memberGroups as group, i (group.id)}
-            <RoomGroupSection
-              label={group.label}
-              items={group.items}
-              item={memberRow}
-              persistKey={group.persistKey}
-              defaultCollapsed={group.defaultCollapsed}
-              testid={group.testid}
-              separated={i > 0}
-            />
-          {/each}
-        {/if}
+        {#each memberGroups as group, i (group.id)}
+          <RoomGroupSection
+            label={group.label}
+            items={group.items}
+            item={memberRow}
+            persistKey={group.persistKey}
+            defaultCollapsed={group.defaultCollapsed}
+            testid={group.testid}
+            separated={i > 0}
+          />
+        {/each}
       {/if}
 
       {#if popoverMember && popoverAnchorRect}
@@ -484,6 +490,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           viewerSettings={serverScope.store.currentUser.user?.settings}
           onSendMessage={() => startDMWith(activeServerId, popoverMember!.id)}
           onBanFromRoom={() => openBanDialog(popoverMember!)}
+          {onOpenProfile}
           onClose={closePopover}
         />
       {/if}
@@ -512,7 +519,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {/if}
   {:else if activePanel === 'call'}
     {#if livekitUrl}
-      <VoiceCallPanel {roomId} {livekitUrl} layout={maximized ? 'stage' : 'sidebar'} />
+      <VoiceCallPanel
+        {roomId}
+        {livekitUrl}
+        layout={maximized ? 'stage' : 'sidebar'}
+        {onOpenProfile}
+      />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
         {m('room.sidebar.calls_unavailable')}

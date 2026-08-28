@@ -2,12 +2,12 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-
 import { q } from '$lib/test-utils';
 import {
   __resetUserSummaryCachesForTests,
   getUserSummaryCache
 } from '$lib/state/userSummaries.svelte';
+import RoomSidebarProfile from './RoomSidebarProfile.svelte';
 
 const mocks = vi.hoisted(() => ({
   queryState: {
@@ -20,10 +20,6 @@ const mocks = vi.hoisted(() => ({
     timezone: 'Europe/Berlin',
     timeFormat: 0
   }
-}));
-
-vi.mock('$app/state', () => ({
-  page: { params: { serverId: 'origin', userId: 'user-1' } }
 }));
 
 vi.mock('@tanstack/svelte-query', () => ({
@@ -41,9 +37,7 @@ vi.mock('@tanstack/svelte-query', () => ({
 }));
 
 vi.mock('$lib/query/client', () => ({ queryClient: {} }));
-
 vi.mock('$lib/api-client/users', () => ({ createUserAPI: vi.fn() }));
-
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
@@ -55,7 +49,6 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     isCurrent: () => true
   })
 }));
-
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveBio: (_userId: string, fallback: string | null) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
@@ -63,16 +56,12 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveTimezone: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: () => null
 }));
-
 vi.mock('$lib/components/UserAvatar.svelte', async () => ({
-  default: (await import('../../../ChatRootTestStub.svelte')).default
+  default: (await import('../../ChatRootTestStub.svelte')).default
 }));
-
 vi.mock('$lib/components/UserCustomStatusBadge.svelte', async () => ({
-  default: (await import('../../../ChatRootTestStub.svelte')).default
+  default: (await import('../../ChatRootTestStub.svelte')).default
 }));
-
-import UserProfilePage from './+page.svelte';
 
 const user = {
   id: 'user-1',
@@ -88,12 +77,12 @@ const user = {
 
 let currentRender: ReturnType<typeof render> | null = null;
 
-function renderPage() {
-  currentRender = render(UserProfilePage);
+function renderProfile() {
+  currentRender = render(RoomSidebarProfile, { props: { userId: 'user-1' } });
   return currentRender;
 }
 
-describe('User profile page', () => {
+describe('RoomSidebarProfile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     __resetUserSummaryCachesForTests();
@@ -114,7 +103,7 @@ describe('User profile page', () => {
     getUserSummaryCache('origin').prime([user]);
     mocks.queryState.isPending = true;
 
-    const { container } = renderPage();
+    const { container } = renderProfile();
 
     expect(container.textContent).toContain('Alice Example');
     expect(container.textContent).toContain('@alice');
@@ -123,12 +112,21 @@ describe('User profile page', () => {
     expect(container.textContent).not.toContain('Loading');
   });
 
+  it('shows loading while an uncached profile is loading', () => {
+    mocks.queryState.isPending = true;
+
+    const { container } = renderProfile();
+
+    expect(container.textContent).toContain('Loading');
+    expect(q(container, '[aria-busy="true"]')).toBeTruthy();
+  });
+
   it('uses the viewer preferred 12-hour time format', () => {
     getUserSummaryCache('origin').prime([user]);
     mocks.queryState.isPending = true;
     mocks.viewerSettings.timeFormat = TimeFormat.TIME_FORMAT_12_HOUR;
 
-    const { container } = renderPage();
+    const { container } = renderProfile();
 
     expect(container.textContent).toMatch(/04:30\s*pm/i);
   });
@@ -137,21 +135,10 @@ describe('User profile page', () => {
     mocks.queryState = { data: null, isPending: false };
     mocks.batchGetUsers.mockResolvedValue([]);
 
-    const { container } = renderPage();
+    const { container } = renderProfile();
 
     await vi.waitFor(() => {
       expect(q(container, '[data-tone="danger"]') ?? container).toHaveTextContent('User not found');
     });
-  });
-
-  it('primes the summary cache only from a successful query', async () => {
-    const prime = vi.spyOn(getUserSummaryCache('origin'), 'prime');
-    renderPage();
-
-    expect(prime).not.toHaveBeenCalled();
-    await mocks.queryOptions?.queryFn();
-
-    expect(mocks.batchGetUsers).toHaveBeenCalledWith(['user-1']);
-    expect(prime).toHaveBeenCalledExactlyOnceWith([user]);
   });
 });

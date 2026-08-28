@@ -136,7 +136,27 @@ vi.mock('$lib/hooks', () => ({
       canManageRoom: false,
       canBanRoomMembers: false
     },
-    dmData: null,
+    dmData:
+      mocks.roomKind === RoomKind.DM
+        ? {
+            participantIds: ['test-user', 'user-1'],
+            participants: [
+              {
+                id: 'test-user',
+                login: 'testuser',
+                displayName: 'Test User',
+                presenceStatus: 1
+              },
+              {
+                id: 'user-1',
+                login: 'userone',
+                displayName: 'User One',
+                presenceStatus: 1
+              }
+            ],
+            currentUserId: 'test-user'
+          }
+        : null,
     isDM: mocks.roomKind === RoomKind.DM,
     isRoomLoading: false
   }),
@@ -253,6 +273,10 @@ vi.mock('$lib/state/globals.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveDisplayName: (_userId: string, fallback: string) => fallback
+}));
+
 vi.mock('$lib/state/appUi.svelte', async (importActual) => {
   const actual = await importActual<typeof import('$lib/state/appUi.svelte')>();
   return {
@@ -314,8 +338,8 @@ vi.mock('$lib/ui/PageTitle.svelte', async () => {
 });
 
 vi.mock('$lib/ui/PaneHeader.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: PaneHeaderMock } = await import('./RoomPaneHeaderMock.svelte');
+  return { default: PaneHeaderMock };
 });
 
 vi.mock('$lib/ui', async () => {
@@ -466,12 +490,8 @@ describe('Room interaction bundles', () => {
     await expect
       .element(container)
       .toHaveTextContent('You do not have permission to read messages in this room.');
-    await expect
-      .element(q(container, '[data-testid="room-event-ids"]'))
-      .not.toBeInTheDocument();
-    await expect
-      .element(q(container, '[data-testid="emit-returned-post"]'))
-      .toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="room-event-ids"]')).not.toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="emit-returned-post"]')).toBeInTheDocument();
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
   });
 
@@ -480,9 +500,7 @@ describe('Room interaction bundles', () => {
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
-    await expect
-      .element(q(container, '[data-testid="room-event-ids"]'))
-      .toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="room-event-ids"]')).toBeInTheDocument();
   });
 
   it('loads the thread pane when the thread route is active', async () => {
@@ -502,7 +520,44 @@ describe('Room interaction bundles', () => {
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+  });
+
+  it('loads the desktop room sidebar for a transient profile view', async () => {
+    appUi.openDesktopRoomSidebarProfile('user-1');
+    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe('user-1');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
     await vi.waitFor(() => expect(mocks.roomSidebarModuleLoaded).toHaveBeenCalledOnce());
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+  });
+
+  it('opens the other direct-message participant information from the header', async () => {
+    mocks.roomKind = RoomKind.DM;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    const profileButton = await waitForElement<HTMLButtonElement>(
+      container,
+      'button[aria-label="Profile"]'
+    );
+    profileButton.click();
+
+    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe('user-1');
+  });
+
+  it('keeps a thread pane open beside a desktop profile view', async () => {
+    appUi.openDesktopRoomSidebarProfile('user-1');
+
+    const { container } = render(Room, {
+      props: { roomId: 'room-1', threadId: 'thread-root' }
+    });
+
+    await expect.element(q(container, '[data-testid="thread-pane"]')).toBeInTheDocument();
     await expect
       .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
       .toBeInTheDocument();
@@ -545,6 +600,26 @@ describe('Room interaction bundles', () => {
     expect(
       await waitForElement(container, '[data-testid="room-sidebar-mobile-pane"]')
     ).toBeTruthy();
+  });
+
+  it('closes a mobile profile with Escape and restores its room-extras panel', async () => {
+    stubMatchMedia(false);
+    appUi.openMobileRoomSidebarPanel('files');
+    appUi.openMobileRoomSidebarProfile('user-1');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toBeInTheDocument();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await tick();
+
+    expect(appUi.activeMobileRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.mobileRoomSidebarPanel).toBe('files');
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toBeInTheDocument();
   });
 });
 

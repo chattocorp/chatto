@@ -85,6 +85,46 @@ describe('AppUiState', () => {
     expect(appUi.mobileRoomSidebarPanel).toBe(null);
   });
 
+  it('shows a profile without replacing the selected desktop extras panel', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.openDesktopRoomSidebarPanel('files');
+    appUi.openDesktopRoomSidebarProfile('user-1');
+
+    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe('user-1');
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
+
+    appUi.closeDesktopRoomSidebarProfile();
+
+    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
+  });
+
+  it('shows the requested extras panel when a profile is open', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.openDesktopRoomSidebarPanel('files');
+    appUi.openDesktopRoomSidebarProfile('user-1');
+    appUi.toggleDesktopRoomSidebarPanel('files');
+
+    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
+  });
+
+  it('clears transient room-sidebar profiles when the viewer changes rooms', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.openDesktopRoomSidebarProfile('user-1');
+    appUi.openMobileRoomSidebarProfile('user-1');
+    appUi.setActiveRoomScope('server-a', 'room-2');
+
+    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.activeMobileRoomSidebarProfileUserId).toBe(null);
+  });
+
   it('applies a desktop sidebar request when its room becomes active', () => {
     const appUi = new AppUiState();
 
@@ -123,6 +163,29 @@ describe('AppUiState', () => {
     appUi.requestRoomSidebarPanel('server-a', 'room-1', 'files', 'desktop');
 
     expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
+  });
+
+  it('applies a pending profile request after direct-message navigation', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.requestRoomSidebarProfile('server-a', 'dm-1', 'user-1', 'desktop');
+
+    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe(null);
+
+    appUi.setActiveRoomScope('server-a', 'dm-1');
+
+    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe('user-1');
+  });
+
+  it('applies a pending mobile profile request after direct-message navigation', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.requestRoomSidebarProfile('server-a', 'dm-1', 'user-1', 'mobile');
+    appUi.setActiveRoomScope('server-a', 'dm-1');
+
+    expect(appUi.activeMobileRoomSidebarProfileUserId).toBe('user-1');
   });
 
   it('tracks the scoped wide call room', () => {

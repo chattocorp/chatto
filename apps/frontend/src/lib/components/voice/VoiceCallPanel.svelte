@@ -41,11 +41,13 @@ Room sidebar panel for voice/video calls.
   let {
     roomId,
     livekitUrl,
-    layout = 'sidebar'
+    layout = 'sidebar',
+    onOpenProfile
   }: {
     roomId: string;
     livekitUrl: string;
     layout?: 'sidebar' | 'stage';
+    onOpenProfile?: (userId: string) => void;
   } = $props();
 
   let isInThisCall = $derived(voiceCallState.isInCall(roomId));
@@ -727,6 +729,7 @@ Room sidebar panel for voice/video calls.
     canSendMessage={canStartDMs}
     viewerSettings={serverScope.store.currentUser.user?.settings}
     onSendMessage={() => startDMWith(activeServerId, popoverParticipant!.avatarUser.id)}
+    {onOpenProfile}
     onClose={closeUserMenu}
   />
 {/if}

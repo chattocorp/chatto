@@ -5,8 +5,8 @@ Shows a user's profile card. On desktop, renders as a floating popover anchored 
 element. On mobile (touch devices), renders as a bottom sheet. This dual behavior comes from
 ContextMenu, which handles both modes automatically.
 
-When the current viewer can open Server Admin user pages, the menu links to the selected user's
-page on the active server.
+The optional profile callback is supplied only by room surfaces. Other uses
+keep the compact menu without a navigation action.
 
 **Props:**
 - `user` - The user to display (must include id, login, displayName, presenceStatus)
@@ -18,12 +18,12 @@ page on the active server.
 - `canBanFromRoom` - Whether to show the room-ban action
 - `banningFromRoom` - Whether the room-ban action is currently running
 - `onBanFromRoom` - Callback when "Ban from room" is clicked
+- `onOpenProfile` - Optional callback that opens the full room-sidebar profile
 - `viewerSettings` - Optional viewer preferences for the user's local-time display
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { page } from '$app/state';
   import { resolve } from '$app/paths';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -60,6 +60,7 @@ page on the active server.
     viewerSettings,
     onSendMessage,
     onBanFromRoom,
+    onOpenProfile,
     onClose
   }: {
     user: {
@@ -81,6 +82,7 @@ page on the active server.
     viewerSettings?: ViewerTimeSettings | null;
     onSendMessage?: () => void;
     onBanFromRoom?: () => void;
+    onOpenProfile?: (userId: string) => void;
     onClose?: () => void;
   } = $props();
 
@@ -120,6 +122,11 @@ page on the active server.
     onBanFromRoom?.();
   }
 
+  function handleOpenProfile() {
+    onOpenProfile?.(user.id);
+    onClose?.();
+  }
+
   async function handleCopyUserId(): Promise<void> {
     try {
       const write = navigator.clipboard.writeText(user.id);
@@ -153,7 +160,7 @@ page on the active server.
   {#if bio || localTime}
     <div class="space-y-1 menu-section px-3 py-2">
       {#if bio}
-        <UserBio bio={bio} class="max-h-40 overflow-y-auto text-sm" />
+        <UserBio {bio} class="max-h-40 overflow-y-auto text-sm" />
       {/if}
       {#if timezone && localTime}
         <p class="flex items-center gap-1.5 text-sm text-muted">
@@ -166,7 +173,7 @@ page on the active server.
     <Interval milliseconds={60_000} ontick={() => (now = Date.now())} />
   {/if}
 
-  {#if canSendMessage || page.params.serverId || adminUserHref || canBanFromRoom}
+  {#if canSendMessage || onOpenProfile || adminUserHref || canBanFromRoom}
     <div class="menu-section">
       <nav class="sidebar-nav">
         {#if canSendMessage}
@@ -174,16 +181,10 @@ page on the active server.
             {m('chat.user_menu.send_message')}
           </button>
         {/if}
-        {#if page.params.serverId}
-          <a
-            class="sidebar-item cursor-pointer"
-            href={resolve('/chat/[serverId]/users/[userId]', {
-              serverId: page.params.serverId,
-              userId: user.id
-            })}
-          >
+        {#if onOpenProfile}
+          <button type="button" class="sidebar-item" onclick={handleOpenProfile}>
             {m('chat.user_menu.view_profile')}
-          </a>
+          </button>
         {/if}
         {#if adminUserHref}
           <a

@@ -46,6 +46,7 @@
     // Threading - only root messages can open threads
     onOpenThread,
     onOpenCall,
+    onOpenProfile,
     // Filtering - whether to filter out thread replies (false for thread pane)
     filterThreadReplies = true,
     // Up-arrow-to-edit
@@ -89,6 +90,7 @@
     // Threading
     onOpenThread?: OpenThreadHandler;
     onOpenCall?: () => void;
+    onOpenProfile?: (userId: string) => void;
     // Filtering
     filterThreadReplies?: boolean;
     // Up-arrow-to-edit
@@ -703,6 +705,7 @@
                   onOpenThread={getOpenThreadHandler(eventData)}
                   activeCallId={stores.activeCallRooms.getCallId(roomId)}
                   {onOpenCall}
+                  {onOpenProfile}
                   {threadingMode}
                 />
               {/if}

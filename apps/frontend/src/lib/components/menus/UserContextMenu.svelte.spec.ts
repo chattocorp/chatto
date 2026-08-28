@@ -12,7 +12,6 @@ const viewerSettingsState = {
   timezone: 'Europe/Berlin',
   timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
 };
-vi.mock('$app/state', () => ({ page: { params: { serverId: '-' } } }));
 const serverScopeMock = vi.hoisted(() => ({
   serverId: 'server-1',
   permissions: {
@@ -70,9 +69,8 @@ function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement
 
 function linkWithText(container: HTMLElement, text: string): HTMLAnchorElement | null {
   return (
-    Array.from(container.querySelectorAll('a')).find(
-      (link) => link.textContent?.trim() === text
-    ) ?? null
+    Array.from(container.querySelectorAll('a')).find((link) => link.textContent?.trim() === text) ??
+    null
   );
 }
 
@@ -163,13 +161,22 @@ describe('UserContextMenu', () => {
     expect(q(container, '[role="dialog"]')?.textContent).toContain('16:30');
   });
 
-  it('renders the profile action as an ordinary link', () => {
+  it('calls the supplied profile callback and closes the menu', () => {
     const onClose = vi.fn();
-    const { container } = renderMenu({ onClose });
-    const link = q(container, 'a[href="/chat/-/users/user-1"]') as HTMLAnchorElement;
+    const onOpenProfile = vi.fn();
+    const { container } = renderMenu({ onClose, onOpenProfile });
+    const viewProfile = buttonWithText(container, 'View profile');
 
-    expect(link.getAttribute('href')).toBe('/chat/-/users/user-1');
-    expect(onClose).not.toHaveBeenCalled();
+    viewProfile?.click();
+
+    expect(onOpenProfile).toHaveBeenCalledExactlyOnceWith('user-1');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('omits the profile action outside a room', () => {
+    const { container } = renderMenu();
+
+    expect(buttonWithText(container, 'View profile')).toBeNull();
   });
 
   it('renders custom status as its own profile line', async () => {
@@ -238,7 +245,11 @@ describe('UserContextMenu', () => {
 
   it('separates the profile and actions with sibling menu surfaces', () => {
     serverScopeMock.permissions.canAdminViewUsers = true;
-    const { container } = renderMenu({ canSendMessage: true, canBanFromRoom: true });
+    const { container } = renderMenu({
+      canSendMessage: true,
+      canBanFromRoom: true,
+      onOpenProfile: vi.fn()
+    });
     const dialog = q(container, '[role="dialog"]')!;
     const sections = dialog.querySelectorAll('.menu-section');
     const actionLabels = Array.from(sections[1]!.querySelectorAll('button, a')).map((action) =>

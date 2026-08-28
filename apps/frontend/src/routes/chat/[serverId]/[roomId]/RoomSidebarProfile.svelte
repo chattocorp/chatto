@@ -1,40 +1,41 @@
+<!--
+@component
+
+Displays a user's complete public profile in the room sidebar. The component
+uses cached user data while it refreshes and updates shared profile fields as
+realtime changes arrive.
+-->
 <script lang="ts">
-  import { page } from '$app/state';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
-
   import { createUserAPI } from '$lib/api-client/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
-  import Interval from '$lib/lifecycle/Interval.svelte';
   import { m } from '$lib/i18n/messages';
+  import Interval from '$lib/lifecycle/Interval.svelte';
   import { queryClient } from '$lib/query/client';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
   import {
     getLiveBio,
+    getLiveCustomStatus,
     getLiveDisplayName,
     getLiveLogin,
-    getLiveTimezone,
-    getLiveCustomStatus
+    getLiveTimezone
   } from '$lib/state/userProfiles.svelte';
-  import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
-  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint } from '$lib/ui';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { PaneContent } from '$lib/ui';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
-  import PageTitle from '$lib/ui/PageTitle.svelte';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
+  let { userId }: { userId: string } = $props();
+
   const serverScope = useServerScope();
-  const userId = $derived(page.params.userId!);
   const viewerTimeSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
-
-  let localTimeNow = $state(Date.now());
   const summaryCache = $derived(getUserSummaryCache(serverScope.serverId));
   const cached = $derived(summaryCache.get(userId));
+  let localTimeNow = $state(Date.now());
 
   const userQuery = createQuery(
     () => {
@@ -62,7 +63,9 @@
   );
   const login = $derived(baseUser ? getLiveLogin(baseUser.id, baseUser.login) : '');
   const bio = $derived(baseUser ? getLiveBio(baseUser.id, baseUser.bio ?? null) : null);
-  const timezone = $derived(baseUser ? getLiveTimezone(baseUser.id, baseUser.timezone ?? null) : null);
+  const timezone = $derived(
+    baseUser ? getLiveTimezone(baseUser.id, baseUser.timezone ?? null) : null
+  );
   const customStatus = $derived(baseUser ? getLiveCustomStatus(baseUser.id, null) : null);
   const avatarUser = $derived(
     baseUser
@@ -87,56 +90,42 @@
       return null;
     }
   }
+
   const localTime = $derived(timezone ? formatLocalTime(timezone) : null);
 </script>
 
-<PageTitle title={displayName || m('chat.profile.fallback_title')} />
-
-<div class="pane-page">
-  <PaneHeader title={m('chat.profile.title')} subtitle={displayName} showMobileNav />
-
-  <PaneContent>
-    <div class="mx-auto flex w-full max-w-xl flex-col gap-6">
-      {#if loading}
-        <div class="text-muted">{m('common.loading')}</div>
-      {:else if notFound || !baseUser || !avatarUser}
-        <Hint tone="danger">{m('chat.profile.not_found')}</Hint>
-      {:else}
-        <Panel>
-          <div class="flex items-center gap-4">
-            <UserAvatar user={avatarUser} size="xl" />
-            <div class="min-w-0 flex-1">
-              <h2 class="truncate text-lg font-semibold">
-                <bdi>{displayName}</bdi>
-              </h2>
-              <p class="truncate text-sm text-muted" dir="ltr">@{login}</p>
-              {#if baseUser.isBot}
-                <p class="mt-1 text-xs font-medium tracking-wide text-muted uppercase">
-                  {m('chat.profile.bot')}
-                </p>
-              {/if}
-              <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
-            </div>
-          </div>
-
-          {#if bio}
-            <UserBio bio={bio} class="mt-4" />
-          {/if}
-
-          {#if timezone && localTime}
-            <p class="mt-3 flex items-center gap-1.5 text-sm text-muted">
-              <span class="iconify icon-[uil--clock-three] shrink-0"></span>
-              <span>
-                {m('chat.profile.local_time', {
-                  time: localTime,
-                  zone: timezone
-                })}
-              </span>
-            </p>
-            <Interval milliseconds={60_000} ontick={() => (localTimeNow = Date.now())} />
-          {/if}
-        </Panel>
-      {/if}
+<div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-4" data-testid="room-sidebar-profile">
+  {#if loading}
+    <div class="text-muted" aria-busy="true">{m('common.loading')}</div>
+  {:else if notFound || !baseUser || !avatarUser}
+    <Hint tone="danger">{m('chat.profile.not_found')}</Hint>
+  {:else}
+    <div class="flex items-center gap-4">
+      <UserAvatar user={avatarUser} serverId={serverScope.serverId} size="xl" />
+      <div class="min-w-0 flex-1">
+        <h2 class="truncate text-lg font-semibold text-text-top">
+          <bdi>{displayName}</bdi>
+        </h2>
+        <p class="truncate text-sm text-muted" dir="ltr">@{login}</p>
+        {#if baseUser.isBot}
+          <p class="mt-1 font-medium tracking-wide text-muted uppercase">
+            {m('chat.profile.bot')}
+          </p>
+        {/if}
+        <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
+      </div>
     </div>
-  </PaneContent>
+
+    {#if bio}
+      <UserBio {bio} class="mt-4" />
+    {/if}
+
+    {#if timezone && localTime}
+      <p class="mt-3 flex items-center gap-1.5 text-muted">
+        <span class="iconify icon-[uil--clock-three] shrink-0" aria-hidden="true"></span>
+        <span>{m('chat.profile.local_time', { time: localTime, zone: timezone })}</span>
+      </p>
+      <Interval milliseconds={60_000} ontick={() => (localTimeNow = Date.now())} />
+    {/if}
+  {/if}
 </div>

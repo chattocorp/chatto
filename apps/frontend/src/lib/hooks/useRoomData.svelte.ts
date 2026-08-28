@@ -28,6 +28,8 @@ export type RoomData = {
 };
 
 export type DMData = {
+  /** Stable member IDs from the room projection, including unresolved users. */
+  participantIds: string[];
   participants: Array<{
     id: string;
     login: string;
@@ -87,7 +89,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const dmData = $derived.by<DMData | null>(() => {
     const currentStore = store;
     if (!isDM || !currentStore.realtimeSync.hasUsableProjection) return null;
+    const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
     return {
+      participantIds: projectedRoom?.memberUserIds ?? [],
       participants: currentStore.projectedMembersForRoom(getProps().roomId),
       currentUserId: currentStore.currentUser.user?.id ?? null
     };
