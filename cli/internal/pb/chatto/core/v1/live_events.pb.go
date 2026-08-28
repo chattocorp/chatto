@@ -292,6 +292,7 @@ type LiveEvent_UserDeleted struct {
 }
 
 type LiveEvent_UserProfileUpdated struct {
+	// Transient current-profile snapshot derived after a durable profile change.
 	UserProfileUpdated *UserProfileUpdatedEvent `protobuf:"bytes,22,opt,name=user_profile_updated,json=userProfileUpdated,proto3,oneof"`
 }
 

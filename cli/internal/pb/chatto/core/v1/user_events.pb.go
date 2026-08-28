@@ -177,10 +177,9 @@ func (x *UserDeletedEvent) GetUserId() string {
 	return ""
 }
 
-// UserProfileUpdatedEvent is published when a user's profile changes.
-// This includes avatar uploads/deletions, display name changes, login changes,
-// bio changes, and shareable time zone changes.
-// Allows other users to see profile changes in real-time.
+// UserProfileUpdatedEvent is a transient, projection-derived live snapshot. It
+// is published after a public profile field changes and is never stored in EVT.
+// Durable user events remain the authoritative profile facts.
 type UserProfileUpdatedEvent struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	UserId      string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -736,9 +735,9 @@ func (x *UserDisplayNameChangedEvent) GetEncryptedDisplayName() *EncryptedUserSt
 	return nil
 }
 
-// UserBioChangedEvent records a change to a user's self-authored bio. An empty
-// encrypted value clears the bio. Bio text is user PII and stays encrypted at
-// rest.
+// UserBioChangedEvent is the authoritative durable fact for a change to a
+// user's self-authored bio. An empty encrypted value clears the bio. Bio text
+// is user PII and stays encrypted at rest.
 type UserBioChangedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`

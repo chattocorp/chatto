@@ -25,8 +25,8 @@ const (
 
 var ErrBioTooLong = fmt.Errorf("bio is too long")
 
-// publishUserProfileUpdate publishes a UserProfileUpdatedEvent to the server stream.
-// This allows other users to see profile changes (avatar, display name) in real-time.
+// publishUserProfileUpdate publishes a transient snapshot of the current public
+// profile. Durable profile facts remain authoritative in EVT.
 func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string) {
 	// Get current user data
 	user, err := c.GetUser(ctx, userID)
