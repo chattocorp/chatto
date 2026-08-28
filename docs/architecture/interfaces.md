@@ -13,8 +13,9 @@ method documentation.
 
 Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 [ADR-045](../adr/ADR-045-public-api-stability-tiers.md),
-[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md), and
-[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md).
+[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
+[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md), and
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 ## Transport boundaries
 
@@ -32,7 +33,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | Protected HLS video | `GET /assets/hls/{assetId}/master.m3u8`, rendition playlists, and segments | Master and media playlists are generated from the durable manifest; segments are complete bounded responses from NATS or S3 | Domain-separated source-video `access` ticket; every request rechecks room membership and every segment ID/role against the durable HLS manifest |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |
 | Trusted NATS services | `svc.chatto.>` and `svc.chatto_ext.>` | Versioned protobuf request/reply through NATS micro services | NATS account permissions; extension providers receive only their configured service and upstream Core subjects |
-| Reflection | `/api/connect/grpc.reflection.v1*` and `v1alpha*` | Public service descriptors | Public; restricted resolver excludes internal `chatto.core.v1` persistence types |
+| Reflection | `/api/connect/grpc.reflection.v1*` and `v1alpha*` | Public service descriptors | Public; restricted resolver excludes internal `chatto.core.*` types |
 
 The public HTTP edge mounts every handler returned by `connectapi.API.Handlers`.
 Authenticated services are wrapped with `connectrpc.com/authn` before protobuf

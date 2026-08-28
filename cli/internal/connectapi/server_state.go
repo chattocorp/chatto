@@ -13,7 +13,7 @@ import (
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type serverService struct {
@@ -275,7 +275,7 @@ func (a *API) viewerHasUnreadRooms(ctx context.Context, userID string) (bool, er
 		return false, connectError(err)
 	}
 	var found atomic.Bool
-	_, err = parallel.Map(ctx, maxConnectAPIHydrationConcurrency, rooms, func(ctx context.Context, _ int, room *corev1.Room) (struct{}, error) {
+	_, err = parallel.Map(ctx, maxConnectAPIHydrationConcurrency, rooms, func(ctx context.Context, _ int, room *evtv1.Room) (struct{}, error) {
 		if found.Load() {
 			return struct{}{}, nil
 		}

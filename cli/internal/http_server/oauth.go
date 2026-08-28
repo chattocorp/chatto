@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/idna"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // The signed browser session carries only an opaque handle. Validated request
@@ -594,9 +594,9 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		})
 		return "", false
 	}
-	source := corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD
+	source := evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD
 	if params.ClientID == config.ChattoDesktopOrigin {
-		source = corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN
+		source = evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN
 	}
 	redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)
 	if !ok {

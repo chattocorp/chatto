@@ -7,7 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type messageService struct {
@@ -135,7 +135,7 @@ func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Req
 	return connect.NewResponse(&apiv1.DeleteLinkPreviewResponse{Deleted: true}), nil
 }
 
-func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, error) {
+func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *evtv1.Event) (*apiv1.RoomTimelineEvent, error) {
 	reactionsByMessageID, err := s.api.core.GetReactionsBatch(ctx, []string{event.Id})
 	if err != nil {
 		return nil, err

@@ -18,7 +18,7 @@ import (
 	"golang.org/x/net/html"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type mastodonOEmbed struct {
@@ -254,7 +254,7 @@ func (f *Fetcher) fetchMastodonStatus(ctx context.Context, origin, statusID stri
 	return &status, nil
 }
 
-func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonStatus, fallbackURL, origin string, budget *socialPostImageBudget, quoteDepth int) *corev1.SocialPostPreview {
+func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonStatus, fallbackURL, origin string, budget *socialPostImageBudget, quoteDepth int) *evtv1.SocialPostPreview {
 	if status == nil || (status.Account.DisplayName == "" && status.Account.Acct == "") {
 		return nil
 	}
@@ -271,10 +271,10 @@ func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonSt
 	if displayName == "" {
 		displayName = handle
 	}
-	snapshot := &corev1.SocialPostPreview{
+	snapshot := &evtv1.SocialPostPreview{
 		Provider: "mastodon",
 		Url:      postURL,
-		Author: &corev1.SocialPostAuthor{
+		Author: &evtv1.SocialPostAuthor{
 			DisplayName: displayName,
 			Handle:      truncateUTF8Bytes(handle, 200),
 		},
@@ -303,7 +303,7 @@ func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonSt
 		if asset == nil {
 			continue
 		}
-		snapshot.Images = append(snapshot.Images, &corev1.SocialPostImage{
+		snapshot.Images = append(snapshot.Images, &evtv1.SocialPostImage{
 			Asset:  asset,
 			Alt:    truncateUTF8Bytes(media.Description, 1000),
 			Width:  media.Meta.Original.Width,
@@ -313,7 +313,7 @@ func (f *Fetcher) mastodonStatusSnapshot(ctx context.Context, status *mastodonSt
 	if card := status.Card; card != nil {
 		cardURL := safeExternalURL(truncateUTF8Bytes(card.URL, 2048))
 		if cardURL != "" {
-			snapshot.ExternalLink = &corev1.SocialPostExternalLink{
+			snapshot.ExternalLink = &evtv1.SocialPostExternalLink{
 				Url:         cardURL,
 				Title:       truncateUTF8Bytes(card.Title, 300),
 				Description: truncateUTF8Bytes(card.Description, 1000),
@@ -466,7 +466,7 @@ func isMastodonEmbedHTML(source, origin string) bool {
 	return valid
 }
 
-func socialPostCompatibilityImage(snapshot *corev1.SocialPostPreview) *corev1.AssetRecord {
+func socialPostCompatibilityImage(snapshot *evtv1.SocialPostPreview) *evtv1.AssetRecord {
 	if snapshot == nil {
 		return nil
 	}

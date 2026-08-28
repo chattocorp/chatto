@@ -4,23 +4,23 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
 // ContentKeyProjection indexes per-user encrypted DEK epochs by purpose.
 type ContentKeyProjection struct {
 	events.MemoryProjection
-	byUserPurposeEpoch map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
-	activeEpoch        map[string]map[corev1.UserDEKPurpose]int32
+	byUserPurposeEpoch map[string]map[evtv1.UserDEKPurpose]map[int32]*evtv1.UserDEKGeneratedEvent
+	activeEpoch        map[string]map[evtv1.UserDEKPurpose]int32
 	shreddedUsers      map[string]struct{}
 	replayGuard        projectionReplayGuard
 }
 
 func NewContentKeyProjection() *ContentKeyProjection {
 	return &ContentKeyProjection{
-		byUserPurposeEpoch: make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
-		activeEpoch:        make(map[string]map[corev1.UserDEKPurpose]int32),
+		byUserPurposeEpoch: make(map[string]map[evtv1.UserDEKPurpose]map[int32]*evtv1.UserDEKGeneratedEvent),
+		activeEpoch:        make(map[string]map[evtv1.UserDEKPurpose]int32),
 		shreddedUsers:      make(map[string]struct{}),
 		replayGuard:        newProjectionReplayGuard(),
 	}
@@ -34,7 +34,7 @@ func (p *ContentKeyProjection) Subjects() []string {
 	}
 }
 
-func (p *ContentKeyProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *ContentKeyProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -46,11 +46,11 @@ func (p *ContentKeyProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_UserDekGenerated:
+	case *evtv1.Event_UserDekGenerated:
 		p.applyDEKGeneratedLocked(e.UserDekGenerated)
-	case *corev1.Event_UserKeyShreddingRequested:
+	case *evtv1.Event_UserKeyShreddingRequested:
 		p.clearUserLocked(e.UserKeyShreddingRequested.GetUserId())
-	case *corev1.Event_UserKeyShredded:
+	case *evtv1.Event_UserKeyShredded:
 		p.clearUserLocked(e.UserKeyShredded.GetUserId())
 	}
 	return nil
@@ -71,7 +71,7 @@ func (p *ContentKeyProjection) CompleteStartupReplay() {
 	p.replayGuard.completeReplay()
 }
 
-func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *corev1.UserDEKGeneratedEvent) {
+func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *evtv1.UserDEKGeneratedEvent) {
 	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
 		return
 	}
@@ -81,20 +81,20 @@ func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *corev1.UserDEKGenerate
 	purpose := e.GetPurpose()
 	byPurpose := p.byUserPurposeEpoch[e.GetUserId()]
 	if byPurpose == nil {
-		byPurpose = make(map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent)
+		byPurpose = make(map[evtv1.UserDEKPurpose]map[int32]*evtv1.UserDEKGeneratedEvent)
 		p.byUserPurposeEpoch[e.GetUserId()] = byPurpose
 	}
 	epochs := byPurpose[purpose]
 	if epochs == nil {
-		epochs = make(map[int32]*corev1.UserDEKGeneratedEvent)
+		epochs = make(map[int32]*evtv1.UserDEKGeneratedEvent)
 		byPurpose[purpose] = epochs
 	}
 	if _, exists := epochs[e.GetEpoch()]; !exists {
-		epochs[e.GetEpoch()] = proto.Clone(e).(*corev1.UserDEKGeneratedEvent)
+		epochs[e.GetEpoch()] = proto.Clone(e).(*evtv1.UserDEKGeneratedEvent)
 	}
 	activeByPurpose := p.activeEpoch[e.GetUserId()]
 	if activeByPurpose == nil {
-		activeByPurpose = make(map[corev1.UserDEKPurpose]int32)
+		activeByPurpose = make(map[evtv1.UserDEKPurpose]int32)
 		p.activeEpoch[e.GetUserId()] = activeByPurpose
 	}
 	if e.GetEpoch() > activeByPurpose[purpose] {
@@ -102,36 +102,36 @@ func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *corev1.UserDEKGenerate
 	}
 }
 
-func (p *ContentKeyProjection) Active(userID string, purpose corev1.UserDEKPurpose) (*corev1.UserDEKGeneratedEvent, bool) {
+func (p *ContentKeyProjection) Active(userID string, purpose evtv1.UserDEKPurpose) (*evtv1.UserDEKGeneratedEvent, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	epoch := p.activeEpoch[userID][purpose]
 	if epoch > 0 {
 		return p.getLocked(userID, purpose, epoch)
 	}
-	if purpose == corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED {
+	if purpose == evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED {
 		return nil, false
 	}
-	epoch = p.activeEpoch[userID][corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED]
+	epoch = p.activeEpoch[userID][evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED]
 	if epoch <= 0 {
 		return nil, false
 	}
-	return p.getLocked(userID, corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED, epoch)
+	return p.getLocked(userID, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED, epoch)
 }
 
-func (p *ContentKeyProjection) Get(userID string, purpose corev1.UserDEKPurpose, epoch int32) (*corev1.UserDEKGeneratedEvent, bool) {
+func (p *ContentKeyProjection) Get(userID string, purpose evtv1.UserDEKPurpose, epoch int32) (*evtv1.UserDEKGeneratedEvent, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	if event, ok := p.getLocked(userID, purpose, epoch); ok {
 		return event, true
 	}
-	if purpose == corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED {
+	if purpose == evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED {
 		return nil, false
 	}
-	return p.getLocked(userID, corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED, epoch)
+	return p.getLocked(userID, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED, epoch)
 }
 
-func (p *ContentKeyProjection) getLocked(userID string, purpose corev1.UserDEKPurpose, epoch int32) (*corev1.UserDEKGeneratedEvent, bool) {
+func (p *ContentKeyProjection) getLocked(userID string, purpose evtv1.UserDEKPurpose, epoch int32) (*evtv1.UserDEKGeneratedEvent, bool) {
 	byPurpose := p.byUserPurposeEpoch[userID]
 	if byPurpose == nil {
 		return nil, false
@@ -144,5 +144,5 @@ func (p *ContentKeyProjection) getLocked(userID string, purpose corev1.UserDEKPu
 	if event == nil {
 		return nil, false
 	}
-	return proto.Clone(event).(*corev1.UserDEKGeneratedEvent), true
+	return proto.Clone(event).(*evtv1.UserDEKGeneratedEvent), true
 }

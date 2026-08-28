@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -162,8 +162,8 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.deleteAsset(ctx, assetStorageFromAsset(avatar), "avatar", userID)
 	}
 
-	deletedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
-		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
+	deletedEvent := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{
+		UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: userID},
 	}})
 	for {
 		// Owned-bot checks depend on all user aggregates, but not on unrelated

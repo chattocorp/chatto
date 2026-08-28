@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
@@ -140,7 +139,7 @@ func (r *credentialUsageRecorder) LastUsed(ctx context.Context, botID string) (l
 			return nil, false
 		}
 	} else {
-		var state corev1.CredentialUsageState
+		var state runtimestatev1.CredentialUsageState
 		if err := proto.Unmarshal(entry.Value(), &state); err != nil {
 			return nil, false
 		}
@@ -299,7 +298,7 @@ func (r *credentialUsageRecorder) writeMax(ctx context.Context, botID, credentia
 	key := credentialUsageRuntimeStateKey(botID)
 	for attempt := 0; attempt < 10; attempt++ {
 		entry, err := r.kv.Get(ctx, key)
-		state := &corev1.CredentialUsageState{LastUsedUnixMillis: make(map[string]int64)}
+		state := &runtimestatev1.CredentialUsageState{LastUsedUnixMillis: make(map[string]int64)}
 		if err != nil {
 			if !isRuntimeStateKeyAbsent(err) {
 				return err
@@ -344,7 +343,7 @@ func (r *credentialUsageRecorder) deletePersisted(ctx context.Context, botID, cr
 			}
 			return err
 		}
-		var state corev1.CredentialUsageState
+		var state runtimestatev1.CredentialUsageState
 		if err := proto.Unmarshal(entry.Value(), &state); err != nil {
 			return fmt.Errorf("decode credential usage state: %w", err)
 		}

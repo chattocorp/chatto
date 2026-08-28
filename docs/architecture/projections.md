@@ -1,6 +1,6 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go), and [`proto/chatto/core/projection/v1`](../../proto/chatto/core/projection/v1)
 
 Projections are derived read models rebuilt from `EVT`. Most live in memory;
 optional providers may own disposable locally checkpointed indexes.
@@ -72,7 +72,7 @@ startup; live events continue through individual `Apply` calls.
 
 The ordered replay lifecycle receives decoded application events through
 `events.EventDecoder[E]`. Chatto's `evtstream.NewProjector` constructor
-supplies the unchanged `corev1.Event` protobuf decoder, while
+supplies the unchanged `evtv1.Event` protobuf decoder, while
 `NewDecodedProjector`/`NewDecodedProjectionHandle` expose the envelope-neutral
 construction path. Decode failures remain fatal at the stored record's stream
 sequence and cannot advance readiness.
@@ -89,7 +89,8 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 [ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md),
 [ADR-054](../adr/ADR-054-optional-projection-persistence.md),
 [ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md), and
-[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md).
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 The asset-processing runtime unit owns a private, non-snapshotted
 `AssetProjection`. It uses the same canonical and legacy replay subjects as the
@@ -164,6 +165,10 @@ token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
 uses `v7`.
+
+The 0.5 internal protobuf package split changes full protobuf names and selects
+new snapshot contract IDs. A server ignores older snapshots, cold-replays EVT,
+and writes new snapshots. It does not rewrite stored EVT or runtime-state data.
 
 Room Timeline `v3` keeps retraction tombstones authoritative when a legacy
 writer appends a later body payload and retains that payload's sequence for

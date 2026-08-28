@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 var (
@@ -34,7 +35,7 @@ func (c *ChattoCore) cookieSessionTTL() time.Duration {
 // CreateCookieSession creates a first-party runtime credential for same-origin
 // cookie presentation and returns the opaque handle that should be stored in the
 // signed browser cookie.
-func (c *ChattoCore) CreateCookieSession(ctx context.Context, userID, source string) (string, *corev1.CookieSession, error) {
+func (c *ChattoCore) CreateCookieSession(ctx context.Context, userID, source string) (string, *runtimestatev1.CookieSession, error) {
 	authGeneration, err := c.CurrentAuthGeneration(ctx, userID)
 	if err != nil {
 		return "", nil, err
@@ -45,12 +46,12 @@ func (c *ChattoCore) CreateCookieSession(ctx context.Context, userID, source str
 // CreateCookieSessionForGeneration creates a first-party cookie-presentation
 // runtime credential for an authentication that proved credentials against
 // authGeneration.
-func (c *ChattoCore) CreateCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, *corev1.CookieSession, error) {
+func (c *ChattoCore) CreateCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, *runtimestatev1.CookieSession, error) {
 	now := time.Now()
 	return c.createCookieSessionForGeneration(ctx, userID, source, authGeneration, now, freshAuthMethodForSource(source), source)
 }
 
-func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64, freshAuthAt time.Time, freshAuthMethod, freshAuthSource string) (string, *corev1.CookieSession, error) {
+func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64, freshAuthAt time.Time, freshAuthMethod, freshAuthSource string) (string, *runtimestatev1.CookieSession, error) {
 	tokenData, err := c.newCookieSessionDataForGeneration(ctx, userID, source, authGeneration, freshAuthAt, freshAuthMethod, freshAuthSource)
 	if err != nil {
 		return "", nil, err
@@ -154,7 +155,7 @@ func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID strin
 // extending its expiry again.
 //
 // Deprecated: remove this 0.4-to-0.5 compatibility bridge in 0.6.
-func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID string, now time.Time) (*corev1.CookieSession, error) {
+func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID string, now time.Time) (*runtimestatev1.CookieSession, error) {
 	if sessionID == "" {
 		return nil, ErrCookieSessionNotFound
 	}
@@ -290,7 +291,7 @@ func decodeCookieSessionValue(value []byte, now time.Time) (AuthTokenData, error
 // credential. The credential carries its user ID in the runtime-state record,
 // so callers do not need to trust or duplicate a user ID in the signed browser
 // cookie.
-func (c *ChattoCore) ValidateCookieCredential(ctx context.Context, sessionID string) (*corev1.CookieSession, error) {
+func (c *ChattoCore) ValidateCookieCredential(ctx context.Context, sessionID string) (*runtimestatev1.CookieSession, error) {
 	if sessionID == "" {
 		return nil, ErrCookieSessionNotFound
 	}
@@ -312,7 +313,7 @@ func (c *ChattoCore) ValidateCookieCredential(ctx context.Context, sessionID str
 // current window is in the final quarter. The expected KV revision serializes
 // renewal with other replicas and makes an unrevisioned logout delete fence a
 // concurrent renewal without changing the browser's opaque handle.
-func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, now time.Time) (*corev1.CookieSession, bool, error) {
+func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, now time.Time) (*runtimestatev1.CookieSession, bool, error) {
 	if sessionID == "" {
 		return nil, false, ErrCookieSessionNotFound
 	}
@@ -382,12 +383,12 @@ func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, n
 	return nil, false, fmt.Errorf("renew cookie session: too much contention")
 }
 
-func (c *ChattoCore) cookieSessionRecordFromAuthTokenData(tokenData AuthTokenData) *corev1.CookieSession {
+func (c *ChattoCore) cookieSessionRecordFromAuthTokenData(tokenData AuthTokenData) *runtimestatev1.CookieSession {
 	return c.cookieSessionRecordFromValidatedCredential(validatedRuntimeCredentialFromAuthToken("", tokenData))
 }
 
-func (c *ChattoCore) cookieSessionRecordFromValidatedCredential(credential ValidatedRuntimeCredential) *corev1.CookieSession {
-	record := &corev1.CookieSession{
+func (c *ChattoCore) cookieSessionRecordFromValidatedCredential(credential ValidatedRuntimeCredential) *runtimestatev1.CookieSession {
+	record := &runtimestatev1.CookieSession{
 		UserId:         credential.UserID,
 		CreatedAt:      timestamppb.New(credential.CreatedAt),
 		ExpiresAt:      timestamppb.New(credential.ExpiresAt),
@@ -467,9 +468,9 @@ func (c *ChattoCore) RevokeCookieSessionsForUser(ctx context.Context, userID str
 //
 // Reasons: "logout", "admin_boot", "account_deleted"
 func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reason string) error {
-	event := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_SessionTerminated{
-			SessionTerminated: &corev1.SessionTerminatedEvent{
+	event := newLiveEvent(userID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_SessionTerminated{
+			SessionTerminated: &livev1.SessionTerminatedEvent{
 				Reason: reason,
 			},
 		},

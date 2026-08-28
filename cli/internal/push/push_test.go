@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -22,7 +24,6 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/pushendpoint"
 )
 
@@ -264,36 +265,36 @@ const (
 	notificationTestSignalRoomMessage    notificationTestSignalKind = "room_message"
 )
 
-func notificationOccurrenceForTest(id, recipientID, actorID, roomID, eventID, threadRootID string, reasons ...notificationTestSignalKind) *corev1.NotificationOccurrence {
-	occurrence := &corev1.NotificationOccurrence{
+func notificationOccurrenceForTest(id, recipientID, actorID, roomID, eventID, threadRootID string, reasons ...notificationTestSignalKind) *notificationv1.NotificationOccurrence {
+	occurrence := &notificationv1.NotificationOccurrence{
 		Id:          id,
 		RecipientId: recipientID,
 		ActorId:     actorID,
 	}
 	if len(reasons) > 0 {
-		message := &corev1.NotificationMessageReference{RoomId: roomID, EventId: eventID, ThreadRootEventId: optionalString(threadRootID)}
+		message := &notificationv1.NotificationMessageReference{RoomId: roomID, EventId: eventID, ThreadRootEventId: optionalString(threadRootID)}
 		occurrence.Signal = notificationSignalForTest(reasons[0], message)
 	}
 	return occurrence
 }
 
-func notificationSignalForTest(kind notificationTestSignalKind, message *corev1.NotificationMessageReference) *corev1.NotificationSignal {
-	signal := &corev1.NotificationSignal{}
+func notificationSignalForTest(kind notificationTestSignalKind, message *notificationv1.NotificationMessageReference) *notificationv1.NotificationSignal {
+	signal := &notificationv1.NotificationSignal{}
 	switch kind {
 	case notificationTestSignalDirectMessage:
-		signal.Kind = &corev1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &corev1.DirectMessageReceived{Message: message}}
+		signal.Kind = &notificationv1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &notificationv1.DirectMessageReceived{Message: message}}
 	case notificationTestSignalReply:
-		signal.Kind = &corev1.NotificationSignal_ReplyReceived{ReplyReceived: &corev1.ReplyReceived{Message: message}}
+		signal.Kind = &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: message}}
 	case notificationTestSignalReaction:
-		signal.Kind = &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: message}}
+		signal.Kind = &notificationv1.NotificationSignal_ReactionReceived{ReactionReceived: &notificationv1.ReactionReceived{Message: message}}
 	case notificationTestSignalDirectMention:
-		signal.Kind = &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{Message: message}}
+		signal.Kind = &notificationv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &notificationv1.DirectMentionReceived{Message: message}}
 	case notificationTestSignalFollowedThread:
-		signal.Kind = &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: message}}
+		signal.Kind = &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: message}}
 	case notificationTestSignalRoomMessage:
-		signal.Kind = &corev1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &corev1.RoomMessageReceived{Message: message}}
+		signal.Kind = &notificationv1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &notificationv1.RoomMessageReceived{Message: message}}
 	default:
-		signal.Kind = &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: message}}
+		signal.Kind = &notificationv1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &notificationv1.FollowedRoomActivity{Message: message}}
 	}
 	return signal
 }
@@ -566,7 +567,7 @@ func TestBuildPayloadFromOccurrenceForSubscription(t *testing.T) {
 		"",
 		notificationTestSignalDirectMention,
 	)
-	subscription := &corev1.PushSubscription{
+	subscription := &runtimestatev1.PushSubscription{
 		ClientHost: "app.example.com",
 	}
 
@@ -589,73 +590,73 @@ func TestBuildPayloadFromOccurrenceForSubscription(t *testing.T) {
 func TestNavigationBaseURL(t *testing.T) {
 	tests := []struct {
 		name          string
-		subscription  *corev1.PushSubscription
+		subscription  *runtimestatev1.PushSubscription
 		serverBaseURL string
 		want          string
 	}{
 		{
 			name:          "legacy subscription uses bundled client",
-			subscription:  &corev1.PushSubscription{},
+			subscription:  &runtimestatev1.PushSubscription{},
 			serverBaseURL: "https://chat.example.com",
 			want:          "https://chat.example.com/chat/-",
 		},
 		{
 			name:          "remote server opens in stored client host",
-			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
 			serverBaseURL: "https://remote.example.com",
 			want:          "https://app.example.com/chat/remote.example.com",
 		},
 		{
 			name:          "remote route lowercases the server hostname",
-			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
 			serverBaseURL: "https://REMOTE.EXAMPLE.COM",
 			want:          "https://app.example.com/chat/remote.example.com",
 		},
 		{
 			name:          "remote route uses the browser IDNA hostname",
-			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
 			serverBaseURL: "https://b\u00fccher.example",
 			want:          "https://app.example.com/chat/xn--bcher-kva.example",
 		},
 		{
 			name:          "remote route preserves browser IPv6 brackets",
-			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com"},
 			serverBaseURL: "https://[0:0::1]:8443",
 			want:          "https://app.example.com/chat/[::1]",
 		},
 		{
 			name:          "remote client preserves a non-default port",
-			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com:8443"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "app.example.com:8443"},
 			serverBaseURL: "https://remote.example.com",
 			want:          "https://app.example.com:8443/chat/remote.example.com",
 		},
 		{
 			name:          "same origin uses bundled client route",
-			subscription:  &corev1.PushSubscription{ClientHost: "chat.example.com"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "chat.example.com"},
 			serverBaseURL: "https://chat.example.com",
 			want:          "https://chat.example.com/chat/-",
 		},
 		{
 			name:          "default port is the same origin",
-			subscription:  &corev1.PushSubscription{ClientHost: "chat.example.com:443"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "chat.example.com:443"},
 			serverBaseURL: "https://chat.example.com",
 			want:          "https://chat.example.com:443/chat/-",
 		},
 		{
 			name:          "loopback remote client uses HTTP",
-			subscription:  &corev1.PushSubscription{ClientHost: "localhost:5173"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "localhost:5173"},
 			serverBaseURL: "https://remote.example.com",
 			want:          "http://localhost:5173/chat/remote.example.com",
 		},
 		{
 			name:          "same loopback origin preserves HTTPS",
-			subscription:  &corev1.PushSubscription{ClientHost: "localhost:8443"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "localhost:8443"},
 			serverBaseURL: "https://localhost:8443",
 			want:          "https://localhost:8443/chat/-",
 		},
 		{
 			name:          "malformed persisted host falls back safely",
-			subscription:  &corev1.PushSubscription{ClientHost: "https://app.example.com"},
+			subscription:  &runtimestatev1.PushSubscription{ClientHost: "https://app.example.com"},
 			serverBaseURL: "https://remote.example.com",
 			want:          "https://remote.example.com/chat/-",
 		},
@@ -986,7 +987,7 @@ func TestSend(t *testing.T) {
 			),
 			strings.Repeat("a", 80),
 			"https://remote.example.com",
-			&corev1.PushSubscription{ClientHost: clientHost},
+			&runtimestatev1.PushSubscription{ClientHost: clientHost},
 			&PayloadContext{
 				MessagePreview: strings.Repeat("p", maxPreviewLength),
 				RoomName:       strings.Repeat("q", 100),
@@ -1120,7 +1121,7 @@ func TestSendToMany(t *testing.T) {
 	client := &concurrencyTrackingHTTPClient{}
 	sender := newTestSender(t, client)
 	subscription := newTestPushSubscription(t, "https://push.example.com/many")
-	subscriptions := make([]*corev1.PushSubscription, maxConcurrentPushRequests*2)
+	subscriptions := make([]*runtimestatev1.PushSubscription, maxConcurrentPushRequests*2)
 	for i := range subscriptions {
 		subscriptions[i] = subscription
 	}
@@ -1172,7 +1173,7 @@ func newTestSender(t *testing.T, client webpush.HTTPClient) *Sender {
 	return sender
 }
 
-func newTestPushSubscription(t *testing.T, endpoint string) *corev1.PushSubscription {
+func newTestPushSubscription(t *testing.T, endpoint string) *runtimestatev1.PushSubscription {
 	t.Helper()
 
 	_, x, y, err := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
@@ -1185,7 +1186,7 @@ func newTestPushSubscription(t *testing.T, endpoint string) *corev1.PushSubscrip
 		t.Fatalf("Read auth: %v", err)
 	}
 
-	return &corev1.PushSubscription{
+	return &runtimestatev1.PushSubscription{
 		Endpoint: endpoint,
 		P256Dh:   base64.RawURLEncoding.EncodeToString(elliptic.Marshal(elliptic.P256(), x, y)),
 		Auth:     base64.RawURLEncoding.EncodeToString(auth),

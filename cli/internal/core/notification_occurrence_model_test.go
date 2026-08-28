@@ -4,18 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync"
 	"testing"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	chattoCore, _ := newTestCore(t)
-	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *notificationv1.NotificationOccurrence) error {
 		return errors.New("hold alert pending for lifecycle assertions")
 	})
 	startCoreServices(t, chattoCore)
@@ -32,8 +33,8 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 			"R-notification-room",
 			"E-notification-source",
 		),
-		Mode:           corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-		AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:           evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup: true,
 	}
 
@@ -52,7 +53,7 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read stored signal: %v", err)
 	}
-	var signalEvent corev1.NotificationEvent
+	var signalEvent notificationv1.NotificationEvent
 	if err := proto.Unmarshal(storedSignal.Data, &signalEvent); err != nil {
 		t.Fatalf("decode stored signal: %v", err)
 	}
@@ -109,7 +110,7 @@ func TestNotificationCreateManyCommitsFanoutAsOneBatch(t *testing.T) {
 		inputs[i] = CreateNotificationOccurrenceInput{
 			RecipientID: recipientID, SourceEventID: "E-batch-source", SourceCreated: now, ActorID: "U-actor",
 			Signal: testNotificationSignal(notificationTestSignalAll, "R-batch", "E-batch-source"),
-			Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+			Mode:   evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup: true,
 		}
 	}
@@ -163,7 +164,7 @@ func TestNotificationCreateRetryReconcilesExistingOccurrenceWithReadBoundary(t *
 	input := CreateNotificationOccurrenceInput{
 		RecipientID: reader.Id, SourceEventID: posted.GetId(), SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
 		Signal: testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.GetId()),
-		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:   evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SourceStreamSequence: entry.StreamSeq, SkipReadLookup: true,
 	}
 	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, input)
@@ -194,14 +195,14 @@ func TestNotificationCreateRetryReconcilesExistingOccurrenceWithReadBoundary(t *
 	if err != nil || !stored.GetRead() {
 		t.Fatalf("stored retry occurrence = (%+v, %v), want read", stored, err)
 	}
-	visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader.Id, []*corev1.NotificationOccurrence{stored})
+	visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader.Id, []*notificationv1.NotificationOccurrence{stored})
 	if err != nil || len(visible) != 1 {
 		t.Fatalf("visible occurrence before message.read denial = (%d, %v), want (1, nil)", len(visible), err)
 	}
 	if err := chattoCore.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
-	visible, err = chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader.Id, []*corev1.NotificationOccurrence{stored})
+	visible, err = chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader.Id, []*notificationv1.NotificationOccurrence{stored})
 	if err != nil || len(visible) != 0 {
 		t.Fatalf("visible occurrence after message.read denial = (%d, %v), want (0, nil)", len(visible), err)
 	}
@@ -215,7 +216,7 @@ func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
 	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID: "U-delete-race", SourceEventID: "E-delete-race", SourceCreated: now, ActorID: "U-actor",
 		Signal: testNotificationSignal(notificationTestSignalDirectMention, "R-delete-race", "E-delete-race"),
-		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:   evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup: true,
 	})
 	if err != nil || !created {
@@ -231,7 +232,7 @@ func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
 		go func() {
 			ready.Done()
 			<-start
-			count, deleteErr := chattoCore.NotificationOccurrences().deleteOccurrences(ctx, []*corev1.NotificationOccurrence{occurrence})
+			count, deleteErr := chattoCore.NotificationOccurrences().deleteOccurrences(ctx, []*notificationv1.NotificationOccurrence{occurrence})
 			results <- count
 			errs <- deleteErr
 		}()
@@ -253,7 +254,7 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	p := NewNotificationProjection()
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
-	occurrence := &corev1.NotificationOccurrence{
+	occurrence := &notificationv1.NotificationOccurrence{
 		Id:              "N1",
 		RecipientId:     "U1",
 		SourceEventId:   "E1",
@@ -271,9 +272,9 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	if got := p.scopeOccurrences(scope, now); len(got) != 1 || got[0].GetId() != "N1" {
 		t.Fatalf("scope occurrences = %+v, want N1", got)
 	}
-	if err := p.Apply(&corev1.NotificationEvent{
+	if err := p.Apply(&notificationv1.NotificationEvent{
 		Id: "NE2", RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamp(now), ExpiresAt: timestamp(now.Add(time.Minute)),
-		Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{SignalStreamSequence: 7}},
+		Event: &notificationv1.NotificationEvent_Removed{Removed: &notificationv1.NotificationRemoved{SignalStreamSequence: 7}},
 	}, 8); err != nil {
 		t.Fatalf("Apply dismissal: %v", err)
 	}
@@ -316,7 +317,7 @@ func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinat
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
 	expiresAt := now.Add(-time.Minute)
-	occurrence := &corev1.NotificationOccurrence{
+	occurrence := &notificationv1.NotificationOccurrence{
 		Id: "N-expired", RecipientId: "U1", SourceEventId: "E1", SourceCreatedAt: timestamp(now.Add(-notificationTTL)),
 		Signal: testNotificationSignal(notificationTestSignalReply, "R1", "E1"), ExpiresAt: timestamp(expiresAt),
 	}
@@ -326,9 +327,9 @@ func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinat
 	if _, visible := p.occurrence("U1", occurrence.GetId(), now); visible {
 		t.Fatal("application-expired signal became visible during cold replay")
 	}
-	if err := p.Apply(&corev1.NotificationEvent{
+	if err := p.Apply(&notificationv1.NotificationEvent{
 		Id: "remove-expired", RecipientId: "U1", NotificationId: occurrence.GetId(), OccurredAt: timestamp(now), ExpiresAt: timestamp(expiresAt),
-		Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{SignalStreamSequence: 7}},
+		Event: &notificationv1.NotificationEvent_Removed{Removed: &notificationv1.NotificationRemoved{SignalStreamSequence: 7}},
 	}, 8); err != nil {
 		t.Fatalf("Apply expired removal: %v", err)
 	}
@@ -341,7 +342,7 @@ func TestNotificationProjectionKeepsFirstAlertResolution(t *testing.T) {
 	p := NewNotificationProjection()
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
-	occurrence := &corev1.NotificationOccurrence{
+	occurrence := &notificationv1.NotificationOccurrence{
 		Id: "N1", RecipientId: "U1", SourceEventId: "E1", SourceCreatedAt: timestamp(now),
 		Signal:    testNotificationSignal(notificationTestSignalDirectMention, "R1", "E1"),
 		ExpiresAt: timestamp(now.Add(time.Hour)), AlertExpiresAt: timestamp(now.Add(time.Minute)),
@@ -349,10 +350,10 @@ func TestNotificationProjectionKeepsFirstAlertResolution(t *testing.T) {
 	if err := p.Apply(notificationSignalledEvent("signal", occurrence, now.Add(time.Hour)), 1); err != nil {
 		t.Fatal(err)
 	}
-	resolved := func(id string, delivered bool) *corev1.NotificationEvent {
-		return &corev1.NotificationEvent{
+	resolved := func(id string, delivered bool) *notificationv1.NotificationEvent {
+		return &notificationv1.NotificationEvent{
 			Id: id, RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamp(now), ExpiresAt: timestamp(now.Add(time.Hour)),
-			Event: &corev1.NotificationEvent_AlertResolved{AlertResolved: &corev1.NotificationAlertResolved{Delivered: delivered}},
+			Event: &notificationv1.NotificationEvent_AlertResolved{AlertResolved: &notificationv1.NotificationAlertResolved{Delivered: delivered}},
 		}
 	}
 	if err := p.Apply(resolved("first", true), 2); err != nil {
@@ -367,10 +368,10 @@ func TestNotificationProjectionKeepsFirstAlertResolution(t *testing.T) {
 	}
 }
 
-func notificationSignalledEvent(id string, occurrence *corev1.NotificationOccurrence, expires time.Time) *corev1.NotificationEvent {
-	return &corev1.NotificationEvent{
+func notificationSignalledEvent(id string, occurrence *notificationv1.NotificationOccurrence, expires time.Time) *notificationv1.NotificationEvent {
+	return &notificationv1.NotificationEvent{
 		Id: id, RecipientId: occurrence.GetRecipientId(), NotificationId: occurrence.GetId(), OccurredAt: occurrence.GetSourceCreatedAt(), ExpiresAt: timestamp(expires),
-		Event: &corev1.NotificationEvent_Signalled{Signalled: &corev1.NotificationSignalled{
+		Event: &notificationv1.NotificationEvent_Signalled{Signalled: &notificationv1.NotificationSignalled{
 			SourceEventId:        occurrence.GetSourceEventId(),
 			SourceCreatedAt:      occurrence.GetSourceCreatedAt(),
 			ActorId:              occurrence.GetActorId(),
@@ -384,10 +385,10 @@ func notificationSignalledEvent(id string, occurrence *corev1.NotificationOccurr
 }
 
 func TestUnsupportedNotificationSignalDetection(t *testing.T) {
-	if !NotificationOccurrenceHasUnsupportedSignal(&corev1.NotificationOccurrence{Signal: testUnsupportedNotificationSignal()}) {
+	if !NotificationOccurrenceHasUnsupportedSignal(&notificationv1.NotificationOccurrence{Signal: testUnsupportedNotificationSignal()}) {
 		t.Fatal("future signal was not detected")
 	}
-	if NotificationOccurrenceHasUnsupportedSignal(&corev1.NotificationOccurrence{Signal: &corev1.NotificationSignal{}}) {
+	if NotificationOccurrenceHasUnsupportedSignal(&notificationv1.NotificationOccurrence{Signal: &notificationv1.NotificationSignal{}}) {
 		t.Fatal("empty signal was treated as an unknown future signal")
 	}
 }

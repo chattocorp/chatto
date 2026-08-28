@@ -3,14 +3,16 @@
 Key files:
 
 - [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
+- [`proto/chatto/core/live/v1/live_events.proto`](../../proto/chatto/core/live/v1/live_events.proto)
 - [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go)
 - [`cli/internal/http_server/realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go)
 - [`apps/frontend/src/lib/state/server/projection.svelte.ts`](../../apps/frontend/src/lib/state/server/projection.svelte.ts)
 - [`apps/frontend/src/lib/state/server/realtimeSync.svelte.ts`](../../apps/frontend/src/lib/state/server/realtimeSync.svelte.ts)
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
-[ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md), and
-[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md).
+[ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md),
+[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md), and
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 The protobuf realtime API is mounted at `GET /api/realtime` and upgrades to a
 binary WebSocket. The first client frame must be `hello`; the server accepts
@@ -427,6 +429,10 @@ still receive the reset.
 for projections once, and fans immutable decoded events into count- and
 byte-bounded session queues. Sessions for one user share room-visibility state.
 There are no per-client NATS or JetStream consumers.
+
+Transient `live.sync.>` payloads use `chatto.core.live.v1.LiveEvent`. Durable
+`live.evt.>` payloads use `chatto.core.evt.v1.Event`. The hub maps both internal
+packages to the separate public `chatto.realtime.v1` protocol.
 
 A NATS connection continuity gap quarantines the hub and closes every current
 session, even when the client reconnects quickly to another cluster member.

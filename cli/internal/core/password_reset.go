@@ -12,7 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -237,8 +237,8 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 		return fmt.Errorf("failed to consume password reset token: %w", err)
 	}
 
-	passwordChanged := newEvent(tokenData.UserID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
-		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+	passwordChanged := newEvent(tokenData.UserID, &evtv1.Event{Event: &evtv1.Event_UserPasswordHashChanged{
+		UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{
 			UserId:       tokenData.UserID,
 			PasswordHash: []byte(newPasswordHash),
 		},

@@ -6,13 +6,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ErrCachedFailure is returned by Cache.Get when the URL was previously fetched
@@ -52,7 +53,7 @@ func cacheKey(rawURL string) string {
 
 // Get retrieves a cached link preview.
 // Returns nil, nil if not found or stale.
-func (c *Cache) Get(ctx context.Context, url string) (*corev1.LinkPreview, error) {
+func (c *Cache) Get(ctx context.Context, url string) (*evtv1.LinkPreview, error) {
 	key := cacheKey(url)
 
 	entry, err := c.kv.Get(ctx, key)
@@ -63,7 +64,7 @@ func (c *Cache) Get(ctx context.Context, url string) (*corev1.LinkPreview, error
 		return nil, err
 	}
 
-	var cached corev1.CachedLinkPreview
+	var cached runtimestatev1.CachedLinkPreview
 	if err := proto.Unmarshal(entry.Value(), &cached); err != nil {
 		return nil, err
 	}
@@ -102,8 +103,8 @@ func (c *Cache) Get(ctx context.Context, url string) (*corev1.LinkPreview, error
 }
 
 // Set stores a link preview in the cache.
-func (c *Cache) Set(ctx context.Context, url string, preview *corev1.LinkPreview) error {
-	cached := &corev1.CachedLinkPreview{
+func (c *Cache) Set(ctx context.Context, url string, preview *evtv1.LinkPreview) error {
+	cached := &runtimestatev1.CachedLinkPreview{
 		Url:           url,
 		Preview:       preview,
 		FetchFailed:   false,
@@ -121,7 +122,7 @@ func (c *Cache) Set(ctx context.Context, url string, preview *corev1.LinkPreview
 
 // SetFailure stores a failed fetch in the cache (negative caching).
 func (c *Cache) SetFailure(ctx context.Context, url string, reason string) error {
-	cached := &corev1.CachedLinkPreview{
+	cached := &runtimestatev1.CachedLinkPreview{
 		Url:           url,
 		Preview:       nil,
 		FetchFailed:   true,

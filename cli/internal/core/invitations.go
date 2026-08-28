@@ -12,7 +12,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -175,11 +175,11 @@ func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUs
 		return InvitationState{}, ErrInvalidArgument
 	}
 	id := NewInvitationID()
-	payload := &corev1.InvitationCreatedEvent{InvitationId: id, MaxUses: maxUses}
+	payload := &evtv1.InvitationCreatedEvent{InvitationId: id, MaxUses: maxUses}
 	if expiresAt != nil {
 		payload.ExpiresAt = timestamppb.New(*expiresAt)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_InvitationCreated{InvitationCreated: payload}})
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_InvitationCreated{InvitationCreated: payload}})
 	agg := evtstream.InvitationAggregate(id)
 	seq, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, agg.AllEventsFilter(), 0)
 	if err != nil {
@@ -215,7 +215,7 @@ func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (
 		if state.RevokedAt != nil {
 			return state, nil
 		}
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_InvitationRevoked{InvitationRevoked: &corev1.InvitationRevokedEvent{InvitationId: id}}})
+		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_InvitationRevoked{InvitationRevoked: &evtv1.InvitationRevokedEvent{InvitationId: id}}})
 		published, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, agg.AllEventsFilter(), seq)
 		if errors.Is(err, events.ErrConflict) {
 			continue

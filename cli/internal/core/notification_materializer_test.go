@@ -11,7 +11,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -36,11 +36,11 @@ func TestUnknownPersistedDeliveryModeFailsClosedWithoutStallingMaterializer(t *t
 		}
 	}
 
-	unknown := corev1.NotificationDeliveryMode(99)
-	policyChanged := newEvent(recipient.Id, &corev1.Event{Event: &corev1.Event_UserNotificationPolicyChanged{
-		UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
+	unknown := evtv1.NotificationDeliveryMode(99)
+	policyChanged := newEvent(recipient.Id, &evtv1.Event{Event: &evtv1.Event_UserNotificationPolicyChanged{
+		UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
 			UserId: recipient.Id,
-			Overrides: &corev1.NotificationDeliveryModes{
+			Overrides: &evtv1.NotificationDeliveryModes{
 				DirectMentions: &unknown,
 			},
 		},
@@ -66,7 +66,7 @@ func TestUnknownPersistedDeliveryModeFailsClosedWithoutStallingMaterializer(t *t
 	}
 
 	if _, err := chattoCore.NotificationPolicy().UpdateNotificationPolicy(ctx, recipient.Id, "",
-		&corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
+		&evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
 		&fieldmaskpb.FieldMask{Paths: []string{"direct_mentions"}},
 	); err != nil {
 		t.Fatalf("replace future policy mode: %v", err)
@@ -113,7 +113,7 @@ func TestBadgeReactionAddsOnlyUnreadAttentionUntilRoomRead(t *testing.T) {
 	}
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
 		ctx, author.Id, room.Id, notificationTestSignalReaction,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
 	); err != nil {
 		t.Fatalf("set Badge policy: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestBadgeReactionAddsOnlyUnreadAttentionUntilRoomRead(t *testing.T) {
 	}
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
 		ctx, author.Id, room.Id, notificationTestSignalReaction,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	); err != nil {
 		t.Fatalf("disable future Badge reactions: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestBadgeReactionAddsOnlyUnreadAttentionUntilRoomRead(t *testing.T) {
 	}
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
 		ctx, author.Id, room.Id, notificationTestSignalReaction,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
 	); err != nil {
 		t.Fatalf("restore Badge policy: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestBadgeMarkerRejectsAnOlderReplicaWrite(t *testing.T) {
 		SourceCreated:        time.Now(),
 		ActorID:              author.Id,
 		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
 		SourceStreamSequence: 100,
 	}
 	if changed, err := chattoCore.notificationOccurrences.recordNotificationUnreadMarker(ctx, input); err != nil || !changed {
@@ -291,7 +291,7 @@ func TestBadgeMaterializationPipelinesHighFanoutMarkers(t *testing.T) {
 			SourceCreated:        posted.GetCreatedAt().AsTime(),
 			ActorID:              author.Id,
 			Signal:               testNotificationSignal(notificationTestSignalRoomMessage, room.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+			Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
 			SourceStreamSequence: entry.StreamSeq,
 		}
 	}
@@ -348,7 +348,7 @@ func TestBadgeMarkerIsRemovedWhenRecipientAccountIsDeleted(t *testing.T) {
 		RecipientID: recipient.Id, SourceEventID: posted.Id, ActorID: author.Id,
 		SourceCreated: time.Now(),
 		Signal:        testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-		Mode:          corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, SourceStreamSequence: 100,
+		Mode:          evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, SourceStreamSequence: 100,
 	}); err != nil || !changed {
 		t.Fatalf("record Badge marker = (%v, %v), want (true, nil)", changed, err)
 	}
@@ -389,7 +389,7 @@ func TestExpiredBadgeSourceDoesNotCreateUnreadMarker(t *testing.T) {
 	}
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
 		ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	); err != nil {
 		t.Fatalf("disable ordinary room Badge: %v", err)
 	}
@@ -403,7 +403,7 @@ func TestExpiredBadgeSourceDoesNotCreateUnreadMarker(t *testing.T) {
 		RecipientID: recipient.Id, SourceEventID: posted.Id, ActorID: author.Id,
 		SourceCreated: now.Add(-notificationTTL),
 		Signal:        testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-		Mode:          corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, SourceStreamSequence: 100,
+		Mode:          evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, SourceStreamSequence: 100,
 	})
 	if err != nil || changed {
 		t.Fatalf("record expired Badge marker = (%v, %v), want (false, nil)", changed, err)
@@ -445,7 +445,7 @@ func TestBadgeThreadReplyRollsUpAndClearsAtThreadBoundary(t *testing.T) {
 	}
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
 		ctx, rootAuthor.Id, room.Id, notificationTestSignalFollowedThread,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
 	); err != nil {
 		t.Fatalf("set Badge policy: %v", err)
 	}
@@ -491,7 +491,7 @@ func TestMessageMentionFactsRecomputeAfterOCCConflict(t *testing.T) {
 	if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom author: %v", err)
 	}
-	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, lateMember.Id, notificationTestSignalAll, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, lateMember.Id, notificationTestSignalAll, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
 
@@ -550,11 +550,11 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
 		t.Fatal(err)
 	}
 	// The deprecated followed-room compatibility slot remains inert.
-	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalFollowedRoom, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalFollowedRoom, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
 		t.Fatal(err)
 	}
 	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all @signal-recipient three causes", nil, "", "", nil, false)
@@ -588,10 +588,10 @@ func TestRoomMessageOutputHonoursMessageReadVisibilityBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		slug string
-		mode corev1.NotificationDeliveryMode
+		mode evtv1.NotificationDeliveryMode
 	}{
-		{name: "Badge", slug: "badge", mode: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE},
-		{name: "Notification", slug: "notification", mode: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION},
+		{name: "Badge", slug: "badge", mode: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE},
+		{name: "Notification", slug: "notification", mode: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			chattoCore, _ := setupTestCore(t)
@@ -654,7 +654,7 @@ func TestRoomMessageOutputHonoursMessageReadVisibilityBoundaries(t *testing.T) {
 			if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
 				t.Fatal(err)
 			}
-			if tc.mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+			if tc.mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 				if unread, err := chattoCore.HasUnread(ctx, KindChannel, recipient.Id, room.Id); err != nil || !unread {
 					t.Fatalf("visible Badge = (%v, %v), want (true, nil)", unread, err)
 				}
@@ -759,7 +759,7 @@ func TestDirectMentionOccurrenceVisibleWithInteractionScopedRead(t *testing.T) {
 		recipient.GetId(),
 		room.GetId(),
 		notificationTestSignalDirectMention,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
 	); err != nil {
 		t.Fatalf("set direct-mention Badge policy: %v", err)
 	}

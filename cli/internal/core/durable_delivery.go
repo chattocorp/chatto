@@ -5,12 +5,12 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
-func decodeDurableCoreDelivery(delivery events.DurableDelivery) (*corev1.Event, error) {
-	var event corev1.Event
+func decodeDurableCoreDelivery(delivery events.DurableDelivery) (*evtv1.Event, error) {
+	var event evtv1.Event
 	if err := proto.Unmarshal(delivery.Data, &event); err != nil {
 		return nil, events.TerminateDelivery("invalid Chatto event envelope", err)
 	}

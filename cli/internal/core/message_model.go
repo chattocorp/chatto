@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // MessagePostInput describes one user-facing message post operation.
@@ -21,7 +21,7 @@ type MessagePostInput struct {
 	InReplyTo               string
 	AlsoSendToChannel       bool
 	CreateThread            bool
-	LinkPreview             *corev1.LinkPreview
+	LinkPreview             *evtv1.LinkPreview
 	automaticThreadCreation bool
 }
 
@@ -56,7 +56,7 @@ func authorizationInputForPost(input MessagePostInput, threadRootEventID string)
 
 // MessagePostAuthorization is the resolved room context for an authorized post.
 type MessagePostAuthorization struct {
-	Room *corev1.Room
+	Room *evtv1.Room
 	Kind RoomKind
 }
 
@@ -103,7 +103,7 @@ type TypingIndicatorInput struct {
 
 // MessagePostResult is returned by MessageModel.PostMessage.
 type MessagePostResult struct {
-	Event *corev1.Event
+	Event *evtv1.Event
 }
 
 // MessagePostPreflight is the result of checking whether a post can proceed
@@ -177,7 +177,7 @@ func (s *MessageModel) applyAutomaticThreadCreation(ctx context.Context, input M
 		return MessagePostInput{}, err
 	}
 	if KindOfRoom(room) == KindChannel &&
-		EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED &&
+		EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED &&
 		strings.TrimSpace(input.ThreadRootEventID) == "" && strings.TrimSpace(input.InReplyTo) == "" {
 		input.CreateThread = true
 		input.automaticThreadCreation = true
@@ -363,15 +363,15 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	return &MessagePostAuthorization{Room: room, Kind: kind}, nil
 }
 
-func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *corev1.Room, input MessagePostAuthorizationInput) error {
+func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *evtv1.Room, input MessagePostAuthorizationInput) error {
 	mode := EffectiveRoomThreadingMode(room)
 	threadRootID := strings.TrimSpace(input.ThreadRootEventID)
 	inReplyTo := strings.TrimSpace(input.InReplyTo)
 
-	if input.automaticThreadCreation && mode != corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED {
+	if input.automaticThreadCreation && mode != evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED {
 		return fmt.Errorf("%w: threading mode changed while preparing the message", ErrRoomThreadingPolicy)
 	}
-	if mode == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+	if mode == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
 		if input.CreateThread || threadRootID != "" {
 			return fmt.Errorf("%w: threads are disabled in this room", ErrRoomThreadingPolicy)
 		}
@@ -389,7 +389,7 @@ func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *co
 		}
 		return nil
 	}
-	if mode != corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED {
+	if mode != evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED {
 		return nil
 	}
 
@@ -439,7 +439,7 @@ func (s *MessageModel) bypassesSlowMode(ctx context.Context, actorID string, kin
 // slowModeNextPostAt returns a future eligibility timestamp, or zero when the
 // actor is currently allowed to post. The caller supplies now so boundary
 // behavior can be tested without sleeping.
-func (s *MessageModel) slowModeNextPostAt(room *corev1.Room, actorID string, bypasses bool, now time.Time) time.Time {
+func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypasses bool, now time.Time) time.Time {
 	if room == nil || KindOfRoom(room) != KindChannel || room.GetSlowModeSeconds() == 0 || bypasses {
 		return time.Time{}
 	}
@@ -460,7 +460,7 @@ func (s *MessageModel) slowModeNextPostAt(room *corev1.Room, actorID string, byp
 // core edit window. Non-authors need message.manage. Changing a thread reply's
 // channel echo state is author-only and, when enabling the echo, additionally
 // requires message.echo and message.post.
-func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) (*corev1.Event, RoomKind, error) {
+func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) (*evtv1.Event, RoomKind, error) {
 	room, kind, err := s.core.requireMessageReader(ctx, input.ActorID, input.RoomID, input.EventID)
 	if err != nil {
 		return nil, KindChannel, err
@@ -613,13 +613,13 @@ func (s *MessageModel) SendTypingIndicator(ctx context.Context, input TypingIndi
 	if err != nil {
 		return err
 	}
-	if kind == KindChannel && input.ThreadRootEventID != nil && EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+	if kind == KindChannel && input.ThreadRootEventID != nil && EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
 		return fmt.Errorf("%w: thread replies are disabled in this room", ErrRoomThreadingPolicy)
 	}
 	return s.core.PublishTypingIndicator(ctx, input.ActorID, kind, room.Id, input.ThreadRootEventID)
 }
 
-func (s *MessageModel) requireMessagePostedEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
+func (s *MessageModel) requireMessagePostedEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*evtv1.Event, error) {
 	event, err := s.core.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 	if err != nil {
 		return nil, err

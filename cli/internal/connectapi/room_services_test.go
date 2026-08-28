@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"strings"
 	"testing"
 	"time"
@@ -18,13 +19,13 @@ import (
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestAPIRoomThreadingModeChangeValueFailsClosed(t *testing.T) {
-	for _, mode := range []corev1.RoomThreadingMode{
-		corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED,
-		corev1.RoomThreadingMode(99),
+	for _, mode := range []evtv1.RoomThreadingMode{
+		evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED,
+		evtv1.RoomThreadingMode(99),
 	} {
 		if got := apiRoomThreadingModeChangeValue(mode); got != apiv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
 			t.Fatalf("apiRoomThreadingModeChangeValue(%v) = %v, want DISABLED", mode, got)
@@ -909,7 +910,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CreateRoom archived: %v", err)
 	}
-	for _, room := range []*corev1.Room{visible, memberArchived} {
+	for _, room := range []*evtv1.Room{visible, memberArchived} {
 		for _, perm := range []core.Permission{
 			core.PermRoomJoin,
 			core.PermMessagePost,
@@ -1477,9 +1478,9 @@ func TestMemberDirectoryPaginationDefaultsAndClamps(t *testing.T) {
 		t.Fatalf("roomMemberDirectoryPagination oversized page = %d, %d; want 500, 0", limit, offset)
 	}
 
-	users := make([]*corev1.User, 501)
+	users := make([]*evtv1.User, 501)
 	for i := range users {
-		users[i] = &corev1.User{Id: fmt.Sprintf("user-%03d", i)}
+		users[i] = &evtv1.User{Id: fmt.Sprintf("user-%03d", i)}
 	}
 	page, totalCount, hasMore := paginateDirectoryUsers(users, limit, offset)
 	if len(page) != 500 || totalCount != 501 || !hasMore {
@@ -1695,7 +1696,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	if err := env.core.DeleteMessage(env.ctx, actor.Id, core.KindDM, dm.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
-	createStale := func(sourceID string) *corev1.NotificationOccurrence {
+	createStale := func(sourceID string) *notificationv1.NotificationOccurrence {
 		t.Helper()
 		occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
 			RecipientID:          env.viewer.Id,
@@ -1704,8 +1705,8 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(notificationTestSignalDirectMention, dm.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+			Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+			AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
 		if err != nil || !created {
@@ -1713,7 +1714,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 		}
 		return occurrence
 	}
-	createVisible := func(body string) *corev1.NotificationOccurrence {
+	createVisible := func(body string) *notificationv1.NotificationOccurrence {
 		t.Helper()
 		message, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, body, nil, "", "", nil, false)
 		if err != nil {
@@ -1787,7 +1788,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	if err != nil || batch.Msg.GetDeletedCount() != 1 {
 		t.Fatalf("BatchDeleteNotificationOccurrences mixed visibility = (%+v, %v), want one visible deletion", batch, err)
 	}
-	for _, occurrence := range []*corev1.NotificationOccurrence{staleBatch, visibleBatch} {
+	for _, occurrence := range []*notificationv1.NotificationOccurrence{staleBatch, visibleBatch} {
 		if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, occurrence.GetId()); !errors.Is(err, core.ErrNotFound) {
 			t.Fatalf("batch-deleted occurrence %s Get error = %v, want not found", occurrence.GetId(), err)
 		}
@@ -1799,7 +1800,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	if err != nil || all.Msg.GetDeletedCount() != 1 {
 		t.Fatalf("DeleteAllNotificationOccurrences mixed visibility = (%+v, %v), want one visible deletion", all, err)
 	}
-	for _, occurrence := range []*corev1.NotificationOccurrence{staleAll, visibleAll} {
+	for _, occurrence := range []*notificationv1.NotificationOccurrence{staleAll, visibleAll} {
 		if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, occurrence.GetId()); !errors.Is(err, core.ErrNotFound) {
 			t.Fatalf("delete-all occurrence %s Get error = %v, want not found", occurrence.GetId(), err)
 		}
@@ -1838,8 +1839,8 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 		SourceStreamSequence: sequence,
 		ActorID:              actor.Id,
 		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup:       true,
 	}
 	occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, input)
@@ -1866,7 +1867,7 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 		t.Fatalf("CreateUser actor: %v", err)
 	}
 	baseTime := time.Now().UTC().Add(-time.Minute)
-	created := make([]*corev1.NotificationOccurrence, 0, 3)
+	created := make([]*notificationv1.NotificationOccurrence, 0, 3)
 	for index := 0; index < 3; index++ {
 		room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", fmt.Sprintf("notification-page-filter-%d", index), "")
 		if err != nil {
@@ -1897,8 +1898,8 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+			Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+			AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
 		if err != nil || !wasCreated {
@@ -1935,7 +1936,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 		t.Fatalf("CreateUser actor: %v", err)
 	}
 	baseTime := time.Now().UTC().Add(-time.Minute)
-	createOccurrence := func(room *corev1.Room, sourceID string, sourceCreated time.Time) *corev1.NotificationOccurrence {
+	createOccurrence := func(room *evtv1.Room, sourceID string, sourceCreated time.Time) *notificationv1.NotificationOccurrence {
 		t.Helper()
 		posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, actor.Id, sourceID, nil, "", "", nil, false)
 		if err != nil {
@@ -1952,8 +1953,8 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+			Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+			AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
 		if err != nil || !created {
@@ -2103,7 +2104,7 @@ func TestMarkNotificationReadHydratesBeforeCommitting(t *testing.T) {
 		t.Fatalf("notification occurrences = (%+v, %v), want posted DM", occurrences, err)
 	}
 	hydrationErr := errors.New("injected notification hydration failure")
-	env.notifications.assembleOccurrence = func(context.Context, *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
+	env.notifications.assembleOccurrence = func(context.Context, *notificationv1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
 		return nil, hydrationErr
 	}
 
@@ -2563,7 +2564,7 @@ func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
 	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom target: %v", err)
 	}
-	if err := env.core.RecordCallParticipantJoined(env.ctx, room.Id, target.Id, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := env.core.RecordCallParticipantJoined(env.ctx, room.Id, target.Id, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined: %v", err)
 	}
 	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomManage); err != nil {

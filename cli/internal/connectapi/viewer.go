@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type viewerService struct {
@@ -84,10 +84,10 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 	}, nil
 }
 
-func viewerUser(ctx context.Context, api *API, user *corev1.User) (*apiv1.ViewerUser, error) {
+func viewerUser(ctx context.Context, api *API, user *evtv1.User) (*apiv1.ViewerUser, error) {
 	var (
 		hasVerifiedEmail bool
-		settings         *corev1.ServerUserPreferences
+		settings         *evtv1.ServerUserPreferences
 		apiUser          *apiv1.User
 		canDeleteAccount bool
 		lastLoginChange  time.Time
@@ -235,7 +235,7 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 	}, nil
 }
 
-func coreUserSettingsToAPI(settings *corev1.ServerUserPreferences) *apiv1.UserSettings {
+func coreUserSettingsToAPI(settings *evtv1.ServerUserPreferences) *apiv1.UserSettings {
 	response := &apiv1.UserSettings{TimeFormat: apiv1.TimeFormat_TIME_FORMAT_AUTO}
 	if settings == nil {
 		return response
@@ -247,11 +247,11 @@ func coreUserSettingsToAPI(settings *corev1.ServerUserPreferences) *apiv1.UserSe
 	return response
 }
 
-func coreTimeFormatToAPI(format corev1.TimeFormat) apiv1.TimeFormat {
+func coreTimeFormatToAPI(format evtv1.TimeFormat) apiv1.TimeFormat {
 	switch format {
-	case corev1.TimeFormat_TIME_FORMAT_12H:
+	case evtv1.TimeFormat_TIME_FORMAT_12H:
 		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
-	case corev1.TimeFormat_TIME_FORMAT_24H:
+	case evtv1.TimeFormat_TIME_FORMAT_24H:
 		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
 	default:
 		return apiv1.TimeFormat_TIME_FORMAT_AUTO

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -455,7 +456,7 @@ func TestFindOrCreateDM(t *testing.T) {
 	})
 }
 
-func listActiveDMRoomsForTest(t *testing.T, core *ChattoCore, ctx context.Context, userID string) []*corev1.Room {
+func listActiveDMRoomsForTest(t *testing.T, core *ChattoCore, ctx context.Context, userID string) []*evtv1.Room {
 	t.Helper()
 	rooms, err := core.ListMemberRooms(ctx, KindDM, userID, MemberRoomListOptions{
 		RequireLastMessage:    true,
@@ -701,7 +702,7 @@ func TestDMUnreadStatus(t *testing.T) {
 	}
 	if _, err := core.NotificationPolicy().SetRoomNotificationMode(
 		ctx, user2.Id, room.Id, notificationTestSignalDirectMessage,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
 	); err != nil {
 		t.Fatalf("SetRoomNotificationMode: %v", err)
 	}
@@ -948,7 +949,7 @@ func TestDMNotifications(t *testing.T) {
 		if err != nil {
 			t.Fatalf("waiting for DND notification occurrence change: %v", err)
 		}
-		var live corev1.LiveEvent
+		var live livev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
 			t.Fatalf("unmarshal live event: %v", err)
 		}
@@ -1093,14 +1094,14 @@ func TestDMThreadsUnsupported(t *testing.T) {
 	// Seed a historical DM thread directly through EVT. Current writers must
 	// reject this shape, but projections and read/follow paths remain compatible
 	// with facts persisted by earlier versions.
-	threadCreated := newEvent(owner.Id, &corev1.Event{Event: &corev1.Event_ThreadCreated{
-		ThreadCreated: &corev1.ThreadCreatedEvent{RoomId: room.Id, ThreadRootEventId: root.Id},
+	threadCreated := newEvent(owner.Id, &evtv1.Event{Event: &evtv1.Event_ThreadCreated{
+		ThreadCreated: &evtv1.ThreadCreatedEvent{RoomId: room.Id, ThreadRootEventId: root.Id},
 	}})
 	if _, err := core.EventPublisher.AppendEventually(ctx, agg.SubjectFor(threadCreated), threadCreated); err != nil {
 		t.Fatalf("append historical ThreadCreatedEvent: %v", err)
 	}
-	legacyReply := newEvent(owner.Id, &corev1.Event{Event: &corev1.Event_MessagePosted{
-		MessagePosted: &corev1.MessagePostedEvent{RoomId: room.Id, InThread: root.Id},
+	legacyReply := newEvent(owner.Id, &evtv1.Event{Event: &evtv1.Event_MessagePosted{
+		MessagePosted: &evtv1.MessagePostedEvent{RoomId: room.Id, InThread: root.Id},
 	}})
 	legacySubject := agg.SubjectFor(legacyReply)
 	legacySeq, err := core.EventPublisher.AppendEventually(ctx, legacySubject, legacyReply)

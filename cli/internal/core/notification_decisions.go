@@ -2,11 +2,12 @@ package core
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sort"
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // notificationRecipientDecision is one exact event-time policy result. A
@@ -14,46 +15,46 @@ import (
 // rich notification signal remains independently addressable.
 type notificationRecipientDecision struct {
 	recipientID string
-	signal      *corev1.NotificationSignal
-	mode        corev1.NotificationDeliveryMode
+	signal      *notificationv1.NotificationSignal
+	mode        evtv1.NotificationDeliveryMode
 }
 
-func notificationSignalForMention(mention *corev1.MessageMention, message *corev1.NotificationMessageReference) *corev1.NotificationSignal {
+func notificationSignalForMention(mention *evtv1.MessageMention, message *notificationv1.NotificationMessageReference) *notificationv1.NotificationSignal {
 	if mention == nil || message == nil {
 		return nil
 	}
-	cloned := func() *corev1.NotificationMessageReference {
-		return proto.Clone(message).(*corev1.NotificationMessageReference)
+	cloned := func() *notificationv1.NotificationMessageReference {
+		return proto.Clone(message).(*notificationv1.NotificationMessageReference)
 	}
 	switch mention.GetCause().(type) {
-	case *corev1.MessageMention_Direct:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{Message: cloned()}}}
-	case *corev1.MessageMention_Role:
+	case *evtv1.MessageMention_Direct:
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &notificationv1.DirectMentionReceived{Message: cloned()}}}
+	case *evtv1.MessageMention_Role:
 		roleNames := []string(nil)
 		if role := mention.GetRole(); role.GetRoleName() != "" {
 			roleNames = []string{role.GetRoleName()}
 		}
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &corev1.RoleMentionReceived{Message: cloned(), RoleNames: roleNames}}}
-	case *corev1.MessageMention_Here:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_HereMentionReceived{HereMentionReceived: &corev1.HereMentionReceived{Message: cloned()}}}
-	case *corev1.MessageMention_All:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_AllMentionReceived{AllMentionReceived: &corev1.AllMentionReceived{Message: cloned()}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &notificationv1.RoleMentionReceived{Message: cloned(), RoleNames: roleNames}}}
+	case *evtv1.MessageMention_Here:
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_HereMentionReceived{HereMentionReceived: &notificationv1.HereMentionReceived{Message: cloned()}}}
+	case *evtv1.MessageMention_All:
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_AllMentionReceived{AllMentionReceived: &notificationv1.AllMentionReceived{Message: cloned()}}}
 	default:
 		return nil
 	}
 }
 
-func resolvedMessageMentions(resolution *RoomMentionResolution) []*corev1.MessageMention {
+func resolvedMessageMentions(resolution *RoomMentionResolution) []*evtv1.MessageMention {
 	if resolution == nil {
 		return nil
 	}
 	return cloneMessageMentions(resolution.Mentions)
 }
 
-func directMentionRecipients(mentions []*corev1.MessageMention) []string {
+func directMentionRecipients(mentions []*evtv1.MessageMention) []string {
 	seen := make(map[string]struct{})
 	for _, mention := range mentions {
-		if _, direct := mention.GetCause().(*corev1.MessageMention_Direct); direct && mention.GetUserId() != "" {
+		if _, direct := mention.GetCause().(*evtv1.MessageMention_Direct); direct && mention.GetUserId() != "" {
 			seen[mention.GetUserId()] = struct{}{}
 		}
 	}
@@ -83,7 +84,7 @@ func sortedUniqueStrings(values []string) []string {
 func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 	ctx context.Context,
 	snapshot *notificationDecisionSnapshot,
-	source *corev1.Event,
+	source *evtv1.Event,
 ) ([]notificationRecipientDecision, error) {
 	message := source.GetMessagePosted()
 	if message == nil || message.GetEchoOfEventId() != "" {
@@ -98,15 +99,15 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
 		reference.ThreadRootEventId = &threadRootEventID
 	}
-	signalsByRecipient := make(map[string]map[string]*corev1.NotificationSignal)
-	add := func(userID string, signal *corev1.NotificationSignal) {
+	signalsByRecipient := make(map[string]map[string]*notificationv1.NotificationSignal)
+	add := func(userID string, signal *notificationv1.NotificationSignal) {
 		_, active := snapshot.activeUsers[userID]
 		identity := notificationSignalIdentity(signal)
 		if userID == "" || !active || userID == source.GetActorId() || identity == "" || !snapshot.notificationVisibilityExistsForSignal(userID, roomID, signal) {
 			return
 		}
 		if signalsByRecipient[userID] == nil {
-			signalsByRecipient[userID] = make(map[string]*corev1.NotificationSignal)
+			signalsByRecipient[userID] = make(map[string]*notificationv1.NotificationSignal)
 		}
 		if existing := signalsByRecipient[userID][identity]; existing != nil {
 			if role := existing.GetRoleMentionReceived(); role != nil {
@@ -131,11 +132,11 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 
 	if roomKind == KindDM {
 		for _, userID := range snapshot.roomMemberIDs(roomID) {
-			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &corev1.DirectMessageReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
+			add(userID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &notificationv1.DirectMessageReceived{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 		}
 	} else if message.GetInThread() == "" {
 		for _, userID := range snapshot.roomMemberIDs(roomID) {
-			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &corev1.RoomMessageReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
+			add(userID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &notificationv1.RoomMessageReceived{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 		}
 		// FollowedRoomActivity is a deprecated compatibility branch. Root room
 		// activity uses RoomMessageReceived and its per-room delivery policy.
@@ -147,13 +148,13 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 			return nil, err
 		}
 		if parent != nil {
-			add(parent.GetActorId(), &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReplyReceived{ReplyReceived: &corev1.ReplyReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
+			add(parent.GetActorId(), &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 		}
 	}
 
 	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
 		for _, userID := range snapshot.threadFollowerIDs(roomID, threadRootEventID) {
-			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
+			add(userID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 		}
 		if snapshot.replyCounts[threadRootEventID] == 1 {
 			root, err := c.GetRoomEventByEventID(ctx, roomKind, roomID, threadRootEventID)
@@ -161,7 +162,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 				return nil, err
 			}
 			if root != nil && snapshot.threadFollowState(root.GetActorId(), roomID, threadRootEventID) == ThreadFollowStateNone {
-				add(root.GetActorId(), &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
+				add(root.GetActorId(), &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 			}
 		}
 	}
@@ -186,7 +187,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 }
 
 func newNotificationOccurrenceInputs(
-	source *corev1.Event,
+	source *evtv1.Event,
 	decisions []notificationRecipientDecision,
 ) []CreateNotificationOccurrenceInput {
 	if source == nil || source.GetCreatedAt() == nil {
@@ -198,9 +199,9 @@ func newNotificationOccurrenceInputs(
 		if signal == nil {
 			continue
 		}
-		attention := corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
+		attention := notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
 		if signal.GetReactionReceived() != nil {
-			attention = corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
+			attention = notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
 		}
 		result = append(result, CreateNotificationOccurrenceInput{
 			RecipientID: decision.recipientID, SourceEventID: source.GetId(), SourceCreated: source.GetCreatedAt().AsTime(),

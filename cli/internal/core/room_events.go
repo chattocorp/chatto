@@ -3,15 +3,15 @@ package core
 import (
 	"context"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-// RoomEvent pairs a *corev1.Event with its stream sequence so the
+// RoomEvent pairs a *evtv1.Event with its stream sequence so the
 // pagination layer can build opaque cursors without re-deriving the
 // sequence per event. Event is embedded so callers can access event
 // fields directly (`event.Id`, `event.GetMessagePosted()`, etc.).
 type RoomEvent struct {
-	*corev1.Event
+	*evtv1.Event
 	Sequence uint64
 }
 
@@ -57,7 +57,7 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 	return c.getRoomEvents(ctx, kind, room_id, limit, beforeSeq, nil)
 }
 
-func (c *ChattoCore) getRoomEvents(ctx context.Context, kind RoomKind, room_id string, limit int, beforeSeq *uint64, visibleFilter func(*corev1.Event) bool) (*RoomEventsResult, error) {
+func (c *ChattoCore) getRoomEvents(ctx context.Context, kind RoomKind, room_id string, limit int, beforeSeq *uint64, visibleFilter func(*evtv1.Event) bool) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 	var before uint64
 	if beforeSeq != nil {
@@ -99,7 +99,7 @@ func (c *ChattoCore) getRoomEvents(ctx context.Context, kind RoomKind, room_id s
 // channel echoes, plus visible lifecycle/meta events.
 //
 // Authorization: caller must verify room membership before calling.
-func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
+func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, roomID, eventID string) (*evtv1.Event, error) {
 	entry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok {
 		return nil, nil
@@ -127,7 +127,7 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 	return c.getRoomEventsAround(ctx, kind, roomID, eventID, limit, nil)
 }
 
-func (c *ChattoCore) getRoomEventsAround(ctx context.Context, kind RoomKind, roomID, eventID string, limit int, visibleFilter func(*corev1.Event) bool) (*RoomEventsAroundResult, error) {
+func (c *ChattoCore) getRoomEventsAround(ctx context.Context, kind RoomKind, roomID, eventID string, limit int, visibleFilter func(*evtv1.Event) bool) (*RoomEventsAroundResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
 	target, ok := c.roomModel.timelineEntry(eventID)
@@ -173,7 +173,7 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, room
 	return c.getRoomEventsAfter(ctx, kind, roomID, afterSeq, limit, nil)
 }
 
-func (c *ChattoCore) getRoomEventsAfter(ctx context.Context, kind RoomKind, roomID string, afterSeq uint64, limit int, visibleFilter func(*corev1.Event) bool) (*RoomEventsResult, error) {
+func (c *ChattoCore) getRoomEventsAfter(ctx context.Context, kind RoomKind, roomID string, afterSeq uint64, limit int, visibleFilter func(*evtv1.Event) bool) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
 	// Walk visible entries oldest-first from the cursor so forward

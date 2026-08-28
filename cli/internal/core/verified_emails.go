@@ -11,7 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -250,8 +250,8 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 		return fmt.Errorf("user not found: %w", err)
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
-		UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserVerifiedEmailAdded{
+		UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{
 			UserId: userID,
 		},
 	}})
@@ -341,7 +341,7 @@ func (c *ChattoCore) IsEmailClaimed(ctx context.Context, email string) (bool, er
 
 // GetUserByVerifiedEmail looks up a user by their verified email address.
 // Returns the user if found, or an error if not found.
-func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*corev1.User, error) {
+func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*evtv1.User, error) {
 	user, ok, err := c.userModel.userByEmail(ctx, email)
 	if err != nil {
 		return nil, err

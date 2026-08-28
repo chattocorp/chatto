@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -33,14 +33,14 @@ func (p *InvitationProjection) Subjects() []string {
 	return []string{evtstream.InvitationSubjectFilter()}
 }
 
-func (p *InvitationProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *InvitationProjection) Apply(event *evtv1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_InvitationCreated:
+	case *evtv1.Event_InvitationCreated:
 		payload := e.InvitationCreated
 		state := &InvitationState{
 			ID:        payload.GetInvitationId(),
@@ -56,11 +56,11 @@ func (p *InvitationProjection) Apply(event *corev1.Event, _ uint64) error {
 			state.ExpiresAt = &value
 		}
 		p.invitations[state.ID] = state
-	case *corev1.Event_InvitationRedeemed:
+	case *evtv1.Event_InvitationRedeemed:
 		if state := p.invitations[e.InvitationRedeemed.GetInvitationId()]; state != nil {
 			state.UseCount++
 		}
-	case *corev1.Event_InvitationRevoked:
+	case *evtv1.Event_InvitationRevoked:
 		if state := p.invitations[e.InvitationRevoked.GetInvitationId()]; state != nil {
 			value := event.GetCreatedAt().AsTime()
 			state.RevokedAt = &value

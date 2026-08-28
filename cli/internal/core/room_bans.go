@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -44,7 +44,7 @@ func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKin
 		return nil, fmt.Errorf("ban expiry must be in the future")
 	}
 
-	banPayload := &corev1.RoomMemberBannedEvent{
+	banPayload := &evtv1.RoomMemberBannedEvent{
 		RoomId: roomID,
 		UserId: targetUserID,
 		Reason: reason,
@@ -52,8 +52,8 @@ func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKin
 	if expiresAt != nil {
 		banPayload.ExpiresAt = timestamppb.New(*expiresAt)
 	}
-	banEvent := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomMemberBanned{
+	banEvent := newEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_RoomMemberBanned{
 			RoomMemberBanned: banPayload,
 		},
 	})
@@ -115,9 +115,9 @@ func (c *ChattoCore) UnbanMember(ctx context.Context, actorID string, kind RoomK
 		return nil
 	}
 
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomMemberUnbanned{
-			RoomMemberUnbanned: &corev1.RoomMemberUnbannedEvent{
+	event := newEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_RoomMemberUnbanned{
+			RoomMemberUnbanned: &evtv1.RoomMemberUnbannedEvent{
 				RoomId: roomID,
 				UserId: targetUserID,
 				Reason: reason,

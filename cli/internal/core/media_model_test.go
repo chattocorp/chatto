@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net/url"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -102,7 +103,7 @@ func TestMediaModelUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
 	derivative, err := service.UploadDerivativeAttachment(
 		ctx,
 		"A-parent",
-		corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
+		evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
 		room.Id,
 		"thumb.png",
 		"image/png",
@@ -119,7 +120,7 @@ func TestMediaModelUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
 	if declared.GetParentAssetId() != "A-parent" {
 		t.Fatalf("ParentAssetId = %q, want %q", declared.GetParentAssetId(), "A-parent")
 	}
-	if declared.GetDerivativeRole() != corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL {
+	if declared.GetDerivativeRole() != evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL {
 		t.Fatalf("DerivativeRole = %v, want thumbnail", declared.GetDerivativeRole())
 	}
 	if declared.GetUserId() != "" {
@@ -139,7 +140,7 @@ func TestMediaModelUploadDerivativeAttachmentWithDimensionsProjectsAssetDimensio
 	derivative, err := service.UploadDerivativeAttachmentWithDimensions(
 		ctx,
 		"A-parent",
-		corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT,
+		evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT,
 		room.Id,
 		"clip-720p.mp4",
 		"video/mp4",
@@ -392,14 +393,14 @@ func TestMediaModelAssetURLs(t *testing.T) {
 func TestMediaModelAttachmentNeedsVideoProcessing(t *testing.T) {
 	tests := []struct {
 		name        string
-		attachment  *corev1.Attachment
+		attachment  *evtv1.Attachment
 		animatedGIF bool
 		want        bool
 	}{
 		{name: "nil", want: false},
-		{name: "video", attachment: &corev1.Attachment{ContentType: "video/mp4"}, want: true},
-		{name: "animated gif", attachment: &corev1.Attachment{ContentType: "image/gif"}, animatedGIF: true, want: true},
-		{name: "static image", attachment: &corev1.Attachment{ContentType: "image/png"}, want: false},
+		{name: "video", attachment: &evtv1.Attachment{ContentType: "video/mp4"}, want: true},
+		{name: "animated gif", attachment: &evtv1.Attachment{ContentType: "image/gif"}, animatedGIF: true, want: true},
+		{name: "static image", attachment: &evtv1.Attachment{ContentType: "image/png"}, want: false},
 	}
 
 	for _, tt := range tests {
@@ -437,14 +438,14 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 		t.Fatalf("started message event id = %q, want E-message", manifest.Started.GetMessageEventId())
 	}
 
-	thumbnail := &corev1.Attachment{Id: "A-thumb"}
-	variants := []*corev1.VideoVariant{
-		{Quality: "720p", Attachment: &corev1.Attachment{Id: "A-variant"}},
+	thumbnail := &evtv1.Attachment{Id: "A-thumb"}
+	variants := []*runtimestatev1.VideoVariant{
+		{Quality: "720p", Attachment: &evtv1.Attachment{Id: "A-variant"}},
 	}
-	hls := &corev1.AssetProcessedHLS{
-		Renditions: []*corev1.AssetHLSRendition{{
+	hls := &evtv1.AssetProcessedHLS{
+		Renditions: []*evtv1.AssetHLSRendition{{
 			Width: 1280, Height: 720, Bandwidth: 1_500_000,
-			Segments: []*corev1.AssetHLSSegment{{AssetId: "A-hls-segment-1", DurationMs: 1000}, {AssetId: "A-hls-segment-2", DurationMs: 200}},
+			Segments: []*evtv1.AssetHLSSegment{{AssetId: "A-hls-segment-1", DurationMs: 1000}, {AssetId: "A-hls-segment-2", DurationMs: 200}},
 		}},
 	}
 	if err := service.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.Id, "E-message", original.GetId(), 1200, 640, 360, thumbnail, variants, hls); err != nil {
@@ -464,7 +465,7 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 		t.Fatalf("HLS segments = %v", got)
 	}
 
-	if err := service.RecordAssetProcessingFailed(ctx, SystemActorID, room.Id, "E-message", original.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
+	if err := service.RecordAssetProcessingFailed(ctx, SystemActorID, room.Id, "E-message", original.GetId(), evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING); err != nil {
 		t.Fatalf("RecordAssetProcessingFailed returned error: %v", err)
 	}
 	manifest, ok = core.assetModel.VideoAttachmentManifest(original.GetId())
@@ -492,7 +493,7 @@ func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadAttachment: %v", err)
 	}
-	segment, err := core.mediaModel.UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	segment, err := core.mediaModel.UploadDerivativeAttachment(ctx, original.GetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment: %v", err)
 	}
@@ -505,8 +506,8 @@ func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	}
 	t.Cleanup(func() { service.waitForAssetsOverride = nil })
 
-	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{
-		Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 1000}},
+	hls := &evtv1.AssetProcessedHLS{Renditions: []*evtv1.AssetHLSRendition{{
+		Segments: []*evtv1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 1000}},
 	}}}
 	if err := service.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, hls); err != nil {
 		t.Fatalf("RecordAssetProcessedWithHLS after committed append: %v", err)
@@ -562,7 +563,7 @@ func TestDerivativeCreationCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	}
 	t.Cleanup(func() { service.waitForAssetsOverride = nil })
 
-	segment, err := core.mediaModel.UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	segment, err := core.mediaModel.UploadDerivativeAttachment(ctx, original.GetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "480p-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment after committed append: %v", err)
 	}
@@ -593,14 +594,14 @@ func TestLosingVideoGenerationCleansDerivativesPromptly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadAttachment: %v", err)
 	}
-	if err := core.assetModel.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, &corev1.AssetProcessedHLS{}); err != nil {
+	if err := core.assetModel.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, &evtv1.AssetProcessedHLS{}); err != nil {
 		t.Fatalf("record winning generation: %v", err)
 	}
-	loser, err := core.mediaModel.UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "loser.ts", "video/mp2t", bytes.NewReader([]byte("loser")))
+	loser, err := core.mediaModel.UploadDerivativeAttachment(ctx, original.GetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.GetId(), "loser.ts", "video/mp2t", bytes.NewReader([]byte("loser")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment: %v", err)
 	}
-	losingHLS := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{Segments: []*corev1.AssetHLSSegment{{AssetId: loser.GetId(), DurationMs: 1000}}}}}
+	losingHLS := &evtv1.AssetProcessedHLS{Renditions: []*evtv1.AssetHLSRendition{{Segments: []*evtv1.AssetHLSSegment{{AssetId: loser.GetId(), DurationMs: 1000}}}}}
 	if err := core.assetModel.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, losingHLS); err != nil {
 		t.Fatalf("record losing generation: %v", err)
 	}
@@ -677,15 +678,15 @@ func TestAssetModelSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadAttachment returned error: %v", err)
 	}
-	thumbnail, err := media.UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(16, 16)))
+	thumbnail, err := media.UploadDerivativeAttachment(ctx, original.GetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(16, 16)))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment thumbnail: %v", err)
 	}
-	variantAttachment, err := media.UploadDerivativeAttachment(ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "clip_480p.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
+	variantAttachment, err := media.UploadDerivativeAttachment(ctx, original.GetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "clip_480p.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment variant: %v", err)
 	}
-	variants := []*corev1.VideoVariant{
+	variants := []*runtimestatev1.VideoVariant{
 		{Quality: "480p", Attachment: variantAttachment},
 	}
 
@@ -703,7 +704,7 @@ func TestAssetModelSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T) {
 	if len(processedEvents) != 0 {
 		t.Fatalf("asset_processing_succeeded events after deletion = %d, want 0", len(processedEvents))
 	}
-	for _, derivative := range []*corev1.Attachment{thumbnail, variantAttachment} {
+	for _, derivative := range []*evtv1.Attachment{thumbnail, variantAttachment} {
 		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(derivative.GetId()).Subject(evtstream.EventAssetDeleted))
 		if err != nil {
 			t.Fatalf("SubjectEvents(asset_deleted %s): %v", derivative.GetId(), err)
@@ -770,19 +771,19 @@ func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 		t.Fatalf("UploadAttachment returned error: %v", err)
 	}
 
-	thumbnail := &corev1.Attachment{Id: "A-inherited-thumb"}
-	inheritedCreated := &corev1.Event{
+	thumbnail := &evtv1.Attachment{Id: "A-inherited-thumb"}
+	inheritedCreated := &evtv1.Event{
 		Id: "E-inherited-thumb-created",
-		Event: &corev1.Event_AssetCreated{
-			AssetCreated: &corev1.AssetCreatedEvent{
+		Event: &evtv1.Event_AssetCreated{
+			AssetCreated: &evtv1.AssetCreatedEvent{
 				OriginalBinaryAvailable: true,
-				Asset: &corev1.AssetRecord{
+				Asset: &evtv1.AssetRecord{
 					Id:          thumbnail.GetId(),
 					Filename:    "thumb.png",
 					ContentType: "image/png",
 				},
 				ParentAssetId:  original.GetId(),
-				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
+				DerivativeRole: evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
 			},
 		},
 	}

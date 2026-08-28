@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -12,7 +13,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -49,9 +50,9 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		timezone = settings.GetTimezone()
 	}
 
-	event := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_UserProfileUpdated{
-			UserProfileUpdated: &corev1.UserProfileSyncEvent{
+	event := newLiveEvent(userID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_UserProfileUpdated{
+			UserProfileUpdated: &livev1.UserProfileSyncEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
 				AvatarUrl:   avatarURL,
@@ -79,11 +80,11 @@ var ErrCustomStatusExpiryInPast = fmt.Errorf("custom status expiry must be in th
 
 // UpdateUserDisplayName updates a user's display name.
 // Authorization: Caller should verify the actor is the user being updated.
-func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
+func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*evtv1.User, error) {
 	return c.updateUserDisplayNameAs(ctx, userID, userID, displayName)
 }
 
-func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userID, displayName string) (*corev1.User, error) {
+func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userID, displayName string) (*evtv1.User, error) {
 	// Normalize and validate display name
 	displayName = NormalizeDisplayName(displayName)
 	if displayName == "" {
@@ -102,8 +103,8 @@ func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userI
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
-		UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserDisplayNameChanged{
+		UserDisplayNameChanged: &evtv1.UserDisplayNameChangedEvent{
 			UserId: userID,
 		},
 	}})
@@ -134,7 +135,7 @@ func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userI
 // Behavior matches UpdateUserDisplayName; this exists as a distinct entry point
 // for audit clarity in logs.
 // Authorization: Caller must verify admin privileges.
-func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
+func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, displayName string) (*evtv1.User, error) {
 	user, err := c.updateUserDisplayNameAs(ctx, SystemActorID, userID, displayName)
 	if err != nil {
 		return nil, err
@@ -146,14 +147,14 @@ func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, dis
 // AdminUpdateUserProfile updates a user's login, display name, and/or bio as a
 // single admin-authored mutation. When multiple fields are changed, their
 // durable events are appended atomically in one batch.
-func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*corev1.User, error) {
+func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*evtv1.User, error) {
 	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName, bio, true)
 }
 
 // UpdateUserBio updates a user's public bio. An empty value clears it. A no-op
 // write (unchanged bio) appends no EVT event.
 // Authorization: Caller should verify the actor is the user being updated.
-func (c *ChattoCore) UpdateUserBio(ctx context.Context, userID, bio string) (*corev1.User, error) {
+func (c *ChattoCore) UpdateUserBio(ctx context.Context, userID, bio string) (*evtv1.User, error) {
 	return c.updateUserProfileAs(ctx, userID, userID, nil, nil, &bio, true)
 }
 
@@ -162,7 +163,7 @@ func normalizeBio(bio string) string {
 	return strings.TrimSpace(bio)
 }
 
-func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts bool) (*corev1.User, error) {
+func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts bool) (*evtv1.User, error) {
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -223,8 +224,8 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 	agg := evtstream.UserAggregate(userID)
 	entries := make([]evtstream.BatchEntry, 0, 2)
 	if loginChanged {
-		loginChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
-			UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: userID},
+		loginChangedEvent := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserLoginChanged{
+			UserLoginChanged: &evtv1.UserLoginChangedEvent{UserId: userID},
 		}})
 		encryptedLogin, err := c.encryptUserPIIString(ctx, loginChangedEvent.GetId(), userID, evtstream.EventUserLoginChanged, "login", nextLogin)
 		if err != nil {
@@ -234,8 +235,8 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(loginChangedEvent), Event: loginChangedEvent})
 	}
 	if displayNameChanged {
-		displayNameChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
-			UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{UserId: userID},
+		displayNameChangedEvent := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserDisplayNameChanged{
+			UserDisplayNameChanged: &evtv1.UserDisplayNameChangedEvent{UserId: userID},
 		}})
 		encryptedDisplayName, err := c.encryptUserPIIString(ctx, displayNameChangedEvent.GetId(), userID, evtstream.EventUserDisplayNameChanged, "display_name", nextDisplayName)
 		if err != nil {
@@ -245,8 +246,8 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(displayNameChangedEvent), Event: displayNameChangedEvent})
 	}
 	if bioChanged {
-		bioChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserBioChanged{
-			UserBioChanged: &corev1.UserBioChangedEvent{UserId: userID},
+		bioChangedEvent := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserBioChanged{
+			UserBioChanged: &evtv1.UserBioChangedEvent{UserId: userID},
 		}})
 		if nextBio == "" {
 			// Clearing omits the encrypted payload; readers treat absence as
@@ -315,7 +316,7 @@ type AdminUpdateUserInput struct {
 	Bio         *string
 }
 
-func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*corev1.User, error) {
+func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*evtv1.User, error) {
 	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
 		return nil, err
 	}
@@ -369,7 +370,7 @@ func userLoginChangedAtKey(userID string) string {
 
 // UpdateUserLogin changes a user's login/username with 30-day cooldown enforcement.
 // Authorization: Caller should verify the actor is the user being updated.
-func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
+func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*evtv1.User, error) {
 	return c.applyLoginChange(ctx, userID, userID, newLogin, true)
 }
 
@@ -377,7 +378,7 @@ func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin strin
 // check and not advancing the cooldown timestamp. The user retains whatever
 // rename allowance they had prior to the admin edit.
 // Authorization: Caller must verify admin privileges.
-func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
+func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin string) (*evtv1.User, error) {
 	user, err := c.applyLoginChange(ctx, SystemActorID, userID, newLogin, false)
 	if err != nil {
 		return nil, err
@@ -389,7 +390,7 @@ func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin 
 // applyLoginChange performs the actual login change. When enforceCooldown is
 // true, the 30-day cooldown is checked before changing and a new timestamp is
 // recorded after a successful change.
-func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*corev1.User, error) {
+func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*evtv1.User, error) {
 	// Trim (preserve original casing).
 	newLogin = strings.TrimSpace(newLogin)
 
@@ -432,8 +433,8 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 		}
 	}
 
-	loginChanged := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
-		UserLoginChanged: &corev1.UserLoginChangedEvent{
+	loginChanged := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserLoginChanged{
+		UserLoginChanged: &evtv1.UserLoginChangedEvent{
 			UserId: userID,
 		},
 	}})
@@ -448,8 +449,8 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 		Event:   loginChanged,
 	}}
 	if enforceCooldown && !caseOnly {
-		cooldownStarted := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownStarted{
-			UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{UserId: userID},
+		cooldownStarted := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserLoginCooldownStarted{
+			UserLoginCooldownStarted: &evtv1.UserLoginCooldownStartedEvent{UserId: userID},
 		}})
 		cooldownStarted.CreatedAt = loginChanged.GetCreatedAt()
 		entries = append(entries, evtstream.BatchEntry{
@@ -505,8 +506,8 @@ func (c *ChattoCore) ClearLoginChangeCooldown(ctx context.Context, userID string
 // ClearLoginChangeCooldownAs removes the cooldown timestamp with explicit actor
 // attribution. Authorization must be checked by the caller.
 func (c *ChattoCore) ClearLoginChangeCooldownAs(ctx context.Context, actorID, userID string) error {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownCleared{
-		UserLoginCooldownCleared: &corev1.UserLoginCooldownClearedEvent{UserId: userID},
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserLoginCooldownCleared{
+		UserLoginCooldownCleared: &evtv1.UserLoginCooldownClearedEvent{UserId: userID},
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, event, "", func() error {
 		if _, err := c.GetUser(ctx, userID); err != nil {
@@ -524,7 +525,7 @@ func (c *ChattoCore) ClearLoginChangeCooldownAs(ctx context.Context, actorID, us
 // SetUserCustomStatus stores or replaces a user's durable custom status.
 // Expiry is modeled on the event itself; readers hide expired statuses without
 // writing auxiliary runtime state.
-func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, text string, expiresAt *time.Time) (*corev1.User, error) {
+func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, text string, expiresAt *time.Time) (*evtv1.User, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return nil, err
 	}
@@ -552,7 +553,7 @@ func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, tex
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	status := &corev1.CustomUserStatus{
+	status := &evtv1.CustomUserStatus{
 		Emoji: emoji,
 		Text:  text,
 	}
@@ -560,8 +561,8 @@ func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, tex
 		status.ExpiresAt = timestamppb.New(*expiresAt)
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserCustomStatusSet{
-		UserCustomStatusSet: &corev1.UserCustomStatusSetEvent{
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserCustomStatusSet{
+		UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{
 			UserId: userID,
 			Status: status,
 		},
@@ -575,7 +576,7 @@ func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, tex
 
 // ClearUserCustomStatus removes a user's durable custom status. It is
 // idempotent and still records a clear event for explicit user action history.
-func (c *ChattoCore) ClearUserCustomStatus(ctx context.Context, userID string) (*corev1.User, error) {
+func (c *ChattoCore) ClearUserCustomStatus(ctx context.Context, userID string) (*evtv1.User, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return nil, err
 	}
@@ -583,8 +584,8 @@ func (c *ChattoCore) ClearUserCustomStatus(ctx context.Context, userID string) (
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserCustomStatusCleared{
-		UserCustomStatusCleared: &corev1.UserCustomStatusClearedEvent{UserId: userID},
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserCustomStatusCleared{
+		UserCustomStatusCleared: &evtv1.UserCustomStatusClearedEvent{UserId: userID},
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
 		return nil, fmt.Errorf("failed to clear custom status: %w", err)

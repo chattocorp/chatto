@@ -7,22 +7,22 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestRoomTimelineProjectionOrdersPinsByDurableSequence(t *testing.T) {
 	projection := NewRoomTimelineProjection()
 	for sequence, messageID := range []string{"M1", "M2"} {
-		posted := newEvent("author", &corev1.Event{Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}}})
+		posted := newEvent("author", &evtv1.Event{Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}})
 		posted.Id = messageID
 		if err := projection.Apply(posted, uint64(sequence+1)); err != nil {
 			t.Fatalf("Apply posted %s: %v", messageID, err)
 		}
 	}
-	first := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}}})
+	first := newEvent("manager", &evtv1.Event{Event: &evtv1.Event_MessagePinned{MessagePinned: &evtv1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}}})
 	first.Id = "P1"
 	first.CreatedAt = timestamppb.New(time.Unix(200, 0))
-	second := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M2"}}})
+	second := newEvent("manager", &evtv1.Event{Event: &evtv1.Event_MessagePinned{MessagePinned: &evtv1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M2"}}})
 	second.Id = "P2"
 	second.CreatedAt = timestamppb.New(time.Unix(100, 0))
 	if err := projection.Apply(first, 3); err != nil {
@@ -39,7 +39,7 @@ func TestRoomTimelineProjectionOrdersPinsByDurableSequence(t *testing.T) {
 	if got := projection.LatestPinEventID("R1"); got != "P2" {
 		t.Fatalf("LatestPinEventID = %q, want P2", got)
 	}
-	unpinned := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessageUnpinned{MessageUnpinned: &corev1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M2"}}})
+	unpinned := newEvent("manager", &evtv1.Event{Event: &evtv1.Event_MessageUnpinned{MessageUnpinned: &evtv1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M2"}}})
 	if err := projection.Apply(unpinned, 5); err != nil {
 		t.Fatalf("Apply unpin: %v", err)
 	}
@@ -50,12 +50,12 @@ func TestRoomTimelineProjectionOrdersPinsByDurableSequence(t *testing.T) {
 
 func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 	projection := NewRoomTimelineProjection()
-	posted := newEvent("author", &corev1.Event{Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}}})
+	posted := newEvent("author", &evtv1.Event{Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}})
 	posted.Id = "M1"
 	if err := projection.Apply(posted, 1); err != nil {
 		t.Fatalf("Apply posted: %v", err)
 	}
-	pinned := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}}})
+	pinned := newEvent("manager", &evtv1.Event{Event: &evtv1.Event_MessagePinned{MessagePinned: &evtv1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}}})
 	pinned.Id = "P1"
 	if err := projection.Apply(pinned, 2); err != nil {
 		t.Fatalf("Apply pinned: %v", err)
@@ -83,7 +83,7 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 		t.Fatalf("restored LatestPinEventID = %q, want P1", got)
 	}
 
-	retracted := newEvent("author", &corev1.Event{Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"}}})
+	retracted := newEvent("author", &evtv1.Event{Event: &evtv1.Event_MessageRetracted{MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"}}})
 	if err := restored.Apply(retracted, 3); err != nil {
 		t.Fatalf("Apply retracted: %v", err)
 	}
@@ -100,11 +100,11 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 
 func TestRoomTimelineProjectionEchoInheritsCanonicalPinState(t *testing.T) {
 	projection := NewRoomTimelineProjection()
-	original := newEvent("author", &corev1.Event{Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "ROOT"}}})
+	original := newEvent("author", &evtv1.Event{Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", InThread: "ROOT"}}})
 	original.Id = "M1"
-	echo := newEvent("author", &corev1.Event{Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EchoOfEventId: "M1", EchoFromThreadRootEventId: "ROOT"}}})
+	echo := newEvent("author", &evtv1.Event{Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", EchoOfEventId: "M1", EchoFromThreadRootEventId: "ROOT"}}})
 	echo.Id = "E1"
-	pinned := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}}})
+	pinned := newEvent("manager", &evtv1.Event{Event: &evtv1.Event_MessagePinned{MessagePinned: &evtv1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}}})
 	if err := projection.Apply(original, 1); err != nil {
 		t.Fatalf("Apply original: %v", err)
 	}

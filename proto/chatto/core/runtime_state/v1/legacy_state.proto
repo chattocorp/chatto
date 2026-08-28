@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+import "chatto/core/evt/v1/models.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// VerifiedEmail is the retained protobuf contract for legacy verified-email
+// KV records.
+message VerifiedEmail {
+  string email = 1;
+  google.protobuf.Timestamp verified_at = 2;
+}
+
+// ThreadMetadata is the retained protobuf contract for legacy thread KV
+// records.
+message ThreadMetadata {
+  string root_event_id = 1;
+  int32 reply_count = 2;
+  google.protobuf.Timestamp last_reply_at = 3;
+  repeated string participant_ids = 4;
+}
+
+// RoomLayout is the retained protobuf contract for the legacy room-layout KV
+// record.
+message RoomLayout {
+  repeated chatto.core.evt.v1.RoomGroup legacy_sections = 1 [deprecated = true];
+  repeated string legacy_unsorted_room_ids = 2 [deprecated = true];
+  repeated string group_ids = 3;
+}
+
+// VideoProcessingState is the retained protobuf contract for legacy
+// SERVER_RUNTIME video records.
+message VideoProcessingState {
+  VideoStatus status = 1;
+  string thumbnail_attachment_id = 2;
+  int64 duration_ms = 3;
+  int32 width = 4;
+  int32 height = 5;
+  string error_message = 6;
+  repeated VideoVariant variants = 7;
+  chatto.core.evt.v1.Attachment thumbnail_attachment = 8;
+}
+
+enum VideoStatus {
+  // buf:lint:ignore ENUM_ZERO_VALUE_SUFFIX
+  VIDEO_STATUS_PENDING = 0;
+  VIDEO_STATUS_PROCESSING = 1;
+  VIDEO_STATUS_COMPLETED = 2;
+  VIDEO_STATUS_FAILED = 3;
+}
+
+message VideoVariant {
+  string attachment_id = 1;
+  string quality = 2;
+  int32 width = 3;
+  int32 height = 4;
+  int64 size = 5;
+  chatto.core.evt.v1.Attachment attachment = 6;
+}

@@ -68,8 +68,8 @@ wire namespace; until Chatto explicitly graduates the API, they are not a
 long-term stability promise. Intentional breaking changes are allowed when
 they materially improve the API, but must carry an explicit compatibility
 plan, generated-client updates, public documentation updates, and release-note
-guidance. Persisted `chatto.core.v1` messages remain subject to the stronger
-non-breaking storage contract regardless of this public API posture.
+guidance. Persisted internal messages under `chatto.core` remain subject to the
+stronger non-breaking storage contract regardless of this public API posture.
 
 `ServerDiscoveryService.GetServer` reports the server software version. The
 bundled web client maintains explicit minimum server versions for features that
@@ -133,8 +133,9 @@ the `api-breaking-change` label and states the compatibility plan. That label
 only suppresses public API breaking checks for `chatto/auth/v1`,
 `chatto/api/v1`, `chatto/admin/v1`, `chatto/discovery/v1`, and
 `chatto/realtime/v1`, plus the explicitly transient
-`chatto/core/v1/live_events.proto` wire envelope. Storage and other internal
-protobuf checks, including persisted `chatto/core/v1` contracts, still run.
+`chatto/core/live/v1/live_events.proto` wire envelope. Storage and other
+internal protobuf checks, including the persisted packages under
+`chatto/core`, still run.
 The local root-equivalent `chatto.operator.v1`
 surface is reviewed separately and is not part of the public network API
 posture.

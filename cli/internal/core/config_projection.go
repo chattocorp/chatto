@@ -2,7 +2,7 @@ package core
 
 import (
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -24,16 +24,16 @@ type serverConfigState struct {
 	welcomeMessage   string
 	motd             string
 	blockedUsernames *string
-	logo             *corev1.AssetRecord
-	banner           *corev1.AssetRecord
+	logo             *evtv1.AssetRecord
+	banner           *evtv1.AssetRecord
 }
 
 type userConfigState struct {
 	timezone              *string
-	timeFormat            *corev1.TimeFormat
-	serverModes           *corev1.NotificationDeliveryModes
-	roomGroupModesByGroup map[string]*corev1.NotificationDeliveryModes
-	roomModesByRoom       map[string]*corev1.NotificationDeliveryModes
+	timeFormat            *evtv1.TimeFormat
+	serverModes           *evtv1.NotificationDeliveryModes
+	roomGroupModesByGroup map[string]*evtv1.NotificationDeliveryModes
+	roomModesByRoom       map[string]*evtv1.NotificationDeliveryModes
 }
 
 func NewConfigProjection() *ConfigProjection {
@@ -48,7 +48,7 @@ func (p *ConfigProjection) Subjects() []string {
 	}
 }
 
-func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -56,38 +56,38 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 	defer p.Unlock()
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_ServerNameChanged:
+	case *evtv1.Event_ServerNameChanged:
 		p.server.serverName = e.ServerNameChanged.GetName()
-	case *corev1.Event_ServerDescriptionChanged:
+	case *evtv1.Event_ServerDescriptionChanged:
 		p.server.description = e.ServerDescriptionChanged.GetDescription()
-	case *corev1.Event_ServerWelcomeMessageChanged:
+	case *evtv1.Event_ServerWelcomeMessageChanged:
 		p.server.welcomeMessage = e.ServerWelcomeMessageChanged.GetWelcomeMessage()
-	case *corev1.Event_ServerMotdChanged:
+	case *evtv1.Event_ServerMotdChanged:
 		p.server.motd = e.ServerMotdChanged.GetMotd()
-	case *corev1.Event_ServerBlockedUsernamesChanged:
+	case *evtv1.Event_ServerBlockedUsernamesChanged:
 		blocked := e.ServerBlockedUsernamesChanged.GetBlockedUsernames()
 		p.server.blockedUsernames = &blocked
-	case *corev1.Event_ServerLogoSet:
+	case *evtv1.Event_ServerLogoSet:
 		p.server.logo = cloneAssetRecord(e.ServerLogoSet.GetAsset())
-	case *corev1.Event_ServerLogoCleared:
+	case *evtv1.Event_ServerLogoCleared:
 		p.server.logo = nil
-	case *corev1.Event_ServerBannerSet:
+	case *evtv1.Event_ServerBannerSet:
 		p.server.banner = cloneAssetRecord(e.ServerBannerSet.GetAsset())
-	case *corev1.Event_ServerBannerCleared:
+	case *evtv1.Event_ServerBannerCleared:
 		p.server.banner = nil
-	case *corev1.Event_UserTimezoneChanged:
+	case *evtv1.Event_UserTimezoneChanged:
 		u := p.ensureUserLocked(e.UserTimezoneChanged.GetUserId())
 		tz := e.UserTimezoneChanged.GetTimezone()
 		u.timezone = &tz
-	case *corev1.Event_UserTimezoneCleared:
+	case *evtv1.Event_UserTimezoneCleared:
 		p.ensureUserLocked(e.UserTimezoneCleared.GetUserId()).timezone = nil
-	case *corev1.Event_UserTimeFormatChanged:
+	case *evtv1.Event_UserTimeFormatChanged:
 		u := p.ensureUserLocked(e.UserTimeFormatChanged.GetUserId())
 		tf := e.UserTimeFormatChanged.GetTimeFormat()
 		u.timeFormat = &tf
-	case *corev1.Event_UserTimeFormatCleared:
+	case *evtv1.Event_UserTimeFormatCleared:
 		p.ensureUserLocked(e.UserTimeFormatCleared.GetUserId()).timeFormat = nil
-	case *corev1.Event_UserNotificationPolicyChanged:
+	case *evtv1.Event_UserNotificationPolicyChanged:
 		policy := e.UserNotificationPolicyChanged
 		u := p.ensureUserLocked(policy.GetUserId())
 		modes := cloneNotificationDeliveryModes(policy.GetOverrides())
@@ -96,7 +96,7 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 			break
 		}
 		if u.roomModesByRoom == nil {
-			u.roomModesByRoom = make(map[string]*corev1.NotificationDeliveryModes)
+			u.roomModesByRoom = make(map[string]*evtv1.NotificationDeliveryModes)
 		}
 		roomID := policy.GetRoomId()
 		if notificationDeliveryModesEmpty(modes) {
@@ -104,11 +104,11 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		} else {
 			u.roomModesByRoom[roomID] = modes
 		}
-	case *corev1.Event_UserRoomGroupNotificationPolicyChanged:
+	case *evtv1.Event_UserRoomGroupNotificationPolicyChanged:
 		policy := e.UserRoomGroupNotificationPolicyChanged
 		u := p.ensureUserLocked(policy.GetUserId())
 		if u.roomGroupModesByGroup == nil {
-			u.roomGroupModesByGroup = make(map[string]*corev1.NotificationDeliveryModes)
+			u.roomGroupModesByGroup = make(map[string]*evtv1.NotificationDeliveryModes)
 		}
 		modes := cloneNotificationDeliveryModes(policy.GetOverrides())
 		groupID := policy.GetRoomGroupId()
@@ -117,9 +117,9 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		} else {
 			u.roomGroupModesByGroup[groupID] = modes
 		}
-	case *corev1.Event_UserServerPreferencesChanged:
+	case *evtv1.Event_UserServerPreferencesChanged:
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
-	case *corev1.Event_UserAccountDeleted:
+	case *evtv1.Event_UserAccountDeleted:
 		delete(p.users, e.UserAccountDeleted.GetUserId())
 	}
 	return nil
@@ -137,7 +137,7 @@ func (p *ConfigProjection) ensureUserLocked(userID string) *userConfigState {
 	return u
 }
 
-func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *corev1.UserServerPreferencesChangedEvent) {
+func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *evtv1.UserServerPreferencesChangedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}

@@ -17,7 +17,7 @@ import (
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // Pre-compiled regexes for login validation
@@ -823,7 +823,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		var user *corev1.User
+		var user *evtv1.User
 		if s.config.Auth.InvitationRequired() {
 			if tokenData.InvitationID == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})

@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/events"
 )
@@ -22,11 +22,11 @@ func TestOAuthClientAccessDeniedWatchersAreClientTargetedAndRaceFree(t *testing.
 		bravo = "https://bravo.example/oauth/client-metadata.json"
 	)
 	for index, clientID := range []string{alpha, bravo} {
-		if err := projection.Apply(newEvent("member", &corev1.Event{
-			Event: &corev1.Event_OauthClientAuthorizationRecorded{
-				OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{
+		if err := projection.Apply(newEvent("member", &evtv1.Event{
+			Event: &evtv1.Event_OauthClientAuthorizationRecorded{
+				OauthClientAuthorizationRecorded: &evtv1.OAuthClientAuthorizationRecordedEvent{
 					ClientId: clientID,
-					Source:   corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+					Source:   evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
 				},
 			},
 		}), uint64(index+1)); err != nil {
@@ -37,11 +37,11 @@ func TestOAuthClientAccessDeniedWatchersAreClientTargetedAndRaceFree(t *testing.
 	alphaBlocked, stopAlpha := projection.watchAccessDenied(alpha)
 	defer stopAlpha()
 	bravoBlocked, stopBravo := projection.watchAccessDenied(bravo)
-	if err := projection.Apply(newEvent("admin", &corev1.Event{
-		Event: &corev1.Event_OauthClientPolicyChanged{
-			OauthClientPolicyChanged: &corev1.OAuthClientPolicyChangedEvent{
+	if err := projection.Apply(newEvent("admin", &evtv1.Event{
+		Event: &evtv1.Event_OauthClientPolicyChanged{
+			OauthClientPolicyChanged: &evtv1.OAuthClientPolicyChangedEvent{
 				ClientId: alpha,
-				Policy:   corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED,
+				Policy:   evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED,
 			},
 		},
 	}), 3); err != nil {
@@ -93,14 +93,14 @@ func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 		t.Fatalf("initial ListOAuthClients = %+v, %v", clients, err)
 	}
 
-	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatalf("RecordOAuthClientAuthorization: %v", err)
 	}
 	firstAuthorization, err := c.GetOAuthClient(ctx, admin, clientID)
 	if err != nil {
 		t.Fatalf("GetOAuthClient after first authorization: %v", err)
 	}
-	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatalf("repeat RecordOAuthClientAuthorization: %v", err)
 	}
 	repeatAuthorization, err := c.GetOAuthClient(ctx, admin, clientID)
@@ -110,14 +110,14 @@ func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 	if !repeatAuthorization.LastAuthorizationAt.After(firstAuthorization.LastAuthorizationAt) {
 		t.Fatalf("repeat authorization timestamp = %v, want after %v", repeatAuthorization.LastAuthorizationAt, firstAuthorization.LastAuthorizationAt)
 	}
-	if err := c.RecordOAuthClientAuthorization(ctx, admin, clientID, "Remote Chatto", "https://remote.example", "https://other.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := c.RecordOAuthClientAuthorization(ctx, admin, clientID, "Remote Chatto", "https://remote.example", "https://other.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatalf("second-user RecordOAuthClientAuthorization: %v", err)
 	}
 	state, err := c.GetOAuthClient(ctx, admin, clientID)
 	if err != nil {
 		t.Fatalf("GetOAuthClient: %v", err)
 	}
-	if state.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT || state.Source != corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD || state.AuthorizedUserCount != 2 || len(state.RedirectOrigins) != 2 || state.FirstAuthorizationAt.IsZero() || state.LastAuthorizationAt.IsZero() {
+	if state.Policy != evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT || state.Source != evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD || state.AuthorizedUserCount != 2 || len(state.RedirectOrigins) != 2 || state.FirstAuthorizationAt.IsZero() || state.LastAuthorizationAt.IsZero() {
 		t.Fatalf("recorded OAuth client = %+v", state)
 	}
 
@@ -126,11 +126,11 @@ func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateOAuthAccessTokenForClient: %v", err)
 	}
-	blocked, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED)
+	blocked, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED)
 	if err != nil {
 		t.Fatalf("UpdateOAuthClientPolicy blocked: %v", err)
 	}
-	if blocked.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
+	if blocked.Policy != evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
 		t.Fatalf("blocked policy = %v", blocked.Policy)
 	}
 	if _, err := c.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
@@ -139,12 +139,12 @@ func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 	if _, err := c.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation); !errors.Is(err, ErrOAuthClientBlocked) {
 		t.Fatalf("CreateOAuthAccessTokenForClient after block = %v, want blocked", err)
 	}
-	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); !errors.Is(err, ErrOAuthClientBlocked) {
+	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); !errors.Is(err, ErrOAuthClientBlocked) {
 		t.Fatalf("RecordOAuthClientAuthorization after block = %v, want blocked", err)
 	}
 
-	trusted, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED)
-	if err != nil || trusted.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED {
+	trusted, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED)
+	if err != nil || trusted.Policy != evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED {
 		t.Fatalf("UpdateOAuthClientPolicy trusted = %+v, %v", trusted, err)
 	}
 	consented, err := c.HasOAuthClientConsent(ctx, admin, clientID, "https://remote.example")
@@ -168,7 +168,7 @@ func TestOAuthClientAuthorizationCodeFailureDoesNotRecordClient(t *testing.T) {
 		ClientName:     "Code Failure Client",
 		ClientOrigin:   "https://code-failure.example",
 		RedirectOrigin: "https://code-failure.example",
-		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+		Source:         evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
 	}
 
 	publisher := c.EventPublisher
@@ -205,7 +205,7 @@ func TestOAuthClientAuthorizationRecordFailureDiscardsCode(t *testing.T) {
 		ClientName:     "Record Failure Client",
 		ClientOrigin:   "https://record-failure.example",
 		RedirectOrigin: "https://record-failure.example",
-		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED,
+		Source:         evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED,
 	}
 
 	if code, err := c.CreateOAuthClientAuthorizationCode(ctx, request, "https://record-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id)); !errors.Is(err, ErrInvalidArgument) || code != "" {
@@ -238,7 +238,7 @@ func TestOAuthClientAuthorizationPostCommitWaitFailureKeepsCode(t *testing.T) {
 		ClientName:     "Wait Failure Client",
 		ClientOrigin:   "https://wait-failure.example",
 		RedirectOrigin: "https://wait-failure.example",
-		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+		Source:         evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
 	}
 	waitErr := errors.New("forced post-commit projection wait failure")
 
@@ -265,10 +265,10 @@ func TestOAuthClientPolicyRejectsUnknownClientAndInvalidPolicy(t *testing.T) {
 	ctx := testContext(t)
 	admin := invitationAdmin(t, c)
 	clientID := "https://missing.example/oauth/client-metadata.json"
-	if _, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); !errors.Is(err, ErrNotFound) {
+	if _, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("unknown client policy error = %v, want not found", err)
 	}
-	if _, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED); !errors.Is(err, ErrInvalidArgument) {
+	if _, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("invalid policy error = %v, want invalid argument", err)
 	}
 }
@@ -303,7 +303,7 @@ func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *t
 		t.Fatalf("create member: %v", err)
 	}
 	const clientID = "https://replica-client.example/oauth/client-metadata.json"
-	if err := first.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Replica Client", "https://replica-client.example", "https://replica-client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := first.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Replica Client", "https://replica-client.example", "https://replica-client.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatalf("record OAuth client authorization: %v", err)
 	}
 	generation := mustCurrentAuthGeneration(t, first, member.Id)
@@ -326,10 +326,10 @@ func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *t
 	if err != nil {
 		t.Fatalf("read OAuth client aggregate sequence: %v", err)
 	}
-	event := newEvent(admin, &corev1.Event{Event: &corev1.Event_OauthClientPolicyChanged{
-		OauthClientPolicyChanged: &corev1.OAuthClientPolicyChangedEvent{
+	event := newEvent(admin, &evtv1.Event{Event: &evtv1.Event_OauthClientPolicyChanged{
+		OauthClientPolicyChanged: &evtv1.OAuthClientPolicyChangedEvent{
 			ClientId: clientID,
-			Policy:   corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED,
+			Policy:   evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED,
 		},
 	}})
 	if _, err := first.EventPublisher.AppendAtFilter(ctx, aggregate.SubjectFor(event), event, aggregate.AllEventsFilter(), sequence); err != nil {
@@ -351,7 +351,7 @@ func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *t
 	if err != nil {
 		t.Fatalf("read blocked client from second replica: %v", err)
 	}
-	if state.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
+	if state.Policy != evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
 		t.Fatalf("second replica policy = %v, want blocked", state.Policy)
 	}
 	if _, err := first.storage.runtimeStateKV.Get(ctx, first.authTokenKey(token)); !errors.Is(err, jetstream.ErrKeyNotFound) {

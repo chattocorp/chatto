@@ -29,13 +29,14 @@ For public API packages:
 
 ## Compatibility
 
-- Put new durable `Event` payloads in the applicable domain `*_events.proto`
-  file. Put new payloads that are used only by `LiveEvent` in
-  `chatto/core/v1/live_events.proto`.
-- Protobuf file placement affects generated source code. Never move a persisted
-  symbol only to reorganize it. A transient symbol that is in the wrong file
-  can move as an approved source-breaking change. Do not keep a dead alias only
-  for generated-source compatibility, and do not create a general
+- Follow [`chatto/core/AGENTS.md`](chatto/core/AGENTS.md) for internal package
+  ownership and storage compatibility. Put new durable `Event` payloads in the
+  applicable `chatto/core/evt/v1/*_events.proto` file. Put payloads that are used
+  only by `LiveEvent` in `chatto/core/live/v1/live_events.proto`.
+- Protobuf file placement affects generated source and descriptor names. Do not
+  move a stored symbol only to reorganize it. A transient symbol that is in the
+  wrong package can move as an approved source-breaking change. Do not keep a
+  dead alias only for generated-source compatibility. Do not create a general
   `deprecated.proto` file.
 - The public auth, discovery, integration, admin, and realtime `v1` packages
   are experimental while Chatto is pre-1.0. Prefer compatibility. A breaking
@@ -51,7 +52,7 @@ For public API packages:
   persisted messages. Reserving the old tag and name preserves wire safety but
   does not satisfy Chatto's source-compatibility or storage-contract policy.
 - Projection-owned payload messages in
-  `chatto/core/v1/projection_snapshots.proto` are disposable,
+  `chatto/core/projection/v1/projection_snapshots.proto` are disposable,
   contract-scoped caches. Their fields may be removed, renumbered, or retyped
   because the reachable-schema fingerprint automatically selects a new
   contract namespace. The file is intentionally exempt from the general
@@ -60,9 +61,10 @@ For public API packages:
   without a protobuf schema change.
 - Renames are wire-safe but code-breaking; update generated consumers in the
   same change.
-- Persisted protobufs in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and object
-  metadata need additive evolution plus repair/migration code when existing data
-  changes shape.
+- Persisted protobufs in `EVT`, `NOTIFICATIONS`, `RUNTIME_STATE`,
+  `ENCRYPTION_KEYS`, and object metadata need additive evolution plus
+  repair/migration code when existing data changes shape. Volatile protobuf
+  values in `MEMORY_CACHE` must remain readable across a rolling upgrade.
 - Transient live-event protos are less stable, but `chatto/realtime/v1` is still
   a public wire protocol and must consider mixed-version clients.
 - For bundled-client version skew, update the frontend's explicit

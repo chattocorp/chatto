@@ -2,7 +2,7 @@
 // event-sourcing mechanics in pkg/events.
 //
 // It owns the application-specific parts of that contract:
-//   - the corev1.Event protobuf envelope and codec;
+//   - the evtv1.Event protobuf envelope and codec;
 //   - stable aggregate subjects and event tokens;
 //   - the EVT stream incarnation metadata; and
 //   - typed publishing and projection construction.
@@ -23,7 +23,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -44,7 +44,7 @@ const (
 // batch, mutation, and paged-read mapping plus untyped log reads; this type
 // adds only Chatto's envelope codec and EVT-specific convenience reads.
 type Publisher struct {
-	events.TypedEventLog[*corev1.Event]
+	events.TypedEventLog[*evtv1.Event]
 }
 
 // NewPublisher constructs a Chatto event publisher bound to a stream.
@@ -57,17 +57,17 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger events
 
 // BatchEntry is one Chatto event in an atomic publish batch. At least one entry
 // must carry a per-subject, wildcard-filter, or whole-stream OCC guard.
-type BatchEntry = events.TypedBatchEntry[*corev1.Event]
+type BatchEntry = events.TypedBatchEntry[*evtv1.Event]
 
 // MutationEntry is one typed Chatto event selected by a mutation decision.
 // The shared event framework applies OCC from the chosen boundary.
-type MutationEntry = events.TypedMutationEntry[*corev1.Event]
+type MutationEntry = events.TypedMutationEntry[*evtv1.Event]
 
 // SubjectEvents returns decoded events on a subject in stream order.
 func (p *Publisher) SubjectEvents(
 	ctx context.Context,
 	subject string,
-) ([]*corev1.Event, uint64, error) {
+) ([]*evtv1.Event, uint64, error) {
 	return p.SubjectEventsAfter(ctx, subject, 0)
 }
 
@@ -76,12 +76,12 @@ func (p *Publisher) SubjectEventsAfter(
 	ctx context.Context,
 	subject string,
 	afterSeq uint64,
-) ([]*corev1.Event, uint64, error) {
+) ([]*evtv1.Event, uint64, error) {
 	subjectEvents, lastSeq, err := p.SubjectEventsWithSubjectsAfter(ctx, subject, afterSeq)
 	if err != nil {
 		return nil, lastSeq, err
 	}
-	decoded := make([]*corev1.Event, 0, len(subjectEvents))
+	decoded := make([]*evtv1.Event, 0, len(subjectEvents))
 	for _, subjectEvent := range subjectEvents {
 		decoded = append(decoded, subjectEvent.Event)
 	}
@@ -93,7 +93,7 @@ func (p *Publisher) SubjectEventsAfter(
 type SubjectEvent struct {
 	Subject  string
 	Sequence uint64
-	Event    *corev1.Event
+	Event    *evtv1.Event
 }
 
 // SubjectEventsWithSubjectsAfter decodes opaque records while preserving their
@@ -130,7 +130,7 @@ func (p *Publisher) SubjectEventIDs(
 	return ids, lastSeq, nil
 }
 
-func encodeEvent(event *corev1.Event) (events.EncodedRecord, error) {
+func encodeEvent(event *evtv1.Event) (events.EncodedRecord, error) {
 	if err := validateEvent(event); err != nil {
 		return events.EncodedRecord{}, err
 	}
@@ -141,15 +141,15 @@ func encodeEvent(event *corev1.Event) (events.EncodedRecord, error) {
 	return events.EncodedRecord{ID: event.GetId(), Data: data}, nil
 }
 
-func decodeEventData(data []byte) (*corev1.Event, error) {
-	var event corev1.Event
+func decodeEventData(data []byte) (*evtv1.Event, error) {
+	var event evtv1.Event
 	if err := proto.Unmarshal(data, &event); err != nil {
 		return nil, err
 	}
 	return &event, nil
 }
 
-func validateEvent(event *corev1.Event) error {
+func validateEvent(event *evtv1.Event) error {
 	if event == nil || event.Event == nil {
 		return fmt.Errorf("%w: event payload is nil or oneof field is unset", ErrInvalidEvent)
 	}

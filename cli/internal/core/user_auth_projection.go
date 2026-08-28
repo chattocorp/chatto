@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -80,7 +80,7 @@ func (p *UserAuthProjection) Subjects() []string {
 	}
 }
 
-func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *UserAuthProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -90,44 +90,44 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_UserAccountCreated:
+	case *evtv1.Event_UserAccountCreated:
 		if e.UserAccountCreated != nil {
 			u := p.ensureUserLocked(e.UserAccountCreated.GetUserId())
 			u.isBot = e.UserAccountCreated.GetIsBot()
 			u.botOwnerUserID = e.UserAccountCreated.GetBotOwnerUserId()
 		}
-	case *corev1.Event_BotApiKeyCreated:
+	case *evtv1.Event_BotApiKeyCreated:
 		p.applyBotAPIKeyCreated(e.BotApiKeyCreated, event.GetCreatedAt())
-	case *corev1.Event_BotApiKeyRotated:
+	case *evtv1.Event_BotApiKeyRotated:
 		p.applyBotAPIKeyRotated(e.BotApiKeyRotated, event.GetCreatedAt())
-	case *corev1.Event_BotOwnerReassigned:
+	case *evtv1.Event_BotOwnerReassigned:
 		if e.BotOwnerReassigned != nil {
 			u := p.ensureUserLocked(e.BotOwnerReassigned.GetUserId())
 			if u.isBot && !u.deleted {
 				u.botOwnerUserID = e.BotOwnerReassigned.GetOwnerUserId()
 			}
 		}
-	case *corev1.Event_BotIncomingWebhookCreated:
+	case *evtv1.Event_BotIncomingWebhookCreated:
 		p.applyBotIncomingWebhookCreated(e.BotIncomingWebhookCreated, event.GetCreatedAt())
-	case *corev1.Event_BotIncomingWebhookRotated:
+	case *evtv1.Event_BotIncomingWebhookRotated:
 		p.applyBotIncomingWebhookRotated(e.BotIncomingWebhookRotated)
-	case *corev1.Event_BotIncomingWebhookRevoked:
+	case *evtv1.Event_BotIncomingWebhookRevoked:
 		p.applyBotIncomingWebhookRevoked(e.BotIncomingWebhookRevoked)
-	case *corev1.Event_UserPasswordHashChanged:
+	case *evtv1.Event_UserPasswordHashChanged:
 		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
-	case *corev1.Event_UserOidcSubjectLinked:
+	case *evtv1.Event_UserOidcSubjectLinked:
 		p.applyOIDCSubjectLinked(e.UserOidcSubjectLinked)
-	case *corev1.Event_UserExternalIdentityLinked:
+	case *evtv1.Event_UserExternalIdentityLinked:
 		p.applyExternalIdentityLinked(e.UserExternalIdentityLinked)
-	case *corev1.Event_UserExternalIdentityUnlinked:
+	case *evtv1.Event_UserExternalIdentityUnlinked:
 		p.applyExternalIdentityUnlinked(e.UserExternalIdentityUnlinked, seq)
-	case *corev1.Event_OauthConsentGranted:
+	case *evtv1.Event_OauthConsentGranted:
 		p.applyOAuthConsentGranted(e.OauthConsentGranted)
-	case *corev1.Event_UserAccountDeleted:
+	case *evtv1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted, seq)
-	case *corev1.Event_UserKeyShreddingRequested:
+	case *evtv1.Event_UserKeyShreddingRequested:
 		p.applyKeyShredded(e.UserKeyShreddingRequested.GetUserId(), seq)
-	case *corev1.Event_UserKeyShredded:
+	case *evtv1.Event_UserKeyShredded:
 		p.applyKeyShredded(e.UserKeyShredded.GetUserId(), seq)
 	}
 	return nil
@@ -157,7 +157,7 @@ func (p *UserAuthProjection) ensureUserLocked(userID string) *projectedUserAuth 
 	return u
 }
 
-func (p *UserAuthProjection) applyPasswordHashChanged(e *corev1.UserPasswordHashChangedEvent, createdAt *timestamppb.Timestamp, seq uint64) {
+func (p *UserAuthProjection) applyPasswordHashChanged(e *evtv1.UserPasswordHashChangedEvent, createdAt *timestamppb.Timestamp, seq uint64) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
@@ -175,7 +175,7 @@ func (p *UserAuthProjection) applyPasswordHashChanged(e *corev1.UserPasswordHash
 	}
 }
 
-func (p *UserAuthProjection) applyOIDCSubjectLinked(e *corev1.UserOIDCSubjectLinkedEvent) {
+func (p *UserAuthProjection) applyOIDCSubjectLinked(e *evtv1.UserOIDCSubjectLinkedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
@@ -194,7 +194,7 @@ func (p *UserAuthProjection) applyOIDCSubjectLinked(e *corev1.UserOIDCSubjectLin
 	u.externalIdentities[hash] = ExternalIdentity{ProviderID: "oidc", ProviderType: "oidc", Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash}
 }
 
-func (p *UserAuthProjection) applyExternalIdentityLinked(e *corev1.UserExternalIdentityLinkedEvent) {
+func (p *UserAuthProjection) applyExternalIdentityLinked(e *evtv1.UserExternalIdentityLinkedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
@@ -223,7 +223,7 @@ func (p *UserAuthProjection) applyExternalIdentityLinked(e *corev1.UserExternalI
 	}
 }
 
-func (p *UserAuthProjection) applyExternalIdentityUnlinked(e *corev1.UserExternalIdentityUnlinkedEvent, seq uint64) {
+func (p *UserAuthProjection) applyExternalIdentityUnlinked(e *evtv1.UserExternalIdentityUnlinkedEvent, seq uint64) {
 	if e == nil || e.GetUserId() == "" || e.GetSubjectHash() == "" {
 		return
 	}
@@ -238,7 +238,7 @@ func (p *UserAuthProjection) applyExternalIdentityUnlinked(e *corev1.UserExterna
 	u.authGeneration = seq
 }
 
-func (p *UserAuthProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {
+func (p *UserAuthProjection) applyOAuthConsentGranted(e *evtv1.OAuthConsentGrantedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
@@ -253,7 +253,7 @@ func (p *UserAuthProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGran
 	u.oauthConsent[key] = struct{}{}
 }
 
-func (p *UserAuthProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, seq uint64) {
+func (p *UserAuthProjection) applyAccountDeleted(e *evtv1.UserAccountDeletedEvent, seq uint64) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
@@ -291,7 +291,7 @@ func (p *UserAuthProjection) applyKeyShredded(userID string, seq uint64) {
 	p.deleteIdentityIndexLocked(userID)
 }
 
-func (p *UserAuthProjection) applyBotAPIKeyCreated(e *corev1.BotApiKeyCreatedEvent, createdAt *timestamppb.Timestamp) {
+func (p *UserAuthProjection) applyBotAPIKeyCreated(e *evtv1.BotApiKeyCreatedEvent, createdAt *timestamppb.Timestamp) {
 	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
 		return
 	}
@@ -304,7 +304,7 @@ func (p *UserAuthProjection) applyBotAPIKeyCreated(e *corev1.BotApiKeyCreatedEve
 	u.botAPIKeyRotatedAt = time.Time{}
 }
 
-func (p *UserAuthProjection) applyBotAPIKeyRotated(e *corev1.BotApiKeyRotatedEvent, createdAt *timestamppb.Timestamp) {
+func (p *UserAuthProjection) applyBotAPIKeyRotated(e *evtv1.BotApiKeyRotatedEvent, createdAt *timestamppb.Timestamp) {
 	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
 		return
 	}
@@ -327,7 +327,7 @@ func (p *UserAuthProjection) applyBotAPIKeyRotated(e *corev1.BotApiKeyRotatedEve
 	u.botAPIKeyRotatedAt = timestampTime(createdAt)
 }
 
-func (p *UserAuthProjection) applyBotIncomingWebhookCreated(e *corev1.BotIncomingWebhookCreatedEvent, createdAt *timestamppb.Timestamp) {
+func (p *UserAuthProjection) applyBotIncomingWebhookCreated(e *evtv1.BotIncomingWebhookCreatedEvent, createdAt *timestamppb.Timestamp) {
 	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
 		return
 	}
@@ -346,7 +346,7 @@ func (p *UserAuthProjection) applyBotIncomingWebhookCreated(e *corev1.BotIncomin
 
 // applyBotIncomingWebhookRotated preserves replay of verifier replacements
 // written by an unreleased implementation. Current commands do not emit it.
-func (p *UserAuthProjection) applyBotIncomingWebhookRotated(e *corev1.BotIncomingWebhookRotatedEvent) {
+func (p *UserAuthProjection) applyBotIncomingWebhookRotated(e *evtv1.BotIncomingWebhookRotatedEvent) {
 	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
 		return
 	}
@@ -360,7 +360,7 @@ func (p *UserAuthProjection) applyBotIncomingWebhookRotated(e *corev1.BotIncomin
 	u.botIncomingWebhooks[webhookID] = webhook
 }
 
-func (p *UserAuthProjection) applyBotIncomingWebhookRevoked(e *corev1.BotIncomingWebhookRevokedEvent) {
+func (p *UserAuthProjection) applyBotIncomingWebhookRevoked(e *evtv1.BotIncomingWebhookRevokedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}

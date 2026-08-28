@@ -2,6 +2,7 @@ package kms
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"testing"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -39,7 +39,7 @@ func TestBuiltinWrapUnwrapAndShred(t *testing.T) {
 
 	entry, err := k.kv.Get(ctx, keyRef)
 	require.NoError(t, err)
-	var stored corev1.UserKeyEncryptionKey
+	var stored keymaterialv1.UserKeyEncryptionKey
 	require.NoError(t, proto.Unmarshal(entry.Value(), &stored))
 	require.Equal(t, AlgorithmBuiltinXChaCha20Poly1305V1, stored.GetAlgorithm())
 	require.Len(t, stored.GetKey(), encryption.KeySize)
@@ -90,7 +90,7 @@ func TestBuiltinReadsLegacyRawKEK(t *testing.T) {
 func TestBuiltinRejectsMalformedUserKeyEncryptionKey(t *testing.T) {
 	k, ctx := setupBuiltinKMS(t)
 	keyRef := "kek.malformed"
-	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+	data, err := proto.Marshal(&keymaterialv1.UserKeyEncryptionKey{
 		Key:       []byte("too-short"),
 		Algorithm: AlgorithmBuiltinXChaCha20Poly1305V1,
 	})
@@ -178,7 +178,7 @@ func TestBuiltinCallKeysAreNotKEKRefs(t *testing.T) {
 
 func TestBuiltinRejectsUserProtobufRecord(t *testing.T) {
 	k, ctx := setupBuiltinKMS(t)
-	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+	data, err := proto.Marshal(&keymaterialv1.UserKeyEncryptionKey{
 		Key:       []byte("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"),
 		Algorithm: AlgorithmBuiltinXChaCha20Poly1305V1,
 	})

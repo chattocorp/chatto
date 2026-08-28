@@ -10,7 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -258,7 +258,7 @@ func (c *ChattoCore) DeletePendingExternalIdentityFlow(ctx context.Context, toke
 	return nil
 }
 
-func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*corev1.User, error) {
+func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, displayName string, flow *PendingExternalIdentityFlow) (*evtv1.User, error) {
 	if flow == nil || flow.Kind != ExternalIdentityFlowKindCreate {
 		return nil, ErrExternalIdentityFlowWrongKind
 	}
@@ -344,8 +344,8 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 	if userID == "" || subjectHash == "" {
 		return ErrInvalidArgument
 	}
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityUnlinked{
-		UserExternalIdentityUnlinked: &corev1.UserExternalIdentityUnlinkedEvent{
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityUnlinked{
+		UserExternalIdentityUnlinked: &evtv1.UserExternalIdentityUnlinkedEvent{
 			UserId:      userID,
 			SubjectHash: subjectHash,
 		},

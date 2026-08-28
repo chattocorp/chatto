@@ -5,17 +5,17 @@ import (
 	"errors"
 	"fmt"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type AdminRoomManagementDetails struct {
-	Room                 *corev1.Room
+	Room                 *evtv1.Room
 	CanManageRoom        bool
 	CanManagePermissions bool
 }
 
 type AdminRoomGroupManagementDetails struct {
-	Group                *corev1.RoomGroup
+	Group                *evtv1.RoomGroup
 	CanManageGroup       bool
 	CanManagePermissions bool
 }
@@ -72,14 +72,14 @@ func (c *ChattoCore) GetAdminRoomGroup(ctx context.Context, actorID, groupID str
 	}, nil
 }
 
-func (c *ChattoCore) AdminCreateRoomGroup(ctx context.Context, actorID, name, description string) (*corev1.RoomGroup, error) {
+func (c *ChattoCore) AdminCreateRoomGroup(ctx context.Context, actorID, name, description string) (*evtv1.RoomGroup, error) {
 	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
 		return nil, err
 	}
 	return c.createRoomGroup(ctx, actorID, name, description, c.anyRoomAuthorityCheck(ctx, actorID))
 }
 
-func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*corev1.RoomGroup, error) {
+func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*evtv1.RoomGroup, error) {
 	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (c *ChattoCore) AdminReorderRoomGroups(ctx context.Context, actorID string,
 	return c.reorderRoomGroups(ctx, actorID, orderedGroupIDs, c.anyRoomAuthorityCheck(ctx, actorID))
 }
 
-func (c *ChattoCore) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) (*corev1.Room, error) {
+func (c *ChattoCore) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) (*evtv1.Room, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (c *ChattoCore) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, 
 	return nil, fmt.Errorf("move room source authorization retry exhausted: %w", ErrRoomMoveSourceChanged)
 }
 
-func (c *ChattoCore) AdminReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*corev1.SidebarGroupEntry) (*corev1.RoomGroup, error) {
+func (c *ChattoCore) AdminReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
 	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
@@ -143,14 +143,14 @@ func (c *ChattoCore) AdminReorderSidebarItemsInGroup(ctx context.Context, actorI
 	return c.GetRoomGroup(ctx, groupID)
 }
 
-func (c *ChattoCore) AdminCreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*corev1.SidebarLink, error) {
+func (c *ChattoCore) AdminCreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*evtv1.SidebarLink, error) {
 	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
 	return c.createSidebarLink(ctx, actorID, groupID, label, rawURL, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID string, label, rawURL *string) (*corev1.SidebarLink, error) {
+func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID string, label, rawURL *string) (*evtv1.SidebarLink, error) {
 	groupID, err := c.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err
@@ -191,7 +191,7 @@ func (c *ChattoCore) AdminDeleteSidebarLink(ctx context.Context, actorID, linkID
 	return c.deleteSidebarLinkInGroup(ctx, actorID, groupID, linkID, c.roomGroupAuthorityCheck(ctx, actorID, groupID))
 }
 
-func (c *ChattoCore) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) (*corev1.SidebarLink, error) {
+func (c *ChattoCore) AdminMoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) (*evtv1.SidebarLink, error) {
 	sourceGroupID, err := c.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err

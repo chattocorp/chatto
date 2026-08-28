@@ -8,35 +8,35 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestAPILinkPreviewMapsProviderNeutralSocialPost(t *testing.T) {
 	publishedAt := timestamppb.New(time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC))
-	preview := apiLinkPreview(&API{}, &corev1.LinkPreview{
+	preview := apiLinkPreview(&API{}, &evtv1.LinkPreview{
 		Url:         "https://bsky.app/profile/bsky.app/post/example",
 		Title:       "Bluesky (@bsky.app)",
 		Description: "A post rendered by Chatto.",
 		EmbedType:   "bluesky",
-		SocialPost: &corev1.SocialPostPreview{
+		SocialPost: &evtv1.SocialPostPreview{
 			Provider: "bluesky",
 			Url:      "https://bsky.app/profile/bsky.app/post/example",
-			Author: &corev1.SocialPostAuthor{
+			Author: &evtv1.SocialPostAuthor{
 				DisplayName: "Bluesky",
 				Handle:      "bsky.app",
 			},
 			Text:        "A post rendered by Chatto.",
 			PublishedAt: publishedAt,
-			ExternalLink: &corev1.SocialPostExternalLink{
+			ExternalLink: &evtv1.SocialPostExternalLink{
 				Url:         "https://example.com/story",
 				Title:       "Story",
 				Description: "Description",
 			},
 			ContentWarning: stringPtr("Spoilers"),
-			QuotedPost: &corev1.SocialPostPreview{
+			QuotedPost: &evtv1.SocialPostPreview{
 				Provider: "bluesky",
 				Url:      "https://bsky.app/profile/quoted.example/post/quoted",
-				Author:   &corev1.SocialPostAuthor{Handle: "quoted.example"},
+				Author:   &evtv1.SocialPostAuthor{Handle: "quoted.example"},
 				Text:     "Quoted words.",
 			},
 		},

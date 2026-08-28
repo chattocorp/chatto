@@ -14,7 +14,7 @@ import (
 	"unicode/utf8"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -35,7 +35,7 @@ const legacyBotAPIKeySecretBytes = 32
 // Bot is the management view of a bot account. Raw credentials are populated
 // only by the command that issues them and must never be logged or persisted.
 type Bot struct {
-	User             *corev1.User
+	User             *evtv1.User
 	OwnerUserID      string
 	APIKey           string
 	APIKeyCreatedAt  time.Time
@@ -153,7 +153,7 @@ func (c *ChattoCore) botCredentialVerifier(purpose, token string) []byte {
 
 // ValidateBotIncomingWebhookCredential authenticates an action-limited
 // incoming webhook credential against the latest verifier replayed from EVT.
-func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, token string) (*corev1.User, error) {
+func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, token string) (*evtv1.User, error) {
 	botID, webhookID, ok := parseBotIncomingWebhookCredential(token)
 	if !ok {
 		return nil, ErrAuthTokenNotFound
@@ -185,7 +185,7 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 // ValidateBotAPIKey authenticates a bot's non-expiring API key against the
 // latest verifier replayed from EVT. It returns ErrAuthTokenNotFound for every
 // malformed, stale, deleted, or otherwise unusable key.
-func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*corev1.User, error) {
+func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*evtv1.User, error) {
 	user, _, err := c.ValidateBotAPIKeyCredential(ctx, token)
 	return user, err
 }
@@ -193,7 +193,7 @@ func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*core
 // ValidateBotAPIKeyCredential authenticates a bot API key and returns the
 // non-secret verifier generation needed to revoke long-lived transports when
 // a later durable rotation reaches this replica.
-func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token string) (*corev1.User, []byte, error) {
+func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token string) (*evtv1.User, []byte, error) {
 	botID, ok := parseBotAPIKey(token)
 	if !ok {
 		return nil, nil, ErrAuthTokenNotFound
@@ -241,7 +241,7 @@ func (c *ChattoCore) requireHumanUser(ctx context.Context, userID string) error 
 	return nil
 }
 
-func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID string) (*corev1.User, error) {
+func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
 	if err := c.requireHumanUser(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -279,7 +279,7 @@ func (c *ChattoCore) requireBotReassignmentManager(ctx context.Context, actorID 
 	return nil
 }
 
-func (c *ChattoCore) botFromUser(user *corev1.User) (*Bot, error) {
+func (c *ChattoCore) botFromUser(user *evtv1.User) (*Bot, error) {
 	if user == nil || !user.GetIsBot() {
 		return nil, ErrNotFound
 	}
@@ -450,8 +450,8 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	if _, err := c.requireBotManager(ctx, actorID, botID); err != nil {
 		return nil, err
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotApiKeyRotated{
-		BotApiKeyRotated: &corev1.BotApiKeyRotatedEvent{UserId: botID, Verifier: c.botAPIKeyVerifier(key)},
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyRotated{
+		BotApiKeyRotated: &evtv1.BotApiKeyRotatedEvent{UserId: botID, Verifier: c.botAPIKeyVerifier(key)},
 	}})
 	subject := evtstream.UserAggregate(botID).SubjectFor(event)
 	seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
@@ -553,17 +553,17 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 		return &BotIncomingWebhookIssue{Bot: bot, WebhookID: webhookID}, err
 	}
 
-	var event *corev1.Event
+	var event *evtv1.Event
 	switch mutation {
 	case botIncomingWebhookCreate:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookCreated{
-			BotIncomingWebhookCreated: &corev1.BotIncomingWebhookCreatedEvent{
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotIncomingWebhookCreated{
+			BotIncomingWebhookCreated: &evtv1.BotIncomingWebhookCreatedEvent{
 				UserId: botID, WebhookId: webhookID, Name: name, Verifier: c.botIncomingWebhookVerifier(credential),
 			},
 		}})
 	case botIncomingWebhookRevoke:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotIncomingWebhookRevoked{
-			BotIncomingWebhookRevoked: &corev1.BotIncomingWebhookRevokedEvent{UserId: botID, WebhookId: webhookID},
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotIncomingWebhookRevoked{
+			BotIncomingWebhookRevoked: &evtv1.BotIncomingWebhookRevokedEvent{UserId: botID, WebhookId: webhookID},
 		}})
 	default:
 		return nil, fmt.Errorf("%w: unsupported incoming webhook mutation", ErrInvalidArgument)
@@ -665,8 +665,8 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 			return c.botFromUser(bot)
 		}
 
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotOwnerReassigned{
-			BotOwnerReassigned: &corev1.BotOwnerReassignedEvent{
+		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOwnerReassigned{
+			BotOwnerReassigned: &evtv1.BotOwnerReassignedEvent{
 				UserId:              botID,
 				PreviousOwnerUserId: bot.GetBotOwnerUserId(),
 				OwnerUserId:         ownerUserID,

@@ -13,7 +13,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -40,9 +40,9 @@ type MentionablesProjection struct {
 	userLogins map[string]string
 	// userLoginSources retains only the latest encrypted login event per user.
 	// Snapshot codecs use it instead of persisting the decrypted handle index.
-	userLoginSources map[string]*corev1.Event
+	userLoginSources map[string]*evtv1.Event
 	dekResolver      *unwrappedDEKResolver
-	dekEvents        map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
+	dekEvents        map[string]map[evtv1.UserDEKPurpose]map[int32]*evtv1.UserDEKGeneratedEvent
 }
 
 // NewMentionablesProjection creates the global mentionable-handle read model.
@@ -56,9 +56,9 @@ func newMentionablesProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver)
 	p := &MentionablesProjection{
 		owners:           make(map[string]map[mentionableOwner]struct{}),
 		userLogins:       make(map[string]string),
-		userLoginSources: make(map[string]*corev1.Event),
+		userLoginSources: make(map[string]*evtv1.Event),
 		dekResolver:      dekResolver,
-		dekEvents:        make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
+		dekEvents:        make(map[string]map[evtv1.UserDEKPurpose]map[int32]*evtv1.UserDEKGeneratedEvent),
 	}
 	p.addOwner(MentionHandleAll, mentionableOwner{kind: mentionableOwnerVirtual, id: MentionHandleAll})
 	p.addOwner(MentionHandleHere, mentionableOwner{kind: mentionableOwnerVirtual, id: MentionHandleHere})
@@ -69,7 +69,7 @@ func (p *MentionablesProjection) Subjects() []string {
 	return []string{evtstream.EventSubjectFilter()}
 }
 
-func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *MentionablesProjection) Apply(event *evtv1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -77,58 +77,58 @@ func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
 	defer p.Unlock()
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_UserDekGenerated:
+	case *evtv1.Event_UserDekGenerated:
 		p.applyDEKGenerated(e.UserDekGenerated)
-	case *corev1.Event_UserAccountCreated:
+	case *evtv1.Event_UserAccountCreated:
 		if err := p.applyUserAccountCreated(event.GetId(), e.UserAccountCreated); err != nil {
 			return err
 		}
 		if p.userLogins[e.UserAccountCreated.GetUserId()] != "" {
-			p.userLoginSources[e.UserAccountCreated.GetUserId()] = proto.Clone(event).(*corev1.Event)
+			p.userLoginSources[e.UserAccountCreated.GetUserId()] = proto.Clone(event).(*evtv1.Event)
 		}
-	case *corev1.Event_UserLoginChanged:
+	case *evtv1.Event_UserLoginChanged:
 		if err := p.applyUserLoginChanged(event.GetId(), e.UserLoginChanged); err != nil {
 			return err
 		}
 		if p.userLogins[e.UserLoginChanged.GetUserId()] != "" {
-			p.userLoginSources[e.UserLoginChanged.GetUserId()] = proto.Clone(event).(*corev1.Event)
+			p.userLoginSources[e.UserLoginChanged.GetUserId()] = proto.Clone(event).(*evtv1.Event)
 		}
-	case *corev1.Event_UserAccountDeleted:
+	case *evtv1.Event_UserAccountDeleted:
 		p.applyUserAccountDeleted(e.UserAccountDeleted)
 		delete(p.userLoginSources, e.UserAccountDeleted.GetUserId())
-	case *corev1.Event_UserKeyShreddingRequested:
+	case *evtv1.Event_UserKeyShreddingRequested:
 		p.applyUserKeyShredded(e.UserKeyShreddingRequested.GetUserId())
 		delete(p.userLoginSources, e.UserKeyShreddingRequested.GetUserId())
-	case *corev1.Event_UserKeyShredded:
+	case *evtv1.Event_UserKeyShredded:
 		p.applyUserKeyShredded(e.UserKeyShredded.GetUserId())
 		delete(p.userLoginSources, e.UserKeyShredded.GetUserId())
-	case *corev1.Event_RbacRoleCreated:
+	case *evtv1.Event_RbacRoleCreated:
 		p.addOwner(e.RbacRoleCreated.GetRoleName(), mentionableOwner{kind: mentionableOwnerRole, id: strings.ToLower(e.RbacRoleCreated.GetRoleName())})
-	case *corev1.Event_RbacRoleDeleted:
+	case *evtv1.Event_RbacRoleDeleted:
 		roleName := strings.ToLower(e.RbacRoleDeleted.GetRoleName())
 		p.removeOwner(roleName, mentionableOwner{kind: mentionableOwnerRole, id: roleName})
 	}
 	return nil
 }
 
-func (p *MentionablesProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
+func (p *MentionablesProjection) applyDEKGenerated(e *evtv1.UserDEKGeneratedEvent) {
 	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
 		return
 	}
 	byPurpose := p.dekEvents[e.GetUserId()]
 	if byPurpose == nil {
-		byPurpose = make(map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent)
+		byPurpose = make(map[evtv1.UserDEKPurpose]map[int32]*evtv1.UserDEKGeneratedEvent)
 		p.dekEvents[e.GetUserId()] = byPurpose
 	}
 	epochs := byPurpose[e.GetPurpose()]
 	if epochs == nil {
-		epochs = make(map[int32]*corev1.UserDEKGeneratedEvent)
+		epochs = make(map[int32]*evtv1.UserDEKGeneratedEvent)
 		byPurpose[e.GetPurpose()] = epochs
 	}
-	epochs[e.GetEpoch()] = proto.Clone(e).(*corev1.UserDEKGeneratedEvent)
+	epochs[e.GetEpoch()] = proto.Clone(e).(*evtv1.UserDEKGeneratedEvent)
 }
 
-func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent) error {
+func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *evtv1.UserAccountCreatedEvent) error {
 	if e == nil || e.GetUserId() == "" {
 		return nil
 	}
@@ -143,7 +143,7 @@ func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *core
 	return nil
 }
 
-func (p *MentionablesProjection) applyUserLoginChanged(eventID string, e *corev1.UserLoginChangedEvent) error {
+func (p *MentionablesProjection) applyUserLoginChanged(eventID string, e *evtv1.UserLoginChangedEvent) error {
 	if e == nil || e.GetUserId() == "" {
 		return nil
 	}
@@ -158,7 +158,7 @@ func (p *MentionablesProjection) applyUserLoginChanged(eventID string, e *corev1
 	return nil
 }
 
-func (p *MentionablesProjection) applyUserAccountDeleted(e *corev1.UserAccountDeletedEvent) {
+func (p *MentionablesProjection) applyUserAccountDeleted(e *evtv1.UserAccountDeletedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
@@ -223,7 +223,7 @@ func (p *MentionablesProjection) removeOwnerKey(key string, owner mentionableOwn
 	}
 }
 
-func (p *MentionablesProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *corev1.EncryptedUserString) (string, bool, error) {
+func (p *MentionablesProjection) userPIIString(eventID, userID, eventType, purpose string, encrypted *evtv1.EncryptedUserString) (string, bool, error) {
 	if encrypted == nil {
 		return "", false, nil
 	}
@@ -231,14 +231,14 @@ func (p *MentionablesProjection) userPIIString(eventID, userID, eventType, purpo
 	if byPurpose == nil {
 		return "", false, nil
 	}
-	event := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
+	event := byPurpose[evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
 	if event == nil {
-		event = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
+		event = byPurpose[evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
 	}
 	if event == nil || p.dekResolver == nil {
 		return "", false, nil
 	}
-	dek, err := p.dekResolver.Resolve(context.Background(), event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
+	dek, err := p.dekResolver.Resolve(context.Background(), event, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
 	if err != nil {
 		if errors.Is(err, encryption.ErrKeyNotFound) {
 			return "", false, nil

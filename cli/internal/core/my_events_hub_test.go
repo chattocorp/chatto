@@ -9,7 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
@@ -202,8 +202,8 @@ func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
 	}
 	hub.users[sub.userID] = state
 	hub.subscribers[sub.id] = sub
-	join := newEvent(sub.userID, &corev1.Event{
-		Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: room.Id}},
+	join := newEvent(sub.userID, &evtv1.Event{
+		Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: room.Id}},
 	})
 
 	hub.fanoutReadyRoomEvent(context.Background(), room.Id, join, 42, 1)
@@ -421,8 +421,8 @@ func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testin
 	}
 	hub.subscribers[projection.id] = projection
 
-	event := &corev1.Event{Id: "room-update-1", Event: &corev1.Event_RoomUpdated{
-		RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+	event := &evtv1.Event{Id: "room-update-1", Event: &evtv1.Event_RoomUpdated{
+		RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: room.Id},
 	}}
 	hub.fanoutReadyRoomEvent(ctx, room.Id, event, 2, 1)
 
@@ -466,8 +466,8 @@ func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
 		roomSnapshotSeq: 1,
 	}
 	hub.subscribers[projection.id] = projection
-	event := &corev1.Event{Id: "hidden-room-update", Event: &corev1.Event_RoomUpdated{
-		RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+	event := &evtv1.Event{Id: "hidden-room-update", Event: &evtv1.Event_RoomUpdated{
+		RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: room.Id},
 	}}
 
 	hub.fanoutReadyRoomEvent(ctx, room.Id, event, 2, 1)
@@ -519,8 +519,8 @@ func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *t
 	hub.users[viewer.Id] = state
 	hub.subscribers[first.id] = first
 	hub.subscribers[second.id] = second
-	event := &corev1.Event{Id: "universal-disabled", ActorId: actor.Id, Event: &corev1.Event_RoomUniversalChanged{
-		RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{RoomId: room.Id, Universal: false},
+	event := &evtv1.Event{Id: "universal-disabled", ActorId: actor.Id, Event: &evtv1.Event_RoomUniversalChanged{
+		RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: room.Id, Universal: false},
 	}}
 
 	hub.fanoutReadyRoomEvent(ctx, room.Id, event, 2, 1)
@@ -583,8 +583,8 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 	hub.users[viewer.Id] = state
 	hub.subscribers[first.id] = first
 	hub.subscribers[second.id] = second
-	leave := &corev1.Event{Id: "viewer-left", ActorId: viewer.Id, Event: &corev1.Event_UserLeftRoom{
-		UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: room.Id},
+	leave := &evtv1.Event{Id: "viewer-left", ActorId: viewer.Id, Event: &evtv1.Event_UserLeftRoom{
+		UserLeftRoom: &evtv1.UserLeftRoomEvent{RoomId: room.Id},
 	}}
 
 	hub.fanoutReadyRoomEvent(ctx, room.Id, leave, 2, 1)
@@ -599,8 +599,8 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 		t.Fatal("room remained visible after viewer leave")
 	}
 
-	updated := &corev1.Event{Id: "post-leave-update", ActorId: actor.Id, Event: &corev1.Event_RoomUpdated{
-		RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+	updated := &evtv1.Event{Id: "post-leave-update", ActorId: actor.Id, Event: &evtv1.Event_RoomUpdated{
+		RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: room.Id},
 	}}
 	hub.fanoutReadyRoomEvent(ctx, room.Id, updated, 3, 1)
 	select {
@@ -635,7 +635,7 @@ func TestPresenceHubOverflowMarksSubscriptionLagged(t *testing.T) {
 	}
 }
 
-func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID string) *corev1.Event {
+func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID string) *evtv1.Event {
 	t.Helper()
 	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()

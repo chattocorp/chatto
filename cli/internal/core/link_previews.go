@@ -12,12 +12,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/linkpreview"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // GetLinkPreview fetches link preview metadata for a URL.
 // Results are cached server-side. Returns nil if the URL cannot be previewed.
-func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.LinkPreview, error) {
+func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*evtv1.LinkPreview, error) {
 	// Check cache first
 	cached, err := c.linkPreviewCache.Get(ctx, url)
 	if errors.Is(err, linkpreview.ErrCachedFailure) {
@@ -66,7 +66,7 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 // appeared in durable message history. The cached server-issued AssetRecord
 // must bind one exact canonical flat NATS key; private declarations and metadata
 // always win. Only object metadata is updated—the object body is never opened.
-func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, preview *corev1.LinkPreview) error {
+func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, preview *evtv1.LinkPreview) error {
 	if preview == nil || c.assetModel == nil || c.assetModel.assets.Projection() == nil {
 		return nil
 	}
@@ -130,7 +130,7 @@ func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, prev
 // server-issued AssetRecord for its preview image. Clients only send
 // image_asset_id for compatibility; the backend rehydrates the storage pointer
 // from the server-side preview cache or by probing known backends.
-func (c *ChattoCore) HydrateLinkPreviewImageAsset(ctx context.Context, preview *corev1.LinkPreview) error {
+func (c *ChattoCore) HydrateLinkPreviewImageAsset(ctx context.Context, preview *evtv1.LinkPreview) error {
 	if preview == nil {
 		return nil
 	}
@@ -156,7 +156,7 @@ func (c *ChattoCore) HydrateLinkPreviewImageAsset(ctx context.Context, preview *
 
 	if cached, err := c.linkPreviewCache.Get(ctx, preview.GetUrl()); err == nil && cached != nil {
 		if cachedAsset := cached.GetImageAsset(); cachedAsset != nil && cachedAsset.GetId() == imageAssetID {
-			preview.ImageAsset = proto.Clone(cachedAsset).(*corev1.AssetRecord)
+			preview.ImageAsset = proto.Clone(cachedAsset).(*evtv1.AssetRecord)
 			return nil
 		}
 	} else if err != nil && !errors.Is(err, linkpreview.ErrCachedFailure) {
@@ -171,8 +171,8 @@ func (c *ChattoCore) HydrateLinkPreviewImageAsset(ctx context.Context, preview *
 	return nil
 }
 
-func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, data []byte, contentType string) (*corev1.AssetRecord, error) {
-	asset := &corev1.AssetRecord{
+func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, data []byte, contentType string) (*evtv1.AssetRecord, error) {
+	asset := &evtv1.AssetRecord{
 		Id:          assetID,
 		Filename:    "link-preview.webp",
 		ContentType: contentType,
@@ -183,7 +183,7 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 		if _, err := c.s3Client.PutObjectFromBytes(ctx, s3Key, data, contentType); err != nil {
 			return nil, fmt.Errorf("upload link preview image to S3: %w", err)
 		}
-		asset.Storage = &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
+		asset.Storage = &evtv1.AssetRecord_S3{S3: &evtv1.S3Asset{
 			Key:    assetID,
 			Bucket: proto.String(c.s3Client.Bucket()),
 		}}
@@ -203,7 +203,7 @@ func (c *ChattoCore) storeLinkPreviewImage(ctx context.Context, assetID string, 
 		return nil, fmt.Errorf("upload link preview image to SERVER_ASSETS: %w", err)
 	}
 	asset.Size = int64(info.Size)
-	asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}}
+	asset.Storage = &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: objectKey}}
 	c.logger.Debug("Stored link preview image in SERVER_ASSETS", "asset_id", assetID, "size", len(data))
 	return asset, nil
 }

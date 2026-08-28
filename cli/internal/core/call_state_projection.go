@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -13,14 +13,14 @@ type CallParticipant struct {
 	UserID   string
 	CallID   string
 	JoinedAt int64
-	Source   corev1.CallParticipantEventSource
+	Source   evtv1.CallParticipantEventSource
 }
 
 type CallSession struct {
 	CallID     string
 	E2EEKeyRef string
 	StartedAt  int64
-	Source     corev1.CallParticipantEventSource
+	Source     evtv1.CallParticipantEventSource
 }
 
 // CallStateProjection derives the active-call snapshot from durable room
@@ -51,7 +51,7 @@ func (p *CallStateProjection) Subjects() []string {
 	return []string{evtstream.RoomSubjectFilter()}
 }
 
-func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *CallStateProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -68,7 +68,7 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.roomSeq[roomID] = seq
 	}
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_VoiceCallStarted:
+	case *evtv1.Event_VoiceCallStarted:
 		startedAt := int64(0)
 		if ts := event.GetCreatedAt(); ts != nil {
 			startedAt = ts.AsTime().Unix()
@@ -82,7 +82,7 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		p.activeCalls[roomID] = session
 		delete(p.rooms, roomID)
-	case *corev1.Event_VoiceCallParticipantJoined:
+	case *evtv1.Event_VoiceCallParticipantJoined:
 		if event.GetActorId() == "" {
 			return nil
 		}
@@ -111,7 +111,7 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 			JoinedAt: joinedAt,
 			Source:   source,
 		}
-	case *corev1.Event_VoiceCallParticipantLeft:
+	case *evtv1.Event_VoiceCallParticipantLeft:
 		if event.GetActorId() == "" {
 			return nil
 		}
@@ -124,12 +124,12 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 				delete(p.rooms, roomID)
 			}
 		}
-	case *corev1.Event_VoiceCallEnded:
+	case *evtv1.Event_VoiceCallEnded:
 		if active := p.activeCalls[roomID]; e.VoiceCallEnded.GetCallId() == "" || active.CallID == "" || active.CallID == e.VoiceCallEnded.GetCallId() {
 			delete(p.rooms, roomID)
 			delete(p.activeCalls, roomID)
 		}
-	case *corev1.Event_UserLeftRoom:
+	case *evtv1.Event_UserLeftRoom:
 		if event.GetActorId() == "" {
 			return nil
 		}
@@ -142,26 +142,26 @@ func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {
 				}
 			}
 		}
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		delete(p.rooms, roomID)
 		delete(p.activeCalls, roomID)
 	}
 	return nil
 }
 
-func normalizeCallParticipantSource(source corev1.CallParticipantEventSource) corev1.CallParticipantEventSource {
-	if source == corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED {
-		return corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER
+func normalizeCallParticipantSource(source evtv1.CallParticipantEventSource) evtv1.CallParticipantEventSource {
+	if source == evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED {
+		return evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER
 	}
 	return source
 }
 
-func callParticipantSourcePriority(source corev1.CallParticipantEventSource) int {
+func callParticipantSourcePriority(source evtv1.CallParticipantEventSource) int {
 	switch source {
-	case corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT,
-		corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION:
+	case evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT,
+		evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION:
 		return 2
-	case corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER:
+	case evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER:
 		return 1
 	default:
 		return 0

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -43,7 +43,7 @@ func (s *ConfigModel) prepareSubject(ctx context.Context, subject string) (evtst
 	return agg, filter, expectedSeq, nil
 }
 
-func (s *ConfigModel) appendEventsAt(ctx context.Context, agg evtstream.Aggregate, filter string, expectedSeq uint64, evs []*corev1.Event) error {
+func (s *ConfigModel) appendEventsAt(ctx context.Context, agg evtstream.Aggregate, filter string, expectedSeq uint64, evs []*evtv1.Event) error {
 	if len(evs) == 0 {
 		return nil
 	}
@@ -76,7 +76,7 @@ func (s *ConfigModel) appendEventsAt(ctx context.Context, agg evtstream.Aggregat
 func (s *ConfigModel) updateSubject(
 	ctx context.Context,
 	subject string,
-	build func(agg evtstream.Aggregate, filter string, expectedSeq uint64) ([]*corev1.Event, error),
+	build func(agg evtstream.Aggregate, filter string, expectedSeq uint64) ([]*evtv1.Event, error),
 ) error {
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
 		agg, filter, expectedSeq, err := s.prepareSubject(ctx, subject)

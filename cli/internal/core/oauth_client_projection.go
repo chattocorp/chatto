@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -16,8 +16,8 @@ type OAuthClientState struct {
 	ClientID             string
 	ClientName           string
 	ClientOrigin         string
-	Source               corev1.OAuthClientSource
-	Policy               corev1.OAuthClientPolicy
+	Source               evtv1.OAuthClientSource
+	Policy               evtv1.OAuthClientPolicy
 	FirstAuthorizationAt time.Time
 	LastAuthorizationAt  time.Time
 	RedirectOrigins      []string
@@ -46,14 +46,14 @@ func (p *OAuthClientProjection) Subjects() []string {
 	return []string{evtstream.OAuthClientSubjectFilter()}
 }
 
-func (p *OAuthClientProjection) Apply(event *corev1.Event, sequence uint64) error {
+func (p *OAuthClientProjection) Apply(event *evtv1.Event, sequence uint64) error {
 	if event == nil {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_OauthClientAuthorizationRecorded:
+	case *evtv1.Event_OauthClientAuthorizationRecorded:
 		payload := e.OauthClientAuthorizationRecorded
 		clientID := payload.GetClientId()
 		if clientID == "" {
@@ -64,7 +64,7 @@ func (p *OAuthClientProjection) Apply(event *corev1.Event, sequence uint64) erro
 		if state == nil {
 			state = &OAuthClientState{
 				ClientID:              clientID,
-				Policy:                corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT,
+				Policy:                evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT,
 				FirstAuthorizationAt:  authorizedAt,
 				firstAuthorizationSeq: sequence,
 				authorizedUsers:       make(map[string]struct{}),
@@ -83,7 +83,7 @@ func (p *OAuthClientProjection) Apply(event *corev1.Event, sequence uint64) erro
 			state.authorizedUsers[actorID] = struct{}{}
 			state.AuthorizedUserCount = uint32(len(state.authorizedUsers))
 		}
-	case *corev1.Event_OauthClientPolicyChanged:
+	case *evtv1.Event_OauthClientPolicyChanged:
 		payload := e.OauthClientPolicyChanged
 		if state := p.clients[payload.GetClientId()]; state != nil {
 			state.Policy = payload.GetPolicy()

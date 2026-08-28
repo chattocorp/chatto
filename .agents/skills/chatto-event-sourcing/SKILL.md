@@ -24,7 +24,7 @@ Authoritative code anchors:
 - `pkg/events/encoded_event_log.go` - envelope-neutral OCC-only event-log mechanics.
 - `cli/internal/evtstream/publisher.go` - Chatto's typed EVT publishing adapter.
 - `cli/internal/evtstream/subjects.go` - aggregate types, event tokens, subject helpers, and wildcard filters.
-- `proto/chatto/core/v1/event.proto` and sibling `*_events.proto` files - durable event payloads.
+- `proto/chatto/core/evt/v1/event.proto` and sibling `*_events.proto` files - durable event payloads.
 - `cli/internal/core/core.go` - service/projection wiring and live/reconnect delivery.
 - `cli/internal/core/*_service.go` - domain services and write orchestration.
 - `cli/internal/core/*_projection.go` - in-memory read models.

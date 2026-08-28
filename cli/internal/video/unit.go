@@ -12,7 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/pkg/events"
 )
@@ -158,7 +158,7 @@ func processDelivery(
 	processor assetProcessor,
 	logger *log.Logger,
 ) error {
-	var event corev1.Event
+	var event evtv1.Event
 	if err := proto.Unmarshal(delivery.Data, &event); err != nil {
 		logger.Error("Terminating malformed asset-processing delivery", "error", err)
 		return events.TerminateDelivery("invalid Chatto event envelope", err)

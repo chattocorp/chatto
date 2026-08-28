@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_AuthGenerationRejectsStaleTokenIssuance(t *testing.T) {
@@ -56,8 +56,8 @@ func TestChattoCore_AuthGenerationRejectsDeletedUser(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 
-	deletedEvent := newEvent("system", &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
-		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: user.Id},
+	deletedEvent := newEvent("system", &evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{
+		UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: user.Id},
 	}})
 	if _, err := core.appendUserEvent(ctx, user.Id, deletedEvent, "", nil); err != nil {
 		t.Fatalf("append delete event: %v", err)

@@ -14,7 +14,7 @@ import (
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
@@ -28,7 +28,7 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 		t.Fatalf("AddVerifiedEmailDirect: %v", err)
 	}
 	tz := "Europe/Berlin"
-	tf := corev1.TimeFormat_TIME_FORMAT_24H
+	tf := evtv1.TimeFormat_TIME_FORMAT_24H
 	if _, err := env.core.UpdateUserSettings(env.ctx, env.viewer.Id, core.UserSettingsInput{
 		Timezone:   &tz,
 		TimeFormat: &tf,

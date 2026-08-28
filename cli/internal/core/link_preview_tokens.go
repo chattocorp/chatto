@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core/linkpreview"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -52,7 +52,7 @@ func (c *ChattoCore) CreateLinkPreviewToken(ctx context.Context, url string) (st
 
 // ResolveLinkPreviewToken resolves a composer token to the canonical cached
 // server-fetched preview. Client-provided metadata is intentionally not trusted.
-func (c *ChattoCore) ResolveLinkPreviewToken(ctx context.Context, token string) (*corev1.LinkPreview, error) {
+func (c *ChattoCore) ResolveLinkPreviewToken(ctx context.Context, token string) (*evtv1.LinkPreview, error) {
 	if token == "" {
 		return nil, nil
 	}
@@ -87,5 +87,5 @@ func (c *ChattoCore) ResolveLinkPreviewToken(ctx context.Context, token string) 
 		return nil, invalidArgument("link_preview_token is invalid or expired")
 	}
 
-	return proto.Clone(preview).(*corev1.LinkPreview), nil
+	return proto.Clone(preview).(*evtv1.LinkPreview), nil
 }

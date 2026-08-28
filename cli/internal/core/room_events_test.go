@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_GetRoomEvents(t *testing.T) {
@@ -138,7 +138,7 @@ func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
-	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *evtv1.Event) bool {
 		created := event.GetRoomCreated()
 		return created != nil && created.RoomId == room.Id
 	})
@@ -146,7 +146,7 @@ func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *
 	if _, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "renamed-lifecycle-room", "Updated description"); err != nil {
 		t.Fatalf("Failed to update room: %v", err)
 	}
-	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *evtv1.Event) bool {
 		updated := event.GetRoomUpdated()
 		return updated != nil && updated.RoomId == room.Id && updated.Name == "renamed-lifecycle-room"
 	})
@@ -154,7 +154,7 @@ func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *
 	if _, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
 		t.Fatalf("Failed to archive room: %v", err)
 	}
-	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *evtv1.Event) bool {
 		archived := event.GetRoomArchived()
 		return archived != nil && archived.RoomId == room.Id
 	})
@@ -162,7 +162,7 @@ func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *
 	if _, err := core.UnarchiveRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
 		t.Fatalf("Failed to unarchive room: %v", err)
 	}
-	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *evtv1.Event) bool {
 		unarchived := event.GetRoomUnarchived()
 		return unarchived != nil && unarchived.RoomId == room.Id
 	})
@@ -170,7 +170,7 @@ func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *
 	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
 		t.Fatalf("Failed to delete room: %v", err)
 	}
-	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *evtv1.Event) bool {
 		deleted := event.GetRoomDeleted()
 		return deleted != nil && deleted.RoomId == room.Id
 	})
@@ -272,7 +272,7 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	events := eventsResult.Events
 
 	// Find the MessagePosted event
-	var messageEvent *corev1.Event
+	var messageEvent *evtv1.Event
 	for _, event := range events {
 		if event.GetMessagePosted() != nil {
 			messageEvent = event.Event
@@ -330,7 +330,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		events := eventsResult.Events
 
 		// Count MessagePosted events
-		var messageEvents []*corev1.Event
+		var messageEvents []*evtv1.Event
 		for _, event := range events {
 			if event.GetMessagePosted() != nil {
 				messageEvents = append(messageEvents, event.Event)
@@ -383,7 +383,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		olderEvents := olderEventsResult.Events
 
 		// Count MessagePosted events in the older batch
-		var olderMessageEvents []*corev1.Event
+		var olderMessageEvents []*evtv1.Event
 		for _, event := range olderEvents {
 			if event.GetMessagePosted() != nil {
 				olderMessageEvents = append(olderMessageEvents, event.Event)
@@ -561,7 +561,7 @@ func assertLatestRoomEvent(
 	ctx context.Context,
 	kind RoomKind,
 	roomID string,
-	matches func(*corev1.Event) bool,
+	matches func(*evtv1.Event) bool,
 ) {
 	t.Helper()
 

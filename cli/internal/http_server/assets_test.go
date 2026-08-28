@@ -35,7 +35,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
 )
@@ -246,7 +246,7 @@ func markPublicServerAssetForTest(t *testing.T, env *assetTestEnv, assetID strin
 	}
 }
 
-func appendRoomTimelineAssetTestEvent(t *testing.T, env *assetTestEnv, roomID string, event *corev1.Event) {
+func appendRoomTimelineAssetTestEvent(t *testing.T, env *assetTestEnv, roomID string, event *evtv1.Event) {
 	t.Helper()
 	event.Id = core.NewEventID()
 	event.ActorId = core.SystemActorID
@@ -261,7 +261,7 @@ func appendRoomTimelineAssetTestEvent(t *testing.T, env *assetTestEnv, roomID st
 	}
 }
 
-func appendAssetProjectionTestEvent(t *testing.T, env *assetTestEnv, assetID string, event *corev1.Event) {
+func appendAssetProjectionTestEvent(t *testing.T, env *assetTestEnv, assetID string, event *evtv1.Event) {
 	t.Helper()
 	event.Id = core.NewEventID()
 	event.ActorId = core.SystemActorID
@@ -865,13 +865,13 @@ func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 		t.Fatal("Expected stable attachment URL")
 	}
 
-	appendAssetProjectionTestEvent(t, env, attachment.GetId(), &corev1.Event{
+	appendAssetProjectionTestEvent(t, env, attachment.GetId(), &evtv1.Event{
 		Id: "E-storage-less-" + attachment.GetId(),
-		Event: &corev1.Event_AssetCreated{
-			AssetCreated: &corev1.AssetCreatedEvent{
+		Event: &evtv1.Event_AssetCreated{
+			AssetCreated: &evtv1.AssetCreatedEvent{
 				OriginalBinaryAvailable: true,
 				RoomId:                  room.Id,
-				Asset: &corev1.AssetRecord{
+				Asset: &evtv1.AssetRecord{
 					Id:          attachment.GetId(),
 					Filename:    "s3-legacy-video.mp4",
 					ContentType: "video/mp4",
@@ -1228,19 +1228,19 @@ func TestAsset_LegacyFlatPublicAssetsRemainAvailable(t *testing.T) {
 	imageData := createAssetTestPNG(t, 120, 80)
 	store := env.core.ServerStore()
 
-	legacyRecord := func(assetID, filename string) *corev1.AssetRecord {
+	legacyRecord := func(assetID, filename string) *evtv1.AssetRecord {
 		if _, err := store.Put(env.ctx, jetstream.ObjectMeta{
 			Name:    assetID,
 			Headers: map[string][]string{"Content-Type": {"image/png"}},
 		}, bytes.NewReader(imageData)); err != nil {
 			t.Fatalf("store legacy public object %q: %v", assetID, err)
 		}
-		return &corev1.AssetRecord{
+		return &evtv1.AssetRecord{
 			Id:          assetID,
 			Filename:    filename,
 			ContentType: "image/png",
 			Size:        int64(len(imageData)),
-			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+			Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: assetID}},
 		}
 	}
 	assertOK := func(path string) {
@@ -1287,11 +1287,11 @@ func TestAsset_LegacyFlatPublicAssetsRemainAvailable(t *testing.T) {
 
 	previewID := core.NewAssetID()
 	legacyRecord(previewID, "link-preview.webp")
-	appendRoomTimelineAssetTestEvent(t, env, "Rlegacynamespace", &corev1.Event{
-		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
+	appendRoomTimelineAssetTestEvent(t, env, "Rlegacynamespace", &evtv1.Event{
+		Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{
 			RoomId:  "Rlegacynamespace",
 			EventId: "Elegacynamespacemessage",
-			Body: &corev1.MessageBody{LinkPreview: &corev1.LinkPreview{
+			Body: &evtv1.MessageBody{LinkPreview: &evtv1.LinkPreview{
 				ImageAssetId: &previewID,
 			}},
 		}},
@@ -1311,13 +1311,13 @@ func TestAsset_CacheOnlyLegacyLinkPreviewRemainsAvailable(t *testing.T) {
 	}, bytes.NewReader(imageData)); err != nil {
 		t.Fatalf("store cache-only legacy preview: %v", err)
 	}
-	if err := env.previews.Set(env.ctx, previewURL, &corev1.LinkPreview{
+	if err := env.previews.Set(env.ctx, previewURL, &evtv1.LinkPreview{
 		Url:          previewURL,
 		ImageAssetId: &assetID,
-		ImageAsset: &corev1.AssetRecord{
+		ImageAsset: &evtv1.AssetRecord{
 			Id:          assetID,
 			ContentType: "image/png",
-			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+			Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: assetID}},
 		},
 	}); err != nil {
 		t.Fatalf("cache legacy preview metadata: %v", err)
@@ -1431,8 +1431,8 @@ func TestAsset_PublicServerRouteRejectsPrivateAndUnknownNATSObjects(t *testing.T
 		t.Fatalf("UpdateMeta legacy fixture: %v", err)
 	}
 	assertStatus("/assets/server/"+assetID, http.StatusNotFound)
-	appendAssetProjectionTestEvent(t, env, assetID, &corev1.Event{
-		Event: &corev1.Event_AssetDeleted{AssetDeleted: &corev1.AssetDeletedEvent{
+	appendAssetProjectionTestEvent(t, env, assetID, &evtv1.Event{
+		Event: &evtv1.Event_AssetDeleted{AssetDeleted: &evtv1.AssetDeletedEvent{
 			AssetId: assetID,
 		}},
 	})
@@ -1548,13 +1548,13 @@ func TestAsset_PublicLinkPreviewMarkerServesWithoutAuthentication(t *testing.T) 
 	}, bytes.NewReader(imageData)); err != nil {
 		t.Fatalf("store historical link-preview image: %v", err)
 	}
-	appendRoomTimelineAssetTestEvent(t, env, "Rpreviewhistory", &corev1.Event{
-		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
+	appendRoomTimelineAssetTestEvent(t, env, "Rpreviewhistory", &evtv1.Event{
+		Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{
 			RoomId:  "Rpreviewhistory",
 			EventId: "Epreviewmessage",
-			Body: &corev1.MessageBody{LinkPreview: &corev1.LinkPreview{
+			Body: &evtv1.MessageBody{LinkPreview: &evtv1.LinkPreview{
 				ImageAssetId: &legacyID,
-				ImageAsset:   &corev1.AssetRecord{Id: legacyID},
+				ImageAsset:   &evtv1.AssetRecord{Id: legacyID},
 			}},
 		}},
 	})
@@ -1740,17 +1740,17 @@ func TestAsset_HLSGenerationIsAuthorizedAndBackendIndependent(t *testing.T) {
 			if err != nil {
 				t.Fatalf("UploadAttachment: %v", err)
 			}
-			segment, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment-bytes")))
+			segment, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment-bytes")))
 			if err != nil {
 				t.Fatalf("UploadDerivativeAttachment(segment): %v", err)
 			}
 			if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, room.Id, "E-hls", original.GetId()); err != nil {
 				t.Fatalf("RecordAssetProcessingStarted: %v", err)
 			}
-			hls := &corev1.AssetProcessedHLS{
-				Renditions: []*corev1.AssetHLSRendition{{
+			hls := &evtv1.AssetProcessedHLS{
+				Renditions: []*evtv1.AssetHLSRendition{{
 					Width: 640, Height: 360, Bandwidth: 500000,
-					Segments: []*corev1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 6000}},
+					Segments: []*evtv1.AssetHLSSegment{{AssetId: segment.GetId(), DurationMs: 6000}},
 				}},
 			}
 			if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, room.Id, "E-hls", original.GetId(), 6000, 640, 360, nil, nil, hls); err != nil {
@@ -1826,11 +1826,11 @@ func TestHLSDerivativeRequiresExpectedParentAndRole(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadAttachment(other): %v", err)
 	}
-	wrongParent, err := env.core.UploadDerivativeAttachment(env.ctx, otherOriginal.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "other-segment.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	wrongParent, err := env.core.UploadDerivativeAttachment(env.ctx, otherOriginal.GetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "other-segment.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment(wrong parent): %v", err)
 	}
-	wrongRole, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
+	wrongRole, err := env.core.UploadDerivativeAttachment(env.ctx, original.GetId(), evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("variant")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment(wrong role): %v", err)
 	}
@@ -1846,7 +1846,7 @@ func TestHLSDerivativeRequiresExpectedParentAndRole(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)
-			if _, ok := server.hlsDerivative(c, original.GetId(), tt.assetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT); ok {
+			if _, ok := server.hlsDerivative(c, original.GetId(), tt.assetID, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT); ok {
 				t.Fatal("hlsDerivative accepted an unrelated derivative")
 			}
 			if recorder.Code != http.StatusNotFound {
@@ -1869,9 +1869,9 @@ func firstHLSURI(t *testing.T, playlist []byte) string {
 }
 
 func TestRenderHLSPlaylistsFromManifest(t *testing.T) {
-	hls := &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{
+	hls := &evtv1.AssetProcessedHLS{Renditions: []*evtv1.AssetHLSRendition{{
 		Width: 640, Height: 360, Bandwidth: 500_000,
-		Segments: []*corev1.AssetHLSSegment{{AssetId: "A-one", DurationMs: 6000}, {AssetId: "A-two", DurationMs: 1500}},
+		Segments: []*evtv1.AssetHLSSegment{{AssetId: "A-one", DurationMs: 6000}, {AssetId: "A-two", DurationMs: 1500}},
 	}}}
 	master, err := renderHLSMasterPlaylist(hls, func(index int) string { return fmt.Sprintf("/rendition/%d", index) })
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func requireAuthenticatedActor(actorID string) error {
@@ -15,7 +15,7 @@ func requireAuthenticatedActor(actorID string) error {
 	return nil
 }
 
-func (c *ChattoCore) requireRoomMember(ctx context.Context, actorID, roomID string) (*corev1.Room, RoomKind, error) {
+func (c *ChattoCore) requireRoomMember(ctx context.Context, actorID, roomID string) (*evtv1.Room, RoomKind, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, KindChannel, err
 	}
@@ -42,7 +42,7 @@ func (c *ChattoCore) requireRoomMember(ctx context.Context, actorID, roomID stri
 // then requires at least one configured room message-read mode. A caller that
 // has only interaction-scoped access must still filter or authorize the target
 // thread or message.
-func (c *ChattoCore) requireRoomMessageReader(ctx context.Context, actorID, roomID string) (*corev1.Room, RoomKind, error) {
+func (c *ChattoCore) requireRoomMessageReader(ctx context.Context, actorID, roomID string) (*evtv1.Room, RoomKind, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, KindChannel, err
@@ -57,7 +57,7 @@ func (c *ChattoCore) requireRoomMessageReader(ctx context.Context, actorID, room
 	return room, kind, nil
 }
 
-func (c *ChattoCore) requireThreadMessageReader(ctx context.Context, actorID, roomID, threadRootEventID string) (*corev1.Room, RoomKind, error) {
+func (c *ChattoCore) requireThreadMessageReader(ctx context.Context, actorID, roomID, threadRootEventID string) (*evtv1.Room, RoomKind, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, KindChannel, err
@@ -72,7 +72,7 @@ func (c *ChattoCore) requireThreadMessageReader(ctx context.Context, actorID, ro
 	return room, kind, nil
 }
 
-func (c *ChattoCore) requireMessageReader(ctx context.Context, actorID, roomID, messageEventID string) (*corev1.Room, RoomKind, error) {
+func (c *ChattoCore) requireMessageReader(ctx context.Context, actorID, roomID, messageEventID string) (*evtv1.Room, RoomKind, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, KindChannel, err
@@ -87,7 +87,7 @@ func (c *ChattoCore) requireMessageReader(ctx context.Context, actorID, roomID, 
 	return room, kind, nil
 }
 
-func (c *ChattoCore) requireThreadRoot(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) (*corev1.Event, error) {
+func (c *ChattoCore) requireThreadRoot(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) (*evtv1.Event, error) {
 	if strings.TrimSpace(threadRootEventID) == "" {
 		return nil, invalidArgument("thread_root_event_id is required")
 	}

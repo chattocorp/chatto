@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // RoomTimelineReads returns the operation-level model for user-facing room
@@ -54,12 +54,12 @@ type RoomTimelineAroundResult struct {
 
 type MessageReadResult struct {
 	Kind  RoomKind
-	Event *corev1.Event
+	Event *evtv1.Event
 }
 
 type BatchMessagesReadResult struct {
 	Kind   RoomKind
-	Events []*corev1.Event
+	Events []*evtv1.Event
 }
 
 type ThreadTimelineEventsInput struct {
@@ -179,7 +179,7 @@ func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, r
 	}
 
 	seen := make(map[string]struct{}, len(eventIDs))
-	events := make([]*corev1.Event, 0, len(eventIDs))
+	events := make([]*evtv1.Event, 0, len(eventIDs))
 	for _, eventID := range eventIDs {
 		if _, ok := seen[eventID]; ok {
 			continue
@@ -263,7 +263,7 @@ func (s *RoomTimelineReadModel) GetThreadEventsAround(ctx context.Context, actor
 	}, nil
 }
 
-func (s *RoomTimelineReadModel) roomTimelineVisibility(ctx context.Context, actorID string, kind RoomKind, roomID string) (func(*corev1.Event) bool, error) {
+func (s *RoomTimelineReadModel) roomTimelineVisibility(ctx context.Context, actorID string, kind RoomKind, roomID string) (func(*evtv1.Event) bool, error) {
 	broad, err := s.core.CanReadMessages(ctx, actorID, kind, roomID)
 	if err != nil {
 		return nil, err
@@ -278,7 +278,7 @@ func (s *RoomTimelineReadModel) roomTimelineVisibility(ctx context.Context, acto
 	if !interactions {
 		return nil, ErrPermissionDenied
 	}
-	return func(event *corev1.Event) bool {
+	return func(event *evtv1.Event) bool {
 		rootID, ok := s.core.MessageEventThreadRoot(roomID, event)
 		return ok && s.core.roomModel.hasThreadInteraction(actorID, roomID, rootID)
 	}, nil
@@ -299,7 +299,7 @@ func (s *RoomTimelineReadModel) threadRootEvent(ctx context.Context, kind RoomKi
 	return &RoomEvent{Event: event, Sequence: seq}, nil
 }
 
-func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
+func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*evtv1.Event, error) {
 	event, err := s.timelineMessageEvent(ctx, kind, roomID, eventID)
 	if err != nil {
 		return nil, err
@@ -314,7 +314,7 @@ func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind,
 	return event, nil
 }
 
-func (s *RoomTimelineReadModel) timelineMessageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
+func (s *RoomTimelineReadModel) timelineMessageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*evtv1.Event, error) {
 	if strings.TrimSpace(eventID) == "" {
 		return nil, invalidArgument("event_id is required")
 	}

@@ -8,12 +8,12 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type unwrappedDEKCacheKey struct {
 	userID        string
-	purpose       corev1.UserDEKPurpose
+	purpose       evtv1.UserDEKPurpose
 	epoch         int32
 	contentKeyRef string
 }
@@ -89,7 +89,7 @@ func newUnwrappedDEKResolver(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader
 // The requested purpose is checked against the event purpose, while legacy
 // unspecified-purpose DEKs remain accepted for historical payloads. Cache hits
 // are limited to an optional request cache carried by ctx.
-func (r *unwrappedDEKResolver) Resolve(ctx context.Context, event *corev1.UserDEKGeneratedEvent, purpose corev1.UserDEKPurpose) (*userDEK, error) {
+func (r *unwrappedDEKResolver) Resolve(ctx context.Context, event *evtv1.UserDEKGeneratedEvent, purpose evtv1.UserDEKPurpose) (*userDEK, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -103,7 +103,7 @@ func (r *unwrappedDEKResolver) Resolve(ctx context.Context, event *corev1.UserDE
 		return nil, fmt.Errorf("invalid DEK event")
 	}
 	eventPurpose := event.GetPurpose()
-	if eventPurpose != corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED && purpose != corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED && eventPurpose != purpose {
+	if eventPurpose != evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED && purpose != evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED && eventPurpose != purpose {
 		return nil, fmt.Errorf("DEK purpose mismatch: event has %s, want %s", eventPurpose.String(), purpose.String())
 	}
 	if r == nil || r.keyWrapper == nil || r.dekStore == nil {
@@ -196,7 +196,7 @@ func cachedUserDEK(cacheKey unwrappedDEKCacheKey, key []byte) *userDEK {
 	return &userDEK{epoch: cacheKey.epoch, purpose: cacheKey.purpose, key: append([]byte(nil), key...)}
 }
 
-func (r *unwrappedDEKResolver) unwrap(ctx context.Context, event *corev1.UserDEKGeneratedEvent, eventPurpose corev1.UserDEKPurpose) ([]byte, error) {
+func (r *unwrappedDEKResolver) unwrap(ctx context.Context, event *evtv1.UserDEKGeneratedEvent, eventPurpose evtv1.UserDEKPurpose) ([]byte, error) {
 	stored, err := r.dekStore.Get(ctx, event.GetContentKeyRef())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load DEK: %w", err)

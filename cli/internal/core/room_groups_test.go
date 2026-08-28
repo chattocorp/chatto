@@ -8,32 +8,32 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
-func groupIDOfTestGroupEvent(t *testing.T, event *corev1.Event) string {
+func groupIDOfTestGroupEvent(t *testing.T, event *evtv1.Event) string {
 	t.Helper()
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_RoomGroupCreated:
+	case *evtv1.Event_RoomGroupCreated:
 		return e.RoomGroupCreated.GetGroupId()
-	case *corev1.Event_RoomGroupUpdated:
+	case *evtv1.Event_RoomGroupUpdated:
 		return e.RoomGroupUpdated.GetGroupId()
-	case *corev1.Event_RoomGroupDeleted:
+	case *evtv1.Event_RoomGroupDeleted:
 		return e.RoomGroupDeleted.GetGroupId()
-	case *corev1.Event_RoomAddedToGroup:
+	case *evtv1.Event_RoomAddedToGroup:
 		return e.RoomAddedToGroup.GetGroupId()
-	case *corev1.Event_RoomRemovedFromGroup:
+	case *evtv1.Event_RoomRemovedFromGroup:
 		return e.RoomRemovedFromGroup.GetGroupId()
-	case *corev1.Event_RoomsInGroupReordered:
+	case *evtv1.Event_RoomsInGroupReordered:
 		return e.RoomsInGroupReordered.GetGroupId()
-	case *corev1.Event_SidebarLinkAddedToGroup:
+	case *evtv1.Event_SidebarLinkAddedToGroup:
 		return e.SidebarLinkAddedToGroup.GetGroupId()
-	case *corev1.Event_SidebarLinkUpdated:
+	case *evtv1.Event_SidebarLinkUpdated:
 		return e.SidebarLinkUpdated.GetGroupId()
-	case *corev1.Event_SidebarLinkRemovedFromGroup:
+	case *evtv1.Event_SidebarLinkRemovedFromGroup:
 		return e.SidebarLinkRemovedFromGroup.GetGroupId()
-	case *corev1.Event_SidebarGroupEntriesReordered:
+	case *evtv1.Event_SidebarGroupEntriesReordered:
 		return e.SidebarGroupEntriesReordered.GetGroupId()
 	default:
 		t.Fatalf("unsupported test group event %T", event.GetEvent())
@@ -331,7 +331,7 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 	}
 	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
-	eventsToAppend := []*corev1.Event{
+	eventsToAppend := []*evtv1.Event{
 		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
 		newEvent("actor", groupCreatedEvent("G-other", "Other", "")),
 		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
@@ -395,9 +395,9 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 	}
 	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
-	created := newEvent("actor", &corev1.Event{
-		Event: &corev1.Event_RoomGroupCreated{
-			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G-late", Name: "Late"},
+	created := newEvent("actor", &evtv1.Event{
+		Event: &evtv1.Event_RoomGroupCreated{
+			RoomGroupCreated: &evtv1.RoomGroupCreatedEvent{GroupId: "G-late", Name: "Late"},
 		},
 	})
 	if _, err := harness.publisher.AppendEventually(ctx, evtstream.GroupAggregate("G-late").SubjectFor(created), created); err != nil {
@@ -445,7 +445,7 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 	}
 	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
-	eventsToAppend := []*corev1.Event{
+	eventsToAppend := []*evtv1.Event{
 		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
 		newEvent("actor", groupCreatedEvent("G-other", "Other", "")),
 		newEvent("actor", roomAddedToGroupEvent("G-target", "R1")),
@@ -589,10 +589,10 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 	if len(got.GetSidebarLinks()) != 1 || got.GetSidebarLinks()[0].GetId() != link.Id {
 		t.Fatalf("sidebar links = %+v, want created link", got.GetSidebarLinks())
 	}
-	if got.GetEntries()[0].GetKind() != corev1.SidebarGroupEntry_ROOM || got.GetEntries()[0].GetId() != room.Id {
+	if got.GetEntries()[0].GetKind() != evtv1.SidebarGroupEntry_ROOM || got.GetEntries()[0].GetId() != room.Id {
 		t.Fatalf("first entry = %+v, want room %s", got.GetEntries()[0], room.Id)
 	}
-	if got.GetEntries()[1].GetKind() != corev1.SidebarGroupEntry_SIDEBAR_LINK || got.GetEntries()[1].GetId() != link.Id {
+	if got.GetEntries()[1].GetKind() != evtv1.SidebarGroupEntry_SIDEBAR_LINK || got.GetEntries()[1].GetId() != link.Id {
 		t.Fatalf("second entry = %+v, want link %s", got.GetEntries()[1], link.Id)
 	}
 
@@ -604,14 +604,14 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 		t.Fatalf("updated link = %+v", updated)
 	}
 
-	if err := core.ReorderSidebarItemsInGroup(ctx, "actor", group.Id, []*corev1.SidebarGroupEntry{
-		{Kind: corev1.SidebarGroupEntry_SIDEBAR_LINK, Id: link.Id},
-		{Kind: corev1.SidebarGroupEntry_ROOM, Id: room.Id},
+	if err := core.ReorderSidebarItemsInGroup(ctx, "actor", group.Id, []*evtv1.SidebarGroupEntry{
+		{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: link.Id},
+		{Kind: evtv1.SidebarGroupEntry_ROOM, Id: room.Id},
 	}); err != nil {
 		t.Fatalf("ReorderSidebarItemsInGroup: %v", err)
 	}
 	got, _ = core.GetRoomGroup(ctx, group.Id)
-	if got.GetEntries()[0].GetKind() != corev1.SidebarGroupEntry_SIDEBAR_LINK {
+	if got.GetEntries()[0].GetKind() != evtv1.SidebarGroupEntry_SIDEBAR_LINK {
 		t.Fatalf("entries after reorder = %+v", got.GetEntries())
 	}
 	if len(got.GetRoomIds()) != 1 || got.GetRoomIds()[0] != room.Id {
@@ -626,7 +626,7 @@ func TestSidebarLinkLifecycleAndOrdering(t *testing.T) {
 		t.Fatalf("links after delete = %+v, want empty", got.GetSidebarLinks())
 	}
 	for _, entry := range got.GetEntries() {
-		if entry.GetKind() == corev1.SidebarGroupEntry_SIDEBAR_LINK {
+		if entry.GetKind() == evtv1.SidebarGroupEntry_SIDEBAR_LINK {
 			t.Fatalf("link entry survived delete: %+v", got.GetEntries())
 		}
 	}
@@ -803,17 +803,17 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 		t.Fatalf("UpdateSidebarLink: %v", err)
 	}
 
-	removed := newEvent("actor", &corev1.Event{
-		Event: &corev1.Event_SidebarLinkRemovedFromGroup{
-			SidebarLinkRemovedFromGroup: &corev1.SidebarLinkRemovedFromGroupEvent{
+	removed := newEvent("actor", &evtv1.Event{
+		Event: &evtv1.Event_SidebarLinkRemovedFromGroup{
+			SidebarLinkRemovedFromGroup: &evtv1.SidebarLinkRemovedFromGroupEvent{
 				GroupId: staleSnapshot.SourceGroupID,
 				LinkId:  link.Id,
 			},
 		},
 	})
-	added := newEvent("actor", &corev1.Event{
-		Event: &corev1.Event_SidebarLinkAddedToGroup{
-			SidebarLinkAddedToGroup: &corev1.SidebarLinkAddedToGroupEvent{
+	added := newEvent("actor", &evtv1.Event{
+		Event: &evtv1.Event_SidebarLinkAddedToGroup{
+			SidebarLinkAddedToGroup: &evtv1.SidebarLinkAddedToGroupEvent{
 				GroupId: target.Id,
 				LinkId:  link.Id,
 				Label:   staleSnapshot.Link.Label,

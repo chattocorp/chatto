@@ -22,7 +22,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -138,7 +138,7 @@ func TestInjectUserIntoContextDoesNotRenewCookieCredential(t *testing.T) {
 	}
 }
 
-func loginOAuthTestUser(t *testing.T, s *HTTPServer, login string) ([]*http.Cookie, *corev1.User) {
+func loginOAuthTestUser(t *testing.T, s *HTTPServer, login string) ([]*http.Cookie, *evtv1.User) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -440,10 +440,10 @@ func TestOAuthAuthorize_RejectsBlockedClient(t *testing.T) {
 	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); err != nil {
+	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); err != nil {
 		t.Fatal(err)
 	}
 	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
@@ -471,10 +471,10 @@ func TestOAuthAuthorize_TrustedClientStillRequiresUserConsent(t *testing.T) {
 	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED); err != nil {
+	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED); err != nil {
 		t.Fatal(err)
 	}
 
@@ -506,7 +506,7 @@ func TestOAuthToken_RejectsClientBlockedAfterCodeIssuance(t *testing.T) {
 	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatal(err)
 	}
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
@@ -519,7 +519,7 @@ func TestOAuthToken_RejectsClientBlockedAfterCodeIssuance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); err != nil {
+	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, evtv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); err != nil {
 		t.Fatal(err)
 	}
 	body, _ := json.Marshal(map[string]string{
