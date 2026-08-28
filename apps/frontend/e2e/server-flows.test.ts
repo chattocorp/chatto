@@ -120,8 +120,9 @@ test.describe('Last-Room Memory', () => {
     const roomName = await chatPage.createRoom();
     const roomUrl = page.url();
 
-    // Navigate to the server root — should redirect back to the room.
-    await page.goto(routes.chat);
+    // The server-gutter link uses SvelteKit client-side navigation. Its route
+    // load must redirect before the server-root page can render.
+    await page.getByTestId('server-icon').first().click();
     await expect(page).toHaveURL(roomUrl);
     await expect(chatPage.getRoomHeader(roomName)).toBeVisible();
   });
@@ -433,10 +434,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
 });
 
 test.describe('Sign Out', () => {
-  test('sign out removes all instances and redirects to sign in', async ({
-    page,
-    chatPage
-  }) => {
+  test('sign out removes all instances and redirects to sign in', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
