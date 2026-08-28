@@ -8,54 +8,14 @@ import "chatto/core/v1/models.proto";
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 // ============================================================================
-// USER LIFECYCLE EVENTS (server-scoped)
+// USER EVENTS
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-724: durable user aggregate events on evt.user.{userId}.*
-//   - 1010-1015: live-only user lifecycle and preference broadcasts
+//   - 700-725: durable user aggregate events on evt.user.{userId}.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
 // ============================================================================
-
-message UserCreatedEvent {
-  string user_id = 1;
-  string login = 2;
-  string display_name = 3;
-}
-
-// UserDeletedEvent records a durable user-account deletion fact in EVT.
-// Transient realtime delivery uses SessionTerminatedEvent for the deleted
-// user's own clients and ServerMemberDeletedEvent for server-wide invalidation.
-message UserDeletedEvent {
-  string user_id = 1;
-}
-
-// Deprecated: UserProfileUpdatedEvent is retained in its original source file
-// for generated-source compatibility. LiveEvent uses UserProfileSyncEvent.
-message UserProfileUpdatedEvent {
-  option deprecated = true;
-
-  string user_id = 1;
-  string display_name = 2;
-  string avatar_url = 3;
-  string login = 4;
-  string bio = 5;
-  string timezone = 6;
-}
-
-// ============================================================================
-// USER PREFERENCE EVENTS (user-scoped)
-// ============================================================================
-
-// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
-// User-scoped private event for multi-tab/multi-device sync.
-message ServerUserPreferencesUpdatedEvent {
-  // IANA timezone name (empty = cleared/browser default).
-  string timezone = 1;
-  // Time display format preference.
-  TimeFormat time_format = 2;
-}
 
 // ============================================================================
 // DURABLE USER EVENTS (evt.user.{userId})

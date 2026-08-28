@@ -4,7 +4,6 @@ package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
 import "chatto/core/v1/room_events.proto";
-import "chatto/core/v1/user_events.proto";
 import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
@@ -38,20 +37,17 @@ message LiveEvent {
   // ID of the user or system actor that triggered this signal.
   string actor_id = 3;
 
-  reserved 10, 24, 41, 50, 51, 70, 71;
+  reserved 10, 21, 24, 41, 50, 51, 70, 71;
   reserved "config_updated", "notification_level_changed", "video_processing_completed",
-    "mention_notification", "new_direct_message_notification", "notification_created", "notification_dismissed";
+    "mention_notification", "new_direct_message_notification", "notification_created", "notification_dismissed",
+    "user_deleted";
 
   oneof event {
     // ----- User lifecycle / preferences -----
-    UserCreatedEvent user_created = 20;
-    // Deprecated. Account deletion no longer publishes this transient signal;
-    // clients receive session_terminated for the deleted user's own sessions and
-    // server_member_deleted for server-wide invalidation.
-    UserDeletedEvent user_deleted = 21 [deprecated = true];
+    UserCreatedSyncEvent user_created = 20;
     // Transient current-profile snapshot derived after a durable profile change.
     UserProfileSyncEvent user_profile_updated = 22;
-    ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 23;
+    ServerUserPreferencesSyncEvent server_user_preferences_updated = 23;
     ThreadFollowChangedEvent thread_follow_changed = 25;
 
     // ----- Server membership / lifecycle -----
@@ -95,8 +91,15 @@ message LiveEvent {
 message HeartbeatEvent {}
 
 // ============================================================================
-// USER PROFILE SYNC
+// USER LIFECYCLE, PROFILE, AND PREFERENCE SYNC
 // ============================================================================
+
+// UserCreatedSyncEvent reports a newly created public user profile.
+message UserCreatedSyncEvent {
+  string user_id = 1;
+  string login = 2;
+  string display_name = 3;
+}
 
 // UserProfileSyncEvent is a transient, projection-derived live snapshot. It
 // is published after a public profile field changes and is never stored in EVT.
@@ -112,6 +115,15 @@ message UserProfileSyncEvent {
   string bio = 5;
   // The user's shared IANA time zone, or empty when none is shared.
   string timezone = 6;
+}
+
+// ServerUserPreferencesSyncEvent reports updated user display preferences for
+// synchronization between the user's active clients.
+message ServerUserPreferencesSyncEvent {
+  // IANA time zone name. An empty value selects the browser default.
+  string timezone = 1;
+  // Preferred time display format.
+  TimeFormat time_format = 2;
 }
 
 // ============================================================================

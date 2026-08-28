@@ -193,16 +193,9 @@ jobs:
       - name: Check storage, internal, and Operator protobuf breaking changes
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
-          cd proto
-          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
-            --exclude-imports \
-            --exclude-path chatto/auth/v1 \
-            --exclude-path chatto/discovery/v1 \
-            --exclude-path chatto/api/v1 \
-            --exclude-path chatto/admin/v1 \
-            --exclude-path chatto/realtime/v1 \
-            --exclude-path chatto/core/v1/live_events.proto \
-            --exclude-path chatto/core/v1/projection_snapshots.proto
+          mise x -- node --test tools/check-storage-proto-breaking.test.mjs
+          mise x -- node tools/check-storage-proto-breaking.mjs \
+            "../.git#branch=origin/${base_ref},subdir=proto"
 
       - name: Check projection snapshot schema contracts
         working-directory: cli
