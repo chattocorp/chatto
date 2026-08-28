@@ -185,6 +185,12 @@ describe('RoomDirectory', () => {
     expect(shell.className).toContain('shrink-0');
     expect(header.className).toContain('px-6');
     expect(inset).not.toBeNull();
+
+    // `Panel noPadding` contributes a bottom frame inset. The list uses one
+    // less unit of bottom padding so its visual top and bottom insets match.
+    const list = shell.querySelector('ul') as HTMLElement;
+    expect(list.className).toContain('pt-2');
+    expect(list.className).toContain('pb-1');
   });
 
   // -- "Join all" group action -----------------------------------------------

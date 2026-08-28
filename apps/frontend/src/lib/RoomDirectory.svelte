@@ -295,9 +295,10 @@ store owns only optimistic join/leave state.
         {/if}
       {/snippet}
 
-      <!-- Horizontal inset (`px-1` + the menu-item's own `px-3` = 16px)
-           keeps per-row actions aligned within the shared panel inset. -->
-      <ul class="selectable-list py-2">
+      <!-- `Panel noPadding` adds a bottom-only frame inset. Pair `pt-2` with
+           `pb-1` so that frame inset makes the list's top and bottom spacing
+           equal; the horizontal inset keeps row actions aligned. -->
+      <ul class="selectable-list pt-2 pb-1">
         {#each rooms as room (room.id)}
           {@render roomRow(room)}
         {/each}
