@@ -46,6 +46,7 @@ import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
+import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import {
@@ -54,6 +55,7 @@ import {
   reconcileRegisteredFollowedThreadQueries,
   invalidateRegisteredRoomMemberQueries,
   purgeRegisteredRoomMemberQueries,
+  refreshRegisteredAdminQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
@@ -74,6 +76,31 @@ import {
 export type ServerIndicator = 'notification' | 'unread' | null;
 
 const MAX_RETAINED_ROOM_SEARCHES = 10;
+
+function viewerAuthorizationLost(
+  previous: GetViewerResponse | null,
+  current: GetViewerResponse
+): boolean {
+  if (!previous) return false;
+  if (previous.user?.profile?.id !== current.user?.profile?.id) return true;
+
+  const currentGrants = new Set([
+    ...(current.capabilities?.grants ?? [])
+      .filter((grant) => grant.granted)
+      .map((grant) => `capability:${grant.capability}`),
+    ...(current.viewerPermissions?.permissions ?? [])
+      .filter((grant) => grant.granted)
+      .map((grant) => `permission:${grant.permission}`)
+  ]);
+  return [
+    ...(previous.capabilities?.grants ?? [])
+      .filter((grant) => grant.granted)
+      .map((grant) => `capability:${grant.capability}`),
+    ...(previous.viewerPermissions?.permissions ?? [])
+      .filter((grant) => grant.granted)
+      .map((grant) => `permission:${grant.permission}`)
+  ].some((grant) => !currentGrants.has(grant));
+}
 
 const EMPTY_PERMISSIONS: ServerPermissions = {
   loaded: false,
@@ -366,6 +393,7 @@ export class ServerStateStore {
   }
 
   private ingestProjectionEvent(event: RealtimeProjectionEvent): void {
+    const previousViewer = this.projection.viewer;
     const existingTimelineRows = new SvelteSet<string>();
     for (const operation of event.operations) {
       if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
@@ -402,6 +430,9 @@ export class ServerStateStore {
           }
           break;
         case 'viewerUpsert': {
+          if (viewerAuthorizationLost(previousViewer, operation.operation.value)) {
+            removeRegisteredAdminQueries(this.serverId);
+          }
           const viewer = viewerResponseToState(operation.operation.value);
           this.currentUser.user = viewer.user;
           this.currentUser.loading = false;
@@ -676,7 +707,7 @@ export class ServerStateStore {
 
   /** Clear every mirror whose authority was invalidated by a reset frame. */
   private resetProjectionMirrors(): void {
-    removeRegisteredAdminQueries(this.serverId);
+    refreshRegisteredAdminQueries(this.serverId);
     clearUserSummaryCache(this.serverId);
     for (const store of Object.values(this.#roomMessages)) store.resetProjectionState();
     for (const store of Object.values(this.#threadMessages)) store.resetProjectionState();
@@ -692,8 +723,6 @@ export class ServerStateStore {
     this.pendingHighlights.clear();
     this.activeCallRooms.clear();
     this.serverInfo.resetProjectionState();
-    this.permissions = { ...EMPTY_PERMISSIONS };
-    this.currentUser.loading = true;
     this.#playedCallSoundEventIds.length = 0;
   }
 

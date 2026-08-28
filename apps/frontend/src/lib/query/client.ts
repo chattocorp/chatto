@@ -52,6 +52,17 @@ export function removeAdminQueries(serverId: string): void {
   });
 }
 
+/** Refresh active admin snapshots in place while a replacement projection hydrates. */
+export function refreshAdminQueries(serverId: string): void {
+  void queryClient.invalidateQueries({
+    predicate: (query) => {
+      const key = query.queryKey;
+      return key[0] === 'server' && key[1] === serverId && key[4] === 'admin';
+    },
+    refetchType: 'active'
+  });
+}
+
 export function removeAdminUserQueries(serverId: string, userId: string): void {
   const isAdminUserQuery = (key: QueryKey): boolean =>
     key[0] === 'server' &&
@@ -217,6 +228,7 @@ export function reconcileAdminRoomGroupQueries(
 registerServerQueryCache({
   server: removeServerQueries,
   admin: removeAdminQueries,
+  refreshAdmin: refreshAdminQueries,
   adminUser: removeAdminUserQueries,
   adminRoom: reconcileAdminRoomQueries,
   adminRoomGroups: reconcileAdminRoomGroupQueries

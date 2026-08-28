@@ -6,7 +6,10 @@ import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
-import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
+import {
+  refreshRegisteredAdminQueries,
+  removeRegisteredAdminUserQueries
+} from '$lib/query/cacheRegistry';
 
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionMatrix: vi.fn(),
@@ -102,6 +105,40 @@ beforeEach(() => {
 afterEach(() => queryClient.clear());
 
 describe('subject permission loaders', () => {
+  it('keeps the same matrix elements mounted while refreshed data replaces their cells', async () => {
+    let resolveRefresh: ((value: ReturnType<typeof matrix>) => void) | undefined;
+    const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
+    await settle();
+    const originalTable = rendered.container.querySelector('table');
+    const originalCell = rendered.container.querySelector(
+      'td[data-scope="server"][data-permission="message.post"]'
+    );
+    permissionMocks.getRolePermissionMatrix.mockImplementationOnce(
+      () => new Promise((resolve) => (resolveRefresh = resolve))
+    );
+
+    refreshRegisteredAdminQueries('origin');
+    await settle();
+
+    expect(rendered.container.querySelector('table')).toBe(originalTable);
+    expect(
+      rendered.container.querySelector('td[data-scope="server"][data-permission="message.post"]')
+    ).toBe(originalCell);
+
+    const refreshed = matrix({ roleName: 'role-a' });
+    refreshed.cells[0].override = 'ALLOW';
+    resolveRefresh?.(refreshed);
+    await vi.waitFor(() => {
+      expect(cellButton(rendered.container, 'message.post').getAttribute('aria-label')).toContain(
+        'Override allow'
+      );
+    });
+    expect(rendered.container.querySelector('table')).toBe(originalTable);
+    expect(
+      rendered.container.querySelector('td[data-scope="server"][data-permission="message.post"]')
+    ).toBe(originalCell);
+  });
+
   it('isolates pending role mutation state after route reuse', async () => {
     const mutations: Array<{
       resolve: (value: object) => void;

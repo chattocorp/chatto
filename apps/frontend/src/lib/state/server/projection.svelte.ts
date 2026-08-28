@@ -60,7 +60,7 @@ export class ServerProjectionStore {
     for (const operation of event.operations) {
       switch (operation.operation.case) {
         case 'reset':
-          this.reset();
+          this.reset({ preserveViewer: true });
           break;
         case 'serverUpsert':
           this.server = operation.operation.value;
@@ -242,10 +242,12 @@ export class ServerProjectionStore {
     );
   }
 
-  reset(): void {
+  /** Clear projected state, optionally retaining the last confirmed viewer during catch-up. */
+  reset({ preserveViewer = false }: { preserveViewer?: boolean } = {}): void {
+    const viewer = preserveViewer ? this.viewer : null;
     this.server = null;
     this.serverState = null;
-    this.viewer = null;
+    this.viewer = viewer;
     this.users.clear();
     this.rooms.clear();
     this.roomGroups = [];

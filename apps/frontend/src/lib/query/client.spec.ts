@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
   reconcileRegisteredAdminRoomQueries,
+  refreshRegisteredAdminQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
@@ -54,6 +55,15 @@ describe('server query cache', () => {
       queryClient.getQueryData(['server', 'one', 'session', 'scope', 'admin', 'members'])
     ).toBeUndefined();
     expect(queryClient.getQueryData(['server', 'one', 'resource'])).toBe('ordinary-snapshot');
+  });
+
+  it('keeps mounted admin data while scheduling its authoritative refresh', () => {
+    const key = ['server', 'one', 'session', 'scope', 'admin', 'permission-tier'] as const;
+    queryClient.setQueryData(key, 'stable-matrix');
+
+    refreshRegisteredAdminQueries('one');
+
+    expect(queryClient.getQueryData(key)).toBe('stable-matrix');
   });
 
   it('scrubs member lists and the removed member detail only', () => {

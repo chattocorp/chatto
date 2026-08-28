@@ -16,7 +16,13 @@ import {
   RoomViewerState,
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
+import {
+  GetViewerResponse,
+  ServerViewerPermissions,
+  ViewerCapabilities,
+  ViewerUser
+} from '@chatto/api-types/api/v1/viewer_pb';
+import { CapabilityGrant, PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import {
   RoomMessagePosted,
   RoomTimelineEvent,
@@ -52,6 +58,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   cacheMocks: {
     reconcileRegisteredAdminRoomGroupQueries: vi.fn(),
     reconcileRegisteredAdminRoomQueries: vi.fn(),
+    refreshRegisteredAdminQueries: vi.fn(),
     removeRegisteredAdminQueries: vi.fn(),
     removeRegisteredAdminUserQueries: vi.fn(),
     removeRegisteredServerQueries: vi.fn(),
@@ -417,6 +424,7 @@ beforeEach(() => {
   registerServerQueryCache({
     server: cacheMocks.removeRegisteredServerQueries,
     admin: cacheMocks.removeRegisteredAdminQueries,
+    refreshAdmin: cacheMocks.refreshRegisteredAdminQueries,
     adminUser: cacheMocks.removeRegisteredAdminUserQueries,
     adminRoom: cacheMocks.reconcileRegisteredAdminRoomQueries,
     adminRoomGroups: cacheMocks.reconcileRegisteredAdminRoomGroupQueries
@@ -446,6 +454,7 @@ beforeEach(() => {
   cacheMocks.reconcileRegisteredAdminRoomQueries.mockClear();
   cacheMocks.reconcileRegisteredAdminRoomGroupQueries.mockClear();
   cacheMocks.removeRegisteredServerQueries.mockClear();
+  cacheMocks.refreshRegisteredAdminQueries.mockClear();
   cacheMocks.removeRegisteredAdminQueries.mockClear();
   cacheMocks.removeRegisteredAdminUserQueries.mockClear();
   apiMocks.listRooms.mockResolvedValue([]);
@@ -659,7 +668,7 @@ describe('ServerStateStore live server updates', () => {
     vi.useRealTimers();
   });
 
-  it('clears every projection-derived mirror immediately on reset', () => {
+  it('clears private projection mirrors while retaining stable admin rendering on reset', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
@@ -719,8 +728,9 @@ describe('ServerStateStore live server updates', () => {
     expect(store.notifications.hasLoaded).toBe(true);
     expect(store.activeCallRooms.has('R1')).toBe(false);
     expect(store.roomUnread.hasAnyUnread).toBe(false);
-    expect(store.permissions.loaded).toBe(false);
-    expect(store.permissions.canViewAdmin).toBe(false);
+    expect(store.permissions.loaded).toBe(true);
+    expect(store.permissions.canViewAdmin).toBe(true);
+    expect(store.projection.viewer?.user?.profile?.id).toBe('U1');
     expect(store.serverInfo.motd).toBeNull();
     expect(store.serverInfo.pushNotificationsEnabled).toBe(false);
     expect(store.serverInfo.livekitUrl).toBeNull();
@@ -729,8 +739,9 @@ describe('ServerStateStore live server updates', () => {
     expect(store.navigation.isInitialLoading).toBe(true);
     expect(store.roomDirectory.allRooms).toEqual([]);
     expect(store.roomDirectory.isLoading).toBe(true);
-    expect(store.currentUser.loading).toBe(true);
-    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(store.currentUser.loading).toBe(false);
+    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(cacheMocks.removeRegisteredAdminQueries).not.toHaveBeenCalled();
 
     for (const handler of bus.projectionHandlers) {
       handler(
@@ -782,6 +793,84 @@ describe('ServerStateStore live server updates', () => {
       ...store.permissions,
       canAdminViewAudit: false
     });
+
+    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+  });
+
+  it('purges retained admin reads when the replacement viewer identity or grants change', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    const viewer = (granted: boolean, userId = 'U1') =>
+      new GetViewerResponse({
+        user: new ViewerUser({ profile: new User({ id: userId }) }),
+        capabilities: new ViewerCapabilities({
+          grants: [new CapabilityGrant({ capability: 'role.manage', granted })]
+        }),
+        viewerPermissions: new ServerViewerPermissions({
+          permissions: [new PermissionGrant({ permission: 'message.read', granted })]
+        })
+      });
+    store.projection.viewer = viewer(true);
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: { case: 'reset', value: new RealtimeProjectionReset() }
+            })
+          ]
+        })
+      );
+    }
+    expect(cacheMocks.refreshRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+    expect(cacheMocks.removeRegisteredAdminQueries).not.toHaveBeenCalled();
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: { case: 'viewerUpsert', value: viewer(true) }
+            })
+          ]
+        })
+      );
+    }
+    expect(cacheMocks.removeRegisteredAdminQueries).not.toHaveBeenCalled();
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: { case: 'viewerUpsert', value: viewer(true, 'U2') }
+            })
+          ]
+        })
+      );
+    }
+    expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
+
+    cacheMocks.removeRegisteredAdminQueries.mockClear();
+    store.projection.viewer = viewer(true);
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: { case: 'reset', value: new RealtimeProjectionReset() }
+            }),
+            new RealtimeProjectionOperation({
+              operation: { case: 'viewerUpsert', value: viewer(false) }
+            })
+          ]
+        })
+      );
+    }
 
     expect(cacheMocks.removeRegisteredAdminQueries).toHaveBeenCalledWith(registered.id);
   });

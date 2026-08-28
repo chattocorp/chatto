@@ -167,10 +167,14 @@ encrypted, authenticated, and bound to its viewer plus exact room or
 room/thread-root resource, so it cannot be reused as another timeline's
 boundary.
 
-On `reset`, the frontend immediately clears the canonical projection and all
-projection-derived mirrors, including cached profiles, notifications, calls,
-preferences, permissions, and authenticated runtime settings. Later snapshot
-operations repopulate those stores through the normal reducer.
+On `reset`, the frontend immediately clears content-bearing projection state
+and its derived mirrors, including directory profiles, notifications, calls,
+preferences, and authenticated runtime settings. It retains the last confirmed
+viewer authorization while the replacement prefix hydrates. Mounted admin
+queries refetch without discarding their rendered data, so dense tables keep
+their geometry. A replacement viewer with a different identity or fewer grants
+immediately purges those queries before the management gate removes
+inaccessible content.
 
 Changing the route selects retained state immediately after a room's first
 hydration. A cold route briefly renders its timeline loading state while the
