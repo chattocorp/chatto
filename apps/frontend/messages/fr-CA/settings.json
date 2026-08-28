@@ -442,6 +442,12 @@
       "rotate_warning": "La clé actuelle cessera de fonctionner immédiatement. Toute intégration l'utilisant doit être mise à jour.",
       "key_rotated": "Clé API alternée",
       "rotate_failed": "Échec de la rotation de la clé API",
+      "webhook_title": "Webhooks entrants",
+      "webhook_description": "Publiez des messages avec ce robot depuis des outils externes.",
+      "webhook_created": "Webhook entrant créé",
+      "webhook_url_title": "Enregistrer cette URL de webhook",
+      "webhook_url_warning": "Cette URL ne s’affiche qu’une seule fois et contient un identifiant d’accès. Conservez-la dans un endroit sûr avant de fermer cette fenêtre.",
+      "webhook_url_copied": "URL du webhook copiée",
       "delete_title": "Supprimer le robot",
       "delete_warning": "Supprimer {name} ? Sa clé API cessera de fonctionner immédiatement et le compte ne pourra pas être récupéré.",
       "deleted": "Bot supprimé",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Choisissez ce que ce bot peut faire. Vous ne pouvez lui accorder que les autorisations dont vous disposez vous-même. Si vous perdez une autorisation, le bot ne pourra plus l’utiliser non plus.",
         "save_failed": "Échec de la mise à jour de l'autorisation du bot"
-      }
+      },
+      "webhook_empty_description": "Aucun webhook entrant n’a encore été créé.",
+      "webhook_create": "Créer un webhook",
+      "webhook_name": "Nom",
+      "webhook_created_at": "Créé",
+      "webhook_create_failed": "Impossible de créer le webhook entrant",
+      "webhook_revoke": "Révoquer le webhook",
+      "webhook_revoke_warning": "L’URL actuelle du webhook cessera immédiatement de fonctionner.",
+      "webhook_revoked": "Webhook entrant révoqué",
+      "webhook_revoke_failed": "Impossible de révoquer le webhook entrant",
+      "webhook_last_used": "Dernière utilisation",
+      "webhook_no_use_recorded": "Aucune utilisation enregistrée",
+      "webhook_last_used_unavailable": "Temporairement indisponible",
+      "webhook_limit_reached": "Vous avez atteint la limite de 20 webhooks entrants."
     }
   }
 }

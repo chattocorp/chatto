@@ -442,6 +442,12 @@
       "rotate_warning": "Aktuální klíč okamžitě přestane fungovat. Jakákoli integrace, která jej používá, musí být aktualizována.",
       "key_rotated": "Klíč API otočen",
       "rotate_failed": "Nepodařilo se otočit klíč API",
+      "webhook_title": "Příchozí webhooky",
+      "webhook_description": "Posílejte zprávy jako tento bot z externích nástrojů.",
+      "webhook_created": "Příchozí webhook byl vytvořen",
+      "webhook_url_title": "Uložte tuto adresu URL webhooku",
+      "webhook_url_warning": "Tato adresa URL se zobrazí jen jednou a obsahuje přihlašovací údaj. Před zavřením tohoto okna ji bezpečně uložte.",
+      "webhook_url_copied": "Adresa URL webhooku zkopírována",
       "delete_title": "Smazat robota",
       "delete_warning": "Smazat {name}? Jeho klíč API okamžitě přestane fungovat a účet nelze obnovit.",
       "deleted": "Bobot byl smazán",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Vyberte, co tento bot smí dělat. Můžete mu udělit jen oprávnění, která sami máte. Pokud o některé oprávnění přijdete, nebude ho moci používat ani bot.",
         "save_failed": "Nepodařilo se aktualizovat oprávnění robota"
-      }
+      },
+      "webhook_empty_description": "Zatím nebyly vytvořeny žádné příchozí webhooky.",
+      "webhook_create": "Vytvořit webhook",
+      "webhook_name": "Název",
+      "webhook_created_at": "Vytvořeno",
+      "webhook_create_failed": "Příchozí webhook se nepodařilo vytvořit",
+      "webhook_revoke": "Odvolat webhook",
+      "webhook_revoke_warning": "Aktuální URL webhooku přestane okamžitě fungovat.",
+      "webhook_revoked": "Příchozí webhook byl odvolán",
+      "webhook_revoke_failed": "Příchozí webhook se nepodařilo odvolat",
+      "webhook_last_used": "Naposledy použito",
+      "webhook_no_use_recorded": "Není zaznamenáno žádné použití",
+      "webhook_last_used_unavailable": "Dočasně nedostupné",
+      "webhook_limit_reached": "Byl dosažen limit 20 příchozích webhooků."
     }
   }
 }

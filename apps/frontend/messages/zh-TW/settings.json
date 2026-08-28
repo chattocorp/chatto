@@ -442,6 +442,12 @@
       "rotate_warning": "目前金鑰將立即停止運作。任何使用它的整合都必須更新。",
       "key_rotated": "API 金鑰已輪替",
       "rotate_failed": "輪換 API 金鑰失敗",
+      "webhook_title": "傳入 Webhook",
+      "webhook_description": "透過外部工具以此機器人身分發佈訊息。",
+      "webhook_created": "已建立傳入 Webhook",
+      "webhook_url_title": "儲存此 Webhook URL",
+      "webhook_url_warning": "此 URL 僅顯示一次，且包含憑證。請在關閉此視窗前將其儲存至安全位置。",
+      "webhook_url_copied": "Webhook URL 已複製",
       "delete_title": "刪除機器人",
       "delete_warning": "刪除{name}？其 API 金鑰將立即停止運作，且該帳戶無法復原。",
       "deleted": "機器人已刪除",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "選擇這個機器人可以執行的操作。你只能授予自己擁有的權限。如果你失去某項權限，機器人也將無法再使用該權限。",
         "save_failed": "無法更新機器人權限"
-      }
+      },
+      "webhook_empty_description": "尚未建立任何傳入 Webhook。",
+      "webhook_create": "建立 Webhook",
+      "webhook_name": "名稱",
+      "webhook_created_at": "建立時間",
+      "webhook_create_failed": "無法建立傳入 Webhook",
+      "webhook_revoke": "撤銷 Webhook",
+      "webhook_revoke_warning": "目前的 Webhook URL 將立即停止運作。",
+      "webhook_revoked": "已撤銷傳入 Webhook",
+      "webhook_revoke_failed": "無法撤銷傳入 Webhook",
+      "webhook_last_used": "上次使用時間",
+      "webhook_no_use_recorded": "未記錄使用情況",
+      "webhook_last_used_unavailable": "暫時無法使用",
+      "webhook_limit_reached": "已達到 20 個傳入 Webhook 的上限。"
     }
   }
 }

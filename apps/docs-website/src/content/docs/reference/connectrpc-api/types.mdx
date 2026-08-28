@@ -543,6 +543,22 @@ rotation responses.
 | `created_at` | `google.protobuf.Timestamp` | Account creation time. |
 | `api_key_created_at` | `google.protobuf.Timestamp` | Time the initial API key was created. |
 | `api_key_rotated_at` | `optional google.protobuf.Timestamp` | Most recent API-key rotation time, when it has been rotated. |
+| `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
+
+<a id="chatto-api-v1-BotIncomingWebhook"></a>
+
+### BotIncomingWebhook
+
+Safe metadata for one active bot incoming webhook. The webhook URL is
+returned only when the credential is created.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable webhook credential ID. |
+| `name` | `string` | Manager-defined name for the credential. |
+| `created_at` | `google.protobuf.Timestamp` | Time the incoming webhook credential was created. |
+| `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
+| `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
 
 <a id="chatto-api-v1-DirectoryMember"></a>
 
@@ -1725,6 +1741,19 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
+
+<a id="chatto-api-v1-CredentialLastUsedState"></a>
+
+### CredentialLastUsedState
+
+Availability of best-effort credential last-use telemetry.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `CREDENTIAL_LAST_USED_STATE_UNSPECIFIED` | `0` | The server did not return a last-use state. |
+| `CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED` | `1` | The server has no recorded use for the credential. |
+| `CREDENTIAL_LAST_USED_STATE_RECORDED` | `2` | last_used_at contains the most recent recorded authentication time. |
+| `CREDENTIAL_LAST_USED_STATE_UNAVAILABLE` | `3` | Last-use telemetry is temporarily unavailable. |
 
 <a id="chatto-api-v1-MessageSearchOrder"></a>
 

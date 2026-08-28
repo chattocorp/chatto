@@ -10,7 +10,8 @@ Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go),
 [`cli/internal/core/renewable_sessions.go`](../../cli/internal/core/renewable_sessions.go),
 [`cli/internal/http_server/browser_session_store.go`](../../cli/internal/http_server/browser_session_store.go),
 [`cli/internal/core/external_identities.go`](../../cli/internal/core/external_identities.go),
-[`cli/internal/core/asset_uploads.go`](../../cli/internal/core/asset_uploads.go), and
+[`cli/internal/core/asset_uploads.go`](../../cli/internal/core/asset_uploads.go),
+[`cli/internal/core/credential_usage.go`](../../cli/internal/core/credential_usage.go), and
 [`cli/internal/kms/builtin.go`](../../cli/internal/kms/builtin.go)
 
 Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
@@ -21,7 +22,7 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
-| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including notification visibility boundaries, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |
+| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including notification visibility boundaries, credential-usage telemetry, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |
 | `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats |
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 
@@ -74,6 +75,7 @@ survives restart but is not content/domain history. See
 | `push_test_notification_throttle.{userId}` | One-byte per-account admission marker owned by [`core/push.go`](../../cli/internal/core/push.go). Atomic creation with a 10-second per-key TTL rate-limits test push attempts across replicas; the marker contains no endpoint or delivery result. |
 | `asset_upload.{uploadId}` | JSON room-scoped attachment upload session with actor, declared size/SHA-256, committed offset, chunk keys, status, and expiry. Open sessions use a 15-minute TTL; completed sessions expire with the 24-hour pending-attachment window. |
 | `projection_snapshot_pointer.{opaqueLocator}` | Encrypted current/previous generation IDs for one projection and snapshot contract. The opaque locator is derived from both, so different contracts cannot read or overwrite each other. Uses KV revision OCC so stale writers cannot regress newer history within one contract. |
+| `credential_usage.bot.{botId}` | Protobuf `CredentialUsageState` with the latest observed use time for each `incoming_webhook:{webhookId}` entry. Successful authentication creates an in-memory observation before request validation or message posting. Each process writes the first observation promptly, coalesces later writes for the same credential to at most one each minute, and uses KV OCC with the maximum timestamp so concurrent writers cannot regress the record. Reads merge a newer local observation. A missing record or entry means that no use was recorded; it does not prove that no use occurred. A read or decode failure produces an explicit unavailable state. Bot response assembly reads telemetry only for resources selected after filtering and pagination. Show-once credential responses skip this read and keep unhydrated fields unspecified. Read or write failure does not affect authentication or message posting. Recording rechecks the projected credential under the same process-local lock that orders revocation cleanup. Each replica also checks projected lifecycle state before and after a write. A periodic sweep removes local and stored telemetry when another replica revoked the credential. A flush that finishes after revocation attempts another delete. The process does not retain revocation tombstones. Bot deletion removes the complete record. The record has no TTL and is included in backups. |
 | `email_otp.{hmac(subject)}.{hmac(code)}` | Shared registration and email-verification OTP code JSON. Registration values carry normalized email and, when applicable, the validated invitation ID; authenticated email-verification values carry user ID and email. The subject hash scopes registration by email and authenticated verification by user/email, the code hash verifies the submitted six-digit code, and the raw code is never stored. Uses per-key 15-minute TTL. |
 | `email_otp.{hmac(subject)}.challenge` | Shared OTP challenge JSON with failed-attempt and issued-code counters. Wrong-code attempts update this record revision-safely, five wrong guesses exhaust the challenge until TTL, and at most ten codes can be issued for one challenge window. Uses per-key 15-minute TTL. |
 | `registration_completion.{hmac}` | Registration completion token JSON created after code verification, carrying the invitation ID from an invite-only registration when applicable. Uses per-key 15-minute TTL. |
@@ -91,10 +93,12 @@ survives restart but is not content/domain history. See
 | `link_preview_token.{hmac}` | Short-lived composer link-preview token JSON referencing a cached preview URL. Uses per-key 30-minute TTL; raw tokens are only returned to the client. |
 | `dek.{id}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). The complete object key is the content-key ref; it has no TTL and is shredded on account deletion. |
 
-Bot API keys do not create `RUNTIME_STATE` records. Their current HMAC
-verifier is a durable user-aggregate fact in `EVT`, projected by
-`UserAuthProjection`; this makes key creation and rotation part of the bot's
-replayable account history while keeping the raw key show-once.
+Bot API keys do not create `RUNTIME_STATE` records. Their current HMAC verifier
+is a durable user-aggregate fact in `EVT`, projected by `UserAuthProjection`;
+this makes key creation and rotation part of the bot's replayable account
+history while keeping the raw key show-once. Incoming webhook lifecycle facts
+also remain in `EVT`. Only their optional, approximate last-use telemetry is in
+`RUNTIME_STATE`.
 
 `ReadStateModel` mirrors both `read.*` key families through one filtered KV
 watcher per Chatto process. The initial latest-value watch delivery is a startup

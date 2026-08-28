@@ -175,6 +175,12 @@ const (
 	EventBotAPIKeyCreated             = "bot_api_key_created"
 	EventBotAPIKeyRotated             = "bot_api_key_rotated"
 	EventBotOwnerReassigned           = "bot_owner_reassigned"
+	// The enabled/disabled subject tokens predate the multiple-credential
+	// lifecycle. Keep them stable while the protobuf facts use create/revoke
+	// terminology.
+	EventBotIncomingWebhookCreated = "bot_incoming_webhook_enabled"
+	EventBotIncomingWebhookRotated = "bot_incoming_webhook_rotated"
+	EventBotIncomingWebhookRevoked = "bot_incoming_webhook_disabled"
 
 	// RBAC aggregate
 	EventRBACRoleCreated            = "role_created"
@@ -371,6 +377,12 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventBotAPIKeyRotated
 	case *corev1.Event_BotOwnerReassigned:
 		return EventBotOwnerReassigned
+	case *corev1.Event_BotIncomingWebhookCreated:
+		return EventBotIncomingWebhookCreated
+	case *corev1.Event_BotIncomingWebhookRotated:
+		return EventBotIncomingWebhookRotated
+	case *corev1.Event_BotIncomingWebhookRevoked:
+		return EventBotIncomingWebhookRevoked
 	case *corev1.Event_UserLoginChanged:
 		return EventUserLoginChanged
 	case *corev1.Event_UserDisplayNameChanged:

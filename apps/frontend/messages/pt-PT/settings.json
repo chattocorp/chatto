@@ -442,6 +442,12 @@
       "rotate_warning": "A chave actual irá parar de funcionar imediatamente. Qualquer integração que o utilize deve ser atualizada.",
       "key_rotated": "Chave API rotada",
       "rotate_failed": "Falha ao alternar a chave API",
+      "webhook_title": "Webhooks de entrada",
+      "webhook_description": "Publique mensagens como este bot a partir de ferramentas externas.",
+      "webhook_created": "Webhook de entrada criado",
+      "webhook_url_title": "Guardar este URL de webhook",
+      "webhook_url_warning": "Este URL é apresentado apenas uma vez e contém uma credencial. Guarde-o num local seguro antes de fechar esta janela.",
+      "webhook_url_copied": "URL do webhook copiado",
       "delete_title": "Apagar bot",
       "delete_warning": "Apagar {name}? A sua chave API deixará de funcionar imediatamente e a conta não poderá ser recuperada.",
       "deleted": "Bot eliminado",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Escolha o que este bot pode fazer. Só pode conceder-lhe permissões que também tenha. Se perder uma permissão, o bot também deixará de a poder utilizar.",
         "save_failed": "Falha ao atualizar a permissão do bot"
-      }
+      },
+      "webhook_empty_description": "Ainda não foi criado nenhum webhook de entrada.",
+      "webhook_create": "Criar webhook",
+      "webhook_name": "Nome",
+      "webhook_created_at": "Criado",
+      "webhook_create_failed": "Não foi possível criar o webhook de entrada",
+      "webhook_revoke": "Revogar webhook",
+      "webhook_revoke_warning": "O URL atual do webhook deixará de funcionar imediatamente.",
+      "webhook_revoked": "Webhook de entrada revogado",
+      "webhook_revoke_failed": "Não foi possível revogar o webhook de entrada",
+      "webhook_last_used": "Última utilização",
+      "webhook_no_use_recorded": "Nenhuma utilização registada",
+      "webhook_last_used_unavailable": "Temporariamente indisponível",
+      "webhook_limit_reached": "Atingiste o limite de 20 webhooks de entrada."
     }
   }
 }

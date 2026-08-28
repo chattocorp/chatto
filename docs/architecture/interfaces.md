@@ -24,6 +24,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | Browser authentication | `GET /auth/browser/csrf`, `POST /auth/browser/login`, `POST /auth/browser/register/complete`, `POST /auth/browser/logout`, `POST /auth/browser/session/migrate`, `POST /auth/browser/session/renew`, `POST /auth/browser/revoke-bearer-session` | Bound CSRF-proof repair, cookie-only password/registration authentication, one-time 0.4 typed-cookie migration, logout, stable-handle session renewal, and removal of stored origin bearer authority | Every mutation requires JSON and an exact same-origin request. A browser-auth mode header, if present, must select cookies. Browser routes treat an absent header as cookie mode. Renewal and logout also require signed double-submit CSRF proof while a valid cookie authority exists. Migration uses the independent browser-route proof because it runs before a current cookie session exists. Logout can clear invalid session cookies with the same proof. The safe CSRF route requires a valid cookie session. These routes do not return bearer credentials. |
 | Programmatic authentication | `POST /auth/login`, `POST /auth/register/complete`, `POST /auth/logout`, `POST /oauth/token` | First-party bearer issuance, stable bearer-session revocation, and OAuth code/refresh exchange | JSON is required for direct login and registration. These routes do not create, read, or clear ambient browser authentication cookies. OAuth token exchange also accepts the documented form encoding. |
 | Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer access token in the hello frame or same-origin cookie; exact human credentials are revalidated before subscription and once per minute; bearer expiry and cookie renewal thresholds request reconnects, while OAuth-client blocks terminate matching established sessions |
+| Bot incoming webhook | `POST /webhooks/incoming/{credential}` with optional `room_id` query parameter | Slack-compatible plain-text JSON subset with Chatto aliases and optional thread creation | Action-limited bot webhook credential; the handler posts through the normal message operation and does not accept the bot API key |
 | Server OIDC client metadata | `GET /oauth/client-metadata.json` | CIMD public-client identity and exact callbacks for Chatto server login | Public; mounted only when an OIDC provider uses this deployment's metadata URL as its client ID |
 | Frontend OAuth client metadata | `GET /oauth/frontend-client-metadata.json` | CIMD public-client identity and exact popup callback for connecting the bundled frontend to Chatto servers | Public; always mounted |
 | Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE plus rotating refresh grant for a client application connecting to a Chatto server; browser clients use a CIMD URL `client_id`, Desktop uses its built-in identity, and an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token/refresh exchange; the validated client identity and exact callback are bound through code exchange, refresh remains client-bound, and provider hints cannot supply an issuer or endpoint |
@@ -57,7 +58,8 @@ copy it again; raw bearer tokens are not stored in `EVT`. Opening
 ID in the signed browser session, and immediately redirects to registration.
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
-and show-once API-key rotation. Bot
+show-once API-key rotation, and create and revoke operations for as many as 20
+named incoming webhooks for each bot. Bot
 permission reads and writes use `AdminPermissionService`'s canonical user
 permission operations with the bot's user ID as the target. Human owners can
 manage their own bots; `bot.manage` allows global management.
@@ -72,6 +74,12 @@ permission ceiling.
 
 Rotation closes established realtime connections authenticated by the
 superseded verifier generation.
+Incoming webhook creation returns the complete URL once. A manager replaces a
+webhook when the manager creates a new credential, moves the caller, and
+revokes the old credential. Each webhook can be revoked without a change to
+other webhooks. Safe metadata includes the creation time and best-effort
+last-use telemetry. The separate credentials cannot authenticate ConnectRPC or
+realtime requests.
 
 `NotificationPolicyService` provides explicit server, room-group, and room
 policy scopes. Its batch read accepts at most 100 scopes, removes duplicates in

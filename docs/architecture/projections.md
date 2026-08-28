@@ -325,9 +325,14 @@ serialization cannot reach authentication state.
 Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the current owner-to-bot index used for
 management, reassignment, and cascade deletion. `UserAuthProjection` replays
-the latest bot API-key verifier and creation/rotation timestamps from EVT. It
-also closes process-local realtime watchers whose non-secret verifier generation
-is superseded, so every replica terminates stale bot connections when it
-observes the durable rotation.
-The raw API key is never a projection value, snapshot field, or retrievable
-resource.
+the latest bot API-key verifier and creation/rotation timestamps from EVT. When
+it observes a durable API-key rotation, it closes process-local realtime
+watchers that use the superseded verifier generation. It also replays the
+active incoming webhook IDs, names, verifiers, and creation times. A
+historical verifier-replacement fact from the unreleased
+implementation replaces only the selected verifier during replay. Current
+commands do not write this fact. Revocation removes only the selected webhook.
+A webhook fact from the first unreleased implementation has no ID and projects
+to the synthetic `legacy` ID.
+The raw API key and incoming webhook credential are never projection values,
+snapshot fields, or retrievable resources.

@@ -442,6 +442,12 @@
       "rotate_warning": "La chiave corrente smetterà di funzionare immediatamente. Qualsiasi integrazione che lo utilizza deve essere aggiornata.",
       "key_rotated": "Chiave API ruotata",
       "rotate_failed": "Impossibile ruotare la chiave API",
+      "webhook_title": "Webhook in entrata",
+      "webhook_description": "Pubblica messaggi come questo bot da strumenti esterni.",
+      "webhook_created": "Webhook in entrata creato",
+      "webhook_url_title": "Salva questo URL del webhook",
+      "webhook_url_warning": "Questo URL viene mostrato una sola volta e contiene una credenziale. Salvalo in un luogo sicuro prima di chiudere questa finestra.",
+      "webhook_url_copied": "URL del webhook copiato",
       "delete_title": "Elimina bot",
       "delete_warning": "Eliminare {name}? La sua chiave API smetterà di funzionare immediatamente e l'account non potrà essere recuperato.",
       "deleted": "Bot eliminato",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Scegli cosa può fare questo bot. Puoi assegnargli solo le autorizzazioni che possiedi. Se perdi un'autorizzazione, anche il bot non potrà più usarla.",
         "save_failed": "Impossibile aggiornare l'autorizzazione del bot"
-      }
+      },
+      "webhook_empty_description": "Non è stato ancora creato alcun webhook in entrata.",
+      "webhook_create": "Crea webhook",
+      "webhook_name": "Nome",
+      "webhook_created_at": "Creato",
+      "webhook_create_failed": "Impossibile creare il webhook in entrata",
+      "webhook_revoke": "Revoca webhook",
+      "webhook_revoke_warning": "L’URL corrente del webhook smetterà subito di funzionare.",
+      "webhook_revoked": "Webhook in entrata revocato",
+      "webhook_revoke_failed": "Impossibile revocare il webhook in entrata",
+      "webhook_last_used": "Ultimo utilizzo",
+      "webhook_no_use_recorded": "Nessun utilizzo registrato",
+      "webhook_last_used_unavailable": "Temporaneamente non disponibile",
+      "webhook_limit_reached": "Hai raggiunto il limite di 20 webhook in entrata."
     }
   }
 }

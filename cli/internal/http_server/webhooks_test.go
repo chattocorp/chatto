@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +19,122 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *testing.T) {
+	ctx := testContext(t)
+	s := setupHTTPServerTestServer(t, config.AuthConfig{})
+	s.setupWebhookRoutes()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "incoming-owner", "Incoming Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := s.core.CreateBot(ctx, owner.GetId(), "incoming_bot", "Incoming Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	webhook, err := s.core.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "HTTP test")
+	if err != nil {
+		t.Fatalf("CreateBotIncomingWebhook: %v", err)
+	}
+	room, err := s.core.CreateRoom(ctx, owner.GetId(), core.KindChannel, "", "incoming-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := s.core.AddMember(ctx, owner.GetId(), core.KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	path := "/webhooks/incoming/" + webhook.Credential
+	denied := httptest.NewRecorder()
+	deniedRequest := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"text":"denied","channel":"`+room.GetId()+`"}`))
+	s.router.ServeHTTP(denied, deniedRequest)
+	if denied.Code != http.StatusNotFound || denied.Body.String() != "channel_not_found" {
+		t.Fatalf("permission-denied webhook = %d %q", denied.Code, denied.Body.String())
+	}
+	if err := s.core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermMessagePost, core.PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.post: %v", err)
+	}
+	if err := s.core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermMessagePostInThread, core.PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.post-in-thread: %v", err)
+	}
+
+	post := func(target, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		s.router.ServeHTTP(recorder, req)
+		return recorder
+	}
+	response := post(path+"?room_id="+room.GetId(), `{"text":"  from Slack  ","channel":"`+room.GetId()+`","create_thread":true}`)
+	if response.Code != http.StatusOK || response.Body.String() != "ok" {
+		t.Fatalf("channel webhook = %d %q", response.Code, response.Body.String())
+	}
+	events, _, err := s.core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.GetId()).Subject(evtstream.EventMessagePosted))
+	if err != nil || len(events) != 1 {
+		t.Fatalf("message events = %d, %v", len(events), err)
+	}
+	if body, err := s.core.GetMessageBody(ctx, events[0].GetId()); err != nil || body != "  from Slack  " {
+		t.Fatalf("message body = %q, %v", body, err)
+	}
+	if metadata, err := s.core.GetThreadMetadata(ctx, core.KindChannel, room.GetId(), events[0].GetId()); err != nil || !metadata.Exists {
+		t.Fatalf("thread metadata = %+v, %v", metadata, err)
+	}
+
+	dm, _, err := s.core.RoomCommands().StartDM(ctx, core.RoomStartDMInput{ActorID: owner.GetId(), ParticipantIDs: []string{bot.User.GetId()}})
+	if err != nil {
+		t.Fatalf("StartDM: %v", err)
+	}
+	response = post(path, `{"body":"DM reply","room_id":"`+dm.GetId()+`"}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("DM webhook = %d %q", response.Code, response.Body.String())
+	}
+	response = post(path, `{"text":"threaded DM","channel":"`+dm.GetId()+`","create_thread":true}`)
+	if response.Code != http.StatusBadRequest || response.Body.String() != "invalid_payload" {
+		t.Fatalf("threaded DM webhook = %d %q", response.Code, response.Body.String())
+	}
+
+	response = post(path+"?room_id="+room.GetId(), `{"text":"mismatch","channel":"`+dm.GetId()+`"}`)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("mismatched target webhook = %d %q", response.Code, response.Body.String())
+	}
+	response = post("/webhooks/incoming/invalid", `not-json`)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("invalid credential webhook = %d %q", response.Code, response.Body.String())
+	}
+}
+
+func TestIncomingWebhookRecordsUseAfterAuthenticationBeforePayloadValidation(t *testing.T) {
+	ctx := testContext(t)
+	s := setupHTTPServerTestServer(t, config.AuthConfig{})
+	s.setupWebhookRoutes()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "usage-http-owner", "Usage HTTP Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := s.core.CreateBot(ctx, owner.GetId(), "usage_http_bot", "Usage HTTP Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	webhook, err := s.core.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Invalid payload test")
+	if err != nil {
+		t.Fatalf("CreateBotIncomingWebhook: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/webhooks/incoming/"+webhook.Credential, strings.NewReader(`not-json`))
+	s.router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest || recorder.Body.String() != "invalid_payload" {
+		t.Fatalf("invalid payload response = %d %q", recorder.Code, recorder.Body.String())
+	}
+	managed, err := s.core.GetBot(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("GetBot: %v", err)
+	}
+	s.core.HydrateBotCredentialUsage(ctx, managed)
+	if len(managed.IncomingWebhooks) != 1 || managed.IncomingWebhooks[0].LastUsedState != core.BotCredentialLastUsedRecorded || managed.IncomingWebhooks[0].LastUsedAt.IsZero() {
+		t.Fatalf("last-used metadata = %+v", managed.IncomingWebhooks)
+	}
+}
 
 func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 	const (

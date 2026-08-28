@@ -221,6 +221,75 @@ retrieved later.
 | `api_key` | `string` | Newly issued API key. |
 
 
+<a id="chatto-api-v1-BotService-CreateBotIncomingWebhook"></a>
+
+### CreateBotIncomingWebhook
+
+Creates a named incoming webhook. A bot can have at most 20 active
+incoming webhooks.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-CreateBotIncomingWebhookRequest"></a>
+
+#### Input: CreateBotIncomingWebhookRequest
+
+Request creation of one named incoming webhook for a bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
+
+
+<a id="chatto-api-v1-CreateBotIncomingWebhookResponse"></a>
+
+#### Result: CreateBotIncomingWebhookResponse
+
+Result of creating an incoming webhook. webhook_url is shown once and cannot
+be retrieved later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
+| `webhook_url` | `string` | Newly issued incoming webhook URL. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotIncomingWebhook"></a>
+
+### RevokeBotIncomingWebhook
+
+Revokes one incoming webhook without changing other webhooks.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-RevokeBotIncomingWebhookRequest"></a>
+
+#### Input: RevokeBotIncomingWebhookRequest
+
+Request irreversible revocation of one incoming webhook credential.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `webhook_id` | `string` | Required webhook credential ID. |
+
+
+<a id="chatto-api-v1-RevokeBotIncomingWebhookResponse"></a>
+
+#### Result: RevokeBotIncomingWebhookResponse
+
+Result of revoking an incoming webhook.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
+
+
 <a id="chatto-api-v1-BotService-ReassignBotOwner"></a>
 
 ### ReassignBotOwner

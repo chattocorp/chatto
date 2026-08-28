@@ -442,6 +442,12 @@
       "rotate_warning": "Bieżący klucz natychmiast przestanie działać. Każda integracja korzystająca z niego musi zostać zaktualizowana.",
       "key_rotated": "Klucz API został zmieniony",
       "rotate_failed": "Nie udało się obrócić klucza API",
+      "webhook_title": "Przychodzące webhooki",
+      "webhook_description": "Publikuj wiadomości jako ten bot z narzędzi zewnętrznych.",
+      "webhook_created": "Utworzono przychodzący webhook",
+      "webhook_url_title": "Zapisz ten adres URL webhooka",
+      "webhook_url_warning": "Ten adres URL jest wyświetlany tylko raz i zawiera dane dostępowe. Zapisz go w bezpiecznym miejscu przed zamknięciem tego okna.",
+      "webhook_url_copied": "Skopiowano adres URL webhooka",
       "delete_title": "Usuń bota",
       "delete_warning": "Usunąć {name}? Jego klucz API natychmiast przestanie działać i konta nie będzie można odzyskać.",
       "deleted": "Bot usunięty",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Wybierz, co ten bot może robić. Możesz nadać mu tylko uprawnienia, które masz samodzielnie. Jeśli utracisz uprawnienie, bot również nie będzie mógł go używać.",
         "save_failed": "Nie udało się zaktualizować uprawnień bota"
-      }
+      },
+      "webhook_empty_description": "Nie utworzono jeszcze żadnych przychodzących webhooków.",
+      "webhook_create": "Utwórz webhook",
+      "webhook_name": "Nazwa",
+      "webhook_created_at": "Utworzono",
+      "webhook_create_failed": "Nie udało się utworzyć przychodzącego webhooka",
+      "webhook_revoke": "Unieważnij webhook",
+      "webhook_revoke_warning": "Bieżący adres URL webhooka natychmiast przestanie działać.",
+      "webhook_revoked": "Unieważniono przychodzący webhook",
+      "webhook_revoke_failed": "Nie udało się unieważnić przychodzącego webhooka",
+      "webhook_last_used": "Ostatnio użyto",
+      "webhook_no_use_recorded": "Nie zarejestrowano użycia",
+      "webhook_last_used_unavailable": "Tymczasowo niedostępne",
+      "webhook_limit_reached": "Osiągnięto limit 20 przychodzących webhooków."
     }
   }
 }

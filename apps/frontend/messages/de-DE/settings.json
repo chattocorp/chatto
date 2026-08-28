@@ -442,6 +442,12 @@
       "rotate_warning": "Der aktuelle Schlüssel funktioniert danach sofort nicht mehr. Du musst jede Integration aktualisieren, die ihn verwendet.",
       "key_rotated": "API-Schlüssel erneuert",
       "rotate_failed": "API-Schlüssel konnte nicht erneuert werden",
+      "webhook_title": "Eingehende Webhooks",
+      "webhook_description": "Nachrichten aus externen Tools als dieser Bot senden.",
+      "webhook_created": "Eingehender Webhook erstellt",
+      "webhook_url_title": "Webhook-URL speichern",
+      "webhook_url_warning": "Diese URL wird nur einmal angezeigt und enthält geheime Zugangsdaten. Speichere sie an einem sicheren Ort, bevor du das Fenster schließt.",
+      "webhook_url_copied": "Webhook-URL kopiert",
       "delete_title": "Bot löschen",
       "delete_warning": "{name} löschen? Sein API-Schlüssel funktioniert sofort nicht mehr und das Konto kann nicht wiederhergestellt werden.",
       "deleted": "Bot gelöscht",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Wähle aus, was dein Bot tun darf. Du kannst ihm nur Berechtigungen geben, die du selbst hast. Wenn du eine Berechtigung verlierst, gilt das auch für deinen Bot.",
         "save_failed": "Bot-Berechtigung konnte nicht aktualisiert werden"
-      }
+      },
+      "webhook_empty_description": "Es wurden noch keine eingehenden Webhooks erstellt.",
+      "webhook_create": "Webhook erstellen",
+      "webhook_name": "Name",
+      "webhook_created_at": "Erstellt",
+      "webhook_create_failed": "Eingehender Webhook konnte nicht erstellt werden",
+      "webhook_revoke": "Webhook widerrufen",
+      "webhook_revoke_warning": "Die aktuelle Webhook-URL funktioniert danach sofort nicht mehr.",
+      "webhook_revoked": "Eingehender Webhook widerrufen",
+      "webhook_revoke_failed": "Eingehender Webhook konnte nicht widerrufen werden",
+      "webhook_last_used": "Zuletzt verwendet",
+      "webhook_no_use_recorded": "Keine Nutzung erfasst",
+      "webhook_last_used_unavailable": "Vorübergehend nicht verfügbar",
+      "webhook_limit_reached": "Du hast die Höchstzahl von 20 eingehenden Webhooks erreicht."
     }
   }
 }

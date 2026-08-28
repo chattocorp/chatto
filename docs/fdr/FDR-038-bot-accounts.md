@@ -37,6 +37,27 @@ exercise more authority than its human owner currently possesses.
   visual indicator.
 - A bot has one active API key. The key is returned only when the bot is
   created or the key is rotated; it cannot be retrieved later.
+- The bundled frontend stops in-app navigation while it requests a show-once
+  bot credential and while it shows that credential. It asks for confirmation
+  before the browser unloads the page. Navigation becomes available after the
+  manager acknowledges the credential.
+- A bot can have at most 20 active, named incoming webhooks. Creating one
+  webhook shows its complete URL once. A manager can create a replacement
+  before the manager revokes an old webhook.
+- The bot detail page shows when each incoming webhook was created and
+  approximately when Chatto recorded its last use. Chatto attempts to record a
+  successful credential authentication even if the request subsequently
+  fails. If Chatto has no observation, the page shows "No use recorded." This
+  state does not prove that the credential was not used. If Chatto cannot read
+  this optional telemetry, the page shows that it is temporarily unavailable.
+- An incoming webhook can post plain-text messages as the bot. It accepts
+  Slack-compatible `text` and `channel` fields, Chatto `body` and `room_id`
+  aliases, an optional `room_id` query parameter, and the Chatto
+  `create_thread` extension. All specified destinations and bodies must agree.
+- An incoming webhook uses stable room IDs. It can select any channel room
+  where the bot is a member and has the normal posting permissions. It can
+  select an existing human-started DM that contains the bot. It cannot create
+  or find a DM, and it cannot create a thread in a DM.
 - Newly issued keys use a 128-bit random secret to remain compact enough for
   copy-and-paste workflows. Previously issued 256-bit keys remain valid until
   they are rotated.
@@ -260,6 +281,29 @@ want one action for each source message. The current realtime replacement
 contains only the newest finite page; longer recovery uses the paginated
 notification API.
 
+### 11. Incoming webhooks use a separate action credential
+
+**Decision:** A bot can have at most 20 active, named incoming webhook
+credentials. Each credential can call only the incoming webhook HTTP endpoint.
+The endpoint posts through the normal message operation as the bot. Each
+credential can select a room through the request URL or JSON payload. Chatto
+shows each raw URL only when it creates the selected credential. A manager
+creates a replacement before the manager moves a caller and revokes the old
+credential. The bot detail page shows creation metadata and an approximate
+last-use time for each credential. The bundled frontend stops in-app
+navigation until it shows the raw credential and the manager acknowledges it.
+
+**Why:** An external system can post a message without receiving the bot's
+complete API authority. Dynamic room selection keeps one automation usable
+across the rooms that the bot can already access.
+
+**Tradeoff:** The credential is in the webhook URL and needs the same secret
+handling as an API key. The first version has no idempotency key. A retry after
+a lost response can create a duplicate message. Last-use telemetry is
+best-effort and can be delayed, unavailable, or missing after a process or
+storage failure. Rich Slack payloads and replies to existing threads are
+deferred.
+
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
@@ -300,6 +344,14 @@ behavior. Updated servers continue to accept the first longer bot-key format
 while issuing the current shorter format. Exact field, method, event, and
 version-gate details belong in the public schema and API compatibility guide.
 
+Incoming webhook management methods, metadata, and lifecycle facts are
+additive. The create response shows the URL one time. Older clients ignore the
+metadata and do not call the new methods. Replace all replicas before you
+create or revoke a webhook. An older replica cannot project multiple webhook
+credentials correctly after replay and cannot authenticate the new URL format.
+Current servers read the rotation fact from the unreleased implementation, but
+they do not write it.
+
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-033
@@ -308,7 +360,7 @@ version-gate details belong in the public schema and API compatibility guide.
   runtime credentials), ADR-051 (resumable client projection), ADR-052
   (subject-specific RBAC), ADR-076 (deterministic notification occurrences),
   ADR-077 (persistent notification list), ADR-080 (explicit message-read
-  permissions)
+  permissions), ADR-083 (action-limited bot incoming webhooks)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
   (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018
   (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &
@@ -317,7 +369,10 @@ version-gate details belong in the public schema and API compatibility guide.
 
 ## Open Questions
 
-- Multiple independently rotatable API keys, named keys, and key expiry are
-  deferred until integrations demonstrate a need for them.
+- Multiple named bot API keys, independent revocation, last-use telemetry, and
+  key expiry are deferred. A future design should
+  reuse the incoming-webhook credential lifecycle and usage-recording patterns
+  where they apply. It must also define compatibility for the current
+  two-part bot API key format.
 - Define durable webhook registration, signing, retry, and delivery status for
   the same bot activation occurrences.

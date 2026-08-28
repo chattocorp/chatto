@@ -442,6 +442,12 @@
       "rotate_warning": "A chave atual irá parar de funcionar imediatamente. Qualquer integração que o utilize deve ser atualizada.",
       "key_rotated": "Chave de API rotacionada",
       "rotate_failed": "Falha ao alternar a chave de API",
+      "webhook_title": "Webhooks de entrada",
+      "webhook_description": "Publique mensagens como este bot usando ferramentas externas.",
+      "webhook_created": "Webhook de entrada criado",
+      "webhook_url_title": "Salvar esta URL de webhook",
+      "webhook_url_warning": "Esta URL é exibida apenas uma vez e contém uma credencial. Guarde-a em um local seguro antes de fechar esta janela.",
+      "webhook_url_copied": "URL do webhook copiada",
       "delete_title": "Excluir bot",
       "delete_warning": "Excluir {name}? Sua chave de API deixará de funcionar imediatamente e a conta não poderá ser recuperada.",
       "deleted": "Bot excluído",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Escolha o que este bot pode fazer. Você só pode conceder a ele permissões que também possui. Se você perder uma permissão, o bot também não poderá mais usá-la.",
         "save_failed": "Falha ao atualizar a permissão do bot"
-      }
+      },
+      "webhook_empty_description": "Nenhum webhook de entrada foi criado ainda.",
+      "webhook_create": "Criar webhook",
+      "webhook_name": "Nome",
+      "webhook_created_at": "Criado",
+      "webhook_create_failed": "Não foi possível criar o webhook de entrada",
+      "webhook_revoke": "Revogar webhook",
+      "webhook_revoke_warning": "A URL atual do webhook deixará de funcionar imediatamente.",
+      "webhook_revoked": "Webhook de entrada revogado",
+      "webhook_revoke_failed": "Não foi possível revogar o webhook de entrada",
+      "webhook_last_used": "Último uso",
+      "webhook_no_use_recorded": "Nenhum uso registrado",
+      "webhook_last_used_unavailable": "Temporariamente indisponível",
+      "webhook_limit_reached": "Você atingiu o limite de 20 webhooks de entrada."
     }
   }
 }

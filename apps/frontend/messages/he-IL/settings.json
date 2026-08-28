@@ -442,6 +442,12 @@
       "rotate_warning": "המפתח הנוכחי יפסיק לפעול באופן מיידי. כל שילוב המשתמש בו חייב להיות מעודכן.",
       "key_rotated": "מפתח API סובב",
       "rotate_failed": "סובב מפתח API נכשל",
+      "webhook_title": "Webהוקים נכנסים",
+      "webhook_description": "פרסום הודעות כבוט הזה מכלים חיצוניים.",
+      "webhook_created": "Webהוק נכנס נוצר",
+      "webhook_url_title": "שמירת כתובת ה-Webhook הזו",
+      "webhook_url_warning": "כתובת זו מוצגת פעם אחת בלבד ומכילה פרטי גישה. יש לשמור אותה במקום מאובטח לפני סגירת החלון.",
+      "webhook_url_copied": "כתובת ה-Webhook הועתקה",
       "delete_title": "מחק בוט",
       "delete_warning": "למחוק את {name}? מפתח ה-API שלו יפסיק לפעול באופן מיידי ולא ניתן לשחזר את החשבון.",
       "deleted": "הבוט נמחק",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "בחרו מה הבוט הזה יכול לעשות. אפשר להעניק לו רק הרשאות שיש לכם. אם תאבדו הרשאה, גם הבוט לא יוכל עוד להשתמש בה.",
         "save_failed": "נכשל בעדכון הרשאת הבוט"
-      }
+      },
+      "webhook_empty_description": "עדיין לא נוצרו Webהוקים נכנסים.",
+      "webhook_create": "יצירת Webהוק",
+      "webhook_name": "שם",
+      "webhook_created_at": "נוצר",
+      "webhook_create_failed": "יצירת ה-Webהוק הנכנס נכשלה",
+      "webhook_revoke": "ביטול Webהוק",
+      "webhook_revoke_warning": "כתובת ה-Webהוק הנוכחית תפסיק לפעול מיד.",
+      "webhook_revoked": "ה-Webהוק הנכנס בוטל",
+      "webhook_revoke_failed": "ביטול ה-Webהוק הנכנס נכשל",
+      "webhook_last_used": "שימוש אחרון",
+      "webhook_no_use_recorded": "לא תועד שימוש",
+      "webhook_last_used_unavailable": "לא זמין זמנית",
+      "webhook_limit_reached": "הגעת למגבלה של 20 Webהוקים נכנסים."
     }
   }
 }

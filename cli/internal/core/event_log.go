@@ -372,6 +372,12 @@ func marshalEventLogPayloadJSON(event *corev1.Event) ([]byte, error) {
 	if keyRotated := redacted.GetBotApiKeyRotated(); keyRotated != nil {
 		keyRotated.Verifier = nil
 	}
+	if webhookCreated := redacted.GetBotIncomingWebhookCreated(); webhookCreated != nil {
+		webhookCreated.Verifier = nil
+	}
+	if webhookRotated := redacted.GetBotIncomingWebhookRotated(); webhookRotated != nil {
+		webhookRotated.Verifier = nil
+	}
 
 	return protojson.MarshalOptions{
 		Multiline:       true,

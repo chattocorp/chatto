@@ -442,6 +442,12 @@
       "rotate_warning": "La nuna ŝlosilo tuj ĉesos funkcii. Ĉiu integriĝo uzanta ĝin devas esti ĝisdatigita.",
       "key_rotated": "API-ŝlosilo turniĝis",
       "rotate_failed": "Malsukcesis turni API-ŝlosilon",
+      "webhook_title": "Envenaj rethokoj",
+      "webhook_description": "Afiŝu mesaĝojn kiel ĉi tiu roboto per eksteraj iloj.",
+      "webhook_created": "Envena rethoko kreita",
+      "webhook_url_title": "Konservu ĉi tiun rethokan URL-on",
+      "webhook_url_warning": "Ĉi tiu URL montriĝas nur unufoje kaj enhavas ensalutilon. Konservu ĝin sekure antaŭ ol fermi ĉi tiun fenestron.",
+      "webhook_url_copied": "Rethoka URL kopiita",
       "delete_title": "Forigi Bot",
       "delete_warning": "Ĉu forigi {name}? Ĝia API-ŝlosilo tuj ĉesos funkcii kaj la konto ne povas esti reakirita.",
       "deleted": "Bot forigita",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Elektu, kion ĉi tiu roboto rajtas fari. Vi povas doni al ĝi nur permesojn, kiujn vi mem havas. Se vi perdas permeson, ankaŭ la roboto ne plu povos uzi ĝin.",
         "save_failed": "Malsukcesis ĝisdatigi bot-permeson"
-      }
+      },
+      "webhook_empty_description": "Ankoraŭ neniu envena rethoko estis kreita.",
+      "webhook_create": "Krei rethokon",
+      "webhook_name": "Nomo",
+      "webhook_created_at": "Kreita",
+      "webhook_create_failed": "Ne eblis krei la envenan rethokon",
+      "webhook_revoke": "Revoki rethokon",
+      "webhook_revoke_warning": "La nuna rethoka URL tuj ĉesos funkcii.",
+      "webhook_revoked": "Envena rethoko revokita",
+      "webhook_revoke_failed": "Ne eblis revoki la envenan rethokon",
+      "webhook_last_used": "Laste uzita",
+      "webhook_no_use_recorded": "Neniu uzo registrita",
+      "webhook_last_used_unavailable": "Provizore nedisponebla",
+      "webhook_limit_reached": "La limo de 20 envenaj rethokoj estas atingita."
     }
   }
 }

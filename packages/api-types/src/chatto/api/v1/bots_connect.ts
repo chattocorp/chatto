@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -82,6 +82,30 @@ export const BotService = {
       I: RotateBotApiKeyRequest,
       O: RotateBotApiKeyResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Creates a named incoming webhook. A bot can have at most 20 active
+     * incoming webhooks.
+     *
+     * @generated from rpc chatto.api.v1.BotService.CreateBotIncomingWebhook
+     */
+    createBotIncomingWebhook: {
+      name: "CreateBotIncomingWebhook",
+      I: CreateBotIncomingWebhookRequest,
+      O: CreateBotIncomingWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Revokes one incoming webhook without changing other webhooks.
+     *
+     * @generated from rpc chatto.api.v1.BotService.RevokeBotIncomingWebhook
+     */
+    revokeBotIncomingWebhook: {
+      name: "RevokeBotIncomingWebhook",
+      I: RevokeBotIncomingWebhookRequest,
+      O: RevokeBotIncomingWebhookResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
     /**
      * Reassigns a bot to another active human owner. Requires bot.manage. The

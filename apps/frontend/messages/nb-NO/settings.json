@@ -442,6 +442,12 @@
       "rotate_warning": "Gjeldende nøkkel slutter å virke umiddelbart. Enhver integrasjon som bruker det, må oppdateres.",
       "key_rotated": "API-nøkkel rotert",
       "rotate_failed": "Kunne ikke rotere API-nøkkel",
+      "webhook_title": "Innkommende webhooks",
+      "webhook_description": "Publiser meldinger som denne boten fra eksterne verktøy.",
+      "webhook_created": "Innkommende webhook opprettet",
+      "webhook_url_title": "Lagre denne webhook-URL-en",
+      "webhook_url_warning": "Denne URL-en vises bare én gang og inneholder tilgangsinformasjon. Lagre den på et sikkert sted før du lukker dette vinduet.",
+      "webhook_url_copied": "Webhook-URL kopiert",
       "delete_title": "Slett bot",
       "delete_warning": "Vil du slette {name}? API-nøkkelen slutter å fungere umiddelbart, og kontoen kan ikke gjenopprettes.",
       "deleted": "Bote slettet",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Velg hva denne boten kan gjøre. Du kan bare gi den tillatelser du selv har. Hvis du mister en tillatelse, kan boten heller ikke bruke den lenger.",
         "save_failed": "Kunne ikke oppdatere bottillatelsen"
-      }
+      },
+      "webhook_empty_description": "Ingen innkommende webhooks er opprettet ennå.",
+      "webhook_create": "Opprett webhook",
+      "webhook_name": "Navn",
+      "webhook_created_at": "Opprettet",
+      "webhook_create_failed": "Kunne ikke opprette innkommende webhook",
+      "webhook_revoke": "Tilbakekall webhook",
+      "webhook_revoke_warning": "Den gjeldende webhook-URL-en slutter å virke umiddelbart.",
+      "webhook_revoked": "Innkommende webhook tilbakekalt",
+      "webhook_revoke_failed": "Kunne ikke tilbakekalle innkommende webhook",
+      "webhook_last_used": "Sist brukt",
+      "webhook_no_use_recorded": "Ingen bruk registrert",
+      "webhook_last_used_unavailable": "Midlertidig utilgjengelig",
+      "webhook_limit_reached": "Grensen på 20 innkommende webhooks er nådd."
     }
   }
 }

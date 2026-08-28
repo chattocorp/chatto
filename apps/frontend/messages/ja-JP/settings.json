@@ -442,6 +442,12 @@
       "rotate_warning": "現在のキーはすぐに動作を停止します。これを使用する統合は更新する必要があります。",
       "key_rotated": "API キーがローテーションされました",
       "rotate_failed": "API キーのローテーションに失敗しました",
+      "webhook_title": "受信 Webhook",
+      "webhook_description": "外部ツールからこのボットとしてメッセージを投稿します。",
+      "webhook_created": "受信 Webhook を作成しました",
+      "webhook_url_title": "この Webhook URL を保存",
+      "webhook_url_warning": "この URL は一度しか表示されず、認証情報が含まれています。このウィンドウを閉じる前に安全な場所へ保存してください。",
+      "webhook_url_copied": "Webhook URL をコピーしました",
       "delete_title": "ボットを削除",
       "delete_warning": "{name} を削除しますか?その API キーはすぐに動作を停止し、アカウントは回復できなくなります。",
       "deleted": "ボットが削除されました",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "このボットに許可する操作を選んでください。自分が持っている権限だけを付与できます。あなたが権限を失うと、ボットもその権限を使用できなくなります。",
         "save_failed": "ボットの権限を更新できませんでした"
-      }
+      },
+      "webhook_empty_description": "受信 Webhook はまだ作成されていません。",
+      "webhook_create": "Webhook を作成",
+      "webhook_name": "名前",
+      "webhook_created_at": "作成日時",
+      "webhook_create_failed": "受信 Webhook を作成できませんでした",
+      "webhook_revoke": "Webhook を取り消す",
+      "webhook_revoke_warning": "現在の Webhook URL はすぐに使用できなくなります。",
+      "webhook_revoked": "受信 Webhook を取り消しました",
+      "webhook_revoke_failed": "受信 Webhook を取り消せませんでした",
+      "webhook_last_used": "最終使用日時",
+      "webhook_no_use_recorded": "使用記録なし",
+      "webhook_last_used_unavailable": "一時的に利用できません",
+      "webhook_limit_reached": "受信 Webhook の上限 20 件に達しました。"
     }
   }
 }

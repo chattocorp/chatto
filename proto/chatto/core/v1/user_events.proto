@@ -11,7 +11,10 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER EVENTS
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-722: durable user aggregate events on evt.user.{userId}.*
+//   - 700-725: durable user aggregate events on evt.user.{userId}.*
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
 // ============================================================================
 
 // ============================================================================
@@ -53,6 +56,32 @@ message BotOwnerReassignedEvent {
   string user_id = 1;
   string previous_owner_user_id = 2;
   string owner_user_id = 3;
+}
+
+// BotIncomingWebhookCreatedEvent records the verifier and safe metadata for
+// one bot incoming webhook. The raw credential is returned once and is never
+// persisted. webhook_id and name are empty only in legacy singular events.
+message BotIncomingWebhookCreatedEvent {
+  string user_id = 1;
+  bytes verifier = 2;
+  string webhook_id = 3;
+  string name = 4;
+}
+
+// BotIncomingWebhookRotatedEvent replays a replacement verifier written by an
+// unreleased implementation. Current servers do not write this event.
+// webhook_id is empty only in a legacy singular event.
+message BotIncomingWebhookRotatedEvent {
+  string user_id = 1;
+  bytes verifier = 2;
+  string webhook_id = 3;
+}
+
+// BotIncomingWebhookRevokedEvent invalidates one incoming webhook credential.
+// webhook_id is empty only in a legacy singular event.
+message BotIncomingWebhookRevokedEvent {
+  string user_id = 1;
+  string webhook_id = 2;
 }
 
 message UserLoginChangedEvent {

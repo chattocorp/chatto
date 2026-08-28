@@ -22,7 +22,8 @@ login forms.
 1. Open **Server Admin → Bots** and choose **Create Bot**.
 2. Enter a username ending in `_bot` and a display name.
 3. Copy the API key before closing the dialog. Chatto cannot show this raw key
-   again.
+   again. Chatto stops in-app navigation until you acknowledge the key. Your
+   browser asks for confirmation if you try to unload the page.
 4. Open the bot's detail page and enable the server, room-group, or room
    permissions the integration needs.
 
@@ -57,6 +58,66 @@ before the mention. An effective `message.read` allow includes
 not grant broad access. DM membership authorizes the bot to read that DM.
 Posting remains a separate `message.post` or `message.post-in-thread`
 decision.
+
+## Post from an external webhook
+
+Open the bot's detail page and choose **Create Webhook**. Give the webhook a
+name that identifies its caller. Copy the complete URL before you close the
+dialog. Chatto cannot show the credential again. Chatto stops in-app
+navigation while it creates or shows the credential. Your browser asks for
+confirmation if you try to unload the page. A bot can have at most 20 active
+webhooks.
+
+Create a separate webhook for each external integration. To replace a webhook,
+create a new one, move the caller to it, and then revoke the old webhook. You
+can revoke one webhook without a change to the other webhooks. The detail page
+shows when each webhook was created and approximately when Chatto recorded its
+last use. Last-use telemetry is optional. **No use recorded** does not prove
+that the webhook was not used. Chatto shows **Temporarily unavailable** if it
+cannot read the telemetry.
+
+Send a JSON request with Slack-compatible `text` and `channel` fields:
+
+```http
+POST /webhooks/incoming/cht_IW_…
+Content-Type: application/json
+
+{"text":"Deployment finished","channel":"R…"}
+```
+
+Chatto also accepts `body` instead of `text`, and `room_id` instead of
+`channel`. You can put `room_id` in the query string:
+
+```http
+POST /webhooks/incoming/cht_IW_…?room_id=R…
+Content-Type: application/json
+
+{"text":"Deployment finished"}
+```
+
+If you specify more than one body or room field, the values must be equal. Use
+a stable room ID, not a room name. Set `"create_thread": true` to start a
+thread in a channel room that supports threads. The bot needs `message.post`
+and `message.post-in-thread` for explicit thread creation. A room that requires
+threads creates one automatically. Direct messages do not support threads.
+
+The bot must already be a room member and have `message.post`. A webhook can
+post to a DM only after a human starts that DM with the bot. It cannot start or
+find a DM.
+
+A successful request returns HTTP 200 and the plain-text body `ok`. The first
+version has no idempotency key. If the caller retries after it loses a
+response, Chatto can post the message more than once.
+
+Chatto records the webhook as used after successful credential authentication.
+It records this use even if the JSON is invalid or the message operation fails.
+The recorded time can be delayed by approximately one minute.
+
+<Aside type="caution">
+  The URL contains a credential. Keep it out of source control, application
+  logs, screenshots, and support requests. Configure reverse proxies to redact
+  `/webhooks/incoming/…` paths.
+</Aside>
 
 ## Activate a bot from Chatto activity
 
@@ -143,9 +204,11 @@ account.
 
 ## API reference
 
-`BotService` exposes bot lifecycle, owner reassignment, and key rotation. Use
-`MyAccountService.UpdateProfile` with the bot API key for self-profile changes.
-The raw key appears only in `CreateBot` and `RotateBotApiKey` responses. Bot
+`BotService` exposes bot lifecycle, owner reassignment, key rotation, and
+independent management for multiple named incoming webhook credentials. The bot
+can use `MyAccountService.UpdateProfile` with its API key for self-profile
+changes. The raw key appears only in `CreateBot` and `RotateBotApiKey`
+responses. Bot
 permissions use the same `AdminPermissionService` user-permission RPCs as human
 accounts, with the bot's user ID as the target. See the
 [BotService reference](/reference/connectrpc-api/bots/) and

@@ -34,6 +34,43 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err != nil || got.Msg.GetBot().GetUser().GetLogin() != "connect_bot" {
 		t.Fatalf("GetBot = %+v, %v", got, err)
 	}
+	env.api.config.Webserver.URL = "https://configured.example"
+	webhookCtx := WithRequestBaseURL(ctx, "https://spoofed.example")
+	webhook, err := service.CreateBotIncomingWebhook(webhookCtx, connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "CI"}))
+	if err != nil || len(webhook.Msg.GetBot().GetIncomingWebhooks()) != 1 || webhook.Msg.GetWebhookUrl() == "" {
+		t.Fatalf("CreateBotIncomingWebhook = %+v, %v", webhook, err)
+	}
+	webhookID := webhook.Msg.GetBot().GetIncomingWebhooks()[0].GetId()
+	if got := webhook.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); got != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED {
+		t.Fatalf("new webhook last-used state = %v", got)
+	}
+	got, err = service.GetBot(ctx, connect.NewRequest(&apiv1.GetBotRequest{BotUserId: bot.GetUser().GetId()}))
+	if err != nil {
+		t.Fatalf("GetBot after webhook creation: %v", err)
+	}
+	if state := got.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); state != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED {
+		t.Fatalf("missing webhook usage record state = %v", state)
+	}
+	if wantPrefix := "https://configured.example/webhooks/incoming/cht_IW_"; len(webhook.Msg.GetWebhookUrl()) < len(wantPrefix) || webhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
+		t.Fatalf("webhook URL = %q, want prefix %q", webhook.Msg.GetWebhookUrl(), wantPrefix)
+	}
+	secondWebhook, err := service.CreateBotIncomingWebhook(webhookCtx, connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "Deployments"}))
+	if err != nil || len(secondWebhook.Msg.GetBot().GetIncomingWebhooks()) != 2 {
+		t.Fatalf("second CreateBotIncomingWebhook = %+v, %v", secondWebhook, err)
+	}
+	for _, item := range secondWebhook.Msg.GetBot().GetIncomingWebhooks() {
+		want := apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED
+		if item.GetName() == "Deployments" {
+			want = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED
+		}
+		if item.GetLastUsedState() != want {
+			t.Fatalf("second creation webhook %q state = %v, want %v", item.GetId(), item.GetLastUsedState(), want)
+		}
+	}
+	revokedWebhook, err := service.RevokeBotIncomingWebhook(ctx, connect.NewRequest(&apiv1.RevokeBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), WebhookId: webhookID}))
+	if err != nil || len(revokedWebhook.Msg.GetBot().GetIncomingWebhooks()) != 1 {
+		t.Fatalf("RevokeBotIncomingWebhook = %+v, %v", revokedWebhook, err)
+	}
 	botCore, err := env.core.GetUser(env.ctx, bot.GetUser().GetId())
 	if err != nil {
 		t.Fatalf("GetUser bot: %v", err)
@@ -111,9 +148,15 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err != nil || rotated.Msg.GetApiKey() == "" || rotated.Msg.GetApiKey() == created.Msg.GetApiKey() {
 		t.Fatalf("RotateBotApiKey = %+v, %v", rotated, err)
 	}
+	if state := rotated.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); state != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED {
+		t.Fatalf("rotated bot unhydrated webhook state = %v, want unspecified", state)
+	}
 
 	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("bot caller ListBots code = %v, want failed precondition", connect.CodeOf(err))
+	}
+	if _, err := service.CreateBotIncomingWebhook(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "Denied"})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("bot caller CreateBotIncomingWebhook code = %v, want failed precondition", connect.CodeOf(err))
 	}
 
 	deleted, err := service.DeleteBot(ctx, connect.NewRequest(&apiv1.DeleteBotRequest{BotUserId: bot.GetUser().GetId()}))

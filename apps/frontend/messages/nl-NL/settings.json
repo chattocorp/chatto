@@ -442,6 +442,12 @@
       "rotate_warning": "De huidige sleutel werkt onmiddellijk niet meer. Elke integratie die hiervan gebruik maakt, moet worden bijgewerkt.",
       "key_rotated": "API-sleutel geroteerd",
       "rotate_failed": "Kan de API-sleutel niet roteren",
+      "webhook_title": "Inkomende webhooks",
+      "webhook_description": "Plaats berichten als deze bot vanuit externe tools.",
+      "webhook_created": "Inkomende webhook gemaakt",
+      "webhook_url_title": "Deze webhook-URL opslaan",
+      "webhook_url_warning": "Deze URL wordt slechts één keer getoond en bevat toegangsgegevens. Bewaar de URL op een veilige plaats voordat u dit venster sluit.",
+      "webhook_url_copied": "Webhook-URL gekopieerd",
       "delete_title": "Bot verwijderen",
       "delete_warning": "{name} verwijderen? De API-sleutel werkt onmiddellijk niet meer en het account kan niet worden hersteld.",
       "deleted": "Bot verwijderd",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Kies wat deze bot mag doen. Je kunt alleen rechten geven die je zelf hebt. Als je een recht verliest, kan de bot het ook niet meer gebruiken.",
         "save_failed": "Kan de botrechten niet bijwerken"
-      }
+      },
+      "webhook_empty_description": "Er zijn nog geen inkomende webhooks gemaakt.",
+      "webhook_create": "Webhook maken",
+      "webhook_name": "Naam",
+      "webhook_created_at": "Gemaakt",
+      "webhook_create_failed": "Inkomende webhook kon niet worden gemaakt",
+      "webhook_revoke": "Webhook intrekken",
+      "webhook_revoke_warning": "De huidige webhook-URL werkt onmiddellijk niet meer.",
+      "webhook_revoked": "Inkomende webhook ingetrokken",
+      "webhook_revoke_failed": "Inkomende webhook kon niet worden ingetrokken",
+      "webhook_last_used": "Laatst gebruikt",
+      "webhook_no_use_recorded": "Geen gebruik geregistreerd",
+      "webhook_last_used_unavailable": "Tijdelijk niet beschikbaar",
+      "webhook_limit_reached": "De limiet van 20 inkomende webhooks is bereikt."
     }
   }
 }

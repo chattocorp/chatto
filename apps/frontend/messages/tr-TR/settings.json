@@ -442,6 +442,12 @@
       "rotate_warning": "Geçerli anahtarın çalışması hemen durdurulacak. Bunu kullanan tüm entegrasyonların güncellenmesi gerekir.",
       "key_rotated": "API anahtarı döndürüldü",
       "rotate_failed": "API anahtarı döndürülemedi",
+      "webhook_title": "Gelen webhook’lar",
+      "webhook_description": "Harici araçlardan bu bot olarak mesaj gönderin.",
+      "webhook_created": "Gelen webhook oluşturuldu",
+      "webhook_url_title": "Bu webhook URL’sini kaydedin",
+      "webhook_url_warning": "Bu URL yalnızca bir kez gösterilir ve bir kimlik bilgisi içerir. Bu pencereyi kapatmadan önce güvenli bir yerde saklayın.",
+      "webhook_url_copied": "Webhook URL’si kopyalandı",
       "delete_title": "Bot'u Sil",
       "delete_warning": "{name} silinsin mi? API anahtarının çalışması hemen durdurulacak ve hesap kurtarılamaz.",
       "deleted": "Bot silindi",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Bu botun neler yapabileceğini seçin. Yalnızca sizin de sahip olduğunuz izinleri verebilirsiniz. Bir izni kaybederseniz bot da artık o izni kullanamaz.",
         "save_failed": "Bot izni güncellenemedi"
-      }
+      },
+      "webhook_empty_description": "Henüz gelen webhook oluşturulmadı.",
+      "webhook_create": "Webhook oluştur",
+      "webhook_name": "Ad",
+      "webhook_created_at": "Oluşturuldu",
+      "webhook_create_failed": "Gelen webhook oluşturulamadı",
+      "webhook_revoke": "Webhook’u iptal et",
+      "webhook_revoke_warning": "Mevcut webhook URL’si hemen çalışmayı durdurur.",
+      "webhook_revoked": "Gelen webhook iptal edildi",
+      "webhook_revoke_failed": "Gelen webhook iptal edilemedi",
+      "webhook_last_used": "Son kullanım",
+      "webhook_no_use_recorded": "Kullanım kaydedilmedi",
+      "webhook_last_used_unavailable": "Geçici olarak kullanılamıyor",
+      "webhook_limit_reached": "20 gelen webhook sınırına ulaştınız."
     }
   }
 }

@@ -442,6 +442,12 @@
       "rotate_warning": "La clave actual dejará de funcionar inmediatamente. Cualquier integración que lo utilice debe estar actualizada.",
       "key_rotated": "Clave API rotada",
       "rotate_failed": "Error al rotar la clave API",
+      "webhook_title": "Webhooks entrantes",
+      "webhook_description": "Publica mensajes como este bot desde herramientas externas.",
+      "webhook_created": "Webhook entrante creado",
+      "webhook_url_title": "Guardar esta URL de webhook",
+      "webhook_url_warning": "Esta URL se muestra una sola vez y contiene una credencial. Guárdala en un lugar seguro antes de cerrar esta ventana.",
+      "webhook_url_copied": "URL del webhook copiada",
       "delete_title": "Eliminar bot",
       "delete_warning": "¿Eliminar {name}? Su clave API dejará de funcionar inmediatamente y la cuenta no podrá recuperarse.",
       "deleted": "Bot eliminado",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Elige qué puede hacer este bot. Solo puedes concederle permisos que tú también tengas. Si pierdes un permiso, el bot tampoco podrá usarlo.",
         "save_failed": "Error al actualizar el permiso del bot"
-      }
+      },
+      "webhook_empty_description": "Aún no se creó ningún webhook entrante.",
+      "webhook_create": "Crear webhook",
+      "webhook_name": "Nombre",
+      "webhook_created_at": "Creado",
+      "webhook_create_failed": "No se pudo crear el webhook entrante",
+      "webhook_revoke": "Revocar webhook",
+      "webhook_revoke_warning": "La URL actual del webhook dejará de funcionar de inmediato.",
+      "webhook_revoked": "Webhook entrante revocado",
+      "webhook_revoke_failed": "No se pudo revocar el webhook entrante",
+      "webhook_last_used": "Último uso",
+      "webhook_no_use_recorded": "No se registró ningún uso",
+      "webhook_last_used_unavailable": "No disponible temporalmente",
+      "webhook_limit_reached": "Alcanzaste el límite de 20 webhooks entrantes."
     }
   }
 }

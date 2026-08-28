@@ -98,3 +98,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Accepted | 2026-08-23 |
 | [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
 | [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Accepted | 2026-08-25 |
+| [ADR-083](ADR-083-action-limited-bot-incoming-webhooks.md) | Use Action-Limited Credentials for Bot Incoming Webhooks | Accepted | 2026-08-27 |

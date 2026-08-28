@@ -442,6 +442,12 @@
       "rotate_warning": "当前密钥将立即停止工作。任何使用它的集成都必须更新。",
       "key_rotated": "API 密钥已轮换",
       "rotate_failed": "轮换 API 密钥失败",
+      "webhook_title": "传入 Webhook",
+      "webhook_description": "通过外部工具以此机器人身份发布消息。",
+      "webhook_created": "已创建传入 Webhook",
+      "webhook_url_title": "保存此 Webhook URL",
+      "webhook_url_warning": "此 URL 仅显示一次，并且包含凭据。请在关闭此窗口前将其保存到安全位置。",
+      "webhook_url_copied": "Webhook URL 已复制",
       "delete_title": "删除机器人",
       "delete_warning": "删除{name}？其 API 密钥将立即停止工作，并且该帐户无法恢复。",
       "deleted": "机器人已删除",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "选择这个机器人可以执行的操作。你只能授予自己拥有的权限。如果你失去某项权限，机器人也将无法再使用该权限。",
         "save_failed": "无法更新机器人权限"
-      }
+      },
+      "webhook_empty_description": "尚未创建任何传入 Webhook。",
+      "webhook_create": "创建 Webhook",
+      "webhook_name": "名称",
+      "webhook_created_at": "创建时间",
+      "webhook_create_failed": "无法创建传入 Webhook",
+      "webhook_revoke": "撤销 Webhook",
+      "webhook_revoke_warning": "当前 Webhook URL 将立即停止工作。",
+      "webhook_revoked": "已撤销传入 Webhook",
+      "webhook_revoke_failed": "无法撤销传入 Webhook",
+      "webhook_last_used": "上次使用时间",
+      "webhook_no_use_recorded": "未记录使用情况",
+      "webhook_last_used_unavailable": "暂时不可用",
+      "webhook_limit_reached": "已达到 20 个传入 Webhook 的上限。"
     }
   }
 }

@@ -55,3 +55,20 @@ func TestMarshalEventLogPayloadJSONRedactsBotAPIKeyVerifier(t *testing.T) {
 		t.Fatal("durable bot verifier was mutated")
 	}
 }
+
+func TestMarshalEventLogPayloadJSONRedactsBotIncomingWebhookVerifier(t *testing.T) {
+	verifier := []byte("bot-incoming-webhook-verifier")
+	event := &corev1.Event{Event: &corev1.Event_BotIncomingWebhookCreated{
+		BotIncomingWebhookCreated: &corev1.BotIncomingWebhookCreatedEvent{UserId: "bot-user", WebhookId: "webhook", Verifier: append([]byte(nil), verifier...)},
+	}}
+	payload, err := marshalEventLogPayloadJSON(event)
+	if err != nil {
+		t.Fatalf("marshalEventLogPayloadJSON: %v", err)
+	}
+	if strings.Contains(string(payload), "verifier") || strings.Contains(string(payload), string(verifier)) {
+		t.Fatalf("audit payload contains webhook verifier: %s", payload)
+	}
+	if !bytes.Equal(event.GetBotIncomingWebhookCreated().GetVerifier(), verifier) {
+		t.Fatal("durable webhook verifier was mutated")
+	}
+}

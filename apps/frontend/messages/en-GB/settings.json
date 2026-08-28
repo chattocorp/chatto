@@ -442,6 +442,12 @@
       "rotate_warning": "The current key will stop working immediately. Any integration using it must be updated.",
       "key_rotated": "API key rotated",
       "rotate_failed": "Failed to rotate API key",
+      "webhook_title": "Incoming webhooks",
+      "webhook_description": "Post messages as this bot from external tools.",
+      "webhook_created": "Incoming webhook created",
+      "webhook_url_title": "Save This Webhook URL",
+      "webhook_url_warning": "This URL is shown only once and contains a credential. Store it somewhere secure before closing this window.",
+      "webhook_url_copied": "Webhook URL copied",
       "delete_title": "Delete Bot",
       "delete_warning": "Delete {name}? Its API key will stop working immediately and the account cannot be recovered.",
       "deleted": "Bot deleted",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Choose what your bot can do. You can only give it permissions you have yourself. If you lose a permission, your bot loses it too.",
         "save_failed": "Failed to update bot permission"
-      }
+      },
+      "webhook_empty_description": "No incoming webhooks have been created.",
+      "webhook_create": "Create Webhook",
+      "webhook_name": "Name",
+      "webhook_created_at": "Created",
+      "webhook_create_failed": "Failed to create incoming webhook",
+      "webhook_revoke": "Revoke Webhook",
+      "webhook_revoke_warning": "The current webhook URL will stop working immediately.",
+      "webhook_revoked": "Incoming webhook revoked",
+      "webhook_revoke_failed": "Failed to revoke incoming webhook",
+      "webhook_last_used": "Last used",
+      "webhook_no_use_recorded": "No use recorded",
+      "webhook_last_used_unavailable": "Temporarily unavailable",
+      "webhook_limit_reached": "You have reached the limit of 20 incoming webhooks."
     }
   }
 }

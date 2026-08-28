@@ -442,6 +442,12 @@
       "rotate_warning": "Praegune võti lakkab kohe töötamast. Iga seda kasutav integratsioon tuleb värskendada.",
       "key_rotated": "API-võtit pöörati",
       "rotate_failed": "API võtme pööramine ebaõnnestus",
+      "webhook_title": "Sissetulevad veebihaagid",
+      "webhook_description": "Postita väliste tööriistade kaudu sõnumeid selle botina.",
+      "webhook_created": "Sissetulev veebihaak loodi",
+      "webhook_url_title": "Salvesta see veebihaagi URL",
+      "webhook_url_warning": "Seda URL-i näidatakse ainult üks kord ja see sisaldab pääsutunnust. Salvesta see enne akna sulgemist turvalisse kohta.",
+      "webhook_url_copied": "Veebihaagi URL kopeeritud",
       "delete_title": "Kustutage robot",
       "delete_warning": "Kas kustutada {name}? Selle API võti lakkab kohe töötamast ja kontot ei saa taastada.",
       "deleted": "Bot kustutatud",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Vali, mida see bot teha tohib. Saad anda talle ainult õigusi, mis sul endal on. Kui kaotad mõne õiguse, ei saa ka bot seda enam kasutada.",
         "save_failed": "Boti loa värskendamine ebaõnnestus"
-      }
+      },
+      "webhook_empty_description": "Ühtegi sissetulevat veebihaaki pole veel loodud.",
+      "webhook_create": "Loo veebihaak",
+      "webhook_name": "Nimi",
+      "webhook_created_at": "Loodud",
+      "webhook_create_failed": "Sissetuleva veebihaagi loomine nurjus",
+      "webhook_revoke": "Tühista veebihaak",
+      "webhook_revoke_warning": "Praegune veebihaagi URL lõpetab kohe töötamise.",
+      "webhook_revoked": "Sissetulev veebihaak tühistati",
+      "webhook_revoke_failed": "Sissetuleva veebihaagi tühistamine nurjus",
+      "webhook_last_used": "Viimati kasutatud",
+      "webhook_no_use_recorded": "Kasutust pole registreeritud",
+      "webhook_last_used_unavailable": "Ajutiselt pole saadaval",
+      "webhook_limit_reached": "20 sissetuleva veebihaagi piirang on saavutatud."
     }
   }
 }

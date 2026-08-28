@@ -442,6 +442,12 @@
       "rotate_warning": "Den aktuella nyckeln slutar fungera omedelbart. All integration som använder den måste uppdateras.",
       "key_rotated": "API-nyckel roterad",
       "rotate_failed": "Det gick inte att rotera API-nyckeln",
+      "webhook_title": "Inkommande webhooks",
+      "webhook_description": "Publicera meddelanden som den här boten från externa verktyg.",
+      "webhook_created": "Inkommande webhook skapad",
+      "webhook_url_title": "Spara denna webhook-URL",
+      "webhook_url_warning": "Den här URL:en visas bara en gång och innehåller inloggningsuppgifter. Spara den på en säker plats innan du stänger fönstret.",
+      "webhook_url_copied": "Webhook-URL kopierad",
       "delete_title": "Ta bort bot",
       "delete_warning": "Ta bort {name}? Dess API-nyckel slutar fungera omedelbart och kontot kan inte återställas.",
       "deleted": "Botten raderad",
@@ -449,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Välj vad den här boten får göra. Du kan bara ge den behörigheter som du själv har. Om du förlorar en behörighet kan boten inte heller använda den längre.",
         "save_failed": "Det gick inte att uppdatera botbehörighet"
-      }
+      },
+      "webhook_empty_description": "Inga inkommande webhooks har skapats ännu.",
+      "webhook_create": "Skapa webhook",
+      "webhook_name": "Namn",
+      "webhook_created_at": "Skapad",
+      "webhook_create_failed": "Det gick inte att skapa den inkommande webhooken",
+      "webhook_revoke": "Återkalla webhook",
+      "webhook_revoke_warning": "Den aktuella webhook-URL:en slutar omedelbart att fungera.",
+      "webhook_revoked": "Inkommande webhook återkallad",
+      "webhook_revoke_failed": "Det gick inte att återkalla den inkommande webhooken",
+      "webhook_last_used": "Senast använd",
+      "webhook_no_use_recorded": "Ingen användning registrerad",
+      "webhook_last_used_unavailable": "Tillfälligt otillgänglig",
+      "webhook_limit_reached": "Gränsen på 20 inkommande webhooks har nåtts."
     }
   }
 }
