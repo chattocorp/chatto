@@ -123,33 +123,25 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 		RoomID:  room.Id,
 		UserID:  target.Id,
 		Reason:  "test",
-	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("BanMember without room.ban-member error = %v, want ErrPermissionDenied", err)
+	}); err != nil {
+		t.Fatalf("BanMember with parent room.manage permission: %v", err)
 	}
 	if _, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
 		ActorID: actor.Id,
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("ListActiveRoomBans without room.ban-member error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("ListActiveRoomBans without room.manage.bans error = %v, want ErrPermissionDenied", err)
 	}
 
-	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantRoomPermission room.ban-member: %v", err)
+	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomManageBans); err != nil {
+		t.Fatalf("GrantRoomPermission room.manage.bans: %v", err)
 	}
 	if _, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
 		ActorID: actor.Id,
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("ListActiveRoomBans with only room-scoped room.ban-member error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("ListActiveRoomBans with only room-scoped room.manage.bans error = %v, want ErrPermissionDenied", err)
 	}
-	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantServerPermission room.ban-member: %v", err)
-	}
-	if _, err := commands.BanMember(ctx, RoomBanInput{
-		ActorID: actor.Id,
-		RoomID:  room.Id,
-		UserID:  target.Id,
-		Reason:  "test",
-	}); err != nil {
-		t.Fatalf("BanMember with room-scoped room.ban-member: %v", err)
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomManageBans); err != nil {
+		t.Fatalf("GrantServerPermission room.manage.bans: %v", err)
 	}
 	roomID := room.Id
 	bans, err := commands.ListActiveRoomBans(ctx, RoomBanListInput{
@@ -157,7 +149,7 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 		RoomID:  &roomID,
 	})
 	if err != nil {
-		t.Fatalf("ListActiveRoomBans with server-scoped room.ban-member: %v", err)
+		t.Fatalf("ListActiveRoomBans with server-scoped room.manage.bans: %v", err)
 	}
 	if got := len(bans); got != 1 {
 		t.Fatalf("ListActiveRoomBans count = %d, want 1", got)

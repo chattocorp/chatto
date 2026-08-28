@@ -16,6 +16,11 @@
 > from 2026-08-26. Registered dotted prefixes now define transitive permission
 > inclusion.
 >
+> **Amended 2026-08-28:** The 0.5 permission catalog now uses the inclusion
+> rule consistently. This is a breaking replacement without aliases or event
+> migration. Old permission decisions remain in event history but have no
+> effect. Existing grants for a retained parent include its new descendants.
+>
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,
@@ -56,9 +61,9 @@ Use a permission-only RBAC model for everyone except effective owners.
 - Role position remains as ordering/display metadata and for compatibility with
   existing role events. It is not an authorization rank.
 - Targeted operations are gated by concrete permissions only: for example
-  `role.assign` gates role assignment, `user.manage-accounts` gates account
-  lifecycle and recovery actions, `room.ban-member` gates room bans, and
-  `user.manage-permissions` gates direct per-user permission overrides.
+  `role.manage.assignments` gates role assignment, `user.manage` gates account
+  lifecycle and recovery actions, `room.manage.bans` gates room bans, and
+  `user.manage.permissions` gates direct per-user permission overrides.
 - Authorization-sensitive writes normally evaluate permission checks inside
   their target aggregate's OCC retry. RBAC, relevant user lifecycle, and
   room-group/layout changes advance a narrow durable authorization fence
@@ -79,6 +84,13 @@ Use a permission-only RBAC model for everyone except effective owners.
   allow for a descendant does not include an ancestor. A descendant deny
   cannot restrict an effective ancestor allow. An ancestor deny does not
   restrict a separate descendant allow.
+- The normalized permission trees are `message.read.interactions`,
+  `message.post.replies`, `room.manage.bans`, `role.manage.assignments`,
+  `user.manage.permissions`, and `user.delete.self`. The catalog also uses
+  `user.read` and `audit.read` for the independent admin views.
+- The 0.5 replacement does not translate old permission identifiers during
+  replay or writes. Operators must replace all server replicas and clients,
+  then review stored RBAC decisions. Old decisions remain as inert history.
 
 This supersedes ADR-005.
 
@@ -88,9 +100,10 @@ This supersedes ADR-005.
   everyone else is permission-based.
 - Custom roles and per-user overrides cover ordinary moderation and
   administration cases without role-rank comparisons.
-- `#announcements` works by a local room-level `everyone` deny for
-  `message.post`. Because deny-wins is literal, that deny blocks every
-  non-owner in the room.
+- `#announcements` uses a local room-level `everyone` deny for `message.post`.
+  This blocks root posts from normal members. A separate
+  `message.post.replies` grant lets them reply in threads unless the room also
+  denies that permission.
 - Deny-wins enables future broad restriction roles such as a suspended role.
 - Operators cannot revoke the durable owner role while its verified email
   remains in `owners.emails`. Existing matching users are repaired at boot and
@@ -104,6 +117,9 @@ This supersedes ADR-005.
 - A new permission name can change authority if it is below an existing
   permission. Each new nested permission must therefore have a registered
   immediate parent with the same category and scopes.
+- A retained parent grant can gain authority when a capability moves below
+  it. A retained child grant stays narrow. Removed identifiers have no effect,
+  but remain available as historical event data.
 - The authorization fence adds an empty operational fact to protected batches.
   During a mixed-version rollout, its full concurrency guarantee starts only
   after all writing replicas understand and advance the fence.

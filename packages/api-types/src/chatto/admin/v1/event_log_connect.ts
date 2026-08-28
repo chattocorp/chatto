@@ -15,7 +15,7 @@ export const AdminEventLogService = {
   typeName: "chatto.admin.v1.AdminEventLogService",
   methods: {
     /**
-     * Lists durable EVT entries newest-first. Requires admin.view-audit.
+     * Lists durable EVT entries newest-first. Requires audit.read.
      *
      * @generated from rpc chatto.admin.v1.AdminEventLogService.ListEvents
      */
@@ -27,7 +27,7 @@ export const AdminEventLogService = {
     },
     /**
      * Lists filterable event type names as a finite snapshot. Requires
-     * admin.view-audit.
+     * audit.read.
      *
      * @generated from rpc chatto.admin.v1.AdminEventLogService.ListEventTypes
      */
@@ -38,7 +38,7 @@ export const AdminEventLogService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reads one durable EVT entry by stream sequence. Requires admin.view-audit.
+     * Reads one durable EVT entry by stream sequence. Requires audit.read.
      * Returns NOT_FOUND when the requested sequence does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminEventLogService.GetEvent

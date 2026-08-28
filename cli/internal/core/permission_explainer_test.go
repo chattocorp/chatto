@@ -124,11 +124,11 @@ func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermAdminUsersView); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermUserRead); err != nil {
 		t.Fatalf("deny everyone: %v", err)
 	}
 
-	exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+	exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermUserRead)
 	if err != nil {
 		t.Fatalf("ExplainServerPermission: %v", err)
 	}
@@ -142,14 +142,14 @@ func TestPermissionExplainer_NamedSubjectsAndEveryoneBaseline(t *testing.T) {
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "suspended", "Suspended", "Blocks capabilities"); err != nil {
 		t.Fatalf("create suspended: %v", err)
 	}
-	if err := core.DenyServerPermission(ctx, SystemActorID, "suspended", PermAdminUsersView); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, "suspended", PermUserRead); err != nil {
 		t.Fatalf("deny suspended: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, user.Id, "suspended"); err != nil {
 		t.Fatalf("assign suspended: %v", err)
 	}
 
-	exp, err = core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+	exp, err = core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermUserRead)
 	if err != nil {
 		t.Fatalf("ExplainServerPermission with suspended role: %v", err)
 	}
@@ -381,10 +381,10 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 	user, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-level", "User", "password123")
 
 	t.Run("server-level user grant appears in trace", func(t *testing.T) {
-		if err := core.GrantUserPermission(ctx, SystemActorID, user.Id, PermAdminUsersView); err != nil {
+		if err := core.GrantUserPermission(ctx, SystemActorID, user.Id, PermUserRead); err != nil {
 			t.Fatalf("GrantUserPermission: %v", err)
 		}
-		exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
+		exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermUserRead)
 		if err != nil {
 			t.Fatalf("ExplainServerPermission: %v", err)
 		}

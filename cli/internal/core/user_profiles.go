@@ -350,7 +350,7 @@ func (c *ChattoCore) requireCanAdminManageOtherUser(ctx context.Context, actorID
 	}
 	canManage, err := c.CanManageUserAccounts(ctx, actorID)
 	if err != nil {
-		return fmt.Errorf("check user.manage-accounts: %w", err)
+		return fmt.Errorf("check user.manage: %w", err)
 	}
 	if !canManage {
 		return ErrPermissionDenied

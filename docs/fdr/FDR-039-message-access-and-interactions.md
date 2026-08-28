@@ -169,8 +169,9 @@ relevant message and thread IDs from its normal notification occurrences.
 - `message.read.interactions` — read message content and message-specific
   metadata only in channel-room threads with a current interaction
   relationship.
-- `message.post` — post root messages and send messages in an existing DM.
-- `message.post-in-thread` — post replies in a channel-room thread.
+- `message.post` — post root messages, post replies through its
+  `message.post.replies` descendant, and send messages in an existing DM.
+- `message.post.replies` — post replies in a channel-room thread.
 
 DM membership, not a message-read permission, authorizes DM reads.
 

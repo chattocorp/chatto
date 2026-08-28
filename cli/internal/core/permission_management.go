@@ -304,7 +304,7 @@ func (c *ChattoCore) requireCanManageUserPermissionTarget(ctx context.Context, a
 	}
 	canManage, err := c.CanManageUserPermissions(ctx, actorID)
 	if err != nil {
-		return fmt.Errorf("check user.manage-permissions: %w", err)
+		return fmt.Errorf("check user.manage.permissions: %w", err)
 	}
 	if !canManage {
 		return ErrPermissionDenied

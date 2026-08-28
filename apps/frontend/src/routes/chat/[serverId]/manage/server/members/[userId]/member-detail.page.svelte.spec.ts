@@ -281,7 +281,7 @@ describe('server member detail queries', () => {
   });
 
   it('offers account deletion only to authorised viewers of other human members', async () => {
-    // user.delete-any is independent from user.manage-accounts. The backend
+    // user.delete is independent from user.manage. The backend
     // expresses the former through viewerCanDeleteAccount.
     mocks.canAdminManageAccounts = false;
     const rendered = render(MemberDetailPage);

@@ -264,20 +264,27 @@ authorization, live events, backup and restore, and backend tests.
   After that, the bot can read it through membership and can use its normal
   message permissions inside it.
 - Permission strings use two or more non-empty dot-separated components.
-  Hyphens can stay inside a component: `room.ban-member`,
-  `message.post-in-thread`, and `message.read.interactions` are valid.
+  Hyphens can stay inside a component, but use a child component when the
+  capability is a narrower part of a registered parent. For example,
+  `room.manage.bans`, `message.post.replies`, and
+  `message.read.interactions` are valid.
 - Each registered dotted prefix includes its registered descendants. A nested
   permission must have a registered immediate parent with the same category
   and scopes. Treat each permission name as an authorization contract.
   Currently, `message.read` includes `message.read.interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-boundary behavior.
-- Targeted operations are permission-gated, not rank-gated: role assignment uses
-  `role.assign`, direct user permissions use `user.manage-permissions`, room
-  bans use `room.ban-member`. A non-owner's role assignment authority is bounded
+- Targeted operations are permission-gated, not rank-gated: role assignment
+  uses `role.manage.assignments`, direct user permissions use
+  `user.manage.permissions`, and room bans use `room.manage.bans`. A
+  non-owner's role assignment authority is bounded
   by the target role's explicit scoped permission decisions; assigning requires
   every allow, revoking requires every allow and deny, and the `owner` role is
   owner-only.
+- Treat a permission rename or removal as a security-sensitive compatibility
+  change. Document whether old persisted permission decisions remain inert,
+  and require a full replica and client replacement when aliases are not part
+  of the change.
 - Authorization-sensitive event writes must evaluate authorization inside the
   target aggregate's OCC retry. Request-time authorization is the default: a
   conflict-free command may finish after a concurrent cross-aggregate

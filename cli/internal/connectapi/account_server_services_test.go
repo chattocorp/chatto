@@ -46,8 +46,8 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if err := env.core.SetPresence(env.ctx, env.viewer.Id, core.PresenceStatusAway); err != nil {
 		t.Fatalf("SetPresence: %v", err)
 	}
-	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoleAssign); err != nil {
-		t.Fatalf("GrantServerPermission role.assign: %v", err)
+	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoleManageAssignments); err != nil {
+		t.Fatalf("GrantServerPermission role.manage.assignments: %v", err)
 	}
 
 	resp, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
@@ -72,7 +72,7 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
 	}
 	if caps := resp.Msg.GetCapabilities(); !apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAssignRoles) || apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAdminManageUsers) {
-		t.Fatalf("viewer capabilities = %+v, want role.assign true and account management false", caps.GetGrants())
+		t.Fatalf("viewer capabilities = %+v, want role.manage.assignments true and account management false", caps.GetGrants())
 	}
 	if apiCapabilityGranted(resp.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
 		t.Fatalf("viewer system capability = true for regular viewer, want false")
@@ -307,11 +307,11 @@ func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 		t.Fatal("confirmation token is empty before deny")
 	}
 
-	// Revoking user.delete-self must disable the whole self-service flow:
+	// Revoking user.delete.self must disable the whole self-service flow:
 	// new token issuance and redemption of an already-issued token both refuse
 	// to act (FDR-018 kill-switch).
 	if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserDeleteSelf); err != nil {
-		t.Fatalf("DenyUserPermission user.delete-self: %v", err)
+		t.Fatalf("DenyUserPermission user.delete.self: %v", err)
 	}
 
 	if _, err := env.account.RequestAccountDeletion(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RequestAccountDeletionRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
@@ -324,7 +324,7 @@ func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 	}
 
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserDeleteSelf); err != nil {
-		t.Fatalf("GrantUserPermission user.delete-self: %v", err)
+		t.Fatalf("GrantUserPermission user.delete.self: %v", err)
 	}
 	deleteResp, err := env.account.DeleteMyAccount(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteMyAccountRequest{
 		ConfirmationToken: tokenResp.Msg.GetConfirmationToken(),
@@ -407,22 +407,22 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser role assigner: %v", err)
 	}
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
-		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleManageAssignments); err != nil {
+		t.Fatalf("GrantUserPermission role.manage.assignments: %v", err)
 	}
 	if _, err := env.adminUsers.UpdateUserPassword(withCaller(env.ctx, roleAssigner), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("role.assign-only UpdateUserPassword code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("role.manage.assignments-only UpdateUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 
 	accountManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-account-manager", "Admin User Account Manager", "password")
 	if err != nil {
 		t.Fatalf("CreateUser account manager: %v", err)
 	}
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, accountManager.Id, core.PermUserManageAccounts); err != nil {
-		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, accountManager.Id, core.PermUserManage); err != nil {
+		t.Fatalf("GrantUserPermission user.manage: %v", err)
 	}
 	if _, err := env.adminUsers.GetMember(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.GetMemberRequest{
 		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
@@ -787,46 +787,46 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser role assigner: %v", err)
 	}
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
-		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleManageAssignments); err != nil {
+		t.Fatalf("GrantUserPermission role.manage.assignments: %v", err)
 	}
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermMessageManage); err != nil {
 		t.Fatalf("GrantUserPermission message.manage: %v", err)
 	}
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantUserPermission room.ban-member: %v", err)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoomManageBans); err != nil {
+		t.Fatalf("GrantUserPermission room.manage.bans: %v", err)
 	}
 	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
 	if _, err := env.adminUsers.GetMember(roleAssignerCtx, connect.NewRequest(&adminv1.GetMemberRequest{
 		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("role.assign-only GetMember code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("role.manage.assignments-only GetMember code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	roleAssignerResp, err := env.adminUsers.AssignRole(roleAssignerCtx, connect.NewRequest(&adminv1.AssignRoleRequest{
 		UserId:   target.Id,
 		RoleName: core.RoleModerator,
 	}))
 	if err != nil {
-		t.Fatalf("role.assign-only AssignRole: %v", err)
+		t.Fatalf("role.manage.assignments-only AssignRole: %v", err)
 	}
 	if !stringSliceContains(roleAssignerResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
-		t.Fatalf("role.assign-only AssignRole response = %+v, want assigned moderator", roleAssignerResp.Msg)
+		t.Fatalf("role.manage.assignments-only AssignRole response = %+v, want assigned moderator", roleAssignerResp.Msg)
 	}
 	roleAssignerRevokeResp, err := env.adminUsers.RevokeRole(roleAssignerCtx, connect.NewRequest(&adminv1.RevokeRoleRequest{
 		UserId:   target.Id,
 		RoleName: core.RoleModerator,
 	}))
 	if err != nil {
-		t.Fatalf("role.assign-only RevokeRole: %v", err)
+		t.Fatalf("role.manage.assignments-only RevokeRole: %v", err)
 	}
 	if stringSliceContains(roleAssignerRevokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
-		t.Fatalf("role.assign-only RevokeRole response = %+v, want revoked moderator", roleAssignerRevokeResp.Msg)
+		t.Fatalf("role.manage.assignments-only RevokeRole response = %+v, want revoked moderator", roleAssignerRevokeResp.Msg)
 	}
 	if _, err := env.adminUsers.AssignRole(roleAssignerCtx, connect.NewRequest(&adminv1.AssignRoleRequest{
 		UserId:   target.Id,
 		RoleName: core.RoleOwner,
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("role.assign-only owner assignment code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("role.manage.assignments-only owner assignment code = %v, want permission_denied", connect.CodeOf(err))
 	}
 
 	memberDetails, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&adminv1.GetMemberRequest{

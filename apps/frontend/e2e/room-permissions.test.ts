@@ -855,8 +855,8 @@ test.describe('Permission-only Resolution', () => {
     });
   });
 
-  test.describe('message.post-in-thread — Posting in Threads', () => {
-    test('message.post-in-thread denied disables thread composer', async ({ page, roomPage }) => {
+  test.describe('message.post.replies — Posting in Threads', () => {
+    test('message.post.replies denied disables thread composer', async ({ page, roomPage }) => {
       // Admin creates server and room, posts a root message
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -865,8 +865,8 @@ test.describe('Permission-only Resolution', () => {
       const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-in-thread test');
       expect(rootMsg).not.toBeNull();
 
-      // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
+      // Deny message.post.replies at room level for everyone
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post.replies');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);
@@ -885,7 +885,7 @@ test.describe('Permission-only Resolution', () => {
       );
     });
 
-    test('message.post-in-thread denied blocks all thread replies via API', async ({ page }) => {
+    test('message.post.replies denied blocks all thread replies via API', async ({ page }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -894,8 +894,8 @@ test.describe('Permission-only Resolution', () => {
       const rootMsg = await postMessageViaAPI(page, roomId, 'Root for post-in-thread API test');
       expect(rootMsg).not.toBeNull();
 
-      // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
+      // Deny message.post.replies at room level for everyone
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post.replies');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);
@@ -908,7 +908,7 @@ test.describe('Permission-only Resolution', () => {
       expect(replied).toBeNull();
     });
 
-    test('message.post-in-thread denied permits ordinary roots but blocks explicit thread creation', async ({
+    test('message.post.replies denied permits ordinary roots but blocks explicit thread creation', async ({
       page
     }) => {
       // Admin creates server and room
@@ -917,8 +917,8 @@ test.describe('Permission-only Resolution', () => {
       const roomId = await createRoomViaAPI(page);
       await joinRoomViaAPI(page, roomId);
 
-      // Deny message.post-in-thread at room level for everyone
-      await denyRoomPermission(page, roomId, 'everyone', 'message.post-in-thread');
+      // Deny message.post.replies at room level for everyone
+      await denyRoomPermission(page, roomId, 'everyone', 'message.post.replies');
 
       // Create second user, join the room
       const member = await createSecondTestUser(page);

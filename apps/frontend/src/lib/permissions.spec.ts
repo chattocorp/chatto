@@ -8,29 +8,29 @@ import {
 describe('PERMISSION_METADATA', () => {
   it('covers every current backend permission', () => {
     expect(Object.keys(PERMISSION_METADATA).sort()).toEqual([
-      'admin.view-audit',
-      'admin.view-users',
+      'audit.read',
       'message.attach',
       'message.echo',
       'message.manage',
       'message.post',
-      'message.post-in-thread',
+      'message.post.replies',
       'message.react',
       'message.read',
       'message.read.interactions',
-      'role.assign',
       'role.manage',
-      'room.ban-member',
+      'role.manage.assignments',
       'room.create',
       'room.join',
       'room.list',
       'room.manage',
+      'room.manage.bans',
       'server.manage',
-      'user.delete-any',
-      'user.delete-self',
+      'user.delete',
+      'user.delete.self',
       'user.invite',
-      'user.manage-accounts',
-      'user.manage-permissions'
+      'user.manage',
+      'user.manage.permissions',
+      'user.read'
     ]);
   });
 
@@ -42,10 +42,27 @@ describe('PERMISSION_METADATA', () => {
   });
 
   it('derives inclusion from registered dotted ancestors', () => {
-    const permissions = ['message.read', 'message.read.interactions', 'message.post-in-thread'];
+    const permissions = [
+      'message.read',
+      'message.read.interactions',
+      'message.post',
+      'message.post.replies',
+      'role.manage',
+      'role.manage.assignments',
+      'room.manage',
+      'room.manage.bans',
+      'user.delete',
+      'user.delete.self',
+      'user.manage',
+      'user.manage.permissions'
+    ];
     expect(getIncludedByPermission(permissions, 'message.read.interactions')).toBe('message.read');
     expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
-    expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
+    expect(getIncludedByPermission(permissions, 'message.post.replies')).toBe('message.post');
+    expect(getIncludedByPermission(permissions, 'role.manage.assignments')).toBe('role.manage');
+    expect(getIncludedByPermission(permissions, 'room.manage.bans')).toBe('room.manage');
+    expect(getIncludedByPermission(permissions, 'user.delete.self')).toBe('user.delete');
+    expect(getIncludedByPermission(permissions, 'user.manage.permissions')).toBe('user.manage');
   });
 
   it('returns all registered dotted ancestors in order', () => {

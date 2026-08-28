@@ -16,7 +16,7 @@ import (
 //  4. The implicit everyone role supplies the nearest scope baseline. A named
 //     allow overrides an everyone deny only at the same or a nearer scope;
 //     named denies always win.
-//  5. An allow from an explicitly including permission satisfies the requested
+//  5. An allow from a registered dotted ancestor satisfies the requested
 //     permission. Denies do not propagate through an inclusion.
 //  6. No decision is denied at the API boundary.
 //
@@ -78,7 +78,7 @@ type TraceEntry struct {
 //     beats any allow across those subjects.
 //  4. Apply the implicit everyone baseline. A named allow beats an everyone
 //     deny only when it is at least as specific; named denies always win.
-//  5. Apply explicit permission inclusion to effective allows.
+//  5. Apply name-derived permission inclusion to effective allows.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
 	return r.resolveWithGroup(ctx, userID, kind, roomID, "", perm)
 }
@@ -167,7 +167,7 @@ func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID,
 }
 
 // botDelegatedDecision resolves only the bot's explicit direct-user decisions.
-// An explicit including permission can satisfy the requested permission. Bots
+// A registered dotted ancestor can satisfy the requested permission. Bots
 // never receive named-role, everyone, owner, or DM-default grants.
 func (r *PermissionResolver) botDelegatedDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
 	decision, _ := resolvePermissionWithInclusions(perm, func(candidate Permission) (DecisionKind, error) {
@@ -189,9 +189,9 @@ func (r *PermissionResolver) botDelegatedExactDecision(botUserID string, kind Ro
 	return entry.Decision
 }
 
-// resolvePermissionWithInclusions applies explicit permission inclusion to an
-// effective decision. An allow from an including permission wins. A deny or
-// absent decision on an including permission does not restrict a separately
+// resolvePermissionWithInclusions applies name-derived permission inclusion to
+// an effective decision. An allow from a registered ancestor wins. A deny or
+// absent decision on an ancestor does not restrict a separately
 // allowed child permission.
 func resolvePermissionWithInclusions(perm Permission, resolveExact func(Permission) (DecisionKind, error)) (DecisionKind, error) {
 	for _, including := range includingPermissions(perm) {
@@ -407,13 +407,13 @@ func (t permissionScopeTarget) objectID() string {
 // inside, and *what* DM rooms refuse to answer for channel-style operations.
 var dmBoundaryDeniedPermissions = map[Permission]bool{
 	// Privacy boundary.
-	PermRoomManage:    true,
-	PermRoomMemberBan: true,
-	PermMessageManage: true,
-	PermMessageEcho:   true,
+	PermRoomManage:     true,
+	PermRoomManageBans: true,
+	PermMessageManage:  true,
+	PermMessageEcho:    true,
 	// DMs have their own creation / membership APIs and do not support threads.
-	PermRoomCreate:          true,
-	PermMessagePostInThread: true,
+	PermRoomCreate:         true,
+	PermMessagePostReplies: true,
 }
 
 func dmBoundaryDenies(perm Permission) bool {

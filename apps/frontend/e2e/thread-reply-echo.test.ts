@@ -376,10 +376,10 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await roomPage.closeThread();
     await roomPage.expectThreadRouteClosed();
 
-    await test.step('Deny message.post-in-thread on everyone for the seed room group', async () => {
+    await test.step('Deny message.post.replies on everyone for the seed room group', async () => {
       await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
         const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
-        const permission = 'message.post-in-thread';
+        const permission = 'message.post.replies';
         const decision = 'PERMISSION_DECISION_DENY';
         const scope = {
           kind: 'PERMISSION_SCOPE_KIND_GROUP',

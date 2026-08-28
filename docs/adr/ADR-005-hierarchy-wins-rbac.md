@@ -26,7 +26,7 @@ Use hierarchy-wins resolution. Roles have a `position` field (higher number = hi
 ## Consequences
 
 - **Announcements pattern works naturally**: Deny `message.post` on `everyone`, but `owner`/`admin`/`moderator` roles (higher rank, checked first) retain their grant. No special-case code needed.
-- **Thread replies can be separated**: Deny `message.post` on `everyone` but grant `message.post-in-thread`, so regular users can discuss in threads but not post root messages.
+- **Thread replies can be separated**: Deny `message.post` on `everyone` but grant `message.post.replies`, so regular users can discuss in threads but not post root messages.
 - **Predictable resolution**: Given a user's roles and the role hierarchy, the permission outcome is deterministic and explainable.
 - **Testing requires rank awareness**: Denying a permission on the `everyone` role does NOT block users with higher-rank roles. Tests must deny on the user's actual highest-rank role to verify denial.
 - **Role ordering matters**: Changing a role's position changes permission outcomes. The position field is part of the security model, not just a display preference.

@@ -56,7 +56,7 @@ account directly mentioned it. A direct mention gives access to messages from
 before the mention. An effective `message.read` allow includes
 `message.read.interactions` for the bot and for its owner. A narrow allow does
 not grant broad access. DM membership authorizes the bot to read that DM.
-Posting remains a separate `message.post` or `message.post-in-thread`
+Posting remains a separate `message.post` or `message.post.replies`
 decision.
 
 ## Post from an external webhook
@@ -98,7 +98,7 @@ Content-Type: application/json
 If you specify more than one body or room field, the values must be equal. Use
 a stable room ID, not a room name. Set `"create_thread": true` to start a
 thread in a channel room that supports threads. The bot needs `message.post`
-and `message.post-in-thread` for explicit thread creation. A room that requires
+and `message.post.replies` for explicit thread creation. A room that requires
 threads creates one automatically. Direct messages do not support threads.
 
 The bot must already be a room member and have `message.post`. A webhook can

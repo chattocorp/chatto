@@ -212,7 +212,7 @@ func (c *ChattoCore) ListAdmins(ctx context.Context) ([]string, error) {
 // AssignServerRole assigns any role to a user.
 // The role must exist (system or custom). The everyone role cannot be assigned (it's implicit).
 // The model enforces that non-owner actors cannot assign authority they do not
-// possess; API boundaries additionally require role.assign.
+// possess; API boundaries additionally require role.manage.assignments.
 func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
@@ -288,7 +288,7 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 // RevokeServerRole removes an role from a user.
 // The role must exist (system or custom). The everyone role cannot be revoked (it's implicit).
 // The model enforces assignment-authority bounds and self-owner lockout;
-// API boundaries additionally require role.assign.
+// API boundaries additionally require role.manage.assignments.
 func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole

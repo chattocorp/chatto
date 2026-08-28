@@ -1037,7 +1037,7 @@ func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 	}
 
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermUserManagePermissions); err != nil {
-		t.Fatalf("GrantUserPermission user.manage-permissions: %v", err)
+		t.Fatalf("GrantUserPermission user.manage.permissions: %v", err)
 	}
 	if _, err := c.GetUserPermissionMatrix(ctx, manager.GetId(), bot.User.GetId()); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("user permission manager reading bot matrix err = %v, want ErrPermissionDenied", err)

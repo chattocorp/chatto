@@ -244,7 +244,7 @@ func TestPermissionsWithCustomRoles(t *testing.T) {
 	}
 
 	// Grant only a concrete admin view permission.
-	err = core.GrantServerPermission(ctx, SystemActorID, customRole.Name, PermAdminUsersView)
+	err = core.GrantServerPermission(ctx, SystemActorID, customRole.Name, PermUserRead)
 	if err != nil {
 		t.Fatalf("failed to grant users view permission: %v", err)
 	}
@@ -520,23 +520,23 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 	})
 
-	t.Run("CanPostInThread respects room-level denial", func(t *testing.T) {
-		// Ensure space grants message.post-in-thread
-		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePostInThread)
+	t.Run("CanPostInThread parent allow overrides child denial", func(t *testing.T) {
+		// Ensure space grants message.post.replies
+		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePostReplies)
 
 		// Deny at room level
-		core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
+		core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostReplies)
 
 		can, err := core.CanPostInThread(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if can {
-			t.Error("CanPostInThread should return false when room denies message.post-in-thread")
+		if !can {
+			t.Error("CanPostInThread should remain true when message.post allows message.post.replies")
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
+		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostReplies)
 	})
 
 	t.Run("CanReactToMessage respects room-level grant", func(t *testing.T) {

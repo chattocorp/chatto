@@ -42,8 +42,8 @@
       state: 'neutral'
     },
     {
-      id: 'message.post-in-thread',
-      label: 'message.post-in-thread',
+      id: 'message.post.replies',
+      label: 'message.post.replies',
       help: 'Reply inside an existing thread, even when the room blocks new top-level posts.',
       inherited: 'allow',
       state: 'allow'

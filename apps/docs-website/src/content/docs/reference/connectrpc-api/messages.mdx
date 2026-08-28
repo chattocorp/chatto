@@ -60,7 +60,7 @@ Result of fetching link preview metadata.
 ### CreateMessage
 
 Creates a message for the current user. The user must be a room member and
-must have message.post for room messages or message.post-in-thread for
+must have message.post for room messages or message.post.replies for
 thread replies. Echoing a thread reply also requires message.echo and
 message.post. The room's Threading Mode may automatically establish a root
 thread or reject a thread placement that the mode does not allow.
@@ -84,7 +84,7 @@ Request to create a message in a room or thread.
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
-| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
+| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post.replies. Channel rooms only; cannot be combined with thread_root_event_id. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>

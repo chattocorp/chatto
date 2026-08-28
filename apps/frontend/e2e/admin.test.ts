@@ -323,7 +323,7 @@ test.describe('Admin Granular Permissions', () => {
   test.afterEach(async ({ page }) => {
     // Reset all potentially modified everyone role permissions.
     // Uses page.request which maintains the admin session cookies.
-    const permissions = ['admin.view-users', 'role.manage', 'room.manage'];
+    const permissions = ['user.read', 'role.manage', 'room.manage'];
 
     for (const permission of permissions) {
       try {
@@ -341,7 +341,7 @@ test.describe('Admin Granular Permissions', () => {
   }) => {
     // First, as admin, grant an admin-view capability to everyone role.
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.view-users');
+    await grantPermission(page, 'everyone', 'user.read');
 
     await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
       await regularAdminPage.gotoUsers();
@@ -354,10 +354,10 @@ test.describe('Admin Granular Permissions', () => {
     });
 
     // Clean up: revoke the permission
-    await revokePermission(page, 'everyone', 'admin.view-users');
+    await revokePermission(page, 'everyone', 'user.read');
   });
 
-  test('user with room.manage but without admin.view-users sees limited nav items', async ({
+  test('user with room.manage but without user.read sees limited nav items', async ({
     page,
     browser,
     serverURL
@@ -381,13 +381,13 @@ test.describe('Admin Granular Permissions', () => {
     await revokePermission(page, 'everyone', 'room.manage');
   });
 
-  test('user with admin.view-users permission can see users list', async ({
+  test('user with user.read permission can see users list', async ({
     page,
     browser,
     serverURL
   }) => {
     await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.view-users');
+    await grantPermission(page, 'everyone', 'user.read');
 
     await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
       await regularAdminPage.gotoUsers();
@@ -400,10 +400,10 @@ test.describe('Admin Granular Permissions', () => {
     });
 
     // Clean up
-    await revokePermission(page, 'everyone', 'admin.view-users');
+    await revokePermission(page, 'everyone', 'user.read');
   });
 
-  test('user without admin.view-users sees access denied on /chat/-/admin/users', async ({
+  test('user without user.read sees access denied on /chat/-/admin/users', async ({
     page,
     browser,
     serverURL
@@ -414,7 +414,7 @@ test.describe('Admin Granular Permissions', () => {
       await regularAdminPage.gotoUsers();
 
       // Should see access denied with the specific permission mentioned
-      await regularAdminPage.expectAccessDeniedForPermission('admin.view-users');
+      await regularAdminPage.expectAccessDeniedForPermission('user.read');
     });
   });
 
@@ -469,8 +469,8 @@ test.describe('Admin Granular Permissions', () => {
       await adminPage.expectSidebarLinkVisible('Rooms');
       await adminPage.expectSidebarLinkNotVisible('Users');
 
-      // Now grant admin.view-users permission as admin
-      await grantPermission(page, 'everyone', 'admin.view-users');
+      // Now grant user.read permission as admin
+      await grantPermission(page, 'everyone', 'user.read');
 
       // Reload and check nav updated
       await regularPage.reload();
@@ -482,7 +482,7 @@ test.describe('Admin Granular Permissions', () => {
 
     // Clean up
     await revokePermission(page, 'everyone', 'room.manage');
-    await revokePermission(page, 'everyone', 'admin.view-users');
+    await revokePermission(page, 'everyone', 'user.read');
   });
 });
 
@@ -505,7 +505,7 @@ test.describe('User Permission Management', () => {
     await expect(userDetailsPanel.getByText(`@${adminUser.login}`, { exact: true })).toBeVisible();
   });
 
-  test('granting a role with admin.view-users gives user admin access', async ({
+  test('granting a role with user.read gives user admin access', async ({
     page,
     browser,
     serverURL
@@ -523,7 +523,7 @@ test.describe('User Permission Management', () => {
         // Create a role with an admin-view capability and assign it to the user.
         const roleName = generateRoleName('grant');
         await createRoleViaAPI(page, roleName, 'Grant Admin');
-        await grantPermission(page, roleName, 'admin.view-users');
+        await grantPermission(page, roleName, 'user.read');
         await assignRoleViaAPI(page, regularUser.id!, roleName);
 
         // Regular user should now have admin access

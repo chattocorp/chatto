@@ -53,18 +53,18 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if _, err := c.BatchGetAdminMembers(ctx, regular.Id, []string{target.Id}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("BatchGetAdminMembers regular err = %v, want ErrPermissionDenied", err)
 	}
-	if err := c.GrantUserPermission(ctx, SystemActorID, regular.Id, PermAdminUsersView); err != nil {
-		t.Fatalf("GrantUserPermission admin.view-users: %v", err)
+	if err := c.GrantUserPermission(ctx, SystemActorID, regular.Id, PermUserRead); err != nil {
+		t.Fatalf("GrantUserPermission user.read: %v", err)
 	}
 	regularDetails, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id)
 	if err != nil {
 		t.Fatalf("GetAdminMemberDetails list-only viewer: %v", err)
 	}
 	if regularDetails.Member.LastLoginChange != nil {
-		t.Fatal("list-only viewer received username-change timestamp without user.manage-accounts")
+		t.Fatal("list-only viewer received username-change timestamp without user.manage")
 	}
-	if err := c.GrantUserPermission(ctx, SystemActorID, regular.Id, PermUserManageAccounts); err != nil {
-		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+	if err := c.GrantUserPermission(ctx, SystemActorID, regular.Id, PermUserManage); err != nil {
+		t.Fatalf("GrantUserPermission user.manage: %v", err)
 	}
 	accountManagerDetails, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id)
 	if err != nil {

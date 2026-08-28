@@ -73,7 +73,7 @@ Members with effective `room.manage` or `message.manage` permission are exempt
 so room managers and moderators can respond when necessary. Their composer
 still shows the configured interval and identifies the exemption. Slow Mode is
 not available for DMs and does not replace posting permissions: use
-`message.post` and `message.post-in-thread` when a room should be read-only.
+`message.post` and `message.post.replies` when a room should be read-only.
 
 <Aside type="caution">
   In a multi-replica deployment, upgrade every Chatto replica before enabling
@@ -95,7 +95,7 @@ conversation should branch in a channel:
 
 Changing the mode affects future posts only. It neither creates threads for
 old roots nor removes existing threads. Threading Mode also does not replace
-permissions: `message.post` controls room posts and `message.post-in-thread`
+permissions: `message.post` controls room posts and `message.post.replies`
 controls actual thread replies. Required rooms automatically establish each
 root's empty thread with `message.post` alone.
 

@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -63,9 +63,9 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** Forcing every new user to pick a timezone at signup is friction. The browser usually knows.
 **Tradeoff:** Travelers see times rendered in their travel timezone if they haven't explicitly set one. Most users either don't notice or prefer this.
 
-### 7. Cross-user edits gated by `user.manage-accounts`
+### 7. Cross-user edits gated by `user.manage`
 
-**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human and bot self-edits use `MyAccountService.UpdateProfile` and bypass that permission because they are privilege-neutral identity edits. Bot lifecycle and credential management remain separate owner-authorized operations in `BotService`.
+**Decision:** Admin updates to other human users' profiles require `user.manage` for cross-user edits. Human and bot self-edits use `MyAccountService.UpdateProfile` and bypass that permission because they are privilege-neutral identity edits. Bot lifecycle and credential management remain separate owner-authorized operations in `BotService`.
 **Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
 **Tradeoff:** A human owner cannot edit a bot's profile without using the bot's API key. This keeps profile authorship bound to the authenticated identity and keeps delegated bot management out of the general profile API.
 
@@ -102,7 +102,7 @@ A user's profile carries the public identity they present to the rest of the ser
 ## Permissions
 
 - Human self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
-- Cross-human-user edit — `user.manage-accounts`.
+- Cross-human-user edit — `user.manage`.
 - Clear another user's login cooldown — same gate.
 - Bot login and display-name edit — bot ownership or `bot.manage`; bot avatar, custom-status, and personal-settings edits are not supported.
 

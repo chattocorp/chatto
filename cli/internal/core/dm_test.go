@@ -131,7 +131,7 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 		PermMessageManage,
 		PermMessageEcho,
 		PermRoomCreate,
-		PermMessagePostInThread,
+		PermMessagePostReplies,
 	}
 
 	for _, perm := range denied {
@@ -1026,7 +1026,7 @@ func TestDMThreadsUnsupported(t *testing.T) {
 			}
 		})
 	}
-	ownerPermission, err := core.permissionResolver.HasRoomPermission(ctx, owner.Id, KindDM, room.Id, PermMessagePostInThread)
+	ownerPermission, err := core.permissionResolver.HasRoomPermission(ctx, owner.Id, KindDM, room.Id, PermMessagePostReplies)
 	if err != nil {
 		t.Fatalf("resolve owner permission: %v", err)
 	}

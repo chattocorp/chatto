@@ -175,14 +175,14 @@ func TestChattoCore_CreateAccountDeletionTokenRequiresDeleteSelfPermission(t *te
 	}
 
 	if err := core.DenyUserPermission(ctx, SystemActorID, user.Id, PermUserDeleteSelf); err != nil {
-		t.Fatalf("DenyUserPermission user.delete-self: %v", err)
+		t.Fatalf("DenyUserPermission user.delete.self: %v", err)
 	}
 	if _, err := core.CreateAccountDeletionToken(ctx, user.Id); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("CreateAccountDeletionToken with denied delete-self err = %v, want ErrPermissionDenied", err)
 	}
 
 	if err := core.GrantUserPermission(ctx, SystemActorID, user.Id, PermUserDeleteSelf); err != nil {
-		t.Fatalf("GrantUserPermission user.delete-self: %v", err)
+		t.Fatalf("GrantUserPermission user.delete.self: %v", err)
 	}
 	token, err := core.CreateAccountDeletionToken(ctx, user.Id)
 	if err != nil {

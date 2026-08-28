@@ -11,7 +11,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
-- A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
+- A role grants or denies named permissions like `message.post`, `room.create`, `user.read`.
 - A permission identifier has two or more non-empty dot-separated components.
   New identifiers use `<domain>.<capability>[.<narrower-capability>...]`.
   Each registered dotted prefix is a broader permission that includes its
@@ -21,15 +21,15 @@ Chatto controls who can do what through role-based access control. Every authent
   membership is necessary for message reads. `message.read` supplies broad
   read authority and includes `message.read.interactions`, which
   supplies authority for related threads only. DM membership authorizes DM
-  reads. `message.post` separately
-  gates root-message posting and permits human users to start DMs. Bot accounts
+  reads. `message.post` gates root-message posting, includes
+  `message.post.replies`, and permits human users to start DMs. Bot accounts
   cannot start DMs regardless of their permissions.
 - Server admins can drag-and-drop to reorder custom roles. System role positions are fixed for ordering consistency.
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
 - Owners are always granted all permissions. An effective owner has the durable `owner` role; verified users listed in `owners.emails` in `chatto.toml` are materialized into that role at boot or through retryable durable work after verification.
 - `admin` and every other non-owner role confer only their explicit permission decisions; they have no role-name-based authority.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
-- RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
+- RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.manage.assignments`, `user.manage`, `user.manage.permissions`, or `room.manage`.
 - Delegated role assignment is bounded by the assigner's own authority. A non-owner may assign a role only when they effectively possess every permission that role explicitly allows at the same scope, and may revoke it only when they have authority over all of its explicit allow and deny decisions. Only an effective owner may assign or revoke the `owner` role.
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
@@ -55,7 +55,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 3. Three permission scopes (server / group / room)
 
-**Decision:** For each subject, room checks use the nearest decision at room, group, or server scope. Server-scope message and room permissions act as broad defaults; room/group decisions are local overrides for that same subject. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo` to `everyone` at server scope. The effective `message.read` allow includes `message.read.interactions`; bootstrap does not store a second grant. Fresh servers do not grant `room.create` to `everyone`. Admins get explicit server-tier administrative and `room.*` defaults plus `message.manage`, while ordinary content participation continues to come from `everyone`. Moderators get server-tier `message.manage` and `room.ban-member`.
+**Decision:** For each subject, room checks use the nearest decision at room, group, or server scope. Server-scope message and room permissions act as broad defaults; room/group decisions are local overrides for that same subject. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.read`, `message.post`, `message.post.replies`, `message.attach`, `message.react`, and `message.echo` to `everyone` at server scope. The explicit reply grant is independent from the broader post grant so an announcement room can deny root posts but keep replies. The effective `message.read` allow includes `message.read.interactions`; bootstrap does not store a second grant. Fresh servers do not grant `room.create` to `everyone`. Admins get explicit server-tier administrative and `room.*` defaults plus `message.manage`, while ordinary content participation continues to come from `everyone`. Moderators get server-tier `message.manage` and `room.manage.bans`.
 **Why:** Operators want both "system-wide policy" and "this one channel works differently" without modelling separate role systems. See ADR-031 and ADR-052.
 **Tradeoff:** Scope precedence is per subject, not global: one role's room allow does not erase a different named role's deny.
 
@@ -73,8 +73,8 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 6. Target-user mutations are permission-gated and role assignment is bounded
 
-**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`, but a non-owner may assign only roles whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; room bans use `room.ban-member`.
-**Why:** Concrete permissions are easier to audit and explain than a role-rank hierarchy, while bounding `role.assign` prevents delegated role managers from granting authority they do not possess or removing restrictions they cannot control.
+**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.manage.assignments`, but a non-owner may assign only roles whose explicit allows they themselves effectively hold at each exact scope. Revocation is also bounded by every explicit allow and deny on the role, because removing a deny can restore authority. The `owner` role remains owner-only; `admin` has no implicit authority outside its explicit permissions. Account lifecycle and recovery operations use `user.manage`; direct user permission overrides use `user.manage.permissions`; room bans use `room.manage.bans`.
+**Why:** Concrete permissions are easier to audit and explain than a role-rank hierarchy, while bounding `role.manage.assignments` prevents delegated role managers from granting authority they do not possess or removing restrictions they cannot control.
 **Tradeoff:** A delegated assigner may need the target role's underlying permissions even when they only administer membership. Owners remain the recovery path, and old replicas can enforce the earlier unbounded rule during a rolling upgrade until they are replaced.
 
 ### 7. RBAC state is event-sourced
@@ -117,15 +117,31 @@ metadata.
 **Tradeoff:** A permission name is an authorization contract. A capability
 that does not belong below an existing permission must use a different name.
 
+### 11. Normalize the 0.5 permission catalog without migration
+
+**Decision:** Replace the legacy identifiers with the normalized catalog before
+the 0.5 release. Do not add aliases, rewrite events, or backfill decisions.
+Persisted decisions for removed identifiers stay in event history but have no
+effect. Operators replace all replicas and clients, then review RBAC state.
+The owner override remains the recovery path.
+**Why:** One canonical identifier for each capability avoids permanent aliases
+and keeps name-derived inclusion sustainable before 0.5 freezes the contract.
+Preserving old events keeps replay compatible without granting authority under
+an obsolete name.
+**Tradeoff:** Existing grants and denies under removed identifiers stop taking
+effect. A grant for a retained parent gains authority over its normalized
+children. Mixed 0.5-development replicas and clients can disagree about the
+catalog, so this change requires full replacement instead of a rolling update.
+
 ## Permissions
 
 The full permission catalog is in `cli/internal/core/permission.go`. Key permissions that gate RBAC management itself:
 
 - `role.manage` — configure role definitions and the permissions attached to them.
-- `role.assign` — assign or revoke roles, bounded for non-owners by the target role's explicit scoped permission decisions.
-- `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.
-- `user.manage-permissions` — edit direct per-user permission overrides.
-- `admin.view-users`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.
+- `role.manage.assignments` — assign or revoke roles, bounded for non-owners by the target role's explicit scoped permission decisions.
+- `user.manage` — create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.
+- `user.manage.permissions` — edit direct per-user permission overrides.
+- `user.read`, `audit.read` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.
 - `message.read` — read message content and message-specific metadata in
   channel rooms. Fresh servers grant this to `everyone` at server scope.
   Existing servers are not backfilled or reconciled, so operators must add any
@@ -137,14 +153,15 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
   this permission. Fresh servers store only the `message.read` grant for
   `everyone`. Existing servers are not backfilled or reconciled. DM membership
   authorizes DM reads without this permission.
-- `message.post` — post root messages in rooms and let human users start DMs.
+- `message.post` — post root messages in rooms, post replies through its
+  `message.post.replies` descendant, and let human users start DMs.
   Bot accounts cannot start DMs. Fresh servers grant this permission to
   `everyone` at server scope. Fresh announcement rooms replace that baseline
   with a room-level `everyone` deny and a room-level `admin` allow. Moderators
   and other named roles need their own room-level posting grant.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
 - `room.manage` — edit/configure/delete channel rooms.
-- `room.ban-member` — ban members from channel rooms. DM membership is not managed through this permission.
+- `room.manage.bans` — ban members from channel rooms. DM membership is not managed through this permission.
 
 ## Related
 

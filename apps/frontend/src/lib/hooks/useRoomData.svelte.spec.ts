@@ -47,7 +47,7 @@ function projectedRoom(
         hasUnread: false,
         permissions: [
           { permission: 'message.post', granted: true },
-          { permission: 'message.post-in-thread', granted: true },
+          { permission: 'message.post.replies', granted: true },
           { permission: 'message.read', granted: true },
           { permission: 'message.attach', granted: true },
           { permission: 'message.react', granted: true }

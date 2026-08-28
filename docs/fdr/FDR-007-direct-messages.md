@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -33,7 +33,7 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   permission.
 - Operators can prevent a human user from starting DMs, or any user from
   sending messages in existing DMs, by revoking `message.post`.
-- Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
+- Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.manage.bans` action and are rejected for DMs.
 - Inside a DM room, ordinary message-related features apply: posting, flat reply attribution, reactions, edits, deletes, mentions, and attachments.
 - DMs do not support threads. The client does not offer thread actions, and the server rejects attempts to create or extend a DM thread even for owners. Thread data written by older versions remains readable but read-only.
 - Server admins / moderators cannot moderate DM contents — `message.manage`, `room.manage`, and `message.echo` are unconditionally denied in DM rooms regardless of role grants. The channel-style `room.create` is also denied inside DMs; DMs have their own creation and membership APIs.
@@ -117,7 +117,7 @@ realtime events.
 
 DMs have no `dm.*` permissions. Membership authorizes reads. Message-action and
 reaction permissions apply inside DM rooms subject to the moderation deny-list
-above. `message.post-in-thread` does not apply to DMs regardless of the
+above. `message.post.replies` does not apply to DMs regardless of the
 viewer's effective permissions.
 
 ## Related

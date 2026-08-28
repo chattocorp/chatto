@@ -1151,7 +1151,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	}
 
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManagePermissions); err != nil {
-		t.Fatalf("GrantUserPermission user.manage-permissions: %v", err)
+		t.Fatalf("GrantUserPermission user.manage.permissions: %v", err)
 	}
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "permission-target", "Permission Target", "password")
 	if err != nil {
@@ -1159,7 +1159,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	}
 	if _, err := env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
 		UserId:     target.Id,
-		Permission: string(core.PermAdminUsersView),
+		Permission: string(core.PermUserRead),
 		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_DENY,
 		Scope:      &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
 	})); err != nil {
@@ -1171,7 +1171,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUserPermissionMatrix: %v", err)
 	}
-	if cell := findAPIPermissionCell(userMatrixResp.Msg.GetMatrix().GetCells(), "server", string(core.PermAdminUsersView)); cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
+	if cell := findAPIPermissionCell(userMatrixResp.Msg.GetMatrix().GetCells(), "server", string(core.PermUserRead)); cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
 		t.Fatalf("user server admin.users.view cell = %+v, want deny override", cell)
 	}
 	if _, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{
@@ -1188,7 +1188,7 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if userDecisionsResp.Msg.GetUserId() != target.Id {
 		t.Fatalf("user decisions user ID = %q, want %q", userDecisionsResp.Msg.GetUserId(), target.Id)
 	}
-	if decision := findAPIPermissionDecision(userDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER, "", string(core.PermAdminUsersView)); decision == nil || decision.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
+	if decision := findAPIPermissionDecision(userDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER, "", string(core.PermUserRead)); decision == nil || decision.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
 		t.Fatalf("user server admin.users.view decision = %+v, want deny override", decision)
 	}
 	if _, err := env.permissions.ListUserPermissionDecisions(ctx, connect.NewRequest(&adminv1.ListUserPermissionDecisionsRequest{
@@ -1424,8 +1424,8 @@ func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 		t.Fatalf("non-auditor ListEvents code = %v, want permission denied", connect.CodeOf(err))
 	}
 
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermAdminAuditView); err != nil {
-		t.Fatalf("GrantUserPermission admin.view-audit: %v", err)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermAuditRead); err != nil {
+		t.Fatalf("GrantUserPermission audit.read: %v", err)
 	}
 	ctx := withCaller(env.ctx, env.viewer)
 	room := env.createJoinedRoom("event-log-connect")

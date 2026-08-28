@@ -36,7 +36,7 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'room.manage': {
     description: () => m('rbac.permission_descriptions.room_manage')
   },
-  'room.ban-member': {
+  'room.manage.bans': {
     description: () => m('rbac.permission_descriptions.room_ban_member')
   },
 
@@ -50,7 +50,7 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'message.post': {
     description: () => m('rbac.permission_descriptions.message_post')
   },
-  'message.post-in-thread': {
+  'message.post.replies': {
     description: () => m('rbac.permission_descriptions.message_post_in_thread')
   },
   'message.attach': {
@@ -70,32 +70,32 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'role.manage': {
     description: () => m('rbac.permission_descriptions.role_manage')
   },
-  'role.assign': {
+  'role.manage.assignments': {
     description: () => m('rbac.permission_descriptions.role_assign')
   },
 
   // Admin panel
-  'admin.view-users': {
+  'user.read': {
     description: () => m('rbac.permission_descriptions.admin_view_users')
   },
-  'admin.view-audit': {
+  'audit.read': {
     description: () => m('rbac.permission_descriptions.admin_view_audit')
   },
 
   // User management
-  'user.delete-any': {
+  'user.delete': {
     description: () => m('rbac.permission_descriptions.user_delete_any')
   },
-  'user.delete-self': {
+  'user.delete.self': {
     description: () => m('rbac.permission_descriptions.user_delete_self')
   },
   'user.invite': {
     description: () => m('rbac.permission_descriptions.user_invite')
   },
-  'user.manage-accounts': {
+  'user.manage': {
     description: () => m('rbac.permission_descriptions.user_manage_accounts')
   },
-  'user.manage-permissions': {
+  'user.manage.permissions': {
     description: () => m('rbac.permission_descriptions.user_manage_permissions')
   }
 };

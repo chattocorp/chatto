@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -107,7 +107,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ## Permissions
 
-Posting an attachment requires room membership, the relevant message-posting permission (`message.post` or `message.post-in-thread`), and `message.attach`. The `message.attach` permission is configurable at server, group, and room scope and only gates message attachments; server branding uploads, user avatars, link previews, and attachment deletion use their existing checks.
+Posting an attachment requires room membership, the relevant message-posting permission (`message.post` or `message.post.replies`), and `message.attach`. The `message.attach` permission is configurable at server, group, and room scope and only gates message attachments; server branding uploads, user avatars, link previews, and attachment deletion use their existing checks.
 
 Reading attachment metadata or bytes requires room membership. Channel-room
 reads also require broad `message.read`, or `message.read.interactions` with a

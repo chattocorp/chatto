@@ -53,8 +53,8 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	if err := s.core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermMessagePost, core.PermissionStateAllow); err != nil {
 		t.Fatalf("grant bot message.post: %v", err)
 	}
-	if err := s.core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermMessagePostInThread, core.PermissionStateAllow); err != nil {
-		t.Fatalf("grant bot message.post-in-thread: %v", err)
+	if err := s.core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermMessagePostReplies, core.PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.post.replies: %v", err)
 	}
 
 	post := func(target, body string) *httptest.ResponseRecorder {

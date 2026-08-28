@@ -16,7 +16,7 @@ export const AdminUserService = {
   methods: {
     /**
      * Lists server members for the admin members screen. Requires
-     * admin.view-users.
+     * user.read.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.ListMembers
      */
@@ -28,7 +28,7 @@ export const AdminUserService = {
     },
     /**
      * Gets one server member plus role/permission metadata for admin details.
-     * Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
+     * Requires user.read. Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.GetMember
      */
@@ -39,7 +39,7 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets server member rows for multiple users. Requires admin.view-users.
+     * Gets server member rows for multiple users. Requires user.read.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.BatchGetMembers
      */
@@ -50,7 +50,7 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Assigns a role to a user. Requires role.assign, and non-owner callers may
+     * Assigns a role to a user. Requires role.manage.assignments, and non-owner callers may
      * only assign roles whose granted authority they already possess.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.AssignRole
@@ -62,7 +62,7 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Revokes a role from a user. Requires role.assign, and non-owner callers may
+     * Revokes a role from a user. Requires role.manage.assignments, and non-owner callers may
      * only revoke roles whose permission decisions are within their authority.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.RevokeRole
@@ -75,7 +75,7 @@ export const AdminUserService = {
     },
     /**
      * Updates another user's login and/or display name as an admin action.
-     * Requires user.manage-accounts; the caller cannot target their own account.
+     * Requires user.manage; the caller cannot target their own account.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.UpdateUser
      */
@@ -87,7 +87,7 @@ export const AdminUserService = {
     },
     /**
      * Updates another user's password as an admin action. Requires
-     * user.manage-accounts and a fresh credential for the caller; the caller
+     * user.manage and a fresh credential for the caller; the caller
      * cannot target their own account.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.UpdateUserPassword
@@ -100,7 +100,7 @@ export const AdminUserService = {
     },
     /**
      * Clears the target user's self-service username-change cooldown. Requires
-     * user.manage-accounts.
+     * user.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.ClearUsernameCooldown
      */
@@ -111,8 +111,8 @@ export const AdminUserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes a user account as an admin action. Requires user.delete-any for
-     * other users or user.delete-self for the caller.
+     * Deletes a user account as an admin action. Requires user.delete for
+     * other users or user.delete.self for the caller.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.DeleteUser
      */

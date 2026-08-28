@@ -53,12 +53,12 @@ describe('permission mutation dispatch', () => {
   it.each(userCases)('sets a user permission via Connect for %o %s', async (scope, state) => {
     const api = mockAPI();
 
-    await setUserPermission(api, 'U1', scope, 'admin.view-users', state);
+    await setUserPermission(api, 'U1', scope, 'user.read', state);
 
     expect(api.setUserPermission).toHaveBeenCalledWith({
       userId: 'U1',
       scope,
-      permission: 'admin.view-users',
+      permission: 'user.read',
       state
     });
   });
@@ -71,7 +71,7 @@ describe('permission mutation dispatch', () => {
       api,
       'U1',
       { tier: 'server' },
-      'admin.view-users',
+      'user.read',
       'allow'
     );
 

@@ -87,10 +87,10 @@ it('renders one alphabetically ordered matrix without category dividers', () => 
     props: {
       data: {
         ...data,
-        applicablePermissions: ['user.delete-self', 'room.manage', 'server.manage'],
+        applicablePermissions: ['user.delete.self', 'room.manage', 'server.manage'],
         cells: [
           {
-            permission: 'user.delete-self',
+            permission: 'user.delete.self',
             scopeId: 'server',
             override: 'NONE',
             effective: 'NONE'
@@ -123,7 +123,7 @@ it('renders one alphabetically ordered matrix without category dividers', () => 
   expect(container.querySelector('thead th:last-child')?.className).toContain('bg-background');
   expect(
     [...container.querySelectorAll('[data-testid="permission-name"]')].map((row) => row.textContent)
-  ).toEqual(['room.manage', 'server.manage', 'user.delete-self']);
+  ).toEqual(['room.manage', 'server.manage', 'user.delete.self']);
 });
 
 it('filters permission names as the query changes', () => {

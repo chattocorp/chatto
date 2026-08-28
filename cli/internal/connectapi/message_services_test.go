@@ -694,12 +694,12 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 	}
 }
 
-func TestMessageServiceCreateMessageRequiresThreadPostPermissionToCreateThread(t *testing.T) {
+func TestMessageServicePostPermissionIncludesExplicitThreadCreation(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("thread-root-permission")
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostReplies); err != nil {
 		t.Fatalf("DenyRoomPermission thread post: %v", err)
 	}
 
@@ -710,13 +710,12 @@ func TestMessageServiceCreateMessageRequiresThreadPostPermissionToCreateThread(t
 		t.Fatalf("CreateMessage ordinary root: %v", err)
 	}
 
-	_, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+	if _, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:       room.Id,
-		Body:         "thread creation must be denied",
+		Body:         "parent post permission includes thread creation",
 		CreateThread: true,
-	}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("CreateMessage explicit thread code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	})); err != nil {
+		t.Fatalf("CreateMessage explicit thread through parent permission: %v", err)
 	}
 }
 
@@ -1060,8 +1059,11 @@ func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
 	content := []byte("thread attachment")
 	sum := sha256.Sum256(content)
 
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostReplies); err != nil {
 		t.Fatalf("DenyRoomPermission thread post: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
+		t.Fatalf("DenyRoomPermission broad post: %v", err)
 	}
 
 	created, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{

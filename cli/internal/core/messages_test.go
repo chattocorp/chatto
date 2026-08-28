@@ -120,6 +120,7 @@ func TestExplicitThreadCreationRechecksAuthorizationAfterConcurrentRevocation(t 
 	require.NoError(t, err)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
+	require.NoError(t, chatto.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessagePostReplies))
 
 	authorizationChecks := 0
 	authorize := func(ctx context.Context) error {
@@ -136,7 +137,7 @@ func TestExplicitThreadCreationRechecksAuthorizationAfterConcurrentRevocation(t 
 		if authorizationChecks == 1 {
 			// Simulate a revocation landing immediately after the successful
 			// authorization decision but before the message batch commits.
-			return chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePostInThread)
+			return chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePost)
 		}
 		return nil
 	}
@@ -1378,7 +1379,8 @@ func TestMessageModel_PostMessageCommitAuthorizationUsesInferredThread(t *testin
 	require.NoError(t, err)
 	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, false)
 	require.NoError(t, err)
-	require.NoError(t, core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread))
+	require.NoError(t, core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessagePostReplies))
+	require.NoError(t, core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost))
 
 	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID:   user.Id,
@@ -1571,7 +1573,8 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t 
 	require.NoError(t, err)
 	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
-	require.NoError(t, core.DenyGroupPermission(ctx, SystemActorID, targetGroup.Id, RoleEveryone, PermMessagePostInThread))
+	require.NoError(t, core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessagePostReplies))
+	require.NoError(t, core.DenyGroupPermission(ctx, SystemActorID, targetGroup.Id, RoleEveryone, PermMessagePost))
 
 	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "thread root", nil, "", "", nil, false)
 	require.NoError(t, err)

@@ -138,14 +138,14 @@ describe('getCurrentUserViaConnect', () => {
         grants: [
           { capability: 'admin.view', granted: true },
           { capability: 'dm.start', granted: true },
-          { capability: 'admin.view-users', granted: true },
-          { capability: 'user.manage-accounts', granted: true },
-          { capability: 'role.assign', granted: true },
+          { capability: 'user.read', granted: true },
+          { capability: 'user.manage', granted: true },
+          { capability: 'role.manage.assignments', granted: true },
           { capability: 'role.view', granted: true },
           { capability: 'role.manage', granted: false },
           { capability: 'admin.view-system', granted: true },
-          { capability: 'admin.view-audit', granted: true },
-          { capability: 'user.manage-permissions', granted: true },
+          { capability: 'audit.read', granted: true },
+          { capability: 'user.manage.permissions', granted: true },
           { capability: 'user.invite', granted: true }
         ]
       }

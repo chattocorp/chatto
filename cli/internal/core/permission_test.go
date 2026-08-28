@@ -49,12 +49,12 @@ func installTestPermissionChain(t testing.TB) (Permission, Permission, Permissio
 
 func TestGetPermissionMetadata(t *testing.T) {
 	t.Run("returns correct metadata for known permission", func(t *testing.T) {
-		meta, ok := GetPermissionMetadata(PermAdminUsersView)
+		meta, ok := GetPermissionMetadata(PermUserRead)
 		if !ok {
-			t.Fatal("Expected to find metadata for admin.view-users")
+			t.Fatal("Expected to find metadata for user.read")
 		}
-		if meta.Permission != PermAdminUsersView {
-			t.Errorf("Permission = %v, want %v", meta.Permission, PermAdminUsersView)
+		if meta.Permission != PermUserRead {
+			t.Errorf("Permission = %v, want %v", meta.Permission, PermUserRead)
 		}
 		if meta.Category != CategoryAdmin {
 			t.Errorf("Category = %v, want %v", meta.Category, CategoryAdmin)
@@ -93,7 +93,7 @@ func TestValidatePermission(t *testing.T) {
 	t.Run("accepts valid permissions", func(t *testing.T) {
 		validPerms := []Permission{
 			PermMessagePost,
-			PermAdminUsersView,
+			PermUserRead,
 			PermUserDeleteSelf,
 		}
 
@@ -110,6 +110,15 @@ func TestValidatePermission(t *testing.T) {
 			"server",
 			"",
 			"server.nonexistent",
+			"message.post-in-thread",
+			"role.assign",
+			"room.ban-member",
+			"user.manage-accounts",
+			"user.manage-permissions",
+			"user.delete-any",
+			"user.delete-self",
+			"admin.view-users",
+			"admin.view-audit",
 		}
 
 		for _, perm := range invalidPerms {
@@ -146,8 +155,8 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		expected   bool
 	}{
 		// Server-only permissions
-		{"admin.view-users at server", PermAdminUsersView, ScopeServer, true},
-		{"admin.view-users at room", PermAdminUsersView, ScopeRoom, false},
+		{"user.read at server", PermUserRead, ScopeServer, true},
+		{"user.read at room", PermUserRead, ScopeRoom, false},
 		{"server.manage at server", PermServerManage, ScopeServer, true},
 		{"server.manage at room", PermServerManage, ScopeRoom, false},
 		{"role.manage at server", PermRoleManage, ScopeServer, true},
@@ -164,8 +173,8 @@ func TestPermissionAppliesAtScope(t *testing.T) {
 		{"room.join at room", PermRoomJoin, ScopeRoom, true},
 		{"room.manage at server", PermRoomManage, ScopeServer, true},
 		{"room.manage at room", PermRoomManage, ScopeRoom, true},
-		{"room.ban-member at server", PermRoomMemberBan, ScopeServer, true},
-		{"room.ban-member at room", PermRoomMemberBan, ScopeRoom, true},
+		{"room.manage.bans at server", PermRoomManageBans, ScopeServer, true},
+		{"room.manage.bans at room", PermRoomManageBans, ScopeRoom, true},
 		{"message.manage at room", PermMessageManage, ScopeRoom, true},
 		{"room.create at server", PermRoomCreate, ScopeServer, true},
 		{"room.create at group", PermRoomCreate, ScopeGroup, true},
@@ -215,11 +224,11 @@ func TestPermissionsForScope(t *testing.T) {
 		if !found(PermRoomManage) {
 			t.Error("Expected room.manage in room permissions")
 		}
-		if !found(PermRoomMemberBan) {
-			t.Error("Expected room.ban-member in room permissions")
+		if !found(PermRoomManageBans) {
+			t.Error("Expected room.manage.bans in room permissions")
 		}
-		if found(PermAdminUsersView) {
-			t.Error("admin.view-users should NOT be in room permissions")
+		if found(PermUserRead) {
+			t.Error("user.read should NOT be in room permissions")
 		}
 		if found(PermServerManage) {
 			t.Error("server.manage should NOT be in room permissions")
@@ -267,12 +276,12 @@ func TestPermissionsForCategory(t *testing.T) {
 
 		foundAdminUsersView := false
 		for _, p := range perms {
-			if p.Permission == PermAdminUsersView {
+			if p.Permission == PermUserRead {
 				foundAdminUsersView = true
 			}
 		}
 		if !foundAdminUsersView {
-			t.Error("Expected admin.view-users in admin category")
+			t.Error("Expected user.read in admin category")
 		}
 	})
 
@@ -295,7 +304,7 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		PermRoomJoin,
 		PermMessageRead,
 		PermMessagePost,
-		PermMessagePostInThread,
+		PermMessagePostReplies,
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
@@ -317,8 +326,21 @@ func TestPermissionKeyPartsAllowAdditionalComponents(t *testing.T) {
 }
 
 func TestPermissionNamesDefineInclusion(t *testing.T) {
-	if got := includingPermissions(PermMessageReadInteractions); !slices.Equal(got, []Permission{PermMessageRead}) {
-		t.Fatalf("including permissions = %v, want [%s]", got, PermMessageRead)
+	tests := []struct {
+		child  Permission
+		parent Permission
+	}{
+		{PermMessageReadInteractions, PermMessageRead},
+		{PermMessagePostReplies, PermMessagePost},
+		{PermRoleManageAssignments, PermRoleManage},
+		{PermRoomManageBans, PermRoomManage},
+		{PermUserManagePermissions, PermUserManage},
+		{PermUserDeleteSelf, PermUserDelete},
+	}
+	for _, test := range tests {
+		if got := includingPermissions(test.child); !slices.Equal(got, []Permission{test.parent}) {
+			t.Errorf("including permissions for %s = %v, want [%s]", test.child, got, test.parent)
+		}
 	}
 	if got := includingPermissions(PermMessageRead); len(got) != 0 {
 		t.Fatalf("message.read must not be included by its child: %v", got)
@@ -393,7 +415,7 @@ func TestValidatePermissionCatalog(t *testing.T) {
 func TestDefaultModeratorPermissions(t *testing.T) {
 	want := []Permission{
 		PermMessageManage,
-		PermRoomMemberBan,
+		PermRoomManageBans,
 	}
 	if !slices.Equal(DefaultModeratorPermissions(), want) {
 		t.Errorf("moderator server defaults = %v, want %v", DefaultModeratorPermissions(), want)
@@ -470,16 +492,12 @@ func TestPermissionConsistency(t *testing.T) {
 			PermRoomJoin,
 			PermRoomList,
 			PermRoomManage,
-			PermRoomMemberBan,
 			PermMessageManage,
 			PermRoleManage,
-			PermRoleAssign,
-			PermAdminUsersView,
-			PermAdminAuditView,
-			PermUserDeleteAny,
-			PermUserDeleteSelf,
-			PermUserManageAccounts,
-			PermUserManagePermissions,
+			PermUserRead,
+			PermAuditRead,
+			PermUserDelete,
+			PermUserManage,
 			PermBotManage,
 		}
 		if !slices.Equal(DefaultAdminPermissions(), want) {
@@ -487,7 +505,7 @@ func TestPermissionConsistency(t *testing.T) {
 		}
 		for _, mustNotInclude := range []Permission{
 			PermMessagePost,
-			PermMessagePostInThread,
+			PermMessagePostReplies,
 			PermMessageAttach,
 			PermMessageReact,
 			PermMessageEcho,

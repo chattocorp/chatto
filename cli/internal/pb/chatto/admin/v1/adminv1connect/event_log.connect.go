@@ -46,12 +46,12 @@ const (
 
 // AdminEventLogServiceClient is a client for the chatto.admin.v1.AdminEventLogService service.
 type AdminEventLogServiceClient interface {
-	// Lists durable EVT entries newest-first. Requires admin.view-audit.
+	// Lists durable EVT entries newest-first. Requires audit.read.
 	ListEvents(context.Context, *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListEventsResponse], error)
 	// Lists filterable event type names as a finite snapshot. Requires
-	// admin.view-audit.
+	// audit.read.
 	ListEventTypes(context.Context, *connect.Request[v1.ListEventTypesRequest]) (*connect.Response[v1.ListEventTypesResponse], error)
-	// Reads one durable EVT entry by stream sequence. Requires admin.view-audit.
+	// Reads one durable EVT entry by stream sequence. Requires audit.read.
 	// Returns NOT_FOUND when the requested sequence does not exist.
 	GetEvent(context.Context, *connect.Request[v1.GetEventRequest]) (*connect.Response[v1.GetEventResponse], error)
 }
@@ -113,12 +113,12 @@ func (c *adminEventLogServiceClient) GetEvent(ctx context.Context, req *connect.
 // AdminEventLogServiceHandler is an implementation of the chatto.admin.v1.AdminEventLogService
 // service.
 type AdminEventLogServiceHandler interface {
-	// Lists durable EVT entries newest-first. Requires admin.view-audit.
+	// Lists durable EVT entries newest-first. Requires audit.read.
 	ListEvents(context.Context, *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListEventsResponse], error)
 	// Lists filterable event type names as a finite snapshot. Requires
-	// admin.view-audit.
+	// audit.read.
 	ListEventTypes(context.Context, *connect.Request[v1.ListEventTypesRequest]) (*connect.Response[v1.ListEventTypesResponse], error)
-	// Reads one durable EVT entry by stream sequence. Requires admin.view-audit.
+	// Reads one durable EVT entry by stream sequence. Requires audit.read.
 	// Returns NOT_FOUND when the requested sequence does not exist.
 	GetEvent(context.Context, *connect.Request[v1.GetEventRequest]) (*connect.Response[v1.GetEventResponse], error)
 }

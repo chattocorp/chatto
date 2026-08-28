@@ -28,10 +28,10 @@ This FDR covers human accounts from registration through deletion: signup, email
 ### Account deletion
 
 - A human user requests their own deletion via Account Settings.
-- Self-service deletion requires `user.delete-self` when the user requests a
+- Self-service deletion requires `user.delete.self` when the user requests a
   confirmation token and when they use it. If an operator revokes the
   permission, the user cannot use a token that was created before revocation.
-- An administrator with `admin.view-users` and `user.delete-any` can delete
+- An administrator with `user.read` and `user.delete` can delete
   another human member from the member detail page in Server Administration.
   The entry point links to a full-page confirmation that states what deletion
   does. The administrator must type the member's login. Chatto does not request
@@ -114,8 +114,8 @@ This FDR covers human accounts from registration through deletion: signup, email
 ## Permissions
 
 - Self: an authenticated human user can update their own profile (FDR-022), add or remove their own emails, and delete their own account.
-- `user.delete-any` — admin permission to delete other users' accounts.
-- `user.delete-self` — gates a human user's own-account deletion. Granted to `everyone` by default; operators can revoke it to lock down self-deletion. Bots cannot exercise it even if an allow appears in their direct permission matrix.
+- `user.delete` — delete any account. It includes `user.delete.self`.
+- `user.delete.self` — gates a human user's own-account deletion. Granted to `everyone` by default; operators can revoke it to lock down self-deletion. Bots cannot exercise it even if an allow appears in their direct permission matrix.
 
 ## Related
 

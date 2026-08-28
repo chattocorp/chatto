@@ -256,7 +256,7 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if _, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("ListBans without permission code = %v, want permission denied", connect.CodeOf(err))
 	}
-	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomMemberBan); err != nil {
+	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomManageBans); err != nil {
 		t.Fatalf("GrantServerPermission ban: %v", err)
 	}
 	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
@@ -851,8 +851,8 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	}
 	if apiRoomPermissionGranted(dmRoom, core.PermRoomJoin) ||
 		apiRoomPermissionGranted(dmRoom, core.PermRoomManage) ||
-		apiRoomPermissionGranted(dmRoom, core.PermRoomMemberBan) ||
-		apiRoomPermissionGranted(dmRoom, core.PermMessagePostInThread) {
+		apiRoomPermissionGranted(dmRoom, core.PermRoomManageBans) ||
+		apiRoomPermissionGranted(dmRoom, core.PermMessagePostReplies) {
 		t.Fatalf("DM exposes channel-only actions: %+v", dmRoom)
 	}
 	batchResp, err := env.directory.BatchGetRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.BatchGetRoomsRequest{
@@ -889,8 +889,8 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("owner GetRoom DM: %v", err)
 	}
-	if apiRoomPermissionGranted(ownerResp.Msg.GetRoom(), core.PermMessagePostInThread) {
-		t.Fatal("owner DM viewer state grants message.post-in-thread")
+	if apiRoomPermissionGranted(ownerResp.Msg.GetRoom(), core.PermMessagePostReplies) {
+		t.Fatal("owner DM viewer state grants message.post.replies")
 	}
 }
 
@@ -913,7 +913,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 		for _, perm := range []core.Permission{
 			core.PermRoomJoin,
 			core.PermMessagePost,
-			core.PermMessagePostInThread,
+			core.PermMessagePostReplies,
 			core.PermMessageAttach,
 			core.PermMessageReact,
 			core.PermMessageEcho,
@@ -949,7 +949,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 		t.Fatalf("visible non-member CanJoinRoom = false, want true")
 	}
 	if apiRoomPermissionGranted(visibleRoom, core.PermMessagePost) ||
-		apiRoomPermissionGranted(visibleRoom, core.PermMessagePostInThread) ||
+		apiRoomPermissionGranted(visibleRoom, core.PermMessagePostReplies) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageAttach) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageReact) ||
 		apiRoomPermissionGranted(visibleRoom, core.PermMessageEcho) ||
@@ -981,7 +981,7 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 	}
 	if apiRoomPermissionGranted(archivedRoom, core.PermRoomJoin) ||
 		apiRoomPermissionGranted(archivedRoom, core.PermMessagePost) ||
-		apiRoomPermissionGranted(archivedRoom, core.PermMessagePostInThread) ||
+		apiRoomPermissionGranted(archivedRoom, core.PermMessagePostReplies) ||
 		apiRoomPermissionGranted(archivedRoom, core.PermMessageAttach) ||
 		apiRoomPermissionGranted(archivedRoom, core.PermMessageReact) ||
 		apiRoomPermissionGranted(archivedRoom, core.PermMessageEcho) {

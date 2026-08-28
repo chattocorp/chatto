@@ -66,14 +66,14 @@ Permissions can be configured at different scopes:
 
 Each setting can be **Allow**, **Deny**, or **Inherit**. Inherit means "use the next broader setting for this same user or role". For example, a room set to Inherit checks the room group, then the server. It never inherits a setting from another role.
 
-Room-relevant permissions such as `message.read`, `message.read.interactions`, `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
+Room-relevant permissions such as `message.read`, `message.read.interactions`, `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.manage.bans` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `audit.read` are configured only at server scope.
 
-Permission identifiers contain two or more dot-separated components. A dotted
-prefix does not automatically grant a longer permission. Chatto defines one
-explicit inclusion: an effective `message.read` allow also allows
-`message.read.interactions`. The reverse is not true. A deny for the narrower
-permission cannot restrict broad read access, and a deny for broad read access
-does not restrict a separate narrow allow.
+Permission identifiers contain two or more dot-separated components. Each
+registered prefix includes its registered descendants. For example,
+`message.read` includes `message.read.interactions`, and `room.manage` includes
+`room.manage.bans`. Inclusion works only from parent to child. A child grant
+does not grant its parent. A child deny cannot restrict an effective parent
+allow, and a parent deny cannot restrict a separate child allow.
 
 ## Important permissions
 
@@ -81,8 +81,8 @@ does not restrict a separate narrow allow.
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `message.read`            | Read channel-room message and thread content, attachments, message search results, typing indicators, and message-derived activity. It includes `message.read.interactions`. Channel-room membership is also required. DM membership authorizes DM reads. Fresh servers allow this for `everyone`; existing servers are never backfilled. |
 | `message.read.interactions` | Read a complete channel-room thread when the account authored its root or another account directly mentioned it in that thread. This includes messages from before the relationship started. Role mentions, broadcast mentions, self-mentions, and authored replies do not create access. Channel-room membership is also required. Fresh servers get this authority through the `message.read` grant; existing servers are never backfilled. |
-| `message.post`            | Post root messages. A human with this permission can also start DMs. A bot cannot start a DM. Explicitly establishing a channel-room root as a thread also requires `message.post-in-thread`. |
-| `message.post-in-thread`  | Post messages inside channel-room threads and, together with `message.post`, explicitly establish a root as a thread.                                                          |
+| `message.post`            | Post root messages and replies. A human with this permission can also start DMs. A bot cannot start a DM. It includes `message.post.replies`. |
+| `message.post.replies`    | Post messages inside channel-room threads and, together with `message.post`, explicitly establish a root as a thread. This grant does not allow root posts. |
 | `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
 | `message.manage`          | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission.                                                                       |
 | `message.react`           | Add or remove reactions.                                                                                                                                                        |
@@ -90,15 +90,15 @@ does not restrict a separate narrow allow.
 | `room.list`               | See rooms in the directory and room lists.                                                                                                                                      |
 | `room.join`               | Join channel rooms.                                                                                                                                                             |
 | `room.create`             | Create channel rooms.                                                                                                                                                           |
-| `room.manage`             | Configure, rename, archive, or delete rooms and room groups at the effective scope, including explicit channel-room membership. A server-scope grant also permits global room-group creation and ordering. |
-| `room.ban-member`         | Ban members from channel rooms.                                                                                                                                                 |
-| `role.manage`             | Configure role definitions and role permission decisions, including room and room-group overrides.                                                                              |
-| `role.assign`             | Assign or revoke roles for users. Non-owners can only manage roles whose explicit scoped decisions are within their own authority; the `owner` role is owner-only.              |
+| `room.manage`             | Configure, rename, archive, or delete rooms and room groups at the effective scope, including explicit channel-room membership and bans. A server-scope grant also permits global room-group creation and ordering. It includes `room.manage.bans`. |
+| `room.manage.bans`        | Ban members from channel rooms without granting the other room-management capabilities. |
+| `role.manage`             | Configure role definitions and role permission decisions, and assign roles. It includes `role.manage.assignments`. |
+| `role.manage.assignments` | Assign or revoke roles for users without granting the other role-management capabilities. Non-owners can only manage roles whose explicit scoped decisions are within their own authority; the `owner` role is owner-only. |
 | `user.invite`             | List, create, copy, and revoke invite links. This exposes every active invite-link capability to the holder.                                                              |
-| `user.manage-accounts`    | Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.                                                                        |
-| `user.manage-permissions` | Edit direct per-user permission overrides.                                                                                                                                      |
-| `user.delete-any`         | Delete any user's account.                                                                                                                                                      |
-| `user.delete-self`        | Delete your own account.                                                                                                                                                        |
+| `user.manage`             | Create users, edit account identity, reset passwords, attach verified emails, clear login cooldowns, and edit direct permissions. It includes `user.manage.permissions`. |
+| `user.manage.permissions` | Edit direct per-user permission overrides without granting other user-management capabilities. |
+| `user.delete`             | Delete any account, including your own. It includes `user.delete.self`. |
+| `user.delete.self`        | Delete only your own account. |
 
 The full list is visible in the admin UI.
 
@@ -115,7 +115,7 @@ The full list is visible in the admin UI.
 Slow Mode is room configuration rather than a permission. It paces new
 messages from ordinary members across the room and its threads. Effective
 `room.manage` or `message.manage` grants bypass its timer; `message.post` and
-`message.post-in-thread` still decide whether the user may post at all. Edits,
+`message.post.replies` still decide whether the user may post at all. Edits,
 deletions, reactions, and attachment selection are unaffected.
 
 ## Common patterns
@@ -126,7 +126,7 @@ Fresh servers make announcement rooms read-only for normal members. At the room 
 
 Normal members, moderators, and roles with only server-level posting access cannot post there. Owners and admins can post. You can let another role post by giving it a room-level `message.post` allow.
 
-If you also want to prevent thread replies or file uploads in announcements, deny `message.post-in-thread` or `message.attach` for `everyone` in that room.
+If you also want to prevent thread replies or file uploads in announcements, deny `message.post.replies` or `message.attach` for `everyone` in that room.
 
 ### Only one role can see and join a room
 
@@ -148,7 +148,8 @@ To temporarily stop normal members from posting in a room:
 
 1. Open the room's permissions.
 2. Deny `message.post` for `everyone`.
-3. Optionally deny `message.post-in-thread`, `message.attach`, and `message.react` as well.
+3. Deny `message.post.replies` too if replies must stop. Deny
+   `message.attach` and `message.react` if those actions must also stop.
 
 Remove the room-level denies to restore the server defaults. A room-level allow on a user or role can still permit posting. If you must block those users too, deny the permission directly on the user or on a restriction role such as `suspended`.
 
@@ -159,7 +160,9 @@ To stop one non-owner user from posting without changing their roles:
 1. Open the user's member details in the admin UI.
 2. Remove any room or room-group allows set directly on the user. A more specific allow would replace the server-level deny you add next.
 3. Under permission overrides, deny `message.post` at server scope.
-4. Optionally deny `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo`.
+4. Deny `message.post.replies` too if replies must stop. Deny
+   `message.attach`, `message.react`, and `message.echo` if those actions must
+   also stop.
 
 For non-owners, a deny set directly on the user wins over their role allows. Owner permissions cannot be restricted.
 
@@ -195,7 +198,7 @@ Use `owners.emails` in `chatto.toml` to recover owner access if needed. The user
 
 ## DM privacy
 
-DMs use the same permission names where they make sense, but private conversations have extra protection. For non-owners, Chatto always blocks channel management actions in DMs, including `message.manage`, `message.echo`, `room.manage`, `room.ban-member`, `room.create`, and `message.post-in-thread`. Role grants cannot enable them.
+DMs use the same permission names where they make sense, but private conversations have extra protection. For non-owners, Chatto always blocks channel management actions in DMs, including `message.manage`, `message.echo`, `room.manage`, `room.manage.bans`, `room.create`, and `message.post.replies`. Role grants cannot enable them.
 
 Each participant can read the complete DM. `message.read` and
 `message.read.interactions` grants and denials do not change DM access. Owners

@@ -126,7 +126,7 @@ Resource-oriented permission decisions for one role.
 ### GetUserPermissionMatrix
 
 Gets one user's full permission matrix. Human targets require
-user.manage-permissions; bot targets require ownership or bot.manage.
+user.manage.permissions; bot targets require ownership or bot.manage.
 Returns NOT_FOUND when the user does not exist.
 
 ```http
@@ -160,7 +160,7 @@ Response containing one user's permission matrix.
 ### ListUserPermissionDecisions
 
 Lists one user's permission decisions as resource-oriented rows. Human
-targets require user.manage-permissions; bot targets require ownership or
+targets require user.manage.permissions; bot targets require ownership or
 bot.manage. Returns NOT_FOUND when the user does not exist.
 
 ```http
@@ -264,7 +264,7 @@ Result of setting one role permission state.
 ### SetUserPermission
 
 Sets one user permission decision. Human targets require
-user.manage-permissions; bot targets require ownership or bot.manage and
+user.manage.permissions; bot targets require ownership or bot.manage and
 accept only allow or clear within the bot owner's current authority.
 
 ```http

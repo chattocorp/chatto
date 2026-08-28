@@ -44,7 +44,7 @@ type AdminMember struct {
 	Roles                  []string
 	CreatedAt              *timestamppb.Timestamp
 	Deleted                bool
-	IsBot            bool
+	IsBot                  bool
 	HasVerifiedEmail       bool
 	VerifiedEmails         []string
 	ViewerCanDeleteAccount bool
@@ -235,7 +235,7 @@ func (c *ChattoCore) requireCanViewAdminMembers(ctx context.Context, actorID str
 	}
 	canView, err := c.CanAdminUsersView(ctx, actorID)
 	if err != nil {
-		return fmt.Errorf("check admin.view-users: %w", err)
+		return fmt.Errorf("check user.read: %w", err)
 	}
 	if !canView {
 		return ErrPermissionDenied
@@ -272,7 +272,7 @@ func (c *ChattoCore) requireCanAssignAdminRole(ctx context.Context, actorID, tar
 	}
 	canAssign, err := c.CanAssignRoles(ctx, actorID)
 	if err != nil {
-		return fmt.Errorf("check role.assign: %w", err)
+		return fmt.Errorf("check role.manage.assignments: %w", err)
 	}
 	if !canAssign {
 		return ErrPermissionDenied
@@ -294,7 +294,7 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		Roles:        roles,
 		CreatedAt:    user.GetCreatedAt(),
 		Deleted:      user.GetDeleted(),
-		IsBot:  user.GetIsBot(),
+		IsBot:        user.GetIsBot(),
 		CustomStatus: user.GetCustomStatus(),
 	}
 

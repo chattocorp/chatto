@@ -26,14 +26,14 @@ import (
 
 // CanAdminUsersView checks if a user can view the users page in admin.
 func (c *ChattoCore) CanAdminUsersView(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermAdminUsersView)
+	return c.HasServerPermission(ctx, userID, PermUserRead)
 }
 
 // CanAssignRoles checks if a user can assign/revoke roles to/from users.
-// Backed by the canonical role.assign permission. Subsumes the previous
+// Backed by the canonical role.manage.assignments permission. Subsumes the previous
 // CanAdminUsersManage (which was a duplicate "edit role assignments").
 func (c *ChattoCore) CanAssignRoles(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermRoleAssign)
+	return c.HasServerPermission(ctx, userID, PermRoleManageAssignments)
 }
 
 // CanManageRoles checks if a user can create, edit, delete, and reorder
@@ -56,7 +56,7 @@ func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (boo
 // is the first concrete use; future log exports / search endpoints gate
 // on the same permission.
 func (c *ChattoCore) CanAdminAuditView(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermAdminAuditView)
+	return c.HasServerPermission(ctx, userID, PermAuditRead)
 }
 
 // CanManageUserPermissions checks if a user can edit direct per-user
@@ -68,7 +68,7 @@ func (c *ChattoCore) CanManageUserPermissions(ctx context.Context, userID string
 // CanManageUserAccounts checks if a user can perform cross-user account
 // lifecycle and recovery operations.
 func (c *ChattoCore) CanManageUserAccounts(ctx context.Context, userID string) (bool, error) {
-	return c.HasServerPermission(ctx, userID, PermUserManageAccounts)
+	return c.HasServerPermission(ctx, userID, PermUserManage)
 }
 
 // CanCreateBots checks whether a human user may create an owned bot account.
@@ -104,14 +104,14 @@ func (c *ChattoCore) CanStartDM(ctx context.Context, userID string) (bool, error
 
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
-//   - The actor is deleting their own account and has user.delete-self, OR
-//   - The actor has user.delete-any (the admin power).
+//   - The actor is deleting their own account and has user.delete.self, OR
+//   - The actor has user.delete (the admin power).
 func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID string) (bool, error) {
 	if actorID == targetUserID {
 		return c.HasServerPermission(ctx, actorID, PermUserDeleteSelf)
 	}
 
-	return c.HasServerPermission(ctx, actorID, PermUserDeleteAny)
+	return c.HasServerPermission(ctx, actorID, PermUserDelete)
 }
 
 // ============================================================================
@@ -124,14 +124,14 @@ var adminPermissions = []Permission{
 	PermServerManage,
 	PermUserInvite,
 	PermRoleManage,
-	PermRoleAssign,
+	PermRoleManageAssignments,
 	PermRoomManage,
-	PermRoomMemberBan,
-	PermUserDeleteAny,
-	PermUserManageAccounts,
+	PermRoomManageBans,
+	PermUserDelete,
+	PermUserManage,
 	PermUserManagePermissions,
-	PermAdminUsersView,
-	PermAdminAuditView,
+	PermUserRead,
+	PermAuditRead,
 	PermBotManage,
 }
 
@@ -341,7 +341,7 @@ func (c *ChattoCore) CanPostInThread(ctx context.Context, userID string, kind Ro
 	if kind == KindDM {
 		return false, nil
 	}
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostInThread)
+	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessagePostReplies)
 }
 
 // CanAttachFiles checks if a user can attach files to messages in a specific room.

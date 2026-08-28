@@ -47,7 +47,7 @@
     }
 
     // Members pages call AdminUserService.ListMembers/GetMember, which
-    // require admin.view-users.
+    // require user.read.
     if (pathname.startsWith(membersBase)) {
       return () => serverPermissions.canAdminViewUsers;
     }
@@ -68,7 +68,7 @@
       return () => true;
     }
 
-    // Moderation pages: the resolver enforces server-scope room.ban-member.
+    // Moderation pages: the resolver enforces server-scope room.manage.bans.
     if (pathname.startsWith(moderationBase)) {
       return () => chromePermissions?.canViewAdmin ?? false;
     }
@@ -89,7 +89,7 @@
       return () => serverPermissions.canAdminViewSystem;
     }
 
-    // Event log inspection — admin.view-audit
+    // Event log inspection — audit.read
     if (pathname.startsWith(eventLogBase)) {
       return () => serverPermissions.canAdminViewAudit;
     }

@@ -662,8 +662,8 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if _, err := c.VerifyPassword(ctx, updated.GetLogin(), "adminpassword456"); err != nil {
 			t.Fatalf("admin-set password should verify: %v", err)
 		}
-		if err := c.GrantUserPermission(ctx, SystemActorID, admin.Id, PermAdminAuditView); err != nil {
-			t.Fatalf("GrantUserPermission admin.view-audit: %v", err)
+		if err := c.GrantUserPermission(ctx, SystemActorID, admin.Id, PermAuditRead); err != nil {
+			t.Fatalf("GrantUserPermission audit.read: %v", err)
 		}
 		log, err := c.ListEventLog(ctx, admin.Id, EventLogQuery{
 			Limit: 10,
@@ -694,8 +694,8 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateUser role assigner: %v", err)
 		}
-		if err := c.GrantUserPermission(ctx, SystemActorID, roleAssigner.Id, PermRoleAssign); err != nil {
-			t.Fatalf("GrantUserPermission role.assign: %v", err)
+		if err := c.GrantUserPermission(ctx, SystemActorID, roleAssigner.Id, PermRoleManageAssignments); err != nil {
+			t.Fatalf("GrantUserPermission role.manage.assignments: %v", err)
 		}
 		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target-role-only", "Target", "password123")
 		if err != nil {
@@ -717,8 +717,8 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateUser account manager: %v", err)
 		}
-		if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.Id, PermUserManageAccounts); err != nil {
-			t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+		if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.Id, PermUserManage); err != nil {
+			t.Fatalf("GrantUserPermission user.manage: %v", err)
 		}
 		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target-account-manager", "Target", "password123")
 		if err != nil {

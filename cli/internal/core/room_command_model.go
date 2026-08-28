@@ -280,7 +280,7 @@ func (s *RoomCommandModel) ListActiveRoomBans(ctx context.Context, input RoomBan
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
-	canModerate, err := s.core.HasServerPermission(ctx, input.ActorID, PermRoomMemberBan)
+	canModerate, err := s.core.HasServerPermission(ctx, input.ActorID, PermRoomManageBans)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +322,7 @@ func (s *RoomCommandModel) authorizeRoomBan(ctx context.Context, actorID, roomID
 	if kind == KindDM {
 		return KindChannel, ErrCannotBanDMRoomMember
 	}
-	can, err := s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, PermRoomMemberBan)
+	can, err := s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, PermRoomManageBans)
 	if err != nil {
 		return KindChannel, err
 	}

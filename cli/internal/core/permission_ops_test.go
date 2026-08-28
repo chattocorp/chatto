@@ -245,7 +245,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermAdminUsersView)
+		err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermUserRead)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -271,7 +271,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermAdminUsersView)
+		err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermUserRead)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -365,20 +365,36 @@ func TestInitServerDefaults(t *testing.T) {
 	t.Run("admin has expected server permissions", func(t *testing.T) {
 		// Admin-specific defaults include administration, room administration,
 		// and message management. Ordinary posting defaults come from everyone.
+		inherited := map[Permission]bool{
+			PermRoomManageBans:        true,
+			PermRoleManageAssignments: true,
+			PermUserDeleteSelf:        true,
+			PermUserManagePermissions: true,
+		}
 		for _, perm := range PermissionsForScope(ScopeServer) {
 			if perm.Category == CategoryMessage && perm.Permission != PermMessageManage {
 				continue
 			}
 			// bot.create is deliberately inherited from everyone rather than
 			// persisted as an admin-role grant.
-			if perm.Permission == PermBotCreate {
+			if perm.Permission == PermBotCreate || inherited[perm.Permission] {
 				continue
 			}
 			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm.Permission); got != DecisionAllow {
 				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
 			}
 		}
-		for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho, PermBotCreate} {
+		for _, perm := range []Permission{
+			PermMessagePost,
+			PermMessagePostReplies,
+			PermMessageReact,
+			PermMessageEcho,
+			PermBotCreate,
+			PermRoomManageBans,
+			PermRoleManageAssignments,
+			PermUserDeleteSelf,
+			PermUserManagePermissions,
+		} {
 			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm); got != DecisionNone {
 				t.Errorf("admin server decision for %s = %s, want %s", perm, got, DecisionNone)
 			}
@@ -398,7 +414,7 @@ func TestInitServerDefaults(t *testing.T) {
 			PermRoomJoin,
 			PermMessageRead,
 			PermMessagePost,
-			PermMessagePostInThread,
+			PermMessagePostReplies,
 			PermMessageAttach,
 			PermMessageReact,
 			PermMessageEcho,

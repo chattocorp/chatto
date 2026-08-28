@@ -66,8 +66,8 @@ that field. An older binary client can send protobuf tag `2` to a 0.5 server;
 the server treats it as an unknown field and ignores it. The field is not part
 of the 0.5 ProtoJSON schema. A 0.5 client does not send the field to an older
 server, so that server can return `failed_precondition` when the current
-session is not fresh. A 0.5 server authorizes deletion with `user.delete-any`
-for another user or `user.delete-self` for the caller. It does not use password
+session is not fresh. A 0.5 server authorizes deletion with `user.delete`
+for another user or `user.delete.self` for the caller. It does not use password
 proof or a fresh credential for this operation.
 
 The 0.5 notification matrix uses the additive
@@ -105,6 +105,17 @@ Clients supply known thread roots to the existing thread API. Chatto does not
 provide a relationship-list API. Older replicas do not know the narrow
 permission and deny this mode when `message.read` is absent. Complete the
 replica rollout before you depend on narrow-read availability.
+
+Chatto 0.5 replaces the permission catalog used by public RBAC requests and
+responses. The replacements are `message.post.replies`,
+`role.manage.assignments`, `room.manage.bans`, `user.manage`,
+`user.manage.permissions`, `user.delete`, `user.delete.self`, `user.read`, and
+`audit.read`. See the 0.5 release notes for the complete old-to-new mapping.
+The server does not accept aliases or translate persisted decisions. An old
+client sends identifiers that a new server rejects, and a new client sends
+identifiers that an old server rejects. Replace all replicas and clients
+together. Existing grants for a retained parent include its registered
+descendants after the replacement.
 
 Chatto 0.5 also denies `RoomService.StartDM` to bot callers. This rule applies
 when the requested DM already exists. A human must start the DM, after which

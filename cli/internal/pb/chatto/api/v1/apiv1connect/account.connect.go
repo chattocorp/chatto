@@ -106,10 +106,10 @@ type MyAccountServiceClient interface {
 	// the resulting empty status state.
 	DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error)
 	// Issues a short-lived token used to confirm self-deletion. Requires
-	// user.delete-self.
+	// user.delete.self.
 	RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error)
 	// Permanently deletes the authenticated account after token validation.
-	// Requires user.delete-self.
+	// Requires user.delete.self.
 	DeleteMyAccount(context.Context, *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error)
 }
 
@@ -321,10 +321,10 @@ type MyAccountServiceHandler interface {
 	// the resulting empty status state.
 	DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error)
 	// Issues a short-lived token used to confirm self-deletion. Requires
-	// user.delete-self.
+	// user.delete.self.
 	RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error)
 	// Permanently deletes the authenticated account after token validation.
-	// Requires user.delete-self.
+	// Requires user.delete.self.
 	DeleteMyAccount(context.Context, *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error)
 }
 

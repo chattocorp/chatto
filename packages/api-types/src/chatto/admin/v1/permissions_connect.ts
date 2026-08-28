@@ -53,7 +53,7 @@ export const AdminPermissionService = {
     },
     /**
      * Gets one user's full permission matrix. Human targets require
-     * user.manage-permissions; bot targets require ownership or bot.manage.
+     * user.manage.permissions; bot targets require ownership or bot.manage.
      * Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix
@@ -66,7 +66,7 @@ export const AdminPermissionService = {
     },
     /**
      * Lists one user's permission decisions as resource-oriented rows. Human
-     * targets require user.manage-permissions; bot targets require ownership or
+     * targets require user.manage.permissions; bot targets require ownership or
      * bot.manage. Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions
@@ -102,7 +102,7 @@ export const AdminPermissionService = {
     },
     /**
      * Sets one user permission decision. Human targets require
-     * user.manage-permissions; bot targets require ownership or bot.manage and
+     * user.manage.permissions; bot targets require ownership or bot.manage and
      * accept only allow or clear within the bot owner's current authority.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetUserPermission

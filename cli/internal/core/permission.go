@@ -62,8 +62,8 @@ const (
 	// PermRoomManage allows updating or deleting channel rooms.
 	PermRoomManage Permission = "room.manage"
 
-	// PermRoomMemberBan allows banning members from channel rooms.
-	PermRoomMemberBan Permission = "room.ban-member"
+	// PermRoomManageBans allows banning members from channel rooms.
+	PermRoomManageBans Permission = "room.manage.bans"
 
 	// ===== Message Permissions =====
 
@@ -74,8 +74,8 @@ const (
 
 	// PermMessageReadInteractions allows reading channel-room threads that the
 	// account authored or where another account directly mentioned it. Room
-	// membership remains a separate requirement. PermMessageRead explicitly
-	// includes this permission.
+	// membership remains a separate requirement. Its registered name makes it
+	// a narrower descendant of PermMessageRead.
 	PermMessageReadInteractions Permission = "message.read.interactions"
 
 	// PermMessagePost allows posting new root messages in rooms. Server-scope
@@ -83,8 +83,9 @@ const (
 	// that default where a room should be more restrictive.
 	PermMessagePost Permission = "message.post"
 
-	// PermMessagePostInThread allows posting messages in a thread (first or subsequent reply).
-	PermMessagePostInThread Permission = "message.post-in-thread"
+	// PermMessagePostReplies allows posting messages in a thread. An effective
+	// PermMessagePost allow includes this narrower permission.
+	PermMessagePostReplies Permission = "message.post.replies"
 
 	// PermMessageAttach allows attaching files to new messages.
 	PermMessageAttach Permission = "message.attach"
@@ -108,18 +109,18 @@ const (
 	// admin.manage-roles).
 	PermRoleManage Permission = "role.manage"
 
-	// PermRoleAssign allows assigning and revoking roles to/from users.
+	// PermRoleManageAssignments allows assigning and revoking roles to/from users.
 	// Single canonical permission for "manage user role assignments"
 	// (formerly split between role.assign and admin.manage-users).
-	PermRoleAssign Permission = "role.assign"
+	PermRoleManageAssignments Permission = "role.manage.assignments"
 
 	// ===== Admin Panel Permissions =====
 
-	// PermAdminUsersView allows viewing the users page in admin.
-	PermAdminUsersView Permission = "admin.view-users"
+	// PermUserRead allows viewing the users page in admin.
+	PermUserRead Permission = "user.read"
 
-	// PermAdminAuditView allows viewing the audit log in admin.
-	PermAdminAuditView Permission = "admin.view-audit"
+	// PermAuditRead allows viewing the audit log in admin.
+	PermAuditRead Permission = "audit.read"
 
 	// ===== User Management Permissions =====
 	//
@@ -129,23 +130,23 @@ const (
 	// server they could be a member of. We use `user.*` as the
 	// administration namespace and `member.*` doesn't exist.
 
-	// PermUserDeleteAny allows admins to delete any user's account.
-	PermUserDeleteAny Permission = "user.delete-any"
+	// PermUserDelete allows admins to delete any user's account.
+	PermUserDelete Permission = "user.delete"
 
 	// PermUserDeleteSelf allows users to delete their own account.
-	PermUserDeleteSelf Permission = "user.delete-self"
+	PermUserDeleteSelf Permission = "user.delete.self"
 
 	// PermUserInvite allows listing, creating, copying, and revoking invite links.
 	PermUserInvite Permission = "user.invite"
 
-	// PermUserManageAccounts allows account lifecycle and recovery operations
+	// PermUserManage allows account lifecycle and recovery operations
 	// for other users, such as creating accounts, admin profile edits, password
 	// resets, verified-email attachment, and login-cooldown resets.
-	PermUserManageAccounts Permission = "user.manage-accounts"
+	PermUserManage Permission = "user.manage"
 
 	// PermUserManagePermissions allows editing direct per-user permission
 	// overrides.
-	PermUserManagePermissions Permission = "user.manage-permissions"
+	PermUserManagePermissions Permission = "user.manage.permissions"
 
 	// ===== Bot Account Permissions =====
 
@@ -175,13 +176,13 @@ var allPermissions = []PermissionMetadata{
 	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomList, "Discover Rooms", "See rooms in the directory and group 'Join all' affordances", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermRoomMemberBan, "Ban Room Members", "Ban members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermRoomManageBans, "Ban Room Members", "Ban members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
 	{PermMessageRead, "Read Messages", "Read message content in channel rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageReadInteractions, "Read Interactions", "Read threads you started or where another user mentioned you", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessagePostReplies, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageAttach, "Attach Files", "Attach files to messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -189,17 +190,17 @@ var allPermissions = []PermissionMetadata{
 
 	// Role management
 	{PermRoleManage, "Configure Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
-	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
+	{PermRoleManageAssignments, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
 
 	// Admin
-	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
-	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
+	{PermUserRead, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
+	{PermAuditRead, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 
 	// User management
-	{PermUserDeleteAny, "Delete Any User", "Delete any user's account", CategoryUser, []PermissionScope{ScopeServer}},
+	{PermUserDelete, "Delete Any User", "Delete any user's account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserInvite, "Invite Users", "List, create, copy, and revoke invite links", CategoryUser, []PermissionScope{ScopeServer}},
-	{PermUserManageAccounts, "Manage User Accounts", "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns", CategoryUser, []PermissionScope{ScopeServer}},
+	{PermUserManage, "Manage User Accounts", "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
 
 	// Bot accounts
@@ -366,7 +367,9 @@ func DefaultEveryonePermissions() []Permission {
 		PermRoomJoin,
 		PermMessageRead,
 		PermMessagePost,
-		PermMessagePostInThread,
+		// Keep the child grant explicit so announcement rooms can deny root
+		// posts while still allowing replies.
+		PermMessagePostReplies,
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
@@ -380,7 +383,7 @@ func DefaultEveryonePermissions() []Permission {
 func DefaultModeratorPermissions() []Permission {
 	return []Permission{
 		PermMessageManage,
-		PermRoomMemberBan,
+		PermRoomManageBans,
 	}
 }
 
@@ -396,16 +399,12 @@ func DefaultAdminPermissions() []Permission {
 		PermRoomJoin,
 		PermRoomList,
 		PermRoomManage,
-		PermRoomMemberBan,
 		PermMessageManage,
 		PermRoleManage,
-		PermRoleAssign,
-		PermAdminUsersView,
-		PermAdminAuditView,
-		PermUserDeleteAny,
-		PermUserDeleteSelf,
-		PermUserManageAccounts,
-		PermUserManagePermissions,
+		PermUserRead,
+		PermAuditRead,
+		PermUserDelete,
+		PermUserManage,
 		PermBotManage,
 	}
 }
@@ -445,8 +444,8 @@ func DefaultAnnouncementsAdminPermissions() []Permission {
 // components. For example, message.read.interactions has object type
 // "message" and verb "read.interactions".
 type PermissionKeyParts struct {
-	Verb       string // The action path: "create", "post-in-thread", "read.interactions", etc.
-	ObjectType string // The target type: "server", "room", "message", "admin", etc.
+	Verb       string // The action path: "create", "post.replies", "read.interactions", etc.
+	ObjectType string // The target type: "server", "room", "message", "audit", etc.
 }
 
 // parseKeyParts splits a permission string into its first component and the

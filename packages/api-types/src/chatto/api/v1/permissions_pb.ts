@@ -61,15 +61,15 @@ export class PermissionGrant extends Message<PermissionGrant> {
  * Built-in keys currently include:
  * - admin.view
  * - dm.start
- * - admin.view-users
- * - user.manage-accounts
+ * - user.read
+ * - user.manage
  * - user.invite
- * - role.assign
+ * - role.manage.assignments
  * - role.view
  * - role.manage
  * - admin.view-system
- * - admin.view-audit
- * - user.manage-permissions
+ * - audit.read
+ * - user.manage.permissions
  *
  * Clients should ignore unknown keys so servers can add capabilities over time.
  *

@@ -31,7 +31,7 @@ export const MessageService = {
     },
     /**
      * Creates a message for the current user. The user must be a room member and
-     * must have message.post for room messages or message.post-in-thread for
+     * must have message.post for room messages or message.post.replies for
      * thread replies. Echoing a thread reply also requires message.echo and
      * message.post. The room's Threading Mode may automatically establish a root
      * thread or reject a thread placement that the mode does not allow.

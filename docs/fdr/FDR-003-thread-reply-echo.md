@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -69,7 +69,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 ## Permissions
 
 - `message.echo` — granted to `everyone` by default. Gates the "Also send to channel" checkbox at the server-role and per-room scopes.
-- `message.post-in-thread` — required for the thread reply itself. Covers replies with `inReplyTo` attribution as well; there is no separate reply permission.
+- `message.post.replies` — required for the thread reply itself. Covers replies with `inReplyTo` attribution as well; there is no separate reply permission.
 
 ## Related
 

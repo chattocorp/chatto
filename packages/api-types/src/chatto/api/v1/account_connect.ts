@@ -151,7 +151,7 @@ export const MyAccountService = {
     },
     /**
      * Issues a short-lived token used to confirm self-deletion. Requires
-     * user.delete-self.
+     * user.delete.self.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.RequestAccountDeletion
      */
@@ -163,7 +163,7 @@ export const MyAccountService = {
     },
     /**
      * Permanently deletes the authenticated account after token validation.
-     * Requires user.delete-self.
+     * Requires user.delete.self.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.DeleteMyAccount
      */

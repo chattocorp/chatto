@@ -205,6 +205,25 @@ func TestRBACProjection_LegacyPermissionDecisionWireBytes(t *testing.T) {
 	}
 }
 
+func TestRBACProjection_RetainsRemovedPermissionAsInertHistory(t *testing.T) {
+	p := NewRBACProjection()
+	removed := Permission("role.assign")
+
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", "delegated-manager", removed),
+	}})
+
+	if got := p.GetDecision(ScopeServer, "", "delegated-manager", removed); got != DecisionAllow {
+		t.Fatalf("removed permission history = %v, want DecisionAllow", got)
+	}
+	if err := ValidatePermission(removed); err == nil {
+		t.Fatal("removed permission must not remain in the current catalog")
+	}
+	if got := p.GetDecision(ScopeServer, "", "delegated-manager", PermRoleManageAssignments); got != DecisionNone {
+		t.Fatalf("removed permission was translated to %s: %v", PermRoleManageAssignments, got)
+	}
+}
+
 func TestRBACProjection_IgnoresDuplicateEventID(t *testing.T) {
 	p := NewRBACProjection()
 

@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -24,7 +24,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
   administrator unarchives it.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Manage members** — `room.manage` holders can list, inspect, add, or remove members of channel rooms, including when they are not themselves members or eligible to join. Adding can bring a user into a private room even when that user could not self-join through `room.join`. Active room bans still block adding; the user must be unbanned first. DM membership remains visible only to its participants.
-- **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
+- **Ban member** — `room.manage.bans` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
 - **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room from the catalog and memberships.
 - Leaving, removal, a room ban, loss of Universal eligibility, a group move, or
   an RBAC change removes notification occurrences the user can no longer see.
@@ -122,14 +122,14 @@ operations. This follows the authoritative realtime pattern in ADR-051.
 
 **Decision:** Every channel exposes one of Required, Encouraged, Enabled, or Disabled as ordinary room metadata. New and historically unspecified channels resolve to Enabled. DMs remain threadless and report Unspecified. `room.manage` changes append a dedicated room event and update every room-directory and realtime representation.
 **Why:** Conversation shape is a durable property of a room, not a side effect of permissions or a client-local preference. Keeping it beside Universal and Slow Mode makes creation, administration, API use, replay, and live updates converge on one setting.
-**Tradeoff:** Threading Mode and posting permissions are separate controls. Administrators must still grant the location permissions needed by the chosen mode; Required only waives `message.post-in-thread` for the automatic creation of a root's empty thread.
+**Tradeoff:** Threading Mode and posting permissions are separate controls. Administrators must still grant the location permissions needed by the chosen mode; Required only waives `message.post.replies` for the automatic creation of a root's empty thread.
 
 ## Permissions
 
 - `room.create` — create a new channel room in a group. Configurable per group.
 - `room.manage` — edit, archive, unarchive, delete, change Universal and Threading Mode state, and list, inspect, add, or remove members for a channel room. Configurable per group and per room.
 - `role.manage` — configure role permission decisions at room scope without granting general room-management authority.
-- `room.ban-member` — ban members from a channel room. Configurable per group and per room.
+- `room.manage.bans` — ban members from a channel room. Configurable per group and per room.
 - `room.join` — gates whether a user can become an explicit member of an unarchived room and whether a user is an implicit member of a Universal room. Configurable per group and per room.
 - `room.list` + `room.join` — together allow a channel-room nonmember without `room.manage` to list its effective members. Existing members and room managers do not need these grants for member listing.
 

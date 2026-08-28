@@ -57,14 +57,14 @@ export type ViewerState = ViewerCapabilities & {
 const capabilityKeys = {
   adminView: 'admin.view',
   dmStart: 'dm.start',
-  adminViewUsers: 'admin.view-users',
-  adminManageAccounts: 'user.manage-accounts',
-  assignRoles: 'role.assign',
+  adminViewUsers: 'user.read',
+  adminManageAccounts: 'user.manage',
+  assignRoles: 'role.manage.assignments',
   adminViewRoles: 'role.view',
   adminManageRoles: 'role.manage',
   adminViewSystem: 'admin.view-system',
-  adminViewAudit: 'admin.view-audit',
-  manageUserPermissions: 'user.manage-permissions',
+  adminViewAudit: 'audit.read',
+  manageUserPermissions: 'user.manage.permissions',
   manageInvites: 'user.invite'
 } as const;
 

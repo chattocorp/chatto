@@ -18,8 +18,8 @@ func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
 	}
-	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoleAssign); err != nil {
-		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoleManageAssignments); err != nil {
+		t.Fatalf("GrantUserPermission role.manage.assignments: %v", err)
 	}
 
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, RoleModerator); !errors.Is(err, ErrPermissionDenied) {
@@ -31,8 +31,8 @@ func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermMessageManage); err != nil {
 		t.Fatalf("GrantUserPermission message.manage: %v", err)
 	}
-	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoomMemberBan); err != nil {
-		t.Fatalf("GrantUserPermission room.ban-member: %v", err)
+	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoomManageBans); err != nil {
+		t.Fatalf("GrantUserPermission room.manage.bans: %v", err)
 	}
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, RoleModerator); err != nil {
 		t.Fatalf("assign moderator within authority: %v", err)
@@ -52,8 +52,8 @@ func TestImplicitEveryoneRoleIsNeverAssignableOrRevocable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	if err := core.GrantUserPermission(ctx, SystemActorID, actor.Id, PermRoleAssign); err != nil {
-		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	if err := core.GrantUserPermission(ctx, SystemActorID, actor.Id, PermRoleManageAssignments); err != nil {
+		t.Fatalf("GrantUserPermission role.manage.assignments: %v", err)
 	}
 
 	if can, err := core.CanAssignRole(ctx, actor.Id, RoleEveryone); err != nil || can {
@@ -84,8 +84,8 @@ func TestDelegatedRoleRevocationCannotRemoveBroaderRestriction(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, target.Id, "restricted"); err != nil {
 		t.Fatalf("AssignServerRole restricted: %v", err)
 	}
-	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoleAssign); err != nil {
-		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoleManageAssignments); err != nil {
+		t.Fatalf("GrantUserPermission role.manage.assignments: %v", err)
 	}
 
 	if err := core.AdminRevokeServerRole(ctx, assigner.Id, target.Id, "restricted"); !errors.Is(err, ErrPermissionDenied) {
@@ -124,8 +124,8 @@ func TestDelegatedRoleAssignmentChecksScopedAuthority(t *testing.T) {
 	if err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, "room-moderator", PermMessageManage); err != nil {
 		t.Fatalf("GrantRoomPermission message.manage: %v", err)
 	}
-	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoleAssign); err != nil {
-		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoleManageAssignments); err != nil {
+		t.Fatalf("GrantUserPermission role.manage.assignments: %v", err)
 	}
 
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, "room-moderator"); !errors.Is(err, ErrPermissionDenied) {
@@ -161,7 +161,7 @@ func TestRoleAssignmentFenceIgnoresUnrelatedChatTraffic(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, assigner.Id, KindChannel, assigner.Id, room.GetId()); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
-	for _, permission := range []Permission{PermRoleAssign, PermMessageManage, PermRoomMemberBan} {
+	for _, permission := range []Permission{PermRoleManageAssignments, PermMessageManage, PermRoomManageBans} {
 		if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, permission); err != nil {
 			t.Fatalf("GrantUserPermission %s: %v", permission, err)
 		}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// CanAssignRole reports whether an actor with role.assign may grant a specific
+// CanAssignRole reports whether an actor with role.manage.assignments may grant a specific
 // role without granting authority they do not currently possess.
 func (c *ChattoCore) CanAssignRole(ctx context.Context, actorID, roleName string) (bool, error) {
 	if roleName == RoleEveryone {
@@ -21,7 +21,7 @@ func (c *ChattoCore) CanAssignRole(ctx context.Context, actorID, roleName string
 	return true, nil
 }
 
-// CanRevokeRole reports whether an actor with role.assign may revoke a
+// CanRevokeRole reports whether an actor with role.manage.assignments may revoke a
 // specific role. Explicit denials are included because removing a restriction
 // can restore authority to the target user.
 func (c *ChattoCore) CanRevokeRole(ctx context.Context, actorID, roleName string) (bool, error) {
@@ -69,7 +69,7 @@ func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, a
 	}
 	canAssign, err := c.CanAssignRoles(ctx, actorID)
 	if err != nil {
-		return fmt.Errorf("check role.assign: %w", err)
+		return fmt.Errorf("check role.manage.assignments: %w", err)
 	}
 	if !canAssign {
 		return ErrPermissionDenied

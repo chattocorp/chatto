@@ -177,15 +177,15 @@ test.describe('Server Admin Members', () => {
     }) => {
       const { page } = serverAdminPage;
 
-      // Create an admin, two regular members, and grant only role.assign to
-      // everyone. Member detail reads now require admin.view-users, so role
+      // Create an admin, two regular members, and grant only role.manage.assignments to
+      // everyone. Member detail reads now require user.read, so role
       // assignment alone is denied by the admin layout guard before the detail
       // page can load another account's data.
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
       const target = await createSecondTestUser(page);
       const viewer = await createSecondTestUser(page);
-      await grantPermission(page, 'everyone', 'role.assign');
+      await grantPermission(page, 'everyone', 'role.manage.assignments');
 
       await logoutUser(page);
       await loginUser(page, viewer.login, viewer.password);
@@ -334,10 +334,10 @@ test.describe('Server Admin Members', () => {
       const viewer = await createSecondTestUser(page);
       const target = await createSecondTestUser(page);
 
-      // The viewer may read member data (admin.view-users granted to everyone)
-      // but has no user.delete-any grant, so the confirmation page must refuse
+      // The viewer may read member data (user.read granted to everyone)
+      // but has no user.delete grant, so the confirmation page must refuse
       // to act even though the page itself is reachable.
-      await grantPermission(page, 'everyone', 'admin.view-users');
+      await grantPermission(page, 'everyone', 'user.read');
       await logoutUser(page);
       await loginUser(page, viewer.login, viewer.password);
       await page.goto(routes.serverAdminMemberDelete(target.id!));

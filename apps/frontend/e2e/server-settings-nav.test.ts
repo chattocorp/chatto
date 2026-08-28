@@ -119,15 +119,15 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectGeneralNavNotVisible();
     });
 
-    test('member with only role.assign permission sees Settings', async ({ serverAdminPage }) => {
+    test('member with only role.manage.assignments permission sees Settings', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create admin user and load the primary server
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Grant role.assign to everyone role
-      await grantPermission(page, 'everyone', 'role.assign');
+      // Grant role.manage.assignments to everyone role
+      await grantPermission(page, 'everyone', 'role.manage.assignments');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -141,7 +141,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectSettingsLinkVisible();
     });
 
-    test('member with only user.delete-any permission sees Settings', async ({
+    test('member with only user.delete permission sees Settings', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -150,11 +150,11 @@ test.describe('Server Admin Navigation Permissions', () => {
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Grant user.delete-any to everyone role. Like the other tests in
+      // Grant user.delete to everyone role. Like the other tests in
       // this block, this picks a single admin-tier permission that is part
       // of the HasAnyAdminPermission set and verifies that holding just
       // that one perm is enough to surface its matching Server Configuration item.
-      await grantPermission(page, 'everyone', 'user.delete-any');
+      await grantPermission(page, 'everyone', 'user.delete');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -209,7 +209,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectRolesNavVisible();
     });
 
-    test('member with only role.assign permission does not see Permissions or Members nav items', async ({
+    test('member with only role.manage.assignments permission does not see Permissions or Members nav items', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -218,10 +218,10 @@ test.describe('Server Admin Navigation Permissions', () => {
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
 
-      // Grant role.assign to everyone role. Role assignment is a targeted
+      // Grant role.manage.assignments to everyone role. Role assignment is a targeted
       // mutation permission; the Permissions matrix still requires role.manage,
-      // and Members still requires admin.view-users because it lists user records.
-      await grantPermission(page, 'everyone', 'role.assign');
+      // and Members still requires user.read because it lists user records.
+      await grantPermission(page, 'everyone', 'role.manage.assignments');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -356,8 +356,8 @@ test.describe('Server Admin Navigation Permissions', () => {
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Grant only role.assign to member role (NOT server.manage)
-      await grantPermission(page, 'everyone', 'role.assign');
+      // Grant only role.manage.assignments to member role (NOT server.manage)
+      await grantPermission(page, 'everyone', 'role.manage.assignments');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
@@ -370,7 +370,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectAccessDenied();
     });
 
-    test('member without admin.view-users permission sees Access Denied on Members settings', async ({
+    test('member without user.read permission sees Access Denied on Members settings', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;

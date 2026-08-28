@@ -346,8 +346,8 @@ test.describe('Server Roles Management', () => {
       await serverRolesPage.gotoEditRole(server.id, 'owner');
 
       // Owner permissions are virtual, not persisted editable grants.
-      await serverRolesPage.expectOwnerPermissionVirtuallyGranted('user.delete-any');
-      await serverRolesPage.expectPermissionReadOnly('user.delete-any');
+      await serverRolesPage.expectOwnerPermissionVirtuallyGranted('user.delete');
+      await serverRolesPage.expectPermissionReadOnly('user.delete');
     });
 
     test('system roles cannot be deleted', async ({ serverRolesPage }) => {

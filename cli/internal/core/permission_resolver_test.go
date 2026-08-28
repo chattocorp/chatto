@@ -15,13 +15,13 @@ func TestPermissionResolver_HasServerPermission(t *testing.T) {
 	// Create a user
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	t.Run("returns true when user has user.delete-self via everyone role", func(t *testing.T) {
+	t.Run("returns true when user has user.delete.self via everyone role", func(t *testing.T) {
 		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermUserDeleteSelf)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
 		}
 		if !has {
-			t.Error("Expected user to have user.delete-self via everyone role")
+			t.Error("Expected user to have user.delete.self via everyone role")
 		}
 	})
 
@@ -36,13 +36,13 @@ func TestPermissionResolver_HasServerPermission(t *testing.T) {
 	})
 
 	t.Run("returns false when user lacks permission", func(t *testing.T) {
-		// Regular user doesn't have admin.view-users
-		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermAdminUsersView)
+		// Regular user doesn't have user.read
+		has, err := core.permissionResolver.HasServerPermission(ctx, user.Id, PermUserRead)
 		if err != nil {
 			t.Fatalf("HasServerPermission() error = %v", err)
 		}
 		if has {
-			t.Error("Expected user NOT to have admin.view-users")
+			t.Error("Expected user NOT to have user.read")
 		}
 	})
 
@@ -1071,7 +1071,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 			t.Fatal("baseline: owner should resolve allow for message.post")
 		}
 		dmRoomID := "R_dm_boundary_owner_test"
-		for _, perm := range []Permission{PermMessageManage, PermRoomManage, PermRoomMemberBan} {
+		for _, perm := range []Permission{PermMessageManage, PermRoomManage, PermRoomManageBans} {
 			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
 			if !has {
 				t.Errorf("expected owner override to allow %s despite DM boundary", perm)
@@ -1086,7 +1086,7 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		user, _ := c.CreateUser(c2ctx, SystemActorID, "clear-user", "User", "password123")
 		has, _ := c.HasServerPermission(c2ctx, user.Id, PermUserDeleteSelf)
 		if !has {
-			t.Fatal("baseline: user should have user.delete-self via everyone")
+			t.Fatal("baseline: user should have user.delete.self via everyone")
 		}
 		_ = c.DenyUserPermission(c2ctx, SystemActorID, user.Id, PermUserDeleteSelf)
 		has, _ = c.HasServerPermission(c2ctx, user.Id, PermUserDeleteSelf)
@@ -1138,11 +1138,11 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 	}{
 		// === Boundary-denied (privacy + category mismatch) ===
 		{PermRoomManage, expected{false, false}, "DM rooms can't be managed channel-style"},
-		{PermRoomMemberBan, expected{false, false}, "DM participants can't be removed"},
+		{PermRoomManageBans, expected{false, false}, "DM participants can't be removed"},
 		{PermMessageManage, expected{false, false}, "DM privacy: no cross-user moderation"},
 		{PermMessageEcho, expected{false, false}, "echo channel-only"},
 		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},
-		{PermMessagePostInThread, expected{false, false}, "threads are channel-only"},
+		{PermMessagePostReplies, expected{false, false}, "threads are channel-only"},
 
 		// === Resolvable, default-granted to everyone === (so regular passes)
 		{PermRoomJoin, expected{true, true}, "auto-join on DM creation; perm resolves"},

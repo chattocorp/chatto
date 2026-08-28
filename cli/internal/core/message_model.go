@@ -127,7 +127,7 @@ type MessageModel struct {
 
 // PostMessage posts a message as actorID and returns the committed event.
 // Authorization: actor must be a room member and must have message.post or
-// message.post-in-thread. Explicit thread creation requires both posting
+// message.post.replies. Explicit thread creation requires both posting
 // permissions, except that a REQUIRED room establishes a root thread as an
 // automatic consequence of message.post. Echoing a thread reply additionally
 // requires message.echo and message.post.

@@ -151,9 +151,9 @@ service MyAccountService {
     option idempotency_level = IDEMPOTENT;
   }
   // Issues a short-lived token used to confirm self-deletion. Requires
-  // user.delete-self.
+  // user.delete.self.
   rpc RequestAccountDeletion(RequestAccountDeletionRequest) returns (RequestAccountDeletionResponse);
   // Permanently deletes the authenticated account after token validation.
-  // Requires user.delete-self.
+  // Requires user.delete.self.
   rpc DeleteMyAccount(DeleteMyAccountRequest) returns (DeleteMyAccountResponse);
 }

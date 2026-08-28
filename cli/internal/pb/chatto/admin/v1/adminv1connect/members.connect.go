@@ -65,31 +65,31 @@ const (
 // AdminUserServiceClient is a client for the chatto.admin.v1.AdminUserService service.
 type AdminUserServiceClient interface {
 	// Lists server members for the admin members screen. Requires
-	// admin.view-users.
+	// user.read.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one server member plus role/permission metadata for admin details.
-	// Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
+	// Requires user.read. Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
-	// Gets server member rows for multiple users. Requires admin.view-users.
+	// Gets server member rows for multiple users. Requires user.read.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
-	// Assigns a role to a user. Requires role.assign, and non-owner callers may
+	// Assigns a role to a user. Requires role.manage.assignments, and non-owner callers may
 	// only assign roles whose granted authority they already possess.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a role from a user. Requires role.assign, and non-owner callers may
+	// Revokes a role from a user. Requires role.manage.assignments, and non-owner callers may
 	// only revoke roles whose permission decisions are within their authority.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates another user's login and/or display name as an admin action.
-	// Requires user.manage-accounts; the caller cannot target their own account.
+	// Requires user.manage; the caller cannot target their own account.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// Updates another user's password as an admin action. Requires
-	// user.manage-accounts and a fresh credential for the caller; the caller
+	// user.manage and a fresh credential for the caller; the caller
 	// cannot target their own account.
 	UpdateUserPassword(context.Context, *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
-	// user.manage-accounts.
+	// user.manage.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
-	// Deletes a user account as an admin action. Requires user.delete-any for
-	// other users or user.delete-self for the caller.
+	// Deletes a user account as an admin action. Requires user.delete for
+	// other users or user.delete.self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 
@@ -222,31 +222,31 @@ func (c *adminUserServiceClient) DeleteUser(ctx context.Context, req *connect.Re
 // AdminUserServiceHandler is an implementation of the chatto.admin.v1.AdminUserService service.
 type AdminUserServiceHandler interface {
 	// Lists server members for the admin members screen. Requires
-	// admin.view-users.
+	// user.read.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one server member plus role/permission metadata for admin details.
-	// Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
+	// Requires user.read. Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
-	// Gets server member rows for multiple users. Requires admin.view-users.
+	// Gets server member rows for multiple users. Requires user.read.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
-	// Assigns a role to a user. Requires role.assign, and non-owner callers may
+	// Assigns a role to a user. Requires role.manage.assignments, and non-owner callers may
 	// only assign roles whose granted authority they already possess.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a role from a user. Requires role.assign, and non-owner callers may
+	// Revokes a role from a user. Requires role.manage.assignments, and non-owner callers may
 	// only revoke roles whose permission decisions are within their authority.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates another user's login and/or display name as an admin action.
-	// Requires user.manage-accounts; the caller cannot target their own account.
+	// Requires user.manage; the caller cannot target their own account.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// Updates another user's password as an admin action. Requires
-	// user.manage-accounts and a fresh credential for the caller; the caller
+	// user.manage and a fresh credential for the caller; the caller
 	// cannot target their own account.
 	UpdateUserPassword(context.Context, *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
-	// user.manage-accounts.
+	// user.manage.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
-	// Deletes a user account as an admin action. Requires user.delete-any for
-	// other users or user.delete-self for the caller.
+	// Deletes a user account as an admin action. Requires user.delete for
+	// other users or user.delete.self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 

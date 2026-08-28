@@ -122,7 +122,7 @@ describe('PermissionMatrix', () => {
   it('orders permission names alphabetically', async () => {
     nextTierRoles = {
       ...HAPPY_TIER_ROLES,
-      applicablePermissions: ['user.delete-self', 'room.manage', 'server.manage', 'user.delete-any']
+      applicablePermissions: ['user.delete.self', 'room.manage', 'server.manage', 'user.delete']
     };
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
@@ -131,7 +131,7 @@ describe('PermissionMatrix', () => {
       [...container.querySelectorAll('[data-testid="permission-name"]')].map(
         (permission) => permission.textContent
       )
-    ).toEqual(['room.manage', 'server.manage', 'user.delete-any', 'user.delete-self']);
+    ).toEqual(['room.manage', 'server.manage', 'user.delete', 'user.delete.self']);
   });
 
   it('shows that message.read includes the nested interaction permission', async () => {

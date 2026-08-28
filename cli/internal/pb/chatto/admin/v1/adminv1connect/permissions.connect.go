@@ -72,11 +72,11 @@ type AdminPermissionServiceClient interface {
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
 	// Gets one user's full permission matrix. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage.
+	// user.manage.permissions; bot targets require ownership or bot.manage.
 	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
 	// Lists one user's permission decisions as resource-oriented rows. Human
-	// targets require user.manage-permissions; bot targets require ownership or
+	// targets require user.manage.permissions; bot targets require ownership or
 	// bot.manage. Returns NOT_FOUND when the user does not exist.
 	ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error)
 	// Explains permission resolution for another user. Requires role.manage.
@@ -85,7 +85,7 @@ type AdminPermissionServiceClient interface {
 	// group and room scopes also accept effective room.manage at that resource.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage and
+	// user.manage.permissions; bot targets require ownership or bot.manage and
 	// accept only allow or clear within the bot owner's current authority.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
@@ -221,11 +221,11 @@ type AdminPermissionServiceHandler interface {
 	// role.manage. Returns NOT_FOUND when the role does not exist.
 	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
 	// Gets one user's full permission matrix. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage.
+	// user.manage.permissions; bot targets require ownership or bot.manage.
 	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
 	// Lists one user's permission decisions as resource-oriented rows. Human
-	// targets require user.manage-permissions; bot targets require ownership or
+	// targets require user.manage.permissions; bot targets require ownership or
 	// bot.manage. Returns NOT_FOUND when the user does not exist.
 	ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error)
 	// Explains permission resolution for another user. Requires role.manage.
@@ -234,7 +234,7 @@ type AdminPermissionServiceHandler interface {
 	// group and room scopes also accept effective room.manage at that resource.
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
-	// user.manage-permissions; bot targets require ownership or bot.manage and
+	// user.manage.permissions; bot targets require ownership or bot.manage and
 	// accept only allow or clear within the bot owner's current authority.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }

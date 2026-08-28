@@ -220,30 +220,30 @@ message DeleteUserResponse {
 // Server-admin user management commands and member-detail reads.
 service AdminUserService {
   // Lists server members for the admin members screen. Requires
-  // admin.view-users.
+  // user.read.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
   // Gets one server member plus role/permission metadata for admin details.
-  // Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
+  // Requires user.read. Returns NOT_FOUND when the user does not exist.
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
-  // Gets server member rows for multiple users. Requires admin.view-users.
+  // Gets server member rows for multiple users. Requires user.read.
   rpc BatchGetMembers(BatchGetMembersRequest) returns (BatchGetMembersResponse);
-  // Assigns a role to a user. Requires role.assign, and non-owner callers may
+  // Assigns a role to a user. Requires role.manage.assignments, and non-owner callers may
   // only assign roles whose granted authority they already possess.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
-  // Revokes a role from a user. Requires role.assign, and non-owner callers may
+  // Revokes a role from a user. Requires role.manage.assignments, and non-owner callers may
   // only revoke roles whose permission decisions are within their authority.
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   // Updates another user's login and/or display name as an admin action.
-  // Requires user.manage-accounts; the caller cannot target their own account.
+  // Requires user.manage; the caller cannot target their own account.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // Updates another user's password as an admin action. Requires
-  // user.manage-accounts and a fresh credential for the caller; the caller
+  // user.manage and a fresh credential for the caller; the caller
   // cannot target their own account.
   rpc UpdateUserPassword(UpdateUserPasswordRequest) returns (UpdateUserPasswordResponse);
   // Clears the target user's self-service username-change cooldown. Requires
-  // user.manage-accounts.
+  // user.manage.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
-  // Deletes a user account as an admin action. Requires user.delete-any for
-  // other users or user.delete-self for the caller.
+  // Deletes a user account as an admin action. Requires user.delete for
+  // other users or user.delete.self for the caller.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 }

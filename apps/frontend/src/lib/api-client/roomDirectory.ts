@@ -80,7 +80,7 @@ export { RoomKind };
 
 const RoomPermission = {
   Attach: 'message.attach',
-  BanMember: 'room.ban-member',
+  BanMember: 'room.manage.bans',
   CreateRoom: 'room.create',
   EchoMessage: 'message.echo',
   JoinRoom: 'room.join',
@@ -88,7 +88,7 @@ const RoomPermission = {
   ManageRoom: 'room.manage',
   ReadInteractions: 'message.read.interactions',
   ReadMessages: 'message.read',
-  PostInThread: 'message.post-in-thread',
+  PostInThread: 'message.post.replies',
   PostMessage: 'message.post',
   React: 'message.react'
 } as const;

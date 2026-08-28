@@ -75,7 +75,7 @@ func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
 	require.NoError(t, err)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
-	require.NoError(t, chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePostInThread))
+	require.NoError(t, chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePostReplies))
 
 	root, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, Body: "automatic required thread",
@@ -90,16 +90,12 @@ func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
 	})
 	require.ErrorIs(t, err, ErrRoomThreadingPolicy)
 
-	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
-		ActorID: user.Id, RoomID: room.Id, Body: "thread reply", InReplyTo: root.Event.Id, ThreadRootEventID: root.Event.Id,
-	})
-	require.ErrorIs(t, err, ErrPermissionDenied, "actual replies still require message.post-in-thread")
-
-	require.NoError(t, chatto.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, user.Id, PermMessagePostInThread))
 	reply, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, Body: "thread reply", InReplyTo: root.Event.Id, ThreadRootEventID: root.Event.Id,
 	})
-	require.NoError(t, err)
+	require.NoError(t, err, "message.post includes message.post.replies despite the child deny")
+
+	require.NoError(t, chatto.ClearUserRoomPermissionState(ctx, SystemActorID, room.Id, user.Id, PermMessagePostReplies))
 	require.Equal(t, root.Event.Id, reply.Event.GetMessagePosted().GetInThread())
 
 	echoedReply, err := chatto.Messages().PostMessage(ctx, MessagePostInput{

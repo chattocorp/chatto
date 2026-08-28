@@ -464,7 +464,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
 	}
-	canBanRoomMembers, err := s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, room.Id, PermRoomMemberBan)
+	canBanRoomMembers, err := s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, room.Id, PermRoomManageBans)
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
 	}

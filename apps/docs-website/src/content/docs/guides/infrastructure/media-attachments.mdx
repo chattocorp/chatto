@@ -27,7 +27,7 @@ Default upload limits are 25 MB for non-video files and 100 MB for videos when v
 File attachments require:
 
 - room membership
-- `message.post` or `message.post-in-thread`
+- `message.post` or `message.post.replies`
 - `message.attach`
 
 Attachment URLs are signed per user and still check that the signed user can access the room. If a user leaves, is removed, or loses room access, new asset fetches fail even if an old message still contains the URL.

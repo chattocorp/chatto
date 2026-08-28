@@ -19,13 +19,13 @@ type viewerService struct {
 const (
 	viewerCapabilityAdminView        = "admin.view"
 	viewerCapabilityDMStart          = "dm.start"
-	viewerCapabilityAdminViewUsers   = string(core.PermAdminUsersView)
-	viewerCapabilityAdminManageUsers = string(core.PermUserManageAccounts)
-	viewerCapabilityAssignRoles      = string(core.PermRoleAssign)
+	viewerCapabilityAdminViewUsers   = string(core.PermUserRead)
+	viewerCapabilityAdminManageUsers = string(core.PermUserManage)
+	viewerCapabilityAssignRoles      = string(core.PermRoleManageAssignments)
 	viewerCapabilityAdminViewRoles   = "role.view"
 	viewerCapabilityAdminManageRoles = string(core.PermRoleManage)
 	viewerCapabilityAdminViewSystem  = "admin.view-system"
-	viewerCapabilityAdminViewAudit   = string(core.PermAdminAuditView)
+	viewerCapabilityAdminViewAudit   = string(core.PermAuditRead)
 	viewerCapabilityManageUserPerms  = string(core.PermUserManagePermissions)
 	viewerCapabilityManageInvites    = string(core.PermUserInvite)
 )

@@ -78,7 +78,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Delete accounts from member administration" size="small">
-    Admins with `user.delete-any` can permanently delete another human member from the
+    Admins with `user.delete` can permanently delete another human member from the
     member detail page. They confirm the exact login before deletion; this action does not
     request the admin's password.
   </ReleaseFeatureCard>
@@ -143,6 +143,19 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+- Replace every legacy permission identifier in custom RBAC, bots, and clients:
+  `message.post-in-thread` becomes `message.post.replies`, `role.assign`
+  becomes `role.manage.assignments`, `room.ban-member` becomes
+  `room.manage.bans`, `user.manage-accounts` becomes `user.manage`,
+  `user.manage-permissions` becomes `user.manage.permissions`,
+  `user.delete-any` becomes `user.delete`, `user.delete-self` becomes
+  `user.delete.self`, `admin.view-users` becomes `user.read`, and
+  `admin.view-audit` becomes `audit.read`. Chatto does not add aliases, rewrite
+  stored events, or backfill RBAC decisions. Old decisions stay in event
+  history but have no effect. Existing grants for `message.post`,
+  `role.manage`, `room.manage`, `user.manage`, and `user.delete` now include
+  their registered descendants. Replace every replica and client together,
+  then review RBAC. The configured owner is the recovery path.
 - Remove `current_password` from `chatto.admin.v1.DeleteUserRequest` in custom
   clients before you update generated code. A 0.5 server ignores protobuf
   binary tag `2`, but `current_password` is not part of the 0.5 ProtoJSON

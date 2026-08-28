@@ -176,7 +176,7 @@ func (c *ChattoCore) requireCanAdminAuditView(ctx context.Context, userID string
 	}
 	canView, err := c.CanAdminAuditView(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("check admin.view-audit: %w", err)
+		return fmt.Errorf("check audit.read: %w", err)
 	}
 	if !canView {
 		return ErrPermissionDenied

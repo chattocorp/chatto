@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -24,7 +24,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
   follow that thread when the recipient has no prior follow state. For a root
   mention, the root message ID identifies the thread for future replies.
 - Every channel room has a Threading Mode:
-  - **Required** — every new root atomically establishes its thread. The room composer keeps **Post as thread** visible, selected, and locked so the policy is explicit without presenting a false choice. The standard **Reply** action and adjacent **Reply in thread** action keep their usual order; either opens the root's thread, while **Reply** also preserves reply attribution. Inside the thread, **Reply** creates attribution in that thread. The server rejects replies to roots unless they are placed in that root's thread. Automatic root-thread creation needs `message.post`; posting an actual thread reply still needs `message.post-in-thread`.
+  - **Required** — every new root atomically establishes its thread. The room composer keeps **Post as thread** visible, selected, and locked so the policy is explicit without presenting a false choice. The standard **Reply** action and adjacent **Reply in thread** action keep their usual order; either opens the root's thread, while **Reply** also preserves reply attribution. Inside the thread, **Reply** creates attribution in that thread. The server rejects replies to roots unless they are placed in that root's thread. Automatic root-thread creation needs `message.post`; posting an actual thread reply still needs `message.post.replies`.
   - **Encouraged** — both flat and threaded conversation remain valid. The standard **Reply** action opens the root's thread with reply attribution, while the adjacent **Reply in thread** action keeps its usual position. **Reply in room** remains available as a secondary expanded-menu action. **Post as thread** starts selected for each new root draft, but the author may turn it off. If a member can post in the room but cannot post in threads, the standard reply falls back to the room and the composer cannot establish a thread.
   - **Enabled** — the default and unrestricted behavior. Authors may opt into **Post as thread**, and other members may start a thread later.
   - **Disabled** — new threads, thread replies, thread typing indicators, and new channel echoes from historical thread replies are unavailable and rejected by the server. Ordinary in-room reply attribution remains available. Existing threads and existing channel echoes stay readable, including after a room changes to Disabled; authors may still remove a historical echo during its normal edit window.
@@ -45,9 +45,13 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 **Why:** Different communities want different conversation shapes. Keeping the primitives orthogonal preserves reply attribution and historical readability, while the room policy can still provide strict thread-everything, a gentle thread preference, unrestricted threads, or no new threads.
 **Tradeoff:** Every message write must validate the current room policy as well as its location permissions. A mode change can therefore reject an in-flight post rather than silently relocating it.
 
-### 2. Posting permissions are split by location only, not by reply attribution
+### 2. Posting permissions distinguish roots from replies, not reply attribution
 
-**Decision:** Two posting permissions: `message.post` (room timeline) and `message.post-in-thread` (inside a thread). Reply attribution (`inReplyTo`) is **not** separately gated — anyone who can post can reply.
+**Decision:** Use `message.post` as the broad posting permission and
+`message.post.replies` as its narrower thread permission. A broad grant
+includes replies. A reply-only grant does not allow root posts. Reply
+attribution (`inReplyTo`) is not separately gated: anyone who can post at the
+target location can use it.
 **Why:** Operators want to express patterns like "everyone can reply in threads, but only certain roles can post root messages" — that's the room-vs-thread axis, which the two permissions cover. Reply attribution is message presentation and notification semantics, not a distinct posting location or moderation boundary. A reply may create its own notification occurrence independently of a direct mention in the same message; the recipient controls that reply cause through notification policy.
 **Tradeoff:** Operators who genuinely want to disable reply attribution as a UI affordance cannot do so through permissions. Recipients can suppress reply notifications without disabling the reply feature itself.
 
@@ -77,7 +81,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 
 ### 7. Root authors can establish a thread before the first reply
 
-**Decision:** In Enabled and Encouraged rooms, a channel-room root post can explicitly create its thread when the author has both `message.post` and `message.post-in-thread`. In Required rooms, the same atomic thread creation is an automatic consequence of every root post and therefore needs only `message.post`. The root message, `ThreadCreatedEvent`, and root-author `ThreadFollowedEvent` are one atomic room-aggregate write. The durable thread exists even with zero replies, and public messages expose that state by including `Message.thread`; ordinary roots without an established thread omit it.
+**Decision:** In Enabled and Encouraged rooms, a channel-room root post can explicitly create its thread when the author has both `message.post` and `message.post.replies`. In Required rooms, the same atomic thread creation is an automatic consequence of every root post and therefore needs only `message.post`. The root message, `ThreadCreatedEvent`, and root-author `ThreadFollowedEvent` are one atomic room-aggregate write. The durable thread exists even with zero replies, and public messages expose that state by including `Message.thread`; ordinary roots without an established thread omit it.
 **Why:** The author can signal the intended conversation shape at posting time instead of leaving the decision to the first person who replies. Atomic creation prevents a visible root from briefly or permanently losing that intent. Keeping the room view stable makes **Post as thread** a posting choice rather than an unexpected navigation action.
 **Tradeoff:** Clients must distinguish an established empty thread from an ordinary root with zero replies by checking `Message.thread` presence. Required rooms create an empty thread for every root even when nobody replies.
 
@@ -109,8 +113,11 @@ Chatto messages can link to one another via reply attribution, and channel-room 
   account authored its root or another account directly mentioned it in that
   thread. Channel-room membership is also required. DM membership authorizes
   historical DM thread reads without either read permission.
-- `message.post` — post a root message (with or without `inReplyTo`) in a room. Explicitly establishing that root as a thread also requires `message.post-in-thread`; automatic root-thread creation in Required rooms does not.
-- `message.post-in-thread` — post a message inside a channel-room thread (with or without `inReplyTo`), and—together with `message.post`—explicitly establish a root as a thread. This permission does not make threads available in DMs.
+- `message.post` — post a root message (with or without `inReplyTo`) in a room
+  and post replies through its `message.post.replies` descendant. Explicitly
+  establishing a root as a thread also checks that descendant; automatic
+  root-thread creation in Required rooms does not need a separate check.
+- `message.post.replies` — post a message inside a channel-room thread (with or without `inReplyTo`), and—together with `message.post`—explicitly establish a root as a thread. This permission does not make threads available in DMs.
 
 ## Related
 
