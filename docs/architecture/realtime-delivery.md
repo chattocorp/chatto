@@ -416,10 +416,11 @@ RBAC facts are fanned through the shared hub. The mapper normally responds with
 a reconnecting `projection_reset_required` close so the next subscription
 starts from current authorization and removes channel-room message state after
 a `message.read` loss. A `message.read` decision does not remove DM state from
-a participant. A human viewer's own direct permission
-mutation targeting a bot cannot change that viewer's authorization, so their
-connection instead receives an empty projection envelope and advances its
-cursor without rebuilding the page. Other viewers, including the target bot,
+a participant. An effective owner's self-authored RBAC mutation cannot change
+that owner's authorization. A human viewer's own direct permission mutation
+targeting a bot also cannot change that viewer's authorization. In both cases,
+the writer's connection receives an empty projection envelope and advances its
+cursor without rebuilding the page. Other viewers, including a target bot,
 still receive the reset.
 
 ## Process-wide live ingress

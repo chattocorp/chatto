@@ -200,7 +200,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	advanceWithoutReset := false
 	if core.IsRBACEvent(evt) {
 		var err error
-		advanceWithoutReset, err = s.canAdvanceSelfAuthoredBotPermission(ctx, viewerID, evt)
+		advanceWithoutReset, err = s.canAdvanceSelfAuthoredRBAC(ctx, viewerID, evt)
 		if err != nil {
 			return nil, false, err
 		}
@@ -960,13 +960,21 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	return realtimeProjectionServerFrame(projection), true, nil
 }
 
-// canAdvanceSelfAuthoredBotPermission identifies the one RBAC mutation that
-// cannot change the current human viewer's own authorization: their direct
-// permission update for a bot. Other subscribers, including the target bot,
-// still reconnect and rebuild from current authorization.
-func (s *HTTPServer) canAdvanceSelfAuthoredBotPermission(ctx context.Context, viewerID string, event *evtv1.Event) (bool, error) {
+// canAdvanceSelfAuthoredRBAC identifies self-authored RBAC mutations that
+// cannot change the current viewer's authorization. Effective owners retain
+// every known permission after any RBAC edit. A human's direct permission
+// update for their bot also cannot change the human's authorization. Other
+// subscribers still reconnect and rebuild from current authorization.
+func (s *HTTPServer) canAdvanceSelfAuthoredRBAC(ctx context.Context, viewerID string, event *evtv1.Event) (bool, error) {
 	if event == nil || viewerID == "" || event.GetActorId() != viewerID {
 		return false, nil
+	}
+	isOwner, err := s.core.IsServerOwner(ctx, viewerID)
+	if err != nil {
+		return false, fmt.Errorf("resolve effective owner for realtime RBAC delivery: %w", err)
+	}
+	if isOwner {
+		return true, nil
 	}
 	var subject *evtv1.RbacPermissionSubject
 	switch payload := event.GetEvent().(type) {
