@@ -856,7 +856,10 @@ test.describe('Permission-only Resolution', () => {
   });
 
   test.describe('message.post.replies — Posting in Threads', () => {
-    test('message.post.replies denied disables thread composer', async ({ page, roomPage }) => {
+    test('message.post parent grant keeps thread composer enabled despite child deny', async ({
+      page,
+      roomPage
+    }) => {
       // Admin creates server and room, posts a root message
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -878,14 +881,17 @@ test.describe('Permission-only Resolution', () => {
       await page.goto(routes.thread(roomId, rootMsg!.id));
       await roomPage.expectThreadPaneVisible();
 
-      // Thread reply input should be disabled
+      // The parent message.post grant includes message.post.replies, so the child deny cannot
+      // remove the effective parent grant.
       await expect(page.getByTestId('thread-reply-input')).toHaveAttribute(
         'contenteditable',
-        'false'
+        'true'
       );
     });
 
-    test('message.post.replies denied blocks all thread replies via API', async ({ page }) => {
+    test('message.post parent grant permits API thread replies despite child deny', async ({
+      page
+    }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -903,12 +909,12 @@ test.describe('Permission-only Resolution', () => {
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
 
-      // Posting in thread should be denied (no start_thread/post_in_thread split — all blocked)
-      const replied = await replyToMessageViaAPI(page, roomId, rootMsg!.id, 'This should fail');
-      expect(replied).toBeNull();
+      // The parent grant satisfies the child permission even when the child has a deny.
+      const replied = await replyToMessageViaAPI(page, roomId, rootMsg!.id, 'This should work');
+      expect(replied).not.toBeNull();
     });
 
-    test('message.post.replies denied permits ordinary roots but blocks explicit thread creation', async ({
+    test('message.post parent grant permits roots and explicit threads despite child deny', async ({
       page
     }) => {
       // Admin creates server and room
@@ -928,17 +934,17 @@ test.describe('Permission-only Resolution', () => {
 
       await page.goto(routes.room(roomId));
       await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
-      await expect(page.getByRole('button', { name: 'Post as thread' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Post as thread' })).toBeVisible();
 
       // Root posting should still work
       const posted = await postMessageViaAPI(page, roomId, 'Member can still post root');
       expect(posted).not.toBeNull();
 
-      // Explicit thread creation requires both root and thread posting permissions.
-      const thread = await postMessageViaAPI(page, roomId, 'Member cannot create a thread', {
+      // The parent grant also satisfies the child permission required for thread creation.
+      const thread = await postMessageViaAPI(page, roomId, 'Member can create a thread', {
         createThread: true
       });
-      expect(thread).toBeNull();
+      expect(thread).not.toBeNull();
     });
   });
 
