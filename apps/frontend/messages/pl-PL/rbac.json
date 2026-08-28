@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administracja",
+      "bot": "Boty",
+      "message": "Wiadomości",
+      "role": "Role",
+      "room": "Pokoje",
+      "server": "Serwer",
+      "user": "Użytkownicy",
+      "other": "Inne"
+    },
     "permission_labels": {
       "server_manage": "Zarządzaj serwerem",
       "room_create": "Twórz pokoje",

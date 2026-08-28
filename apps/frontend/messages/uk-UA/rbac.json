@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Адміністрування",
+      "bot": "Боти",
+      "message": "Повідомлення",
+      "role": "Ролі",
+      "room": "Кімнати",
+      "server": "Сервер",
+      "user": "Користувачі",
+      "other": "Інше"
+    },
     "permission_labels": {
       "server_manage": "Керувати сервером",
       "room_create": "Створювати кімнати",

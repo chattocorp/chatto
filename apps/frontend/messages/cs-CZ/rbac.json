@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Správa",
+      "bot": "Boti",
+      "message": "Zprávy",
+      "role": "Role",
+      "room": "Místnosti",
+      "server": "Server",
+      "user": "Uživatelé",
+      "other": "Ostatní"
+    },
     "permission_labels": {
       "server_manage": "Spravovat server",
       "room_create": "Vytvářet místnosti",

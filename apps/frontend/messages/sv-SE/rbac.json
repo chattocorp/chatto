@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administration",
+      "bot": "Botar",
+      "message": "Meddelanden",
+      "role": "Roller",
+      "room": "Rum",
+      "server": "Server",
+      "user": "Användare",
+      "other": "Övrigt"
+    },
     "permission_labels": {
       "server_manage": "Hantera server",
       "room_create": "Skapa rum",

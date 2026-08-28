@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "الإدارة",
+      "bot": "البوتات",
+      "message": "الرسائل",
+      "role": "الأدوار",
+      "room": "الغرف",
+      "server": "الخادم",
+      "user": "المستخدمون",
+      "other": "أخرى"
+    },
     "permission_labels": {
       "server_manage": "إدارة الخادم",
       "room_create": "إنشاء غرف",

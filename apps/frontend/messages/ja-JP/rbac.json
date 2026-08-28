@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "管理",
+      "bot": "ボット",
+      "message": "メッセージ",
+      "role": "ロール",
+      "room": "ルーム",
+      "server": "サーバー",
+      "user": "ユーザー",
+      "other": "その他"
+    },
     "permission_labels": {
       "server_manage": "サーバーを管理",
       "room_create": "ルームを作成",

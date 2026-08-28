@@ -2,9 +2,9 @@
 @component
 
 Presentational matrix used by both the per-user and per-role permissions
-pages. Caller owns data loading and mutation dispatch; this component
-lays out alphabetically sorted permission rows and columns (server + groups +
-nested rooms), and forwards cell clicks via `onCycle`.
+pages. Caller owns data loading and mutation dispatch; this component groups
+permission rows by category, sorts them by their stable IDs, lays out columns
+(server + groups + nested rooms), and forwards cell clicks via `onCycle`.
 
 Cell semantics:
   - `override` ALLOW/DENY → solid (subject has an explicit grant/deny here)
@@ -21,7 +21,12 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   import { MatrixTable } from '$lib/ui/matrix';
   import { Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
-  import { getIncludingPermissions, getPermissionLabel } from '$lib/permissions';
+  import {
+    getIncludingPermissions,
+    getPermissionCategory,
+    getPermissionCategoryLabel,
+    getPermissionLabel
+  } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -99,11 +104,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
 
   // ----- Row layout -------------------------------------------------------
 
-  const permissions = $derived(
-    [...data.applicablePermissions].sort((a, b) =>
-      getPermissionLabel(a).localeCompare(getPermissionLabel(b))
-    )
-  );
+  const permissions = $derived([...data.applicablePermissions].sort());
   const inclusionChains = $derived.by(() => {
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
     const chains = new Map<string, string[]>();
@@ -116,8 +117,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
     return query
-      ? permissions.filter((permission) =>
-          getPermissionLabel(permission).toLowerCase().includes(query)
+      ? permissions.filter(
+          (permission) =>
+            permission.toLowerCase().includes(query) ||
+            getPermissionLabel(permission).toLowerCase().includes(query)
         )
       : permissions;
   });
@@ -217,7 +220,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       columns={matrixScopes}
       getRowKey={(permission) => permission}
       getColumnKey={(scope) => scope.id}
+      getGroupKey={(permission) => getPermissionCategory(permission)}
       emptyMessage={m('rbac.permissions.no_filter_matches')}
+      compact
+      columnHeaderHeight="10rem"
       columnClass={(scope) => scopeColumnClass(scope.kind)}
       columnAttributes={(scope) => ({ 'data-scope': scope.id })}
       cellAttributes={(permission, scope) => ({
@@ -229,6 +235,11 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     >
       {#snippet leadingHeader()}
         Permission
+      {/snippet}
+      {#snippet group(permission)}
+        <h3 data-testid="permission-section-divider" class="text-sm font-medium text-muted">
+          {getPermissionCategoryLabel(getPermissionCategory(permission))}
+        </h3>
       {/snippet}
       {#snippet columnHeader(scope, highlighted)}
         <span

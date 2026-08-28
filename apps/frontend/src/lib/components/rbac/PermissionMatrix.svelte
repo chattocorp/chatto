@@ -33,7 +33,12 @@ focusing a cell highlights its permission row and role column.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import { getIncludingPermissions, getPermissionLabel } from '$lib/permissions';
+  import {
+    getIncludingPermissions,
+    getPermissionCategory,
+    getPermissionCategoryLabel,
+    getPermissionLabel
+  } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
@@ -188,11 +193,7 @@ focusing a cell highlights its permission row and role column.
   // ----- Layout -----------------------------------------------------------
 
   const permissions = $derived.by<string[]>(() =>
-    data
-      ? [...data.applicablePermissions].sort((a, b) =>
-          getPermissionLabel(a).localeCompare(getPermissionLabel(b))
-        )
-      : []
+    data ? [...data.applicablePermissions].sort() : []
   );
   const inclusionChains = $derived.by(() => {
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
@@ -206,8 +207,10 @@ focusing a cell highlights its permission row and role column.
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
     return query
-      ? permissions.filter((permission) =>
-          getPermissionLabel(permission).toLowerCase().includes(query)
+      ? permissions.filter(
+          (permission) =>
+            permission.toLowerCase().includes(query) ||
+            getPermissionLabel(permission).toLowerCase().includes(query)
         )
       : permissions;
   });
@@ -376,7 +379,10 @@ focusing a cell highlights its permission row and role column.
       columns={roles}
       getRowKey={(permission) => permission}
       getColumnKey={(role) => role.roleName}
+      getGroupKey={(permission) => getPermissionCategory(permission)}
       emptyMessage={m('rbac.permissions.no_filter_matches')}
+      compact
+      columnHeaderHeight="10rem"
       stickyHeader={scrollContents}
       {fillHeight}
       stickyHeaderFadeOffset="top-48"
@@ -390,6 +396,11 @@ focusing a cell highlights its permission row and role column.
     >
       {#snippet leadingHeader()}
         {m('rbac.permissions.permission')}
+      {/snippet}
+      {#snippet group(permission)}
+        <h3 data-testid="permission-section-divider" class="text-sm font-medium text-muted">
+          {getPermissionCategoryLabel(getPermissionCategory(permission))}
+        </h3>
       {/snippet}
       {#snippet columnHeader(role, highlighted)}
         {@const handle =
@@ -411,7 +422,7 @@ focusing a cell highlights its permission row and role column.
         {#if newRoleHref}
           <th
             class="bg-background px-0 py-3 text-center align-bottom font-medium"
-            style="width: 2rem; min-width: 2rem; height: 12rem"
+            style="width: 2rem; min-width: 2rem; height: 10rem"
           >
             <MatrixColumnHeading>
               <!-- eslint-disable svelte/no-navigation-without-resolve -- newRoleHref is resolved by the owning route -->
@@ -480,7 +491,7 @@ focusing a cell highlights its permission row and role column.
       {/snippet}
       {#snippet trailingCell()}
         {#if newRoleHref}
-          <td class="px-0 py-2" style="width: 2.5rem; min-width: 2.5rem" aria-hidden="true"></td>
+          <td class="px-0 py-0.5" style="width: 2.5rem; min-width: 2.5rem" aria-hidden="true"></td>
         {/if}
       {/snippet}
     </MatrixTable>

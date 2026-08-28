@@ -101,7 +101,7 @@ async function settle() {
 }
 
 describe('PermissionMatrix', () => {
-  it('renders one alphabetically ordered permission matrix without category dividers', async () => {
+  it('renders one compact permission matrix with category dividers', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
 
@@ -109,17 +109,19 @@ describe('PermissionMatrix', () => {
     expect(tables).toHaveLength(1);
     // The permission and role columns, followed by the flexible spacer.
     expect(container.querySelectorAll('thead th')).toHaveLength(5);
-    expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
-    expect(container.querySelectorAll('[data-testid="permission-section-divider"]')).toHaveLength(
-      0
-    );
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
+    expect(
+      [...container.querySelectorAll('[data-testid="permission-section-divider"]')].map((heading) =>
+        heading.textContent?.trim()
+      )
+    ).toEqual(['Messages', 'Rooms']);
     expect(container.querySelector('table')?.className).toContain('w-full');
     expect(container.querySelectorAll('[data-testid="permission-matrix-spacer"]')).toHaveLength(2);
     expect(container.querySelector('thead th:last-child')?.className).toContain('bg-background');
-    expect(container.querySelectorAll('tbody h3')).toHaveLength(0);
+    expect(container.querySelector('tbody th[scope="row"]')?.className).toContain('py-0.5');
   });
 
-  it('orders permission labels alphabetically', async () => {
+  it('orders permissions by their internal IDs', async () => {
     nextTierRoles = {
       ...HAPPY_TIER_ROLES,
       applicablePermissions: ['user.delete-self', 'room.manage', 'server.manage', 'user.delete-any']
@@ -131,7 +133,7 @@ describe('PermissionMatrix', () => {
       [...container.querySelectorAll('[data-testid="permission-name"]')].map(
         (permission) => permission.textContent
       )
-    ).toEqual(['Delete any account', 'Delete own account', 'Manage rooms', 'Manage server']);
+    ).toEqual(['Manage rooms', 'Manage server', 'Delete any account', 'Delete own account']);
     expect(container.querySelector('button[aria-label^="About "]')).toBeNull();
   });
 
@@ -276,7 +278,7 @@ describe('PermissionMatrix', () => {
     expect(newRoleColumn?.getAttribute('href')).toBe('/chat/server/manage/server/permissions/new');
     expect(newRoleColumn?.textContent).toContain('+ New Role');
     expect(container.querySelectorAll('thead th')).toHaveLength(6);
-    expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
   });
 
   it('contrasts the panel inset and sticky cells with the surface table header', async () => {

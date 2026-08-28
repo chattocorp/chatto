@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administrēšana",
+      "bot": "Boti",
+      "message": "Ziņojumi",
+      "role": "Lomas",
+      "room": "Telpas",
+      "server": "Serveris",
+      "user": "Lietotāji",
+      "other": "Citi"
+    },
     "permission_labels": {
       "server_manage": "Pārvaldīt serveri",
       "room_create": "Izveidot telpas",

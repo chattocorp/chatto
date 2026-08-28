@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Amministrazione",
+      "bot": "Bot",
+      "message": "Messaggi",
+      "role": "Ruoli",
+      "room": "Stanze",
+      "server": "Server",
+      "user": "Utenti",
+      "other": "Altro"
+    },
     "permission_labels": {
       "server_manage": "Gestire il server",
       "room_create": "Creare stanze",

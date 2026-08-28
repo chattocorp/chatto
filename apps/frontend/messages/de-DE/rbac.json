@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administration",
+      "bot": "Bots",
+      "message": "Nachrichten",
+      "role": "Rollen",
+      "room": "Räume",
+      "server": "Server",
+      "user": "Benutzer",
+      "other": "Sonstige"
+    },
     "permission_labels": {
       "server_manage": "Server verwalten",
       "room_create": "Räume erstellen",

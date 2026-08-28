@@ -1,10 +1,10 @@
 <!--
 @component
 
-Domain-neutral dense matrix layout. The component owns axis geometry,
-horizontal overflow, sticky row headings, and coordinated row/column
-highlighting. Consumers provide all domain labels and cell content with
-snippets.
+Domain-neutral matrix layout. The component owns axis geometry, optional row
+grouping and compact spacing, horizontal overflow, sticky row headings, and
+coordinated row/column highlighting. Consumers provide all domain labels and
+cell content with snippets.
 -->
 <script lang="ts" generics="TRow, TColumn">
   import type { Snippet } from 'svelte';
@@ -16,6 +16,8 @@ snippets.
     columns,
     getRowKey,
     getColumnKey,
+    getGroupKey,
+    group,
     leadingHeader,
     rowHeader,
     columnHeader,
@@ -33,12 +35,15 @@ snippets.
     trailingColumns = 0,
     rowHeaderWidth = '14rem',
     columnHeaderHeight = '12rem',
-    spacerTestId = 'matrix-spacer'
+    spacerTestId = 'matrix-spacer',
+    compact = false
   }: {
     rows: TRow[];
     columns: TColumn[];
     getRowKey: (row: TRow) => string;
     getColumnKey: (column: TColumn) => string;
+    getGroupKey?: (row: TRow) => string | null | undefined;
+    group?: Snippet<[TRow]>;
     leadingHeader: Snippet;
     rowHeader: Snippet<[TRow, boolean]>;
     columnHeader: Snippet<[TColumn, boolean]>;
@@ -57,6 +62,8 @@ snippets.
     rowHeaderWidth?: string;
     columnHeaderHeight?: string;
     spacerTestId?: string;
+    /** Reduce padding around the standard 40-pixel cell controls. */
+    compact?: boolean;
   } = $props();
 
   type Coordinate = { row: string; column: string };
@@ -98,6 +105,8 @@ snippets.
   items={rows}
   columns={columns.length + trailingColumns + 2}
   getKey={(row) => getRowKey(row)}
+  {getGroupKey}
+  {group}
   {emptyMessage}
   {stickyHeader}
   {fillHeight}
@@ -106,7 +115,10 @@ snippets.
 >
   {#snippet header()}
     <th
-      class="sticky start-0 z-30 bg-background px-4 py-3 text-start align-bottom font-medium"
+      class={[
+        'sticky start-0 z-30 bg-background text-start align-bottom font-medium',
+        compact ? 'px-3 py-2' : 'px-4 py-3'
+      ]}
       style:width={rowHeaderWidth}
     >
       {@render leadingHeader()}
@@ -114,7 +126,9 @@ snippets.
     {#each columns as column (getColumnKey(column))}
       <th
         class={[
-          'px-0 py-3 text-center align-bottom font-medium',
+          compact
+            ? 'px-0 py-2 text-center align-bottom font-medium'
+            : 'px-0 py-3 text-center align-bottom font-medium',
           columnHighlighted(column)
             ? 'bg-action/10 text-action'
             : (columnClass?.(column) ?? 'bg-background')
@@ -136,7 +150,8 @@ snippets.
     <th
       scope="row"
       class={[
-        'sticky start-0 z-10 px-4 py-2 text-start font-normal whitespace-nowrap',
+        'sticky start-0 z-10 text-start font-normal whitespace-nowrap',
+        compact ? 'px-3 py-0.5' : 'px-4 py-2',
         rowHighlighted(row) ? 'bg-action/8' : 'bg-background'
       ]}
     >
@@ -145,7 +160,10 @@ snippets.
     {#each columns as column (getColumnKey(column))}
       {@const interactive = isCellInteractive(row, column)}
       <td
-        class={['px-0 py-2 text-center', cellClass(row, column)]}
+        class={[
+          compact ? 'px-0 py-0.5 text-center' : 'px-0 py-2 text-center',
+          cellClass(row, column)
+        ]}
         style="width: 2.5rem; min-width: 2.5rem"
         data-matrix-column={getColumnKey(column)}
         data-matrix-row={getRowKey(row)}

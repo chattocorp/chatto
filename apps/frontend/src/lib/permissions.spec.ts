@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   getIncludedByPermission,
   getIncludingPermissions,
+  getPermissionCategory,
+  getPermissionCategoryLabel,
   getPermissionLabel,
   PERMISSION_METADATA
 } from './permissions';
@@ -60,5 +62,13 @@ describe('PERMISSION_METADATA', () => {
   it('returns a localized label with an opaque ID fallback', () => {
     expect(getPermissionLabel('server.manage')).toBe('Manage server');
     expect(getPermissionLabel('future.permission')).toBe('future.permission');
+  });
+
+  it('uses explicit categories with a presentation-only fallback for newer IDs', () => {
+    expect(getPermissionCategory('server.manage')).toBe('server');
+    expect(getPermissionCategory('room.future-capability')).toBe('room');
+    expect(getPermissionCategory('future.permission')).toBe('other');
+    expect(getPermissionCategoryLabel('server')).toBe('Server');
+    expect(getPermissionCategoryLabel('other')).toBe('Other');
   });
 });

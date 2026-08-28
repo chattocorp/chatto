@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "ניהול",
+      "bot": "בוטים",
+      "message": "הודעות",
+      "role": "תפקידים",
+      "room": "חדרים",
+      "server": "שרת",
+      "user": "משתמשים",
+      "other": "אחר"
+    },
     "permission_labels": {
       "server_manage": "ניהול השרת",
       "room_create": "יצירת חדרים",

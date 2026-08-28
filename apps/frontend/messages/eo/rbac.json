@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administrado",
+      "bot": "Robotoj",
+      "message": "Mesaĝoj",
+      "role": "Roloj",
+      "room": "Ĉambroj",
+      "server": "Servilo",
+      "user": "Uzantoj",
+      "other": "Aliaj"
+    },
     "permission_labels": {
       "server_manage": "Administri servilon",
       "room_create": "Krei ĉambrojn",

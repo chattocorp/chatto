@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Администрирование",
+      "bot": "Боты",
+      "message": "Сообщения",
+      "role": "Роли",
+      "room": "Комнаты",
+      "server": "Сервер",
+      "user": "Пользователи",
+      "other": "Другое"
+    },
     "permission_labels": {
       "server_manage": "Управлять сервером",
       "room_create": "Создавать комнаты",

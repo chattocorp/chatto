@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "管理",
+      "bot": "机器人",
+      "message": "消息",
+      "role": "角色",
+      "room": "聊天室",
+      "server": "服务器",
+      "user": "用户",
+      "other": "其他"
+    },
     "permission_labels": {
       "server_manage": "管理服务器",
       "room_create": "创建房间",

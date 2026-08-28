@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Haldus",
+      "bot": "Botid",
+      "message": "Sõnumid",
+      "role": "Rollid",
+      "room": "Ruumid",
+      "server": "Server",
+      "user": "Kasutajad",
+      "other": "Muud"
+    },
     "permission_labels": {
       "server_manage": "Halda serverit",
       "room_create": "Loo ruume",

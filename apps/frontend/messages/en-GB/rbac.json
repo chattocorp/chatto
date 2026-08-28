@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administration",
+      "bot": "Bots",
+      "message": "Messages",
+      "role": "Roles",
+      "room": "Rooms",
+      "server": "Server",
+      "user": "Users",
+      "other": "Other"
+    },
     "permission_labels": {
       "server_manage": "Manage server",
       "room_create": "Create rooms",

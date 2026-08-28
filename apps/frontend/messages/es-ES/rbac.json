@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administración",
+      "bot": "Bots",
+      "message": "Mensajes",
+      "role": "Roles",
+      "room": "Salas",
+      "server": "Servidor",
+      "user": "Usuarios",
+      "other": "Otros"
+    },
     "permission_labels": {
       "server_manage": "Gestionar servidor",
       "room_create": "Crear salas",

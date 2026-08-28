@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Beheer",
+      "bot": "Bots",
+      "message": "Berichten",
+      "role": "Rollen",
+      "room": "Kamers",
+      "server": "Server",
+      "user": "Gebruikers",
+      "other": "Overig"
+    },
     "permission_labels": {
       "server_manage": "Server beheren",
       "room_create": "Kamers maken",

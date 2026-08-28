@@ -82,7 +82,7 @@ it('highlights the hovered permission row and scope column', () => {
   );
 });
 
-it('renders one alphabetically ordered matrix without category dividers', () => {
+it('renders one compact matrix grouped and ordered by internal permission IDs', () => {
   const { container } = render(SubjectPermissionsMatrix, {
     props: {
       data: {
@@ -122,8 +122,14 @@ it('renders one alphabetically ordered matrix without category dividers', () => 
   expect(container.querySelectorAll('[data-testid="permission-matrix-spacer"]')).toHaveLength(3);
   expect(container.querySelector('thead th:last-child')?.className).toContain('bg-background');
   expect(
+    [...container.querySelectorAll('[data-testid="permission-section-divider"]')].map((heading) =>
+      heading.textContent?.trim()
+    )
+  ).toEqual(['Rooms', 'Server', 'Users']);
+  expect(
     [...container.querySelectorAll('[data-testid="permission-name"]')].map((row) => row.textContent)
-  ).toEqual(['Delete own account', 'Manage rooms', 'Manage server']);
+  ).toEqual(['Manage rooms', 'Manage server', 'Delete own account']);
+  expect(container.querySelector('tbody th[scope="row"]')?.className).toContain('py-0.5');
 });
 
 it('filters permission names as the query changes', () => {

@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Yönetim",
+      "bot": "Botlar",
+      "message": "Mesajlar",
+      "role": "Roller",
+      "room": "Odalar",
+      "server": "Sunucu",
+      "user": "Kullanıcılar",
+      "other": "Diğer"
+    },
     "permission_labels": {
       "server_manage": "Sunucuyu yönet",
       "room_create": "Odalar oluştur",
