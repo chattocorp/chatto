@@ -27,7 +27,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 vi.mock('$lib/storage/lastRoom', () => ({ resolveLastPosition: mocks.resolveLastPosition }));
 
-import ChatLanding from './+page.svelte';
+import ChatLandingRedirect from './ChatLandingRedirect.svelte';
 
 const user: CurrentUser = {
   id: 'user-1',
@@ -43,7 +43,7 @@ const user: CurrentUser = {
   settings: null
 };
 
-describe('chat landing page', () => {
+describe('chat landing redirect', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.hasPendingReturnNavigation.mockReturnValue(false);
@@ -51,9 +51,10 @@ describe('chat landing page', () => {
   });
 
   it('navigates before the first viewer projection loads permissions', async () => {
-    render(ChatLanding, {
+    render(ChatLandingRedirect, {
       props: {
-        data: { user, serverInfo: null, serverInfoLoaded: true, welcome: false }
+        user,
+        welcome: false
       }
     });
 
