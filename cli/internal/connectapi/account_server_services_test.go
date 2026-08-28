@@ -299,9 +299,17 @@ func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
 
 func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 	env := newConnectAPITestEnv(t)
+	tokenResp, err := env.account.RequestAccountDeletion(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RequestAccountDeletionRequest{}))
+	if err != nil {
+		t.Fatalf("RequestAccountDeletion before deny: %v", err)
+	}
+	if tokenResp.Msg.GetConfirmationToken() == "" {
+		t.Fatal("confirmation token is empty before deny")
+	}
 
 	// Revoking user.delete-self must disable the whole self-service flow:
-	// token issuance and redemption both refuse to act (FDR-018 kill-switch).
+	// new token issuance and redemption of an already-issued token both refuse
+	// to act (FDR-018 kill-switch).
 	if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserDeleteSelf); err != nil {
 		t.Fatalf("DenyUserPermission user.delete-self: %v", err)
 	}
@@ -310,7 +318,7 @@ func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 		t.Fatalf("denied RequestAccountDeletion code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	if _, err := env.account.DeleteMyAccount(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteMyAccountRequest{
-		ConfirmationToken: "irrelevant-without-permission",
+		ConfirmationToken: tokenResp.Msg.GetConfirmationToken(),
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("denied DeleteMyAccount code = %v, want permission_denied", connect.CodeOf(err))
 	}
@@ -318,18 +326,11 @@ func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserDeleteSelf); err != nil {
 		t.Fatalf("GrantUserPermission user.delete-self: %v", err)
 	}
-	tokenResp, err := env.account.RequestAccountDeletion(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RequestAccountDeletionRequest{}))
-	if err != nil {
-		t.Fatalf("RequestAccountDeletion after grant: %v", err)
-	}
-	if tokenResp.Msg.GetConfirmationToken() == "" {
-		t.Fatal("confirmation token is empty after grant")
-	}
 	deleteResp, err := env.account.DeleteMyAccount(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DeleteMyAccountRequest{
 		ConfirmationToken: tokenResp.Msg.GetConfirmationToken(),
 	}))
 	if err != nil {
-		t.Fatalf("DeleteMyAccount after grant: %v", err)
+		t.Fatalf("DeleteMyAccount with restored permission: %v", err)
 	}
 	if !deleteResp.Msg.GetDeleted() {
 		t.Fatal("Deleted = false, want true")
