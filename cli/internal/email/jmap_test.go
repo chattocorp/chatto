@@ -144,6 +144,68 @@ func TestJMAPMailer_RejectsInsecureSessionURL(t *testing.T) {
 	}
 }
 
+func TestJMAPMailer_FollowsSecureSessionRedirect(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer token-1" {
+			t.Errorf("Authorization = %q, want bearer token", got)
+		}
+		switch r.URL.Path {
+		case "/.well-known/jmap":
+			http.Redirect(w, r, server.URL+"/session", http.StatusTemporaryRedirect)
+		case "/session":
+			writeJMAPJSON(t, w, map[string]any{
+				"apiUrl": server.URL + "/api",
+				"capabilities": map[string]any{
+					jmapCoreCapability:       map[string]any{},
+					jmapMailCapability:       map[string]any{},
+					jmapSubmissionCapability: map[string]any{},
+				},
+			})
+		default:
+			t.Errorf("unexpected JMAP request path %q", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := server.Client()
+	client.CheckRedirect = jmapRedirectPolicy("token-1")
+	mailer := newJMAPMailer(config.JMAPConfig{
+		SessionURL:  server.URL + "/.well-known/jmap",
+		AccessToken: "token-1",
+	}, client)
+	if _, err := mailer.getSession(context.Background()); err != nil {
+		t.Fatalf("getSession() error = %v", err)
+	}
+}
+
+func TestJMAPMailer_RejectsInsecureSessionRedirect(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://mail.example/session", http.StatusTemporaryRedirect)
+	}))
+	defer server.Close()
+
+	client := server.Client()
+	client.CheckRedirect = jmapRedirectPolicy("token-1")
+	mailer := newJMAPMailer(config.JMAPConfig{
+		SessionURL:  server.URL,
+		AccessToken: "token-1",
+	}, client)
+	_, err := mailer.getSession(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "JMAP redirect URL must be an absolute HTTPS URL") {
+		t.Fatalf("getSession() error = %v, want insecure-redirect error", err)
+	}
+}
+
+func TestJMAPRedirectPolicy_DoesNotFollowAPIPostRedirect(t *testing.T) {
+	redirectedRequest := httptest.NewRequest(http.MethodPost, "https://mail.example/redirected", nil)
+	apiRequest := httptest.NewRequest(http.MethodPost, "https://mail.example/api", nil)
+	err := jmapRedirectPolicy("token-1")(redirectedRequest, []*http.Request{apiRequest})
+	if err != http.ErrUseLastResponse {
+		t.Fatalf("redirect policy error = %v, want ErrUseLastResponse", err)
+	}
+}
+
 func TestJMAPMailer_RejectsInsecureAPIURL(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeJMAPJSON(t, w, map[string]any{

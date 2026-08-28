@@ -39,11 +39,31 @@ var _ Sender = (*JMAPMailer)(nil)
 // NewJMAPMailer creates a JMAP transactional email sender.
 func NewJMAPMailer(cfg config.JMAPConfig) *JMAPMailer {
 	return newJMAPMailer(cfg, &http.Client{
-		Timeout: jmapRequestTimeout,
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+		Timeout:       jmapRequestTimeout,
+		CheckRedirect: jmapRedirectPolicy(cfg.AccessToken),
 	})
+}
+
+// jmapRedirectPolicy follows HTTPS GET redirects for session discovery. It
+// keeps the bearer credential on validated targets. It does not follow
+// redirects from JMAP API requests.
+func jmapRedirectPolicy(accessToken string) func(*http.Request, []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		if len(via) > 0 && via[len(via)-1].Method != http.MethodGet {
+			return http.ErrUseLastResponse
+		}
+		if len(via) >= 10 {
+			return fmt.Errorf("stop JMAP redirect after 10 requests")
+		}
+		if err := validateJMAPHTTPSURL("JMAP redirect URL", req.URL.String()); err != nil {
+			return err
+		}
+		// Go removes sensitive headers during some cross-host redirects. A JMAP
+		// session resource can redirect to another HTTPS host, so restore the
+		// configured credential only after the redirect target passes validation.
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		return nil
+	}
 }
 
 func newJMAPMailer(cfg config.JMAPConfig, client *http.Client) *JMAPMailer {

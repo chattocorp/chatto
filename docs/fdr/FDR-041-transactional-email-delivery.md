@@ -38,3 +38,4 @@ Chatto sends transactional email for account registration, email-address verific
 
 - **ADRs:** None
 - **FDRs:** FDR-018 (Account Lifecycle), FDR-023 (Authentication & Sessions)
+- **Issue:** [#1440](https://github.com/chattocorp/chatto/issues/1440)
