@@ -50,9 +50,9 @@ keep their semantic priority colour.
 When one route path contains another navigation path, set `aria-current` only
 on the most-specific matching item.
 
-The server gutter follows the same rule. The current server uses its action
-ring and action fill. Do not add a side stripe, a shadow, or a separate accent
-colour for navigation selection.
+The server gutter has a distinct rule. The current server uses a neutral text
+ring and a `surface-selected` fill. This preserves the server identity colour
+inside the icon. Do not add a side stripe or a shadow for navigation selection.
 
 ## Choosing A Primitive
 

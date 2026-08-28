@@ -740,8 +740,8 @@
 }
 
 @utility server-gutter-item-active {
-  @apply bg-action/10 text-text hover:bg-action/15 hover:text-text active:bg-action/20;
-  @apply ring-2 ring-action;
+  @apply bg-surface-selected text-text hover:bg-surface-selected hover:text-text;
+  @apply ring-2 ring-text;
 }
 
 /* Make ServerLogo slightly smaller inside server-icon to leave room for the ring */
