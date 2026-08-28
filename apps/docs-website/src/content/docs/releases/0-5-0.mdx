@@ -181,10 +181,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   cause only one action. During a mixed-replica rollout, an older replica can
   omit the follow created by a direct root mention. Complete the rollout before
   you depend on later followed-thread activations.
-- Remove `webserver.allowed_origins` and `webserver.oauth_redirect_origins` (or their
-  environment-variable equivalents) from server configuration; those settings no longer
-  exist. The 0.5 OAuth flow requires a CIMD or built-in `client_id`, so upgrade clients and
-  servers together. Pre-0.5 clients cannot use the new remote-server authorization flow.
+- Remove `webserver.oauth_redirect_origins` or its environment-variable
+  equivalent. Keep `webserver.allowed_origins` only when an exact additional
+  browser origin must use cookie authentication through a reverse proxy. This
+  setting no longer controls cross-origin API access or OAuth redirects, and
+  `*` never authorizes browser cookies. The 0.5 OAuth flow requires a CIMD or
+  built-in `client_id`, so upgrade clients and servers together. Pre-0.5 clients
+  cannot use the new remote-server authorization flow.
 - Notifications 2.0 replaces the previous notification service and stored records. Existing
   pending notifications and notification-level preferences are not migrated, so every account
   starts with an empty notification list and the new per-signal-class defaults. Integrations must
@@ -196,6 +199,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   protobuf for this forward-compatible fallback. ProtoJSON integrations must ignore unknown
   fields or regenerate before a future signal variant is exposed.
   Upgrade all replicas and bundled clients together.
+- Existing 0.4 Web Push subscription records remain stored, but 0.5 cannot use
+  them until the browser registers them again. The bundled client performs this
+  refresh without another permission prompt when the user opens it and
+  notification permission is still granted. Push delivery can be unavailable
+  until that first visit.
 - Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server no longer accepts protocol 1. Integrations that use `/api/realtime` must
@@ -205,6 +213,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   deleted that message and can temporarily render its body again. Once every replica runs
   0.5, message edits and deletions share one room lifecycle boundary and deletion tombstones
   remain authoritative during replay.
+- Treat the upgrade as forward-only after a 0.5 server accepts traffic. A 0.4
+  binary does not understand new notification facts, asset lifecycle facts,
+  HLS results, or other 0.5-only events. It can start on the same data but cannot
+  provide the complete server state. Deploy a 0.5 fix when possible. For a full
+  rollback, restore a tested pre-upgrade backup and accept the loss of later
+  writes. Include matching encryption keys in the recovery plan, and back up S3
+  assets separately.
 - Server discovery no longer publishes `compatibility.protocol_capabilities`, which appeared
   only in unreleased 0.5 development snapshots. The containing `compatibility` message is
   also gone: clients own their minimum supported server release instead of the server
