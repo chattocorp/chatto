@@ -2109,14 +2109,8 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id)
-	if err != nil || len(occurrences) != 1 {
-		t.Fatalf("List occurrences = %+v, %v, want one", occurrences, err)
-	}
-	occurrence := occurrences[0]
-	if occurrence.GetAttentionLevel() != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
-		t.Fatalf("followed-thread occurrence attention = %v, want important", occurrence.GetAttentionLevel())
-	}
+	// The materializer publishes this invalidation only after it has stored the
+	// occurrence in the notification projection.
 	var createdInvalidation *corev1.NotificationOccurrencesInvalidatedEvent
 	deadline := time.After(5 * time.Second)
 	for createdInvalidation == nil {
@@ -2131,6 +2125,14 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 		case <-deadline:
 			t.Fatal("timed out waiting for notification invalidation")
 		}
+	}
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id)
+	if err != nil || len(occurrences) != 1 {
+		t.Fatalf("List occurrences = %+v, %v, want one", occurrences, err)
+	}
+	occurrence := occurrences[0]
+	if occurrence.GetAttentionLevel() != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
+		t.Fatalf("followed-thread occurrence attention = %v, want important", occurrence.GetAttentionLevel())
 	}
 	if createdInvalidation.GetSoundCandidateNotificationId() != occurrence.GetId() {
 		t.Fatalf("sound candidate = %q, want %q", createdInvalidation.GetSoundCandidateNotificationId(), occurrence.GetId())
