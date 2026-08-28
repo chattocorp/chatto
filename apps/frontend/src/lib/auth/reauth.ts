@@ -348,7 +348,6 @@ export function beginOriginReauthentication(): void {
     resolve('/login') +
     '?' +
     new URLSearchParams({
-      error: 'authentication_required',
       redirect: path
     });
   // eslint-disable-next-line svelte/no-navigation-without-resolve -- base route is resolved above; query parameters preserve the current app path

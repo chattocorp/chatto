@@ -353,3 +353,33 @@ describe('remote server OAuth popup', () => {
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
   });
 });
+
+describe('origin server reauthentication', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    vi.stubGlobal('sessionStorage', memoryStorage());
+    vi.stubGlobal('window', {
+      location: {
+        pathname: '/chat/origin',
+        search: '?room=general'
+      }
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('opens sign-in without an external identity linking error', async () => {
+    const { beginOriginReauthentication } = await import('./reauth');
+
+    beginOriginReauthentication();
+
+    expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
+    expect(gotoMock).toHaveBeenCalledWith('/login?redirect=%2Fchat%2Forigin%3Froom%3Dgeneral', {
+      invalidateAll: true
+    });
+    expect(sessionStorage.getItem('returnUrl')).toBe('/chat/origin?room=general');
+  });
+});
