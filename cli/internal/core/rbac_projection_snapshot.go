@@ -2,26 +2,27 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var rbacSnapshotContractID = snapshotContractID("v1", &corev1.RBACProjectionSnapshot{})
+var rbacSnapshotContractID = snapshotContractID("v1", &projectionv1.RBACProjectionSnapshot{})
 
 func (*RBACProjection) SnapshotContractID() string { return rbacSnapshotContractID }
 
 func (p *RBACProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.RBACProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot := &projectionv1.RBACProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	for _, roleName := range sortedMapKeys(p.roles) {
-		snapshot.Roles = append(snapshot.Roles, proto.Clone(p.roles[roleName]).(*corev1.Role))
+		snapshot.Roles = append(snapshot.Roles, proto.Clone(p.roles[roleName]).(*evtv1.Role))
 	}
 	for _, userID := range sortedMapKeys(p.assignments) {
-		snapshot.Assignments = append(snapshot.Assignments, &corev1.RBACAssignmentSnapshot{UserId: userID, RoleNames: sortedMapKeys(p.assignments[userID])})
+		snapshot.Assignments = append(snapshot.Assignments, &projectionv1.RBACAssignmentSnapshot{UserId: userID, RoleNames: sortedMapKeys(p.assignments[userID])})
 	}
 	keys := make([]rbacDecisionKey, 0, len(p.decisions))
 	for key := range p.decisions {
@@ -44,13 +45,13 @@ func (p *RBACProjection) Snapshot() ([]byte, error) {
 		return a.permission < b.permission
 	})
 	for _, key := range keys {
-		snapshot.Decisions = append(snapshot.Decisions, &corev1.RBACDecisionSnapshot{Scope: string(key.scope), ScopeId: key.scopeID, SubjectKind: key.subjectKind, Subject: key.subject, Permission: string(key.permission), Decision: string(p.decisions[key])})
+		snapshot.Decisions = append(snapshot.Decisions, &projectionv1.RBACDecisionSnapshot{Scope: string(key.scope), ScopeId: key.scopeID, SubjectKind: key.subjectKind, Subject: key.subject, Permission: string(key.permission), Decision: string(p.decisions[key])})
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
 func (p *RBACProjection) Restore(data []byte) error {
-	snapshot := &corev1.RBACProjectionSnapshot{}
+	snapshot := &projectionv1.RBACProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal RBAC snapshot: %w", err)
@@ -60,7 +61,7 @@ func (p *RBACProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("RBAC snapshot replay guard: %w", err)
 	}
-	roles := make(map[string]*corev1.Role, len(snapshot.GetRoles()))
+	roles := make(map[string]*evtv1.Role, len(snapshot.GetRoles()))
 	for _, role := range snapshot.GetRoles() {
 		if role.GetName() == "" {
 			return fmt.Errorf("RBAC snapshot has empty role name")
@@ -68,7 +69,7 @@ func (p *RBACProjection) Restore(data []byte) error {
 		if _, duplicate := roles[role.GetName()]; duplicate {
 			return fmt.Errorf("RBAC snapshot repeats role %q", role.GetName())
 		}
-		roles[role.GetName()] = proto.Clone(role).(*corev1.Role)
+		roles[role.GetName()] = proto.Clone(role).(*evtv1.Role)
 	}
 	assignments := make(map[string]map[string]struct{}, len(snapshot.GetAssignments()))
 	for _, assignment := range snapshot.GetAssignments() {
@@ -99,7 +100,7 @@ func (p *RBACProjection) Restore(data []byte) error {
 		if scope != ScopeServer && row.GetScopeId() == "" {
 			return fmt.Errorf("RBAC snapshot has empty scoped object ID")
 		}
-		if row.GetSubjectKind() == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED || row.GetSubject() == "" || row.GetPermission() == "" {
+		if row.GetSubjectKind() == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED || row.GetSubject() == "" || row.GetPermission() == "" {
 			return fmt.Errorf("RBAC snapshot has invalid decision")
 		}
 		decision := DecisionKind(row.GetDecision())

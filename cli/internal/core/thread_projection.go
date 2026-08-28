@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -171,7 +171,7 @@ func (p *ThreadProjection) ReplaySubjects() []string {
 //
 // Everything else (root messages, room lifecycle, memberships,
 // edits/retracts of non-reply messages) is silently ignored.
-func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -186,15 +186,15 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_RoomCreated:
+	case *evtv1.Event_RoomCreated:
 		room := e.RoomCreated
-		if room.GetRoomId() == "" || room.GetKind() != corev1.RoomKind_ROOM_KIND_CHANNEL {
+		if room.GetRoomId() == "" || room.GetKind() != evtv1.RoomKind_ROOM_KIND_CHANNEL {
 			return nil
 		}
 		p.channelRooms[room.GetRoomId()] = struct{}{}
 		markApplied()
 
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		roomID := e.RoomDeleted.GetRoomId()
 		if _, ok := p.channelRooms[roomID]; !ok {
 			return nil
@@ -203,12 +203,12 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.removeRoomInteractionStateLocked(roomID)
 		markApplied()
 
-	case *corev1.Event_UserKeyShreddingRequested:
+	case *evtv1.Event_UserKeyShreddingRequested:
 		p.applyUserKeyShreddedLocked(e.UserKeyShreddingRequested.GetUserId(), markApplied)
-	case *corev1.Event_UserKeyShredded:
+	case *evtv1.Event_UserKeyShredded:
 		p.applyUserKeyShreddedLocked(e.UserKeyShredded.GetUserId(), markApplied)
 
-	case *corev1.Event_ThreadCreated:
+	case *evtv1.Event_ThreadCreated:
 		threadRoot := e.ThreadCreated.GetThreadRootEventId()
 		if threadRoot == "" {
 			return nil
@@ -221,17 +221,17 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		markApplied()
 
-	case *corev1.Event_ThreadFollowed:
+	case *evtv1.Event_ThreadFollowed:
 		follow := e.ThreadFollowed
 		p.setThreadFollowStateLocked(follow.GetUserId(), follow.GetRoomId(), follow.GetThreadRootEventId(), ThreadFollowStateFollowing)
 		markApplied()
 
-	case *corev1.Event_ThreadUnfollowed:
+	case *evtv1.Event_ThreadUnfollowed:
 		unfollow := e.ThreadUnfollowed
 		p.setThreadFollowStateLocked(unfollow.GetUserId(), unfollow.GetRoomId(), unfollow.GetThreadRootEventId(), ThreadFollowStateUnfollowed)
 		markApplied()
 
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		m := e.MessagePosted
 		if _, channel := p.channelRooms[m.GetRoomId()]; channel {
 			p.applyMessageInteractionStateLocked(event, m)
@@ -262,14 +262,14 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyReplyToSummaryLocked(summary, replyID)
 		markApplied()
 
-	case *corev1.Event_MessageEdited:
+	case *evtv1.Event_MessageEdited:
 		_, ok := p.messageToThread[e.MessageEdited.GetEventId()]
 		if !ok {
 			return nil // target isn't a known thread reply
 		}
 		markApplied()
 
-	case *corev1.Event_MessageRetracted:
+	case *evtv1.Event_MessageRetracted:
 		targetID := e.MessageRetracted.GetEventId()
 		threadRoot, ok := p.messageToThread[targetID]
 		if !ok {
@@ -287,7 +287,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	return nil
 }
 
-func (p *ThreadProjection) applyMessageInteractionStateLocked(event *corev1.Event, message *corev1.MessagePostedEvent) {
+func (p *ThreadProjection) applyMessageInteractionStateLocked(event *evtv1.Event, message *evtv1.MessagePostedEvent) {
 	if event == nil || message == nil || event.GetId() == "" || message.GetRoomId() == "" {
 		return
 	}
@@ -314,7 +314,7 @@ func (p *ThreadProjection) applyMessageInteractionStateLocked(event *corev1.Even
 		if mention == nil || mention.GetUserId() == "" || mention.GetUserId() == event.GetActorId() {
 			continue
 		}
-		if _, direct := mention.GetCause().(*corev1.MessageMention_Direct); !direct {
+		if _, direct := mention.GetCause().(*evtv1.MessageMention_Direct); !direct {
 			continue
 		}
 		p.addInteractionCauseLocked(mention.GetUserId(), message.GetRoomId(), rootID, ThreadInteractionCause{
@@ -437,7 +437,7 @@ func newThreadSummary() *threadSummary {
 	}
 }
 
-func eventCreatedAt(event *corev1.Event) time.Time {
+func eventCreatedAt(event *evtv1.Event) time.Time {
 	if event == nil || event.GetCreatedAt() == nil {
 		return time.Time{}
 	}

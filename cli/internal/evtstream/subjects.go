@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"strings"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // Subject roots for the event log. The durable stream stores events on
@@ -229,263 +229,263 @@ const (
 // This is the single source of truth: the protobuf oneof drives the
 // subject token, so the subject can't disagree with the payload by
 // convention. New event types add a case here and nothing else changes.
-func EventTypeOf(e *corev1.Event) string {
+func EventTypeOf(e *evtv1.Event) string {
 	if e == nil {
 		return ""
 	}
 	switch e.GetEvent().(type) {
-	case *corev1.Event_RoomCreated:
+	case *evtv1.Event_RoomCreated:
 		return EventRoomCreated
-	case *corev1.Event_RoomUpdated:
+	case *evtv1.Event_RoomUpdated:
 		return EventRoomUpdated
-	case *corev1.Event_RoomArchived:
+	case *evtv1.Event_RoomArchived:
 		return EventRoomArchived
-	case *corev1.Event_RoomUnarchived:
+	case *evtv1.Event_RoomUnarchived:
 		return EventRoomUnarchived
-	case *corev1.Event_RoomUniversalChanged:
+	case *evtv1.Event_RoomUniversalChanged:
 		return EventRoomUniversalChanged
-	case *corev1.Event_RoomSlowModeChanged:
+	case *evtv1.Event_RoomSlowModeChanged:
 		return EventRoomSlowModeChanged
-	case *corev1.Event_RoomThreadingModeChanged:
+	case *evtv1.Event_RoomThreadingModeChanged:
 		return EventRoomThreadingModeChanged
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		return EventRoomDeleted
-	case *corev1.Event_UserJoinedRoom:
+	case *evtv1.Event_UserJoinedRoom:
 		return EventUserJoinedRoom
-	case *corev1.Event_UserLeftRoom:
+	case *evtv1.Event_UserLeftRoom:
 		return EventUserLeftRoom
-	case *corev1.Event_RoomMemberBanned:
+	case *evtv1.Event_RoomMemberBanned:
 		return EventRoomMemberBanned
-	case *corev1.Event_RoomMemberUnbanned:
+	case *evtv1.Event_RoomMemberUnbanned:
 		return EventRoomMemberUnbanned
-	case *corev1.Event_RoomMemberAdded:
+	case *evtv1.Event_RoomMemberAdded:
 		return EventRoomMemberAdded
-	case *corev1.Event_RoomMemberRemoved:
+	case *evtv1.Event_RoomMemberRemoved:
 		return EventRoomMemberRemoved
-	case *corev1.Event_VoiceCallParticipantJoined:
+	case *evtv1.Event_VoiceCallParticipantJoined:
 		return EventCallParticipantJoined
-	case *corev1.Event_VoiceCallParticipantLeft:
+	case *evtv1.Event_VoiceCallParticipantLeft:
 		return EventCallParticipantLeft
-	case *corev1.Event_VoiceCallStarted:
+	case *evtv1.Event_VoiceCallStarted:
 		return EventCallStarted
-	case *corev1.Event_VoiceCallEnded:
+	case *evtv1.Event_VoiceCallEnded:
 		return EventCallEnded
 
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		return EventMessagePosted
-	case *corev1.Event_MessageEdited:
+	case *evtv1.Event_MessageEdited:
 		return EventMessageEdited
-	case *corev1.Event_MessageRetracted:
+	case *evtv1.Event_MessageRetracted:
 		return EventMessageRetracted
-	case *corev1.Event_MessageBody:
+	case *evtv1.Event_MessageBody:
 		return EventMessageBody
-	case *corev1.Event_MessagePinned:
+	case *evtv1.Event_MessagePinned:
 		return EventMessagePinned
-	case *corev1.Event_MessageUnpinned:
+	case *evtv1.Event_MessageUnpinned:
 		return EventMessageUnpinned
-	case *corev1.Event_ThreadCreated:
+	case *evtv1.Event_ThreadCreated:
 		return EventThreadCreated
-	case *corev1.Event_ThreadFollowed:
+	case *evtv1.Event_ThreadFollowed:
 		return EventThreadFollowed
-	case *corev1.Event_ThreadUnfollowed:
+	case *evtv1.Event_ThreadUnfollowed:
 		return EventThreadUnfollowed
-	case *corev1.Event_AssetCreated:
+	case *evtv1.Event_AssetCreated:
 		return EventAssetCreated
-	case *corev1.Event_AssetProcessingStarted:
+	case *evtv1.Event_AssetProcessingStarted:
 		return EventAssetProcessingStarted
-	case *corev1.Event_AssetProcessingSucceeded:
+	case *evtv1.Event_AssetProcessingSucceeded:
 		return EventAssetProcessingSucceeded
-	case *corev1.Event_AssetProcessingFailed:
+	case *evtv1.Event_AssetProcessingFailed:
 		return EventAssetProcessingFailed
-	case *corev1.Event_AssetDeleted:
+	case *evtv1.Event_AssetDeleted:
 		return EventAssetDeleted
-	case *corev1.Event_AssetAttached:
+	case *evtv1.Event_AssetAttached:
 		return EventAssetAttached
 
-	case *corev1.Event_ReactionAdded:
+	case *evtv1.Event_ReactionAdded:
 		return EventReactionAdded
-	case *corev1.Event_ReactionRemoved:
+	case *evtv1.Event_ReactionRemoved:
 		return EventReactionRemoved
-	case *corev1.Event_RoomGroupCreated:
+	case *evtv1.Event_RoomGroupCreated:
 		return EventRoomGroupCreated
-	case *corev1.Event_RoomGroupUpdated:
+	case *evtv1.Event_RoomGroupUpdated:
 		return EventRoomGroupUpdated
-	case *corev1.Event_RoomGroupDeleted:
+	case *evtv1.Event_RoomGroupDeleted:
 		return EventRoomGroupDeleted
-	case *corev1.Event_RoomAddedToGroup:
+	case *evtv1.Event_RoomAddedToGroup:
 		return EventRoomAddedToGroup
-	case *corev1.Event_RoomRemovedFromGroup:
+	case *evtv1.Event_RoomRemovedFromGroup:
 		return EventRoomRemovedFromGroup
-	case *corev1.Event_RoomsInGroupReordered:
+	case *evtv1.Event_RoomsInGroupReordered:
 		return EventRoomsInGroupReordered
-	case *corev1.Event_SidebarLinkAddedToGroup:
+	case *evtv1.Event_SidebarLinkAddedToGroup:
 		return EventSidebarLinkAdded
-	case *corev1.Event_SidebarLinkUpdated:
+	case *evtv1.Event_SidebarLinkUpdated:
 		return EventSidebarLinkUpdated
-	case *corev1.Event_SidebarLinkRemovedFromGroup:
+	case *evtv1.Event_SidebarLinkRemovedFromGroup:
 		return EventSidebarLinkRemoved
-	case *corev1.Event_SidebarGroupEntriesReordered:
+	case *evtv1.Event_SidebarGroupEntriesReordered:
 		return EventSidebarEntriesReordered
 
-	case *corev1.Event_RoomGroupsReordered:
+	case *evtv1.Event_RoomGroupsReordered:
 		return EventRoomGroupsReordered
 
-	case *corev1.Event_ServerNameChanged:
+	case *evtv1.Event_ServerNameChanged:
 		return EventServerNameChanged
-	case *corev1.Event_ServerDescriptionChanged:
+	case *evtv1.Event_ServerDescriptionChanged:
 		return EventServerDescriptionChanged
-	case *corev1.Event_ServerWelcomeMessageChanged:
+	case *evtv1.Event_ServerWelcomeMessageChanged:
 		return EventServerWelcomeMessageChanged
-	case *corev1.Event_ServerMotdChanged:
+	case *evtv1.Event_ServerMotdChanged:
 		return EventServerMotdChanged
-	case *corev1.Event_ServerBlockedUsernamesChanged:
+	case *evtv1.Event_ServerBlockedUsernamesChanged:
 		return EventServerBlockedUsernamesChanged
-	case *corev1.Event_ServerLogoSet:
+	case *evtv1.Event_ServerLogoSet:
 		return EventServerLogoSet
-	case *corev1.Event_ServerLogoCleared:
+	case *evtv1.Event_ServerLogoCleared:
 		return EventServerLogoCleared
-	case *corev1.Event_ServerBannerSet:
+	case *evtv1.Event_ServerBannerSet:
 		return EventServerBannerSet
-	case *corev1.Event_ServerBannerCleared:
+	case *evtv1.Event_ServerBannerCleared:
 		return EventServerBannerCleared
-	case *corev1.Event_UserTimezoneChanged:
+	case *evtv1.Event_UserTimezoneChanged:
 		return EventUserTimezoneChanged
-	case *corev1.Event_UserTimezoneCleared:
+	case *evtv1.Event_UserTimezoneCleared:
 		return EventUserTimezoneCleared
-	case *corev1.Event_UserTimeFormatChanged:
+	case *evtv1.Event_UserTimeFormatChanged:
 		return EventUserTimeFormatChanged
-	case *corev1.Event_UserTimeFormatCleared:
+	case *evtv1.Event_UserTimeFormatCleared:
 		return EventUserTimeFormatCleared
-	case *corev1.Event_UserServerNotificationLevelSet:
+	case *evtv1.Event_UserServerNotificationLevelSet:
 		return EventUserServerNotificationLevelSet
-	case *corev1.Event_UserServerNotificationLevelCleared:
+	case *evtv1.Event_UserServerNotificationLevelCleared:
 		return EventUserServerNotificationLevelCleared
-	case *corev1.Event_UserRoomNotificationLevelSet:
+	case *evtv1.Event_UserRoomNotificationLevelSet:
 		return EventUserRoomNotificationLevelSet
-	case *corev1.Event_UserRoomNotificationLevelCleared:
+	case *evtv1.Event_UserRoomNotificationLevelCleared:
 		return EventUserRoomNotificationLevelCleared
-	case *corev1.Event_UserNotificationPolicyChanged:
+	case *evtv1.Event_UserNotificationPolicyChanged:
 		return EventUserNotificationPolicyChanged
-	case *corev1.Event_UserRoomGroupNotificationPolicyChanged:
+	case *evtv1.Event_UserRoomGroupNotificationPolicyChanged:
 		return EventUserRoomGroupNotificationPolicyChanged
 
-	case *corev1.Event_UserAccountCreated:
+	case *evtv1.Event_UserAccountCreated:
 		return EventUserAccountCreated
-	case *corev1.Event_BotApiKeyCreated:
+	case *evtv1.Event_BotApiKeyCreated:
 		return EventBotAPIKeyCreated
-	case *corev1.Event_BotApiKeyRotated:
+	case *evtv1.Event_BotApiKeyRotated:
 		return EventBotAPIKeyRotated
-	case *corev1.Event_BotOwnerReassigned:
+	case *evtv1.Event_BotOwnerReassigned:
 		return EventBotOwnerReassigned
-	case *corev1.Event_BotIncomingWebhookCreated:
+	case *evtv1.Event_BotIncomingWebhookCreated:
 		return EventBotIncomingWebhookCreated
-	case *corev1.Event_BotIncomingWebhookRotated:
+	case *evtv1.Event_BotIncomingWebhookRotated:
 		return EventBotIncomingWebhookRotated
-	case *corev1.Event_BotIncomingWebhookRevoked:
+	case *evtv1.Event_BotIncomingWebhookRevoked:
 		return EventBotIncomingWebhookRevoked
-	case *corev1.Event_UserLoginChanged:
+	case *evtv1.Event_UserLoginChanged:
 		return EventUserLoginChanged
-	case *corev1.Event_UserDisplayNameChanged:
+	case *evtv1.Event_UserDisplayNameChanged:
 		return EventUserDisplayNameChanged
-	case *corev1.Event_UserBioChanged:
+	case *evtv1.Event_UserBioChanged:
 		return EventUserBioChanged
-	case *corev1.Event_UserAvatarSet:
+	case *evtv1.Event_UserAvatarSet:
 		return EventUserAvatarSet
-	case *corev1.Event_UserAvatarCleared:
+	case *evtv1.Event_UserAvatarCleared:
 		return EventUserAvatarCleared
-	case *corev1.Event_UserVerifiedEmailAdded:
+	case *evtv1.Event_UserVerifiedEmailAdded:
 		return EventUserVerifiedEmailAdded
-	case *corev1.Event_UserPasswordHashChanged:
+	case *evtv1.Event_UserPasswordHashChanged:
 		return EventUserPasswordHashChanged
-	case *corev1.Event_UserOidcSubjectLinked:
+	case *evtv1.Event_UserOidcSubjectLinked:
 		return EventUserOIDCSubjectLinked
-	case *corev1.Event_UserExternalIdentityLinked:
+	case *evtv1.Event_UserExternalIdentityLinked:
 		return EventUserExternalIdentityLinked
-	case *corev1.Event_UserExternalIdentityUnlinked:
+	case *evtv1.Event_UserExternalIdentityUnlinked:
 		return EventUserExternalIdentityUnlinked
-	case *corev1.Event_UserServerPreferencesChanged:
+	case *evtv1.Event_UserServerPreferencesChanged:
 		return EventUserServerPreferencesChanged
-	case *corev1.Event_UserLoginCooldownStarted:
+	case *evtv1.Event_UserLoginCooldownStarted:
 		return EventUserLoginCooldownStarted
-	case *corev1.Event_UserLoginCooldownCleared:
+	case *evtv1.Event_UserLoginCooldownCleared:
 		return EventUserLoginCooldownCleared
-	case *corev1.Event_UserAccountDeleted:
+	case *evtv1.Event_UserAccountDeleted:
 		return EventUserAccountDeleted
-	case *corev1.Event_UserKeyShreddingRequested:
+	case *evtv1.Event_UserKeyShreddingRequested:
 		return EventUserKeyShreddingRequested
-	case *corev1.Event_UserKeyShredded:
+	case *evtv1.Event_UserKeyShredded:
 		return EventUserKeyShredded
-	case *corev1.Event_UserDekGenerated:
+	case *evtv1.Event_UserDekGenerated:
 		return EventUserDEKGenerated
-	case *corev1.Event_UserCustomStatusSet:
+	case *evtv1.Event_UserCustomStatusSet:
 		return EventUserCustomStatusSet
-	case *corev1.Event_UserCustomStatusCleared:
+	case *evtv1.Event_UserCustomStatusCleared:
 		return EventUserCustomStatusCleared
 
-	case *corev1.Event_RbacRoleCreated:
+	case *evtv1.Event_RbacRoleCreated:
 		return EventRBACRoleCreated
-	case *corev1.Event_RbacRoleDisplayNameChanged:
+	case *evtv1.Event_RbacRoleDisplayNameChanged:
 		return EventRBACRoleDisplayNameChanged
-	case *corev1.Event_RbacRoleDescriptionChanged:
+	case *evtv1.Event_RbacRoleDescriptionChanged:
 		return EventRBACRoleDescriptionChanged
-	case *corev1.Event_RbacRolePingableChanged:
+	case *evtv1.Event_RbacRolePingableChanged:
 		return EventRBACRolePingableChanged
-	case *corev1.Event_AuthorizationFenceAdvanced:
+	case *evtv1.Event_AuthorizationFenceAdvanced:
 		return EventAuthorizationFenceAdvanced
-	case *corev1.Event_RbacRoleDeleted:
+	case *evtv1.Event_RbacRoleDeleted:
 		return EventRBACRoleDeleted
-	case *corev1.Event_RbacRolesReordered:
+	case *evtv1.Event_RbacRolesReordered:
 		return EventRBACRolesReordered
-	case *corev1.Event_RbacRoleAssigned:
+	case *evtv1.Event_RbacRoleAssigned:
 		return EventRBACRoleAssigned
-	case *corev1.Event_RbacRoleRevoked:
+	case *evtv1.Event_RbacRoleRevoked:
 		return EventRBACRoleRevoked
-	case *corev1.Event_RbacPermissionGranted:
+	case *evtv1.Event_RbacPermissionGranted:
 		return EventRBACPermissionGranted
-	case *corev1.Event_RbacPermissionDenied:
+	case *evtv1.Event_RbacPermissionDenied:
 		return EventRBACPermissionDenied
-	case *corev1.Event_RbacPermissionCleared:
+	case *evtv1.Event_RbacPermissionCleared:
 		return EventRBACPermissionCleared
 
-	case *corev1.Event_RegistrationVerificationCodeIssued:
+	case *evtv1.Event_RegistrationVerificationCodeIssued:
 		return EventRegistrationVerificationCodeIssued
-	case *corev1.Event_EmailVerificationCodeIssued:
+	case *evtv1.Event_EmailVerificationCodeIssued:
 		return EventEmailVerificationCodeIssued
-	case *corev1.Event_PasswordResetLinkIssued:
+	case *evtv1.Event_PasswordResetLinkIssued:
 		return EventPasswordResetLinkIssued
-	case *corev1.Event_AccountDeletionConfirmationIssued:
+	case *evtv1.Event_AccountDeletionConfirmationIssued:
 		return EventAccountDeletionConfirmationIssued
-	case *corev1.Event_PasswordResetCompleted:
+	case *evtv1.Event_PasswordResetCompleted:
 		return EventPasswordResetCompleted
-	case *corev1.Event_LoginSucceeded:
+	case *evtv1.Event_LoginSucceeded:
 		return EventLoginSucceeded
-	case *corev1.Event_LoginFailed:
+	case *evtv1.Event_LoginFailed:
 		return EventLoginFailed
-	case *corev1.Event_LogoutSucceeded:
+	case *evtv1.Event_LogoutSucceeded:
 		return EventLogoutSucceeded
-	case *corev1.Event_AuthCodeIssued:
+	case *evtv1.Event_AuthCodeIssued:
 		return EventAuthCodeIssued
-	case *corev1.Event_AuthCodeExchangeSucceeded:
+	case *evtv1.Event_AuthCodeExchangeSucceeded:
 		return EventAuthCodeExchangeSucceeded
-	case *corev1.Event_AuthCodeExchangeFailed:
+	case *evtv1.Event_AuthCodeExchangeFailed:
 		return EventAuthCodeExchangeFailed
-	case *corev1.Event_BearerTokenIssued:
+	case *evtv1.Event_BearerTokenIssued:
 		return EventBearerTokenIssued
-	case *corev1.Event_BearerTokenRevoked:
+	case *evtv1.Event_BearerTokenRevoked:
 		return EventBearerTokenRevoked
-	case *corev1.Event_OauthConsentGranted:
+	case *evtv1.Event_OauthConsentGranted:
 		return EventOAuthConsentGranted
-	case *corev1.Event_OauthConsentDenied:
+	case *evtv1.Event_OauthConsentDenied:
 		return EventOAuthConsentDenied
-	case *corev1.Event_OauthClientAuthorizationRecorded:
+	case *evtv1.Event_OauthClientAuthorizationRecorded:
 		return EventOAuthClientAuthorizationRecorded
-	case *corev1.Event_OauthClientPolicyChanged:
+	case *evtv1.Event_OauthClientPolicyChanged:
 		return EventOAuthClientPolicyChanged
-	case *corev1.Event_InvitationCreated:
+	case *evtv1.Event_InvitationCreated:
 		return EventInvitationCreated
-	case *corev1.Event_InvitationRedeemed:
+	case *evtv1.Event_InvitationRedeemed:
 		return EventInvitationRedeemed
-	case *corev1.Event_InvitationRevoked:
+	case *evtv1.Event_InvitationRevoked:
 		return EventInvitationRevoked
 	}
 	return ""
@@ -515,7 +515,7 @@ func (a Aggregate) Subject(eventType string) string {
 // event payload's oneof variant. Convenient when the caller already has
 // the event built — pairs naturally with publisher helpers that take an
 // Aggregate + Event rather than a raw subject.
-func (a Aggregate) SubjectFor(e *corev1.Event) string {
+func (a Aggregate) SubjectFor(e *evtv1.Event) string {
 	return a.Subject(EventTypeOf(e))
 }
 

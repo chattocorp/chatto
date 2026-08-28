@@ -159,11 +159,11 @@ func TestPublicReflectionResolver(t *testing.T) {
 	if _, err := resolver.FindFileByPath("chatto/admin/v1/diagnostics.proto"); err != nil {
 		t.Fatalf("FindFileByPath(chatto/admin/v1/diagnostics.proto): %v", err)
 	}
-	if _, err := resolver.FindFileByPath("chatto/core/v1/event.proto"); !errors.Is(err, protoregistry.NotFound) {
-		t.Fatalf("FindFileByPath(chatto/core/v1/event.proto) err = %v, want NotFound", err)
+	if _, err := resolver.FindFileByPath("chatto/core/evt/v1/event.proto"); !errors.Is(err, protoregistry.NotFound) {
+		t.Fatalf("FindFileByPath(chatto/core/evt/v1/event.proto) err = %v, want NotFound", err)
 	}
-	if _, err := resolver.FindDescriptorByName("chatto.core.v1.Event"); !errors.Is(err, protoregistry.NotFound) {
-		t.Fatalf("FindDescriptorByName(chatto.core.v1.Event) err = %v, want NotFound", err)
+	if _, err := resolver.FindDescriptorByName("chatto.core.evt.v1.Event"); !errors.Is(err, protoregistry.NotFound) {
+		t.Fatalf("FindDescriptorByName(chatto.core.evt.v1.Event) err = %v, want NotFound", err)
 	}
 }
 

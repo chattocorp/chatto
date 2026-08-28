@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil/fakes3"
 )
 
@@ -328,16 +328,16 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 		assetID := "myasset123"
 
 		// NATS asset stores assetID in Key
-		natsAsset := &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_Nats{
-				Nats: &corev1.NATSAsset{Key: assetID},
+		natsAsset := &evtv1.DeprecatedAsset{
+			Asset: &evtv1.DeprecatedAsset_Nats{
+				Nats: &evtv1.NATSAsset{Key: assetID},
 			},
 		}
 
 		// S3 asset should also store assetID in Key (not the full S3 path)
-		s3Asset := &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_S3{
-				S3: &corev1.S3Asset{Key: assetID, Bucket: proto.String("test-bucket")},
+		s3Asset := &evtv1.DeprecatedAsset{
+			Asset: &evtv1.DeprecatedAsset_S3{
+				S3: &evtv1.S3Asset{Key: assetID, Bucket: proto.String("test-bucket")},
 			},
 		}
 

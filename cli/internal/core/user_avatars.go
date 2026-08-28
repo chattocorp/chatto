@@ -11,13 +11,13 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/assets"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // UploadUserAvatar processes an image (resizes to 256x256 max, converts to WebP),
 // uploads it to the object store (NATS or S3), and returns the asset reference.
 // If the user already has an avatar, the old one is deleted after successful upload.
-func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader io.Reader) (*corev1.AssetRecord, error) {
+func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader io.Reader) (*evtv1.AssetRecord, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 
 	// Upload to storage with unique asset ID
 	assetID := NewAssetID()
-	asset := &corev1.AssetRecord{
+	asset := &evtv1.AssetRecord{
 		Id:          assetID,
 		Filename:    "avatar.webp",
 		ContentType: "image/webp",
@@ -55,8 +55,8 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 			return nil, fmt.Errorf("failed to upload avatar to S3: %w", err)
 		}
 		// Store just the assetID in Key (same as NATS) so URL generation is consistent
-		asset.Storage = &corev1.AssetRecord_S3{
-			S3: &corev1.S3Asset{
+		asset.Storage = &evtv1.AssetRecord_S3{
+			S3: &evtv1.S3Asset{
 				Key:    assetID,
 				Bucket: proto.String(c.s3Client.Bucket()),
 			},
@@ -75,8 +75,8 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload avatar: %w", err)
 		}
-		asset.Storage = &corev1.AssetRecord_Nats{
-			Nats: &corev1.NATSAsset{
+		asset.Storage = &evtv1.AssetRecord_Nats{
+			Nats: &evtv1.NATSAsset{
 				Key: objectKey,
 			},
 		}
@@ -92,13 +92,13 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 }
 
 // SetUserAvatar stores the user's avatar asset reference through the user aggregate.
-func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *corev1.AssetRecord) error {
+func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *evtv1.AssetRecord) error {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return err
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_AssetCreated{
-		AssetCreated: &corev1.AssetCreatedEvent{
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_AssetCreated{
+		AssetCreated: &evtv1.AssetCreatedEvent{
 			Asset:                   asset,
 			OriginalBinaryAvailable: true,
 			UserId:                  userID,
@@ -118,7 +118,7 @@ func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *co
 
 // GetUserAvatar retrieves a user's avatar asset reference from the user projection.
 // Returns nil if the user has no avatar set.
-func (c *ChattoCore) GetUserAvatar(ctx context.Context, userID string) (*corev1.AssetRecord, error) {
+func (c *ChattoCore) GetUserAvatar(ctx context.Context, userID string) (*evtv1.AssetRecord, error) {
 	if asset, ok := c.userModel.avatar(userID); ok {
 		return asset, nil
 	}
@@ -146,8 +146,8 @@ func (c *ChattoCore) DeleteUserAvatar(ctx context.Context, userID string) error 
 	// Delete the asset from storage (NATS or S3)
 	c.deleteAsset(ctx, assetStorageFromAsset(avatar), "avatar", userID)
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAvatarCleared{
-		UserAvatarCleared: &corev1.UserAvatarClearedEvent{UserId: userID},
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserAvatarCleared{
+		UserAvatarCleared: &evtv1.UserAvatarClearedEvent{UserId: userID},
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
 		return fmt.Errorf("failed to delete avatar reference: %w", err)
@@ -165,9 +165,9 @@ func (c *ChattoCore) RecordUserAssetDeleted(ctx context.Context, actorID, userID
 	if userID == "" || assetID == "" {
 		return fmt.Errorf("user asset deletion missing user or asset id")
 	}
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_AssetDeleted{
-			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
+	event := newEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_AssetDeleted{
+			AssetDeleted: &evtv1.AssetDeletedEvent{AssetId: assetID},
 		},
 	})
 	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {

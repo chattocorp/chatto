@@ -2,13 +2,12 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 
 	"google.golang.org/protobuf/proto"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var callStateSnapshotContractID = snapshotContractID("v1", &corev1.CallStateProjectionSnapshot{})
+var callStateSnapshotContractID = snapshotContractID("v1", &projectionv1.CallStateProjectionSnapshot{})
 
 func (*CallStateProjection) SnapshotContractID() string { return callStateSnapshotContractID }
 
@@ -25,15 +24,15 @@ func (p *CallStateProjection) Snapshot() ([]byte, error) {
 	for roomID := range p.activeCalls {
 		roomSet[roomID] = struct{}{}
 	}
-	snapshot := &corev1.CallStateProjectionSnapshot{}
+	snapshot := &projectionv1.CallStateProjectionSnapshot{}
 	for _, roomID := range sortedMapKeys(roomSet) {
-		row := &corev1.CallRoomStateSnapshot{RoomId: roomID, Sequence: p.roomSeq[roomID]}
+		row := &projectionv1.CallRoomStateSnapshot{RoomId: roomID, Sequence: p.roomSeq[roomID]}
 		if call, ok := p.activeCalls[roomID]; ok {
-			row.Call = &corev1.CallSessionSnapshot{CallId: call.CallID, E2EeKeyRef: call.E2EEKeyRef, StartedAt: call.StartedAt, Source: call.Source}
+			row.Call = &projectionv1.CallSessionSnapshot{CallId: call.CallID, E2EeKeyRef: call.E2EEKeyRef, StartedAt: call.StartedAt, Source: call.Source}
 		}
 		for _, userID := range sortedMapKeys(p.rooms[roomID]) {
 			participant := p.rooms[roomID][userID]
-			row.Participants = append(row.Participants, &corev1.CallParticipantSnapshot{UserId: participant.UserID, CallId: participant.CallID, JoinedAt: participant.JoinedAt, Source: participant.Source})
+			row.Participants = append(row.Participants, &projectionv1.CallParticipantSnapshot{UserId: participant.UserID, CallId: participant.CallID, JoinedAt: participant.JoinedAt, Source: participant.Source})
 		}
 		snapshot.Rooms = append(snapshot.Rooms, row)
 	}
@@ -41,7 +40,7 @@ func (p *CallStateProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *CallStateProjection) Restore(data []byte) error {
-	snapshot := &corev1.CallStateProjectionSnapshot{}
+	snapshot := &projectionv1.CallStateProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal call state snapshot: %w", err)

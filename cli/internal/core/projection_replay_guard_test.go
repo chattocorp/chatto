@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -20,8 +20,8 @@ var (
 
 func TestProjectionReplayGuardReleasesCleanHistory(t *testing.T) {
 	guard := newProjectionReplayGuard()
-	first := &corev1.Event{Id: "E1"}
-	second := &corev1.Event{Id: "E2"}
+	first := &evtv1.Event{Id: "E1"}
+	second := &evtv1.Event{Id: "E2"}
 
 	if guard.seenOrMark(first, 10) {
 		t.Fatal("first event was reported as already seen")
@@ -47,7 +47,7 @@ func TestProjectionReplayGuardReleasesCleanHistory(t *testing.T) {
 	if !guard.seen(first, 19) {
 		t.Fatal("lower stream sequence was not suppressed")
 	}
-	if guard.seenOrMark(&corev1.Event{Id: "E3"}, 21) {
+	if guard.seenOrMark(&evtv1.Event{Id: "E3"}, 21) {
 		t.Fatal("new stream sequence was reported as already seen")
 	}
 	if guard.retainedEventIDs() != nil {
@@ -60,7 +60,7 @@ func TestProjectionReplayGuardSteadyStateMemoryIsConstant(t *testing.T) {
 	guard.completeReplay()
 
 	for seq := uint64(1); seq <= 10_000; seq++ {
-		if guard.seenOrMark(&corev1.Event{Id: "E" + strconv.FormatUint(seq, 10)}, seq) {
+		if guard.seenOrMark(&evtv1.Event{Id: "E" + strconv.FormatUint(seq, 10)}, seq) {
 			t.Fatalf("new stream sequence %d was reported as already seen", seq)
 		}
 	}
@@ -74,7 +74,7 @@ func TestProjectionReplayGuardSteadyStateMemoryIsConstant(t *testing.T) {
 
 func TestProjectionReplayGuardRetainsDuplicateHistoryCompatibility(t *testing.T) {
 	guard := newProjectionReplayGuard()
-	first := &corev1.Event{Id: "E1"}
+	first := &evtv1.Event{Id: "E1"}
 
 	if guard.seenOrMark(first, 10) {
 		t.Fatal("first event was reported as already seen")
@@ -94,7 +94,7 @@ func TestProjectionReplayGuardRetainsDuplicateHistoryCompatibility(t *testing.T)
 	if !guard.seenOrMark(first, 30) {
 		t.Fatal("compatibility mode did not suppress a later duplicate ID")
 	}
-	if guard.seenOrMark(&corev1.Event{Id: "E2"}, 40) {
+	if guard.seenOrMark(&evtv1.Event{Id: "E2"}, 40) {
 		t.Fatal("new event ID was reported as already seen")
 	}
 	if got := len(guard.retainedEventIDs()); got != 2 {
@@ -116,11 +116,11 @@ func TestProjectionReplayGuardCompletesEmptyReplay(t *testing.T) {
 }
 
 func TestProjectionReplayGuardAdminEstimateReportsRetainedCompatibilityOnly(t *testing.T) {
-	message := func() *corev1.Event {
-		return &corev1.Event{
+	message := func() *evtv1.Event {
+		return &evtv1.Event{
 			Id: "E1",
-			Event: &corev1.Event_MessagePosted{
-				MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
+			Event: &evtv1.Event_MessagePosted{
+				MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"},
 			},
 		}
 	}

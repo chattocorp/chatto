@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func countTestKVKeys(ctx context.Context, kv jetstream.KeyValue, filters ...string) (int, error) {
@@ -32,7 +32,7 @@ func countTestKVKeys(ctx context.Context, kv jetstream.KeyValue, filters ...stri
 
 func TestChattoCore_RegistrationCodeAuditEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
-	ctx := WithAuditRequestMetadata(testContext(t), &corev1.AuditRequestMetadata{
+	ctx := WithAuditRequestMetadata(testContext(t), &evtv1.AuditRequestMetadata{
 		UserAgent: "audit-test-agent",
 		IpHash:    "hashed-ip",
 	})
@@ -284,7 +284,7 @@ func TestChattoCore_LoginAndLogoutAuditEvents(t *testing.T) {
 
 func TestChattoCore_BearerTokenAuditEvents(t *testing.T) {
 	core, _ := setupTestCore(t)
-	ctx := WithAuditRequestMetadata(testContext(t), &corev1.AuditRequestMetadata{
+	ctx := WithAuditRequestMetadata(testContext(t), &evtv1.AuditRequestMetadata{
 		UserAgent: "bearer-audit-agent",
 		IpHash:    "bearer-ip-hash",
 	})
@@ -589,7 +589,7 @@ func TestAuditRequestMetadataContextCopiesAndDefaults(t *testing.T) {
 		t.Fatalf("empty metadata has fields: %#v", got)
 	}
 
-	metadata := &corev1.AuditRequestMetadata{UserAgent: "ua", IpHash: "ip"}
+	metadata := &evtv1.AuditRequestMetadata{UserAgent: "ua", IpHash: "ip"}
 	ctx = WithAuditRequestMetadata(ctx, metadata)
 	metadata.UserAgent = "mutated"
 	got := AuditRequestMetadataFromContext(ctx)

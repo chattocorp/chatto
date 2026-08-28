@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/config"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -23,7 +23,7 @@ func TestAssetCleanupAdminStatusUsesSharedDurableConsumer(t *testing.T) {
 		t.Fatalf("reader core: %v", err)
 	}
 
-	appendAssetDeletionTestEvent(t, ctx, workerCore, &corev1.AssetDeletedEvent{AssetId: "A-status"})
+	appendAssetDeletionTestEvent(t, ctx, workerCore, &evtv1.AssetDeletedEvent{AssetId: "A-status"})
 	status, err := readerCore.assetModel.AdminCleanupStatus(ctx)
 	if err != nil {
 		t.Fatalf("AdminCleanupStatus pending: %v", err)

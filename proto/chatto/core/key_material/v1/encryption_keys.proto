@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package chatto.core.key_material.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/key_material/v1;keymaterialv1";
+
+// UserKeyEncryptionKey is the built-in KMS storage record for opaque kek.*
+// refs in ENCRYPTION_KEYS. It is a local implementation detail; external KMS
+// backends may not store key-encryption-key material in Chatto at all.
+message UserKeyEncryptionKey {
+  bytes key = 1;
+  string algorithm = 2;
+}

@@ -16,7 +16,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/events"
 )
@@ -65,7 +65,7 @@ func setupTestCoreWithEncryption(t testing.TB) *ChattoCore {
 	return core
 }
 
-func userDEKEventByPurpose(t *testing.T, eventList []*corev1.Event, purpose corev1.UserDEKPurpose) *corev1.UserDEKGeneratedEvent {
+func userDEKEventByPurpose(t *testing.T, eventList []*evtv1.Event, purpose evtv1.UserDEKPurpose) *evtv1.UserDEKGeneratedEvent {
 	t.Helper()
 	for _, event := range eventList {
 		dek := event.GetUserDekGenerated()
@@ -108,11 +108,11 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserDEKGenerated))
 	require.NoError(t, err)
 	require.Len(t, contentKeyEvents, 2)
-	contentKeyEvent := userDEKEventByPurpose(t, contentKeyEvents, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	contentKeyEvent := userDEKEventByPurpose(t, contentKeyEvents, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.NotNil(t, contentKeyEvent)
 	require.Equal(t, user.Id, contentKeyEvent.GetUserId())
 	require.EqualValues(t, 1, contentKeyEvent.GetEpoch())
-	require.Equal(t, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, contentKeyEvent.GetPurpose())
+	require.Equal(t, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, contentKeyEvent.GetPurpose())
 	require.NotEmpty(t, contentKeyEvent.GetContentKeyRef(), "DEK event should reference DEK storage")
 	require.NotEmpty(t, contentKeyEvent.GetWrappingKeyRef(), "DEK event should reference the wrapping KEK")
 	require.NotEqual(t, kms.LegacyUserKeyRef(user.Id), contentKeyEvent.GetWrappingKeyRef(), "new users should use opaque KMS key refs")
@@ -159,14 +159,14 @@ func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
 	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
 
 	t.Run("tampered body event ID", func(t *testing.T) {
-		tampered := proto.Clone(stored).(*corev1.MessageBody)
+		tampered := proto.Clone(stored).(*evtv1.MessageBody)
 		tampered.BodyEventId = "EtamperedBodyEventID"
 		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
 		require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
 	})
 
 	t.Run("tampered body nonce", func(t *testing.T) {
-		tampered := proto.Clone(stored).(*corev1.MessageBody)
+		tampered := proto.Clone(stored).(*evtv1.MessageBody)
 		tampered.EncryptionNonce = append([]byte(nil), tampered.GetEncryptionNonce()...)
 		tampered.EncryptionNonce[0] ^= 0xff
 		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
@@ -174,7 +174,7 @@ func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
 	})
 
 	t.Run("tampered ciphertext", func(t *testing.T) {
-		tampered := proto.Clone(stored).(*corev1.MessageBody)
+		tampered := proto.Clone(stored).(*evtv1.MessageBody)
 		tampered.EncryptedBody = append([]byte(nil), tampered.GetEncryptedBody()...)
 		tampered.EncryptedBody[0] ^= 0xff
 		_, err := core.decryptMessageBody(ctx, event.Id, room.Id, tampered)
@@ -203,7 +203,7 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserDEKGenerated))
 	require.NoError(t, err)
 	require.Len(t, contentKeyEvents, 2)
-	require.Equal(t, kms.AlgorithmBuiltinXChaCha20Poly1305V1, userDEKEventByPurpose(t, contentKeyEvents, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII).GetWrappingAlgorithm())
+	require.Equal(t, kms.AlgorithmBuiltinXChaCha20Poly1305V1, userDEKEventByPurpose(t, contentKeyEvents, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII).GetWrappingAlgorithm())
 	account := accountEvents[0].GetUserAccountCreated()
 	require.NotNil(t, account.GetEncryptedLogin())
 	require.NotNil(t, account.GetEncryptedDisplayName())
@@ -264,7 +264,7 @@ func TestUserPIIProjection_ColdReplayAfterShredSkipsPIIIndexes(t *testing.T) {
 func TestUserPIIAADRejectsWrongContext(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 
 	encrypted, err := encryptUserPIIStringWithContentKey(contentKey, "E1", "U1", evtstream.EventUserLoginChanged, "login", "alice")
 	require.NoError(t, err)
@@ -304,23 +304,23 @@ func TestUnwrappedDEKResolver_RequestCacheDoesNotPersistAcrossContexts(t *testin
 	require.NoError(t, err)
 	wrapper := &countingKeyWrapper{KeyWrapper: staticProjectionKeyWrapper{key: key}}
 	resolver := newUnwrappedDEKResolver(wrapper, staticProjectionDEKStore{})
-	event := &corev1.UserDEKGeneratedEvent{
+	event := &evtv1.UserDEKGeneratedEvent{
 		UserId:        "U-cache",
 		Epoch:         1,
-		Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		Purpose:       evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
 		ContentKeyRef: "dek.test",
 	}
 
 	ctx := WithDEKRequestCache(context.Background())
-	dek, err := resolver.Resolve(ctx, event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	dek, err := resolver.Resolve(ctx, event, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.NoError(t, err)
 	require.Equal(t, key, dek.key)
-	dek, err = resolver.Resolve(ctx, event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	dek, err = resolver.Resolve(ctx, event, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.NoError(t, err)
 	require.Equal(t, key, dek.key)
 	require.EqualValues(t, 1, wrapper.unwraps.Load())
 
-	dek, err = resolver.Resolve(WithDEKRequestCache(context.Background()), event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	dek, err = resolver.Resolve(WithDEKRequestCache(context.Background()), event, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.NoError(t, err)
 	require.Equal(t, key, dek.key)
 	require.EqualValues(t, 2, wrapper.unwraps.Load())
@@ -334,10 +334,10 @@ func TestUnwrappedDEKResolver_RequestCacheCollapsesConcurrentMisses(t *testing.T
 		delay:      25 * time.Millisecond,
 	}}
 	resolver := newUnwrappedDEKResolver(wrapper, staticProjectionDEKStore{})
-	event := &corev1.UserDEKGeneratedEvent{
+	event := &evtv1.UserDEKGeneratedEvent{
 		UserId:        "U-concurrent-cache",
 		Epoch:         1,
-		Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		Purpose:       evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
 		ContentKeyRef: "dek.test",
 	}
 
@@ -351,7 +351,7 @@ func TestUnwrappedDEKResolver_RequestCacheCollapsesConcurrentMisses(t *testing.T
 		go func() {
 			defer wg.Done()
 			<-start
-			dek, err := resolver.Resolve(ctx, event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+			dek, err := resolver.Resolve(ctx, event, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 			if err != nil {
 				errs <- err
 				return
@@ -439,7 +439,7 @@ func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
 
 	user, err := core.CreateUser(ctx, "system", "storeddekref", "Stored DEK Ref", "password123")
 	require.NoError(t, err)
-	contentKeyEvent, ok, err := core.userModel.activeContentKey(user.Id, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	contentKeyEvent, ok, err := core.userModel.activeContentKey(user.Id, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.NoError(t, err)
 	require.True(t, ok)
 	evtWrappingKeyRef := contentKeyEvent.GetWrappingKeyRef()
@@ -471,7 +471,7 @@ func TestDeleteUserEncryptionKey_ReconstructsTargetsWithoutProjectedKeyCoordinat
 
 	user, err := core.CreateUser(ctx, "system", "missingkeyprojection", "Missing Key Projection", "password123")
 	require.NoError(t, err)
-	contentKeyEvent, ok, err := core.userModel.activeContentKey(user.Id, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	contentKeyEvent, ok, err := core.userModel.activeContentKey(user.Id, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.NoError(t, err)
 	require.True(t, ok)
 	wrappingKeyRef := contentKeyEvent.GetWrappingKeyRef()
@@ -520,11 +520,11 @@ func TestDeleteUserEncryptionKey_RejectsKEKContentKeyRef(t *testing.T) {
 	require.NoError(t, err)
 	mistypedContentRef, err := core.encryption.keyWrapper.CreateKey(ctx, user.Id)
 	require.NoError(t, err)
-	event := newEvent(user.Id, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
-		UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+	event := newEvent(user.Id, &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{
+		UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 			UserId:            user.Id,
 			Epoch:             2,
-			Purpose:           corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+			Purpose:           evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
 			ContentKeyRef:     mistypedContentRef,
 			WrappingAlgorithm: kms.AlgorithmBuiltinXChaCha20Poly1305V1,
 			WrappingKeyRef:    mistypedContentRef,
@@ -558,9 +558,9 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 
 	original, err := core.UploadAttachment(ctx, author.Id, room.Id, "secret.txt", "text/plain", bytes.NewReader([]byte("secret original")))
 	require.NoError(t, err)
-	thumbnail, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(16, 16)))
+	thumbnail, err := core.UploadDerivativeAttachment(ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(16, 16)))
 	require.NoError(t, err)
-	variant, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("secret variant")))
+	variant, err := core.UploadDerivativeAttachment(ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "variant.mp4", "video/mp4", bytes.NewReader([]byte("secret variant")))
 	require.NoError(t, err)
 	avatar, err := core.UploadUserAvatar(ctx, author.Id, bytes.NewReader(createTestPNG(64, 64)))
 	require.NoError(t, err)
@@ -569,7 +569,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	event, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "message with secret asset", []string{original.Id}, "", "", nil, false)
 	require.NoError(t, err)
 
-	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
+	for _, att := range []*evtv1.Attachment{original, thumbnail, variant} {
 		_, _, err := core.GetAttachmentReader(ctx, att)
 		require.NoError(t, err, "precondition: %s should be readable before shred", att.Id)
 	}
@@ -587,7 +587,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.Nil(t, fullBody, "message body should be tombstoned by UserKeyShreddedEvent before decrypt")
 
 	deletedIDs := map[string]bool{}
-	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
+	for _, att := range []*evtv1.Attachment{original, thumbnail, variant} {
 		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(att.Id).Subject(evtstream.EventAssetDeleted))
 		require.NoError(t, err)
 		require.Len(t, deletedEvents, 1)
@@ -598,7 +598,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.True(t, deletedIDs[thumbnail.Id], "thumbnail derivative should get AssetDeletedEvent")
 	require.True(t, deletedIDs[variant.Id], "variant derivative should get AssetDeletedEvent")
 
-	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
+	for _, att := range []*evtv1.Attachment{original, thumbnail, variant} {
 		_, ok := core.assetModel.AssetCreation(att.Id)
 		require.False(t, ok, "deleted asset %s should no longer resolve through the serving projection", att.Id)
 

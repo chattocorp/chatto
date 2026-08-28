@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	. "hmans.de/chatto/pkg/events"
 )
 
@@ -16,7 +16,7 @@ func (p *projectionHandleTestProjection) Subjects() []string {
 	return []string{p.subject}
 }
 
-func (*projectionHandleTestProjection) Apply(*corev1.Event, uint64) error {
+func (*projectionHandleTestProjection) Apply(*evtv1.Event, uint64) error {
 	return nil
 }
 

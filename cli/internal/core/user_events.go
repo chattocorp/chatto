@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
 const maxUserMutationRetries = 5
 
-func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *corev1.Event, filter string, check func() error) (uint64, error) {
+func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *evtv1.Event, filter string, check func() error) (uint64, error) {
 	if filter == "" {
 		filter = evtstream.UserAggregate(userID).AllEventsFilter()
 	}
@@ -173,38 +173,38 @@ func (c *ChattoCore) appendUserBatchAttempts(ctx context.Context, userID string,
 	return 0, fmt.Errorf("user batch OCC conflict after %d attempts: %w", attempts, events.ErrConflict)
 }
 
-func isUserAuthEvent(event *corev1.Event) bool {
+func isUserAuthEvent(event *evtv1.Event) bool {
 	if event == nil {
 		return false
 	}
 	switch event.GetEvent().(type) {
-	case *corev1.Event_UserAccountCreated,
-		*corev1.Event_BotApiKeyCreated,
-		*corev1.Event_BotApiKeyRotated,
-		*corev1.Event_BotOwnerReassigned,
-		*corev1.Event_UserPasswordHashChanged,
-		*corev1.Event_UserOidcSubjectLinked,
-		*corev1.Event_UserExternalIdentityLinked,
-		*corev1.Event_UserExternalIdentityUnlinked,
-		*corev1.Event_OauthConsentGranted,
-		*corev1.Event_UserAccountDeleted,
-		*corev1.Event_UserKeyShreddingRequested,
-		*corev1.Event_UserKeyShredded:
+	case *evtv1.Event_UserAccountCreated,
+		*evtv1.Event_BotApiKeyCreated,
+		*evtv1.Event_BotApiKeyRotated,
+		*evtv1.Event_BotOwnerReassigned,
+		*evtv1.Event_UserPasswordHashChanged,
+		*evtv1.Event_UserOidcSubjectLinked,
+		*evtv1.Event_UserExternalIdentityLinked,
+		*evtv1.Event_UserExternalIdentityUnlinked,
+		*evtv1.Event_OauthConsentGranted,
+		*evtv1.Event_UserAccountDeleted,
+		*evtv1.Event_UserKeyShreddingRequested,
+		*evtv1.Event_UserKeyShredded:
 		return true
 	default:
 		return false
 	}
 }
 
-func isAuthorizationInputUserEvent(event *corev1.Event) bool {
+func isAuthorizationInputUserEvent(event *evtv1.Event) bool {
 	if event == nil {
 		return false
 	}
 	switch event.GetEvent().(type) {
-	case *corev1.Event_UserAccountCreated,
-		*corev1.Event_UserVerifiedEmailAdded,
-		*corev1.Event_UserAccountDeleted,
-		*corev1.Event_BotOwnerReassigned:
+	case *evtv1.Event_UserAccountCreated,
+		*evtv1.Event_UserVerifiedEmailAdded,
+		*evtv1.Event_UserAccountDeleted,
+		*evtv1.Event_BotOwnerReassigned:
 		return true
 	default:
 		return false

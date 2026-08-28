@@ -4,7 +4,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -30,16 +30,16 @@ type RoomNameClaimSnapshot struct {
 }
 
 // roomCatalogEntry is the in-memory shape held per room. Not exposed
-// directly — callers go through Get() which clones into a *corev1.Room
+// directly — callers go through Get() which clones into a *evtv1.Room
 // for type symmetry with the rest of the codebase.
 type roomCatalogEntry struct {
 	name            string
 	description     string
-	kind            corev1.RoomKind
+	kind            evtv1.RoomKind
 	archived        bool
 	universal       bool
 	slowModeSeconds uint32
-	threadingMode   corev1.RoomThreadingMode
+	threadingMode   evtv1.RoomThreadingMode
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -62,7 +62,7 @@ func (p *RoomCatalogProjection) Subjects() []string {
 // RoomArchived, RoomUnarchived, RoomDeleted. Membership events
 // (UserJoinedRoom, UserLeftRoom) and any other variants under
 // evt.room.> are silently ignored.
-func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -72,7 +72,7 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.seq = seq
 	}
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_RoomCreated:
+	case *evtv1.Event_RoomCreated:
 		c := e.RoomCreated
 		p.rooms[c.GetRoomId()] = &roomCatalogEntry{
 			name:          c.GetName(),
@@ -81,33 +81,33 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 			universal:     c.GetUniversal(),
 			threadingMode: c.GetThreadingMode(),
 		}
-	case *corev1.Event_RoomUpdated:
+	case *evtv1.Event_RoomUpdated:
 		u := e.RoomUpdated
 		if entry := p.rooms[u.GetRoomId()]; entry != nil {
 			entry.name = u.GetName()
 			entry.description = u.GetDescription()
 		}
-	case *corev1.Event_RoomArchived:
+	case *evtv1.Event_RoomArchived:
 		if entry := p.rooms[e.RoomArchived.GetRoomId()]; entry != nil {
 			entry.archived = true
 		}
-	case *corev1.Event_RoomUnarchived:
+	case *evtv1.Event_RoomUnarchived:
 		if entry := p.rooms[e.RoomUnarchived.GetRoomId()]; entry != nil {
 			entry.archived = false
 		}
-	case *corev1.Event_RoomUniversalChanged:
+	case *evtv1.Event_RoomUniversalChanged:
 		if entry := p.rooms[e.RoomUniversalChanged.GetRoomId()]; entry != nil {
 			entry.universal = e.RoomUniversalChanged.GetUniversal()
 		}
-	case *corev1.Event_RoomSlowModeChanged:
+	case *evtv1.Event_RoomSlowModeChanged:
 		if entry := p.rooms[e.RoomSlowModeChanged.GetRoomId()]; entry != nil {
 			entry.slowModeSeconds = e.RoomSlowModeChanged.GetSlowModeSeconds()
 		}
-	case *corev1.Event_RoomThreadingModeChanged:
+	case *evtv1.Event_RoomThreadingModeChanged:
 		if entry := p.rooms[e.RoomThreadingModeChanged.GetRoomId()]; entry != nil {
 			entry.threadingMode = e.RoomThreadingModeChanged.GetThreadingMode()
 		}
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		delete(p.rooms, e.RoomDeleted.GetRoomId())
 	}
 	return nil
@@ -116,7 +116,7 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 // Get returns the room's metadata, or (nil, false) if no such room
 // has been projected. The returned proto is a fresh value; callers
 // may mutate it freely.
-func (p *RoomCatalogProjection) Get(roomID string) (*corev1.Room, bool) {
+func (p *RoomCatalogProjection) Get(roomID string) (*evtv1.Room, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	entry, ok := p.rooms[roomID]
@@ -137,10 +137,10 @@ func (p *RoomCatalogProjection) Exists(roomID string) bool {
 // AllByKind returns every room of the given kind. Order is
 // unspecified; the caller sorts / joins with grouping info as needed.
 // The returned protos are fresh values.
-func (p *RoomCatalogProjection) AllByKind(kind corev1.RoomKind) []*corev1.Room {
+func (p *RoomCatalogProjection) AllByKind(kind evtv1.RoomKind) []*evtv1.Room {
 	p.RLock()
 	defer p.RUnlock()
-	out := make([]*corev1.Room, 0)
+	out := make([]*evtv1.Room, 0)
 	for id, entry := range p.rooms {
 		if entry.kind == kind {
 			out = append(out, entryToRoom(id, entry))
@@ -180,7 +180,7 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) Ro
 	defer p.RUnlock()
 	snapshot := RoomNameClaimSnapshot{Seq: p.seq}
 	for id, entry := range p.rooms {
-		if id == excludeRoomID || entry.kind != corev1.RoomKind_ROOM_KIND_CHANNEL {
+		if id == excludeRoomID || entry.kind != evtv1.RoomKind_ROOM_KIND_CHANNEL {
 			continue
 		}
 		if canonicalRoomName(entry.name) == target {
@@ -192,11 +192,11 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) Ro
 }
 
 // entryToRoom converts a private catalog entry into the public
-// *corev1.Room shape, so consumers don't depend on the internal
+// *evtv1.Room shape, so consumers don't depend on the internal
 // representation. group_id is intentionally left unset — group
 // assignment lives in RoomGroupProjection.
-func entryToRoom(id string, entry *roomCatalogEntry) *corev1.Room {
-	r := &corev1.Room{
+func entryToRoom(id string, entry *roomCatalogEntry) *evtv1.Room {
+	r := &evtv1.Room{
 		Id:              id,
 		Name:            entry.name,
 		Description:     entry.description,
@@ -209,5 +209,5 @@ func entryToRoom(id string, entry *roomCatalogEntry) *corev1.Room {
 	// Defensive clone — the proto contains a Mutex internally that
 	// vet would flag if we ever returned the same pointer twice and
 	// it got passed by value. Cheap insurance.
-	return proto.Clone(r).(*corev1.Room)
+	return proto.Clone(r).(*evtv1.Room)
 }

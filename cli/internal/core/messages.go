@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -225,10 +226,10 @@ type messageAppendAttempt struct {
 func (c *ChattoCore) prepareMessageAssetBatchEntries(
 	ctx context.Context,
 	entries []evtstream.BatchEntry,
-	assetAttachedEvents []*corev1.Event,
-	processingEvents []*corev1.Event,
+	assetAttachedEvents []*evtv1.Event,
+	processingEvents []*evtv1.Event,
 ) ([]evtstream.BatchEntry, error) {
-	processingByAssetID := make(map[string]*corev1.Event, len(processingEvents))
+	processingByAssetID := make(map[string]*evtv1.Event, len(processingEvents))
 	for _, event := range processingEvents {
 		if event == nil || event.GetAssetProcessingStarted() == nil {
 			return nil, fmt.Errorf("asset processing batch entry has invalid event")
@@ -406,9 +407,9 @@ func (c *ChattoCore) prepareMessageRetractionAttempt(
 func (c *ChattoCore) appendBodyAndMessage(
 	ctx context.Context,
 	agg evtstream.Aggregate,
-	bodyEvent, messageEvent *corev1.Event,
-	assetAttachedEvents []*corev1.Event,
-	processingEvents []*corev1.Event,
+	bodyEvent, messageEvent *evtv1.Event,
+	assetAttachedEvents []*evtv1.Event,
+	processingEvents []*evtv1.Event,
 	authorize func(context.Context) error,
 	prepareMessageAttempt func(context.Context) error,
 ) (uint64, error) {
@@ -475,7 +476,7 @@ func (c *ChattoCore) appendBodyAndMessage(
 	return 0, fmt.Errorf("append message body batch after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *corev1.Event, assetAttachedEvents, processingEvents []*corev1.Event, authorize func(context.Context) error, prepareMessageAttempt func(context.Context) error) (uint64, error) {
+func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *evtv1.Event, assetAttachedEvents, processingEvents []*evtv1.Event, authorize func(context.Context) error, prepareMessageAttempt func(context.Context) error) (uint64, error) {
 	messageSubject := agg.SubjectFor(messageEvent)
 	bodySubject := agg.SubjectFor(bodyEvent)
 	var lastErr error
@@ -549,11 +550,11 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 func (c *ChattoCore) buildThreadReplyEchoEvents(
 	ctx context.Context,
 	actorID string,
-	originalEvent *corev1.Event,
-	originalPost *corev1.MessagePostedEvent,
-	body *corev1.MessageBody,
+	originalEvent *evtv1.Event,
+	originalPost *evtv1.MessagePostedEvent,
+	body *evtv1.MessageBody,
 	plaintext string,
-) (string, *corev1.Event, *corev1.Event, error) {
+) (string, *evtv1.Event, *evtv1.Event, error) {
 	return c.buildThreadReplyEchoEventsWithIDs(
 		ctx,
 		actorID,
@@ -569,36 +570,36 @@ func (c *ChattoCore) buildThreadReplyEchoEvents(
 func (c *ChattoCore) buildThreadReplyEchoEventsWithIDs(
 	ctx context.Context,
 	actorID string,
-	originalEvent *corev1.Event,
-	originalPost *corev1.MessagePostedEvent,
-	body *corev1.MessageBody,
+	originalEvent *evtv1.Event,
+	originalPost *evtv1.MessagePostedEvent,
+	body *evtv1.MessageBody,
 	plaintext string,
 	echoID string,
 	echoBodyEventID string,
-) (string, *corev1.Event, *corev1.Event, error) {
+) (string, *evtv1.Event, *evtv1.Event, error) {
 	if originalEvent == nil || originalPost == nil || body == nil {
 		return "", nil, nil, ErrMessageNotFound
 	}
-	echoBody := proto.Clone(body).(*corev1.MessageBody)
+	echoBody := proto.Clone(body).(*evtv1.MessageBody)
 	if err := c.encryptMessageBody(ctx, echoBody, originalPost.GetRoomId(), echoID, echoBodyEventID, plaintext); err != nil {
 		return "", nil, nil, fmt.Errorf("encrypt thread reply echo: %w", err)
 	}
-	echoBodyEvent := newEvent(actorID, &corev1.Event{
+	echoBodyEvent := newEvent(actorID, &evtv1.Event{
 		Id:        echoBodyEventID,
 		CreatedAt: originalEvent.GetCreatedAt(),
-		Event: &corev1.Event_MessageBody{
-			MessageBody: &corev1.MessageBodyEvent{
+		Event: &evtv1.Event_MessageBody{
+			MessageBody: &evtv1.MessageBodyEvent{
 				RoomId:  originalPost.GetRoomId(),
 				EventId: echoID,
 				Body:    echoBody,
 			},
 		},
 	})
-	echoEvent := newEvent(actorID, &corev1.Event{
+	echoEvent := newEvent(actorID, &evtv1.Event{
 		Id:        echoID,
 		CreatedAt: originalEvent.GetCreatedAt(),
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
+		Event: &evtv1.Event_MessagePosted{
+			MessagePosted: &evtv1.MessagePostedEvent{
 				RoomId:                    originalPost.GetRoomId(),
 				InReplyTo:                 originalPost.GetInReplyTo(),
 				MentionedUserIds:          append([]string(nil), originalPost.GetMentionedUserIds()...),
@@ -611,11 +612,11 @@ func (c *ChattoCore) buildThreadReplyEchoEventsWithIDs(
 	return echoID, echoBodyEvent, echoEvent, nil
 }
 
-func cloneMessageMentions(mentions []*corev1.MessageMention) []*corev1.MessageMention {
-	result := make([]*corev1.MessageMention, 0, len(mentions))
+func cloneMessageMentions(mentions []*evtv1.MessageMention) []*evtv1.MessageMention {
+	result := make([]*evtv1.MessageMention, 0, len(mentions))
 	for _, mention := range mentions {
 		if mention != nil {
-			result = append(result, proto.Clone(mention).(*corev1.MessageMention))
+			result = append(result, proto.Clone(mention).(*evtv1.MessageMention))
 		}
 	}
 	return result
@@ -626,9 +627,9 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	actorID string,
 	kind RoomKind,
 	agg evtstream.Aggregate,
-	originalEvent *corev1.Event,
-	originalPost *corev1.MessagePostedEvent,
-	body *corev1.MessageBody,
+	originalEvent *evtv1.Event,
+	originalPost *evtv1.MessagePostedEvent,
+	body *evtv1.MessageBody,
 	plaintext string,
 	attemptPrepared func(context.Context) error,
 ) (string, bool, error) {
@@ -660,7 +661,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 			if err != nil {
 				return "", false, err
 			}
-			if EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+			if EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
 				return "", false, fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
 			}
 		}
@@ -738,9 +739,9 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 			return nil
 		}
 
-		event := newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_MessageRetracted{
-				MessageRetracted: &corev1.MessageRetractedEvent{
+		event := newEvent(actorID, &evtv1.Event{
+			Event: &evtv1.Event_MessageRetracted{
+				MessageRetracted: &evtv1.MessageRetractedEvent{
 					RoomId:  roomID,
 					EventId: echoID,
 				},
@@ -770,10 +771,10 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 	ctx context.Context,
 	agg evtstream.Aggregate,
-	bodyEvent, messageEvent, threadCreatedEvent *corev1.Event,
+	bodyEvent, messageEvent, threadCreatedEvent *evtv1.Event,
 	threadRootEventID string,
-	assetAttachedEvents []*corev1.Event,
-	processingEvents []*corev1.Event,
+	assetAttachedEvents []*evtv1.Event,
+	processingEvents []*evtv1.Event,
 	authorize func(context.Context) error,
 	prepareMessageAttempt func(context.Context) error,
 ) (uint64, error) {
@@ -883,7 +884,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 // Authorization: Caller must verify room membership and
 // CanPostMessage / CanPostInThread before calling, and CanEchoMessage
 // (if alsoSendToChannel).
-func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, assetIDs []string, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*corev1.Event, error) {
+func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, assetIDs []string, inThread, inReplyTo string, linkPreview *evtv1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*evtv1.Event, error) {
 	options := collectPostMessageOptions(opts)
 	if options.createThread && kind == KindDM {
 		return nil, ErrDMThreadsUnsupported
@@ -918,7 +919,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// Resolve referenced assets from the projection. Each must be a live,
 	// unattached room asset uploaded by this caller. The same invariant is checked
 	// again under asset-aggregate OCC in the atomic message batch.
-	resolvedAssets := make([]*corev1.Attachment, 0, len(assetIDs))
+	resolvedAssets := make([]*evtv1.Attachment, 0, len(assetIDs))
 	resolvedAssetIDs := make([]string, 0, len(assetIDs))
 	resolvedAssetIDSet := make(map[string]struct{}, len(assetIDs))
 	for _, id := range assetIDs {
@@ -959,7 +960,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// This keeps the data invariant intact even when callers (bots, older clients,
 	// extensions) only set inReplyTo. inReplyTo is attribution-only, so a lookup
 	// failure here is not fatal — fall through and let the message post as a root.
-	var replyTarget *corev1.Event
+	var replyTarget *evtv1.Event
 	if inReplyTo != "" {
 		target, err := c.GetRoomEventByEventID(ctx, kind, room_id, inReplyTo)
 		if err == nil && target != nil {
@@ -983,7 +984,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 	if kind == KindChannel {
 		switch EffectiveRoomThreadingMode(room) {
-		case corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
+		case evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
 			replyTargetsThread := false
 			if replyTarget != nil {
 				if targetPost := replyTarget.GetMessagePosted(); targetPost != nil {
@@ -993,7 +994,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			if options.createThread || inThread != "" || replyTargetsThread {
 				return nil, fmt.Errorf("%w: threads are disabled in this room", ErrRoomThreadingPolicy)
 			}
-		case corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
+		case evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
 			if inReplyTo == "" && inThread == "" && !options.createThread {
 				return nil, fmt.Errorf("%w: root messages must establish a thread in this room", ErrRoomThreadingPolicy)
 			}
@@ -1050,7 +1051,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	eventID := NewEventID()
 	bodyEventID := NewEventID()
-	messageBody := &corev1.MessageBody{
+	messageBody := &evtv1.MessageBody{
 		CreatedAt:   timestamppb.New(now),
 		AssetIds:    resolvedAssetIDs,
 		AuthorId:    user_id,
@@ -1059,11 +1060,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if err := c.encryptMessageBody(ctx, messageBody, room_id, eventID, bodyEventID, body); err != nil {
 		return nil, err
 	}
-	bodyEventEvent := newEvent(user_id, &corev1.Event{
+	bodyEventEvent := newEvent(user_id, &evtv1.Event{
 		Id:        bodyEventID,
 		CreatedAt: timestamppb.New(now),
-		Event: &corev1.Event_MessageBody{
-			MessageBody: &corev1.MessageBodyEvent{
+		Event: &evtv1.Event_MessageBody{
+			MessageBody: &evtv1.MessageBodyEvent{
 				RoomId:  room_id,
 				EventId: eventID,
 				Body:    messageBody,
@@ -1071,11 +1072,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		},
 	})
 
-	event := newEvent(user_id, &corev1.Event{
+	event := newEvent(user_id, &evtv1.Event{
 		Id:        eventID,
 		CreatedAt: timestamppb.New(now),
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
+		Event: &evtv1.Event_MessagePosted{
+			MessagePosted: &evtv1.MessagePostedEvent{
 				RoomId:    room_id,
 				InReplyTo: inReplyTo,
 				InThread:  inThread,
@@ -1101,7 +1102,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			if err := c.waitForCurrentNotificationPolicy(attemptCtx); err != nil {
 				return err
 			}
-			directMentionSignal := &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{}}}
+			directMentionSignal := &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &notificationv1.DirectMentionReceived{}}}
 			for _, userID := range directMentionUserIDs {
 				if notificationModeProducesAttention(c.GetEffectiveNotificationModeForSignal(userID, room_id, directMentionSignal)) {
 					directMentionFollowers = append(directMentionFollowers, userID)
@@ -1115,11 +1116,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 		return nil
 	}
-	assetAttachedEvents := make([]*corev1.Event, 0, len(resolvedAssetIDs))
+	assetAttachedEvents := make([]*evtv1.Event, 0, len(resolvedAssetIDs))
 	for _, assetID := range resolvedAssetIDs {
-		assetAttachedEvents = append(assetAttachedEvents, newEvent(user_id, &corev1.Event{
-			Event: &corev1.Event_AssetAttached{
-				AssetAttached: &corev1.AssetAttachedEvent{
+		assetAttachedEvents = append(assetAttachedEvents, newEvent(user_id, &evtv1.Event{
+			Event: &evtv1.Event_AssetAttached{
+				AssetAttached: &evtv1.AssetAttachedEvent{
 					AssetId:        assetID,
 					RoomId:         room_id,
 					MessageEventId: eventID,
@@ -1128,40 +1129,40 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		}))
 	}
-	var threadCreatedEvent *corev1.Event
+	var threadCreatedEvent *evtv1.Event
 	if inThread != "" && !c.roomModel.threadExists(inThread) {
-		threadCreatedEvent = newEvent(user_id, &corev1.Event{
+		threadCreatedEvent = newEvent(user_id, &evtv1.Event{
 			Id:        NewEventID(),
 			CreatedAt: timestamppb.New(now),
-			Event: &corev1.Event_ThreadCreated{
-				ThreadCreated: &corev1.ThreadCreatedEvent{
+			Event: &evtv1.Event_ThreadCreated{
+				ThreadCreated: &evtv1.ThreadCreatedEvent{
 					RoomId:            room_id,
 					ThreadRootEventId: inThread,
 				},
 			},
 		})
 	}
-	var rootThreadFollowedEvent *corev1.Event
+	var rootThreadFollowedEvent *evtv1.Event
 	if options.createThread {
-		threadCreatedEvent = newEvent(user_id, &corev1.Event{
+		threadCreatedEvent = newEvent(user_id, &evtv1.Event{
 			Id:        NewEventID(),
 			CreatedAt: timestamppb.New(now),
-			Event: &corev1.Event_ThreadCreated{
-				ThreadCreated: &corev1.ThreadCreatedEvent{
+			Event: &evtv1.Event_ThreadCreated{
+				ThreadCreated: &evtv1.ThreadCreatedEvent{
 					RoomId:            room_id,
 					ThreadRootEventId: eventID,
 				},
 			},
 		})
-		rootThreadFollowedEvent = newEvent(user_id, &corev1.Event{
+		rootThreadFollowedEvent = newEvent(user_id, &evtv1.Event{
 			Id:        NewEventID(),
 			CreatedAt: timestamppb.New(now),
-			Event: &corev1.Event_ThreadFollowed{
-				ThreadFollowed: &corev1.ThreadFollowedEvent{
+			Event: &evtv1.Event_ThreadFollowed{
+				ThreadFollowed: &evtv1.ThreadFollowedEvent{
 					RoomId:            room_id,
 					ThreadRootEventId: eventID,
 					UserId:            user_id,
-					Source:            corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED,
+					Source:            evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED,
 				},
 			},
 		})
@@ -1173,16 +1174,16 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// has caught up, giving read-your-writes for subsequent reads from
 	// this request.
 	agg := evtstream.RoomAggregate(room_id)
-	processingEvents := make([]*corev1.Event, 0, len(resolvedAssets))
+	processingEvents := make([]*evtv1.Event, 0, len(resolvedAssets))
 	if c.VideoUploadsEnabled {
 		for _, attachment := range resolvedAssets {
 			declared, _ := c.assetModel.AssetCreation(attachment.GetId())
 			if !options.shouldScheduleVideoProcessingForID(attachment.GetId()) && (declared == nil || !declared.GetNeedsVideoProcessing()) {
 				continue
 			}
-			processingEvents = append(processingEvents, newEvent(user_id, &corev1.Event{
-				Event: &corev1.Event_AssetProcessingStarted{
-					AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+			processingEvents = append(processingEvents, newEvent(user_id, &evtv1.Event{
+				Event: &evtv1.Event_AssetProcessingStarted{
+					AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{
 						AssetId:        attachment.GetId(),
 						MessageEventId: event.Id,
 					},
@@ -1258,7 +1259,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 		// Auto-follow the thread for the poster (best-effort).
 		// Always follows, even if previously unfollowed — posting implies interest.
-		if err := c.FollowThreadWithSource(ctx, kind, user_id, room_id, inThread, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_POSTED_REPLY); err != nil {
+		if err := c.FollowThreadWithSource(ctx, kind, user_id, room_id, inThread, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_POSTED_REPLY); err != nil {
 			c.logger.Warn("Failed to auto-follow thread for poster", "error", err, "thread_root_event_id", inThread)
 		}
 
@@ -1270,7 +1271,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			if err != nil {
 				c.logger.Warn("Failed to get thread metadata for root author auto-follow", "error", err, "thread_root_event_id", inThread)
 			} else if threadMeta.ReplyCount == 1 {
-				if _, err := c.FollowThreadIfNeverSet(ctx, kind, rootAuthorID, room_id, inThread, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR); err != nil {
+				if _, err := c.FollowThreadIfNeverSet(ctx, kind, rootAuthorID, room_id, inThread, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR); err != nil {
 					c.logger.Warn("Failed to auto-follow thread for root author", "error", err, "thread_root_event_id", inThread)
 				}
 			}
@@ -1287,7 +1288,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 	if directMentionThreadRootID != "" {
 		for _, mentionedUserID := range directMentionFollowers {
-			if _, err := c.FollowThreadIfNeverSet(ctx, kind, mentionedUserID, room_id, directMentionThreadRootID, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION); err != nil {
+			if _, err := c.FollowThreadIfNeverSet(ctx, kind, mentionedUserID, room_id, directMentionThreadRootID, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION); err != nil {
 				c.logger.Warn("Failed to auto-follow thread for directly mentioned user",
 					"mentioned_user_id", mentionedUserID,
 					"room_id", room_id,
@@ -1388,7 +1389,7 @@ func (c *ChattoCore) authorizeMessageMutation(
 		}
 	}
 	if policy.channelEchoCreationTargetID != "" && kind == KindChannel &&
-		EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+		EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
 		if _, exists := c.roomModel.channelEchoEventID(policy.channelEchoCreationTargetID); !exists {
 			return fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
 		}
@@ -1601,7 +1602,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		}
 		_, channelEchoExistedBefore = c.roomModel.channelEchoEventID(echoTargetEvent.GetId())
 		if *options.channelEcho {
-			if kind == KindChannel && EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED && !channelEchoExistedBefore {
+			if kind == KindChannel && EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED && !channelEchoExistedBefore {
 				return fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
 			}
 			channelEchoCreationTargetID = echoTargetEvent.GetId()
@@ -1636,7 +1637,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		}
 	}
 	createdChannelEchoID := ""
-	committedPlaintext, err := c.publishMessageEditWithAuthorization(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, channelEchoCreationTargetID, channelEchoRetractionTargetID, &createdChannelEchoID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
+	committedPlaintext, err := c.publishMessageEditWithAuthorization(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, channelEchoCreationTargetID, channelEchoRetractionTargetID, &createdChannelEchoID, func(ctx context.Context, updated *evtv1.MessageBody) (string, error) {
 		if updated.GetAuthorId() == "" {
 			return "", fmt.Errorf("cannot edit: message body author is empty")
 		}
@@ -1661,7 +1662,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 			// batch; another edit would create a duplicate realtime upsert.
 			continue
 		}
-		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linked *corev1.MessageBody) (string, error) {
+		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linked *evtv1.MessageBody) (string, error) {
 			if options.preserveBody {
 				plaintext, err := c.decryptMessageBody(ctx, linkedID, roomID, linked)
 				if err != nil {
@@ -1696,9 +1697,9 @@ func (c *ChattoCore) publishMessageRetract(
 	roomID, eventID string,
 	authorize func(context.Context) error,
 ) error {
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_MessageRetracted{
-			MessageRetracted: &corev1.MessageRetractedEvent{
+	event := newEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_MessageRetracted{
+			MessageRetracted: &evtv1.MessageRetractedEvent{
 				RoomId:  roomID,
 				EventId: eventID,
 			},
@@ -1755,7 +1756,7 @@ func (c *ChattoCore) publishMessageRetract(
 // publishMessageEdit emits a MessageEditedEvent on EVT. StreamMyEvents
 // receives the canonical live.evt.> republish directly. Factored out so
 // EditMessage / editEmbeddedBody can fan the same payload to linked messages.
-type messageEditMutation func(context.Context, *corev1.MessageBody) (plaintext string, err error)
+type messageEditMutation func(context.Context, *evtv1.MessageBody) (plaintext string, err error)
 
 func (c *ChattoCore) publishMessageEdit(
 	ctx context.Context,
@@ -1833,7 +1834,7 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 		if retracted || current == nil {
 			return "", ErrMessageNotFound
 		}
-		updated := proto.Clone(current).(*corev1.MessageBody)
+		updated := proto.Clone(current).(*evtv1.MessageBody)
 		plaintext, err := mutate(ctx, updated)
 		if err != nil {
 			return "", err
@@ -1842,20 +1843,20 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 		if err := c.encryptMessageBody(ctx, updated, roomID, eventID, bodyEventID, plaintext); err != nil {
 			return "", err
 		}
-		bodyEvent := newEvent(actorID, &corev1.Event{
+		bodyEvent := newEvent(actorID, &evtv1.Event{
 			Id: bodyEventID,
-			Event: &corev1.Event_MessageBody{
-				MessageBody: &corev1.MessageBodyEvent{
+			Event: &evtv1.Event_MessageBody{
+				MessageBody: &evtv1.MessageBodyEvent{
 					RoomId:  roomID,
 					EventId: eventID,
 					Body:    updated,
 				},
 			},
 		})
-		event := newEvent(actorID, &corev1.Event{
+		event := newEvent(actorID, &evtv1.Event{
 			Id: editEventID,
-			Event: &corev1.Event_MessageEdited{
-				MessageEdited: &corev1.MessageEditedEvent{
+			Event: &evtv1.Event_MessageEdited{
+				MessageEdited: &evtv1.MessageEditedEvent{
 					RoomId:  roomID,
 					EventId: eventID,
 				},
@@ -1910,10 +1911,10 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 		}
 		if channelEchoRetractionTargetID != "" {
 			if echoID, ok := c.roomModel.channelEchoEventID(channelEchoRetractionTargetID); ok {
-				retraction := newEvent(actorID, &corev1.Event{
+				retraction := newEvent(actorID, &evtv1.Event{
 					Id: echoRetractionEventID,
-					Event: &corev1.Event_MessageRetracted{
-						MessageRetracted: &corev1.MessageRetractedEvent{RoomId: roomID, EventId: echoID},
+					Event: &evtv1.Event_MessageRetracted{
+						MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: roomID, EventId: echoID},
 					},
 				})
 				entries = append(entries, evtstream.BatchEntry{
@@ -1978,7 +1979,7 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 	return committedPlaintext, nil
 }
 
-func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
+func validateLinkPreview(linkPreview *evtv1.LinkPreview) error {
 	if linkPreview == nil {
 		return nil
 	}
@@ -2019,7 +2020,7 @@ func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
 	return nil
 }
 
-func validateSocialPostPreview(socialPost *corev1.SocialPostPreview, quoteDepth int) error {
+func validateSocialPostPreview(socialPost *evtv1.SocialPostPreview, quoteDepth int) error {
 	if socialPost == nil {
 		return nil
 	}
@@ -2096,7 +2097,7 @@ func validateSocialPostPreview(socialPost *corev1.SocialPostPreview, quoteDepth 
 	return nil
 }
 
-func validateLinkPreviewAsset(name string, asset *corev1.AssetRecord) error {
+func validateLinkPreviewAsset(name string, asset *evtv1.AssetRecord) error {
 	if asset == nil {
 		return nil
 	}
@@ -2123,7 +2124,7 @@ func (c *ChattoCore) editEmbeddedBody(
 	kind RoomKind,
 	roomID, eventID string,
 	commitAuthorize func(context.Context) error,
-	mutate func(*corev1.MessageBody) error,
+	mutate func(*evtv1.MessageBody) error,
 ) error {
 	if eventID == "" {
 		return ErrMessageNotFound
@@ -2143,7 +2144,7 @@ func (c *ChattoCore) editEmbeddedBody(
 		_, err := c.validateMessageMutationIdentity(actorID, roomID, eventID, policy, time.Now())
 		return err
 	}
-	_, err := c.publishAuthorizedMessageEdit(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, "", "", func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
+	_, err := c.publishAuthorizedMessageEdit(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, "", "", func(ctx context.Context, updated *evtv1.MessageBody) (string, error) {
 		if updated.GetAuthorId() != actorID {
 			return "", ErrNotMessageAuthor
 		}
@@ -2161,7 +2162,7 @@ func (c *ChattoCore) editEmbeddedBody(
 	}
 	c.secureDeleteObsoleteMessageBodyEvents(ctx, eventID)
 	for _, linkedID := range c.roomModel.linkedEventIDs(eventID) {
-		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linkedBody *corev1.MessageBody) (string, error) {
+		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linkedBody *evtv1.MessageBody) (string, error) {
 			plaintext, err := c.decryptMessageBody(ctx, linkedID, roomID, linkedBody)
 			if err != nil {
 				return "", fmt.Errorf("decrypt linked message body for edit: %w", err)
@@ -2185,8 +2186,8 @@ func (c *ChattoCore) editEmbeddedBody(
 // Emits a MessageEditedEvent with the attachment removed; also
 // deletes the file from the asset store best-effort.
 func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, eventID, attachmentID string) error {
-	var removed *corev1.Attachment
-	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, nil, func(body *corev1.MessageBody) error {
+	var removed *evtv1.Attachment
+	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, nil, func(body *evtv1.MessageBody) error {
 		// Resolve the attachment (new bodies hold IDs; older bodies hold
 		// embedded protos). Then trim from whichever shape holds it.
 		for _, att := range c.mediaModel.MessageBodyAttachments(body) {
@@ -2256,7 +2257,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 // Only the message author can delete link previews from their
 // messages.
 func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, eventID, previewURL string) error {
-	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, nil, func(body *corev1.MessageBody) error {
+	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, nil, func(body *evtv1.MessageBody) error {
 		if body.GetLinkPreview() == nil || body.GetLinkPreview().GetUrl() != previewURL {
 			return fmt.Errorf("link preview not found in message: %w", ErrMessageLinkPreviewNotFound)
 		}

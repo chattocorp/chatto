@@ -19,7 +19,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *testing.T) {
@@ -640,7 +640,7 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 	room := env.createJoinedRoom("message-threading-mode")
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.core.SetRoomThreadingMode(env.ctx, core.SystemActorID, core.KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED); err != nil {
+	if _, err := env.core.SetRoomThreadingMode(env.ctx, core.SystemActorID, core.KindChannel, room.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED); err != nil {
 		t.Fatalf("SetRoomThreadingMode required: %v", err)
 	}
 	rootResponse, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
@@ -673,7 +673,7 @@ func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
 		t.Fatalf("CreateMessage required thread reply: %v", err)
 	}
 
-	if _, err := env.core.SetRoomThreadingMode(env.ctx, core.SystemActorID, core.KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED); err != nil {
+	if _, err := env.core.SetRoomThreadingMode(env.ctx, core.SystemActorID, core.KindChannel, room.Id, evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED); err != nil {
 		t.Fatalf("SetRoomThreadingMode disabled: %v", err)
 	}
 	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
@@ -1354,7 +1354,7 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 		t.Fatalf("CreateMessage attachment: %v", err)
 	}
 	previewURL := "https://example.test/preview"
-	previewEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "with preview", nil, "", "", &corev1.LinkPreview{
+	previewEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "with preview", nil, "", "", &evtv1.LinkPreview{
 		Url:   previewURL,
 		Title: "Preview",
 	}, false)

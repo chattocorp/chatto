@@ -12,7 +12,7 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -233,7 +233,7 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 // later by notification materialization.
 type RoomMentionResolution struct {
 	RecipientIDs []string
-	Mentions     []*corev1.MessageMention
+	Mentions     []*evtv1.MessageMention
 }
 
 // ResolveRoomMentionKinds resolves @handles in a message to concrete
@@ -265,7 +265,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 
 	seenRecipients := make(map[string]struct{})
 	seenMentions := make(map[string]struct{})
-	add := func(userID string, causeKey string, mention *corev1.MessageMention) {
+	add := func(userID string, causeKey string, mention *evtv1.MessageMention) {
 		if userID == "" {
 			return
 		}
@@ -284,7 +284,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 		mention.UserId = userID
 		result.Mentions = append(result.Mentions, mention)
 	}
-	addMembers := func(candidates []string, causeKey string, cause func() *corev1.MessageMention) {
+	addMembers := func(candidates []string, causeKey string, cause func() *evtv1.MessageMention) {
 		for _, userID := range candidates {
 			add(userID, causeKey, cause())
 		}
@@ -296,7 +296,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 		case MentionHandleAll:
 			for _, member := range members {
 				if member != nil {
-					add(member.UserId, "all", &corev1.MessageMention{Cause: &corev1.MessageMention_All{All: &corev1.AllMessageMention{}}})
+					add(member.UserId, "all", &evtv1.MessageMention{Cause: &evtv1.MessageMention_All{All: &evtv1.AllMessageMention{}}})
 				}
 			}
 			continue
@@ -310,7 +310,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 					return nil, fmt.Errorf("resolve @here presence: %w", err)
 				}
 				if status != PresenceStatusOffline {
-					add(member.UserId, "here", &corev1.MessageMention{Cause: &corev1.MessageMention_Here{Here: &corev1.HereMessageMention{}}})
+					add(member.UserId, "here", &evtv1.MessageMention{Cause: &evtv1.MessageMention_Here{Here: &evtv1.HereMessageMention{}}})
 				}
 			}
 			continue
@@ -331,8 +331,8 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 				}
 				return nil, fmt.Errorf("resolve role mention: %w", err)
 			}
-			addMembers(roleUsers, "role:"+normalized, func() *corev1.MessageMention {
-				return &corev1.MessageMention{Cause: &corev1.MessageMention_Role{Role: &corev1.RoleMessageMention{RoleName: normalized}}}
+			addMembers(roleUsers, "role:"+normalized, func() *evtv1.MessageMention {
+				return &evtv1.MessageMention{Cause: &evtv1.MessageMention_Role{Role: &evtv1.RoleMessageMention{RoleName: normalized}}}
 			})
 			continue
 		}
@@ -344,7 +344,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 			}
 			return nil, fmt.Errorf("resolve user mention: %w", err)
 		}
-		add(user.Id, "direct", &corev1.MessageMention{Cause: &corev1.MessageMention_Direct{Direct: &corev1.DirectUserMention{}}})
+		add(user.Id, "direct", &evtv1.MessageMention{Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}})
 	}
 
 	return result, nil
@@ -369,7 +369,7 @@ func (c *ChattoCore) ResolveDirectRoomMentions(ctx context.Context, kind RoomKin
 	}
 	seen := make(map[string]struct{})
 	for _, mention := range resolved.Mentions {
-		if _, direct := mention.GetCause().(*corev1.MessageMention_Direct); direct {
+		if _, direct := mention.GetCause().(*evtv1.MessageMention_Direct); direct {
 			seen[mention.GetUserId()] = struct{}{}
 		}
 	}

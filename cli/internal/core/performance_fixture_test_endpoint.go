@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -74,7 +74,7 @@ func (c *ChattoCore) SeedPerformanceFixture(ctx context.Context, options Perform
 		return nil, err
 	}
 
-	users := make([]*corev1.User, 0, options.Users)
+	users := make([]*evtv1.User, 0, options.Users)
 	for index := 1; index <= options.Users; index++ {
 		login := performanceFixtureUserLogin(index)
 		user, err := c.CreateUser(ctx, SystemActorID, login, fmt.Sprintf("Performance User %04d", index), "")
@@ -104,7 +104,7 @@ func (c *ChattoCore) SeedPerformanceFixture(ctx context.Context, options Perform
 			messageID := NewEventID()
 			bodyEventID := NewEventID()
 			createdAt := timestamppb.New(baseTime.Add(time.Duration(messageIndex) * time.Second))
-			body := &corev1.MessageBody{
+			body := &evtv1.MessageBody{
 				CreatedAt: createdAt,
 				AuthorId:  author.GetId(),
 			}
@@ -112,19 +112,19 @@ func (c *ChattoCore) SeedPerformanceFixture(ctx context.Context, options Perform
 				return nil, fmt.Errorf("encrypt synthetic message %d: %w", messageIndex+1, err)
 			}
 
-			bodyEvent := newEvent(author.GetId(), &corev1.Event{
+			bodyEvent := newEvent(author.GetId(), &evtv1.Event{
 				Id:        bodyEventID,
 				CreatedAt: createdAt,
-				Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
+				Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{
 					RoomId:  room.GetId(),
 					EventId: messageID,
 					Body:    body,
 				}},
 			})
-			messageEvent := newEvent(author.GetId(), &corev1.Event{
+			messageEvent := newEvent(author.GetId(), &evtv1.Event{
 				Id:        messageID,
 				CreatedAt: createdAt,
-				Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+				Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
 					RoomId: room.GetId(),
 				}},
 			})
@@ -159,7 +159,7 @@ func (c *ChattoCore) SeedPerformanceFixture(ctx context.Context, options Perform
 	return result, nil
 }
 
-func (c *ChattoCore) createPerformanceFixtureRoom(ctx context.Context) (*corev1.Room, error) {
+func (c *ChattoCore) createPerformanceFixtureRoom(ctx context.Context) (*evtv1.Room, error) {
 	rooms, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return nil, fmt.Errorf("list rooms for performance fixture: %w", err)

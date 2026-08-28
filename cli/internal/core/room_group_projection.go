@@ -4,7 +4,7 @@ import (
 	"slices"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -27,8 +27,8 @@ type roomGroupEntry struct {
 	name        string
 	description string
 	roomIDs     []string
-	entries     []*corev1.SidebarGroupEntry
-	links       map[string]*corev1.SidebarLink
+	entries     []*evtv1.SidebarGroupEntry
+	links       map[string]*evtv1.SidebarLink
 }
 
 type RoomGroupMoveSnapshot struct {
@@ -38,7 +38,7 @@ type RoomGroupMoveSnapshot struct {
 }
 
 type RoomGroupSnapshot struct {
-	Group  *corev1.RoomGroup
+	Group  *evtv1.RoomGroup
 	Exists bool
 	Seq    uint64
 }
@@ -46,7 +46,7 @@ type RoomGroupSnapshot struct {
 type SidebarLinkMoveSnapshot struct {
 	TargetExists  bool
 	SourceGroupID string
-	Link          *corev1.SidebarLink
+	Link          *evtv1.SidebarLink
 	Seq           uint64
 }
 
@@ -70,7 +70,7 @@ func (p *RoomGroupProjection) Subjects() []string {
 // SidebarLinkAddedToGroup, SidebarLinkUpdated, SidebarLinkRemovedFromGroup,
 // SidebarGroupEntriesReordered.
 // Unrecognised variants are silently ignored.
-func (p *RoomGroupProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *RoomGroupProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -78,7 +78,7 @@ func (p *RoomGroupProjection) Apply(event *corev1.Event, seq uint64) error {
 	defer p.Unlock()
 	p.noteSeq(seq)
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_RoomGroupCreated:
+	case *evtv1.Event_RoomGroupCreated:
 		c := e.RoomGroupCreated
 		// Idempotent: re-creating an existing group overwrites
 		// metadata but preserves room membership. In practice the
@@ -92,65 +92,65 @@ func (p *RoomGroupProjection) Apply(event *corev1.Event, seq uint64) error {
 		entry.name = c.GetName()
 		entry.description = c.GetDescription()
 
-	case *corev1.Event_RoomGroupUpdated:
+	case *evtv1.Event_RoomGroupUpdated:
 		u := e.RoomGroupUpdated
 		if entry := p.groups[u.GetGroupId()]; entry != nil {
 			entry.name = u.GetName()
 			entry.description = u.GetDescription()
 		}
 
-	case *corev1.Event_RoomGroupDeleted:
+	case *evtv1.Event_RoomGroupDeleted:
 		delete(p.groups, e.RoomGroupDeleted.GetGroupId())
 
-	case *corev1.Event_RoomAddedToGroup:
+	case *evtv1.Event_RoomAddedToGroup:
 		a := e.RoomAddedToGroup
 		if entry := p.groups[a.GetGroupId()]; entry != nil {
 			if !slices.Contains(entry.roomIDs, a.GetRoomId()) {
 				entry.roomIDs = append(entry.roomIDs, a.GetRoomId())
 			}
-			entry.addEntry(&corev1.SidebarGroupEntry{
-				Kind: corev1.SidebarGroupEntry_ROOM,
+			entry.addEntry(&evtv1.SidebarGroupEntry{
+				Kind: evtv1.SidebarGroupEntry_ROOM,
 				Id:   a.GetRoomId(),
 			})
 		}
 
-	case *corev1.Event_RoomRemovedFromGroup:
+	case *evtv1.Event_RoomRemovedFromGroup:
 		r := e.RoomRemovedFromGroup
 		if entry := p.groups[r.GetGroupId()]; entry != nil {
 			entry.roomIDs = slices.DeleteFunc(entry.roomIDs, func(id string) bool {
 				return id == r.GetRoomId()
 			})
-			entry.removeEntry(corev1.SidebarGroupEntry_ROOM, r.GetRoomId())
+			entry.removeEntry(evtv1.SidebarGroupEntry_ROOM, r.GetRoomId())
 		}
 
-	case *corev1.Event_RoomsInGroupReordered:
+	case *evtv1.Event_RoomsInGroupReordered:
 		r := e.RoomsInGroupReordered
 		if entry := p.groups[r.GetGroupId()]; entry != nil {
 			entry.roomIDs = slices.Clone(r.GetRoomIds())
 			entry.reorderRoomEntries(r.GetRoomIds())
 		}
 
-	case *corev1.Event_SidebarLinkAddedToGroup:
+	case *evtv1.Event_SidebarLinkAddedToGroup:
 		a := e.SidebarLinkAddedToGroup
 		if entry := p.groups[a.GetGroupId()]; entry != nil {
 			entry.ensureMaps()
-			entry.links[a.GetLinkId()] = &corev1.SidebarLink{
+			entry.links[a.GetLinkId()] = &evtv1.SidebarLink{
 				Id:    a.GetLinkId(),
 				Label: a.GetLabel(),
 				Url:   a.GetUrl(),
 			}
-			entry.addEntry(&corev1.SidebarGroupEntry{
-				Kind: corev1.SidebarGroupEntry_SIDEBAR_LINK,
+			entry.addEntry(&evtv1.SidebarGroupEntry{
+				Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK,
 				Id:   a.GetLinkId(),
 			})
 		}
 
-	case *corev1.Event_SidebarLinkUpdated:
+	case *evtv1.Event_SidebarLinkUpdated:
 		u := e.SidebarLinkUpdated
 		if entry := p.groups[u.GetGroupId()]; entry != nil {
 			entry.ensureMaps()
 			if _, ok := entry.links[u.GetLinkId()]; ok {
-				entry.links[u.GetLinkId()] = &corev1.SidebarLink{
+				entry.links[u.GetLinkId()] = &evtv1.SidebarLink{
 					Id:    u.GetLinkId(),
 					Label: u.GetLabel(),
 					Url:   u.GetUrl(),
@@ -158,15 +158,15 @@ func (p *RoomGroupProjection) Apply(event *corev1.Event, seq uint64) error {
 			}
 		}
 
-	case *corev1.Event_SidebarLinkRemovedFromGroup:
+	case *evtv1.Event_SidebarLinkRemovedFromGroup:
 		r := e.SidebarLinkRemovedFromGroup
 		if entry := p.groups[r.GetGroupId()]; entry != nil {
 			entry.ensureMaps()
 			delete(entry.links, r.GetLinkId())
-			entry.removeEntry(corev1.SidebarGroupEntry_SIDEBAR_LINK, r.GetLinkId())
+			entry.removeEntry(evtv1.SidebarGroupEntry_SIDEBAR_LINK, r.GetLinkId())
 		}
 
-	case *corev1.Event_SidebarGroupEntriesReordered:
+	case *evtv1.Event_SidebarGroupEntriesReordered:
 		r := e.SidebarGroupEntriesReordered
 		if entry := p.groups[r.GetGroupId()]; entry != nil {
 			entry.entries = cloneSidebarEntries(r.GetEntries())
@@ -185,7 +185,7 @@ func (p *RoomGroupProjection) noteSeq(seq uint64) {
 // Get returns the group's data, or (nil, false) if no such group has
 // been projected. The returned proto is a fresh value — including a
 // cloned room_ids slice — so callers may mutate freely.
-func (p *RoomGroupProjection) Get(groupID string) (*corev1.RoomGroup, bool) {
+func (p *RoomGroupProjection) Get(groupID string) (*evtv1.RoomGroup, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	entry, ok := p.groups[groupID]
@@ -217,10 +217,10 @@ func (p *RoomGroupProjection) Exists(groupID string) bool {
 // All returns every group in the projection. Order is unspecified;
 // the layout aggregate (KV-backed for now) provides the operator-
 // preferred sort. Returned protos are fresh values.
-func (p *RoomGroupProjection) All() []*corev1.RoomGroup {
+func (p *RoomGroupProjection) All() []*evtv1.RoomGroup {
 	p.RLock()
 	defer p.RUnlock()
-	out := make([]*corev1.RoomGroup, 0, len(p.groups))
+	out := make([]*evtv1.RoomGroup, 0, len(p.groups))
 	for id, entry := range p.groups {
 		out = append(out, entryToGroup(id, entry))
 	}
@@ -292,10 +292,10 @@ func (p *RoomGroupProjection) Count() int {
 	return len(p.groups)
 }
 
-// entryToGroup builds a public *corev1.RoomGroup from the private
+// entryToGroup builds a public *evtv1.RoomGroup from the private
 // entry, including fresh slices for all sidebar layout state.
-func entryToGroup(id string, entry *roomGroupEntry) *corev1.RoomGroup {
-	return &corev1.RoomGroup{
+func entryToGroup(id string, entry *roomGroupEntry) *evtv1.RoomGroup {
+	return &evtv1.RoomGroup{
 		Id:           id,
 		Name:         entry.name,
 		Description:  entry.description,
@@ -307,11 +307,11 @@ func entryToGroup(id string, entry *roomGroupEntry) *corev1.RoomGroup {
 
 func (e *roomGroupEntry) ensureMaps() {
 	if e.links == nil {
-		e.links = make(map[string]*corev1.SidebarLink)
+		e.links = make(map[string]*evtv1.SidebarLink)
 	}
 }
 
-func (e *roomGroupEntry) addEntry(entry *corev1.SidebarGroupEntry) {
+func (e *roomGroupEntry) addEntry(entry *evtv1.SidebarGroupEntry) {
 	if entry == nil || entry.GetId() == "" {
 		return
 	}
@@ -319,17 +319,17 @@ func (e *roomGroupEntry) addEntry(entry *corev1.SidebarGroupEntry) {
 	e.entries = append(e.entries, cloneSidebarEntry(entry))
 }
 
-func (e *roomGroupEntry) removeEntry(kind corev1.SidebarGroupEntry_Kind, id string) {
-	e.entries = slices.DeleteFunc(e.entries, func(entry *corev1.SidebarGroupEntry) bool {
+func (e *roomGroupEntry) removeEntry(kind evtv1.SidebarGroupEntry_Kind, id string) {
+	e.entries = slices.DeleteFunc(e.entries, func(entry *evtv1.SidebarGroupEntry) bool {
 		return entry.GetKind() == kind && entry.GetId() == id
 	})
 }
 
 func (e *roomGroupEntry) reorderRoomEntries(roomIDs []string) {
-	nextRooms := make([]*corev1.SidebarGroupEntry, 0, len(roomIDs))
+	nextRooms := make([]*evtv1.SidebarGroupEntry, 0, len(roomIDs))
 	for _, id := range roomIDs {
-		nextRooms = append(nextRooms, &corev1.SidebarGroupEntry{
-			Kind: corev1.SidebarGroupEntry_ROOM,
+		nextRooms = append(nextRooms, &evtv1.SidebarGroupEntry{
+			Kind: evtv1.SidebarGroupEntry_ROOM,
 			Id:   id,
 		})
 	}
@@ -338,10 +338,10 @@ func (e *roomGroupEntry) reorderRoomEntries(roomIDs []string) {
 		return
 	}
 
-	next := make([]*corev1.SidebarGroupEntry, 0, len(e.entries)+len(nextRooms))
+	next := make([]*evtv1.SidebarGroupEntry, 0, len(e.entries)+len(nextRooms))
 	roomIndex := 0
 	for _, current := range e.entries {
-		if current.GetKind() == corev1.SidebarGroupEntry_ROOM {
+		if current.GetKind() == evtv1.SidebarGroupEntry_ROOM {
 			if roomIndex < len(nextRooms) {
 				next = append(next, cloneSidebarEntry(nextRooms[roomIndex]))
 				roomIndex++
@@ -363,40 +363,40 @@ func (e *roomGroupEntry) hasLink(linkID string) bool {
 			return true
 		}
 	}
-	return slices.ContainsFunc(e.entries, func(entry *corev1.SidebarGroupEntry) bool {
-		return entry.GetKind() == corev1.SidebarGroupEntry_SIDEBAR_LINK && entry.GetId() == linkID
+	return slices.ContainsFunc(e.entries, func(entry *evtv1.SidebarGroupEntry) bool {
+		return entry.GetKind() == evtv1.SidebarGroupEntry_SIDEBAR_LINK && entry.GetId() == linkID
 	})
 }
 
-func (e *roomGroupEntry) link(linkID string) *corev1.SidebarLink {
+func (e *roomGroupEntry) link(linkID string) *evtv1.SidebarLink {
 	if e.links == nil {
 		return nil
 	}
 	return e.links[linkID]
 }
 
-func (e *roomGroupEntry) clonedEntries() []*corev1.SidebarGroupEntry {
+func (e *roomGroupEntry) clonedEntries() []*evtv1.SidebarGroupEntry {
 	if len(e.entries) > 0 {
 		return cloneSidebarEntries(e.entries)
 	}
-	entries := make([]*corev1.SidebarGroupEntry, 0, len(e.roomIDs))
+	entries := make([]*evtv1.SidebarGroupEntry, 0, len(e.roomIDs))
 	for _, roomID := range e.roomIDs {
-		entries = append(entries, &corev1.SidebarGroupEntry{
-			Kind: corev1.SidebarGroupEntry_ROOM,
+		entries = append(entries, &evtv1.SidebarGroupEntry{
+			Kind: evtv1.SidebarGroupEntry_ROOM,
 			Id:   roomID,
 		})
 	}
 	return entries
 }
 
-func (e *roomGroupEntry) clonedLinks() []*corev1.SidebarLink {
+func (e *roomGroupEntry) clonedLinks() []*evtv1.SidebarLink {
 	if len(e.links) == 0 {
 		return nil
 	}
-	links := make([]*corev1.SidebarLink, 0, len(e.links))
+	links := make([]*evtv1.SidebarLink, 0, len(e.links))
 	used := make(map[string]struct{}, len(e.links))
 	for _, entry := range e.entries {
-		if entry.GetKind() != corev1.SidebarGroupEntry_SIDEBAR_LINK {
+		if entry.GetKind() != evtv1.SidebarGroupEntry_SIDEBAR_LINK {
 			continue
 		}
 		link := e.links[entry.GetId()]
@@ -419,11 +419,11 @@ func (e *roomGroupEntry) clonedLinks() []*corev1.SidebarLink {
 	return links
 }
 
-func cloneSidebarEntries(entries []*corev1.SidebarGroupEntry) []*corev1.SidebarGroupEntry {
+func cloneSidebarEntries(entries []*evtv1.SidebarGroupEntry) []*evtv1.SidebarGroupEntry {
 	if len(entries) == 0 {
 		return nil
 	}
-	out := make([]*corev1.SidebarGroupEntry, 0, len(entries))
+	out := make([]*evtv1.SidebarGroupEntry, 0, len(entries))
 	for _, entry := range entries {
 		if cloned := cloneSidebarEntry(entry); cloned != nil {
 			out = append(out, cloned)
@@ -432,31 +432,31 @@ func cloneSidebarEntries(entries []*corev1.SidebarGroupEntry) []*corev1.SidebarG
 	return out
 }
 
-func cloneSidebarEntry(entry *corev1.SidebarGroupEntry) *corev1.SidebarGroupEntry {
+func cloneSidebarEntry(entry *evtv1.SidebarGroupEntry) *evtv1.SidebarGroupEntry {
 	if entry == nil {
 		return nil
 	}
-	return &corev1.SidebarGroupEntry{
+	return &evtv1.SidebarGroupEntry{
 		Kind: entry.GetKind(),
 		Id:   entry.GetId(),
 	}
 }
 
-func cloneSidebarLink(link *corev1.SidebarLink) *corev1.SidebarLink {
+func cloneSidebarLink(link *evtv1.SidebarLink) *evtv1.SidebarLink {
 	if link == nil {
 		return nil
 	}
-	return &corev1.SidebarLink{
+	return &evtv1.SidebarLink{
 		Id:    link.GetId(),
 		Label: link.GetLabel(),
 		Url:   link.GetUrl(),
 	}
 }
 
-func roomIDsFromEntries(entries []*corev1.SidebarGroupEntry) []string {
+func roomIDsFromEntries(entries []*evtv1.SidebarGroupEntry) []string {
 	roomIDs := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		if entry.GetKind() == corev1.SidebarGroupEntry_ROOM {
+		if entry.GetKind() == evtv1.SidebarGroupEntry_ROOM {
 			roomIDs = append(roomIDs, entry.GetId())
 		}
 	}

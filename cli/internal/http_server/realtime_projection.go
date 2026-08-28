@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
@@ -266,7 +267,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			return nil, false, nil
 		}
 		switch payload := live.GetEvent().(type) {
-		case *corev1.LiveEvent_ServerUpdated:
+		case *livev1.LiveEvent_ServerUpdated:
 			server, err := s.connectAPI.BuildRealtimeProjectionServer(ctx)
 			if err != nil {
 				return nil, false, err
@@ -276,15 +277,15 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ServerStateUpsert{
 				ServerStateUpsert: realtimeProjectionServerState(serverState),
 			}})
-		case *corev1.LiveEvent_UserProfileUpdated:
+		case *livev1.LiveEvent_UserProfileUpdated:
 			if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserProfileUpdated.GetUserId(), appendOperation); err != nil {
 				return nil, false, err
 			}
-		case *corev1.LiveEvent_ServerMemberDeleted:
+		case *livev1.LiveEvent_ServerMemberDeleted:
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_UserRemove{
 				UserRemove: &realtimev1.RealtimeProjectionUserRemove{UserId: payload.ServerMemberDeleted.GetUserId()},
 			}})
-		case *corev1.LiveEvent_RoomGroupsUpdated:
+		case *livev1.LiveEvent_RoomGroupsUpdated:
 			groups, err := s.connectAPI.BuildRealtimeProjectionRoomGroups(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
@@ -292,13 +293,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomGroupsReplace{
 				RoomGroupsReplace: &realtimev1.RealtimeProjectionRoomGroupsReplace{Groups: groups},
 			}})
-		case *corev1.LiveEvent_ServerUserPreferencesUpdated:
+		case *livev1.LiveEvent_ServerUserPreferencesUpdated:
 			viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
-		case *corev1.LiveEvent_NotificationOccurrencesInvalidated:
+		case *livev1.LiveEvent_NotificationOccurrencesInvalidated:
 			invalidation := payload.NotificationOccurrencesInvalidated
 			if err := s.core.NotificationOccurrences().Resync(ctx); err != nil {
 				return nil, false, err
@@ -331,7 +332,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{
 				NotificationOccurrencesReplace: replacement,
 			}})
-		case *corev1.LiveEvent_RoomMarkedAsRead:
+		case *livev1.LiveEvent_RoomMarkedAsRead:
 			roomID := payload.RoomMarkedAsRead.GetRoomId()
 			viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
 			if err != nil {
@@ -349,7 +350,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{
 				NotificationOccurrencesReplace: realtimeProjectionNotificationOccurrences(notifications),
 			}})
-		case *corev1.LiveEvent_NotificationUnreadChanged:
+		case *livev1.LiveEvent_NotificationUnreadChanged:
 			invalidation := payload.NotificationUnreadChanged
 			roomID := invalidation.GetRoomId()
 			viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
@@ -387,7 +388,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 					}})
 				}
 			}
-		case *corev1.LiveEvent_ThreadFollowChanged:
+		case *livev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
 			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
 			if err != nil {
@@ -582,7 +583,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	}
 
 	switch payload := evt.GetEvent().(type) {
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		roomID := payload.MessagePosted.GetRoomId()
 		// Refresh lightweight room state when no timeline is retained. Retained
 		// rooms already carry their activity through the timeline mutation.
@@ -659,7 +660,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				}})
 			}
 		}
-	case *corev1.Event_MessageEdited:
+	case *evtv1.Event_MessageEdited:
 		roomID := payload.MessageEdited.GetRoomId()
 		eventID := payload.MessageEdited.GetEventId()
 		if err := appendSearchRefreshFence(roomID); err != nil {
@@ -670,7 +671,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		} else if err := appendTimeline(roomID, eventID, nil); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_MessageRetracted:
+	case *evtv1.Event_MessageRetracted:
 		roomID := payload.MessageRetracted.GetRoomId()
 		eventID := payload.MessageRetracted.GetEventId()
 		if err := appendSearchRefreshFence(roomID); err != nil {
@@ -697,11 +698,11 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			// retain this room's timeline and therefore cannot infer the removal.
 			appendPinnedMessageChange(realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED, roomID, eventID)
 		}
-	case *corev1.Event_MessagePinned:
+	case *evtv1.Event_MessagePinned:
 		appendPinnedMessageChange(realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED, payload.MessagePinned.GetRoomId(), payload.MessagePinned.GetMessageEventId())
-	case *corev1.Event_MessageUnpinned:
+	case *evtv1.Event_MessageUnpinned:
 		appendPinnedMessageChange(realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED, payload.MessageUnpinned.GetRoomId(), payload.MessageUnpinned.GetMessageEventId())
-	case *corev1.Event_ReactionAdded:
+	case *evtv1.Event_ReactionAdded:
 		reaction := payload.ReactionAdded
 		messageID := s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId())
 		if err := appendTimeline(reaction.GetRoomId(), messageID, &realtimev1.RealtimeProjectionReactionChange{
@@ -715,7 +716,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 		}
-	case *corev1.Event_ReactionRemoved:
+	case *evtv1.Event_ReactionRemoved:
 		reaction := payload.ReactionRemoved
 		messageID := s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId())
 		if err := appendTimeline(reaction.GetRoomId(), messageID, &realtimev1.RealtimeProjectionReactionChange{
@@ -729,10 +730,10 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 		}
-	case *corev1.Event_AssetProcessingStarted,
-		*corev1.Event_AssetProcessingSucceeded,
-		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted:
+	case *evtv1.Event_AssetProcessingStarted,
+		*evtv1.Event_AssetProcessingSucceeded,
+		*evtv1.Event_AssetProcessingFailed,
+		*evtv1.Event_AssetDeleted:
 		roomID, messageEventID, ok := s.core.AssetEventTimelineTarget(evt)
 		if !ok {
 			// The owning message may already have removed this asset. Its
@@ -748,8 +749,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 		}
-	case *corev1.Event_VoiceCallStarted,
-		*corev1.Event_VoiceCallEnded:
+	case *evtv1.Event_VoiceCallStarted,
+		*evtv1.Event_VoiceCallEnded:
 		calls, err := s.connectAPI.BuildRealtimeProjectionActiveCalls(ctx, viewerID)
 		if err != nil {
 			return nil, false, err
@@ -760,8 +761,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendSourceTimeline(core.RoomIDOfEvent(evt)); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_VoiceCallParticipantJoined,
-		*corev1.Event_VoiceCallParticipantLeft:
+	case *evtv1.Event_VoiceCallParticipantJoined,
+		*evtv1.Event_VoiceCallParticipantLeft:
 		calls, err := s.connectAPI.BuildRealtimeProjectionActiveCalls(ctx, viewerID)
 		if err != nil {
 			return nil, false, err
@@ -769,14 +770,14 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ActiveCallsReplace{
 			ActiveCallsReplace: &realtimev1.RealtimeProjectionActiveCallsReplace{Calls: calls},
 		}})
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		if err := appendViewerSensitiveResources(); err != nil {
 			return nil, false, err
 		}
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomRemove{
 			RoomRemove: &realtimev1.RealtimeProjectionRoomRemove{RoomId: payload.RoomDeleted.GetRoomId()},
 		}})
-	case *corev1.Event_RoomCreated:
+	case *evtv1.Event_RoomCreated:
 		roomID := payload.RoomCreated.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -784,7 +785,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_RoomUpdated:
+	case *evtv1.Event_RoomUpdated:
 		roomID := payload.RoomUpdated.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -792,7 +793,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_RoomArchived:
+	case *evtv1.Event_RoomArchived:
 		roomID := payload.RoomArchived.GetRoomId()
 		if err := appendViewerSensitiveResources(); err != nil {
 			return nil, false, err
@@ -800,7 +801,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomRemove{
 			RoomRemove: &realtimev1.RealtimeProjectionRoomRemove{RoomId: roomID},
 		}})
-	case *corev1.Event_RoomUnarchived:
+	case *evtv1.Event_RoomUnarchived:
 		roomID := payload.RoomUnarchived.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -814,7 +815,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_RoomUniversalChanged:
+	case *evtv1.Event_RoomUniversalChanged:
 		roomID := payload.RoomUniversalChanged.GetRoomId()
 		room, err := appendRoomResult(roomID)
 		if err != nil {
@@ -839,11 +840,11 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendViewerSensitiveResources(); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_RoomSlowModeChanged:
+	case *evtv1.Event_RoomSlowModeChanged:
 		if err := appendRoom(payload.RoomSlowModeChanged.GetRoomId()); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_RoomThreadingModeChanged:
+	case *evtv1.Event_RoomThreadingModeChanged:
 		roomID := payload.RoomThreadingModeChanged.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -851,7 +852,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserJoinedRoom:
+	case *evtv1.Event_UserJoinedRoom:
 		roomID := payload.UserJoinedRoom.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -867,7 +868,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserLeftRoom:
+	case *evtv1.Event_UserLeftRoom:
 		roomID := payload.UserLeftRoom.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -881,7 +882,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_RoomMemberAdded:
+	case *evtv1.Event_RoomMemberAdded:
 		roomID := payload.RoomMemberAdded.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -890,7 +891,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		// UserJoinedRoom membership fact. The following fact waits for the
 		// membership projection and materialises a retained timeline, so doing
 		// it here can race authorization and close the realtime socket.
-	case *corev1.Event_RoomMemberRemoved:
+	case *evtv1.Event_RoomMemberRemoved:
 		roomID := payload.RoomMemberRemoved.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -901,7 +902,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 		}
-	case *corev1.Event_RoomMemberBanned:
+	case *evtv1.Event_RoomMemberBanned:
 		roomID := payload.RoomMemberBanned.GetRoomId()
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
@@ -912,40 +913,40 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 		}
-	case *corev1.Event_ThreadCreated:
+	case *evtv1.Event_ThreadCreated:
 		thread := payload.ThreadCreated
 		if err := appendTimeline(thread.GetRoomId(), thread.GetThreadRootEventId(), nil); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserCustomStatusSet:
+	case *evtv1.Event_UserCustomStatusSet:
 		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserCustomStatusSet.GetUserId(), appendOperation); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserCustomStatusCleared:
+	case *evtv1.Event_UserCustomStatusCleared:
 		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserCustomStatusCleared.GetUserId(), appendOperation); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserAccountCreated:
+	case *evtv1.Event_UserAccountCreated:
 		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserAccountCreated.GetUserId(), appendOperation); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserLoginChanged:
+	case *evtv1.Event_UserLoginChanged:
 		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserLoginChanged.GetUserId(), appendOperation); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserDisplayNameChanged:
+	case *evtv1.Event_UserDisplayNameChanged:
 		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserDisplayNameChanged.GetUserId(), appendOperation); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserAvatarSet:
+	case *evtv1.Event_UserAvatarSet:
 		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserAvatarSet.GetUserId(), appendOperation); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserAvatarCleared:
+	case *evtv1.Event_UserAvatarCleared:
 		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserAvatarCleared.GetUserId(), appendOperation); err != nil {
 			return nil, false, err
 		}
-	case *corev1.Event_UserAccountDeleted:
+	case *evtv1.Event_UserAccountDeleted:
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_UserRemove{
 			UserRemove: &realtimev1.RealtimeProjectionUserRemove{UserId: payload.UserAccountDeleted.GetUserId()},
 		}})
@@ -963,22 +964,22 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 // cannot change the current human viewer's own authorization: their direct
 // permission update for a bot. Other subscribers, including the target bot,
 // still reconnect and rebuild from current authorization.
-func (s *HTTPServer) canAdvanceSelfAuthoredBotPermission(ctx context.Context, viewerID string, event *corev1.Event) (bool, error) {
+func (s *HTTPServer) canAdvanceSelfAuthoredBotPermission(ctx context.Context, viewerID string, event *evtv1.Event) (bool, error) {
 	if event == nil || viewerID == "" || event.GetActorId() != viewerID {
 		return false, nil
 	}
-	var subject *corev1.RbacPermissionSubject
+	var subject *evtv1.RbacPermissionSubject
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_RbacPermissionGranted:
+	case *evtv1.Event_RbacPermissionGranted:
 		subject = payload.RbacPermissionGranted.GetSubject()
-	case *corev1.Event_RbacPermissionDenied:
+	case *evtv1.Event_RbacPermissionDenied:
 		subject = payload.RbacPermissionDenied.GetSubject()
-	case *corev1.Event_RbacPermissionCleared:
+	case *evtv1.Event_RbacPermissionCleared:
 		subject = payload.RbacPermissionCleared.GetSubject()
 	default:
 		return false, nil
 	}
-	if subject.GetKind() != corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER || subject.GetId() == viewerID {
+	if subject.GetKind() != evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER || subject.GetId() == viewerID {
 		return false, nil
 	}
 	target, err := s.core.GetUser(ctx, subject.GetId())

@@ -11,7 +11,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type roomTimelineAssembler struct {
@@ -116,7 +116,7 @@ func (a *roomTimelineAssembler) buildThreadPage(ctx context.Context, viewerID, r
 	return page, nil
 }
 
-func (a *roomTimelineAssembler) hydrateEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {
+func (a *roomTimelineAssembler) hydrateEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *evtv1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {
 	ctx = core.WithDEKRequestCache(ctx)
 
 	messageIDs := []string(nil)
@@ -173,7 +173,7 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 	}
 
 	switch payload := event.Event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		message, err := h.messagePosted(ctx, event, payload.MessagePosted)
 		if err != nil {
 			return nil, err
@@ -181,17 +181,17 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 		apiEvent.Event = &apiv1.RoomTimelineEvent_MessagePosted{
 			MessagePosted: &apiv1.RoomMessagePosted{Message: message},
 		}
-	case *corev1.Event_RoomCreated:
+	case *evtv1.Event_RoomCreated:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomCreated{RoomCreated: roomEvent(payload.RoomCreated.GetRoomId())}
-	case *corev1.Event_RoomUpdated:
+	case *evtv1.Event_RoomUpdated:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomUpdated{RoomUpdated: roomEvent(payload.RoomUpdated.GetRoomId())}
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomDeleted{RoomDeleted: roomEvent(payload.RoomDeleted.GetRoomId())}
-	case *corev1.Event_RoomArchived:
+	case *evtv1.Event_RoomArchived:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomArchived{RoomArchived: roomEvent(payload.RoomArchived.GetRoomId())}
-	case *corev1.Event_RoomUnarchived:
+	case *evtv1.Event_RoomUnarchived:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomUnarchived{RoomUnarchived: roomEvent(payload.RoomUnarchived.GetRoomId())}
-	case *corev1.Event_RoomThreadingModeChanged:
+	case *evtv1.Event_RoomThreadingModeChanged:
 		change := payload.RoomThreadingModeChanged
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomThreadingModeChanged{
 			RoomThreadingModeChanged: &apiv1.RoomTimelineThreadingModeChangedEvent{
@@ -199,13 +199,13 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 				ThreadingMode: apiRoomThreadingModeChangeValue(change.GetThreadingMode()),
 			},
 		}
-	case *corev1.Event_UserJoinedRoom:
+	case *evtv1.Event_UserJoinedRoom:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_UserJoinedRoom{UserJoinedRoom: roomEvent(payload.UserJoinedRoom.GetRoomId())}
-	case *corev1.Event_UserLeftRoom:
+	case *evtv1.Event_UserLeftRoom:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_UserLeftRoom{UserLeftRoom: roomEvent(payload.UserLeftRoom.GetRoomId())}
-	case *corev1.Event_VoiceCallStarted:
+	case *evtv1.Event_VoiceCallStarted:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_CallStarted{CallStarted: callEvent(payload.VoiceCallStarted.GetRoomId(), payload.VoiceCallStarted.GetCallId())}
-	case *corev1.Event_VoiceCallEnded:
+	case *evtv1.Event_VoiceCallEnded:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_CallEnded{CallEnded: callEvent(payload.VoiceCallEnded.GetRoomId(), payload.VoiceCallEnded.GetCallId())}
 	default:
 		return nil, fmt.Errorf("unsupported room timeline event %T", payload)
@@ -214,7 +214,7 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 	return apiEvent, nil
 }
 
-func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEvent, payload *corev1.MessagePostedEvent) (*apiv1.Message, error) {
+func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEvent, payload *evtv1.MessagePostedEvent) (*apiv1.Message, error) {
 	hydrationState, err := h.api.core.RoomTimelineReads().MessageHydrationState(event.Id)
 	if err != nil {
 		return nil, err
@@ -300,7 +300,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 	return message, nil
 }
 
-func (h *timelineHydrator) attachments(roomID, messageEventID string, attachments []*corev1.Attachment) []*apiv1.MessageAttachment {
+func (h *timelineHydrator) attachments(roomID, messageEventID string, attachments []*evtv1.Attachment) []*apiv1.MessageAttachment {
 	result := make([]*apiv1.MessageAttachment, 0, len(attachments))
 	thumbnail := h.thumbnail
 	if thumbnail.width <= 0 || thumbnail.height <= 0 || thumbnail.fit == "" {
@@ -332,7 +332,7 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 	return result
 }
 
-func (h *timelineHydrator) linkPreview(preview *corev1.LinkPreview) *apiv1.LinkPreview {
+func (h *timelineHydrator) linkPreview(preview *evtv1.LinkPreview) *apiv1.LinkPreview {
 	return apiLinkPreview(h.api, preview)
 }
 

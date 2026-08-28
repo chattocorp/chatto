@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // contextKey is an unexported type for context keys to prevent collisions.
@@ -45,13 +45,13 @@ type RuntimeCredential struct {
 
 // ForContext extracts the authenticated user from the request context.
 // Returns nil if no user is authenticated.
-func ForContext(ctx context.Context) *corev1.User {
-	raw, _ := ctx.Value(userCtxKey).(*corev1.User)
+func ForContext(ctx context.Context) *evtv1.User {
+	raw, _ := ctx.Value(userCtxKey).(*evtv1.User)
 	return raw
 }
 
 // WithUser returns a new context with the authenticated user injected.
-func WithUser(ctx context.Context, user *corev1.User) context.Context {
+func WithUser(ctx context.Context, user *evtv1.User) context.Context {
 	return context.WithValue(ctx, userCtxKey, user)
 }
 

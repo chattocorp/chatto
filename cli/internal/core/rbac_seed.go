@@ -8,14 +8,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
 type rbacSeedDecision struct {
 	scope       PermissionScope
 	scopeID     string
-	subjectKind corev1.RbacPermissionSubjectKind
+	subjectKind evtv1.RbacPermissionSubjectKind
 	subject     string
 	permission  Permission
 	decision    DecisionKind
@@ -45,8 +45,8 @@ func (c *ChattoCore) seedDefaultRBAC(ctx context.Context) error {
 	return nil
 }
 
-func defaultRBACRoles() map[string]*corev1.Role {
-	return map[string]*corev1.Role{
+func defaultRBACRoles() map[string]*evtv1.Role {
+	return map[string]*evtv1.Role{
 		RoleOwner: {
 			Name:        RoleOwner,
 			DisplayName: "Owner",
@@ -93,7 +93,7 @@ func defaultRBACDecisions() []rbacSeedDecision {
 			if PermissionAppliesAtScope(perm, ScopeServer) {
 				decisions = append(decisions, rbacSeedDecision{
 					scope:       ScopeServer,
-					subjectKind: corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE,
+					subjectKind: evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE,
 					subject:     spec.role,
 					permission:  perm,
 					decision:    DecisionAllow,
@@ -104,7 +104,7 @@ func defaultRBACDecisions() []rbacSeedDecision {
 	return decisions
 }
 
-func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssignment, decisions []rbacSeedDecision) []evtstream.BatchEntry {
+func rbacSeedEntries(roles map[string]*evtv1.Role, assignments []rbacSeedAssignment, decisions []rbacSeedDecision) []evtstream.BatchEntry {
 	createdAt := timestamppb.Now()
 	var entries []evtstream.BatchEntry
 
@@ -115,8 +115,8 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 	sort.Strings(roleNames)
 	for _, name := range roleNames {
 		role := roles[name]
-		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleCreated{
-			RbacRoleCreated: &corev1.RbacRoleCreatedEvent{
+		event := newEvent(SystemActorID, &evtv1.Event{CreatedAt: createdAt, Event: &evtv1.Event_RbacRoleCreated{
+			RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{
 				RoleName:    role.GetName(),
 				DisplayName: role.GetDisplayName(),
 				Description: role.GetDescription(),
@@ -134,8 +134,8 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 		return assignments[i].roleName < assignments[j].roleName
 	})
 	for _, assignment := range assignments {
-		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleAssigned{
-			RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: assignment.userID, RoleName: assignment.roleName},
+		event := newEvent(SystemActorID, &evtv1.Event{CreatedAt: createdAt, Event: &evtv1.Event_RbacRoleAssigned{
+			RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: assignment.userID, RoleName: assignment.roleName},
 		}})
 		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
@@ -157,17 +157,17 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 		return a.decision < b.decision
 	})
 	for _, decision := range decisions {
-		var event *corev1.Event
+		var event *evtv1.Event
 		subjectKind := decision.subjectKind
-		if subjectKind == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED {
+		if subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED {
 			subjectKind = rbacPermissionSubjectKindForID(decision.subject)
 		}
 		if decision.decision == DecisionDeny {
-			event = newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacPermissionDenied{
+			event = newEvent(SystemActorID, &evtv1.Event{CreatedAt: createdAt, Event: &evtv1.Event_RbacPermissionDenied{
 				RbacPermissionDenied: rbacPermissionDeniedEvent(decision.scope, decision.scopeID, subjectKind, decision.subject, decision.permission),
 			}})
 		} else {
-			event = newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacPermissionGranted{
+			event = newEvent(SystemActorID, &evtv1.Event{CreatedAt: createdAt, Event: &evtv1.Event_RbacPermissionGranted{
 				RbacPermissionGranted: rbacPermissionGrantedEvent(decision.scope, decision.scopeID, subjectKind, decision.subject, decision.permission),
 			}})
 		}

@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -19,11 +19,11 @@ const maxJoinRoomRetries = 5
 // Reads explicit membership through RoomModel (ADR-035 phase 5 cutover).
 // kind is ignored — roomID is globally unique, so the (roomID, userID)
 // pair fully identifies a membership.
-func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
+func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_id, room_id string) (*evtv1.RoomMembership, error) {
 	if !c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 		return nil, fmt.Errorf("room membership not found for user %s in room %s: %w", user_id, room_id, jetstream.ErrKeyNotFound)
 	}
-	return &corev1.RoomMembership{
+	return &evtv1.RoomMembership{
 		UserId: user_id,
 		RoomId: room_id,
 	}, nil
@@ -60,7 +60,7 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 //
 // Event-only. Publishes UserJoinedRoomEvent to EVT, then WaitForSeq on the
 // projections that serve membership and room history reads.
-func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
+func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*evtv1.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
@@ -73,7 +73,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		return nil, ErrPermissionDenied
 	}
 
-	membership := &corev1.RoomMembership{
+	membership := &evtv1.RoomMembership{
 		UserId: user_id,
 		RoomId: room_id,
 	}
@@ -81,9 +81,9 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		return membership, nil
 	}
 
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_UserJoinedRoom{
-			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+	event := newEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_UserJoinedRoom{
+			UserJoinedRoom: &evtv1.UserJoinedRoomEvent{
 				RoomId: room_id,
 			},
 		},
@@ -144,7 +144,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 // the target user as actor, so existing membership projections and public room
 // history remain compatible. A separate moderation event records the manager
 // action for audit.
-func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*corev1.RoomMembership, error) {
+func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*evtv1.RoomMembership, error) {
 	if kind == KindDM {
 		return nil, invalidArgument("DM room participants cannot be managed through RoomService")
 	}
@@ -162,7 +162,7 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 		return nil, err
 	}
 
-	membership := &corev1.RoomMembership{
+	membership := &evtv1.RoomMembership{
 		UserId: targetUserID,
 		RoomId: roomID,
 	}
@@ -186,17 +186,17 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 			return nil, ErrPermissionDenied
 		}
 
-		auditEvent := newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_RoomMemberAdded{
-				RoomMemberAdded: &corev1.RoomMemberAddedEvent{
+		auditEvent := newEvent(actorID, &evtv1.Event{
+			Event: &evtv1.Event_RoomMemberAdded{
+				RoomMemberAdded: &evtv1.RoomMemberAddedEvent{
 					RoomId: roomID,
 					UserId: targetUserID,
 				},
 			},
 		})
-		joinEvent := newEvent(targetUserID, &corev1.Event{
-			Event: &corev1.Event_UserJoinedRoom{
-				UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+		joinEvent := newEvent(targetUserID, &evtv1.Event{
+			Event: &evtv1.Event_UserJoinedRoom{
+				UserJoinedRoom: &evtv1.UserJoinedRoomEvent{
 					RoomId: roomID,
 				},
 			},
@@ -314,9 +314,9 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 			return false, nil
 		}
 
-		auditEvent := newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_RoomMemberRemoved{
-				RoomMemberRemoved: &corev1.RoomMemberRemovedEvent{
+		auditEvent := newEvent(actorID, &evtv1.Event{
+			Event: &evtv1.Event_RoomMemberRemoved{
+				RoomMemberRemoved: &evtv1.RoomMemberRemovedEvent{
 					RoomId: roomID,
 					UserId: targetUserID,
 				},
@@ -361,7 +361,7 @@ func (c *ChattoCore) waitForRoomLeaveTail(ctx context.Context, filter string, se
 	return nil
 }
 
-func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, roomID, userID string, expectedSeq uint64, prefixEvents ...*corev1.Event) error {
+func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, roomID, userID string, expectedSeq uint64, prefixEvents ...*evtv1.Event) error {
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	authorizationSeq, err := c.authorizationFenceSeq(ctx)
@@ -369,15 +369,15 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		return fmt.Errorf("read authorization fence before room leave: %w", err)
 	}
 
-	leaveEvent := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_UserLeftRoom{
-			UserLeftRoom: &corev1.UserLeftRoomEvent{
+	leaveEvent := newEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_UserLeftRoom{
+			UserLeftRoom: &evtv1.UserLeftRoomEvent{
 				RoomId: roomID,
 			},
 		},
 	})
 
-	eventsToAppend := make([]*corev1.Event, 0, len(prefixEvents)+3)
+	eventsToAppend := make([]*evtv1.Event, 0, len(prefixEvents)+3)
 	eventsToAppend = append(eventsToAppend, prefixEvents...)
 	eventsToAppend = append(eventsToAppend, leaveEvent)
 
@@ -389,7 +389,7 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 			if callID == "" {
 				callID = snapshot.Call.CallID
 			}
-			eventsToAppend = append(eventsToAppend, newCallParticipantEvent(roomID, userID, callID, false, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
+			eventsToAppend = append(eventsToAppend, newCallParticipantEvent(roomID, userID, callID, false, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
 			cleanup = roomLeaveCallCleanup{
 				kind:   kind,
 				roomID: roomID,
@@ -397,7 +397,7 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 				callID: callID,
 			}
 			if len(snapshot.Participants) == 1 && snapshot.Call.CallID == callID {
-				eventsToAppend = append(eventsToAppend, newCallEndedEvent(roomID, userID, callID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
+				eventsToAppend = append(eventsToAppend, newCallEndedEvent(roomID, userID, callID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
 				cleanup.endedKeyRef = snapshot.Call.E2EEKeyRef
 			}
 		}
@@ -468,7 +468,7 @@ func (c *ChattoCore) removeLiveKitParticipantAfterRoomLeave(ctx context.Context,
 	}
 }
 
-func (c *ChattoCore) appendRoomMembershipAuditBatch(ctx context.Context, roomID string, expectedSeq uint64, auditEvent, membershipEvent *corev1.Event) error {
+func (c *ChattoCore) appendRoomMembershipAuditBatch(ctx context.Context, roomID string, expectedSeq uint64, auditEvent, membershipEvent *evtv1.Event) error {
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 
@@ -521,14 +521,14 @@ func (c *ChattoCore) initializeRoomReadMarker(ctx context.Context, kind RoomKind
 // filters the user's projected room IDs through RoomModel's projected room
 // catalog. This is O(N) in the user's room count and uses local projection
 // reads; each user has a bounded number of rooms.
-func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, user_id string) ([]*corev1.RoomMembership, error) {
+func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, user_id string) ([]*evtv1.RoomMembership, error) {
 	rooms, err := c.ListMemberRooms(ctx, kind, user_id, MemberRoomListOptions{})
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*corev1.RoomMembership, 0, len(rooms))
+	out := make([]*evtv1.RoomMembership, 0, len(rooms))
 	for _, room := range rooms {
-		out = append(out, &corev1.RoomMembership{
+		out = append(out, &evtv1.RoomMembership{
 			UserId: user_id,
 			RoomId: room.Id,
 		})
@@ -539,7 +539,7 @@ func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, 
 // GetAllUserRoomMemberships retrieves all of a user's room memberships
 // across every kind. Reads membership through RoomModel
 // (ADR-035 phase 5 cutover).
-func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id string) ([]*corev1.RoomMembership, error) {
+func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id string) ([]*evtv1.RoomMembership, error) {
 	channelRooms, err := c.ListMemberRooms(ctx, KindChannel, user_id, MemberRoomListOptions{})
 	if err != nil {
 		return nil, err
@@ -549,9 +549,9 @@ func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id stri
 		return nil, err
 	}
 	rooms := append(channelRooms, dmRooms...)
-	out := make([]*corev1.RoomMembership, 0, len(rooms))
+	out := make([]*evtv1.RoomMembership, 0, len(rooms))
 	for _, room := range rooms {
-		out = append(out, &corev1.RoomMembership{
+		out = append(out, &evtv1.RoomMembership{
 			UserId: user_id,
 			RoomId: room.Id,
 		})
@@ -655,10 +655,10 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 // kind is preserved on the signature for symmetry with the rest of the
 // room API; the (roomID, userID) pair is globally unique so kind is
 // irrelevant to the lookup.
-func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*corev1.RoomMembership, error) {
+func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*evtv1.RoomMembership, error) {
 	userIDs := c.roomModel.explicitRoomMemberIDs(room_id)
 	seen := make(map[string]struct{}, len(userIDs))
-	out := make([]*corev1.RoomMembership, 0, len(userIDs))
+	out := make([]*evtv1.RoomMembership, 0, len(userIDs))
 	add := func(uid string) {
 		if uid == "" {
 			return
@@ -667,7 +667,7 @@ func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room
 			return
 		}
 		seen[uid] = struct{}{}
-		out = append(out, &corev1.RoomMembership{UserId: uid, RoomId: room_id})
+		out = append(out, &evtv1.RoomMembership{UserId: uid, RoomId: room_id})
 	}
 	for _, uid := range userIDs {
 		add(uid)
@@ -703,7 +703,7 @@ func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room
 	return out, nil
 }
 
-func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, roomID string) ([]*corev1.User, error) {
+func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, roomID string) ([]*evtv1.User, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
@@ -715,18 +715,18 @@ func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, room
 // Existing members and channel-room managers may list their room. Other
 // channel-room nonmembers need both room.list and room.join; DMs retain their
 // membership-only privacy boundary.
-func (c *ChattoCore) ListRoomMemberReferencesForList(ctx context.Context, actorID, roomID string) ([]*corev1.User, error) {
+func (c *ChattoCore) ListRoomMemberReferencesForList(ctx context.Context, actorID, roomID string) ([]*evtv1.User, error) {
 	return c.listRoomMemberReferencesForRead(ctx, actorID, roomID, true)
 }
 
 // ListRoomMemberReferencesForLookup authorizes singular and batch member
 // hydration. Existing members and channel-room managers may hydrate rows; DMs
 // retain their membership-only privacy boundary.
-func (c *ChattoCore) ListRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string) ([]*corev1.User, error) {
+func (c *ChattoCore) ListRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string) ([]*evtv1.User, error) {
 	return c.listRoomMemberReferencesForRead(ctx, actorID, roomID, false)
 }
 
-func (c *ChattoCore) listRoomMemberReferencesForRead(ctx context.Context, actorID, roomID string, allowDiscoverableNonmember bool) ([]*corev1.User, error) {
+func (c *ChattoCore) listRoomMemberReferencesForRead(ctx context.Context, actorID, roomID string, allowDiscoverableNonmember bool) ([]*evtv1.User, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err == nil {
 		return c.roomMemberReferences(ctx, kind, room.GetId())
@@ -767,7 +767,7 @@ func (c *ChattoCore) listRoomMemberReferencesForRead(ctx context.Context, actorI
 	return c.roomMemberReferences(ctx, kind, room.GetId())
 }
 
-func (c *ChattoCore) roomMemberReferences(ctx context.Context, kind RoomKind, roomID string) ([]*corev1.User, error) {
+func (c *ChattoCore) roomMemberReferences(ctx context.Context, kind RoomKind, roomID string) ([]*evtv1.User, error) {
 	memberships, err := c.GetRoomMembersList(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
@@ -777,7 +777,7 @@ func (c *ChattoCore) roomMemberReferences(ctx context.Context, kind RoomKind, ro
 	for i, membership := range memberships {
 		userIDs[i] = membership.GetUserId()
 	}
-	users := make([]*corev1.User, 0, len(memberships))
+	users := make([]*evtv1.User, 0, len(memberships))
 	references, err := c.userModel.userReferences(ctx, userIDs)
 	if err != nil {
 		return nil, err

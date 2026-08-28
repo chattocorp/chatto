@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestGetLinkPreviewPromotesCachedLegacyNATSImage(t *testing.T) {
@@ -32,13 +32,13 @@ func TestGetLinkPreviewPromotesCachedLegacyNATSImage(t *testing.T) {
 		Metadata: map[string]string{"source": "legacy-cache"},
 	}, bytes.NewReader(data))
 	require.NoError(t, err)
-	require.NoError(t, core.linkPreviewCache.Set(ctx, url, &corev1.LinkPreview{
+	require.NoError(t, core.linkPreviewCache.Set(ctx, url, &evtv1.LinkPreview{
 		Url:          url,
 		ImageAssetId: &assetID,
-		ImageAsset: &corev1.AssetRecord{
+		ImageAsset: &evtv1.AssetRecord{
 			Id:          assetID,
 			ContentType: "image/webp",
-			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+			Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: assetID}},
 		},
 	}))
 
@@ -71,9 +71,9 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 		{name: "room metadata", headers: map[string][]string{"Room-Id": {"Rprivatepreview"}}},
 		{name: "upload metadata", headers: map[string][]string{"Upload-Id": {"Uprivatepreview"}}},
 		{name: "durable declaration", declare: func(t *testing.T, core *ChattoCore, assetID string) {
-			event := newEvent(SystemActorID, &corev1.Event{
-				Event: &corev1.Event_AssetCreated{AssetCreated: &corev1.AssetCreatedEvent{
-					Asset: &corev1.AssetRecord{Id: assetID},
+			event := newEvent(SystemActorID, &evtv1.Event{
+				Event: &evtv1.Event_AssetCreated{AssetCreated: &evtv1.AssetCreatedEvent{
+					Asset: &evtv1.AssetRecord{Id: assetID},
 				}},
 			})
 			_, err := core.EventPublisher.AppendEventuallyAndWait(
@@ -82,8 +82,8 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 			require.NoError(t, err)
 		}},
 		{name: "durable tombstone", declare: func(t *testing.T, core *ChattoCore, assetID string) {
-			event := newEvent(SystemActorID, &corev1.Event{
-				Event: &corev1.Event_AssetDeleted{AssetDeleted: &corev1.AssetDeletedEvent{
+			event := newEvent(SystemActorID, &evtv1.Event{
+				Event: &evtv1.Event_AssetDeleted{AssetDeleted: &evtv1.AssetDeletedEvent{
 					AssetId: assetID,
 				}},
 			})
@@ -113,12 +113,12 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 			if test.declare != nil {
 				test.declare(t, core, assetID)
 			}
-			require.NoError(t, core.linkPreviewCache.Set(ctx, url, &corev1.LinkPreview{
+			require.NoError(t, core.linkPreviewCache.Set(ctx, url, &evtv1.LinkPreview{
 				Url:          url,
 				ImageAssetId: &assetID,
-				ImageAsset: &corev1.AssetRecord{
+				ImageAsset: &evtv1.AssetRecord{
 					Id:      assetID,
-					Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+					Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: assetID}},
 				},
 			}))
 
@@ -186,7 +186,7 @@ func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	require.Empty(t, storedInfo.Headers.Get(ServerAssetVisibilityHeader), "new public namespace should not need a visibility marker")
 	require.True(t, core.IsPublicServerAsset(ctx, preview.GetImageAssetId()))
 
-	idOnlyPreview := &corev1.LinkPreview{Url: url, ImageAssetId: preview.ImageAssetId}
+	idOnlyPreview := &evtv1.LinkPreview{Url: url, ImageAssetId: preview.ImageAssetId}
 	require.NoError(t, core.HydrateLinkPreviewImageAsset(ctx, idOnlyPreview))
 	require.NotNil(t, idOnlyPreview.GetImageAsset(), "ID-only preview should be hydrated with ImageAsset")
 	require.Equal(t, preview.GetImageAsset().GetId(), idOnlyPreview.GetImageAsset().GetId())
@@ -199,7 +199,7 @@ func TestLinkPreviewImageStorageAndRetrieval(t *testing.T) {
 	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
 
-	postPreview := &corev1.LinkPreview{
+	postPreview := &evtv1.LinkPreview{
 		Url:          url,
 		Title:        preview.GetTitle(),
 		ImageAssetId: preview.ImageAssetId,

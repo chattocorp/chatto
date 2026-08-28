@@ -10,7 +10,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -119,7 +119,7 @@ func (cm *ConfigModel) publish(ctx context.Context, actorID string, cfg *configv
 		return err
 	}
 
-	return cm.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return cm.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		return serverConfigEvents(actorID, cm.effectiveConfigForUpdate(), cfg), nil
 	})
 }
@@ -167,34 +167,34 @@ func cloneServerConfig(cfg *configv1.ServerConfig) *configv1.ServerConfig {
 	return proto.Clone(cfg).(*configv1.ServerConfig)
 }
 
-func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []*corev1.Event {
+func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []*evtv1.Event {
 	if next == nil {
 		next = &configv1.ServerConfig{}
 	}
-	var evs []*corev1.Event
+	var evs []*evtv1.Event
 	if current.GetServerName() != next.GetServerName() {
-		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerNameChanged{
-			ServerNameChanged: &corev1.ServerNameChangedEvent{Name: next.GetServerName()},
+		evs = append(evs, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerNameChanged{
+			ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: next.GetServerName()},
 		}}))
 	}
 	if current.GetDescription() != next.GetDescription() {
-		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerDescriptionChanged{
-			ServerDescriptionChanged: &corev1.ServerDescriptionChangedEvent{Description: next.GetDescription()},
+		evs = append(evs, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerDescriptionChanged{
+			ServerDescriptionChanged: &evtv1.ServerDescriptionChangedEvent{Description: next.GetDescription()},
 		}}))
 	}
 	if current.GetWelcomeMessage() != next.GetWelcomeMessage() {
-		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerWelcomeMessageChanged{
-			ServerWelcomeMessageChanged: &corev1.ServerWelcomeMessageChangedEvent{WelcomeMessage: next.GetWelcomeMessage()},
+		evs = append(evs, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerWelcomeMessageChanged{
+			ServerWelcomeMessageChanged: &evtv1.ServerWelcomeMessageChangedEvent{WelcomeMessage: next.GetWelcomeMessage()},
 		}}))
 	}
 	if current.GetMotd() != next.GetMotd() {
-		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerMotdChanged{
-			ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: next.GetMotd()},
+		evs = append(evs, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerMotdChanged{
+			ServerMotdChanged: &evtv1.ServerMotdChangedEvent{Motd: next.GetMotd()},
 		}}))
 	}
 	if current.GetBlockedUsernames() != next.GetBlockedUsernames() {
-		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerBlockedUsernamesChanged{
-			ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: next.GetBlockedUsernames()},
+		evs = append(evs, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerBlockedUsernamesChanged{
+			ServerBlockedUsernamesChanged: &evtv1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: next.GetBlockedUsernames()},
 		}}))
 	}
 	return evs

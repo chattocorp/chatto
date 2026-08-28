@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"slices"
 	"testing"
 	"time"
@@ -10,22 +11,22 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
 func TestNotificationDecisionProjectionRetainsExactBoundaryWhenCurrentStateAdvances(t *testing.T) {
 	p := NewNotificationDecisionProjection()
-	created := &corev1.Event{Id: "create", CreatedAt: timestamppb.Now(), Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
-		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
+	created := &evtv1.Event{Id: "create", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
 	}}}
-	loss := &corev1.Event{Id: "loss", CreatedAt: timestamppb.Now(), Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+	loss := &evtv1.Event{Id: "loss", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{
 		RoomId: "R1", Universal: false,
 	}}}
-	regain := &corev1.Event{Id: "regain", CreatedAt: timestamppb.Now(), Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+	regain := &evtv1.Event{Id: "regain", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{
 		RoomId: "R1", Universal: true,
 	}}}
-	for seq, event := range []*corev1.Event{created, loss, regain} {
+	for seq, event := range []*evtv1.Event{created, loss, regain} {
 		if err := p.Apply(event, uint64(seq+1)); err != nil {
 			t.Fatalf("Apply sequence %d: %v", seq+1, err)
 		}
@@ -54,18 +55,18 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 	roomID := "R1"
 	userID := "U1"
 	roomScope := roomID
-	events := []*corev1.Event{
-		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}},
-		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
-		{Id: "silent", Event: &corev1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
-			UserId: userID, RoomId: &roomScope, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
+	events := []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "join", ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "silent", Event: &evtv1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
+			UserId: userID, RoomId: &roomScope, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
 		}}},
-		{Id: "source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
-		{Id: "off", Event: &corev1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
-			UserId: userID, RoomId: &roomScope, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
+		{Id: "source", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}},
+		{Id: "off", Event: &evtv1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
+			UserId: userID, RoomId: &roomScope, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
 		}}},
-		{Id: "later-source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
+		{Id: "later-source", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}},
 	}
 	for i, event := range events {
 		if err := p.Apply(event, uint64(i+1)); err != nil {
@@ -78,14 +79,14 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 		t.Fatalf("Boundary source: %v", err)
 	}
 	directMentionSignal := testNotificationSignal(notificationTestSignalDirectMention, roomID, "source")
-	if got := atSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+	if got := atSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
 		t.Fatalf("source policy = %v, want IN_APP_NOTIFICATION", got)
 	}
 	atLaterSource, err := p.Boundary(7, time.Now())
 	if err != nil {
 		t.Fatalf("Boundary later source: %v", err)
 	}
-	if got := atLaterSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+	if got := atLaterSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		t.Fatalf("later source policy = %v, want OFF", got)
 	}
 }
@@ -98,23 +99,23 @@ func TestNotificationDecisionBoundaryUsesRoomGroupAtSourceSequence(t *testing.T)
 		groupA = "G1"
 		groupB = "G2"
 	)
-	events := []*corev1.Event{
-		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}},
-		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
-		{Id: "group-a", Event: &corev1.Event_RoomGroupCreated{RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: groupA, Name: "A"}}},
-		{Id: "group-b", Event: &corev1.Event_RoomGroupCreated{RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: groupB, Name: "B"}}},
+	events := []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "join", ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "group-a", Event: &evtv1.Event_RoomGroupCreated{RoomGroupCreated: &evtv1.RoomGroupCreatedEvent{GroupId: groupA, Name: "A"}}},
+		{Id: "group-b", Event: &evtv1.Event_RoomGroupCreated{RoomGroupCreated: &evtv1.RoomGroupCreatedEvent{GroupId: groupB, Name: "B"}}},
 		roomAddedToGroupEvent(groupA, roomID),
-		{Id: "group-a-off", Event: &corev1.Event_UserRoomGroupNotificationPolicyChanged{UserRoomGroupNotificationPolicyChanged: &corev1.UserRoomGroupNotificationPolicyChangedEvent{
-			UserId: userID, RoomGroupId: groupA, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
+		{Id: "group-a-off", Event: &evtv1.Event_UserRoomGroupNotificationPolicyChanged{UserRoomGroupNotificationPolicyChanged: &evtv1.UserRoomGroupNotificationPolicyChangedEvent{
+			UserId: userID, RoomGroupId: groupA, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
 		}}},
-		{Id: "group-b-alert", Event: &corev1.Event_UserRoomGroupNotificationPolicyChanged{UserRoomGroupNotificationPolicyChanged: &corev1.UserRoomGroupNotificationPolicyChangedEvent{
-			UserId: userID, RoomGroupId: groupB, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
+		{Id: "group-b-alert", Event: &evtv1.Event_UserRoomGroupNotificationPolicyChanged{UserRoomGroupNotificationPolicyChanged: &evtv1.UserRoomGroupNotificationPolicyChangedEvent{
+			UserId: userID, RoomGroupId: groupB, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
 		}}},
-		{Id: "source-a", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
+		{Id: "source-a", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}},
 		roomRemovedFromGroupEvent(groupA, roomID),
 		roomAddedToGroupEvent(groupB, roomID),
-		{Id: "source-b", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
+		{Id: "source-b", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}},
 	}
 	for index, event := range events {
 		if event.Id == "" {
@@ -129,14 +130,14 @@ func TestNotificationDecisionBoundaryUsesRoomGroupAtSourceSequence(t *testing.T)
 	if err != nil {
 		t.Fatalf("Boundary group A source: %v", err)
 	}
-	if got := atA.effectiveNotificationMode(userID, roomID, signal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+	if got := atA.effectiveNotificationMode(userID, roomID, signal); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		t.Fatalf("group A source mode = %v, want OFF", got)
 	}
 	atB, err := p.Boundary(12, time.Now())
 	if err != nil {
 		t.Fatalf("Boundary group B source: %v", err)
 	}
-	if got := atB.effectiveNotificationMode(userID, roomID, signal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+	if got := atB.effectiveNotificationMode(userID, roomID, signal); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
 		t.Fatalf("group B source mode = %v, want PUSH_NOTIFICATION", got)
 	}
 }
@@ -145,17 +146,17 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	roomID := "R1"
 	recipientID := "U1"
-	source := &corev1.Event{
+	source := &evtv1.Event{
 		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
 			RoomId: roomID, MentionedUserIds: []string{recipientID},
 		}},
 	}
-	events := []*corev1.Event{
-		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: recipientID}}},
-		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
-		{Id: "join", ActorId: recipientID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
+	events := []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: recipientID}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
+		{Id: "join", ActorId: recipientID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
 		source,
 	}
 	for i, event := range events {
@@ -182,24 +183,24 @@ func TestDirectMentionAllowsInteractionScopedSourceVisibility(t *testing.T) {
 		roomID      = "R1"
 		recipientID = "U1"
 	)
-	events := []*corev1.Event{
-		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: recipientID}}},
-		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "interaction-read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, recipientID, PermMessageReadInteractions)}},
-		{Id: "join", ActorId: recipientID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
+	events := []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: recipientID}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "interaction-read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, recipientID, PermMessageReadInteractions)}},
+		{Id: "join", ActorId: recipientID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
 	}
 	for index, event := range events {
 		if err := p.Apply(event, uint64(index+1)); err != nil {
 			t.Fatalf("Apply sequence %d: %v", index+1, err)
 		}
 	}
-	source := &corev1.Event{
+	source := &evtv1.Event{
 		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
 			RoomId: roomID,
-			Mentions: []*corev1.MessageMention{{
+			Mentions: []*evtv1.MessageMention{{
 				UserId: recipientID,
-				Cause:  &corev1.MessageMention_Direct{Direct: &corev1.DirectUserMention{}},
+				Cause:  &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}},
 			}},
 		}},
 	}
@@ -227,7 +228,7 @@ func TestRootChannelMessageFansOutToExactSourceTimeMembers(t *testing.T) {
 		recipients = 250
 	)
 	sequence := uint64(1)
-	apply := func(event *corev1.Event) {
+	apply := func(event *evtv1.Event) {
 		t.Helper()
 		if event.GetId() == "" {
 			event.Id = fmt.Sprintf("event-%d", sequence)
@@ -237,17 +238,17 @@ func TestRootChannelMessageFansOutToExactSourceTimeMembers(t *testing.T) {
 		}
 		sequence++
 	}
-	apply(&corev1.Event{Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}})
-	apply(&corev1.Event{Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}})
+	apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}})
+	apply(&evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}})
 	for index := 0; index <= recipients; index++ {
 		userID := authorID
 		if index > 0 {
 			userID = fmt.Sprintf("recipient-%03d", index)
 		}
-		apply(&corev1.Event{Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}})
-		apply(&corev1.Event{ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}})
+		apply(&evtv1.Event{Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}})
+		apply(&evtv1.Event{ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}})
 	}
-	source := &corev1.Event{Id: "source", ActorId: authorID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}}
+	source := &evtv1.Event{Id: "source", ActorId: authorID, CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}}
 	apply(source)
 
 	snapshot, err := p.Boundary(sequence-1, source.GetCreatedAt().AsTime())
@@ -263,7 +264,7 @@ func TestRootChannelMessageFansOutToExactSourceTimeMembers(t *testing.T) {
 	}
 	seen := make(map[string]struct{}, recipients)
 	for _, decision := range decisions {
-		if decision.recipientID == authorID || notificationSignalIdentity(decision.signal) != string(notificationTestSignalRoomMessage) || decision.mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+		if decision.recipientID == authorID || notificationSignalIdentity(decision.signal) != string(notificationTestSignalRoomMessage) || decision.mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 			t.Fatalf("unexpected decision = %+v", decision)
 		}
 		seen[decision.recipientID] = struct{}{}
@@ -275,18 +276,18 @@ func TestRootChannelMessageFansOutToExactSourceTimeMembers(t *testing.T) {
 
 func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 	p := NewNotificationDecisionProjection()
-	events := []*corev1.Event{
-		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "recipient"}}},
-		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
-		{Id: "join", ActorId: "recipient", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}},
+	events := []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: "recipient"}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
+		{Id: "join", ActorId: "recipient", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}},
 	}
 	for index, event := range events {
 		if err := p.Apply(event, uint64(index+1)); err != nil {
 			t.Fatalf("Apply sequence %d: %v", index+1, err)
 		}
 	}
-	source := &corev1.Event{Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "root"}}}
+	source := &evtv1.Event{Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", InThread: "root"}}}
 	if err := p.Apply(source, 5); err != nil {
 		t.Fatalf("Apply reply: %v", err)
 	}
@@ -307,14 +308,14 @@ func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 }
 
 func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
-	source := &corev1.Event{Id: "source", ActorId: "actor", CreatedAt: timestamppb.Now()}
-	message := &corev1.NotificationMessageReference{RoomId: "room", EventId: "source"}
+	source := &evtv1.Event{Id: "source", ActorId: "actor", CreatedAt: timestamppb.Now()}
+	message := &notificationv1.NotificationMessageReference{RoomId: "room", EventId: "source"}
 	inputs := newNotificationOccurrenceInputs(source, []notificationRecipientDecision{{
 		recipientID: "recipient",
-		signal: &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &corev1.RoleMentionReceived{
+		signal: &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &notificationv1.RoleMentionReceived{
 			Message: message, RoleNames: []string{"moderator", "staff"},
 		}}},
-		mode: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		mode: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 	}})
 	if len(inputs) != 1 {
 		t.Fatalf("inputs = %d, want 1", len(inputs))
@@ -330,14 +331,14 @@ func TestNotificationDecisionBoundaryRetainsEventTimeThreadFollowers(t *testing.
 	roomID := "R1"
 	threadRootID := "ROOT"
 	userID := "U1"
-	events := []*corev1.Event{
-		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}},
-		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
-		{Id: "follow", Event: &corev1.Event_ThreadFollowed{ThreadFollowed: &corev1.ThreadFollowedEvent{UserId: userID, RoomId: roomID, ThreadRootEventId: threadRootID}}},
-		{Id: "reply", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID, InThread: threadRootID}}},
-		{Id: "unfollow", Event: &corev1.Event_ThreadUnfollowed{ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{UserId: userID, RoomId: roomID, ThreadRootEventId: threadRootID}}},
-		{Id: "later-reply", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID, InThread: threadRootID}}},
+	events := []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "join", ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "follow", Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{UserId: userID, RoomId: roomID, ThreadRootEventId: threadRootID}}},
+		{Id: "reply", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID, InThread: threadRootID}}},
+		{Id: "unfollow", Event: &evtv1.Event_ThreadUnfollowed{ThreadUnfollowed: &evtv1.ThreadUnfollowedEvent{UserId: userID, RoomId: roomID, ThreadRootEventId: threadRootID}}},
+		{Id: "later-reply", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID, InThread: threadRootID}}},
 	}
 	for i, event := range events {
 		if err := p.Apply(event, uint64(i+1)); err != nil {
@@ -368,15 +369,15 @@ func TestNotificationDecisionProjectionRetainsOnlyIncrementalEventsOverLargeStat
 	// Applying that history builds both the current and lagging projections
 	// without retaining a serialized server-wide checkpoint.
 	p.SetAcknowledgedThrough(members + 1)
-	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
-		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
+	created := &evtv1.Event{Id: "create", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
 	}}}
 	if err := p.Apply(created, 1); err != nil {
 		t.Fatalf("Apply room create: %v", err)
 	}
 	for i := 0; i < members; i++ {
 		userID := fmt.Sprintf("U%04d", i)
-		joined := &corev1.Event{Id: "join-" + userID, ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}
+		joined := &evtv1.Event{Id: "join-" + userID, ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}}
 		if err := p.Apply(joined, uint64(i+2)); err != nil {
 			t.Fatalf("Apply join %d: %v", i, err)
 		}
@@ -385,7 +386,7 @@ func TestNotificationDecisionProjectionRetainsOnlyIncrementalEventsOverLargeStat
 	const pendingBoundaries = 500
 	firstBoundary := uint64(members + 2)
 	for i := 0; i < pendingBoundaries; i++ {
-		event := &corev1.Event{Id: fmt.Sprintf("universal-%d", i), Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+		event := &evtv1.Event{Id: fmt.Sprintf("universal-%d", i), Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{
 			RoomId: "R1", Universal: i%2 == 1,
 		}}}
 		if err := p.Apply(event, firstBoundary+uint64(i)); err != nil {
@@ -423,16 +424,16 @@ func TestNotificationDecisionProjectionBoundaryWorkDoesNotGrowWithMembershipHist
 	p := NewNotificationDecisionProjection()
 	const historyEvents = 10_000
 	p.SetAcknowledgedThrough(historyEvents + 1)
-	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
-		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
+	created := &evtv1.Event{Id: "create", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
 	}}}
 	if err := p.Apply(created, 1); err != nil {
 		t.Fatalf("Apply room create: %v", err)
 	}
 	for i := 0; i < historyEvents/2; i++ {
 		userID := fmt.Sprintf("U%d", i)
-		joined := &corev1.Event{Id: fmt.Sprintf("join-%d", i), ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}
-		left := &corev1.Event{Id: fmt.Sprintf("left-%d", i), ActorId: userID, Event: &corev1.Event_UserLeftRoom{UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: "R1"}}}
+		joined := &evtv1.Event{Id: fmt.Sprintf("join-%d", i), ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}}
+		left := &evtv1.Event{Id: fmt.Sprintf("left-%d", i), ActorId: userID, Event: &evtv1.Event_UserLeftRoom{UserLeftRoom: &evtv1.UserLeftRoomEvent{RoomId: "R1"}}}
 		if err := p.Apply(joined, uint64(2+i*2)); err != nil {
 			t.Fatalf("Apply join %d: %v", i, err)
 		}
@@ -441,7 +442,7 @@ func TestNotificationDecisionProjectionBoundaryWorkDoesNotGrowWithMembershipHist
 		}
 	}
 	lossSequence := uint64(historyEvents + 2)
-	loss := &corev1.Event{Id: "loss", Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{RoomId: "R1", Universal: false}}}
+	loss := &evtv1.Event{Id: "loss", Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: "R1", Universal: false}}}
 	if err := p.Apply(loss, lossSequence); err != nil {
 		t.Fatalf("Apply loss after membership history: %v", err)
 	}
@@ -461,14 +462,14 @@ func BenchmarkNotificationDecisionBoundaryIncrementalAfterLargeState(b *testing.
 	p := NewNotificationDecisionProjection()
 	const members = 10_000
 	p.SetAcknowledgedThrough(members + 1)
-	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
-		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	if err := p.Apply(&evtv1.Event{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
 	}}}, 1); err != nil {
 		b.Fatal(err)
 	}
 	for i := 0; i < members; i++ {
 		userID := fmt.Sprintf("U%d", i)
-		if err := p.Apply(&corev1.Event{Id: "join-" + userID, ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}, uint64(i+2)); err != nil {
+		if err := p.Apply(&evtv1.Event{Id: "join-" + userID, ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}}, uint64(i+2)); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -477,7 +478,7 @@ func BenchmarkNotificationDecisionBoundaryIncrementalAfterLargeState(b *testing.
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sequence := uint64(members + 2 + i)
-		event := &corev1.Event{Id: fmt.Sprintf("message-%d", i), ActorId: "author", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}}}
+		event := &evtv1.Event{Id: fmt.Sprintf("message-%d", i), ActorId: "author", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
 		if err := p.Apply(event, sequence); err != nil {
 			b.Fatal(err)
 		}
@@ -515,8 +516,8 @@ func TestNotificationDecisionSnapshotRestoreIsCappedAtWorkerFloor(t *testing.T) 
 func TestNotificationDecisionSnapshotPublicationPreservesSafeGenerationWhilePending(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
-	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
-		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
+	created := &evtv1.Event{Id: "create", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
 	}}}
 	if err := p.Apply(created, 1); err != nil {
 		t.Fatalf("Apply room create: %v", err)
@@ -524,7 +525,7 @@ func TestNotificationDecisionSnapshotPublicationPreservesSafeGenerationWhilePend
 	if !p.AllowSnapshotPublication(1) {
 		t.Fatal("snapshot before pending boundary was rejected")
 	}
-	loss := &corev1.Event{Id: "loss", Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+	loss := &evtv1.Event{Id: "loss", Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{
 		RoomId: "R1", Universal: false,
 	}}}
 	if err := p.Apply(loss, 2); err != nil {
@@ -547,8 +548,8 @@ func TestNotificationDecisionSnapshotPublicationPreservesSafeGenerationWhilePend
 func TestNotificationDecisionSnapshotPublicationUsesFullWorkerFloor(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
-	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
-		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	created := &evtv1.Event{Id: "create", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
 	}}}
 	if err := p.Apply(created, 1); err != nil {
 		t.Fatalf("Apply room create: %v", err)
@@ -556,7 +557,7 @@ func TestNotificationDecisionSnapshotPublicationUsesFullWorkerFloor(t *testing.T
 	// UserJoinedRoom changes visibility state but is not an implicit-loss
 	// boundary. A different non-boundary worker delivery can hold AckFloor at
 	// the same point, so publication must still use the full shared floor.
-	joined := &corev1.Event{Id: "join", ActorId: "U1", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}
+	joined := &evtv1.Event{Id: "join", ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}}
 	if err := p.Apply(joined, 2); err != nil {
 		t.Fatalf("Apply membership delta: %v", err)
 	}
@@ -574,12 +575,12 @@ func TestNotificationDecisionSnapshotPublicationUsesFullWorkerFloor(t *testing.T
 func TestNotificationDecisionEvaluatorAdvancesAndReleasesStateOnlyDeltas(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
-	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
-		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	if err := p.Apply(&evtv1.Event{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
 	}}}, 1); err != nil {
 		t.Fatalf("Apply room: %v", err)
 	}
-	if err := p.Apply(&corev1.Event{Id: "join", ActorId: "U1", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+	if err := p.Apply(&evtv1.Event{Id: "join", ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{
 		RoomId: "R1",
 	}}}, 2); err != nil {
 		t.Fatalf("Apply join: %v", err)
@@ -603,12 +604,12 @@ func TestNotificationDecisionEvaluatorAdvancesAndReleasesStateOnlyDeltas(t *test
 func TestNotificationDecisionEvaluatorPreservesOrderWhenIdleFloorAdvancesAheadOfProjector(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
-	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
-		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	if err := p.Apply(&evtv1.Event{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
+		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
 	}}}, 1); err != nil {
 		t.Fatalf("Apply room: %v", err)
 	}
-	if err := p.Apply(&corev1.Event{Id: "join", ActorId: "U1", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+	if err := p.Apply(&evtv1.Event{Id: "join", ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{
 		RoomId: "R1",
 	}}}, 2); err != nil {
 		t.Fatalf("Apply pending join: %v", err)
@@ -617,7 +618,7 @@ func TestNotificationDecisionEvaluatorPreservesOrderWhenIdleFloorAdvancesAheadOf
 	// Model ReleaseThrough observing an idle filtered consumer at EVT 3 before
 	// this projection applies the state-only fact at that sequence.
 	p.acknowledgedThrough.Store(3)
-	if err := p.Apply(&corev1.Event{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{
+	if err := p.Apply(&evtv1.Event{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{
 		UserId: "U1",
 	}}}, 3); err != nil {
 		t.Fatalf("Apply acknowledged user: %v", err)

@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -16,7 +16,7 @@ import (
 // explicit permission decisions from durable evt.rbac.> events.
 type RBACProjection struct {
 	events.MemoryProjection
-	roles       map[string]*corev1.Role
+	roles       map[string]*evtv1.Role
 	assignments map[string]map[string]struct{} // userID -> roleName set
 	decisions   map[rbacDecisionKey]DecisionKind
 	replayGuard projectionReplayGuard
@@ -25,7 +25,7 @@ type RBACProjection struct {
 type rbacDecisionKey struct {
 	scope       PermissionScope
 	scopeID     string
-	subjectKind corev1.RbacPermissionSubjectKind
+	subjectKind evtv1.RbacPermissionSubjectKind
 	subject     string
 	permission  Permission
 }
@@ -42,7 +42,7 @@ type ScopedRolePermissionDecision struct {
 
 func NewRBACProjection() *RBACProjection {
 	return &RBACProjection{
-		roles:       make(map[string]*corev1.Role),
+		roles:       make(map[string]*evtv1.Role),
 		assignments: make(map[string]map[string]struct{}),
 		decisions:   make(map[rbacDecisionKey]DecisionKind),
 		replayGuard: newProjectionReplayGuard(),
@@ -53,7 +53,7 @@ func (p *RBACProjection) Subjects() []string {
 	return []string{evtstream.RBACSubjectFilter()}
 }
 
-func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *RBACProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -64,23 +64,23 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_RbacRoleCreated:
+	case *evtv1.Event_RbacRoleCreated:
 		p.applyRoleUpsert(rbacRoleFromCreated(e.RbacRoleCreated))
-	case *corev1.Event_RbacRoleDisplayNameChanged:
+	case *evtv1.Event_RbacRoleDisplayNameChanged:
 		p.applyRoleDisplayNameChanged(e.RbacRoleDisplayNameChanged.GetRoleName(), e.RbacRoleDisplayNameChanged.GetDisplayName())
-	case *corev1.Event_RbacRoleDescriptionChanged:
+	case *evtv1.Event_RbacRoleDescriptionChanged:
 		p.applyRoleDescriptionChanged(e.RbacRoleDescriptionChanged.GetRoleName(), e.RbacRoleDescriptionChanged.GetDescription())
-	case *corev1.Event_RbacRolePingableChanged:
+	case *evtv1.Event_RbacRolePingableChanged:
 		p.applyRolePingableChanged(e.RbacRolePingableChanged.GetRoleName(), e.RbacRolePingableChanged.GetPingable())
-	case *corev1.Event_RbacRoleDeleted:
+	case *evtv1.Event_RbacRoleDeleted:
 		p.applyRoleDeleted(e.RbacRoleDeleted.GetRoleName())
-	case *corev1.Event_RbacRolesReordered:
+	case *evtv1.Event_RbacRolesReordered:
 		p.applyRolesReordered(e.RbacRolesReordered.GetRoleNames())
-	case *corev1.Event_RbacRoleAssigned:
+	case *evtv1.Event_RbacRoleAssigned:
 		p.applyRoleAssigned(e.RbacRoleAssigned.GetUserId(), e.RbacRoleAssigned.GetRoleName())
-	case *corev1.Event_RbacRoleRevoked:
+	case *evtv1.Event_RbacRoleRevoked:
 		p.applyRoleRevoked(e.RbacRoleRevoked.GetUserId(), e.RbacRoleRevoked.GetRoleName())
-	case *corev1.Event_RbacPermissionGranted:
+	case *evtv1.Event_RbacPermissionGranted:
 		p.applyPermissionDecision(
 			e.RbacPermissionGranted.GetScope(),
 			e.RbacPermissionGranted.GetSubject(),
@@ -88,7 +88,7 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 			DecisionAllow,
 			e.RbacPermissionGranted,
 		)
-	case *corev1.Event_RbacPermissionDenied:
+	case *evtv1.Event_RbacPermissionDenied:
 		p.applyPermissionDecision(
 			e.RbacPermissionDenied.GetScope(),
 			e.RbacPermissionDenied.GetSubject(),
@@ -96,7 +96,7 @@ func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {
 			DecisionDeny,
 			e.RbacPermissionDenied,
 		)
-	case *corev1.Event_RbacPermissionCleared:
+	case *evtv1.Event_RbacPermissionCleared:
 		p.applyPermissionCleared(
 			e.RbacPermissionCleared.GetScope(),
 			e.RbacPermissionCleared.GetSubject(),
@@ -113,11 +113,11 @@ func (p *RBACProjection) CompleteStartupReplay() {
 	p.replayGuard.completeReplay()
 }
 
-func rbacRoleFromCreated(event *corev1.RbacRoleCreatedEvent) *corev1.Role {
+func rbacRoleFromCreated(event *evtv1.RbacRoleCreatedEvent) *evtv1.Role {
 	if event == nil {
 		return nil
 	}
-	return &corev1.Role{
+	return &evtv1.Role{
 		Name:        event.GetRoleName(),
 		DisplayName: event.GetDisplayName(),
 		Description: event.GetDescription(),
@@ -126,11 +126,11 @@ func rbacRoleFromCreated(event *corev1.RbacRoleCreatedEvent) *corev1.Role {
 	}
 }
 
-func (p *RBACProjection) applyRoleUpsert(role *corev1.Role) {
+func (p *RBACProjection) applyRoleUpsert(role *evtv1.Role) {
 	if role == nil || role.GetName() == "" {
 		return
 	}
-	p.roles[role.GetName()] = proto.Clone(role).(*corev1.Role)
+	p.roles[role.GetName()] = proto.Clone(role).(*evtv1.Role)
 }
 
 func (p *RBACProjection) applyRoleDisplayNameChanged(roleName, displayName string) {
@@ -141,7 +141,7 @@ func (p *RBACProjection) applyRoleDisplayNameChanged(roleName, displayName strin
 	if role == nil {
 		return
 	}
-	updated := proto.Clone(role).(*corev1.Role)
+	updated := proto.Clone(role).(*evtv1.Role)
 	updated.DisplayName = displayName
 	p.roles[roleName] = updated
 }
@@ -154,7 +154,7 @@ func (p *RBACProjection) applyRoleDescriptionChanged(roleName, description strin
 	if role == nil {
 		return
 	}
-	updated := proto.Clone(role).(*corev1.Role)
+	updated := proto.Clone(role).(*evtv1.Role)
 	updated.Description = description
 	p.roles[roleName] = updated
 }
@@ -167,7 +167,7 @@ func (p *RBACProjection) applyRolePingableChanged(roleName string, pingable bool
 	if role == nil {
 		return
 	}
-	updated := proto.Clone(role).(*corev1.Role)
+	updated := proto.Clone(role).(*evtv1.Role)
 	updated.Pingable = pingable
 	p.roles[roleName] = updated
 }
@@ -182,7 +182,7 @@ func (p *RBACProjection) applyRolesReordered(roleNames []string) {
 		for isSystemPosition(position) {
 			position++
 		}
-		updated := proto.Clone(role).(*corev1.Role)
+		updated := proto.Clone(role).(*evtv1.Role)
 		updated.Position = position
 		p.roles[roleName] = updated
 		position++
@@ -201,7 +201,7 @@ func (p *RBACProjection) applyRoleDeleted(roleName string) {
 		}
 	}
 	for key := range p.decisions {
-		if key.subjectKind == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && key.subject == roleName {
+		if key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && key.subject == roleName {
 			delete(p.decisions, key)
 		}
 	}
@@ -227,7 +227,7 @@ func (p *RBACProjection) applyRoleRevoked(userID, roleName string) {
 	}
 }
 
-func (p *RBACProjection) applyPermissionDecision(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string, decision DecisionKind, legacy proto.Message) {
+func (p *RBACProjection) applyPermissionDecision(scope *evtv1.RbacPermissionScope, subject *evtv1.RbacPermissionSubject, permission string, decision DecisionKind, legacy proto.Message) {
 	key, ok := rbacDecisionKeyFromFields(scope, subject, permission)
 	if !ok {
 		key, ok = legacyRBACDecisionKeyFromUnknown(legacy, permission)
@@ -238,7 +238,7 @@ func (p *RBACProjection) applyPermissionDecision(scope *corev1.RbacPermissionSco
 	p.decisions[key] = decision
 }
 
-func (p *RBACProjection) applyPermissionCleared(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string, legacy proto.Message) {
+func (p *RBACProjection) applyPermissionCleared(scope *evtv1.RbacPermissionScope, subject *evtv1.RbacPermissionSubject, permission string, legacy proto.Message) {
 	key, ok := rbacDecisionKeyFromFields(scope, subject, permission)
 	if !ok {
 		key, ok = legacyRBACDecisionKeyFromUnknown(legacy, permission)
@@ -249,11 +249,11 @@ func (p *RBACProjection) applyPermissionCleared(scope *corev1.RbacPermissionScop
 	delete(p.decisions, key)
 }
 
-func rbacDecisionKeyFromFields(scope *corev1.RbacPermissionScope, subject *corev1.RbacPermissionSubject, permission string) (rbacDecisionKey, bool) {
+func rbacDecisionKeyFromFields(scope *evtv1.RbacPermissionScope, subject *evtv1.RbacPermissionSubject, permission string) (rbacDecisionKey, bool) {
 	if scope == nil || subject == nil || subject.GetId() == "" || permission == "" {
 		return rbacDecisionKey{}, false
 	}
-	if subject.GetKind() == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED {
+	if subject.GetKind() == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED {
 		return rbacDecisionKey{}, false
 	}
 	permScope, ok := permissionScopeFromProto(scope)
@@ -346,16 +346,16 @@ func rbacScopeFromLegacyLocation(location string) (PermissionScope, bool) {
 	}
 }
 
-func permissionScopeFromProto(scope *corev1.RbacPermissionScope) (PermissionScope, bool) {
+func permissionScopeFromProto(scope *evtv1.RbacPermissionScope) (PermissionScope, bool) {
 	if scope == nil {
 		return "", false
 	}
 	switch scope.GetKind() {
-	case corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER:
+	case evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER:
 		return ScopeServer, true
-	case corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP:
+	case evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP:
 		return ScopeGroup, scope.GetId() != ""
-	case corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM:
+	case evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM:
 		return ScopeRoom, scope.GetId() != ""
 	default:
 		return "", false
@@ -375,14 +375,14 @@ func rbacDecisionKeyFor(scope PermissionScope, scopeID, subject string, perm Per
 	}
 }
 
-func (p *RBACProjection) GetRole(name string) (*corev1.Role, bool) {
+func (p *RBACProjection) GetRole(name string) (*evtv1.Role, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	role := p.roles[name]
 	if role == nil {
 		return nil, false
 	}
-	return proto.Clone(role).(*corev1.Role), true
+	return proto.Clone(role).(*evtv1.Role), true
 }
 
 func (p *RBACProjection) RoleExists(name string) bool {
@@ -391,12 +391,12 @@ func (p *RBACProjection) RoleExists(name string) bool {
 	return p.roles[name] != nil
 }
 
-func (p *RBACProjection) ListRoles() []*corev1.Role {
+func (p *RBACProjection) ListRoles() []*evtv1.Role {
 	p.RLock()
 	defer p.RUnlock()
-	roles := make([]*corev1.Role, 0, len(p.roles))
+	roles := make([]*evtv1.Role, 0, len(p.roles))
 	for _, role := range p.roles {
-		roles = append(roles, proto.Clone(role).(*corev1.Role))
+		roles = append(roles, proto.Clone(role).(*evtv1.Role))
 	}
 	sort.SliceStable(roles, func(i, j int) bool {
 		if roles[i].GetPosition() != roles[j].GetPosition() {
@@ -443,7 +443,7 @@ func (p *RBACProjection) RolePermissionDecisions(roleName string) []ScopedRolePe
 	defer p.RUnlock()
 	decisions := make([]ScopedRolePermissionDecision, 0)
 	for key, decision := range p.decisions {
-		if key.subjectKind != corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE || key.subject != roleName {
+		if key.subjectKind != evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE || key.subject != roleName {
 			continue
 		}
 		decisions = append(decisions, ScopedRolePermissionDecision{

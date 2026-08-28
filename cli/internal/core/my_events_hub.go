@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,7 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -363,7 +364,7 @@ func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 
 func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 	h.decoded.Add(1)
-	var event corev1.LiveEvent
+	var event livev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		h.model.core.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
 		return false
@@ -428,7 +429,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.model.core.logger.Warn("Live EVT room visibility refresh failed", "subject", msg.Subject, "sequence", seq, "error", err)
 			return true
 		}
-		var event corev1.Event
+		var event evtv1.Event
 		if err := proto.Unmarshal(msg.Data, &event); err != nil {
 			h.model.core.logger.Warn("Failed to unmarshal live RBAC event", "subject", msg.Subject, "error", err)
 			return true
@@ -444,7 +445,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 
 	h.decoded.Add(1)
-	var event corev1.Event
+	var event evtv1.Event
 	if err := proto.Unmarshal(msg.Data, &event); err != nil {
 		h.model.core.logger.Warn("Failed to unmarshal live event", "subject", msg.Subject, "error", err)
 		return true
@@ -514,7 +515,7 @@ type roomProjectionFanoutCandidate struct {
 	err        error
 }
 
-func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, event *corev1.Event, seq uint64, bytes int64) {
+func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, event *evtv1.Event, seq uint64, bytes int64) {
 	h.mu.Lock()
 	if eventChangesRoomVisibility(event) {
 		h.visibilityVersion++
@@ -590,7 +591,7 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 	}
 }
 
-func (h *MyEventsHub) canSeeProjectionRoom(ctx context.Context, userID, roomID string, event *corev1.Event) (bool, error) {
+func (h *MyEventsHub) canSeeProjectionRoom(ctx context.Context, userID, roomID string, event *evtv1.Event) (bool, error) {
 	if event.GetRoomDeleted() != nil || event.GetRoomArchived() != nil {
 		return false, nil
 	}
@@ -608,7 +609,7 @@ func (h *MyEventsHub) canSeeProjectionRoom(ctx context.Context, userID, roomID s
 	return h.model.core.CanSeeRoom(ctx, userID, kind, roomID)
 }
 
-func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *corev1.Event, seq uint64, bytes int64) {
+func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *evtv1.Event, seq uint64, bytes int64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for userID, state := range h.users {
@@ -837,64 +838,64 @@ func liveEventType(subject string) string {
 	return ""
 }
 
-func eventChangesRoomVisibility(event *corev1.Event) bool {
+func eventChangesRoomVisibility(event *evtv1.Event) bool {
 	if event == nil {
 		return false
 	}
 	switch event.Event.(type) {
-	case *corev1.Event_RoomCreated,
-		*corev1.Event_RoomDeleted,
-		*corev1.Event_RoomArchived,
-		*corev1.Event_RoomUnarchived,
-		*corev1.Event_RoomUniversalChanged,
-		*corev1.Event_UserJoinedRoom,
-		*corev1.Event_UserLeftRoom,
-		*corev1.Event_RoomMemberAdded,
-		*corev1.Event_RoomMemberRemoved,
-		*corev1.Event_RoomMemberBanned:
+	case *evtv1.Event_RoomCreated,
+		*evtv1.Event_RoomDeleted,
+		*evtv1.Event_RoomArchived,
+		*evtv1.Event_RoomUnarchived,
+		*evtv1.Event_RoomUniversalChanged,
+		*evtv1.Event_UserJoinedRoom,
+		*evtv1.Event_UserLeftRoom,
+		*evtv1.Event_RoomMemberAdded,
+		*evtv1.Event_RoomMemberRemoved,
+		*evtv1.Event_RoomMemberBanned:
 		return true
 	default:
 		return false
 	}
 }
 
-func eventChangesUserRoomVisibility(event *corev1.Event, userID string) bool {
+func eventChangesUserRoomVisibility(event *evtv1.Event, userID string) bool {
 	if event == nil {
 		return false
 	}
 	switch payload := event.Event.(type) {
-	case *corev1.Event_RoomCreated,
-		*corev1.Event_RoomDeleted,
-		*corev1.Event_RoomArchived,
-		*corev1.Event_RoomUnarchived,
-		*corev1.Event_RoomUniversalChanged:
+	case *evtv1.Event_RoomCreated,
+		*evtv1.Event_RoomDeleted,
+		*evtv1.Event_RoomArchived,
+		*evtv1.Event_RoomUnarchived,
+		*evtv1.Event_RoomUniversalChanged:
 		return true
-	case *corev1.Event_UserJoinedRoom, *corev1.Event_UserLeftRoom:
+	case *evtv1.Event_UserJoinedRoom, *evtv1.Event_UserLeftRoom:
 		return event.GetActorId() == userID
-	case *corev1.Event_RoomMemberAdded:
+	case *evtv1.Event_RoomMemberAdded:
 		return payload.RoomMemberAdded.GetUserId() == userID
-	case *corev1.Event_RoomMemberRemoved:
+	case *evtv1.Event_RoomMemberRemoved:
 		return payload.RoomMemberRemoved.GetUserId() == userID
-	case *corev1.Event_RoomMemberBanned:
+	case *evtv1.Event_RoomMemberBanned:
 		return payload.RoomMemberBanned.GetUserId() == userID
 	default:
 		return false
 	}
 }
 
-func isRoomDirectoryProjectionEvent(event *corev1.Event) bool {
+func isRoomDirectoryProjectionEvent(event *evtv1.Event) bool {
 	if event == nil {
 		return false
 	}
 	switch event.Event.(type) {
-	case *corev1.Event_RoomCreated,
-		*corev1.Event_RoomUpdated,
-		*corev1.Event_RoomDeleted,
-		*corev1.Event_RoomArchived,
-		*corev1.Event_RoomUnarchived,
-		*corev1.Event_RoomUniversalChanged,
-		*corev1.Event_RoomSlowModeChanged,
-		*corev1.Event_RoomThreadingModeChanged:
+	case *evtv1.Event_RoomCreated,
+		*evtv1.Event_RoomUpdated,
+		*evtv1.Event_RoomDeleted,
+		*evtv1.Event_RoomArchived,
+		*evtv1.Event_RoomUnarchived,
+		*evtv1.Event_RoomUniversalChanged,
+		*evtv1.Event_RoomSlowModeChanged,
+		*evtv1.Event_RoomThreadingModeChanged:
 		return true
 	default:
 		return false

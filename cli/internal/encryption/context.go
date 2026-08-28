@@ -3,7 +3,7 @@ package encryption
 import (
 	"fmt"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // MessageBodyAAD returns the authenticated context for a persisted v2 message
@@ -18,8 +18,8 @@ func MessageBodyAAD(eventID, bodyEventID, roomID, authorID string, epoch int32) 
 // UserDEKAAD returns the authenticated context used to wrap a persisted user
 // data-encryption key, including compatibility with legacy unspecified-purpose
 // content keys.
-func UserDEKAAD(userID string, purpose corev1.UserDEKPurpose, epoch int32) []byte {
-	if purpose == corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED {
+func UserDEKAAD(userID string, purpose evtv1.UserDEKPurpose, epoch int32) []byte {
+	if purpose == evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED {
 		return []byte(fmt.Sprintf("chatto:content-key-context:v2\x00user_id=%s\x00epoch=%d", userID, epoch))
 	}
 	return []byte(fmt.Sprintf("chatto:user-dek-context:v1\x00user_id=%s\x00purpose=%d\x00epoch=%d", userID, purpose, epoch))

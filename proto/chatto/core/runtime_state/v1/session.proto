@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+import "chatto/core/evt/v1/models.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// CookieSession describes a validated embedded-SPA cookie credential. The
+// authoritative stored value is a typed runtime credential; its opaque handle
+// is not exposed in this normalized view.
+message CookieSession {
+  string user_id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string source = 4;
+  chatto.core.evt.v1.AuditRequestMetadata request = 5;
+  uint64 auth_generation = 6;
+  google.protobuf.Timestamp fresh_auth_at = 7;
+  string fresh_auth_method = 8;
+  string fresh_auth_source = 9;
+}

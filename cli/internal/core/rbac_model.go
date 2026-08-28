@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -20,7 +20,7 @@ func (m *RBACModel) waitFor(ctx context.Context, pos events.StreamPosition) erro
 	return waitForPositionAll(ctx, pos, waitForProjection("RBAC", m.rbac.Projector()))
 }
 
-func (m *RBACModel) role(name string) (*corev1.Role, bool) {
+func (m *RBACModel) role(name string) (*evtv1.Role, bool) {
 	return m.rbac.Projection().GetRole(name)
 }
 
@@ -28,7 +28,7 @@ func (m *RBACModel) roleExists(name string) bool {
 	return m.rbac.Projection().RoleExists(name)
 }
 
-func (m *RBACModel) roles() []*corev1.Role {
+func (m *RBACModel) roles() []*evtv1.Role {
 	return m.rbac.Projection().ListRoles()
 }
 

@@ -11,7 +11,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestRealtimeCursorRoundTrip(t *testing.T) {
@@ -273,7 +273,7 @@ func TestPlanRealtimeReplayReplaysAuthorizedAssetLifecycleGap(t *testing.T) {
 	if err := chatto.RecordAssetProcessingStarted(ctx, SystemActorID, room.Id, message.Id, attachment.Id); err != nil {
 		t.Fatalf("RecordAssetProcessingStarted: %v", err)
 	}
-	if err := chatto.RecordAssetProcessingFailed(ctx, SystemActorID, room.Id, message.Id, attachment.Id, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+	if err := chatto.RecordAssetProcessingFailed(ctx, SystemActorID, room.Id, message.Id, attachment.Id, evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		t.Fatalf("RecordAssetProcessingFailed: %v", err)
 	}
 	if err := chatto.RecordAssetDeleted(ctx, SystemActorID, room.Id, attachment.Id); err != nil {
@@ -327,8 +327,8 @@ func TestPlanRealtimeReplayReplaysLegacyRoomScopedAssetLifecycleGap(t *testing.T
 	if err != nil {
 		t.Fatalf("initial PlanRealtimeReplay: %v", err)
 	}
-	legacy := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_AssetProcessingStarted{
-		AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: attachment.Id, MessageEventId: message.Id},
+	legacy := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_AssetProcessingStarted{
+		AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{AssetId: attachment.Id, MessageEventId: message.Id},
 	}})
 	legacySubject := evtstream.RoomAggregate(room.Id).SubjectFor(legacy)
 	if _, err := chatto.EventPublisher.AppendEventually(ctx, legacySubject, legacy); err != nil {
@@ -352,7 +352,7 @@ func TestAssetEventTimelineTargetResolvesDeletedProcessedDerivative(t *testing.T
 	if err != nil {
 		t.Fatalf("UploadAttachment original: %v", err)
 	}
-	thumbnail, err := chatto.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumbnail.bin", "application/octet-stream", bytes.NewReader([]byte("thumbnail")))
+	thumbnail, err := chatto.UploadDerivativeAttachment(ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumbnail.bin", "application/octet-stream", bytes.NewReader([]byte("thumbnail")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment: %v", err)
 	}
@@ -367,8 +367,8 @@ func TestAssetEventTimelineTargetResolvesDeletedProcessedDerivative(t *testing.T
 		t.Fatalf("RecordAssetDeleted thumbnail: %v", err)
 	}
 
-	roomID, messageEventID, ok := chatto.AssetEventTimelineTarget(&corev1.Event{
-		Event: &corev1.Event_AssetDeleted{AssetDeleted: &corev1.AssetDeletedEvent{AssetId: thumbnail.Id}},
+	roomID, messageEventID, ok := chatto.AssetEventTimelineTarget(&evtv1.Event{
+		Event: &evtv1.Event_AssetDeleted{AssetDeleted: &evtv1.AssetDeletedEvent{AssetId: thumbnail.Id}},
 	})
 	if !ok || roomID != room.Id || messageEventID != message.Id {
 		t.Fatalf("AssetEventTimelineTarget = %q, %q, %v; want %q, %q, true", roomID, messageEventID, ok, room.Id, message.Id)
@@ -632,8 +632,8 @@ func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) 
 }
 
 func TestRealtimeReplayRoomSubject(t *testing.T) {
-	roomID, ok := realtimeReplayRoomSubject(evtstream.RoomAggregate("R1").SubjectFor(&corev1.Event{
-		Event: &corev1.Event_ReactionAdded{ReactionAdded: &corev1.ReactionAddedEvent{}},
+	roomID, ok := realtimeReplayRoomSubject(evtstream.RoomAggregate("R1").SubjectFor(&evtv1.Event{
+		Event: &evtv1.Event_ReactionAdded{ReactionAdded: &evtv1.ReactionAddedEvent{}},
 	}))
 	if !ok || roomID != "R1" {
 		t.Fatalf("realtimeReplayRoomSubject = %q, %v", roomID, ok)

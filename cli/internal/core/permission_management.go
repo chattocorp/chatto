@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type MatrixDecision string
@@ -352,18 +352,18 @@ func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID strin
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
 
-	var event *corev1.Event
+	var event *evtv1.Event
 	switch state {
 	case PermissionStateAllow:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 			RbacPermissionGranted: rbacRolePermissionGrantedEvent(scope, scopeID, roleName, perm),
 		}})
 	case PermissionStateDeny:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 			RbacPermissionDenied: rbacRolePermissionDeniedEvent(scope, scopeID, roleName, perm),
 		}})
 	case PermissionStateNone:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 			RbacPermissionCleared: rbacRolePermissionClearedEvent(scope, scopeID, roleName, perm),
 		}})
 	default:
@@ -401,18 +401,18 @@ func (c *ChattoCore) applyUserPermissionState(ctx context.Context, actorID strin
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
 
-	var event *corev1.Event
+	var event *evtv1.Event
 	switch state {
 	case PermissionStateAllow:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 			RbacPermissionGranted: rbacUserPermissionGrantedEvent(scope, scopeID, userID, perm),
 		}})
 	case PermissionStateDeny:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 			RbacPermissionDenied: rbacUserPermissionDeniedEvent(scope, scopeID, userID, perm),
 		}})
 	case PermissionStateNone:
-		event = newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 			RbacPermissionCleared: rbacUserPermissionClearedEvent(scope, scopeID, userID, perm),
 		}})
 	default:
@@ -605,7 +605,7 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 	}, nil
 }
 
-func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID string, user *corev1.User) (*UserPermissionMatrix, error) {
+func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID string, user *evtv1.User) (*UserPermissionMatrix, error) {
 	userID := user.GetId()
 	applicable := matrixApplicablePermissions()
 	bot := user.GetIsBot()

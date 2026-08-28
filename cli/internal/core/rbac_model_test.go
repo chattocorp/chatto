@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -32,7 +32,7 @@ func TestRBACModelWaitForRejectsUnconsumedSubject(t *testing.T) {
 	service := newTestRBACModel(t, projection, projector)
 	ctx := testContext(t)
 
-	event := newEvent(SystemActorID, roomCreatedEvent("R-not-rbac", "not-rbac", "", corev1.RoomKind_ROOM_KIND_CHANNEL))
+	event := newEvent(SystemActorID, roomCreatedEvent("R-not-rbac", "not-rbac", "", evtv1.RoomKind_ROOM_KIND_CHANNEL))
 	subject := evtstream.RoomAggregate("R-not-rbac").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
@@ -53,9 +53,9 @@ func TestRBACModelWaitForProjectsRoleCreation(t *testing.T) {
 	service := newTestRBACModel(t, projection, projector)
 	ctx := testContext(t)
 
-	event := newEvent(SystemActorID, &corev1.Event{
-		Event: &corev1.Event_RbacRoleCreated{
-			RbacRoleCreated: &corev1.RbacRoleCreatedEvent{
+	event := newEvent(SystemActorID, &evtv1.Event{
+		Event: &evtv1.Event_RbacRoleCreated{
+			RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{
 				RoleName:    "moderator",
 				DisplayName: "Moderator",
 				Description: "Keeps rooms tidy",
@@ -85,23 +85,23 @@ func TestRBACModelOwnsProjectionReads(t *testing.T) {
 	projection := NewRBACProjection()
 	model := newTestRBACModel(t, projection, nil)
 
-	for _, event := range []*corev1.Event{
-		{Event: &corev1.Event_RbacRoleCreated{RbacRoleCreated: &corev1.RbacRoleCreatedEvent{
+	for _, event := range []*evtv1.Event{
+		{Event: &evtv1.Event_RbacRoleCreated{RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{
 			RoleName: "beta", DisplayName: "Beta", Rank: PositionCustomFirst + 1,
 		}}},
-		{Event: &corev1.Event_RbacRoleCreated{RbacRoleCreated: &corev1.RbacRoleCreatedEvent{
+		{Event: &evtv1.Event_RbacRoleCreated{RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{
 			RoleName: "alpha", DisplayName: "Alpha", Rank: PositionCustomFirst,
 		}}},
-		{Event: &corev1.Event_RbacRoleAssigned{RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{
+		{Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{
 			UserId: "U2", RoleName: "alpha",
 		}}},
-		{Event: &corev1.Event_RbacRoleAssigned{RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{
+		{Event: &evtv1.Event_RbacRoleAssigned{RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{
 			UserId: "U1", RoleName: "alpha",
 		}}},
-		{Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(
+		{Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(
 			ScopeServer, "", "alpha", PermMessagePost,
 		)}},
-		{Event: &corev1.Event_RbacPermissionDenied{RbacPermissionDenied: rbacRolePermissionDeniedEvent(
+		{Event: &evtv1.Event_RbacPermissionDenied{RbacPermissionDenied: rbacRolePermissionDeniedEvent(
 			ScopeRoom, "R1", "alpha", PermRoomJoin,
 		)}},
 	} {

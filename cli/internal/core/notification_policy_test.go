@@ -10,45 +10,45 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestNotificationDeliveryModesPatchSetClearAndValidation(t *testing.T) {
-	current := &corev1.NotificationDeliveryModes{
-		Reactions:     corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
-		FollowedRooms: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum(),
+	current := &evtv1.NotificationDeliveryModes{
+		Reactions:     evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
+		FollowedRooms: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum(),
 	}
-	patch := &corev1.NotificationDeliveryModes{DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
+	patch := &evtv1.NotificationDeliveryModes{DirectMessages: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
 	got, err := applyNotificationDeliveryModesPatch(current, patch, &fieldmaskpb.FieldMask{Paths: []string{"direct_messages", "reactions"}})
 	if err != nil {
 		t.Fatalf("apply patch: %v", err)
 	}
-	if got.GetDirectMessages() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF || got.Reactions != nil || got.GetFollowedRooms() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+	if got.GetDirectMessages() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF || got.Reactions != nil || got.GetFollowedRooms() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
 		t.Fatalf("patched modes = %+v, want direct messages Off, reactions cleared, followed rooms preserved", got)
 	}
 	if current.DirectMessages != nil || current.Reactions == nil {
 		t.Fatalf("patch mutated source modes: %+v", current)
 	}
 	badge, err := applyNotificationDeliveryModesPatch(current,
-		&corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE.Enum()},
+		&evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE.Enum()},
 		&fieldmaskpb.FieldMask{Paths: []string{"reactions"}},
 	)
-	if err != nil || badge.GetReactions() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+	if err != nil || badge.GetReactions() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 		t.Fatalf("Badge patch = (%+v, %v)", badge, err)
 	}
 
-	invalidMode := corev1.NotificationDeliveryMode(99)
+	invalidMode := evtv1.NotificationDeliveryMode(99)
 	for _, test := range []struct {
 		name  string
-		patch *corev1.NotificationDeliveryModes
+		patch *evtv1.NotificationDeliveryModes
 		mask  *fieldmaskpb.FieldMask
 	}{
 		{name: "missing mask", mask: nil},
 		{name: "empty mask", mask: &fieldmaskpb.FieldMask{}},
 		{name: "unknown field", mask: &fieldmaskpb.FieldMask{Paths: []string{"unknown"}}},
 		{name: "nested field", mask: &fieldmaskpb.FieldMask{Paths: []string{"reactions.value"}}},
-		{name: "unspecified value", patch: &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED.Enum()}, mask: &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}},
-		{name: "unknown enum value", patch: &corev1.NotificationDeliveryModes{Reactions: &invalidMode}, mask: &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}},
+		{name: "unspecified value", patch: &evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED.Enum()}, mask: &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}},
+		{name: "unknown enum value", patch: &evtv1.NotificationDeliveryModes{Reactions: &invalidMode}, mask: &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if _, err := applyNotificationDeliveryModesPatch(current, test.patch, test.mask); !errors.Is(err, ErrInvalidArgument) {
@@ -63,7 +63,7 @@ func TestEffectiveNotificationDeliveryModesPopulatesEveryBuiltInField(t *testing
 	if got.DirectMessages == nil || got.RoomMessages == nil || got.DirectMentions == nil || got.Replies == nil || got.RoleMentions == nil || got.HereMentions == nil || got.AllMentions == nil || got.FollowedThreads == nil || got.FollowedRooms == nil || got.Reactions == nil {
 		t.Fatalf("effective defaults are incomplete: %+v", got)
 	}
-	if got.GetDirectMessages() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION || got.GetRoomMessages() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE || got.GetFollowedThreads() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION || got.GetFollowedRooms() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF || got.GetReactions() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+	if got.GetDirectMessages() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION || got.GetRoomMessages() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE || got.GetFollowedThreads() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION || got.GetFollowedRooms() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF || got.GetReactions() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
 		t.Fatalf("effective defaults = %+v", got)
 	}
 }
@@ -79,14 +79,14 @@ func TestConcurrentNotificationPolicyPatchesDoNotLoseUnrelatedFields(t *testing.
 	errs := make(chan error, 2)
 	var ready sync.WaitGroup
 	ready.Add(2)
-	update := func(patch *corev1.NotificationDeliveryModes, path string) {
+	update := func(patch *evtv1.NotificationDeliveryModes, path string) {
 		defer ready.Done()
 		<-start
 		_, err := chattoCore.NotificationPolicy().UpdateNotificationPolicy(ctx, user.Id, "", patch, &fieldmaskpb.FieldMask{Paths: []string{path}})
 		errs <- err
 	}
-	go update(&corev1.NotificationDeliveryModes{DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}, "direct_messages")
-	go update(&corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()}, "reactions")
+	go update(&evtv1.NotificationDeliveryModes{DirectMessages: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}, "direct_messages")
+	go update(&evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()}, "reactions")
 	close(start)
 	ready.Wait()
 	close(errs)
@@ -99,7 +99,7 @@ func TestConcurrentNotificationPolicyPatchesDoNotLoseUnrelatedFields(t *testing.
 	if err != nil {
 		t.Fatalf("GetNotificationPolicy: %v", err)
 	}
-	if policy.Overrides.GetDirectMessages() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF || policy.Overrides.GetReactions() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+	if policy.Overrides.GetDirectMessages() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF || policy.Overrides.GetReactions() != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
 		t.Fatalf("concurrent policy overrides = %+v, want both fields", policy.Overrides)
 	}
 }
@@ -113,7 +113,7 @@ func TestGetNotificationPolicyWaitsForCurrentConfigProjection(t *testing.T) {
 	}
 	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, user.Id,
 		notificationTestSignalReaction,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 	); err != nil {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
@@ -157,9 +157,9 @@ func TestGetNotificationPolicyWaitsForCurrentConfigProjection(t *testing.T) {
 			t.Fatalf("GetNotificationPolicy after catch-up: %v", got.err)
 		}
 		assertNotificationPolicyIntensity(t, got.policy, notificationTestSignalReaction,
-			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
-			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+			evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+			evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
+			evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 		)
 	case <-time.After(5 * time.Second):
 		t.Fatal("GetNotificationPolicy did not finish after config projection caught up")
@@ -181,7 +181,7 @@ func TestScopedNotificationPolicyUpdateRequiresCurrentScopeAccess(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	patch := &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
+	patch := &evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
 	mask := &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}
 
 	if _, err := chattoCore.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, user.Id,
@@ -219,7 +219,7 @@ func TestScopedNotificationPolicyUpdatesDoNotAdvanceAuthorizationFence(t *testin
 	if err != nil {
 		t.Fatalf("authorization fence before policy updates: %v", err)
 	}
-	patch := &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
+	patch := &evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
 	mask := &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}
 	for _, scope := range []NotificationPolicyScope{
 		{Kind: NotificationPolicyScopeRoomGroup, ID: group.Id},
@@ -260,58 +260,58 @@ func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 	}
 	if _, err := preferences.SetServerNotificationMode(ctx, user.Id,
 		notificationTestSignalKind("unsupported"),
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 	); err == nil {
 		t.Fatal("SetServerNotificationMode accepted reserved notification policy kind 10")
 	}
 	assertNotificationPolicyIntensity(t, policy, notificationTestSignalFollowedRoom,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	)
 	assertNotificationPolicyIntensity(t, policy, notificationTestSignalDirectMention,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 	)
 
 	policy, err = preferences.SetServerNotificationMode(ctx, user.Id,
 		notificationTestSignalFollowedRoom,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 	)
 	if err != nil {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
 	assertNotificationPolicyIntensity(t, policy, notificationTestSignalFollowedRoom,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 	)
 
 	policy, err = preferences.SetRoomNotificationMode(ctx, user.Id, room.Id,
 		notificationTestSignalFollowedRoom,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 	)
 	if err != nil {
 		t.Fatalf("SetRoomNotificationMode: %v", err)
 	}
 	assertNotificationPolicyIntensity(t, policy, notificationTestSignalFollowedRoom,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 	)
 
 	policy, err = preferences.SetRoomNotificationMode(ctx, user.Id, room.Id,
 		notificationTestSignalFollowedRoom,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
 	)
 	if err != nil {
 		t.Fatalf("clear room notification mode: %v", err)
 	}
 	assertNotificationPolicyIntensity(t, policy, notificationTestSignalFollowedRoom,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 	)
 }
 
@@ -339,10 +339,10 @@ func TestNotificationPolicyInheritsThroughRoomGroupAndFollowsRoomMoves(t *testin
 	}
 	model := chattoCore.NotificationPolicy()
 	path := &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}
-	update := func(scope NotificationPolicyScope, mode corev1.NotificationDeliveryMode) *NotificationPolicy {
+	update := func(scope NotificationPolicyScope, mode evtv1.NotificationDeliveryMode) *NotificationPolicy {
 		t.Helper()
-		patch := &corev1.NotificationDeliveryModes{}
-		if mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+		patch := &evtv1.NotificationDeliveryModes{}
+		if mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			patch.Reactions = mode.Enum()
 		}
 		policy, updateErr := model.UpdateScopedNotificationPolicy(ctx, user.Id, scope, patch, path)
@@ -356,15 +356,15 @@ func TestNotificationPolicyInheritsThroughRoomGroupAndFollowsRoomMoves(t *testin
 	groupBScope := NotificationPolicyScope{Kind: NotificationPolicyScopeRoomGroup, ID: groupB.Id}
 	roomScope := NotificationPolicyScope{Kind: NotificationPolicyScopeRoom, ID: room.Id}
 
-	update(serverScope, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF)
-	update(groupAScope, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION)
-	update(groupBScope, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION)
-	policy := update(roomScope, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF)
-	if got := policy.Effective.GetReactions(); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+	update(serverScope, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF)
+	update(groupAScope, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION)
+	update(groupBScope, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION)
+	policy := update(roomScope, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF)
+	if got := policy.Effective.GetReactions(); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		t.Fatalf("room override effective mode = %v, want OFF", got)
 	}
-	policy = update(roomScope, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED)
-	if got := policy.Effective.GetReactions(); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+	policy = update(roomScope, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED)
+	if got := policy.Effective.GetReactions(); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
 		t.Fatalf("group A inherited mode = %v, want PUSH_NOTIFICATION", got)
 	}
 
@@ -375,24 +375,24 @@ func TestNotificationPolicyInheritsThroughRoomGroupAndFollowsRoomMoves(t *testin
 	if err != nil {
 		t.Fatalf("GetScopedNotificationPolicy after move: %v", err)
 	}
-	if got := policy.Effective.GetReactions(); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+	if got := policy.Effective.GetReactions(); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
 		t.Fatalf("group B inherited mode after move = %v, want IN_APP_NOTIFICATION", got)
 	}
 
-	update(groupBScope, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED)
+	update(groupBScope, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED)
 	policy, err = model.GetScopedNotificationPolicy(ctx, user.Id, roomScope)
 	if err != nil {
 		t.Fatalf("GetScopedNotificationPolicy after group clear: %v", err)
 	}
-	if got := policy.Effective.GetReactions(); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+	if got := policy.Effective.GetReactions(); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		t.Fatalf("server inherited mode = %v, want OFF", got)
 	}
-	update(serverScope, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED)
+	update(serverScope, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED)
 	policy, err = model.GetScopedNotificationPolicy(ctx, user.Id, roomScope)
 	if err != nil {
 		t.Fatalf("GetScopedNotificationPolicy after server clear: %v", err)
 	}
-	if got := policy.Effective.GetReactions(); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+	if got := policy.Effective.GetReactions(); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
 		t.Fatalf("product-default mode = %v, want IN_APP_NOTIFICATION", got)
 	}
 }
@@ -410,7 +410,7 @@ func TestDeletedRoomGroupNotificationPolicyBecomesInert(t *testing.T) {
 	}
 	scope := NotificationPolicyScope{Kind: NotificationPolicyScopeRoomGroup, ID: group.Id}
 	if _, err := chattoCore.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, user.Id, scope,
-		&corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
+		&evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
 		&fieldmaskpb.FieldMask{Paths: []string{"reactions"}},
 	); err != nil {
 		t.Fatalf("UpdateScopedNotificationPolicy: %v", err)
@@ -421,7 +421,7 @@ func TestDeletedRoomGroupNotificationPolicyBecomesInert(t *testing.T) {
 	if _, err := chattoCore.NotificationPolicy().GetScopedNotificationPolicy(ctx, user.Id, scope); !errors.Is(err, ErrRoomGroupNotFound) {
 		t.Fatalf("GetScopedNotificationPolicy deleted group error = %v, want ErrRoomGroupNotFound", err)
 	}
-	if got := chattoCore.configModel.notificationRoomGroupModes(user.Id, group.Id).GetReactions(); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+	if got := chattoCore.configModel.notificationRoomGroupModes(user.Id, group.Id).GetReactions(); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
 		t.Fatalf("retained inert group preference = %v, want PUSH_NOTIFICATION", got)
 	}
 }
@@ -448,14 +448,14 @@ func TestDirectMessageNotificationPolicySkipsRoomGroupTier(t *testing.T) {
 	model := chattoCore.NotificationPolicy()
 	if _, err := model.UpdateScopedNotificationPolicy(ctx, user.Id,
 		NotificationPolicyScope{Kind: NotificationPolicyScopeServer},
-		&corev1.NotificationDeliveryModes{DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
+		&evtv1.NotificationDeliveryModes{DirectMessages: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
 		&fieldmaskpb.FieldMask{Paths: []string{"direct_messages"}},
 	); err != nil {
 		t.Fatalf("update server policy: %v", err)
 	}
 	if _, err := model.UpdateScopedNotificationPolicy(ctx, user.Id,
 		NotificationPolicyScope{Kind: NotificationPolicyScopeRoomGroup, ID: group.Id},
-		&corev1.NotificationDeliveryModes{DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
+		&evtv1.NotificationDeliveryModes{DirectMessages: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
 		&fieldmaskpb.FieldMask{Paths: []string{"direct_messages"}},
 	); err != nil {
 		t.Fatalf("update group policy: %v", err)
@@ -464,7 +464,7 @@ func TestDirectMessageNotificationPolicySkipsRoomGroupTier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetScopedNotificationPolicy DM: %v", err)
 	}
-	if got := policy.Effective.GetDirectMessages(); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+	if got := policy.Effective.GetDirectMessages(); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		t.Fatalf("DM effective direct-message mode = %v, want server OFF", got)
 	}
 }
@@ -473,7 +473,7 @@ func assertNotificationPolicyIntensity(
 	t *testing.T,
 	policy *NotificationPolicy,
 	category notificationTestSignalKind,
-	server, room, effective corev1.NotificationDeliveryMode,
+	server, room, effective evtv1.NotificationDeliveryMode,
 ) {
 	t.Helper()
 	if policy == nil {

@@ -52,7 +52,7 @@ In-scope for this ADR:
    - the Space API wrapper — delete with the rest of the surface.
 2. **Collapse `spaceID` → `kind` (or drop) across `cli/internal/core/*.go`.** Mechanical refactor; behaviour-preserving. Tests update at the same time.
 3. **Delete `cli/internal/core/spaces.go`, the `Space` Go type, `SpaceMembership` proto message, and `Server.primarySpaceId` API bridge field** once nothing reads them. The 1070-line `spaces.go` disappears.
-4. **Retire legacy live deployment-scoped proto residue.** Durable `corev1.Event` tags 1030–1032 are reserved as retired live-only variants; the current live envelope keeps only the emitted `ServerUpdatedEvent` and reserves removed lifecycle names/tags.
+4. **Retire legacy live deployment-scoped proto residue.** Durable `evtv1.Event` tags 1030–1032 are reserved as retired live-only variants; the current live envelope keeps only the emitted `ServerUpdatedEvent` and reserves removed lifecycle names/tags.
 5. **Rename `live.server.space.{spaceId}.>` NATS subjects** to `live.server.{eventType}` (or another deployment-scoped pattern — to be decided in Phase 1). Live subjects have no persistence; rename freely.
 6. **Rename `SpaceUserPreferences` → `UserPreferences`** in proto + storage key naming. Same wire-format-safe argument (preferences are a small KV-stored proto, not in JetStream).
 7. **Frontend rename `$lib/state/space/*` → `$lib/state/server/*` (or merge in).** Cosmetic; the store is "the active server's room/permissions state", not "a space's".
@@ -61,7 +61,7 @@ In-scope for this ADR:
 Out of scope (deferred):
 
 - **`space.{spaceId}` KV record**: stays as orphan. One small entry per deployment, no readers post-Phase-1.
-- **`ServerMemberDeletedEvent` proto message** (`corev1.Event` field 320): renamed during the 0.1 protobuf cleanup while preserving the field number. No 0.1 servers had been deployed yet, and 0.0 import remains field-number based, so the source name could still be corrected before beta.
+- **`ServerMemberDeletedEvent` proto message** (`evtv1.Event` field 320): renamed during the 0.1 protobuf cleanup while preserving the field number. No 0.1 servers had been deployed yet, and 0.0 import remains field-number based, so the source name could still be corrected before beta.
 - **`space_id` fields on other persisted event payloads** (e.g. message events): stay for the same reason — wire format must decode existing stored events.
 - **`KV_INSTANCE*` bucket names, `instance.logo`/`instance.banner` KV keys, `/api/instance` REST endpoint**: stay. Already covered by ADR-029. The public LiveKit config key was later renamed from `livekit.instance_id` to `livekit.server_id`, with the old name retained as a deprecated alias for existing configs.
 

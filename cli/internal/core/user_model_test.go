@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -67,41 +67,41 @@ func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
 		"alice@example.com",
 	)
 	require.NoError(t, err)
-	require.NoError(t, users.Apply(&corev1.Event{
+	require.NoError(t, users.Apply(&evtv1.Event{
 		Id:        "E2",
 		CreatedAt: timestamppb.New(createdAt.Add(time.Minute)),
-		Event: &corev1.Event_UserVerifiedEmailAdded{
-			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+		Event: &evtv1.Event_UserVerifiedEmailAdded{
+			UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{
 				UserId:         "U1",
 				EncryptedEmail: encryptedEmail,
 			},
 		},
 	}, 3))
-	require.NoError(t, users.Apply(&corev1.Event{
+	require.NoError(t, users.Apply(&evtv1.Event{
 		Id: "E3",
-		Event: &corev1.Event_UserAvatarSet{
-			UserAvatarSet: &corev1.UserAvatarSetEvent{
+		Event: &evtv1.Event_UserAvatarSet{
+			UserAvatarSet: &evtv1.UserAvatarSetEvent{
 				UserId: "U1",
-				Avatar: &corev1.DeprecatedAsset{
-					Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "avatar-U1"}},
+				Avatar: &evtv1.DeprecatedAsset{
+					Asset: &evtv1.DeprecatedAsset_Nats{Nats: &evtv1.NATSAsset{Key: "avatar-U1"}},
 				},
 			},
 		},
 	}, 4))
 
 	passwordAt := createdAt.Add(2 * time.Minute)
-	require.NoError(t, auth.Apply(userEvent("E4", passwordAt, &corev1.Event{
-		Event: &corev1.Event_UserPasswordHashChanged{
-			UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+	require.NoError(t, auth.Apply(userEvent("E4", passwordAt, &evtv1.Event{
+		Event: &evtv1.Event_UserPasswordHashChanged{
+			UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{
 				UserId:       "U1",
 				PasswordHash: []byte("password-hash"),
 			},
 		},
 	}), 5))
-	require.NoError(t, auth.Apply(&corev1.Event{
+	require.NoError(t, auth.Apply(&evtv1.Event{
 		Id: "E5",
-		Event: &corev1.Event_UserExternalIdentityLinked{
-			UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+		Event: &evtv1.Event_UserExternalIdentityLinked{
+			UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
 				UserId:       "U1",
 				Issuer:       "github",
 				Subject:      "alice",
@@ -110,10 +110,10 @@ func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
 			},
 		},
 	}, 6))
-	require.NoError(t, auth.Apply(&corev1.Event{
+	require.NoError(t, auth.Apply(&evtv1.Event{
 		Id: "E6",
-		Event: &corev1.Event_OauthConsentGranted{
-			OauthConsentGranted: &corev1.OAuthConsentGrantedEvent{
+		Event: &evtv1.Event_OauthConsentGranted{
+			OauthConsentGranted: &evtv1.OAuthConsentGrantedEvent{
 				UserId:         "U1",
 				RedirectOrigin: "https://app.example",
 			},
@@ -208,10 +208,10 @@ func TestUserModelPreservesPIIFailuresAndShreddedReferences(t *testing.T) {
 	require.Nil(t, reference, "operational failures must not look like deletion")
 
 	users.dekResolver.keyWrapper = staticProjectionKeyWrapper{key: contentKey.key}
-	require.NoError(t, users.Apply(&corev1.Event{
+	require.NoError(t, users.Apply(&evtv1.Event{
 		Id: "E2",
-		Event: &corev1.Event_UserKeyShredded{
-			UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+		Event: &evtv1.Event_UserKeyShredded{
+			UserKeyShredded: &evtv1.UserKeyShreddedEvent{UserId: "U1"},
 		},
 	}, 3))
 	reference, ok, err = model.userReference(context.Background(), "U1")
@@ -229,11 +229,11 @@ func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 	service := newTestUserModel(t, harness.publisher, nil, nil, nil, nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
-	event := newEvent(SystemActorID, &corev1.Event{
-		Event: &corev1.Event_UserDekGenerated{
-			UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+	event := newEvent(SystemActorID, &evtv1.Event{
+		Event: &evtv1.Event_UserDekGenerated{
+			UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 				UserId:         "U-service",
-				Purpose:        corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+				Purpose:        evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
 				Epoch:          2,
 				ContentKeyRef:  "content-key-ref",
 				WrappingKeyRef: "wrapping-key-ref",
@@ -249,7 +249,7 @@ func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 		t.Fatalf("waitForContentKeys returned error: %v", err)
 	}
 
-	active, ok, err := service.activeContentKey("U-service", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	active, ok, err := service.activeContentKey("U-service", evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	if err != nil {
 		t.Fatalf("activeContentKey returned error: %v", err)
 	}
@@ -269,12 +269,12 @@ func TestUserModelWaitForUsersProjectsUserAvatar(t *testing.T) {
 	service := newTestUserModel(t, harness.publisher, users, usersProjector, users.AuthProjection(), nil, nil, nil)
 	ctx := testContext(t)
 
-	event := newEvent(SystemActorID, &corev1.Event{
-		Event: &corev1.Event_UserAvatarSet{
-			UserAvatarSet: &corev1.UserAvatarSetEvent{
+	event := newEvent(SystemActorID, &evtv1.Event{
+		Event: &evtv1.Event_UserAvatarSet{
+			UserAvatarSet: &evtv1.UserAvatarSetEvent{
 				UserId: "U-avatar",
-				Avatar: &corev1.DeprecatedAsset{
-					Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "avatar-asset"}},
+				Avatar: &evtv1.DeprecatedAsset{
+					Asset: &evtv1.DeprecatedAsset_Nats{Nats: &evtv1.NATSAsset{Key: "avatar-asset"}},
 				},
 			},
 		},
@@ -308,12 +308,12 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 	service := newTestUserModel(t, harness.publisher, users, usersProjector, users.AuthProjection(), nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
-	avatarEvent := newEvent(SystemActorID, &corev1.Event{
-		Event: &corev1.Event_UserAvatarSet{
-			UserAvatarSet: &corev1.UserAvatarSetEvent{
+	avatarEvent := newEvent(SystemActorID, &evtv1.Event{
+		Event: &evtv1.Event_UserAvatarSet{
+			UserAvatarSet: &evtv1.UserAvatarSetEvent{
 				UserId: "U-current",
-				Avatar: &corev1.DeprecatedAsset{
-					Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "avatar-current"}},
+				Avatar: &evtv1.DeprecatedAsset{
+					Asset: &evtv1.DeprecatedAsset_Nats{Nats: &evtv1.NATSAsset{Key: "avatar-current"}},
 				},
 			},
 		},
@@ -329,11 +329,11 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 		t.Fatalf("projected avatar = %#v, %v; want avatar-current, true", avatar, ok)
 	}
 
-	dekEvent := newEvent(SystemActorID, &corev1.Event{
-		Event: &corev1.Event_UserDekGenerated{
-			UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+	dekEvent := newEvent(SystemActorID, &evtv1.Event{
+		Event: &evtv1.Event_UserDekGenerated{
+			UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 				UserId:        "U-current",
-				Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+				Purpose:       evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
 				Epoch:         3,
 				ContentKeyRef: "content-current",
 			},
@@ -345,7 +345,7 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 	if err := service.waitForContentKeysCurrent(ctx, "U-current"); err != nil {
 		t.Fatalf("waitForContentKeysCurrent returned error: %v", err)
 	}
-	if active, ok, err := service.activeContentKey("U-current", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); err != nil || !ok || active.GetContentKeyRef() != "content-current" {
+	if active, ok, err := service.activeContentKey("U-current", evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); err != nil || !ok || active.GetContentKeyRef() != "content-current" {
 		if err != nil {
 			t.Fatalf("activeContentKey returned error: %v", err)
 		}
@@ -356,22 +356,22 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 func TestUserModelContentKeyReadsPreserveProjectionSemantics(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
 	service := newTestUserModel(t, nil, nil, nil, nil, nil, contentKeys, nil)
-	legacy := &corev1.UserDEKGeneratedEvent{
+	legacy := &evtv1.UserDEKGeneratedEvent{
 		UserId:         "U-legacy",
 		Epoch:          2,
 		ContentKeyRef:  "content-legacy",
 		WrappingKeyRef: "wrapping-legacy",
 	}
-	if err := contentKeys.Apply(&corev1.Event{
+	if err := contentKeys.Apply(&evtv1.Event{
 		Id: "E-legacy",
-		Event: &corev1.Event_UserDekGenerated{
+		Event: &evtv1.Event_UserDekGenerated{
 			UserDekGenerated: legacy,
 		},
 	}, 1); err != nil {
 		t.Fatalf("Apply legacy DEK: %v", err)
 	}
 
-	purpose := corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
+	purpose := evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 	active, ok, err := service.activeContentKey("U-legacy", purpose)
 	if err != nil {
 		t.Fatalf("activeContentKey returned error: %v", err)
@@ -401,10 +401,10 @@ func TestUserModelCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
 	if err := service.waitForContentKeysCurrent(ctx, "U1"); err != nil {
 		t.Fatalf("waitForContentKeysCurrent returned error: %v", err)
 	}
-	if _, _, err := service.activeContentKey("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); !errors.Is(err, errContentKeyProjectionUnavailable) {
+	if _, _, err := service.activeContentKey("U1", evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); !errors.Is(err, errContentKeyProjectionUnavailable) {
 		t.Fatalf("activeContentKey error = %v, want %v", err, errContentKeyProjectionUnavailable)
 	}
-	if _, _, err := service.contentKeyAtEpoch("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, 1); !errors.Is(err, errContentKeyProjectionUnavailable) {
+	if _, _, err := service.contentKeyAtEpoch("U1", evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, 1); !errors.Is(err, errContentKeyProjectionUnavailable) {
 		t.Fatalf("contentKeyAtEpoch error = %v, want %v", err, errContentKeyProjectionUnavailable)
 	}
 }

@@ -10,7 +10,7 @@ import (
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -205,7 +205,7 @@ func (c *ChattoCore) HandleCallParticipantJoined(ctx context.Context, roomID, us
 	if c.callModel == nil {
 		return fmt.Errorf("call model is not initialized")
 	}
-	return c.callModel.AppendJoinedForCall(ctx, roomID, userID, expectedCallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
+	return c.callModel.AppendJoinedForCall(ctx, roomID, userID, expectedCallID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
 }
 
 // HandleCallParticipantLeft appends a durable LiveKit-observed leave fact.
@@ -214,7 +214,7 @@ func (c *ChattoCore) HandleCallParticipantLeft(ctx context.Context, roomID, user
 	if c.callModel == nil {
 		return fmt.Errorf("call model is not initialized")
 	}
-	return c.callModel.AppendLeftForCall(ctx, roomID, userID, optionalCallID(callID), corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
+	return c.callModel.AppendLeftForCall(ctx, roomID, userID, optionalCallID(callID), evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT)
 }
 
 // HandleCallRoomFinished appends LiveKit-observed leave facts for any remaining
@@ -232,7 +232,7 @@ func (c *ChattoCore) HandleCallRoomFinished(ctx context.Context, roomID string, 
 		}
 	}
 	for _, p := range c.callModel.participants(roomID) {
-		if err := c.callModel.AppendLeftForCall(ctx, roomID, p.UserID, expectedCallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT); err != nil {
+		if err := c.callModel.AppendLeftForCall(ctx, roomID, p.UserID, expectedCallID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT); err != nil {
 			return err
 		}
 	}
@@ -246,21 +246,21 @@ func optionalCallID(callID []string) string {
 	return callID[0]
 }
 
-func (c *ChattoCore) RecordCallParticipantJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
+func (c *ChattoCore) RecordCallParticipantJoined(ctx context.Context, roomID, userID string, source evtv1.CallParticipantEventSource) error {
 	if c.callModel == nil {
 		return fmt.Errorf("call model is not initialized")
 	}
 	return c.callModel.AppendJoined(ctx, roomID, userID, source)
 }
 
-func (c *ChattoCore) RecordCallParticipantLeft(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
+func (c *ChattoCore) RecordCallParticipantLeft(ctx context.Context, roomID, userID string, source evtv1.CallParticipantEventSource) error {
 	if c.callModel == nil {
 		return fmt.Errorf("call model is not initialized")
 	}
 	return c.callModel.AppendLeft(ctx, roomID, userID, source)
 }
 
-func (c *ChattoCore) VoiceCallRoomForMember(ctx context.Context, actorID, roomID string) (*corev1.Room, RoomKind, error) {
+func (c *ChattoCore) VoiceCallRoomForMember(ctx context.Context, actorID, roomID string) (*evtv1.Room, RoomKind, error) {
 	return c.requireRoomMember(ctx, actorID, roomID)
 }
 
@@ -330,20 +330,20 @@ func (c *ChattoCore) GetActiveCallRoomIDs(context.Context) ([]string, error) {
 	return c.callModel.activeRoomIDs(), nil
 }
 
-func appendCallJoinedEventForTest(ctx context.Context, publisher *evtstream.Publisher, projector *events.Projector, roomID, userID string, source corev1.CallParticipantEventSource) error {
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_VoiceCallParticipantJoined{
-			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: roomID, Source: source},
+func appendCallJoinedEventForTest(ctx context.Context, publisher *evtstream.Publisher, projector *events.Projector, roomID, userID string, source evtv1.CallParticipantEventSource) error {
+	event := newEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &evtv1.CallParticipantJoinedEvent{RoomId: roomID, Source: source},
 		},
 	})
 	_, err := publisher.AppendEventuallyAndWait(ctx, projector, evtstream.RoomAggregate(roomID), event)
 	return err
 }
 
-func appendCallLeftEventForTest(ctx context.Context, publisher *evtstream.Publisher, projector *events.Projector, roomID, userID string, source corev1.CallParticipantEventSource) error {
-	event := newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_VoiceCallParticipantLeft{
-			VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: roomID, Source: source},
+func appendCallLeftEventForTest(ctx context.Context, publisher *evtstream.Publisher, projector *events.Projector, roomID, userID string, source evtv1.CallParticipantEventSource) error {
+	event := newEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_VoiceCallParticipantLeft{
+			VoiceCallParticipantLeft: &evtv1.CallParticipantLeftEvent{RoomId: roomID, Source: source},
 		},
 	})
 	_, err := publisher.AppendEventuallyAndWait(ctx, projector, evtstream.RoomAggregate(roomID), event)

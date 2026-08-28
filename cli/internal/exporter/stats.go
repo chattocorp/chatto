@@ -4,14 +4,14 @@ import (
 	"sort"
 	"sync"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type evtStats struct {
 	mu sync.RWMutex
 
 	users map[string]userState
-	rooms map[string]corev1.RoomKind
+	rooms map[string]evtv1.RoomKind
 
 	messages map[string]messageKind
 	assets   map[string]assetState
@@ -51,13 +51,13 @@ type statsSnapshot struct {
 func newEVTStats() *evtStats {
 	return &evtStats{
 		users:    make(map[string]userState),
-		rooms:    make(map[string]corev1.RoomKind),
+		rooms:    make(map[string]evtv1.RoomKind),
 		messages: make(map[string]messageKind),
 		assets:   make(map[string]assetState),
 	}
 }
 
-func (s *evtStats) apply(event *corev1.Event, seq uint64) {
+func (s *evtStats) apply(event *evtv1.Event, seq uint64) {
 	if event == nil {
 		return
 	}
@@ -68,41 +68,41 @@ func (s *evtStats) apply(event *corev1.Event, seq uint64) {
 	}
 
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_UserAccountCreated:
+	case *evtv1.Event_UserAccountCreated:
 		if userID := e.UserAccountCreated.GetUserId(); userID != "" {
 			state := s.users[userID]
 			s.users[userID] = state
 		}
-	case *corev1.Event_UserVerifiedEmailAdded:
+	case *evtv1.Event_UserVerifiedEmailAdded:
 		if userID := e.UserVerifiedEmailAdded.GetUserId(); userID != "" {
 			if state, ok := s.users[userID]; ok {
 				state.verifiedEmail = true
 				s.users[userID] = state
 			}
 		}
-	case *corev1.Event_UserAccountDeleted:
+	case *evtv1.Event_UserAccountDeleted:
 		if userID := e.UserAccountDeleted.GetUserId(); userID != "" {
 			delete(s.users, userID)
 		}
-	case *corev1.Event_RoomCreated:
+	case *evtv1.Event_RoomCreated:
 		roomID := e.RoomCreated.GetRoomId()
 		if roomID != "" {
 			s.rooms[roomID] = e.RoomCreated.GetKind()
 		}
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		roomID := e.RoomDeleted.GetRoomId()
 		if roomID != "" {
 			delete(s.rooms, roomID)
 		}
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		eventID := event.GetId()
 		if eventID != "" {
 			s.messages[eventID] = classifyMessage(e.MessagePosted)
 		}
-	case *corev1.Event_MessageRetracted:
+	case *evtv1.Event_MessageRetracted:
 		// Keep posted-message counters as lifetime totals. Retractions are
 		// durable facts, but subtracting them would hide write volume.
-	case *corev1.Event_AssetCreated:
+	case *evtv1.Event_AssetCreated:
 		asset := e.AssetCreated.GetAsset()
 		if asset == nil || asset.GetId() == "" {
 			return
@@ -111,7 +111,7 @@ func (s *evtStats) apply(event *corev1.Event, seq uint64) {
 			backend: assetBackend(asset),
 			kind:    assetKind(e.AssetCreated),
 		}
-	case *corev1.Event_AssetDeleted:
+	case *evtv1.Event_AssetDeleted:
 		assetID := e.AssetDeleted.GetAssetId()
 		if assetID == "" {
 			return
@@ -194,7 +194,7 @@ func (s *evtStats) snapshot(presence map[string]int) statsSnapshot {
 	}
 }
 
-func classifyMessage(event *corev1.MessagePostedEvent) messageKind {
+func classifyMessage(event *evtv1.MessagePostedEvent) messageKind {
 	if event == nil {
 		return messageKindRoot
 	}
@@ -207,34 +207,34 @@ func classifyMessage(event *corev1.MessagePostedEvent) messageKind {
 	return messageKindRoot
 }
 
-func assetBackend(asset *corev1.AssetRecord) string {
+func assetBackend(asset *evtv1.AssetRecord) string {
 	switch asset.GetStorage().(type) {
-	case *corev1.AssetRecord_Nats:
+	case *evtv1.AssetRecord_Nats:
 		return "nats"
-	case *corev1.AssetRecord_S3:
+	case *evtv1.AssetRecord_S3:
 		return "s3"
 	default:
 		return "unknown"
 	}
 }
 
-func assetKind(event *corev1.AssetCreatedEvent) string {
+func assetKind(event *evtv1.AssetCreatedEvent) string {
 	if event == nil || event.GetParentAssetId() == "" {
 		return "original"
 	}
 	switch event.GetDerivativeRole() {
-	case corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL:
+	case evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL:
 		return "thumbnail"
-	case corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT:
+	case evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT:
 		return "video_variant"
 	default:
 		return "derivative"
 	}
 }
 
-func roomKindLabel(kind corev1.RoomKind) string {
+func roomKindLabel(kind evtv1.RoomKind) string {
 	switch kind {
-	case corev1.RoomKind_ROOM_KIND_DM:
+	case evtv1.RoomKind_ROOM_KIND_DM:
 		return "dm"
 	default:
 		return "channel"

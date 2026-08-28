@@ -5,7 +5,7 @@ import (
 	"errors"
 	"slices"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // MessageSearchReads returns the operation-level model that resolves a
@@ -37,7 +37,7 @@ type MessageSearchScope struct {
 	RoomIDs   []string
 	AuthorIDs []string
 	NoMatches bool
-	rooms     map[string]*corev1.Room
+	rooms     map[string]*evtv1.Room
 }
 
 // MessageSearchHit is one untrusted provider candidate.
@@ -52,7 +52,7 @@ type MessageSearchHit struct {
 // current-state hydration.
 type MessageSearchResult struct {
 	Kind  RoomKind
-	Event *corev1.Event
+	Event *evtv1.Event
 	Score float64
 }
 
@@ -63,7 +63,7 @@ func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input Message
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
-	rooms := make(map[string]*corev1.Room)
+	rooms := make(map[string]*evtv1.Room)
 	for _, kind := range []RoomKind{KindChannel, KindDM} {
 		memberRooms, err := s.core.ListMemberRooms(ctx, kind, input.ActorID, MemberRoomListOptions{})
 		if err != nil {
@@ -131,7 +131,7 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 
 	type hydrated struct {
 		kind  RoomKind
-		event *corev1.Event
+		event *evtv1.Event
 	}
 	current := make(map[string]hydrated)
 	for roomID, messageIDs := range byRoom {
@@ -190,22 +190,22 @@ func (s *MessageSearchReadModel) resolveAuthorSelectors(ctx context.Context, sel
 	return uniqueSortedStrings(ids), nil
 }
 
-func filterSearchRoomByID(rooms map[string]*corev1.Room, requested string) map[string]*corev1.Room {
+func filterSearchRoomByID(rooms map[string]*evtv1.Room, requested string) map[string]*evtv1.Room {
 	if requested == "" {
 		return rooms
 	}
-	result := make(map[string]*corev1.Room)
+	result := make(map[string]*evtv1.Room)
 	if room := rooms[requested]; room != nil {
 		result[requested] = room
 	}
 	return result
 }
 
-func filterSearchRoomsBySelectors(rooms map[string]*corev1.Room, selectors []string) map[string]*corev1.Room {
+func filterSearchRoomsBySelectors(rooms map[string]*evtv1.Room, selectors []string) map[string]*evtv1.Room {
 	if len(selectors) == 0 {
 		return rooms
 	}
-	result := make(map[string]*corev1.Room)
+	result := make(map[string]*evtv1.Room)
 	for _, selector := range selectors {
 		for roomID, room := range rooms {
 			if roomID == selector || (room.GetName() != "" && canonicalRoomName(room.GetName()) == canonicalRoomName(selector)) {

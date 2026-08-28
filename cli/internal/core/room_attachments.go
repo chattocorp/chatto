@@ -6,14 +6,14 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // RoomAttachmentItem is one current attachment as it appears in a room,
 // including the message anchor needed by UI surfaces that jump back to where
 // the file was posted.
 type RoomAttachmentItem struct {
-	Attachment        *corev1.Attachment
+	Attachment        *evtv1.Attachment
 	MessageEventID    string
 	ThreadRootEventID string
 	CreatedAt         *timestamppb.Timestamp
@@ -44,7 +44,7 @@ type MessageAttachmentsInput struct {
 // MessageAttachmentSet contains current attachments for one visible message.
 type MessageAttachmentSet struct {
 	EventID     string
-	Attachments []*corev1.Attachment
+	Attachments []*evtv1.Attachment
 }
 
 // BatchMessageAttachmentsInput is the authorized current-message attachment
@@ -83,7 +83,7 @@ func (c *ChattoCore) ListRoomAttachments(ctx context.Context, input ListRoomAtta
 
 // GetRoomAsset returns one room-scoped asset for a room the actor may read.
 // Missing, deleted, and wrong-room asset IDs return ErrNotFound.
-func (c *ChattoCore) GetRoomAsset(ctx context.Context, input RoomAssetInput) (*corev1.Attachment, error) {
+func (c *ChattoCore) GetRoomAsset(ctx context.Context, input RoomAssetInput) (*evtv1.Attachment, error) {
 	room, kind, err := c.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -104,14 +104,14 @@ func (c *ChattoCore) GetRoomAsset(ctx context.Context, input RoomAssetInput) (*c
 
 // BatchGetRoomAssets returns room-scoped assets for a room the actor may read
 // to. Missing, deleted, and wrong-room asset IDs are omitted.
-func (c *ChattoCore) BatchGetRoomAssets(ctx context.Context, input BatchRoomAssetsInput) ([]*corev1.Attachment, error) {
+func (c *ChattoCore) BatchGetRoomAssets(ctx context.Context, input BatchRoomAssetsInput) ([]*evtv1.Attachment, error) {
 	room, kind, err := c.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
 
 	seen := make(map[string]struct{}, len(input.AssetIDs))
-	out := make([]*corev1.Attachment, 0, len(input.AssetIDs))
+	out := make([]*evtv1.Attachment, 0, len(input.AssetIDs))
 	for _, assetID := range input.AssetIDs {
 		if _, ok := seen[assetID]; ok {
 			continue
@@ -136,7 +136,7 @@ func (c *ChattoCore) BatchGetRoomAssets(ctx context.Context, input BatchRoomAsse
 	return out, nil
 }
 
-func (c *ChattoCore) roomAsset(roomID, assetID string) (*corev1.Attachment, error) {
+func (c *ChattoCore) roomAsset(roomID, assetID string) (*evtv1.Attachment, error) {
 	if assetID == "" {
 		return nil, invalidArgument("asset_id is required")
 	}
@@ -175,7 +175,7 @@ func (c *ChattoCore) CanReadRoomAsset(ctx context.Context, actorID string, kind 
 // a room the actor may read. Retracted, hidden, wrong-room, and non-message
 // event IDs return ErrMessageNotFound so callers do not learn more than the
 // timeline read path would reveal.
-func (c *ChattoCore) MessageAttachments(ctx context.Context, input MessageAttachmentsInput) ([]*corev1.Attachment, error) {
+func (c *ChattoCore) MessageAttachments(ctx context.Context, input MessageAttachmentsInput) ([]*evtv1.Attachment, error) {
 	_, kind, err := c.requireMessageReader(ctx, input.ActorID, input.RoomID, input.EventID)
 	if err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func (c *ChattoCore) BatchMessageAttachments(ctx context.Context, input BatchMes
 	return out, nil
 }
 
-func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, roomID, eventID string) ([]*corev1.Attachment, error) {
+func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, roomID, eventID string) ([]*evtv1.Attachment, error) {
 	event, err := c.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 	if err != nil {
 		return nil, err
@@ -237,12 +237,12 @@ func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, room
 	if body == nil {
 		return nil, ErrMessageNotFound
 	}
-	out := make([]*corev1.Attachment, 0, len(body.Attachments))
+	out := make([]*evtv1.Attachment, 0, len(body.Attachments))
 	for _, attachment := range body.Attachments {
 		if attachment == nil {
 			continue
 		}
-		cloned := proto.Clone(attachment).(*corev1.Attachment)
+		cloned := proto.Clone(attachment).(*evtv1.Attachment)
 		cloned.RoomId = roomID
 		if cloned.MessageBodyId == "" {
 			cloned.MessageBodyId = eventID
@@ -298,7 +298,7 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 			if attachment == nil {
 				continue
 			}
-			cloned := proto.Clone(attachment).(*corev1.Attachment)
+			cloned := proto.Clone(attachment).(*evtv1.Attachment)
 			cloned.RoomId = roomID
 			if cloned.MessageBodyId == "" {
 				cloned.MessageBodyId = message.Entry.Event.GetId()

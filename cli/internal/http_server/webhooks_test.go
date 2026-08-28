@@ -17,7 +17,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *testing.T) {
@@ -155,7 +155,7 @@ func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 	}
 	s.setupWebhookRoutes()
 
-	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
 	active, ok, err := s.core.GetActiveCall(roomID)
@@ -235,7 +235,7 @@ func TestLiveKitWebhookParticipantLeftUsesParsedRoomID(t *testing.T) {
 	}
 	s.setupWebhookRoutes()
 
-	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
 	active, ok, err := s.core.GetActiveCall(roomID)
@@ -282,7 +282,7 @@ func TestLiveKitWebhookIgnoresCompanionPublisherMembership(t *testing.T) {
 		Enabled: true, URL: "ws://livekit.example.test", APIKey: apiKey, APISecret: apiSecret, ServerID: serverID,
 	}
 	s.setupWebhookRoutes()
-	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
 	active, ok, err := s.core.GetActiveCall(roomID)

@@ -3,11 +3,12 @@ package core
 import (
 	"context"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -41,9 +42,9 @@ type LastReadEventIDAdvance struct {
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
 func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, kind RoomKind, roomID string) {
-	event := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_RoomMarkedAsRead{
-			RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{
+	event := newLiveEvent(userID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_RoomMarkedAsRead{
+			RoomMarkedAsRead: &livev1.RoomMarkedAsReadEvent{
 				RoomId: roomID,
 			},
 		},
@@ -95,7 +96,7 @@ func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind
 			return "", time.Time{}, false, err
 		}
 	}
-	visible := func(event *corev1.Event) bool {
+	visible := func(event *evtv1.Event) bool {
 		message := event.GetMessagePosted()
 		if message == nil || message.GetInThread() != "" {
 			return false

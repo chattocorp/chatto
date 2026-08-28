@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -31,7 +31,7 @@ type PinnedMessageListInput struct {
 // PinnedMessageItem pairs current pin metadata with the canonical message fact.
 type PinnedMessageItem struct {
 	Pin   PinnedMessageState
-	Event *corev1.Event
+	Event *evtv1.Event
 }
 
 // PinnedMessageListResult is a stable newest-first page of active room pins.
@@ -111,11 +111,11 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 	}
 	aggregate := evtstream.RoomAggregate(input.RoomID)
 	filter := aggregate.AllEventsFilter()
-	var event *corev1.Event
+	var event *evtv1.Event
 	if create {
-		event = newEvent(input.ActorID, &corev1.Event{Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: input.RoomID, MessageEventId: input.MessageEventID}}})
+		event = newEvent(input.ActorID, &evtv1.Event{Event: &evtv1.Event_MessagePinned{MessagePinned: &evtv1.MessagePinnedEvent{RoomId: input.RoomID, MessageEventId: input.MessageEventID}}})
 	} else {
-		event = newEvent(input.ActorID, &corev1.Event{Event: &corev1.Event_MessageUnpinned{MessageUnpinned: &corev1.MessageUnpinnedEvent{RoomId: input.RoomID, MessageEventId: input.MessageEventID}}})
+		event = newEvent(input.ActorID, &evtv1.Event{Event: &evtv1.Event_MessageUnpinned{MessageUnpinned: &evtv1.MessageUnpinnedEvent{RoomId: input.RoomID, MessageEventId: input.MessageEventID}}})
 	}
 
 	for attempt := 0; attempt < maxPinnedMessageMutationAttempts; attempt++ {

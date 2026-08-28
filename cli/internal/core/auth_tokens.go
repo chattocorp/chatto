@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -55,7 +55,7 @@ type AuthTokenData struct {
 	Kind               AuthTokenKind                `json:"kind,omitempty"`
 	Presentation       AuthTokenPresentation        `json:"presentation,omitempty"`
 	Source             string                       `json:"source,omitempty"`
-	Request            *corev1.AuditRequestMetadata `json:"request,omitempty"`
+	Request            *evtv1.AuditRequestMetadata `json:"request,omitempty"`
 	CreatedAt          time.Time                    `json:"created_at"`
 	ExpiresAt          time.Time                    `json:"expires_at,omitempty"`
 	AuthGeneration     uint64                       `json:"auth_generation,omitempty"`
@@ -75,7 +75,7 @@ type ValidatedRuntimeCredential struct {
 	Kind               AuthTokenKind
 	Presentation       AuthTokenPresentation
 	Source             string
-	Request            *corev1.AuditRequestMetadata
+	Request            *evtv1.AuditRequestMetadata
 	CreatedAt          time.Time
 	ExpiresAt          time.Time
 	AuthGeneration     uint64

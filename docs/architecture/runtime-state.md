@@ -12,11 +12,16 @@ Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go),
 [`cli/internal/core/external_identities.go`](../../cli/internal/core/external_identities.go),
 [`cli/internal/core/asset_uploads.go`](../../cli/internal/core/asset_uploads.go),
 [`cli/internal/core/credential_usage.go`](../../cli/internal/core/credential_usage.go), and
-[`cli/internal/kms/builtin.go`](../../cli/internal/kms/builtin.go)
+[`cli/internal/kms/builtin.go`](../../cli/internal/kms/builtin.go). Protobuf
+records live in
+[`runtime_state/v1`](../../proto/chatto/core/runtime_state/v1),
+[`key_material/v1`](../../proto/chatto/core/key_material/v1), and
+[`cache_state/v1`](../../proto/chatto/core/cache_state/v1).
 
 Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md) and
-[ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md).
+[ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) and
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 ## KV buckets
 
