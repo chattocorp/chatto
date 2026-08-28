@@ -124,7 +124,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	}
 
 	c.logger.Info("Updated user settings", "user_id", userID)
-	c.publishServerUserPreferencesUpdatedEvent(ctx, userID, settings)
+	c.publishServerUserPreferencesSync(ctx, userID, settings)
 	if timezoneChanged {
 		c.publishUserProfileUpdate(ctx, userID)
 	}
@@ -132,9 +132,9 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	return settings, nil
 }
 
-// publishServerUserPreferencesUpdatedEvent publishes a live event when preferences change.
-// User-scoped: only delivered to the user who changed their preferences.
-func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Context, userID string, settings *corev1.ServerUserPreferences) {
+// publishServerUserPreferencesSync publishes a transient signal for the user
+// whose preferences changed.
+func (c *ChattoCore) publishServerUserPreferencesSync(ctx context.Context, userID string, settings *corev1.ServerUserPreferences) {
 	tz := ""
 	if settings.Timezone != nil {
 		tz = *settings.Timezone
@@ -142,7 +142,7 @@ func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Contex
 
 	event := newLiveEvent(userID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{
-			ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesUpdatedEvent{
+			ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesSyncEvent{
 				Timezone:   tz,
 				TimeFormat: settings.TimeFormat,
 			},

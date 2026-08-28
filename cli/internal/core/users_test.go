@@ -114,7 +114,7 @@ func TestChattoCore_CreateUserLiveEventUsesProvidedActorID(t *testing.T) {
 	}
 	created := live.GetUserCreated()
 	if created == nil {
-		t.Fatalf("expected UserCreatedEvent, got %T", live.Event)
+		t.Fatalf("expected UserCreatedSyncEvent, got %T", live.Event)
 	}
 	if created.GetUserId() != user.GetId() {
 		t.Fatalf("created live user_id = %q, want %q", created.GetUserId(), user.GetId())

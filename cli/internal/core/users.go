@@ -333,11 +333,10 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		}
 	}
 
-	// Create and publish audit event (best-effort)
-	// UserCreated goes to INSTANCE stream
+	// Publish a best-effort transient signal for the new public user.
 	event := newLiveEvent(eventActorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_UserCreated{
-			UserCreated: &corev1.UserCreatedEvent{
+			UserCreated: &corev1.UserCreatedSyncEvent{
 				UserId:      userID,
 				Login:       login,
 				DisplayName: displayName,

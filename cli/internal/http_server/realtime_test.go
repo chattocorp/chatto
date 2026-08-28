@@ -646,7 +646,7 @@ func TestRealtimeTransientMapperRejectsProjectionOwnedLiveEvents(t *testing.T) {
 		{"room read", &corev1.LiveEvent{Event: &corev1.LiveEvent_RoomMarkedAsRead{RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{RoomId: "R1"}}}},
 		{"server updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUpdated{ServerUpdated: &corev1.ServerUpdatedEvent{}}}},
 		{"profile updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_UserProfileUpdated{UserProfileUpdated: &corev1.UserProfileSyncEvent{UserId: "U1"}}}},
-		{"preferences updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesUpdatedEvent{}}}},
+		{"preferences updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesSyncEvent{}}}},
 		{"room groups updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_RoomGroupsUpdated{RoomGroupsUpdated: &corev1.RoomGroupsUpdatedEvent{}}}},
 		{"member deleted", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerMemberDeleted{ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{UserId: "U1"}}}},
 	}

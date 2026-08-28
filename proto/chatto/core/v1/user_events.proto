@@ -8,26 +8,32 @@ import "chatto/core/v1/models.proto";
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 // ============================================================================
-// USER LIFECYCLE EVENTS (server-scoped)
+// USER EVENTS
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-721: durable user aggregate events on evt.user.{userId}.*
-//   - 1010-1015: live-only user lifecycle and preference broadcasts
+//   - 700-722: durable user aggregate events on evt.user.{userId}.*
 //
-// Keep these tags coordinated with event.proto. Message-internal field numbers
-// are local to each message and do not consume top-level Event tag space.
+// This file also retains deprecated live-only messages in their original file
+// for generated-source compatibility. New live-only messages belong in
+// live_events.proto.
 // ============================================================================
 
+// Deprecated: UserCreatedEvent is retained in its original source file for
+// generated-source compatibility. LiveEvent uses UserCreatedSyncEvent.
 message UserCreatedEvent {
+  option deprecated = true;
+
   string user_id = 1;
   string login = 2;
   string display_name = 3;
 }
 
-// UserDeletedEvent records a durable user-account deletion fact in EVT.
-// Transient realtime delivery uses SessionTerminatedEvent for the deleted
-// user's own clients and ServerMemberDeletedEvent for server-wide invalidation.
+// Deprecated: UserDeletedEvent is retained for the deprecated LiveEvent field.
+// Current deletion delivery uses SessionTerminatedEvent for the deleted user's
+// clients and ServerMemberDeletedEvent for server-wide invalidation.
 message UserDeletedEvent {
+  option deprecated = true;
+
   string user_id = 1;
 }
 
@@ -44,16 +50,13 @@ message UserProfileUpdatedEvent {
   string timezone = 6;
 }
 
-// ============================================================================
-// USER PREFERENCE EVENTS (user-scoped)
-// ============================================================================
-
-// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
-// User-scoped private event for multi-tab/multi-device sync.
+// Deprecated: ServerUserPreferencesUpdatedEvent is retained in its original
+// source file for generated-source compatibility. LiveEvent uses
+// ServerUserPreferencesSyncEvent.
 message ServerUserPreferencesUpdatedEvent {
-  // IANA timezone name (empty = cleared/browser default).
+  option deprecated = true;
+
   string timezone = 1;
-  // Time display format preference.
   TimeFormat time_format = 2;
 }
 

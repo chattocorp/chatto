@@ -70,6 +70,10 @@ func (UserDEKPurpose) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_user_events_proto_rawDescGZIP(), []int{0}
 }
 
+// Deprecated: UserCreatedEvent is retained in its original source file for
+// generated-source compatibility. LiveEvent uses UserCreatedSyncEvent.
+//
+// Deprecated: Marked as deprecated in chatto/core/v1/user_events.proto.
 type UserCreatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -130,9 +134,11 @@ func (x *UserCreatedEvent) GetDisplayName() string {
 	return ""
 }
 
-// UserDeletedEvent records a durable user-account deletion fact in EVT.
-// Transient realtime delivery uses SessionTerminatedEvent for the deleted
-// user's own clients and ServerMemberDeletedEvent for server-wide invalidation.
+// Deprecated: UserDeletedEvent is retained for the deprecated LiveEvent field.
+// Current deletion delivery uses SessionTerminatedEvent for the deleted user's
+// clients and ServerMemberDeletedEvent for server-wide invalidation.
+//
+// Deprecated: Marked as deprecated in chatto/core/v1/user_events.proto.
 type UserDeletedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -265,14 +271,15 @@ func (x *UserProfileUpdatedEvent) GetTimezone() string {
 	return ""
 }
 
-// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
-// User-scoped private event for multi-tab/multi-device sync.
+// Deprecated: ServerUserPreferencesUpdatedEvent is retained in its original
+// source file for generated-source compatibility. LiveEvent uses
+// ServerUserPreferencesSyncEvent.
+//
+// Deprecated: Marked as deprecated in chatto/core/v1/user_events.proto.
 type ServerUserPreferencesUpdatedEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// IANA timezone name (empty = cleared/browser default).
-	Timezone string `protobuf:"bytes,1,opt,name=timezone,proto3" json:"timezone,omitempty"`
-	// Time display format preference.
-	TimeFormat    TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.v1.TimeFormat" json:"time_format,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Timezone      string                 `protobuf:"bytes,1,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	TimeFormat    TimeFormat             `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.v1.TimeFormat" json:"time_format,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1694,13 +1701,13 @@ var File_chatto_core_v1_user_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/user_events.proto\x12\x0echatto.core.v1\x1a%chatto/core/v1/user_preferences.proto\x1a\x1bchatto/core/v1/models.proto\"d\n" +
+	" chatto/core/v1/user_events.proto\x12\x0echatto.core.v1\x1a%chatto/core/v1/user_preferences.proto\x1a\x1bchatto/core/v1/models.proto\"h\n" +
 	"\x10UserCreatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"+\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName:\x02\x18\x01\"/\n" +
 	"\x10UserDeletedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xbc\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId:\x02\x18\x01\"\xbc\x01\n" +
 	"\x17UserProfileUpdatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1d\n" +
@@ -1708,11 +1715,11 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"avatar_url\x18\x03 \x01(\tR\tavatarUrl\x12\x14\n" +
 	"\x05login\x18\x04 \x01(\tR\x05login\x12\x10\n" +
 	"\x03bio\x18\x05 \x01(\tR\x03bio\x12\x1a\n" +
-	"\btimezone\x18\x06 \x01(\tR\btimezone:\x02\x18\x01\"|\n" +
+	"\btimezone\x18\x06 \x01(\tR\btimezone:\x02\x18\x01\"\x80\x01\n" +
 	"!ServerUserPreferencesUpdatedEvent\x12\x1a\n" +
 	"\btimezone\x18\x01 \x01(\tR\btimezone\x12;\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatR\n" +
-	"timeFormat\"\x80\x01\n" +
+	"timeFormat:\x02\x18\x01\"\x80\x01\n" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
