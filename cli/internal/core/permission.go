@@ -158,11 +158,7 @@ const (
 
 // PermissionMetadata provides display information and scope constraints for a permission.
 type PermissionMetadata struct {
-	Permission Permission
-	// IncludedBy identifies the one immediate parent permission whose effective
-	// allow includes this permission. An empty value means there is no parent.
-	// Inclusion is explicit and is not inferred from the permission name.
-	IncludedBy  Permission
+	Permission  Permission
 	DisplayName string
 	Description string
 	Category    PermissionCategory
@@ -179,12 +175,6 @@ func permissionMetadata(permission Permission, displayName, description string, 
 	}
 }
 
-func includedPermissionMetadata(permission, includedBy Permission, displayName, description string, category PermissionCategory, scopes []PermissionScope) PermissionMetadata {
-	metadata := permissionMetadata(permission, displayName, description, category, scopes)
-	metadata.IncludedBy = includedBy
-	return metadata
-}
-
 // allPermissions holds metadata for all permissions.
 var allPermissions = []PermissionMetadata{
 	// Server
@@ -199,7 +189,7 @@ var allPermissions = []PermissionMetadata{
 
 	// Message
 	permissionMetadata(PermMessageRead, "Read Messages", "Read message content in channel rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}),
-	includedPermissionMetadata(PermMessageReadInteractions, PermMessageRead, "Read Interactions", "Read threads you started or where another user mentioned you", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}),
+	permissionMetadata(PermMessageReadInteractions, "Read Interactions", "Read threads you started or where another user mentioned you", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}),
 	permissionMetadata(PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}),
 	permissionMetadata(PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}),
 	permissionMetadata(PermMessageAttach, "Attach Files", "Attach files to messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}),
@@ -251,38 +241,20 @@ func validatePermissionCatalog(catalog []PermissionMetadata) (map[Permission]Per
 		index[metadata.Permission] = metadata
 	}
 	for _, metadata := range catalog {
-		if metadata.IncludedBy == "" {
+		parts := strings.Split(string(metadata.Permission), ".")
+		if len(parts) < 3 {
 			continue
 		}
-		_, exists := index[metadata.IncludedBy]
+		parentPermission := Permission(strings.Join(parts[:len(parts)-1], "."))
+		parent, exists := index[parentPermission]
 		if !exists {
-			return nil, fmt.Errorf("permission %s is included by missing permission %s", metadata.Permission, metadata.IncludedBy)
+			return nil, fmt.Errorf("permission %s is missing immediate parent %s", metadata.Permission, parentPermission)
 		}
-	}
-	for _, metadata := range catalog {
-		seen := map[Permission]bool{metadata.Permission: true}
-		for parent := metadata.IncludedBy; parent != ""; parent = index[parent].IncludedBy {
-			if seen[parent] {
-				return nil, fmt.Errorf("permission inclusion cycle contains %s", parent)
-			}
-			seen[parent] = true
-		}
-	}
-	for _, metadata := range catalog {
-		if metadata.IncludedBy == "" {
-			continue
-		}
-		parent := index[metadata.IncludedBy]
 		if metadata.Category != parent.Category {
-			return nil, fmt.Errorf("permission %s and including permission %s use different categories", metadata.Permission, metadata.IncludedBy)
+			return nil, fmt.Errorf("permission %s and parent %s use different categories", metadata.Permission, parentPermission)
 		}
 		if !samePermissionScopes(metadata.Scopes, parent.Scopes) {
-			return nil, fmt.Errorf("permission %s and including permission %s use different scopes", metadata.Permission, metadata.IncludedBy)
-		}
-		childParts := strings.Split(string(metadata.Permission), ".")
-		parentParts := strings.Split(string(metadata.IncludedBy), ".")
-		if len(childParts) != len(parentParts)+1 || !strings.HasPrefix(string(metadata.Permission), string(metadata.IncludedBy)+".") {
-			return nil, fmt.Errorf("permission %s is not an immediate child of %s", metadata.Permission, metadata.IncludedBy)
+			return nil, fmt.Errorf("permission %s and parent %s use different scopes", metadata.Permission, parentPermission)
 		}
 	}
 	return index, nil
@@ -341,19 +313,27 @@ func PermissionAppliesAtScope(perm Permission, scope PermissionScope) bool {
 	return slices.Contains(meta.Scopes, scope)
 }
 
-// includingPermissions returns the explicit parent chain, from the immediate
-// parent to the broadest ancestor. Dotted name components do not create an
-// automatic hierarchy.
+// includingPermissions returns registered dotted ancestors from the immediate
+// parent to the broadest ancestor. An allow for any ancestor includes the
+// requested permission.
 func includingPermissions(perm Permission) []Permission {
 	return includingPermissionsFrom(permissionIndex, perm)
 }
 
 func includingPermissionsFrom(index map[Permission]PermissionMetadata, perm Permission) []Permission {
 	var result []Permission
-	for metadata, ok := index[perm]; ok && metadata.IncludedBy != ""; metadata, ok = index[metadata.IncludedBy] {
-		result = append(result, metadata.IncludedBy)
+	name := string(perm)
+	for {
+		separator := strings.LastIndex(name, ".")
+		if separator < 0 {
+			return result
+		}
+		name = name[:separator]
+		ancestor := Permission(name)
+		if _, registered := index[ancestor]; registered {
+			result = append(result, ancestor)
+		}
 	}
-	return result
 }
 
 // PermissionsForScope returns all permissions that can be configured at a given scope.

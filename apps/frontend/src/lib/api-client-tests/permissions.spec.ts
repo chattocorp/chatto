@@ -53,7 +53,6 @@ describe('createPermissionAPI', () => {
     mocks.getRolePermissionTierMatrix.mockResolvedValue({
       matrix: {
         applicablePermissions: ['message.post'],
-        permissionDefinitions: [{ permission: 'message.post' }],
         roles: [
           {
             role: {
@@ -81,7 +80,6 @@ describe('createPermissionAPI', () => {
     );
     expect(result).toEqual({
       applicablePermissions: ['message.post'],
-      permissionDefinitions: [{ permission: 'message.post' }],
       roles: [
         {
           roleName: 'moderator',
@@ -116,14 +114,7 @@ describe('createPermissionAPI', () => {
     mocks.getRolePermissionMatrix.mockResolvedValue({
       matrix: {
         roleName: 'admin',
-        applicablePermissions: ['message.read', 'message.read.interactions'],
-        permissionDefinitions: [
-          { permission: 'message.read' },
-          {
-            permission: 'message.read.interactions',
-            includedByPermission: 'message.read'
-          }
-        ],
+        applicablePermissions: ['message.post'],
         scopes: [
           {
             id: 'server',
@@ -152,14 +143,7 @@ describe('createPermissionAPI', () => {
     );
     expect(result).toEqual({
       roleName: 'admin',
-      applicablePermissions: ['message.read', 'message.read.interactions'],
-      permissionDefinitions: [
-        { permission: 'message.read' },
-        {
-          permission: 'message.read.interactions',
-          includedByPermission: 'message.read'
-        }
-      ],
+      applicablePermissions: ['message.post'],
       scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
       cells: [
         {
@@ -222,7 +206,6 @@ describe('createPermissionAPI', () => {
       matrix: {
         userId: 'U1',
         applicablePermissions: ['room.create'],
-        permissionDefinitions: [],
         scopes: [
           { id: 'group:G1', label: 'Lobby', kind: PermissionScopeKind.GROUP, parentGroupId: '' }
         ],
@@ -244,7 +227,6 @@ describe('createPermissionAPI', () => {
     expect(result).toEqual({
       userId: 'U1',
       applicablePermissions: ['room.create'],
-      permissionDefinitions: [],
       scopes: [{ id: 'group:G1', label: 'Lobby', kind: 'GROUP', parentGroupId: '' }],
       cells: [
         {

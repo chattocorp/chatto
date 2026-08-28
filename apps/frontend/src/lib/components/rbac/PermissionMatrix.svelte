@@ -33,11 +33,7 @@ focusing a cell highlights its permission row and role column.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import {
-    getIncludingPermissions,
-    getPermissionDescription,
-    type PermissionDefinition
-  } from '$lib/permissions';
+  import { getIncludingPermissions, getPermissionDescription } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
@@ -61,7 +57,6 @@ focusing a cell highlights its permission row and role column.
   };
   type TierRoles = {
     applicablePermissions: string[];
-    permissionDefinitions?: PermissionDefinition[];
     roles: TierRole[];
   };
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
@@ -199,10 +194,7 @@ focusing a cell highlights its permission row and role column.
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
     const chains = new Map<string, string[]>();
     for (const permission of permissions) {
-      chains.set(
-        permission,
-        getIncludingPermissions(data?.permissionDefinitions, permission)
-      );
+      chains.set(permission, getIncludingPermissions(permissions, permission));
     }
     return chains;
   });

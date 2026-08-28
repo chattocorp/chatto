@@ -297,56 +297,6 @@ export class TierRole extends Message<TierRole> {
 }
 
 /**
- * Catalog metadata for one permission.
- *
- * @generated from message chatto.admin.v1.PermissionDefinition
- */
-export class PermissionDefinition extends Message<PermissionDefinition> {
-  /**
-   * Permission identifier.
-   *
-   * @generated from field: string permission = 1;
-   */
-  permission = "";
-
-  /**
-   * Immediate parent whose effective allow includes this permission. Absent
-   * when the permission has no parent. Dotted names do not imply inclusion.
-   *
-   * @generated from field: optional string included_by_permission = 2;
-   */
-  includedByPermission?: string;
-
-  constructor(data?: PartialMessage<PermissionDefinition>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.PermissionDefinition";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "included_by_permission", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionDefinition {
-    return new PermissionDefinition().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PermissionDefinition {
-    return new PermissionDefinition().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PermissionDefinition {
-    return new PermissionDefinition().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: PermissionDefinition | PlainMessage<PermissionDefinition> | undefined, b: PermissionDefinition | PlainMessage<PermissionDefinition> | undefined): boolean {
-    return proto3.util.equals(PermissionDefinition, a, b);
-  }
-}
-
-/**
  * Role permission matrix for one tier.
  *
  * @generated from message chatto.admin.v1.TierRoles
@@ -366,13 +316,6 @@ export class TierRoles extends Message<TierRoles> {
    */
   roles: TierRole[] = [];
 
-  /**
-   * Catalog metadata for applicable permissions.
-   *
-   * @generated from field: repeated chatto.admin.v1.PermissionDefinition permission_definitions = 3;
-   */
-  permissionDefinitions: PermissionDefinition[] = [];
-
   constructor(data?: PartialMessage<TierRoles>) {
     super();
     proto3.util.initPartial(data, this);
@@ -383,7 +326,6 @@ export class TierRoles extends Message<TierRoles> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "applicable_permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 2, name: "roles", kind: "message", T: TierRole, repeated: true },
-    { no: 3, name: "permission_definitions", kind: "message", T: PermissionDefinition, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierRoles {
@@ -658,13 +600,6 @@ export class RolePermissionMatrix extends Message<RolePermissionMatrix> {
    */
   cells: PermissionMatrixCell[] = [];
 
-  /**
-   * Catalog metadata for applicable permissions.
-   *
-   * @generated from field: repeated chatto.admin.v1.PermissionDefinition permission_definitions = 5;
-   */
-  permissionDefinitions: PermissionDefinition[] = [];
-
   constructor(data?: PartialMessage<RolePermissionMatrix>) {
     super();
     proto3.util.initPartial(data, this);
@@ -677,7 +612,6 @@ export class RolePermissionMatrix extends Message<RolePermissionMatrix> {
     { no: 2, name: "applicable_permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "scopes", kind: "message", T: PermissionMatrixScope, repeated: true },
     { no: 4, name: "cells", kind: "message", T: PermissionMatrixCell, repeated: true },
-    { no: 5, name: "permission_definitions", kind: "message", T: PermissionDefinition, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RolePermissionMatrix {
@@ -813,13 +747,6 @@ export class UserPermissionMatrix extends Message<UserPermissionMatrix> {
    */
   cells: PermissionMatrixCell[] = [];
 
-  /**
-   * Catalog metadata for applicable permissions.
-   *
-   * @generated from field: repeated chatto.admin.v1.PermissionDefinition permission_definitions = 5;
-   */
-  permissionDefinitions: PermissionDefinition[] = [];
-
   constructor(data?: PartialMessage<UserPermissionMatrix>) {
     super();
     proto3.util.initPartial(data, this);
@@ -832,7 +759,6 @@ export class UserPermissionMatrix extends Message<UserPermissionMatrix> {
     { no: 2, name: "applicable_permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "scopes", kind: "message", T: PermissionMatrixScope, repeated: true },
     { no: 4, name: "cells", kind: "message", T: PermissionMatrixCell, repeated: true },
-    { no: 5, name: "permission_definitions", kind: "message", T: PermissionDefinition, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserPermissionMatrix {

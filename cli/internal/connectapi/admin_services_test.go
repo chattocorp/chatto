@@ -1064,7 +1064,6 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if len(tierResp.Msg.GetMatrix().GetRoles()) == 0 || len(tierResp.Msg.GetMatrix().GetApplicablePermissions()) == 0 {
 		t.Fatalf("tier matrix = %+v, want roles and permissions", tierResp.Msg.GetMatrix())
 	}
-	assertPermissionDefinition(t, tierResp.Msg.GetMatrix().GetPermissionDefinitions(), core.PermMessageReadInteractions, core.PermMessageRead)
 	emptyScopeTierResp, err := env.permissions.GetRolePermissionTierMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionTierMatrixRequest{
 		Scope: &adminv1.PermissionScope{},
 	}))
@@ -1096,7 +1095,6 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if cell := findAPIPermissionCell(roleMatrixResp.Msg.GetMatrix().GetCells(), "server", string(core.PermMessagePost)); cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW {
 		t.Fatalf("server message.post cell = %+v, want allow override", cell)
 	}
-	assertPermissionDefinition(t, roleMatrixResp.Msg.GetMatrix().GetPermissionDefinitions(), core.PermMessageReadInteractions, core.PermMessageRead)
 	roleDecisionsResp, err := env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{
 		RoleName: core.RoleModerator,
 	}))
@@ -1176,7 +1174,6 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if cell := findAPIPermissionCell(userMatrixResp.Msg.GetMatrix().GetCells(), "server", string(core.PermAdminUsersView)); cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
 		t.Fatalf("user server admin.users.view cell = %+v, want deny override", cell)
 	}
-	assertPermissionDefinition(t, userMatrixResp.Msg.GetMatrix().GetPermissionDefinitions(), core.PermMessageReadInteractions, core.PermMessageRead)
 	if _, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{
 		UserId: "missing-user",
 	})); connect.CodeOf(err) != connect.CodeNotFound {

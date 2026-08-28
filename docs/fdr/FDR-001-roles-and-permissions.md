@@ -14,12 +14,12 @@ Chatto controls who can do what through role-based access control. Every authent
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
 - A permission identifier has two or more non-empty dot-separated components.
   New identifiers use `<domain>.<capability>[.<narrower-capability>...]`.
-  More components can show an explicit inclusion relationship, but do not
-  create an automatic permission hierarchy.
+  Each registered dotted prefix is a broader permission that includes its
+  descendants.
 - Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads. `message.read` supplies broad
-  read authority and explicitly includes `message.read.interactions`, which
+  read authority and includes `message.read.interactions`, which
   supplies authority for related threads only. DM membership authorizes DM
   reads. `message.post` separately
   gates root-message posting and permits human users to start DMs. Bot accounts
@@ -97,29 +97,25 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
 **Tradeoff:** Adding a new code default does not grant it to existing servers or rooms automatically. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 
-### 10. Permission names can show explicit inclusion
+### 10. Permission names define inclusion
 
 **Decision:** Use `<domain>.<capability>[.<narrower-capability>...]` for new
 permission identifiers. Use a hyphen only inside one component. Prefer no more
-than three components unless the product needs a deeper capability tree. Do not
-infer authority from a dotted prefix. The canonical permission catalog records
-at most one immediate including parent for each permission. The resolver follows
-this relationship transitively. `message.read` includes
-`message.read.interactions`. The child does not include the parent. A child deny
-cannot restrict an effective parent allow, and a parent deny cannot restrict a
-separate child allow. Inclusion changes effective authorization only and does
-not store an additional grant. Catalog validation rejects missing parents,
-cycles, non-immediate parent names, and parent-child pairs with different
-categories or scopes. The administrative permission API supplies the catalog
-relationship to clients. An older client ignores this additive metadata. A new
-client that does not receive the metadata shows a flat permission list. This
-does not change authorization.
+than three components unless the product needs a deeper capability tree. Each
+registered dotted prefix includes its descendants. The resolver follows these
+ancestors transitively. `message.read` therefore includes
+`message.read.interactions`. The child does not include the parent. A child
+deny cannot restrict an effective parent allow, and a parent deny cannot
+restrict a separate child allow. Inclusion changes effective authorization
+only and does not store an additional grant. Catalog validation rejects a
+nested permission without its immediate parent and parent-child pairs with
+different categories or scopes.
 **Why:** The three-component name shows that interaction reads are a narrower
-part of message reads. One catalog-owned relationship keeps authorization,
-explanations, delegation limits, and the admin UI consistent. Explicit
-inclusion prevents an accidental grant from a matching string prefix.
-**Tradeoff:** A permission can have only one immediate parent. A capability
-that needs multiple parents must use a different model.
+part of message reads. One naming rule keeps authorization, explanations,
+delegation limits, and the admin UI consistent without separate relationship
+metadata.
+**Tradeoff:** A permission name is an authorization contract. A capability
+that does not belong below an existing permission must use a different name.
 
 ## Permissions
 

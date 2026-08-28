@@ -2249,19 +2249,6 @@ Stored permission decision returned after a write.
 
 
 
-<a id="chatto-admin-v1-PermissionDefinition"></a>
-
-### PermissionDefinition
-
-Catalog metadata for one permission.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permission` | `string` | Permission identifier. |
-| `included_by_permission` | `optional string` | Immediate parent whose effective allow includes this permission. Absent when the permission has no parent. Dotted names do not imply inclusion. |
-
-
-
 <a id="chatto-admin-v1-PermissionExplanation"></a>
 
 ### PermissionExplanation
@@ -2350,7 +2337,6 @@ Permission matrix for one role across all scopes.
 | `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
-| `permission_definitions` | repeated [`PermissionDefinition`](#chatto-admin-v1-PermissionDefinition) | Catalog metadata for applicable permissions. |
 
 
 
@@ -2410,7 +2396,6 @@ Role permission matrix for one tier.
 | --- | --- | --- |
 | `applicable_permissions` | `repeated string` | Permissions configurable at this tier. |
 | `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles sorted by position. |
-| `permission_definitions` | repeated [`PermissionDefinition`](#chatto-admin-v1-PermissionDefinition) | Catalog metadata for applicable permissions. |
 
 
 
@@ -2426,7 +2411,6 @@ Permission matrix for one user across all scopes.
 | `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
-| `permission_definitions` | repeated [`PermissionDefinition`](#chatto-admin-v1-PermissionDefinition) | Catalog metadata for applicable permissions. |
 
 
 

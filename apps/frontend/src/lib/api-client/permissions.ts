@@ -3,7 +3,6 @@ import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_c
 import {
   PermissionDecision,
   PermissionScopeKind,
-  type PermissionDefinition as APIPermissionDefinition,
   type PermissionMatrixCell as APIPermissionMatrixCell,
   type PermissionMatrixScope as APIPermissionMatrixScope,
   type PermissionDecisionUpdate as APIPermissionDecisionUpdate,
@@ -46,13 +45,7 @@ export type TierRole = {
 
 export type TierRoles = {
   applicablePermissions: string[];
-  permissionDefinitions?: PermissionDefinition[];
   roles: TierRole[];
-};
-
-export type PermissionDefinition = {
-  permission: string;
-  includedByPermission?: string;
 };
 
 export type MatrixScope = {
@@ -72,7 +65,6 @@ export type MatrixCell = {
 
 export type MatrixData = {
   applicablePermissions: string[];
-  permissionDefinitions?: PermissionDefinition[];
   scopes: MatrixScope[];
   cells: MatrixCell[];
 };
@@ -213,7 +205,6 @@ export type PermissionAPI = ReturnType<typeof createPermissionAPI>;
 function tierRoles(matrix: APITierRoles): TierRoles {
   return {
     applicablePermissions: [...matrix.applicablePermissions],
-    permissionDefinitions: (matrix.permissionDefinitions ?? []).map(permissionDefinition),
     roles: matrix.roles.map(tierRole)
   };
 }
@@ -243,7 +234,6 @@ function rolePermissionMatrix(matrix: APIRolePermissionMatrix): RolePermissionMa
   return {
     roleName: matrix.roleName,
     applicablePermissions: [...matrix.applicablePermissions],
-    permissionDefinitions: (matrix.permissionDefinitions ?? []).map(permissionDefinition),
     scopes: matrix.scopes.map(matrixScope),
     cells: matrix.cells.map(matrixCell)
   };
@@ -253,18 +243,8 @@ function userPermissionMatrix(matrix: APIUserPermissionMatrix): UserPermissionMa
   return {
     userId: matrix.userId,
     applicablePermissions: [...matrix.applicablePermissions],
-    permissionDefinitions: (matrix.permissionDefinitions ?? []).map(permissionDefinition),
     scopes: matrix.scopes.map(matrixScope),
     cells: matrix.cells.map(matrixCell)
-  };
-}
-
-function permissionDefinition(definition: APIPermissionDefinition): PermissionDefinition {
-  return {
-    permission: definition.permission,
-    ...(definition.includedByPermission !== undefined
-      ? { includedByPermission: definition.includedByPermission }
-      : {})
   };
 }
 

@@ -12,8 +12,8 @@ func installTestPermissionChain(t testing.TB) (Permission, Permission, Permissio
 	narrow := Permission("test.manage.items.publish")
 	testCatalog := []PermissionMetadata{
 		permissionMetadata(broad, "Manage", "Manage", CategoryServer, []PermissionScope{ScopeServer}),
-		includedPermissionMetadata(middle, broad, "Manage Items", "Manage items", CategoryServer, []PermissionScope{ScopeServer}),
-		includedPermissionMetadata(narrow, middle, "Publish Items", "Publish items", CategoryServer, []PermissionScope{ScopeServer}),
+		permissionMetadata(middle, "Manage Items", "Manage items", CategoryServer, []PermissionScope{ScopeServer}),
+		permissionMetadata(narrow, "Publish Items", "Publish items", CategoryServer, []PermissionScope{ScopeServer}),
 	}
 	validated, err := validatePermissionCatalog(testCatalog)
 	if err != nil {
@@ -306,7 +306,7 @@ func TestPermissionKeyPartsAllowAdditionalComponents(t *testing.T) {
 	}
 }
 
-func TestMessageReadExplicitlyIncludesInteractions(t *testing.T) {
+func TestPermissionNamesDefineInclusion(t *testing.T) {
 	if got := includingPermissions(PermMessageReadInteractions); !slices.Equal(got, []Permission{PermMessageRead}) {
 		t.Fatalf("including permissions = %v, want [%s]", got, PermMessageRead)
 	}
@@ -319,15 +319,12 @@ func TestValidatePermissionCatalog(t *testing.T) {
 	scopes := []PermissionScope{ScopeServer}
 	valid := []PermissionMetadata{
 		permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
-		includedPermissionMetadata("server.manage.neighbors", "server.manage", "Neighbors", "Neighbors", CategoryServer, scopes),
-		includedPermissionMetadata("server.manage.neighbors.publish", "server.manage.neighbors", "Publish", "Publish", CategoryServer, scopes),
+		permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, scopes),
+		permissionMetadata("server.manage.neighbors.publish", "Publish", "Publish", CategoryServer, scopes),
 	}
 	index, err := validatePermissionCatalog(valid)
 	if err != nil {
 		t.Fatalf("valid catalog: %v", err)
-	}
-	if index["server.manage.neighbors"].IncludedBy != "server.manage" {
-		t.Fatalf("included parent = %q, want server.manage", index["server.manage.neighbors"].IncludedBy)
 	}
 	if got := includingPermissionsFrom(index, "server.manage.neighbors.publish"); !slices.Equal(got, []Permission{"server.manage.neighbors", "server.manage"}) {
 		t.Fatalf("transitive parents = %v, want [server.manage.neighbors server.manage]", got)
@@ -346,42 +343,28 @@ func TestValidatePermissionCatalog(t *testing.T) {
 		{
 			name: "missing parent",
 			catalog: []PermissionMetadata{
-				includedPermissionMetadata("server.manage.neighbors", "server.manage", "Neighbors", "Neighbors", CategoryServer, scopes),
-			},
-		},
-		{
-			name: "cycle",
-			catalog: []PermissionMetadata{
-				includedPermissionMetadata("server.manage", "server.manage.neighbors", "Manage", "Manage", CategoryServer, scopes),
-				includedPermissionMetadata("server.manage.neighbors", "server.manage", "Neighbors", "Neighbors", CategoryServer, scopes),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, scopes),
 			},
 		},
 		{
 			name: "different category",
 			catalog: []PermissionMetadata{
 				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
-				includedPermissionMetadata("server.manage.neighbors", "server.manage", "Neighbors", "Neighbors", CategoryAdmin, scopes),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryAdmin, scopes),
 			},
 		},
 		{
 			name: "different scopes",
 			catalog: []PermissionMetadata{
 				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
-				includedPermissionMetadata("server.manage.neighbors", "server.manage", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeRoom}),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeRoom}),
 			},
 		},
 		{
 			name: "duplicate scopes do not match",
 			catalog: []PermissionMetadata{
 				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, []PermissionScope{ScopeServer, ScopeGroup}),
-				includedPermissionMetadata("server.manage.neighbors", "server.manage", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeServer}),
-			},
-		},
-		{
-			name: "not immediate child",
-			catalog: []PermissionMetadata{
-				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
-				includedPermissionMetadata("server.manage.neighbors.publish", "server.manage", "Publish", "Publish", CategoryServer, scopes),
+				permissionMetadata("server.manage.neighbors", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeServer}),
 			},
 		},
 	}

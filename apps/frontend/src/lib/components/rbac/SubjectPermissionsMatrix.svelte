@@ -21,11 +21,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   import { MatrixTable } from '$lib/ui/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
-  import {
-    getIncludedByPermission,
-    getPermissionDescription,
-    type PermissionDefinition
-  } from '$lib/permissions';
+  import { getIncludingPermissions, getPermissionDescription } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -48,7 +44,6 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   };
   export type MatrixData = {
     applicablePermissions: string[];
-    permissionDefinitions?: PermissionDefinition[];
     scopes: MatrixScope[];
     cells: MatrixCellData[];
   };
@@ -155,9 +150,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   }
 
   function includingPermission(scope: MatrixScope, permission: string): string | null {
-    const including = getIncludedByPermission(data.permissionDefinitions, permission);
-    if (!including) return null;
-    return cellFor(scope.id, including)?.effective === 'ALLOW' ? including : null;
+    for (const including of getIncludingPermissions(data.applicablePermissions, permission)) {
+      if (cellFor(scope.id, including)?.effective === 'ALLOW') return including;
+    }
+    return null;
   }
 
   function cycleCell(
@@ -234,7 +230,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         </span>
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        {@const includedBy = getIncludedByPermission(data.permissionDefinitions, permission)}
+        {@const includedBy = getIncludingPermissions(data.applicablePermissions, permission)[0] ?? null}
         <code
           data-testid="permission-name"
           class={['text-sm', includedBy ? 'ml-4' : '', highlighted ? 'text-action' : '']}

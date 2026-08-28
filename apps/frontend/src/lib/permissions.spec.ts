@@ -41,38 +41,25 @@ describe('PERMISSION_METADATA', () => {
     expect(PERMISSION_METADATA).not.toHaveProperty('message.delete-any');
   });
 
-  it('defines the explicit message read inclusion without a general hierarchy', () => {
-    const definitions = [
-      { permission: 'message.read' },
-      { permission: 'message.read.interactions', includedByPermission: 'message.read' }
-    ];
-    expect(getIncludedByPermission(definitions, 'message.read.interactions')).toBe('message.read');
-    expect(getIncludedByPermission(definitions, 'message.read')).toBeNull();
-    expect(getIncludedByPermission(definitions, 'message.post-in-thread')).toBeNull();
-    expect(getIncludedByPermission(undefined, 'message.read.interactions')).toBeNull();
+  it('derives inclusion from registered dotted ancestors', () => {
+    const permissions = ['message.read', 'message.read.interactions', 'message.post-in-thread'];
+    expect(getIncludedByPermission(permissions, 'message.read.interactions')).toBe('message.read');
+    expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
+    expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
   });
 
-  it('returns transitive inclusion without looping on invalid server metadata', () => {
-    const definitions = [
-      { permission: 'server.manage' },
-      { permission: 'server.manage.neighbors', includedByPermission: 'server.manage' },
-      {
-        permission: 'server.manage.neighbors.publish',
-        includedByPermission: 'server.manage.neighbors'
-      }
+  it('returns all registered dotted ancestors in order', () => {
+    const permissions = [
+      'server.manage',
+      'server.manage.neighbors',
+      'server.manage.neighbors.publish'
     ];
-    expect(getIncludingPermissions(definitions, 'server.manage.neighbors.publish')).toEqual([
+    expect(getIncludingPermissions(permissions, 'server.manage.neighbors.publish')).toEqual([
       'server.manage.neighbors',
       'server.manage'
     ]);
-    expect(
-      getIncludingPermissions(
-        [
-          { permission: 'cycle.a', includedByPermission: 'cycle.b' },
-          { permission: 'cycle.b', includedByPermission: 'cycle.a' }
-        ],
-        'cycle.a'
-      )
-    ).toEqual(['cycle.b']);
+    expect(getIncludingPermissions(['server.manage'], 'server.manage.neighbors')).toEqual([
+      'server.manage'
+    ]);
   });
 });

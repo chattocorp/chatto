@@ -10,17 +10,12 @@ export type PermissionMetadata = {
   description: () => string;
 };
 
-export type PermissionDefinition = {
-  permission: string;
-  includedByPermission?: string;
-};
-
 /**
  * Map of permission IDs to their metadata.
  * Keep in sync with cli/internal/core/permission.go
  *
  * Permission IDs contain at least two dot-separated components. Additional
- * components can make an explicit inclusion relationship visible in the name.
+ * components define a narrower permission below their registered prefix.
  */
 export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Server permissions
@@ -105,28 +100,22 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   }
 };
 
-/** Return the explicit immediate parent supplied by the server catalog. */
+/** Return the registered immediate parent encoded in a permission name. */
 export function getIncludedByPermission(
-  definitions: readonly PermissionDefinition[] | undefined,
+  permissions: readonly string[],
   id: string
 ): string | null {
-  return definitions?.find((definition) => definition.permission === id)?.includedByPermission ?? null;
+  return getIncludingPermissions(permissions, id)[0] ?? null;
 }
 
-/** Return the explicit parent chain from the immediate parent to the root. */
-export function getIncludingPermissions(
-  definitions: readonly PermissionDefinition[] | undefined,
-  id: string
-): string[] {
-  if (!definitions) return [];
-  const parents = new Map(
-    definitions.map((definition) => [definition.permission, definition.includedByPermission])
-  );
+/** Return registered dotted ancestors from the immediate parent to the root. */
+export function getIncludingPermissions(permissions: readonly string[], id: string): string[] {
+  const registered = new Set(permissions);
   const result: string[] = [];
-  const seen = new Set([id]);
-  for (let parent = parents.get(id); parent && !seen.has(parent); parent = parents.get(parent)) {
-    result.push(parent);
-    seen.add(parent);
+  let name = id;
+  for (let separator = name.lastIndexOf('.'); separator >= 0; separator = name.lastIndexOf('.')) {
+    name = name.slice(0, separator);
+    if (registered.has(name)) result.push(name);
   }
   return result;
 }

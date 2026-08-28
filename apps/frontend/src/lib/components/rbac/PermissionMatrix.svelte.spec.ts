@@ -8,7 +8,6 @@ import { queryClient } from '$lib/query/client';
 
 type TierRoles = {
   applicablePermissions: string[];
-  permissionDefinitions?: Array<{ permission: string; includedByPermission?: string }>;
   roles: Array<{
     roleName: string;
     displayName: string;
@@ -138,10 +137,6 @@ describe('PermissionMatrix', () => {
   it('shows that message.read includes the nested interaction permission', async () => {
     nextTierRoles = {
       applicablePermissions: ['message.read', 'message.read.interactions'],
-      permissionDefinitions: [
-        { permission: 'message.read' },
-        { permission: 'message.read.interactions', includedByPermission: 'message.read' }
-      ],
       roles: [
         {
           roleName: 'reader',
@@ -177,14 +172,6 @@ describe('PermissionMatrix', () => {
         'server.manage',
         'server.manage.neighbors',
         'server.manage.neighbors.publish'
-      ],
-      permissionDefinitions: [
-        { permission: 'server.manage' },
-        { permission: 'server.manage.neighbors', includedByPermission: 'server.manage' },
-        {
-          permission: 'server.manage.neighbors.publish',
-          includedByPermission: 'server.manage.neighbors'
-        }
       ],
       roles: [
         {
