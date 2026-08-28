@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -15,7 +16,6 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 var ErrInvalidRef = errors.New("invalid data-encryption-key ref")
 
 type Reader interface {
-	Get(ctx context.Context, ref string) (*corev1.UserDataEncryptionKey, error)
+	Get(ctx context.Context, ref string) (*runtimestatev1.UserDataEncryptionKey, error)
 }
 
 type Store struct {
@@ -60,7 +60,7 @@ func ValidateRef(ref string) error {
 	return fmt.Errorf("%w: %s", ErrInvalidRef, ref)
 }
 
-func validateUserDataEncryptionKey(dek *corev1.UserDataEncryptionKey) error {
+func validateUserDataEncryptionKey(dek *runtimestatev1.UserDataEncryptionKey) error {
 	if dek == nil {
 		return fmt.Errorf("invalid user data encryption key")
 	}
@@ -89,14 +89,14 @@ func ValidateUserDataEncryptionKeyRecord(ref string, data []byte) error {
 	if err := ValidateRef(ref); err != nil {
 		return err
 	}
-	var dek corev1.UserDataEncryptionKey
+	var dek runtimestatev1.UserDataEncryptionKey
 	if err := proto.Unmarshal(data, &dek); err != nil {
 		return fmt.Errorf("failed to decode content key: %w", err)
 	}
 	return validateUserDataEncryptionKey(&dek)
 }
 
-func (s *Store) Create(ctx context.Context, dek *corev1.UserDataEncryptionKey) (string, error) {
+func (s *Store) Create(ctx context.Context, dek *runtimestatev1.UserDataEncryptionKey) (string, error) {
 	if err := validateUserDataEncryptionKey(dek); err != nil {
 		return "", err
 	}
@@ -121,7 +121,7 @@ func (s *Store) Create(ctx context.Context, dek *corev1.UserDataEncryptionKey) (
 	return "", fmt.Errorf("failed to allocate unique content key ref")
 }
 
-func (s *Store) Get(ctx context.Context, ref string) (*corev1.UserDataEncryptionKey, error) {
+func (s *Store) Get(ctx context.Context, ref string) (*runtimestatev1.UserDataEncryptionKey, error) {
 	if err := ValidateRef(ref); err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (s *Store) Get(ctx context.Context, ref string) (*corev1.UserDataEncryption
 		}
 		return nil, fmt.Errorf("failed to get content key: %w", err)
 	}
-	var dek corev1.UserDataEncryptionKey
+	var dek runtimestatev1.UserDataEncryptionKey
 	if err := proto.Unmarshal(entry.Value(), &dek); err != nil {
 		return nil, fmt.Errorf("failed to decode content key: %w", err)
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/lease"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -250,7 +250,7 @@ func (m *pushSubscriptionCleanupModel) inspectPushEndpointOwner(
 	if err != nil {
 		return owner.UserID, entry.Revision(), false, fmt.Errorf("get push subscription for endpoint owner reconciliation: %w", err)
 	}
-	var subscription corev1.PushSubscription
+	var subscription runtimestatev1.PushSubscription
 	if err := proto.Unmarshal(subscriptionEntry.Value(), &subscription); err != nil {
 		return owner.UserID, entry.Revision(), true, nil
 	}

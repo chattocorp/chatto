@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type ServerConfigUpdateInput struct {
@@ -96,7 +96,7 @@ func normalizeBlockedUsernameEntries(entries []string) string {
 	return strings.Join(parseBlockedUsernames(strings.Join(entries, "\n")), "\n")
 }
 
-func (c *ChattoCore) UploadManagedServerLogo(ctx context.Context, actorID string, reader io.Reader) (*corev1.AssetRecord, error) {
+func (c *ChattoCore) UploadManagedServerLogo(ctx context.Context, actorID string, reader io.Reader) (*evtv1.AssetRecord, error) {
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (c *ChattoCore) UploadManagedServerLogo(ctx context.Context, actorID string
 	return asset, nil
 }
 
-func (c *ChattoCore) UploadManagedServerBanner(ctx context.Context, actorID string, reader io.Reader) (*corev1.AssetRecord, error) {
+func (c *ChattoCore) UploadManagedServerBanner(ctx context.Context, actorID string, reader io.Reader) (*evtv1.AssetRecord, error) {
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
 		return nil, err
 	}

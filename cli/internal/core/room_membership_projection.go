@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -49,35 +49,35 @@ func (p *RoomMembershipProjection) Subjects() []string {
 // Apply implements evtstream.Projection. Apply runs from a single
 // goroutine in stream order, so the write path locks only to publish
 // state to concurrent readers.
-func (p *RoomMembershipProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *RoomMembershipProjection) Apply(event *evtv1.Event, _ uint64) error {
 	if event == nil {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_UserJoinedRoom:
+	case *evtv1.Event_UserJoinedRoom:
 		roomID := e.UserJoinedRoom.GetRoomId()
 		userID := event.GetActorId()
 		if roomID == "" || userID == "" {
 			return fmt.Errorf("UserJoinedRoom missing roomID or userID")
 		}
 		p.addLocked(roomID, userID)
-	case *corev1.Event_UserLeftRoom:
+	case *evtv1.Event_UserLeftRoom:
 		roomID := e.UserLeftRoom.GetRoomId()
 		userID := event.GetActorId()
 		if roomID == "" || userID == "" {
 			return fmt.Errorf("UserLeftRoom missing roomID or userID")
 		}
 		p.removeLocked(roomID, userID)
-	case *corev1.Event_RoomMemberBanned:
+	case *evtv1.Event_RoomMemberBanned:
 		roomID := e.RoomMemberBanned.GetRoomId()
 		userID := e.RoomMemberBanned.GetUserId()
 		if roomID == "" || userID == "" {
 			return fmt.Errorf("RoomMemberBanned missing roomID or userID")
 		}
 		p.removeLocked(roomID, userID)
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		roomID := e.RoomDeleted.GetRoomId()
 		if roomID == "" {
 			return fmt.Errorf("RoomDeleted missing roomID")

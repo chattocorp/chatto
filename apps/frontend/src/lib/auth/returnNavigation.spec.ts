@@ -94,6 +94,23 @@ describe('return navigation', () => {
     expect(gotoMock).not.toHaveBeenCalled();
   });
 
+  it('takes a queued return path for a route-load redirect', async () => {
+    const { takeReturnNavigationTarget } = await loadModule();
+    sessionStorage.setItem('returnUrl', '/chat/-/settings?tab=profile');
+
+    expect(takeReturnNavigationTarget()).toBe('/chat/-/settings?tab=profile');
+    expect(sessionStorage.getItem('returnUrl')).toBeNull();
+  });
+
+  it('does not take a return path while navigation is in progress', async () => {
+    const { takeReturnNavigationTarget } = await loadModule();
+    sessionStorage.setItem('returnUrl:navigating', '/chat/-/settings');
+    sessionStorage.setItem('returnUrl', '/chat/-/settings?tab=profile');
+
+    expect(takeReturnNavigationTarget()).toBeNull();
+    expect(sessionStorage.getItem('returnUrl')).toBe('/chat/-/settings?tab=profile');
+  });
+
   it('consumes a return path that already matches the current URL', async () => {
     const { resumeReturnNavigation } = await loadModule();
     window.location.pathname = '/chat/-/settings';

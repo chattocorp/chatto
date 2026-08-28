@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"slices"
 	"sync"
 	"time"
@@ -13,7 +15,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/parallel"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -359,7 +361,7 @@ func sameNotificationWorkerFilterSubjects(left, right []string) bool {
 }
 
 func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery events.DurableDelivery) error {
-	var event corev1.Event
+	var event evtv1.Event
 	if err := proto.Unmarshal(delivery.Data, &event); err != nil {
 		m.core.logger.Error("Terminating malformed notification delivery", "error", err)
 		return events.TerminateDelivery("invalid Chatto event envelope", err)
@@ -373,20 +375,20 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		return fmt.Errorf("wait for notification decision projection: %w", err)
 	}
 	switch event.GetEvent().(type) {
-	case *corev1.Event_UserAccountDeleted, *corev1.Event_UserVerifiedEmailAdded:
+	case *evtv1.Event_UserAccountDeleted, *evtv1.Event_UserVerifiedEmailAdded:
 		if err := m.core.userModel.waitForUsers(ctx, position); err != nil {
 			return fmt.Errorf("wait for user projection: %w", err)
 		}
-	case *corev1.Event_RbacRoleDeleted,
-		*corev1.Event_RbacRoleAssigned,
-		*corev1.Event_RbacRoleRevoked,
-		*corev1.Event_RbacPermissionGranted,
-		*corev1.Event_RbacPermissionDenied,
-		*corev1.Event_RbacPermissionCleared:
+	case *evtv1.Event_RbacRoleDeleted,
+		*evtv1.Event_RbacRoleAssigned,
+		*evtv1.Event_RbacRoleRevoked,
+		*evtv1.Event_RbacPermissionGranted,
+		*evtv1.Event_RbacPermissionDenied,
+		*evtv1.Event_RbacPermissionCleared:
 		if err := m.core.rbacModel.waitFor(ctx, position); err != nil {
 			return fmt.Errorf("wait for RBAC projection: %w", err)
 		}
-	case *corev1.Event_RoomAddedToGroup, *corev1.Event_RoomRemovedFromGroup, *corev1.Event_RoomGroupDeleted:
+	case *evtv1.Event_RoomAddedToGroup, *evtv1.Event_RoomRemovedFromGroup, *evtv1.Event_RoomGroupDeleted:
 		if err := m.core.roomModel.waitForGroupLayout(ctx, position); err != nil {
 			return fmt.Errorf("wait for room group projection: %w", err)
 		}
@@ -404,7 +406,7 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 	return nil
 }
 
-func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *corev1.Event, streamSequence uint64) error {
+func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *evtv1.Event, streamSequence uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -416,22 +418,22 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		visibilityAt = event.GetCreatedAt().AsTime()
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		if streamSequence == 0 {
 			return invalidArgument("notification materialization requires an EVT stream sequence")
 		}
 		return m.materializeMessage(ctx, event, streamSequence, visibilityAt)
-	case *corev1.Event_ReactionAdded:
+	case *evtv1.Event_ReactionAdded:
 		if streamSequence == 0 {
 			return invalidArgument("notification materialization requires an EVT stream sequence")
 		}
 		return m.materializeReaction(ctx, event, payload.ReactionAdded, streamSequence, visibilityAt)
-	case *corev1.Event_ReactionRemoved:
+	case *evtv1.Event_ReactionRemoved:
 		if streamSequence == 0 {
 			return invalidArgument("notification materialization requires an EVT stream sequence")
 		}
 		return m.removeReaction(ctx, event, payload.ReactionRemoved, streamSequence)
-	case *corev1.Event_MessageRetracted:
+	case *evtv1.Event_MessageRetracted:
 		_, err := m.core.notificationOccurrences.RemoveTarget(ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId())
 		if err == nil {
 			m.core.notificationOccurrences.publishUnreadMarkerTargetInvalidations(
@@ -439,32 +441,32 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 			)
 		}
 		return err
-	case *corev1.Event_UserLeftRoom:
+	case *evtv1.Event_UserLeftRoom:
 		if err := m.recordVisibilityBoundary(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), streamSequence); err != nil {
 			return err
 		}
 		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), streamSequence)
 		return err
-	case *corev1.Event_RoomMemberRemoved:
+	case *evtv1.Event_RoomMemberRemoved:
 		if err := m.recordVisibilityBoundary(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), streamSequence); err != nil {
 			return err
 		}
 		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), streamSequence)
 		return err
-	case *corev1.Event_RoomMemberBanned:
+	case *evtv1.Event_RoomMemberBanned:
 		return m.reconcileOccurrenceVisibility(ctx, payload.RoomMemberBanned.GetUserId(), payload.RoomMemberBanned.GetRoomId(), streamSequence, visibilityAt)
-	case *corev1.Event_RoomUniversalChanged:
+	case *evtv1.Event_RoomUniversalChanged:
 		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomUniversalChanged.GetRoomId(), streamSequence, visibilityAt)
-	case *corev1.Event_RoomAddedToGroup:
+	case *evtv1.Event_RoomAddedToGroup:
 		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomAddedToGroup.GetRoomId(), streamSequence, visibilityAt)
-	case *corev1.Event_RoomRemovedFromGroup:
+	case *evtv1.Event_RoomRemovedFromGroup:
 		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomRemovedFromGroup.GetRoomId(), streamSequence, visibilityAt)
-	case *corev1.Event_RoomGroupDeleted:
+	case *evtv1.Event_RoomGroupDeleted:
 		return m.reconcileOccurrenceVisibility(ctx, "", "", streamSequence, visibilityAt)
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		_, err := m.core.notificationOccurrences.RemoveRoom(ctx, payload.RoomDeleted.GetRoomId())
 		return err
-	case *corev1.Event_UserAccountDeleted:
+	case *evtv1.Event_UserAccountDeleted:
 		userID := payload.UserAccountDeleted.GetUserId()
 		if _, err := m.core.notificationOccurrences.PurgeUser(ctx, userID); err != nil {
 			return err
@@ -476,19 +478,19 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 			return err
 		}
 		return m.purgeVisibilityBoundaries(ctx, userID)
-	case *corev1.Event_UserVerifiedEmailAdded:
+	case *evtv1.Event_UserVerifiedEmailAdded:
 		return m.materializeConfiguredOwner(ctx, payload.UserVerifiedEmailAdded.GetUserId())
-	case *corev1.Event_RbacRoleAssigned:
+	case *evtv1.Event_RbacRoleAssigned:
 		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleAssigned.GetUserId(), "", streamSequence, visibilityAt)
-	case *corev1.Event_RbacRoleRevoked:
+	case *evtv1.Event_RbacRoleRevoked:
 		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleRevoked.GetUserId(), "", streamSequence, visibilityAt)
-	case *corev1.Event_RbacRoleDeleted:
+	case *evtv1.Event_RbacRoleDeleted:
 		return m.reconcileOccurrenceVisibility(ctx, "", "", streamSequence, visibilityAt)
-	case *corev1.Event_RbacPermissionGranted:
+	case *evtv1.Event_RbacPermissionGranted:
 		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionGranted.GetPermission(), payload.RbacPermissionGranted.GetScope(), payload.RbacPermissionGranted.GetSubject(), streamSequence, visibilityAt)
-	case *corev1.Event_RbacPermissionDenied:
+	case *evtv1.Event_RbacPermissionDenied:
 		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionDenied.GetPermission(), payload.RbacPermissionDenied.GetScope(), payload.RbacPermissionDenied.GetSubject(), streamSequence, visibilityAt)
-	case *corev1.Event_RbacPermissionCleared:
+	case *evtv1.Event_RbacPermissionCleared:
 		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionCleared.GetPermission(), payload.RbacPermissionCleared.GetScope(), payload.RbacPermissionCleared.GetSubject(), streamSequence, visibilityAt)
 	}
 	return nil
@@ -523,8 +525,8 @@ func (m *NotificationMaterializer) materializeConfiguredOwner(ctx context.Contex
 func (m *NotificationMaterializer) reconcilePermissionVisibility(
 	ctx context.Context,
 	permission string,
-	scope *corev1.RbacPermissionScope,
-	subject *corev1.RbacPermissionSubject,
+	scope *evtv1.RbacPermissionScope,
+	subject *evtv1.RbacPermissionSubject,
 	streamSequence uint64,
 	visibilityAt time.Time,
 ) error {
@@ -532,10 +534,10 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 		return nil
 	}
 	var userID, roomID string
-	if subject.GetKind() == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER {
+	if subject.GetKind() == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER {
 		userID = subject.GetId()
 	}
-	if scope.GetKind() == corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM {
+	if scope.GetKind() == evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM {
 		roomID = scope.GetId()
 	}
 	return m.reconcileOccurrenceVisibility(ctx, userID, roomID, streamSequence, visibilityAt)
@@ -556,10 +558,10 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	}
 	type unreadMarkerCandidate struct {
 		scope  notificationReadBoundaryScope
-		marker *corev1.NotificationUnreadMarker
+		marker *runtimestatev1.NotificationUnreadMarker
 	}
 	type visibilityCandidates struct {
-		occurrences []*corev1.NotificationOccurrence
+		occurrences []*notificationv1.NotificationOccurrence
 		markers     []unreadMarkerCandidate
 	}
 	candidatesByPair := make(map[recipientRoom]*visibilityCandidates)
@@ -605,7 +607,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		return err
 	}
 
-	toRemove := make([]*corev1.NotificationOccurrence, 0)
+	toRemove := make([]*notificationv1.NotificationOccurrence, 0)
 	unreadInvalidations := make([]notificationUnreadInvalidation, 0)
 	for pair, candidates := range candidatesByPair {
 		broadVisibility := snapshot.notificationVisibilityExists(pair.recipientID, pair.roomID)
@@ -648,7 +650,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	return nil
 }
 
-func (m *NotificationMaterializer) notificationTargetHasInteraction(userID, roomID string, signal *corev1.NotificationSignal) bool {
+func (m *NotificationMaterializer) notificationTargetHasInteraction(userID, roomID string, signal *notificationv1.NotificationSignal) bool {
 	message := notificationSignalMessage(signal)
 	if message == nil {
 		return false
@@ -657,7 +659,7 @@ func (m *NotificationMaterializer) notificationTargetHasInteraction(userID, room
 	return exists && m.core.roomModel.hasThreadInteraction(userID, roomID, rootID)
 }
 
-func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionRemovedEvent, streamSequence uint64) error {
+func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *evtv1.Event, reaction *evtv1.ReactionRemovedEvent, streamSequence uint64) error {
 	room, err := m.core.FindRoomByID(ctx, reaction.GetRoomId())
 	if errors.Is(err, ErrNotFound) {
 		return nil
@@ -689,7 +691,7 @@ func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *co
 	return err
 }
 
-func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event *corev1.Event, streamSequence uint64, evaluatedAt time.Time) error {
+func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event *evtv1.Event, streamSequence uint64, evaluatedAt time.Time) error {
 	if createdAt := event.GetCreatedAt(); createdAt != nil && !createdAt.AsTime().UTC().Add(notificationTTL).After(time.Now().UTC()) {
 		return nil
 	}
@@ -711,7 +713,7 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	return m.materializeInputs(ctx, newNotificationOccurrenceInputs(event, decisions), streamSequence)
 }
 
-func (m *NotificationMaterializer) materializeReaction(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionAddedEvent, streamSequence uint64, evaluatedAt time.Time) error {
+func (m *NotificationMaterializer) materializeReaction(ctx context.Context, event *evtv1.Event, reaction *evtv1.ReactionAddedEvent, streamSequence uint64, evaluatedAt time.Time) error {
 	if createdAt := event.GetCreatedAt(); createdAt != nil && !createdAt.AsTime().UTC().Add(notificationTTL).After(time.Now().UTC()) {
 		return nil
 	}
@@ -743,7 +745,7 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	if threadRootEventID := target.GetMessagePosted().GetInThread(); threadRootEventID != "" {
 		reference.ThreadRootEventId = &threadRootEventID
 	}
-	signal := &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: reference, Emoji: reaction.GetEmoji()}}}
+	signal := &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReactionReceived{ReactionReceived: &notificationv1.ReactionReceived{Message: reference, Emoji: reaction.GetEmoji()}}}
 	mode := snapshot.effectiveNotificationMode(recipientID, reaction.GetRoomId(), signal)
 	if !notificationModeProducesAttention(mode) {
 		return nil
@@ -785,7 +787,7 @@ func (m *NotificationMaterializer) materializeInputs(ctx context.Context, inputs
 	badgeInputs := make([]CreateNotificationOccurrenceInput, 0, len(eligible))
 	seenMarkerKeys := make(map[string]struct{})
 	for _, input := range eligible {
-		if input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+		if input.Mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 			continue
 		}
 		message := notificationSignalMessage(input.Signal)

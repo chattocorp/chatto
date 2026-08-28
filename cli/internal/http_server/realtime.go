@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"net/http"
 	"slices"
 	"strings"
@@ -18,7 +19,7 @@ import (
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
@@ -797,7 +798,7 @@ func realtimeRetainedRoomSet(roomIDs []string) (map[string]struct{}, error) {
 	return rooms, nil
 }
 
-func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *corev1.User, error) {
+func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *evtv1.User, error) {
 	if token := strings.TrimSpace(hello.GetBearerToken()); token != "" {
 		credential, ok, err := s.bearerPresentedCredential(ctx, token)
 		if err != nil {
@@ -889,9 +890,9 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 	return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 }
 
-func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envelope *realtimev1.RealtimeEventEnvelope, event *corev1.LiveEvent) error {
+func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envelope *realtimev1.RealtimeEventEnvelope, event *livev1.LiveEvent) error {
 	switch payload := event.GetEvent().(type) {
-	case *corev1.LiveEvent_UserTyping:
+	case *livev1.LiveEvent_UserTyping:
 		typing := payload.UserTyping
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
@@ -919,11 +920,11 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_UserTyping{UserTyping: &realtimev1.RealtimeTypingEvent{
 			RoomId: typing.GetRoomId(), ThreadRootEventId: optionalRealtimeString(typing.GetThreadRootEventId()),
 		}}
-	case *corev1.LiveEvent_PresenceChanged:
+	case *livev1.LiveEvent_PresenceChanged:
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_PresenceChanged{PresenceChanged: &realtimev1.RealtimePresenceChangedEvent{
 			UserId: event.GetActorId(), Status: apiPresenceStatus(payload.PresenceChanged.GetStatus()),
 		}}
-	case *corev1.LiveEvent_SessionTerminated:
+	case *livev1.LiveEvent_SessionTerminated:
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_SessionTerminated{SessionTerminated: &realtimev1.RealtimeSessionTerminatedEvent{
 			Reason: payload.SessionTerminated.GetReason(),
 		}}
@@ -968,7 +969,7 @@ func (s *HTTPServer) realtimeDMConversationName(ctx context.Context, viewerID, r
 	return strings.Join(names, ", ")
 }
 
-func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerID string, room *corev1.Room) bool {
+func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerID string, room *evtv1.Room) bool {
 	if s == nil || s.core == nil || viewerID == "" || room == nil {
 		return false
 	}

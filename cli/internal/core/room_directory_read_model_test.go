@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
@@ -147,7 +147,7 @@ func TestRoomDirectoryReadModelSortsMemberDMsByActivityDespiteMessageReadDenial(
 	if err != nil {
 		t.Fatalf("CreateUser actor: %v", err)
 	}
-	createDM := func(login string) (*corev1.User, *corev1.Room) {
+	createDM := func(login string) (*evtv1.User, *evtv1.Room) {
 		t.Helper()
 		other, err := chattoCore.CreateUser(ctx, SystemActorID, login, login, "password")
 		if err != nil {
@@ -217,7 +217,7 @@ func TestRoomDirectoryReadModelKeepsActiveDMsWhenMessageReadIsDenied(t *testing.
 	}
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
 		ctx, actor.Id, dmA.Id, notificationTestSignalDirectMessage,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
 	); err != nil {
 		t.Fatalf("SetRoomNotificationMode: %v", err)
 	}

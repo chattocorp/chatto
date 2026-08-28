@@ -2,15 +2,16 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var userSnapshotContractID = snapshotContractID("v4", &corev1.UserProfileProjectionSnapshot{})
+var userSnapshotContractID = snapshotContractID("v4", &projectionv1.UserProfileProjectionSnapshot{})
 
 func (*UserProjection) SnapshotContractID() string { return userSnapshotContractID }
 
@@ -18,13 +19,13 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
 
-	snapshot := &corev1.UserProfileProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot := &projectionv1.UserProfileProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	for _, userID := range sortedMapKeys(p.users) {
 		u := p.users[userID]
 		if u == nil {
 			continue
 		}
-		entry := &corev1.ProjectedUserProfileSnapshot{
+		entry := &projectionv1.ProjectedUserProfileSnapshot{
 			UserId:      userID,
 			Login:       snapshotProjectedUserPII(u.login),
 			LoginHash:   u.loginHash,
@@ -34,7 +35,7 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			Shredded:    u.shredded,
 		}
 		if u.user != nil {
-			entry.User = proto.Clone(u.user).(*corev1.User)
+			entry.User = proto.Clone(u.user).(*evtv1.User)
 			// These fields must never be populated in retained projection state.
 			// Clear defensively so a regression cannot leak plaintext to storage.
 			entry.User.Login = ""
@@ -42,17 +43,17 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			entry.User.Bio = ""
 		}
 		if u.avatar != nil {
-			entry.Avatar = proto.Clone(u.avatar).(*corev1.AssetRecord)
+			entry.Avatar = proto.Clone(u.avatar).(*evtv1.AssetRecord)
 		}
 		if u.preferences != nil {
-			entry.Preferences = proto.Clone(u.preferences).(*corev1.ServerUserPreferences)
+			entry.Preferences = proto.Clone(u.preferences).(*evtv1.ServerUserPreferences)
 		}
 		if !u.loginChanged.IsZero() {
 			entry.LoginChangedAt = timestamppb.New(u.loginChanged)
 		}
 		for _, digest := range sortedMapKeys(u.verifiedEmail) {
 			email := u.verifiedEmail[digest]
-			entry.VerifiedEmails = append(entry.VerifiedEmails, &corev1.ProjectedVerifiedEmailSnapshot{
+			entry.VerifiedEmails = append(entry.VerifiedEmails, &projectionv1.ProjectedVerifiedEmailSnapshot{
 				Digest: digest, Value: snapshotProjectedUserPII(email.pii), VerifiedAt: timestamppb.New(email.verifiedAt),
 			})
 		}
@@ -65,38 +66,38 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 		}
 		sort.Ints(purposes)
 		for _, rawPurpose := range purposes {
-			purpose := corev1.UserDEKPurpose(rawPurpose)
+			purpose := evtv1.UserDEKPurpose(rawPurpose)
 			epochs := make([]int, 0, len(p.dekEvents[userID][purpose]))
 			for epoch := range p.dekEvents[userID][purpose] {
 				epochs = append(epochs, int(epoch))
 			}
 			sort.Ints(epochs)
 			for _, epoch := range epochs {
-				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.dekEvents[userID][purpose][int32(epoch)]).(*corev1.UserDEKGeneratedEvent))
+				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.dekEvents[userID][purpose][int32(epoch)]).(*evtv1.UserDEKGeneratedEvent))
 			}
 		}
 	}
 	for _, digest := range sortedMapKeys(p.loginIndex) {
-		snapshot.LoginIndex = append(snapshot.LoginIndex, &corev1.StringStringSnapshot{Key: digest, Value: p.loginIndex[digest]})
+		snapshot.LoginIndex = append(snapshot.LoginIndex, &projectionv1.StringStringSnapshot{Key: digest, Value: p.loginIndex[digest]})
 	}
 	for _, digest := range sortedMapKeys(p.emailIndex) {
-		snapshot.EmailIndex = append(snapshot.EmailIndex, &corev1.StringStringSnapshot{Key: digest, Value: p.emailIndex[digest]})
+		snapshot.EmailIndex = append(snapshot.EmailIndex, &projectionv1.StringStringSnapshot{Key: digest, Value: p.emailIndex[digest]})
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
-func snapshotProjectedUserPII(value *projectedUserPII) *corev1.ProjectedEncryptedUserStringSnapshot {
+func snapshotProjectedUserPII(value *projectedUserPII) *projectionv1.ProjectedEncryptedUserStringSnapshot {
 	if value == nil {
 		return nil
 	}
-	out := &corev1.ProjectedEncryptedUserStringSnapshot{EventId: value.eventID, EventType: value.eventType, Purpose: value.purpose}
+	out := &projectionv1.ProjectedEncryptedUserStringSnapshot{EventId: value.eventID, EventType: value.eventType, Purpose: value.purpose}
 	if value.encrypted != nil {
-		out.Encrypted = proto.Clone(value.encrypted).(*corev1.EncryptedUserString)
+		out.Encrypted = proto.Clone(value.encrypted).(*evtv1.EncryptedUserString)
 	}
 	return out
 }
 
-func restoreProjectedUserPII(value *corev1.ProjectedEncryptedUserStringSnapshot) (*projectedUserPII, error) {
+func restoreProjectedUserPII(value *projectionv1.ProjectedEncryptedUserStringSnapshot) (*projectedUserPII, error) {
 	if value == nil {
 		return nil, nil
 	}
@@ -107,7 +108,7 @@ func restoreProjectedUserPII(value *corev1.ProjectedEncryptedUserStringSnapshot)
 }
 
 func (p *UserProjection) Restore(data []byte) error {
-	snapshot := &corev1.UserProfileProjectionSnapshot{}
+	snapshot := &projectionv1.UserProfileProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal user profile snapshot: %w", err)
@@ -176,10 +177,10 @@ func (p *UserProjection) Restore(data []byte) error {
 			deleted: entry.GetDeleted(), shredded: entry.GetShredded(), verifiedEmail: make(map[string]projectedVerifiedEmail),
 		}
 		if entry.GetUser() != nil {
-			u.user = proto.Clone(entry.GetUser()).(*corev1.User)
+			u.user = proto.Clone(entry.GetUser()).(*evtv1.User)
 		}
 		if entry.GetPreferences() != nil {
-			u.preferences = proto.Clone(entry.GetPreferences()).(*corev1.ServerUserPreferences)
+			u.preferences = proto.Clone(entry.GetPreferences()).(*evtv1.ServerUserPreferences)
 		}
 		if entry.GetLoginChangedAt() != nil {
 			if err := entry.GetLoginChangedAt().CheckValid(); err != nil {
@@ -214,7 +215,7 @@ func (p *UserProjection) Restore(data []byte) error {
 			restored.ownerBots[u.user.GetBotOwnerUserId()][userID] = struct{}{}
 		}
 		if entry.GetAvatar() != nil {
-			restored.replaceAvatarLocked(u, proto.Clone(entry.GetAvatar()).(*corev1.AssetRecord))
+			restored.replaceAvatarLocked(u, proto.Clone(entry.GetAvatar()).(*evtv1.AssetRecord))
 		}
 	}
 
@@ -239,7 +240,7 @@ func (p *UserProjection) Restore(data []byte) error {
 	return nil
 }
 
-func restoreUserProfileIndex(rows []*corev1.StringStringSnapshot, users map[string]*projectedUser, ownerMatches func(*projectedUser, string) bool) (map[string]string, error) {
+func restoreUserProfileIndex(rows []*projectionv1.StringStringSnapshot, users map[string]*projectedUser, ownerMatches func(*projectedUser, string) bool) (map[string]string, error) {
 	index := make(map[string]string, len(rows))
 	for _, row := range rows {
 		digest, userID := row.GetKey(), row.GetValue()
@@ -263,6 +264,6 @@ func (p *UserProjection) hasUserPIIKeyLocked(userID string, epoch int32) bool {
 	if byPurpose == nil {
 		return false
 	}
-	return byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][epoch] != nil ||
-		byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][epoch] != nil
+	return byPurpose[evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][epoch] != nil ||
+		byPurpose[evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][epoch] != nil
 }

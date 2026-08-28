@@ -2,49 +2,50 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"slices"
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var assetSnapshotContractID = snapshotContractID("v3", &corev1.AssetProjectionSnapshot{})
+var assetSnapshotContractID = snapshotContractID("v3", &projectionv1.AssetProjectionSnapshot{})
 
 func (*AssetProjection) SnapshotContractID() string { return assetSnapshotContractID }
 
 func (p *AssetProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.AssetProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot := &projectionv1.AssetProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	for _, assetID := range sortedMapKeys(p.assetCreations) {
-		snapshot.Creations = append(snapshot.Creations, proto.Clone(p.assetCreations[assetID]).(*corev1.AssetCreatedEvent))
+		snapshot.Creations = append(snapshot.Creations, proto.Clone(p.assetCreations[assetID]).(*evtv1.AssetCreatedEvent))
 	}
 	for _, parentID := range sortedMapKeys(p.assetChildren) {
 		children := slices.Clone(p.assetChildren[parentID])
 		slices.Sort(children)
-		snapshot.Children = append(snapshot.Children, &corev1.AssetChildrenSnapshot{ParentAssetId: parentID, ChildAssetIds: children})
+		snapshot.Children = append(snapshot.Children, &projectionv1.AssetChildrenSnapshot{ParentAssetId: parentID, ChildAssetIds: children})
 	}
 	for _, assetID := range sortedMapKeys(p.videoManifests) {
 		manifest := p.videoManifests[assetID]
-		row := &corev1.AssetManifestSnapshot{AssetId: assetID}
+		row := &projectionv1.AssetManifestSnapshot{AssetId: assetID}
 		if manifest.Started != nil {
-			row.Started = proto.Clone(manifest.Started).(*corev1.AssetProcessingStartedEvent)
+			row.Started = proto.Clone(manifest.Started).(*evtv1.AssetProcessingStartedEvent)
 		}
 		if manifest.Succeeded != nil {
-			row.Succeeded = proto.Clone(manifest.Succeeded).(*corev1.AssetProcessingSucceededEvent)
+			row.Succeeded = proto.Clone(manifest.Succeeded).(*evtv1.AssetProcessingSucceededEvent)
 		}
 		if manifest.Failed != nil {
-			row.Failed = proto.Clone(manifest.Failed).(*corev1.AssetProcessingFailedEvent)
+			row.Failed = proto.Clone(manifest.Failed).(*evtv1.AssetProcessingFailedEvent)
 		}
 		snapshot.Manifests = append(snapshot.Manifests, row)
 	}
 	for _, assetID := range sortedMapKeys(p.deletedAssets) {
-		snapshot.DeletedAssets = append(snapshot.DeletedAssets, &corev1.DeletedAssetSnapshot{AssetId: assetID, RoomId: p.deletedAssetRoom[assetID]})
+		snapshot.DeletedAssets = append(snapshot.DeletedAssets, &projectionv1.DeletedAssetSnapshot{AssetId: assetID, RoomId: p.deletedAssetRoom[assetID]})
 	}
 	for _, assetID := range sortedMapKeys(p.messageOwners) {
 		owner := p.messageOwners[assetID]
-		snapshot.MessageOwners = append(snapshot.MessageOwners, &corev1.AssetMessageOwnerSnapshot{
+		snapshot.MessageOwners = append(snapshot.MessageOwners, &projectionv1.AssetMessageOwnerSnapshot{
 			AssetId:        assetID,
 			RoomId:         owner.roomID,
 			MessageEventId: owner.messageEventID,
@@ -56,7 +57,7 @@ func (p *AssetProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *AssetProjection) Restore(data []byte) error {
-	snapshot := &corev1.AssetProjectionSnapshot{}
+	snapshot := &projectionv1.AssetProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal asset snapshot: %w", err)
@@ -66,7 +67,7 @@ func (p *AssetProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("asset snapshot replay guard: %w", err)
 	}
-	creations := make(map[string]*corev1.AssetCreatedEvent, len(snapshot.GetCreations()))
+	creations := make(map[string]*evtv1.AssetCreatedEvent, len(snapshot.GetCreations()))
 	for _, creation := range snapshot.GetCreations() {
 		assetID := creation.GetAsset().GetId()
 		if assetID == "" {
@@ -75,7 +76,7 @@ func (p *AssetProjection) Restore(data []byte) error {
 		if _, duplicate := creations[assetID]; duplicate {
 			return fmt.Errorf("asset snapshot repeats asset %q", assetID)
 		}
-		creations[assetID] = proto.Clone(creation).(*corev1.AssetCreatedEvent)
+		creations[assetID] = proto.Clone(creation).(*evtv1.AssetCreatedEvent)
 	}
 	children := make(map[string][]string, len(snapshot.GetChildren()))
 	for _, row := range snapshot.GetChildren() {
@@ -110,13 +111,13 @@ func (p *AssetProjection) Restore(data []byte) error {
 		}
 		manifest := &VideoAttachmentManifest{}
 		if row.GetStarted() != nil {
-			manifest.Started = proto.Clone(row.GetStarted()).(*corev1.AssetProcessingStartedEvent)
+			manifest.Started = proto.Clone(row.GetStarted()).(*evtv1.AssetProcessingStartedEvent)
 		}
 		if row.GetSucceeded() != nil {
-			manifest.Succeeded = proto.Clone(row.GetSucceeded()).(*corev1.AssetProcessingSucceededEvent)
+			manifest.Succeeded = proto.Clone(row.GetSucceeded()).(*evtv1.AssetProcessingSucceededEvent)
 		}
 		if row.GetFailed() != nil {
-			manifest.Failed = proto.Clone(row.GetFailed()).(*corev1.AssetProcessingFailedEvent)
+			manifest.Failed = proto.Clone(row.GetFailed()).(*evtv1.AssetProcessingFailedEvent)
 		}
 		manifests[row.GetAssetId()] = manifest
 	}

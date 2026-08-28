@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 var errOAuthConsentAlreadyGranted = errors.New("OAuth consent already granted")
@@ -53,8 +53,8 @@ func (c *ChattoCore) GrantOAuthClientConsent(ctx context.Context, userID, client
 		return nil
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_OauthConsentGranted{
-		OauthConsentGranted: &corev1.OAuthConsentGrantedEvent{
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_OauthConsentGranted{
+		OauthConsentGranted: &evtv1.OAuthConsentGrantedEvent{
 			UserId:         userID,
 			RedirectOrigin: origin,
 			Request:        auditRequestMetadata(ctx),
@@ -85,8 +85,8 @@ func (c *ChattoCore) RecordOAuthClientConsentDenied(ctx context.Context, userID,
 		return nil
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_OauthConsentDenied{
-		OauthConsentDenied: &corev1.OAuthConsentDeniedEvent{
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_OauthConsentDenied{
+		OauthConsentDenied: &evtv1.OAuthConsentDeniedEvent{
 			UserId:         userID,
 			RedirectOrigin: origin,
 			Request:        auditRequestMetadata(ctx),

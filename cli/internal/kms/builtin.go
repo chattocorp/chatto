@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -15,7 +16,6 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
@@ -124,7 +124,7 @@ func encodeUserKeyEncryptionKey(key []byte) ([]byte, error) {
 	if len(key) != encryption.KeySize {
 		return nil, fmt.Errorf("invalid KEK length: got %d, want %d", len(key), encryption.KeySize)
 	}
-	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+	data, err := proto.Marshal(&keymaterialv1.UserKeyEncryptionKey{
 		Key:       key,
 		Algorithm: AlgorithmBuiltinXChaCha20Poly1305V1,
 	})
@@ -144,7 +144,7 @@ func DecodeUserKeyEncryptionKeyRecord(keyRef string, data []byte) ([]byte, error
 		}
 		return nil, fmt.Errorf("invalid legacy user key record")
 	}
-	var stored corev1.UserKeyEncryptionKey
+	var stored keymaterialv1.UserKeyEncryptionKey
 	if err := proto.Unmarshal(data, &stored); err == nil &&
 		stored.GetAlgorithm() == AlgorithmBuiltinXChaCha20Poly1305V1 &&
 		len(stored.GetKey()) == encryption.KeySize {
@@ -171,7 +171,7 @@ func decodeCallKeyRecord(keyRef string, data []byte) ([]byte, error) {
 	if err := ValidateCallKeyRef(keyRef); err != nil {
 		return nil, err
 	}
-	var stored corev1.UserKeyEncryptionKey
+	var stored keymaterialv1.UserKeyEncryptionKey
 	if err := proto.Unmarshal(data, &stored); err != nil {
 		return nil, fmt.Errorf("failed to decode call key: %w", err)
 	}
@@ -270,7 +270,7 @@ func (b *Builtin) CreateCallKey(ctx context.Context, callID string) (string, str
 		return "", "", err
 	}
 	keyRef := CallKeyRef(callID)
-	data, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+	data, err := proto.Marshal(&keymaterialv1.UserKeyEncryptionKey{
 		Key:       key,
 		Algorithm: AlgorithmLiveKitCallE2EEV1,
 	})

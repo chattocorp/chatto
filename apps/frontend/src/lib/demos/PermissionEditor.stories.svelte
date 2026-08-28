@@ -4,13 +4,6 @@
   const { Story } = defineMeta({
     title: 'Demos/Permission editor'
   });
-</script>
-
-<script lang="ts">
-  import Pill from '$lib/ui/Pill.svelte';
-  import ToggleChip from '$lib/ui/ToggleChip.svelte';
-  import HelpTooltip from '$lib/ui/HelpTooltip.svelte';
-  import Hint from '$lib/ui/Hint.svelte';
 
   type State = 'allow' | 'deny' | 'neutral';
 
@@ -18,9 +11,27 @@
     id: string;
     label: string;
     help: string;
-    inherited: 'allow' | 'deny' | 'neutral';
+    inherited: State;
     state: State;
   };
+
+  type PermissionColumn = {
+    id: 'inherited' | 'override';
+    label: string;
+  };
+</script>
+
+<script lang="ts">
+  import Pill from '$lib/ui/Pill.svelte';
+  import HelpTooltip from '$lib/ui/HelpTooltip.svelte';
+  import Hint from '$lib/ui/Hint.svelte';
+  import MatrixCellButton from '$lib/ui/matrix/MatrixCellButton.svelte';
+  import MatrixTable from '$lib/ui/matrix/MatrixTable.svelte';
+
+  const columns: PermissionColumn[] = [
+    { id: 'inherited', label: 'Inherited' },
+    { id: 'override', label: 'Room override' }
+  ];
 
   let permissions = $state<Permission[]>([
     {
@@ -60,8 +71,8 @@
     }
   ]);
 
-  function set(perm: Permission, target: State) {
-    perm.state = perm.state === target ? 'neutral' : target;
+  function cycle(perm: Permission) {
+    perm.state = perm.state === 'neutral' ? 'allow' : perm.state === 'allow' ? 'deny' : 'neutral';
   }
 
   function effective(perm: Permission): 'allow' | 'deny' {
@@ -82,59 +93,84 @@
     </header>
 
     <Hint tone="info">
-      Allow / Deny here override what's inherited from the space-level role.
-      Leave both released to inherit.
+      Activate an override cell to cycle between inherit, allow, and deny.
+      The inherited value still shows the space-level role.
     </Hint>
 
-    <table class="mt-6 w-full">
-      <thead>
-        <tr class="border-b border-border text-left text-xs uppercase text-muted">
-          <th class="pb-2">Permission</th>
-          <th class="pb-2">Inherited</th>
-          <th class="pb-2">Override</th>
-          <th class="pb-2">Effective</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each permissions as perm (perm.id)}
-          <tr class="border-b border-border/40">
-            <td class="py-3">
-              <div class="flex items-center gap-2">
-                <code class="font-mono text-sm">{perm.label}</code>
-                <HelpTooltip>{perm.help}</HelpTooltip>
-              </div>
-            </td>
-            <td class="py-3">
-              <Pill tone={perm.inherited === 'allow' ? 'success' : perm.inherited === 'deny' ? 'danger' : 'muted'} dimmed>
-                {perm.inherited === 'neutral' ? 'inherit' : perm.inherited}
-              </Pill>
-            </td>
-            <td class="py-3">
-              <div class="flex gap-2">
-                <ToggleChip
-                  tone="success"
-                  pressed={perm.state === 'allow'}
-                  onclick={() => set(perm, 'allow')}
-                >
-                  Allow
-                </ToggleChip>
-                <ToggleChip
-                  tone="danger"
-                  pressed={perm.state === 'deny'}
-                  onclick={() => set(perm, 'deny')}
-                >
-                  Deny
-                </ToggleChip>
-              </div>
-            </td>
-            <td class="py-3">
-              <Pill tone={effective(perm) === 'allow' ? 'success' : 'danger'}>
-                {effective(perm)}
-              </Pill>
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+    <div class="mt-6">
+      <MatrixTable
+        rows={permissions}
+        {columns}
+        getRowKey={(permission) => permission.id}
+        getColumnKey={(column) => column.id}
+        isCellInteractive={(_, column) => column.id === 'override'}
+        emptyMessage="No permissions found"
+        leadingHeader={permissionHeader}
+        rowHeader={permissionRow}
+        columnHeader={permissionColumn}
+        cell={permissionCell}
+        trailingHeader={effectiveHeader}
+        trailingCell={effectiveCell}
+        trailingColumns={1}
+        rowHeaderWidth="18rem"
+      />
+    </div>
   </div>
 </Story>
+
+{#snippet permissionHeader()}
+  Permission
+{/snippet}
+
+{#snippet permissionRow(permission: Permission, highlighted: boolean)}
+  <div class="flex items-center gap-2">
+    <code class={['font-mono text-sm', highlighted ? 'text-action' : '']}>{permission.label}</code>
+    <HelpTooltip>{permission.help}</HelpTooltip>
+  </div>
+{/snippet}
+
+{#snippet permissionColumn(column: PermissionColumn, highlighted: boolean)}
+  <span class={highlighted ? 'text-action' : 'text-muted'}>{column.label}</span>
+{/snippet}
+
+{#snippet permissionCell(permission: Permission, column: PermissionColumn)}
+  {#if column.id === 'inherited'}
+    <Pill
+      tone={permission.inherited === 'allow'
+        ? 'success'
+        : permission.inherited === 'deny'
+          ? 'danger'
+          : 'muted'}
+      compact
+    >
+      {permission.inherited === 'neutral' ? 'inherit' : permission.inherited}
+    </Pill>
+  {:else}
+    <MatrixCellButton
+      tone={permission.state === 'deny' ? 'danger' : 'success'}
+      explicit={permission.state !== 'neutral'}
+      inheritedMarker={permission.state === 'neutral'}
+      icon={permission.state === 'deny'
+        ? 'icon-[uil--times]'
+        : permission.state === 'allow'
+          ? 'icon-[uil--check]'
+          : 'icon-[uil--link]'}
+      pressed={permission.state !== 'neutral'}
+      ariaLabel={`Override ${permission.label}: ${permission.state}. Activate to cycle the value.`}
+      title="Cycle inherit, allow, deny"
+      onActivate={() => cycle(permission)}
+    />
+  {/if}
+{/snippet}
+
+{#snippet effectiveHeader()}
+  <th class="bg-background px-4 py-3 text-start align-bottom font-medium">Effective</th>
+{/snippet}
+
+{#snippet effectiveCell(permission: Permission)}
+  <td class="bg-background px-4 py-2">
+    <Pill tone={effective(permission) === 'allow' ? 'success' : 'danger'}>
+      {effective(permission)}
+    </Pill>
+  </td>
+{/snippet}

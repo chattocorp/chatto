@@ -1,48 +1,66 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isAllowedStorageBreakingDiagnostic } from "./check-storage-proto-breaking.mjs";
+import { isExactCorePackageRelocation } from "./check-storage-proto-breaking.mjs";
 
-const allowedMessages = [
-  "ServerUserPreferencesUpdatedEvent",
-  "UserCreatedEvent",
-  "UserDeletedEvent",
-  "UserProfileUpdatedEvent",
+const relocatedFiles = [
+  "asset_events.proto",
+  "auth_events.proto",
+  "authorization_events.proto",
+  "config_events.proto",
+  "credential_usage.proto",
+  "encryption_keys.proto",
+  "event.proto",
+  "invitation_events.proto",
+  "message_events.proto",
+  "models.proto",
+  "moderation_events.proto",
+  "notification.proto",
+  "oauth_client_events.proto",
+  "push.proto",
+  "rbac_events.proto",
+  "reaction_events.proto",
+  "room_events.proto",
+  "room_group_events.proto",
+  "thread_events.proto",
+  "user_events.proto",
+  "user_preferences.proto",
 ];
 
-for (const message of allowedMessages) {
-  test(`allows removal of transient ${message}`, () => {
-    assert.equal(
-      isAllowedStorageBreakingDiagnostic({
-        path: "chatto/core/v1/user_events.proto",
-        type: "MESSAGE_NO_DELETE",
-        message: `Previously present message "${message}" was deleted from file.`,
-      }),
-      true,
-    );
-  });
+function relocationDiagnostic(file) {
+  return {
+    type: "FILE_NO_DELETE",
+    message: `Previously present file "chatto/core/v1/${file}" was deleted.`,
+  };
 }
 
-test("rejects removal of a durable user event", () => {
+test("allows the exact core package relocation", () => {
   assert.equal(
-    isAllowedStorageBreakingDiagnostic({
-      path: "chatto/core/v1/user_events.proto",
-      type: "MESSAGE_NO_DELETE",
-      message:
-        'Previously present message "UserAccountCreatedEvent" was deleted from file.',
-    }),
+    isExactCorePackageRelocation(relocatedFiles.map(relocationDiagnostic)),
+    true,
+  );
+});
+
+test("rejects an incomplete core package relocation", () => {
+  assert.equal(
+    isExactCorePackageRelocation(
+      relocatedFiles.slice(1).map(relocationDiagnostic),
+    ),
     false,
   );
 });
 
-test("rejects other breaking rules for an allowed message", () => {
-  assert.equal(
-    isAllowedStorageBreakingDiagnostic({
-      path: "chatto/core/v1/user_events.proto",
-      type: "FIELD_NO_DELETE",
-      message:
-        'Previously present message "UserCreatedEvent" was deleted from file.',
-    }),
-    false,
-  );
+test("rejects an unrelated deleted file", () => {
+  const diagnostics = relocatedFiles.map(relocationDiagnostic);
+  diagnostics[0] = relocationDiagnostic("surprise.proto");
+  assert.equal(isExactCorePackageRelocation(diagnostics), false);
+});
+
+test("rejects another breaking rule", () => {
+  const diagnostics = relocatedFiles.map(relocationDiagnostic);
+  diagnostics[0] = {
+    type: "FIELD_NO_DELETE",
+    message: 'Previously present field "string id" on message "Event" was deleted.',
+  };
+  assert.equal(isExactCorePackageRelocation(diagnostics), false);
 });

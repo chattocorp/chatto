@@ -16,7 +16,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
@@ -43,7 +43,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	}
 	created := threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1)
 	reply := postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2})
-	for _, event := range []*corev1.Event{created, reply} {
+	for _, event := range []*evtv1.Event{created, reply} {
 		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
@@ -152,7 +152,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, event := range []*corev1.Event{
+	for _, event := range []*evtv1.Event{
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	} {
@@ -222,7 +222,7 @@ func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, event := range []*corev1.Event{
+	for _, event := range []*evtv1.Event{
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	} {
@@ -354,7 +354,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eventsToPublish := []*corev1.Event{
+	eventsToPublish := []*evtv1.Event{
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	}
@@ -435,7 +435,7 @@ func TestProjectionSnapshotsPublishIdentityBoundToRecreatedEVT(t *testing.T) {
 	if recreatedIdentity == originalIdentity {
 		t.Fatal("recreated EVT stream reused its prior identity")
 	}
-	for _, event := range []*corev1.Event{
+	for _, event := range []*evtv1.Event{
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	} {

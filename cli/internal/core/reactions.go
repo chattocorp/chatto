@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -263,10 +263,10 @@ func (s *ReactionModel) executeMutation(
 	return executor.ExecuteMutation(ctx, boundary, decide)
 }
 
-func newReactionAddedEvent(userID, roomID, messageEventID, emoji string) *corev1.Event {
-	return newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_ReactionAdded{
-			ReactionAdded: &corev1.ReactionAddedEvent{
+func newReactionAddedEvent(userID, roomID, messageEventID, emoji string) *evtv1.Event {
+	return newEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_ReactionAdded{
+			ReactionAdded: &evtv1.ReactionAddedEvent{
 				RoomId:         roomID,
 				MessageEventId: messageEventID,
 				Emoji:          emoji,
@@ -275,10 +275,10 @@ func newReactionAddedEvent(userID, roomID, messageEventID, emoji string) *corev1
 	})
 }
 
-func newReactionRemovedEvent(userID, roomID, messageEventID, emoji string) *corev1.Event {
-	return newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_ReactionRemoved{
-			ReactionRemoved: &corev1.ReactionRemovedEvent{
+func newReactionRemovedEvent(userID, roomID, messageEventID, emoji string) *evtv1.Event {
+	return newEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_ReactionRemoved{
+			ReactionRemoved: &evtv1.ReactionRemovedEvent{
 				RoomId:         roomID,
 				MessageEventId: messageEventID,
 				Emoji:          emoji,
@@ -301,7 +301,7 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 		return false, err
 	}
 
-	var event *corev1.Event
+	var event *evtv1.Event
 	if add {
 		event = newReactionAddedEvent(input.ActorID, input.RoomID, input.MessageEventID, emojiName)
 	} else {
@@ -440,7 +440,7 @@ func (s *ReactionModel) prepareAuthorizedReactionAttempt(ctx context.Context, in
 	return s.authorizeReaction(ctx, input)
 }
 
-func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *corev1.Event) (bool, uint64, error) {
+func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *evtv1.Event) (bool, uint64, error) {
 	add := event.GetReactionAdded() != nil
 	remove := event.GetReactionRemoved() != nil
 	if !add && !remove {

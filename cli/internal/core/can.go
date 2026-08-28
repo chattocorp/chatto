@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // can.go provides semantic helper functions for permission checks. These wrap
@@ -315,7 +315,7 @@ func (c *ChattoCore) CanReadMessage(ctx context.Context, userID string, kind Roo
 
 // CanReadMessageEvent reports whether the account can receive one durable
 // message-derived fact. Callers must enforce current room membership.
-func (c *ChattoCore) CanReadMessageEvent(ctx context.Context, userID string, kind RoomKind, roomID string, event *corev1.Event) (bool, error) {
+func (c *ChattoCore) CanReadMessageEvent(ctx context.Context, userID string, kind RoomKind, roomID string, event *evtv1.Event) (bool, error) {
 	broad, err := c.CanReadMessages(ctx, userID, kind, roomID)
 	if err != nil || broad || kind == KindDM {
 		return broad, err

@@ -21,7 +21,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   import { MatrixTable } from '$lib/ui/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
-  import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';
+  import { getIncludingPermissions, getPermissionDescription } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -100,6 +100,14 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   // ----- Row layout -------------------------------------------------------
 
   const permissions = $derived([...data.applicablePermissions].sort((a, b) => a.localeCompare(b)));
+  const inclusionChains = $derived.by(() => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
+    const chains = new Map<string, string[]>();
+    for (const permission of permissions) {
+      chains.set(permission, getIncludingPermissions(permissions, permission));
+    }
+    return chains;
+  });
   let permissionFilter = $state('');
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
@@ -150,9 +158,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   }
 
   function includingPermission(scope: MatrixScope, permission: string): string | null {
-    const including = getIncludedByPermission(permission);
-    if (!including) return null;
-    return cellFor(scope.id, including)?.effective === 'ALLOW' ? including : null;
+    for (const including of inclusionChains.get(permission) ?? []) {
+      if (cellFor(scope.id, including)?.effective === 'ALLOW') return including;
+    }
+    return null;
   }
 
   function cycleCell(
@@ -229,7 +238,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         </span>
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        {@const includedBy = getIncludedByPermission(permission)}
+        {@const includedBy = inclusionChains.get(permission)?.[0] ?? null}
         <code
           data-testid="permission-name"
           class={['text-sm', includedBy ? 'ml-4' : '', highlighted ? 'text-action' : '']}

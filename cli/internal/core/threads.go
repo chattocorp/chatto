@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"sort"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -59,7 +60,7 @@ const maxThreadParticipants = 50
 // onto the original via LatestBody at body-resolve time.
 //
 // Authorization: caller must verify room membership before calling.
-func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id string, threadRootEventId string) ([]*corev1.Event, error) {
+func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id string, threadRootEventId string) ([]*evtv1.Event, error) {
 	rootEntry, ok := c.roomModel.timelineEntry(threadRootEventId)
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventId)
@@ -69,7 +70,7 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 	}
 
 	replies := c.roomModel.threadEvents(threadRootEventId)
-	events := make([]*corev1.Event, 0, 1+len(replies))
+	events := make([]*evtv1.Event, 0, 1+len(replies))
 	events = append(events, rootEntry.Event)
 	for _, r := range replies {
 		// Skip edit/retract entries — the body resolver folds them via
@@ -462,7 +463,7 @@ func (c *ChattoCore) threadFollowState(ctx context.Context, userID, roomID, thre
 	return c.roomModel.threadFollowState(userID, roomID, threadRootEventID), nil
 }
 
-func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, target ThreadFollowState, source corev1.ThreadFollowSource, onlyIfNeverSet bool) (bool, error) {
+func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, target ThreadFollowState, source evtv1.ThreadFollowSource, onlyIfNeverSet bool) (bool, error) {
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	var lastErr error
@@ -484,11 +485,11 @@ func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind Room
 			return false, nil
 		}
 
-		event := newEvent(userID, &corev1.Event{})
+		event := newEvent(userID, &evtv1.Event{})
 		switch target {
 		case ThreadFollowStateFollowing:
-			event.Event = &corev1.Event_ThreadFollowed{
-				ThreadFollowed: &corev1.ThreadFollowedEvent{
+			event.Event = &evtv1.Event_ThreadFollowed{
+				ThreadFollowed: &evtv1.ThreadFollowedEvent{
 					RoomId:            roomID,
 					ThreadRootEventId: threadRootEventID,
 					UserId:            userID,
@@ -496,8 +497,8 @@ func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind Room
 				},
 			}
 		case ThreadFollowStateUnfollowed:
-			event.Event = &corev1.Event_ThreadUnfollowed{
-				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{
+			event.Event = &evtv1.Event_ThreadUnfollowed{
+				ThreadUnfollowed: &evtv1.ThreadUnfollowedEvent{
 					RoomId:            roomID,
 					ThreadRootEventId: threadRootEventID,
 					UserId:            userID,
@@ -549,11 +550,11 @@ func (c *ChattoCore) waitForThreadFollowStateCurrent(ctx context.Context, agg ev
 // Stores durable follow state in EVT. Idempotent.
 // Publishes a ThreadFollowChangedEvent for multi-tab sync when state changes.
 func (c *ChattoCore) FollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
-	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL, false)
+	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL, false)
 	return err
 }
 
-func (c *ChattoCore) FollowThreadWithSource(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, source corev1.ThreadFollowSource) error {
+func (c *ChattoCore) FollowThreadWithSource(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, source evtv1.ThreadFollowSource) error {
 	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, source, false)
 	return err
 }
@@ -562,13 +563,13 @@ func (c *ChattoCore) FollowThreadWithSource(ctx context.Context, kind RoomKind, 
 // Idempotent - calling when not following is a no-op.
 // Publishes a ThreadFollowChangedEvent for multi-tab sync when state changes.
 func (c *ChattoCore) UnfollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
-	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateUnfollowed, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_UNSPECIFIED, false)
+	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateUnfollowed, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_UNSPECIFIED, false)
 	return err
 }
 
 // FollowThreadIfNeverSet follows a thread only when the user has no prior
 // follow state. Explicit unfollows and existing follows are left untouched.
-func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, source corev1.ThreadFollowSource) (bool, error) {
+func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, source evtv1.ThreadFollowSource) (bool, error) {
 	return c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, source, true)
 }
 
@@ -576,9 +577,9 @@ func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, 
 // invalidation. It fires for follow changes and read-marker advances; projection
 // transports hydrate the complete current root row from its identifiers.
 func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string, isFollowing bool) {
-	event := newLiveEvent(userID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_ThreadFollowChanged{
-			ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{
+	event := newLiveEvent(userID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_ThreadFollowChanged{
+			ThreadFollowChanged: &livev1.ThreadFollowChangedEvent{
 				RoomId:            roomID,
 				ThreadRootEventId: threadRootEventID,
 				IsFollowing:       isFollowing,

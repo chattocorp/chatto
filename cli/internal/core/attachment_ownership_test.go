@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -158,7 +158,7 @@ func TestConcurrentMessagePostsAttachAssetOnceAcrossReplicas(t *testing.T) {
 	require.Equal(t, 1, rejected)
 }
 
-func setupAttachmentOwnershipUsers(t *testing.T, chatto *ChattoCore, ctx context.Context, suffix string) (*corev1.User, *corev1.User, *corev1.Room) {
+func setupAttachmentOwnershipUsers(t *testing.T, chatto *ChattoCore, ctx context.Context, suffix string) (*evtv1.User, *evtv1.User, *evtv1.Room) {
 	t.Helper()
 	victim, err := chatto.CreateUser(ctx, SystemActorID, "av-"+suffix, "Asset Victim", "password123")
 	require.NoError(t, err)
@@ -173,7 +173,7 @@ func setupAttachmentOwnershipUsers(t *testing.T, chatto *ChattoCore, ctx context
 	return victim, attacker, room
 }
 
-func uploadRoomAttachmentForUser(t *testing.T, chatto *ChattoCore, ctx context.Context, userID, roomID, filename string) *corev1.Attachment {
+func uploadRoomAttachmentForUser(t *testing.T, chatto *ChattoCore, ctx context.Context, userID, roomID, filename string) *evtv1.Attachment {
 	t.Helper()
 	content := createTestPNG(32, 32)
 	sum := sha256.Sum256(content)
@@ -197,26 +197,26 @@ func uploadRoomAttachmentForUser(t *testing.T, chatto *ChattoCore, ctx context.C
 // appendLegacyAttachmentMessage recreates history from before explicit asset
 // attachment events. It intentionally bypasses today's command validation so
 // deletion behavior remains safe for data written before the fix.
-func appendLegacyAttachmentMessage(t *testing.T, chatto *ChattoCore, ctx context.Context, actorID, roomID, assetID, plaintext string) *corev1.Event {
+func appendLegacyAttachmentMessage(t *testing.T, chatto *ChattoCore, ctx context.Context, actorID, roomID, assetID, plaintext string) *evtv1.Event {
 	t.Helper()
 	now := time.Now()
 	eventID := NewEventID()
 	bodyEventID := NewEventID()
-	body := &corev1.MessageBody{
+	body := &evtv1.MessageBody{
 		CreatedAt: timestamppb.New(now),
 		AssetIds:  []string{assetID},
 		AuthorId:  actorID,
 	}
 	require.NoError(t, chatto.encryptMessageBody(ctx, body, roomID, eventID, bodyEventID, plaintext))
-	bodyEvent := newEvent(actorID, &corev1.Event{
+	bodyEvent := newEvent(actorID, &evtv1.Event{
 		Id: bodyEventID, CreatedAt: timestamppb.New(now),
-		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
+		Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{
 			RoomId: roomID, EventId: eventID, Body: body,
 		}},
 	})
-	messageEvent := newEvent(actorID, &corev1.Event{
+	messageEvent := newEvent(actorID, &evtv1.Event{
 		Id: eventID, CreatedAt: timestamppb.New(now),
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}},
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}},
 	})
 
 	aggregate := evtstream.RoomAggregate(roomID)

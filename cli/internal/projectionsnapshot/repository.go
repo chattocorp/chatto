@@ -9,13 +9,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"io"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
@@ -191,15 +190,15 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	switch {
 	case err == nil:
 	case errors.Is(err, ErrSnapshotNotFound):
-		pointer = &corev1.ProjectionSnapshotPointer{}
+		pointer = &projectionv1.ProjectionSnapshotPointer{}
 	case errors.Is(err, errInvalidPointer):
 		r.logWarn("Projection snapshot pointer invalid; replacing it", input.ProjectionKey, "pointer_read", err)
-		pointer = &corev1.ProjectionSnapshotPointer{}
+		pointer = &projectionv1.ProjectionSnapshotPointer{}
 	default:
 		return LoadedSnapshot{}, fmt.Errorf("read snapshot pointer: %w", err)
 	}
 	if pointer == nil {
-		pointer = &corev1.ProjectionSnapshotPointer{}
+		pointer = &projectionv1.ProjectionSnapshotPointer{}
 	}
 	if pointer.GetCurrentGenerationId() != "" &&
 		pointer.GetCurrentStreamIdentity() == input.StreamIdentity &&
@@ -231,7 +230,7 @@ func (r *Repository) Save(ctx context.Context, input SaveInput) (LoadedSnapshot,
 	}
 	generationIDText := generationIDString(generationID)
 	payloadHash := sha256.Sum256(input.Payload)
-	generation := &corev1.ProjectionSnapshotGeneration{
+	generation := &projectionv1.ProjectionSnapshotGeneration{
 		GenerationId:    generationIDText,
 		StreamName:      input.StreamName,
 		CutoffSequence:  input.CutoffSequence,
@@ -357,7 +356,7 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, cont
 	if err != nil {
 		return LoadedSnapshot{}, err
 	}
-	var generation corev1.ProjectionSnapshotGeneration
+	var generation projectionv1.ProjectionSnapshotGeneration
 	if err := proto.Unmarshal(plain, &generation); err != nil {
 		return LoadedSnapshot{}, fmt.Errorf("unmarshal snapshot generation: %w", err)
 	}
@@ -398,12 +397,12 @@ func (r *Repository) loadGeneration(ctx context.Context, id, projectionKey, cont
 	return LoadedSnapshot{GenerationID: id, CutoffSequence: generation.GetCutoffSequence(), StreamIdentity: generation.GetStreamIdentity(), Payload: generation.GetPayload(), CreatedAt: generation.GetCreatedAt().AsTime(), ProducerVersion: generation.GetProducerVersion()}, nil
 }
 
-func (r *Repository) loadPointer(ctx context.Context, projectionKey, contractID string) (*corev1.ProjectionSnapshotPointer, error) {
+func (r *Repository) loadPointer(ctx context.Context, projectionKey, contractID string) (*projectionv1.ProjectionSnapshotPointer, error) {
 	pointer, _, err := r.loadPointerAtRevision(ctx, projectionKey, contractID)
 	return pointer, err
 }
 
-func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey, contractID string) (*corev1.ProjectionSnapshotPointer, uint64, error) {
+func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey, contractID string) (*projectionv1.ProjectionSnapshotPointer, uint64, error) {
 	sealed, revision, err := r.pointers.GetPointer(ctx, r.pointerKey(projectionKey, contractID))
 	if err != nil {
 		if errors.Is(err, ErrPointerNotFound) {
@@ -421,7 +420,7 @@ func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey, c
 	if envelopeID != [generationIDSize]byte{} {
 		return nil, revision, fmt.Errorf("%w: envelope generation id is not empty", errInvalidPointer)
 	}
-	var pointer corev1.ProjectionSnapshotPointer
+	var pointer projectionv1.ProjectionSnapshotPointer
 	if err := proto.Unmarshal(plain, &pointer); err != nil {
 		return nil, revision, fmt.Errorf("%w: unmarshal: %v", errInvalidPointer, err)
 	}
@@ -465,7 +464,7 @@ func (r *Repository) loadPointerAtRevision(ctx context.Context, projectionKey, c
 	return &pointer, revision, nil
 }
 
-func (r *Repository) savePointer(ctx context.Context, projectionKey, contractID string, pointer *corev1.ProjectionSnapshotPointer, revision uint64) error {
+func (r *Repository) savePointer(ctx context.Context, projectionKey, contractID string, pointer *projectionv1.ProjectionSnapshotPointer, revision uint64) error {
 	plain, err := proto.MarshalOptions{Deterministic: true}.Marshal(pointer)
 	if err != nil {
 		return err

@@ -2,10 +2,11 @@ package core
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func (c *ChattoCore) UploadAttachment(
@@ -15,45 +16,45 @@ func (c *ChattoCore) UploadAttachment(
 	filename string,
 	contentType string,
 	reader io.Reader,
-) (*corev1.Attachment, error) {
+) (*evtv1.Attachment, error) {
 	return c.mediaModel.UploadAttachment(ctx, actorID, roomID, filename, contentType, reader)
 }
 
 func (c *ChattoCore) UploadDerivativeAttachment(
 	ctx context.Context,
 	parentAssetID string,
-	derivativeRole corev1.AssetDerivativeRole,
+	derivativeRole evtv1.AssetDerivativeRole,
 	roomID string,
 	filename string,
 	contentType string,
 	reader io.Reader,
-) (*corev1.Attachment, error) {
+) (*evtv1.Attachment, error) {
 	return c.mediaModel.UploadDerivativeAttachment(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, reader)
 }
 
 func (c *ChattoCore) UploadDerivativeAttachmentWithDimensions(
 	ctx context.Context,
 	parentAssetID string,
-	derivativeRole corev1.AssetDerivativeRole,
+	derivativeRole evtv1.AssetDerivativeRole,
 	roomID string,
 	filename string,
 	contentType string,
 	reader io.Reader,
 	width int32,
 	height int32,
-) (*corev1.Attachment, error) {
+) (*evtv1.Attachment, error) {
 	return c.mediaModel.UploadDerivativeAttachmentWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, reader, width, height)
 }
 
-func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1.Attachment) (io.Reader, *AttachmentInfo, error) {
+func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *evtv1.Attachment) (io.Reader, *AttachmentInfo, error) {
 	return c.mediaModel.GetAttachmentReader(ctx, attachment)
 }
 
-func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
+func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment *evtv1.Attachment) error {
 	return c.mediaModel.DeleteAttachmentFromStorage(ctx, attachment)
 }
 
-func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment, ttl time.Duration) (string, error) {
+func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *evtv1.Attachment, ttl time.Duration) (string, error) {
 	return c.mediaModel.TryPresignedAttachmentURL(ctx, attachment, ttl)
 }
 
@@ -93,7 +94,7 @@ func (c *ChattoCore) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 	c.assetModel.RecoverUnmanifestedVideoAttachments(ctx)
 }
 
-func (c *ChattoCore) RecordAssetProcessedWithHLS(ctx context.Context, actorID, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *corev1.Attachment, variants []*corev1.VideoVariant, hls *corev1.AssetProcessedHLS) error {
+func (c *ChattoCore) RecordAssetProcessedWithHLS(ctx context.Context, actorID, roomID, messageEventID, attachmentID string, durationMs int64, width, height int32, thumbnail *evtv1.Attachment, variants []*runtimestatev1.VideoVariant, hls *evtv1.AssetProcessedHLS) error {
 	return c.assetModel.RecordAssetProcessedWithHLS(ctx, actorID, roomID, messageEventID, attachmentID, durationMs, width, height, thumbnail, variants, hls)
 }
 
@@ -101,7 +102,7 @@ func (c *ChattoCore) RecordAssetDeleted(ctx context.Context, actorID, roomID, as
 	return c.assetModel.RecordAssetDeleted(ctx, actorID, roomID, assetID)
 }
 
-func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID, roomID, messageEventID, attachmentID string, failureCode corev1.AssetProcessingFailureCode) error {
+func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID, roomID, messageEventID, attachmentID string, failureCode evtv1.AssetProcessingFailureCode) error {
 	return c.assetModel.RecordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachmentID, failureCode)
 }
 
@@ -121,7 +122,7 @@ func (c *ChattoCore) GetAssetState(assetID string) AssetState {
 // message directly. Deletions recover ownership from the asset projection's
 // durable message-to-asset index, including a processed derivative referenced
 // by an original message asset's manifest.
-func (c *ChattoCore) AssetEventTimelineTarget(event *corev1.Event) (roomID, messageEventID string, ok bool) {
+func (c *ChattoCore) AssetEventTimelineTarget(event *evtv1.Event) (roomID, messageEventID string, ok bool) {
 	if c == nil || c.assetModel == nil {
 		return "", "", false
 	}
@@ -134,13 +135,13 @@ func (c *ChattoCore) AssetEventTimelineTarget(event *corev1.Event) (roomID, mess
 		return "", "", false
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_AssetProcessingStarted:
+	case *evtv1.Event_AssetProcessingStarted:
 		messageEventID = payload.AssetProcessingStarted.GetMessageEventId()
-	case *corev1.Event_AssetProcessingSucceeded:
+	case *evtv1.Event_AssetProcessingSucceeded:
 		messageEventID = payload.AssetProcessingSucceeded.GetMessageEventId()
-	case *corev1.Event_AssetProcessingFailed:
+	case *evtv1.Event_AssetProcessingFailed:
 		messageEventID = payload.AssetProcessingFailed.GetMessageEventId()
-	case *corev1.Event_AssetDeleted:
+	case *evtv1.Event_AssetDeleted:
 		return c.AssetMessageTarget(assetID)
 	default:
 		return "", "", false

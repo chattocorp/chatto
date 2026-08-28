@@ -1,0 +1,257 @@
+syntax = "proto3";
+
+package chatto.core.evt.v1;
+
+import "google/protobuf/timestamp.proto";
+import "chatto/core/evt/v1/auth_events.proto";
+import "chatto/core/evt/v1/authorization_events.proto";
+import "chatto/core/evt/v1/asset_events.proto";
+import "chatto/core/evt/v1/message_events.proto";
+import "chatto/core/evt/v1/moderation_events.proto";
+import "chatto/core/evt/v1/rbac_events.proto";
+import "chatto/core/evt/v1/reaction_events.proto";
+import "chatto/core/evt/v1/room_events.proto";
+import "chatto/core/evt/v1/room_group_events.proto";
+import "chatto/core/evt/v1/config_events.proto";
+import "chatto/core/evt/v1/thread_events.proto";
+import "chatto/core/evt/v1/user_events.proto";
+import "chatto/core/evt/v1/invitation_events.proto";
+import "chatto/core/evt/v1/oauth_client_events.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+
+/*
+   Event is the wire-format envelope for durable domain facts. New writes
+   to the event-sourced EVT stream use this wrapper; projections consume it
+   as source-of-truth input.
+
+   Field-number convention for the `event` oneof:
+
+     - **< 1000**: persisted variants. Stored in JetStream, so the
+       field number is part of the on-disk wire format. **Don't change
+       or reuse these numbers** — old stream bytes have to decode.
+
+     - **1050-1051**: durable reaction variants that kept their legacy
+       live tags during the EVT cutover. Treat them like persisted tags.
+
+     - **>= 1000, except 1050-1051**: retired legacy live-only variant
+       numbers. New transient pubsub signals belong in LiveEvent, not Event.
+
+   Category ownership for the top-level oneof tags is documented in the
+   sibling *_events.proto files. The top-level tag is the durable/event
+   envelope ID; message-internal field numbers remain local to that message.
+
+   Authorization is handled by the API boundary, not this wrapper.
+*/
+message Event {
+  // Universal event identifier (NanoID) for forward-compatibility with
+  // non-NATS systems.
+  string id = 1;
+
+  // When this event was created.
+  google.protobuf.Timestamp created_at = 2;
+
+  // ID of the user who triggered this event.
+  string actor_id = 3;
+
+  reserved 500, 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
+  reserved "server_config_changed", "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
+  reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
+  reserved "sequence_id";
+
+  // The concrete event payload.
+  oneof event {
+    // =================================================================
+    // PERSISTED VARIANTS (< 1000) — stored in JetStream.
+    // Changing field numbers or message structure below affects stored
+    // data. Message definitions live in the sibling *_events.proto files.
+    // =================================================================
+
+    // ----- Room lifecycle (300-309) -----
+    RoomCreatedEvent room_created = 300;
+    RoomUpdatedEvent room_updated = 301;
+    RoomDeletedEvent room_deleted = 302;
+    RoomArchivedEvent room_archived = 303;
+    RoomUnarchivedEvent room_unarchived = 304;
+    RoomUniversalChangedEvent room_universal_changed = 305;
+    // Field 306 was RoomBecameRegularEvent. Removed alongside the auto-join
+    // feature; oneof tags don't reserve, so don't reuse that number.
+    RoomSlowModeChangedEvent room_slow_mode_changed = 307;
+    RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
+
+    // ----- Room membership (310-329) -----
+    UserJoinedRoomEvent user_joined_room = 310;
+    UserLeftRoomEvent user_left_room = 311;
+    ServerMemberDeletedEvent server_member_deleted = 320;
+
+    // ----- Voice calls (330-339, durable room facts) -----
+    CallParticipantJoinedEvent voice_call_participant_joined = 330;
+    CallParticipantLeftEvent voice_call_participant_left = 331;
+    CallStartedEvent voice_call_started = 332;
+    CallEndedEvent voice_call_ended = 333;
+
+    // ----- Messages (400-424) -----
+    MessagePostedEvent message_posted = 400;
+    // Durable edit / retract variants for the EVT stream (ADR-033/034/035,
+    // issue #597). The old live-only MessageUpdatedEvent/MessageDeletedEvent
+    // tags at 1040/1041 are now retired and reserved.
+    MessageEditedEvent message_edited = 401;
+    MessageRetractedEvent message_retracted = 402;
+    // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
+    MessageBodyEvent message_body = 404;
+    MessagePinnedEvent message_pinned = 405;
+    MessageUnpinnedEvent message_unpinned = 406;
+
+    // ----- Threads (425-449, durable, room-owned) -----
+    ThreadCreatedEvent thread_created = 425;
+    ThreadFollowedEvent thread_followed = 426;
+    ThreadUnfollowedEvent thread_unfollowed = 427;
+
+    // ----- Assets (450-474, durable) -----
+    // The asset aggregate. AssetCreated establishes content identity for
+    // one uploaded or generated binary; AssetAttached binds an upload to one
+    // message as an attachment; processing events track derivative work;
+    // AssetDeleted terminates the lifecycle.
+    AssetCreatedEvent asset_created = 450;
+    AssetProcessingStartedEvent asset_processing_started = 451;
+    AssetProcessingSucceededEvent asset_processing_succeeded = 452;
+    AssetProcessingFailedEvent asset_processing_failed = 453;
+    AssetDeletedEvent asset_deleted = 454;
+    AssetAttachedEvent asset_attached = 455;
+
+    // ----- Config / preferences (500-599, durable) -----
+    // These variants live on the EVT stream (subjects under evt.config.>)
+    // per ADRs 033/034/035. Member-visible server profile/config live
+    // invalidation uses LiveEvent.ServerUpdatedEvent instead.
+    ServerNameChangedEvent server_name_changed = 501;
+    ServerDescriptionChangedEvent server_description_changed = 502;
+    ServerWelcomeMessageChangedEvent server_welcome_message_changed = 503;
+    ServerMotdChangedEvent server_motd_changed = 504;
+    ServerBlockedUsernamesChangedEvent server_blocked_usernames_changed = 505;
+    ServerLogoSetEvent server_logo_set = 506;
+    ServerLogoClearedEvent server_logo_cleared = 507;
+    ServerBannerSetEvent server_banner_set = 508;
+    ServerBannerClearedEvent server_banner_cleared = 509;
+
+    UserTimezoneChangedEvent user_timezone_changed = 510;
+    UserTimezoneClearedEvent user_timezone_cleared = 511;
+    UserTimeFormatChangedEvent user_time_format_changed = 512;
+    UserTimeFormatClearedEvent user_time_format_cleared = 513;
+    // Legacy Notifications 1.0 variants retained only to decode EVT history.
+    // Current code never writes them.
+    UserServerNotificationLevelSetEvent user_server_notification_level_set = 514 [deprecated = true];
+    UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515 [deprecated = true];
+    UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516 [deprecated = true];
+    UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517 [deprecated = true];
+    UserNotificationPolicyChangedEvent user_notification_policy_changed = 518;
+    UserRoomGroupNotificationPolicyChangedEvent user_room_group_notification_policy_changed = 519;
+
+    // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
+    // The group aggregate owns its room-membership AND room-ordering.
+    // Move-room is two events (RoomRemovedFromGroup on source +
+    // RoomAddedToGroup on target), matching ADR-034 Approach A.
+    RoomGroupCreatedEvent room_group_created = 600;
+    RoomGroupUpdatedEvent room_group_updated = 601;
+    RoomGroupDeletedEvent room_group_deleted = 602;
+    RoomAddedToGroupEvent room_added_to_group = 603;
+    RoomRemovedFromGroupEvent room_removed_from_group = 604;
+    RoomsInGroupReorderedEvent rooms_in_group_reordered = 605;
+    SidebarLinkAddedToGroupEvent sidebar_link_added_to_group = 606;
+    SidebarLinkUpdatedEvent sidebar_link_updated = 607;
+    SidebarLinkRemovedFromGroupEvent sidebar_link_removed_from_group = 608;
+    SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 609;
+
+    // ----- Room layout (650-659, durable, evt.layout.{singleton}) -----
+    // The layout aggregate is a singleton; the singletonID is a stable
+    // constant ("default"). It owns the operator-defined inter-group
+    // ordering for the sidebar. New groups appear at the end of the
+    // sidebar implicitly via the RoomGroup projection's All() + the
+    // reconciler in ListRoomGroupsOrdered; the layout aggregate only
+    // tracks explicit reorders.
+    RoomGroupsReorderedEvent room_groups_reordered = 650;
+
+    // ----- Users (700-799, durable, evt.user.{userId}) -----
+    UserAccountCreatedEvent user_account_created = 700;
+    UserLoginChangedEvent user_login_changed = 701;
+    UserDisplayNameChangedEvent user_display_name_changed = 702;
+    UserAvatarSetEvent user_avatar_set = 703;
+    UserAvatarClearedEvent user_avatar_cleared = 704;
+    UserVerifiedEmailAddedEvent user_verified_email_added = 705;
+    UserPasswordHashChangedEvent user_password_hash_changed = 706;
+    UserOIDCSubjectLinkedEvent user_oidc_subject_linked = 707;
+    UserServerPreferencesChangedEvent user_server_preferences_changed = 708;
+    UserLoginCooldownClearedEvent user_login_cooldown_cleared = 709;
+    UserAccountDeletedEvent user_account_deleted = 710;
+    UserLoginCooldownStartedEvent user_login_cooldown_started = 711;
+    UserKeyShreddedEvent user_key_shredded = 712;
+    UserDEKGeneratedEvent user_dek_generated = 713;
+    UserExternalIdentityLinkedEvent user_external_identity_linked = 714;
+    UserCustomStatusSetEvent user_custom_status_set = 715;
+    UserCustomStatusClearedEvent user_custom_status_cleared = 716;
+    UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
+    UserKeyShreddingRequestedEvent user_key_shredding_requested = 718;
+    BotApiKeyCreatedEvent bot_api_key_created = 719;
+    BotApiKeyRotatedEvent bot_api_key_rotated = 720;
+    BotOwnerReassignedEvent bot_owner_reassigned = 721;
+    UserBioChangedEvent user_bio_changed = 722;
+    BotIncomingWebhookRotatedEvent bot_incoming_webhook_rotated = 723;
+    BotIncomingWebhookRevokedEvent bot_incoming_webhook_revoked = 724;
+    BotIncomingWebhookCreatedEvent bot_incoming_webhook_created = 725;
+
+    // ----- RBAC (800-839, durable, evt.rbac.>) -----
+    RbacRoleCreatedEvent rbac_role_created = 800;
+    RbacRoleDisplayNameChangedEvent rbac_role_display_name_changed = 801;
+    RbacRoleDescriptionChangedEvent rbac_role_description_changed = 802;
+    RbacRoleDeletedEvent rbac_role_deleted = 803;
+    RbacRolesReorderedEvent rbac_roles_reordered = 804;
+    RbacRoleAssignedEvent rbac_role_assigned = 805;
+    RbacRoleRevokedEvent rbac_role_revoked = 806;
+    RbacPermissionGrantedEvent rbac_permission_granted = 810;
+    RbacPermissionDeniedEvent rbac_permission_denied = 811;
+    RbacPermissionClearedEvent rbac_permission_cleared = 812;
+    RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
+
+    // ----- Authorization concurrency fence (830-839, durable) -----
+    AuthorizationFenceAdvancedEvent authorization_fence_advanced = 830;
+
+    // ----- Moderation (840-899, durable, room-owned) -----
+    RoomMemberBannedEvent room_member_banned = 840;
+    RoomMemberUnbannedEvent room_member_unbanned = 841;
+    RoomMemberAddedEvent room_member_added = 842;
+    RoomMemberRemovedEvent room_member_removed = 843;
+
+    // ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
+    // These facts are intentionally minimal: no raw token, verification code,
+    // link, IP address, password, auth code, bearer token, OAuth redirect URI,
+    // or unhashed email is persisted in EVT.
+    RegistrationVerificationCodeIssuedEvent registration_verification_code_issued = 900;
+    EmailVerificationCodeIssuedEvent email_verification_code_issued = 901;
+    PasswordResetLinkIssuedEvent password_reset_link_issued = 902;
+    AccountDeletionConfirmationIssuedEvent account_deletion_confirmation_issued = 903;
+    PasswordResetCompletedEvent password_reset_completed = 904;
+    LoginSucceededEvent login_succeeded = 905;
+    LoginFailedEvent login_failed = 906;
+    LogoutSucceededEvent logout_succeeded = 907;
+    AuthCodeIssuedEvent auth_code_issued = 908;
+    AuthCodeExchangeSucceededEvent auth_code_exchange_succeeded = 909;
+    AuthCodeExchangeFailedEvent auth_code_exchange_failed = 910;
+    BearerTokenIssuedEvent bearer_token_issued = 911;
+    BearerTokenRevokedEvent bearer_token_revoked = 912;
+    OAuthConsentGrantedEvent oauth_consent_granted = 913;
+    OAuthConsentDeniedEvent oauth_consent_denied = 914;
+    OAuthClientAuthorizationRecordedEvent oauth_client_authorization_recorded = 915;
+    OAuthClientPolicyChangedEvent oauth_client_policy_changed = 916;
+
+    // ----- Invite links (930-939, durable, evt.invitation.{id}) -----
+    InvitationCreatedEvent invitation_created = 930;
+    InvitationRedeemedEvent invitation_redeemed = 931;
+    InvitationRevokedEvent invitation_revoked = 932;
+
+    // ----- Reactions (1050-1059) — durable legacy-tag exception -----
+    // Reaction events are stored on EVT today. They kept the legacy
+    // 1050/1051 tags during the cutover, so treat these two tags as
+    // frozen durable IDs even though they sit in the >=1000 range.
+    ReactionAddedEvent reaction_added = 1050;
+    ReactionRemovedEvent reaction_removed = 1051;
+  }
+}

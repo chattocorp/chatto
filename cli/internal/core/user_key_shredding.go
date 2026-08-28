@@ -16,7 +16,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -37,8 +37,8 @@ var errUserKeyShreddingFactExists = errors.New("user key shredding fact already 
 type UserKeyShreddingModel struct {
 	core               *ChattoCore
 	worker             *events.DurableWorker
-	appendRequestAtFn  func(context.Context, string, *corev1.Event, string, uint64) (uint64, error)
-	appendOnceFn       func(context.Context, string, *corev1.Event, string) (uint64, error)
+	appendRequestAtFn  func(context.Context, string, *evtv1.Event, string, uint64) (uint64, error)
+	appendOnceFn       func(context.Context, string, *evtv1.Event, string) (uint64, error)
 	shredContentKeyFn  func(context.Context, string) error
 	shredWrappingKeyFn func(context.Context, string) error
 }
@@ -113,7 +113,7 @@ func (m *UserKeyShreddingModel) Request(ctx context.Context, actorID, userID str
 	return nil
 }
 
-func (m *UserKeyShreddingModel) appendRequest(ctx context.Context, actorID, userID string) (*corev1.Event, uint64, error) {
+func (m *UserKeyShreddingModel) appendRequest(ctx context.Context, actorID, userID string) (*evtv1.Event, uint64, error) {
 	aggregateFilter := evtstream.UserAggregate(userID).AllEventsFilter()
 	subject := evtstream.UserAggregate(userID).Subject(evtstream.EventUserKeyShreddingRequested)
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
@@ -132,8 +132,8 @@ func (m *UserKeyShreddingModel) appendRequest(ctx context.Context, actorID, user
 		if _, _, err := m.shreddingTargets(ctx, userID); err != nil {
 			return nil, 0, err
 		}
-		requestEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserKeyShreddingRequested{
-			UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: userID},
+		requestEvent := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserKeyShreddingRequested{
+			UserKeyShreddingRequested: &evtv1.UserKeyShreddingRequestedEvent{UserId: userID},
 		}})
 		seq, err := m.appendRequestAtFn(ctx, subject, requestEvent, aggregateFilter, aggregateSeq)
 		if err == nil {
@@ -224,14 +224,14 @@ func (m *UserKeyShreddingModel) processDelivery(ctx context.Context, delivery ev
 	return m.complete(ctx, event, delivery.Subject, delivery.StreamSequence)
 }
 
-func validateUserKeyShreddingRequest(request *corev1.UserKeyShreddingRequestedEvent) error {
+func validateUserKeyShreddingRequest(request *evtv1.UserKeyShreddingRequestedEvent) error {
 	if request == nil || request.GetUserId() == "" {
 		return fmt.Errorf("missing user id")
 	}
 	return nil
 }
 
-func (m *UserKeyShreddingModel) complete(ctx context.Context, requestEvent *corev1.Event, subject string, seq uint64) error {
+func (m *UserKeyShreddingModel) complete(ctx context.Context, requestEvent *evtv1.Event, subject string, seq uint64) error {
 	request := requestEvent.GetUserKeyShreddingRequested()
 	if request == nil {
 		return fmt.Errorf("missing user-key shredding request")
@@ -270,8 +270,8 @@ func (m *UserKeyShreddingModel) complete(ctx context.Context, requestEvent *core
 	if actorID == "" {
 		actorID = request.GetUserId()
 	}
-	completedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserKeyShredded{
-		UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: request.GetUserId()},
+	completedEvent := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserKeyShredded{
+		UserKeyShredded: &evtv1.UserKeyShreddedEvent{UserId: request.GetUserId()},
 	}})
 	completedSeq, err = m.appendOnceFn(ctx, request.GetUserId(), completedEvent, evtstream.EventUserKeyShredded)
 	if errors.Is(err, errUserKeyShreddingFactExists) {
@@ -301,7 +301,7 @@ func (m *UserKeyShreddingModel) waitForPrivacyBoundary(ctx context.Context, pos 
 	)
 }
 
-func (m *UserKeyShreddingModel) appendOnce(ctx context.Context, userID string, event *corev1.Event, eventType string) (uint64, error) {
+func (m *UserKeyShreddingModel) appendOnce(ctx context.Context, userID string, event *evtv1.Event, eventType string) (uint64, error) {
 	return m.core.appendUserEvent(ctx, userID, event, "", func() error {
 		exists, err := m.factExists(ctx, userID, eventType)
 		if err != nil {
@@ -319,7 +319,7 @@ func (m *UserKeyShreddingModel) factExists(ctx context.Context, userID, eventTyp
 	return seq > 0, err
 }
 
-func (m *UserKeyShreddingModel) requestFact(ctx context.Context, userID string) (*corev1.Event, uint64, bool, error) {
+func (m *UserKeyShreddingModel) requestFact(ctx context.Context, userID string) (*evtv1.Event, uint64, bool, error) {
 	subject := evtstream.UserAggregate(userID).Subject(evtstream.EventUserKeyShreddingRequested)
 	eventsOnSubject, seq, err := m.core.EventPublisher.SubjectEvents(ctx, subject)
 	if err != nil {
@@ -333,5 +333,5 @@ func (m *UserKeyShreddingModel) requestFact(ctx context.Context, userID string) 
 	if err := validateUserKeyShreddingRequest(request); err != nil {
 		return nil, 0, false, fmt.Errorf("invalid persisted user-key shredding request: %w", err)
 	}
-	return proto.Clone(requestEvent).(*corev1.Event), seq, true, nil
+	return proto.Clone(requestEvent).(*evtv1.Event), seq, true, nil
 }

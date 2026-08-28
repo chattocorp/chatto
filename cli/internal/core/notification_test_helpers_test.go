@@ -2,11 +2,12 @@ package core
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type notificationTestSignalKind string
@@ -24,7 +25,7 @@ const (
 	notificationTestSignalRoomMessage    notificationTestSignalKind = "room_message_received"
 )
 
-func testNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID string) []*corev1.NotificationOccurrence {
+func testNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID string) []*notificationv1.NotificationOccurrence {
 	t.Helper()
 	waitForNotificationMaterializer(t, chattoCore)
 	items, err := chattoCore.NotificationOccurrences().List(testContext(t), userID)
@@ -41,11 +42,11 @@ func waitForNotificationMaterializer(t *testing.T, chattoCore *ChattoCore) {
 	}
 }
 
-func testOccurrenceHasKind(occurrence *corev1.NotificationOccurrence, kind notificationTestSignalKind) bool {
+func testOccurrenceHasKind(occurrence *notificationv1.NotificationOccurrence, kind notificationTestSignalKind) bool {
 	return notificationSignalIdentity(occurrence.GetSignal()) == string(kind)
 }
 
-func testOccurrencesHaveKinds(occurrences []*corev1.NotificationOccurrence, kinds ...notificationTestSignalKind) bool {
+func testOccurrencesHaveKinds(occurrences []*notificationv1.NotificationOccurrence, kinds ...notificationTestSignalKind) bool {
 	seen := make(map[notificationTestSignalKind]int)
 	for _, occurrence := range occurrences {
 		seen[notificationTestSignalKind(notificationSignalIdentity(occurrence.GetSignal()))]++
@@ -59,42 +60,42 @@ func testOccurrencesHaveKinds(occurrences []*corev1.NotificationOccurrence, kind
 	return true
 }
 
-func newNotificationRoomMessageTarget(roomID, eventID string) *corev1.NotificationMessageReference {
+func newNotificationRoomMessageTarget(roomID, eventID string) *notificationv1.NotificationMessageReference {
 	return newNotificationMessageReference(roomID, eventID)
 }
 
-func testNotificationSignal(kind notificationTestSignalKind, roomID, eventID string) *corev1.NotificationSignal {
+func testNotificationSignal(kind notificationTestSignalKind, roomID, eventID string) *notificationv1.NotificationSignal {
 	message := newNotificationMessageReference(roomID, eventID)
 	switch kind {
 	case notificationTestSignalDirectMessage:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &corev1.DirectMessageReceived{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &notificationv1.DirectMessageReceived{Message: message}}}
 	case notificationTestSignalDirectMention:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &notificationv1.DirectMentionReceived{Message: message}}}
 	case notificationTestSignalReply:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReplyReceived{ReplyReceived: &corev1.ReplyReceived{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: message}}}
 	case notificationTestSignalRoleMention:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &corev1.RoleMentionReceived{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &notificationv1.RoleMentionReceived{Message: message}}}
 	case notificationTestSignalHere:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_HereMentionReceived{HereMentionReceived: &corev1.HereMentionReceived{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_HereMentionReceived{HereMentionReceived: &notificationv1.HereMentionReceived{Message: message}}}
 	case notificationTestSignalAll:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_AllMentionReceived{AllMentionReceived: &corev1.AllMentionReceived{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_AllMentionReceived{AllMentionReceived: &notificationv1.AllMentionReceived{Message: message}}}
 	case notificationTestSignalFollowedThread:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: message}}}
 	case notificationTestSignalFollowedRoom:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &notificationv1.FollowedRoomActivity{Message: message}}}
 	case notificationTestSignalReaction:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReactionReceived{ReactionReceived: &notificationv1.ReactionReceived{Message: message}}}
 	case notificationTestSignalRoomMessage:
-		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &corev1.RoomMessageReceived{Message: message}}}
+		return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &notificationv1.RoomMessageReceived{Message: message}}}
 	default:
 		return nil
 	}
 }
 
-func testNotificationPolicyPatch(kind notificationTestSignalKind, mode corev1.NotificationDeliveryMode) (*corev1.NotificationDeliveryModes, *fieldmaskpb.FieldMask) {
-	modes := &corev1.NotificationDeliveryModes{}
+func testNotificationPolicyPatch(kind notificationTestSignalKind, mode evtv1.NotificationDeliveryMode) (*evtv1.NotificationDeliveryModes, *fieldmaskpb.FieldMask) {
+	modes := &evtv1.NotificationDeliveryModes{}
 	var path string
-	var target **corev1.NotificationDeliveryMode
+	var target **evtv1.NotificationDeliveryMode
 	switch kind {
 	case notificationTestSignalDirectMessage:
 		path, target = "direct_messages", &modes.DirectMessages
@@ -119,28 +120,28 @@ func testNotificationPolicyPatch(kind notificationTestSignalKind, mode corev1.No
 	default:
 		return modes, &fieldmaskpb.FieldMask{Paths: []string{string(kind)}}
 	}
-	if mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+	if mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 		*target = mode.Enum()
 	}
 	return modes, &fieldmaskpb.FieldMask{Paths: []string{path}}
 }
 
-func (s *NotificationPolicyModel) SetServerNotificationMode(ctx context.Context, actorID string, kind notificationTestSignalKind, mode corev1.NotificationDeliveryMode) (*NotificationPolicy, error) {
+func (s *NotificationPolicyModel) SetServerNotificationMode(ctx context.Context, actorID string, kind notificationTestSignalKind, mode evtv1.NotificationDeliveryMode) (*NotificationPolicy, error) {
 	patch, mask := testNotificationPolicyPatch(kind, mode)
 	return s.UpdateNotificationPolicy(ctx, actorID, "", patch, mask)
 }
 
-func (s *NotificationPolicyModel) SetRoomNotificationMode(ctx context.Context, actorID, roomID string, kind notificationTestSignalKind, mode corev1.NotificationDeliveryMode) (*NotificationPolicy, error) {
+func (s *NotificationPolicyModel) SetRoomNotificationMode(ctx context.Context, actorID, roomID string, kind notificationTestSignalKind, mode evtv1.NotificationDeliveryMode) (*NotificationPolicy, error) {
 	patch, mask := testNotificationPolicyPatch(kind, mode)
 	return s.UpdateNotificationPolicy(ctx, actorID, roomID, patch, mask)
 }
 
-func (cm *ConfigModel) notificationRoomMode(userID, roomID string, kind notificationTestSignalKind) corev1.NotificationDeliveryMode {
+func (cm *ConfigModel) notificationRoomMode(userID, roomID string, kind notificationTestSignalKind) evtv1.NotificationDeliveryMode {
 	return notificationModeForSignal(cm.notificationRoomModes(userID, roomID), testNotificationSignal(kind, roomID, "test"))
 }
 
-func testUnsupportedNotificationSignal() *corev1.NotificationSignal {
-	signal := &corev1.NotificationSignal{}
+func testUnsupportedNotificationSignal() *notificationv1.NotificationSignal {
+	signal := &notificationv1.NotificationSignal{}
 	signal.ProtoReflect().SetUnknown([]byte{0x80, 0x06, 0x01})
 	return signal
 }

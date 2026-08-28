@@ -1,5 +1,5 @@
 <script lang="ts">
-  /* eslint-disable svelte/no-navigation-without-resolve -- href is a prop; callers pass already-resolved paths */
+  import { resolve } from '$app/paths';
   import ServerLogo from './components/ServerLogo.svelte';
   import NotificationBadge from './ui/NotificationBadge.svelte';
   import UnreadDot from './ui/UnreadDot.svelte';
@@ -19,7 +19,7 @@
     contextMenuTrigger,
     title,
     dimmed = false,
-    reauthRequired = false,
+    signInRequired = false,
     compatibilityWarning = false
   }: {
     /** Display data for the icon (server name + optional logo). */
@@ -43,16 +43,17 @@
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
-    /** Show that this server needs the user to sign in again. */
-    reauthRequired?: boolean;
+    /** Show that this server requires the user to sign in. */
+    signInRequired?: boolean;
     /** Show a non-interactive compatibility warning marker. */
     compatibilityWarning?: boolean;
   } = $props();
+
 </script>
 
 <div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
-    {href}
+    href={resolve(href as '/')}
     {onclick}
     {title}
     aria-label={title ?? server?.name}
@@ -70,10 +71,10 @@
     {/if}
   </a>
 
-  {#if reauthRequired}
+  {#if signInRequired}
     <span
       class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
-      data-testid="server-reauth-required"
+      data-testid="server-sign-in-required"
       aria-hidden="true"
     >
       <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>

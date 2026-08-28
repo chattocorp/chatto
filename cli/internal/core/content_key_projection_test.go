@@ -3,18 +3,18 @@ package core
 import (
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 	p := NewContentKeyProjection()
-	purpose := corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
+	purpose := evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 
-	events := []*corev1.Event{
+	events := []*evtv1.Event{
 		{
 			Id: "E1",
-			Event: &corev1.Event_UserDekGenerated{
-				UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			Event: &evtv1.Event_UserDekGenerated{
+				UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 					UserId:         "U1",
 					Epoch:          1,
 					Purpose:        purpose,
@@ -25,8 +25,8 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 		},
 		{
 			Id: "E2",
-			Event: &corev1.Event_UserDekGenerated{
-				UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			Event: &evtv1.Event_UserDekGenerated{
+				UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 					UserId:         "U1",
 					Epoch:          2,
 					Purpose:        purpose,
@@ -64,12 +64,12 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 
 func TestContentKeyProjection_ShredRequestPermanentlyClearsKeys(t *testing.T) {
 	p := NewContentKeyProjection()
-	purpose := corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
+	purpose := evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 
-	if err := p.Apply(&corev1.Event{
+	if err := p.Apply(&evtv1.Event{
 		Id: "E1",
-		Event: &corev1.Event_UserDekGenerated{
-			UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+		Event: &evtv1.Event_UserDekGenerated{
+			UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 				UserId:        "U1",
 				Epoch:         1,
 				Purpose:       purpose,
@@ -79,17 +79,17 @@ func TestContentKeyProjection_ShredRequestPermanentlyClearsKeys(t *testing.T) {
 	}, 1); err != nil {
 		t.Fatalf("Apply content key: %v", err)
 	}
-	if err := p.Apply(&corev1.Event{
+	if err := p.Apply(&evtv1.Event{
 		Id: "E2",
-		Event: &corev1.Event_UserKeyShreddingRequested{
-			UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
+		Event: &evtv1.Event_UserKeyShreddingRequested{
+			UserKeyShreddingRequested: &evtv1.UserKeyShreddingRequestedEvent{UserId: "U1"},
 		},
 	}, 2); err != nil {
 		t.Fatalf("Apply shred request: %v", err)
 	}
-	if err := p.Apply(&corev1.Event{
+	if err := p.Apply(&evtv1.Event{
 		Id: "E3",
-		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+		Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 			UserId: "U1", Epoch: 2, Purpose: purpose, ContentKeyRef: "dek.2",
 		}},
 	}, 3); err != nil {
@@ -110,9 +110,9 @@ func TestContentKeyProjection_ShredRequestPermanentlyClearsKeys(t *testing.T) {
 	if err := restored.Restore(payload); err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
-	if err := restored.Apply(&corev1.Event{
+	if err := restored.Apply(&evtv1.Event{
 		Id: "E4",
-		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+		Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 			UserId: "U1", Epoch: 3, Purpose: purpose, ContentKeyRef: "dek.3",
 		}},
 	}, 4); err != nil {

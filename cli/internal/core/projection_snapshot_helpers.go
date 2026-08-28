@@ -2,12 +2,11 @@ package core
 
 import (
 	"fmt"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
-func snapshotReplayGuard(guard projectionReplayGuard) *corev1.ProjectionReplayGuardSnapshot {
-	snapshot := &corev1.ProjectionReplayGuardSnapshot{
+func snapshotReplayGuard(guard projectionReplayGuard) *projectionv1.ProjectionReplayGuardSnapshot {
+	snapshot := &projectionv1.ProjectionReplayGuardSnapshot{
 		HighestSequence:   guard.highestSeq,
 		CompatibilityMode: guard.compatibilityMode,
 		ReplayComplete:    guard.replayComplete,
@@ -18,7 +17,7 @@ func snapshotReplayGuard(guard projectionReplayGuard) *corev1.ProjectionReplayGu
 	return snapshot
 }
 
-func restoreReplayGuard(snapshot *corev1.ProjectionReplayGuardSnapshot) (projectionReplayGuard, error) {
+func restoreReplayGuard(snapshot *projectionv1.ProjectionReplayGuardSnapshot) (projectionReplayGuard, error) {
 	guard := newProjectionReplayGuard()
 	if snapshot == nil {
 		return guard, nil

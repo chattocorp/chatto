@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+/*
+   PushSubscription stores the Web Push subscription data for a user's browser.
+
+   Subscriptions are stored in the RUNTIME_STATE KV bucket with key format:
+   push_subscription.{userId}.{subscriptionHash}
+
+   The subscriptionHash is derived from the endpoint URL to allow multiple
+   devices/browsers per user while preventing duplicate subscriptions.
+*/
+message PushSubscription {
+  // The push service endpoint URL (provided by the browser).
+  string endpoint = 1;
+
+  // The client's P-256 ECDH public key for message encryption (base64url-encoded)
+  string p256dh = 2;
+
+  // Authentication secret for message encryption (base64url-encoded)
+  string auth = 3;
+
+  // When this subscription was created
+  google.protobuf.Timestamp created_at = 4;
+
+  // User agent string (for debugging/device identification)
+  string user_agent = 5;
+
+  // URL host of the Chatto server that supplied the installed web app.
+  string client_host = 6;
+
+  // Random per-save capability used to remove a cancelled registration without
+  // relying on whichever account session is current when its request settles.
+  string cleanup_token = 7;
+}

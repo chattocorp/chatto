@@ -514,7 +514,7 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
   });
 
-  it('starts sign-in when an unauthenticated synchronized server is clicked', async () => {
+  it('marks an unauthenticated synchronized server and starts sign-in when clicked', async () => {
     mocks.store.isAuthenticated = false;
 
     const { container } = render(ServerSidebarEntry, {
@@ -525,8 +525,8 @@ describe('ServerSidebarEntry', () => {
     await expect.element(icon).toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
     await expect
-      .element(q(container, '[data-testid="server-reauth-required"]'))
-      .not.toBeInTheDocument();
+      .element(q(container, '[data-testid="server-sign-in-required"]'))
+      .toBeInTheDocument();
     icon.click();
 
     await vi.waitFor(() => {
@@ -550,7 +550,7 @@ describe('ServerSidebarEntry', () => {
 
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
     await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
-    const reauthMarker = q(container, '[data-testid="server-reauth-required"]');
+    const reauthMarker = q(container, '[data-testid="server-sign-in-required"]');
     await expect.element(reauthMarker).toBeInTheDocument();
     expect(
       reauthMarker?.querySelector('[class~="icon-[uil--exclamation-circle]"]')

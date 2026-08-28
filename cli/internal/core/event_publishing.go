@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -26,13 +27,13 @@ const natsPublishFlushTimeout = 5 * time.Second
 // publishLiveEvent publishes a transient LiveEvent directly to a live.sync.>
 // subject, bypassing JetStream storage. The subject should already include
 // the "live.sync." prefix.
-func (c *ChattoCore) publishLiveEvent(ctx context.Context, subject string, event *corev1.LiveEvent) error {
+func (c *ChattoCore) publishLiveEvent(ctx context.Context, subject string, event *livev1.LiveEvent) error {
 	return c.publishLiveEvents(ctx, []liveEventPublication{{subject: subject, event: event}})
 }
 
 type liveEventPublication struct {
 	subject string
-	event   *corev1.LiveEvent
+	event   *livev1.LiveEvent
 }
 
 // publishLiveEvents publishes a related set of transient events and flushes
@@ -68,14 +69,14 @@ func (c *ChattoCore) publishLiveEvents(_ context.Context, publications []liveEve
 	return nil
 }
 
-func validateEvent(event *corev1.Event) error {
+func validateEvent(event *evtv1.Event) error {
 	if event == nil || event.Event == nil {
 		return fmt.Errorf("%w: event payload is nil or oneof field is unset", ErrInvalidEvent)
 	}
 	return nil
 }
 
-func validateLiveEvent(event *corev1.LiveEvent) error {
+func validateLiveEvent(event *livev1.LiveEvent) error {
 	if event == nil || event.Event == nil {
 		return fmt.Errorf("%w: live event payload is nil or oneof field is unset", ErrInvalidEvent)
 	}
@@ -85,7 +86,7 @@ func validateLiveEvent(event *corev1.LiveEvent) error {
 // newEvent fills in the Id, ActorID, and CreatedAt fields of an Event
 // envelope if they're not already set. The caller provides the event
 // with the concrete oneof variant already populated.
-func newEvent(actorID string, event *corev1.Event) *corev1.Event {
+func newEvent(actorID string, event *evtv1.Event) *evtv1.Event {
 	if event.Id == "" {
 		event.Id = NewEventID()
 	}
@@ -101,7 +102,7 @@ func newEvent(actorID string, event *corev1.Event) *corev1.Event {
 // newLiveEvent fills in the Id, ActorID, and CreatedAt fields of a LiveEvent
 // envelope if they're not already set. The caller provides the event with the
 // concrete oneof variant already populated.
-func newLiveEvent(actorID string, event *corev1.LiveEvent) *corev1.LiveEvent {
+func newLiveEvent(actorID string, event *livev1.LiveEvent) *livev1.LiveEvent {
 	if event.Id == "" {
 		event.Id = NewEventID()
 	}

@@ -15,7 +15,7 @@ export type PermissionMetadata = {
  * Keep in sync with cli/internal/core/permission.go
  *
  * Permission IDs contain at least two dot-separated components. Additional
- * components can make an explicit inclusion relationship visible in the name.
+ * components define a narrower permission below their registered prefix.
  */
 export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Server permissions
@@ -100,13 +100,25 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   }
 };
 
-const INCLUDED_BY_PERMISSION: Readonly<Record<string, string>> = {
-  'message.read.interactions': 'message.read'
-};
+/** Return the registered immediate parent encoded in a permission name. */
+export function getIncludedByPermission(
+  permissions: readonly string[],
+  id: string
+): string | null {
+  return getIncludingPermissions(permissions, id)[0] ?? null;
+}
 
-/** Return the permission whose effective allow includes this permission. */
-export function getIncludedByPermission(id: string): string | null {
-  return INCLUDED_BY_PERMISSION[id] ?? null;
+/** Return registered dotted ancestors from the immediate parent to the root. */
+export function getIncludingPermissions(permissions: readonly string[], id: string): string[] {
+  const registered = new Set(permissions);
+  if (!registered.has(id)) return [];
+  const result: string[] = [];
+  let name = id;
+  for (let separator = name.lastIndexOf('.'); separator >= 0; separator = name.lastIndexOf('.')) {
+    name = name.slice(0, separator);
+    if (registered.has(name)) result.push(name);
+  }
+  return result;
 }
 
 /**

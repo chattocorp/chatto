@@ -66,6 +66,7 @@ function renderTable(
     loadingMore?: boolean;
     onLoadMore?: () => void | Promise<void>;
     loadMoreRoot?: HTMLElement;
+    empty?: ReturnType<typeof testSnippet>;
   } = {}
 ) {
   return render(DataTable, {
@@ -104,6 +105,24 @@ describe('DataTable.hoverable', () => {
     const { container } = renderTable({ hoverable: false });
     const tr = container.querySelector('tbody tr') as HTMLElement;
     expect(tr.className).not.toContain('hover:bg-surface/70');
+  });
+
+  it('renders rich empty content instead of the fallback message', () => {
+    const { container } = render(DataTable, {
+      props: {
+        items: [],
+        columns: 1,
+        emptyMessage: 'No records',
+        empty: testSnippet('<div data-testid="rich-empty">Create a record</div>'),
+        header: testSnippet('<th>Name</th>'),
+        row: testSnippet('<td>row</td>')
+      }
+    });
+
+    expect(container.querySelector('[data-testid="rich-empty"]')?.textContent).toBe(
+      'Create a record'
+    );
+    expect(container.textContent).not.toContain('No records');
   });
 
   it('uses the shared table viewport beneath the surface header', async () => {

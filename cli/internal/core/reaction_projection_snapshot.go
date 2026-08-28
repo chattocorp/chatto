@@ -2,39 +2,38 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 
 	"google.golang.org/protobuf/proto"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var reactionSnapshotContractID = snapshotContractID("v1", &corev1.ReactionProjectionSnapshot{})
+var reactionSnapshotContractID = snapshotContractID("v1", &projectionv1.ReactionProjectionSnapshot{})
 
 func (*ReactionProjection) SnapshotContractID() string { return reactionSnapshotContractID }
 
 func (p *ReactionProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.ReactionProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot := &projectionv1.ReactionProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	for _, messageID := range sortedMapKeys(p.byMessage) {
-		message := &corev1.MessageReactionsSnapshot{MessageEventId: messageID}
+		message := &projectionv1.MessageReactionsSnapshot{MessageEventId: messageID}
 		for _, emoji := range sortedMapKeys(p.byMessage[messageID]) {
-			group := &corev1.EmojiReactionsSnapshot{Emoji: emoji}
+			group := &projectionv1.EmojiReactionsSnapshot{Emoji: emoji}
 			for _, userID := range sortedMapKeys(p.byMessage[messageID][emoji]) {
 				entry := p.byMessage[messageID][emoji][userID]
-				group.Users = append(group.Users, &corev1.UserReactionSnapshot{UserId: userID, AddedAtNanos: entry.AddedAtNanos, SourceEventId: entry.SourceEventID})
+				group.Users = append(group.Users, &projectionv1.UserReactionSnapshot{UserId: userID, AddedAtNanos: entry.AddedAtNanos, SourceEventId: entry.SourceEventID})
 			}
 			message.Emojis = append(message.Emojis, group)
 		}
 		snapshot.Messages = append(snapshot.Messages, message)
 	}
 	for _, key := range sortedMapKeys(p.roomSeq) {
-		snapshot.RoomSequences = append(snapshot.RoomSequences, &corev1.StringUint64Snapshot{Key: key, Value: p.roomSeq[key]})
+		snapshot.RoomSequences = append(snapshot.RoomSequences, &projectionv1.StringUint64Snapshot{Key: key, Value: p.roomSeq[key]})
 	}
-	appendStrings := func(values map[string]string) []*corev1.StringStringSnapshot {
-		rows := make([]*corev1.StringStringSnapshot, 0, len(values))
+	appendStrings := func(values map[string]string) []*projectionv1.StringStringSnapshot {
+		rows := make([]*projectionv1.StringStringSnapshot, 0, len(values))
 		for _, key := range sortedMapKeys(values) {
-			rows = append(rows, &corev1.StringStringSnapshot{Key: key, Value: values[key]})
+			rows = append(rows, &projectionv1.StringStringSnapshot{Key: key, Value: values[key]})
 		}
 		return rows
 	}
@@ -45,7 +44,7 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *ReactionProjection) Restore(data []byte) error {
-	snapshot := &corev1.ReactionProjectionSnapshot{}
+	snapshot := &projectionv1.ReactionProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal reaction snapshot: %w", err)
@@ -95,7 +94,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 		}
 		roomSeq[row.GetKey()] = row.GetValue()
 	}
-	restoreStrings := func(rows []*corev1.StringStringSnapshot) (map[string]string, error) {
+	restoreStrings := func(rows []*projectionv1.StringStringSnapshot) (map[string]string, error) {
 		values := make(map[string]string, len(rows))
 		for _, row := range rows {
 			if row.GetKey() == "" || row.GetValue() == "" {

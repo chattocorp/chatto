@@ -2,6 +2,7 @@ package dekstore
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -33,7 +33,7 @@ func setupStore(t *testing.T) (*Store, context.Context) {
 func TestStoreCreateGetAndShred(t *testing.T) {
 	store, ctx := setupStore(t)
 
-	stored := &corev1.UserDataEncryptionKey{
+	stored := &runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		ContentKeyNonce:     []byte("nonce"),
 		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
@@ -63,7 +63,7 @@ func TestStoreRejectsWrongPrefixRefs(t *testing.T) {
 
 func TestStoreRejectsMalformedRecords(t *testing.T) {
 	store, ctx := setupStore(t)
-	data, err := proto.Marshal(&corev1.UserDataEncryptionKey{
+	data, err := proto.Marshal(&runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
 		WrappingKeyRef:      "kek.test",
@@ -75,7 +75,7 @@ func TestStoreRejectsMalformedRecords(t *testing.T) {
 	_, err = store.Get(ctx, "dek.bad")
 	require.ErrorContains(t, err, "content key nonce is empty")
 
-	_, err = store.Create(ctx, &corev1.UserDataEncryptionKey{
+	_, err = store.Create(ctx, &runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		ContentKeyNonce:     []byte("nonce"),
 		WrappingAlgorithm:   "unsupported",

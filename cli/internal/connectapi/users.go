@@ -5,14 +5,14 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type userService struct {
 	api *API
 }
 
-func userSummary(ctx context.Context, api *API, user *corev1.User, avatar *apiv1.ImageTransformOptions) (*apiv1.User, error) {
+func userSummary(ctx context.Context, api *API, user *evtv1.User, avatar *apiv1.ImageTransformOptions) (*apiv1.User, error) {
 	presence, err := api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
@@ -20,14 +20,14 @@ func userSummary(ctx context.Context, api *API, user *corev1.User, avatar *apiv1
 	return userSummaryWithPresence(ctx, api, user, avatar, presence)
 }
 
-func requiredUserSummary(ctx context.Context, api *API, user *corev1.User) (*apiv1.User, error) {
+func requiredUserSummary(ctx context.Context, api *API, user *evtv1.User) (*apiv1.User, error) {
 	if user == nil {
 		return nil, connectError(core.ErrNotFound)
 	}
 	return userSummary(ctx, api, user, nil)
 }
 
-func userSummaryWithPresence(ctx context.Context, api *API, user *corev1.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
+func userSummaryWithPresence(ctx context.Context, api *API, user *evtv1.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
 	summary := &apiv1.User{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),

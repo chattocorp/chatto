@@ -2,15 +2,16 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v7", &corev1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v7", &projectionv1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -19,13 +20,13 @@ func (*RoomTimelineProjection) SnapshotContractID() string {
 func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
+	snapshot := &projectionv1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
 	for _, entry := range p.entries {
-		snapshot.Entries = append(snapshot.Entries, &corev1.TimelineEntrySnapshot{StreamSequence: entry.StreamSeq, Event: proto.Clone(entry.Event).(*corev1.Event)})
+		snapshot.Entries = append(snapshot.Entries, &projectionv1.TimelineEntrySnapshot{StreamSequence: entry.StreamSeq, Event: proto.Clone(entry.Event).(*evtv1.Event)})
 	}
 	for _, id := range sortedMapKeys(p.bodyStates) {
 		state := p.bodyStates[id]
-		row := &corev1.TimelineBodySnapshot{
+		row := &projectionv1.TimelineBodySnapshot{
 			MessageEventId:      id,
 			BodyEventSequences:  appendBodySequences(nil, state),
 			CurrentBodySequence: state.currentSequence,
@@ -35,11 +36,11 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 		}
 		snapshot.Bodies = append(snapshot.Bodies, row)
 	}
-	appendTimes := func(values map[string]time.Time) []*corev1.StringTimestampSnapshot {
-		rows := make([]*corev1.StringTimestampSnapshot, 0, len(values))
+	appendTimes := func(values map[string]time.Time) []*projectionv1.StringTimestampSnapshot {
+		rows := make([]*projectionv1.StringTimestampSnapshot, 0, len(values))
 		for _, key := range sortedMapKeys(values) {
 			if !values[key].IsZero() {
-				rows = append(rows, &corev1.StringTimestampSnapshot{Key: key, Value: timestamppb.New(values[key])})
+				rows = append(rows, &projectionv1.StringTimestampSnapshot{Key: key, Value: timestamppb.New(values[key])})
 			}
 		}
 		return rows
@@ -49,7 +50,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	for _, roomID := range sortedMapKeys(p.pinnedMessagesByRoom) {
 		for _, messageID := range sortedMapKeys(p.pinnedMessagesByRoom[roomID]) {
 			pin := p.pinnedMessagesByRoom[roomID][messageID]
-			snapshot.PinnedMessages = append(snapshot.PinnedMessages, &corev1.PinnedMessageSnapshot{
+			snapshot.PinnedMessages = append(snapshot.PinnedMessages, &projectionv1.PinnedMessageSnapshot{
 				PinEventId: pin.PinEventID, RoomId: pin.RoomID, MessageEventId: pin.MessageEventID,
 				PinSequence: pin.PinSequence,
 			})
@@ -57,7 +58,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	}
 	for _, roomID := range sortedMapKeys(p.latestPinByRoom) {
 		latest := p.latestPinByRoom[roomID]
-		snapshot.LatestRoomPins = append(snapshot.LatestRoomPins, &corev1.LatestRoomPinSnapshot{
+		snapshot.LatestRoomPins = append(snapshot.LatestRoomPins, &projectionv1.LatestRoomPinSnapshot{
 			RoomId: roomID, PinEventId: latest.PinEventID, PinSequence: latest.PinSequence,
 		})
 	}
@@ -65,7 +66,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *RoomTimelineProjection) Restore(data []byte) error {
-	snapshot := &corev1.RoomTimelineProjectionSnapshot{}
+	snapshot := &projectionv1.RoomTimelineProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal room timeline snapshot: %w", err)
@@ -81,7 +82,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if row.GetStreamSequence() == 0 || row.GetEvent().GetId() == "" {
 			return fmt.Errorf("room timeline snapshot has invalid timeline entry")
 		}
-		event := proto.Clone(row.GetEvent()).(*corev1.Event)
+		event := proto.Clone(row.GetEvent()).(*evtv1.Event)
 		index := restored.appendEntryLocked(row.GetStreamSequence(), event)
 		if _, duplicate := restored.byEventID[event.GetId()]; duplicate {
 			return fmt.Errorf("room timeline snapshot repeats event %q", event.GetId())
@@ -127,7 +128,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
 		}
 	}
-	restoreTimes := func(rows []*corev1.StringTimestampSnapshot) (map[string]time.Time, error) {
+	restoreTimes := func(rows []*projectionv1.StringTimestampSnapshot) (map[string]time.Time, error) {
 		values := make(map[string]time.Time, len(rows))
 		for _, row := range rows {
 			if row.GetKey() == "" || row.GetValue() == nil {

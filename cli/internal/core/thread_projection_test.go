@@ -7,16 +7,16 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 	full := NewThreadProjection()
-	eventsBefore := []*corev1.Event{
+	eventsBefore := []*evtv1.Event{
 		roomCreatedTimelineEvent("ROOM", "R1", "room", 1),
 		postedEvent(postedOpts{
 			envelopeID: "ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 2,
-			mentions: []*corev1.MessageMention{directThreadMention("U2")},
+			mentions: []*evtv1.MessageMention{directThreadMention("U2")},
 		}),
 		threadCreatedEvent("THREAD", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
@@ -59,7 +59,7 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 
 	tail := postedEvent(postedOpts{
 		envelopeID: "REPLY-3", eventID: "REPLY-3", roomID: "R1", actorID: "U4", inThread: "ROOT", at: 8,
-		mentions: []*corev1.MessageMention{directThreadMention("U2"), directThreadMention("U4")},
+		mentions: []*evtv1.MessageMention{directThreadMention("U2"), directThreadMention("U4")},
 	})
 	if err := full.Apply(tail, 10); err != nil {
 		t.Fatal(err)
@@ -103,15 +103,15 @@ func TestThreadProjectionSnapshotRestoreFailureIsTransactional(t *testing.T) {
 	}
 }
 
-func threadFollowSnapshotTestEvent(id, roomID, rootID, userID string, following bool) *corev1.Event {
+func threadFollowSnapshotTestEvent(id, roomID, rootID, userID string, following bool) *evtv1.Event {
 	if following {
-		return &corev1.Event{Id: id, Event: &corev1.Event_ThreadFollowed{ThreadFollowed: &corev1.ThreadFollowedEvent{RoomId: roomID, ThreadRootEventId: rootID, UserId: userID}}}
+		return &evtv1.Event{Id: id, Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{RoomId: roomID, ThreadRootEventId: rootID, UserId: userID}}}
 	}
-	return &corev1.Event{Id: id, Event: &corev1.Event_ThreadUnfollowed{ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{RoomId: roomID, ThreadRootEventId: rootID, UserId: userID}}}
+	return &evtv1.Event{Id: id, Event: &evtv1.Event_ThreadUnfollowed{ThreadUnfollowed: &evtv1.ThreadUnfollowedEvent{RoomId: roomID, ThreadRootEventId: rootID, UserId: userID}}}
 }
 
-func userKeyShreddedSnapshotTestEvent(id, userID string) *corev1.Event {
-	return &corev1.Event{Id: id, Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: userID}}}
+func userKeyShreddedSnapshotTestEvent(id, userID string) *evtv1.Event {
+	return &evtv1.Event{Id: id, Event: &evtv1.Event_UserKeyShredded{UserKeyShredded: &evtv1.UserKeyShreddedEvent{UserId: userID}}}
 }
 
 // =============================================================================
@@ -139,8 +139,8 @@ func TestThreadProjection_Empty(t *testing.T) {
 	}
 }
 
-func directThreadMention(userID string) *corev1.MessageMention {
-	return &corev1.MessageMention{UserId: userID, Cause: &corev1.MessageMention_Direct{Direct: &corev1.DirectUserMention{}}}
+func directThreadMention(userID string) *evtv1.MessageMention {
+	return &evtv1.MessageMention{UserId: userID, Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}}
 }
 
 func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t *testing.T) {
@@ -148,32 +148,32 @@ func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t
 	root := postedEvent(postedOpts{
 		envelopeID: "ROOT", roomID: "R1", actorID: "AUTHOR", at: 2,
 		mentionedUserIDs: []string{"LEGACY"},
-		mentions: []*corev1.MessageMention{
+		mentions: []*evtv1.MessageMention{
 			directThreadMention("DIRECT"),
 			directThreadMention("AUTHOR"),
-			{UserId: "ROLE", Cause: &corev1.MessageMention_Role{Role: &corev1.RoleMessageMention{RoleName: "helper"}}},
-			{UserId: "HERE", Cause: &corev1.MessageMention_Here{Here: &corev1.HereMessageMention{}}},
-			{UserId: "ALL", Cause: &corev1.MessageMention_All{All: &corev1.AllMessageMention{}}},
+			{UserId: "ROLE", Cause: &evtv1.MessageMention_Role{Role: &evtv1.RoleMessageMention{RoleName: "helper"}}},
+			{UserId: "HERE", Cause: &evtv1.MessageMention_Here{Here: &evtv1.HereMessageMention{}}},
+			{UserId: "ALL", Cause: &evtv1.MessageMention_All{All: &evtv1.AllMessageMention{}}},
 		},
 	})
 	reply := postedEvent(postedOpts{
 		envelopeID: "REPLY", roomID: "R1", actorID: "REPLIER", inThread: "ROOT", at: 3,
-		mentions: []*corev1.MessageMention{directThreadMention("DIRECT"), directThreadMention("REPLY-MENTION")},
+		mentions: []*evtv1.MessageMention{directThreadMention("DIRECT"), directThreadMention("REPLY-MENTION")},
 	})
 	echo := postedEvent(postedOpts{
 		envelopeID: "ECHO", roomID: "R1", actorID: "ECHO-AUTHOR", echoOfEventID: "REPLY",
-		echoFromThreadRootEventID: "ROOT", at: 4, mentions: []*corev1.MessageMention{directThreadMention("ECHO-MENTION")},
+		echoFromThreadRootEventID: "ROOT", at: 4, mentions: []*evtv1.MessageMention{directThreadMention("ECHO-MENTION")},
 	})
 	partialEcho := postedEvent(postedOpts{
 		envelopeID: "PARTIAL-ECHO", roomID: "R1", actorID: "PARTIAL-ECHO-AUTHOR",
-		echoFromThreadRootEventID: "ROOT", at: 4, mentions: []*corev1.MessageMention{directThreadMention("PARTIAL-ECHO-MENTION")},
+		echoFromThreadRootEventID: "ROOT", at: 4, mentions: []*evtv1.MessageMention{directThreadMention("PARTIAL-ECHO-MENTION")},
 	})
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		roomCreatedTimelineEvent("ROOM", "R1", "room", 1), root, reply, echo, partialEcho,
 		editedEvent("EDIT", "REPLY", "R1", "REPLIER", "edited", 5),
 		retractedEvent("RETRACT", "REPLY", "R1", "REPLIER", "removed", 6),
-		roomCreatedEvent("DM1", "", "", corev1.RoomKind_ROOM_KIND_DM),
-		postedEvent(postedOpts{envelopeID: "DM-MESSAGE", roomID: "DM1", actorID: "DM-AUTHOR", at: 8, mentions: []*corev1.MessageMention{directThreadMention("DM-MENTION")}}),
+		roomCreatedEvent("DM1", "", "", evtv1.RoomKind_ROOM_KIND_DM),
+		postedEvent(postedOpts{envelopeID: "DM-MESSAGE", roomID: "DM1", actorID: "DM-AUTHOR", at: 8, mentions: []*evtv1.MessageMention{directThreadMention("DM-MENTION")}}),
 	})
 
 	for _, userID := range []string{"AUTHOR", "DIRECT", "REPLY-MENTION"} {
@@ -199,11 +199,11 @@ func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t
 
 func TestThreadProjection_InteractionCauseOrderIsDeterministic(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		roomCreatedTimelineEvent("ROOM", "R1", "room", 1),
 		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "AUTHOR", at: 2}),
-		postedEvent(postedOpts{envelopeID: "MENTION-Z", roomID: "R1", actorID: "AUTHOR", inThread: "ROOT", at: 3, mentions: []*corev1.MessageMention{directThreadMention("TARGET")}}),
-		postedEvent(postedOpts{envelopeID: "MENTION-A", roomID: "R1", actorID: "AUTHOR", inThread: "ROOT", at: 3, mentions: []*corev1.MessageMention{directThreadMention("TARGET")}}),
+		postedEvent(postedOpts{envelopeID: "MENTION-Z", roomID: "R1", actorID: "AUTHOR", inThread: "ROOT", at: 3, mentions: []*evtv1.MessageMention{directThreadMention("TARGET")}}),
+		postedEvent(postedOpts{envelopeID: "MENTION-A", roomID: "R1", actorID: "AUTHOR", inThread: "ROOT", at: 3, mentions: []*evtv1.MessageMention{directThreadMention("TARGET")}}),
 	})
 
 	interaction, ok := p.Interaction("TARGET", "R1", "ROOT")
@@ -217,7 +217,7 @@ func TestThreadProjection_InteractionCauseOrderIsDeterministic(t *testing.T) {
 
 func TestThreadProjection_RootMessageNotStored(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
 	})
 
@@ -231,7 +231,7 @@ func TestThreadProjection_RootMessageNotStored(t *testing.T) {
 
 func TestThreadProjection_ThreadCreatedInitializesEmptyThread(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		threadCreatedEvent("ENV-THREAD", "R1", "ROOT", "U1", 1),
 	})
 
@@ -251,7 +251,7 @@ func TestThreadProjection_ThreadCreatedInitializesEmptyThread(t *testing.T) {
 
 func TestThreadProjection_RepliesAppended(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", body: "first", at: 2}),
 		postedEvent(postedOpts{envelopeID: "ENV-R2", eventID: "REPLY2", roomID: "R1", actorID: "U3", inThread: "ROOT", inReplyTo: "REPLY1", body: "second", at: 3}),
@@ -301,7 +301,7 @@ func TestThreadProjection_ApplyDoesNotMutateInputEvent(t *testing.T) {
 
 func TestThreadProjection_ReplyWithLegacyEmptyPayloadEventID(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", body: "legacy reply", at: 2}),
 		editedEvent("EDIT-REPLY1", "REPLY1", "R1", "U2", "edited legacy reply", 3),
@@ -321,7 +321,7 @@ func TestThreadProjection_ReplyWithLegacyEmptyPayloadEventID(t *testing.T) {
 
 func TestThreadProjection_EditOfReplyDoesNotAddThreadRow(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", body: "original", at: 2}),
 		editedEvent("ENV-EDIT-R1", "ENV-R1", "R1", "U2", "edited", 3),
@@ -339,7 +339,7 @@ func TestThreadProjection_EditOfReplyDoesNotAddThreadRow(t *testing.T) {
 
 func TestThreadProjection_RetractOfReplyFoldsIntoSummary(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 2}),
 		retractedEvent("ENV-RETRACT-R1", "ENV-R1", "R1", "MOD", "spam", 3),
@@ -365,7 +365,7 @@ func TestThreadProjection_EditOfRootMessageNotInThreadBucket(t *testing.T) {
 	// Root message edits/retracts are room-timeline concerns, not
 	// thread-projection ones. Confirm they don't leak into the thread.
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 2}),
 		editedEvent("ENV-EDIT-ROOT", "ROOT", "R1", "U1", "edited root", 3), // targets ROOT, not REPLY1
@@ -385,7 +385,7 @@ func TestThreadProjection_OutOfOrderEditDropped(t *testing.T) {
 	// mapping, the edit doesn't know which thread it belongs to and is
 	// silently dropped.
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		editedEvent("ENV-EDIT", "REPLY1", "R1", "U2", "edited", 1),
 	})
 	if got := p.ThreadCount(); got != 0 {
@@ -395,7 +395,7 @@ func TestThreadProjection_OutOfOrderEditDropped(t *testing.T) {
 
 func TestThreadProjection_MultipleThreadsIsolated(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-T1A", eventID: "T1A", roomID: "R1", actorID: "U1", inThread: "T1", inReplyTo: "T1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "ENV-T2A", eventID: "T2A", roomID: "R1", actorID: "U1", inThread: "T2", inReplyTo: "T2", at: 2}),
 		postedEvent(postedOpts{envelopeID: "ENV-T1B", eventID: "T1B", roomID: "R1", actorID: "U2", inThread: "T1", inReplyTo: "T1A", at: 3}),
@@ -414,7 +414,7 @@ func TestThreadProjection_MultipleThreadsIsolated(t *testing.T) {
 
 func TestThreadProjection_MetadataRecomputesWhenLatestReplyRetracted(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U1", inThread: "ROOT", inReplyTo: "ROOT", at: 2}),
 		postedEvent(postedOpts{envelopeID: "ENV-R2", eventID: "REPLY2", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "REPLY1", at: 3}),
 		retractedEvent("ENV-RETRACT-R2", "ENV-R2", "R1", "MOD", "spam", 4),
@@ -486,28 +486,28 @@ func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T)
 
 func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
 	p := NewThreadProjection()
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		{
 			Id:      "FOLLOW-U1",
 			ActorId: "U1",
-			Event: &corev1.Event_ThreadFollowed{
-				ThreadFollowed: &corev1.ThreadFollowedEvent{
+			Event: &evtv1.Event_ThreadFollowed{
+				ThreadFollowed: &evtv1.ThreadFollowedEvent{
 					RoomId:            "R1",
 					ThreadRootEventId: "ROOT",
 					UserId:            "U1",
-					Source:            corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL,
+					Source:            evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL,
 				},
 			},
 		},
 		{
 			Id:      "FOLLOW-U2",
 			ActorId: "U2",
-			Event: &corev1.Event_ThreadFollowed{
-				ThreadFollowed: &corev1.ThreadFollowedEvent{
+			Event: &evtv1.Event_ThreadFollowed{
+				ThreadFollowed: &evtv1.ThreadFollowedEvent{
 					RoomId:            "R1",
 					ThreadRootEventId: "ROOT",
 					UserId:            "U2",
-					Source:            corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION,
+					Source:            evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION,
 				},
 			},
 		},
@@ -529,12 +529,12 @@ func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
 		t.Fatalf("FollowedThreadsForUser(U1) = %#v, want R1/ROOT", followed)
 	}
 
-	applyAll(t, p, []*corev1.Event{
+	applyAll(t, p, []*evtv1.Event{
 		{
 			Id:      "UNFOLLOW-U1",
 			ActorId: "U1",
-			Event: &corev1.Event_ThreadUnfollowed{
-				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{
+			Event: &evtv1.Event_ThreadUnfollowed{
+				ThreadUnfollowed: &evtv1.ThreadUnfollowedEvent{
 					RoomId:            "R1",
 					ThreadRootEventId: "ROOT",
 					UserId:            "U1",

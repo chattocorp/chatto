@@ -64,6 +64,7 @@
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
   const needsSignIn = $derived(!stores.isAuthenticated);
+  const signInRequired = $derived(needsSignIn || needsReauth);
   const compatibility = $derived(stores.serverInfo.compatibility);
   const compatibilityMessage = $derived.by(() => {
     switch (compatibility.reason) {
@@ -86,10 +87,10 @@
       !serverConnection.showConnectionLostIcon
   );
   const iconDimmed = $derived(
-    needsSignIn || !loaded || serverConnection.showConnectionLostIcon || needsReauth
+    signInRequired || !loaded || serverConnection.showConnectionLostIcon
   );
   const iconTitle = $derived(
-    needsSignIn || needsReauth
+    signInRequired
       ? m('ui.auth_status.sidebar_reauth', { server: iconServer.name })
       : compatibilityWarning && compatibilityMessage
         ? `${iconServer.name} — ${compatibilityMessage}`
@@ -185,8 +186,7 @@
     }
 
     const path = notificationStore.getCleanPath(serverId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved app path
-    await goto(path);
+    await goto(resolve(path as '/'));
   }
 
   // Handle click on icon unread dot. Channel and DM unreads both flow through
@@ -220,7 +220,7 @@
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
   dimmed={iconDimmed}
-  reauthRequired={needsReauth}
+  {signInRequired}
   {compatibilityWarning}
 />
 

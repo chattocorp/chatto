@@ -6,7 +6,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -16,7 +16,7 @@ import (
 // Apply runs from one projector goroutine in stream order. Implementations must
 // be idempotent for duplicate (event, sequence) delivery and must treat durable
 // event protobufs as immutable.
-type Projection = events.EventProjection[*corev1.Event]
+type Projection = events.EventProjection[*evtv1.Event]
 
 // ProjectionPointer constrains Chatto projection construction to pointers so
 // the projector and read side share one projection instance.
@@ -26,11 +26,11 @@ type ProjectionPointer[T any] interface {
 }
 
 // SequencedEvent pairs one decoded EVT event with its stable stream sequence.
-type SequencedEvent = events.SequencedEventOf[*corev1.Event]
+type SequencedEvent = events.SequencedEventOf[*evtv1.Event]
 
 // StartupBatchProjection atomically applies groups of Chatto events while a
 // projector replays its captured startup history.
-type StartupBatchProjection = events.StartupBatchEventProjection[*corev1.Event]
+type StartupBatchProjection = events.StartupBatchEventProjection[*evtv1.Event]
 
 // NewProjector binds a Chatto core-event projection to the generic ordered
 // projector lifecycle.
@@ -60,15 +60,15 @@ func BindProjectionHandle[T any, P ProjectionPointer[T]](
 	projection P,
 	projector *events.Projector,
 ) (events.ProjectionHandle[P], error) {
-	return events.BindDecodedProjectionHandle[T, *corev1.Event](projection, projector)
+	return events.BindDecodedProjectionHandle[T, *evtv1.Event](projection, projector)
 }
 
-func decodeEvent(data []byte) (events.DecodedEvent[*corev1.Event], error) {
-	var event corev1.Event
+func decodeEvent(data []byte) (events.DecodedEvent[*evtv1.Event], error) {
+	var event evtv1.Event
 	if err := proto.Unmarshal(data, &event); err != nil {
-		return events.DecodedEvent[*corev1.Event]{}, err
+		return events.DecodedEvent[*evtv1.Event]{}, err
 	}
-	return events.DecodedEvent[*corev1.Event]{Event: &event, ID: event.GetId()}, nil
+	return events.DecodedEvent[*evtv1.Event]{Event: &event, ID: event.GetId()}, nil
 }
 
 // AppendAndWait publishes a Chatto event on its aggregate subject and waits
@@ -80,7 +80,7 @@ func (p *Publisher) AppendAndWait(
 	ctx context.Context,
 	projector *events.Projector,
 	aggregate Aggregate,
-	event *corev1.Event,
+	event *evtv1.Event,
 ) (uint64, error) {
 	subject := aggregate.SubjectFor(event)
 	sequence, err := p.Append(ctx, subject, event)
@@ -99,7 +99,7 @@ func (p *Publisher) AppendEventuallyAndWait(
 	ctx context.Context,
 	projector *events.Projector,
 	aggregate Aggregate,
-	event *corev1.Event,
+	event *evtv1.Event,
 ) (uint64, error) {
 	subject := aggregate.SubjectFor(event)
 	sequence, err := p.AppendEventually(ctx, subject, event)

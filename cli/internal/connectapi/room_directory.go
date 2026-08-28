@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type roomDirectoryService struct {
@@ -201,7 +201,7 @@ func roomDirectoryScopeIncludesDMs(scope apiv1.RoomDirectoryScope) bool {
 		scope == apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS
 }
 
-func apiSidebarLink(link *corev1.SidebarLink) *apiv1.SidebarLink {
+func apiSidebarLink(link *evtv1.SidebarLink) *apiv1.SidebarLink {
 	if link == nil {
 		return nil
 	}

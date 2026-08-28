@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const notificationUnreadMarkerKeyPrefix = "notification_unread_marker."
@@ -53,7 +56,7 @@ func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context
 // local boundary index. The materializer uses this to pipeline distinct marker
 // keys and then waits for one collective applied-revision barrier.
 func (m *NotificationOccurrenceModel) writeNotificationUnreadMarker(ctx context.Context, input CreateNotificationOccurrenceInput) (notificationUnreadMarkerWrite, error) {
-	if input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+	if input.Mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 		return notificationUnreadMarkerWrite{}, nil
 	}
 	message := notificationSignalMessage(input.Signal)
@@ -65,10 +68,10 @@ func (m *NotificationOccurrenceModel) writeNotificationUnreadMarker(ctx context.
 	if !now.Before(expiresAt) {
 		return notificationUnreadMarkerWrite{}, nil
 	}
-	marker := &corev1.NotificationUnreadMarker{
+	marker := &runtimestatev1.NotificationUnreadMarker{
 		SourceEventId:        input.SourceEventID,
 		ActorId:              input.ActorID,
-		Signal:               proto.Clone(input.Signal).(*corev1.NotificationSignal),
+		Signal:               proto.Clone(input.Signal).(*notificationv1.NotificationSignal),
 		SourceStreamSequence: input.SourceStreamSequence,
 	}
 	value, err := proto.Marshal(marker)
@@ -91,7 +94,7 @@ func (m *NotificationOccurrenceModel) writeNotificationUnreadMarker(ctx context.
 		if err != nil {
 			return notificationUnreadMarkerWrite{}, fmt.Errorf("read notification unread marker: %w", err)
 		}
-		var previous corev1.NotificationUnreadMarker
+		var previous runtimestatev1.NotificationUnreadMarker
 		if err := proto.Unmarshal(current.Value(), &previous); err != nil {
 			return notificationUnreadMarkerWrite{}, fmt.Errorf("decode notification unread marker: %w", err)
 		}
@@ -129,7 +132,7 @@ func (m *NotificationOccurrenceModel) HasNotificationUnread(ctx context.Context,
 	return false, nil
 }
 
-func (m *NotificationOccurrenceModel) notificationUnreadMarkerActive(ctx context.Context, userID string, marker *corev1.NotificationUnreadMarker) (bool, error) {
+func (m *NotificationOccurrenceModel) notificationUnreadMarkerActive(ctx context.Context, userID string, marker *runtimestatev1.NotificationUnreadMarker) (bool, error) {
 	if marker == nil || marker.GetSourceStreamSequence() == 0 {
 		return false, nil
 	}
@@ -161,7 +164,7 @@ func (m *NotificationOccurrenceModel) notificationUnreadMarkerActive(ctx context
 	return marker.GetSourceEventId() == message.GetEventId(), nil
 }
 
-func (m *NotificationOccurrenceModel) notificationSignalCoveredByBoundary(signal *corev1.NotificationSignal, sourceSequence uint64, boundary notificationReadBoundary) bool {
+func (m *NotificationOccurrenceModel) notificationSignalCoveredByBoundary(signal *notificationv1.NotificationSignal, sourceSequence uint64, boundary notificationReadBoundary) bool {
 	if signal == nil || sourceSequence == 0 {
 		return false
 	}
@@ -188,7 +191,7 @@ func (m *NotificationOccurrenceModel) deleteNotificationUnreadMarkerBefore(ctx c
 		if err != nil {
 			return false, fmt.Errorf("read notification unread marker for deletion: %w", err)
 		}
-		var marker corev1.NotificationUnreadMarker
+		var marker runtimestatev1.NotificationUnreadMarker
 		if err := proto.Unmarshal(entry.Value(), &marker); err != nil {
 			return false, fmt.Errorf("decode notification unread marker for deletion: %w", err)
 		}
@@ -249,9 +252,9 @@ func (c *ChattoCore) publishNotificationUnreadInvalidations(ctx context.Context,
 	for _, invalidation := range invalidations {
 		publications = append(publications, liveEventPublication{
 			subject: subjects.LiveSyncUserEvent(invalidation.userID, "notification_unread"),
-			event: newLiveEvent(invalidation.actorID, &corev1.LiveEvent{
-				Event: &corev1.LiveEvent_NotificationUnreadChanged{
-					NotificationUnreadChanged: &corev1.NotificationUnreadChangedEvent{
+			event: newLiveEvent(invalidation.actorID, &livev1.LiveEvent{
+				Event: &livev1.LiveEvent_NotificationUnreadChanged{
+					NotificationUnreadChanged: &livev1.NotificationUnreadChangedEvent{
 						RoomId: invalidation.roomID, ThreadRootEventId: invalidation.threadRootEventID,
 					},
 				},

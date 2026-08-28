@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // authorizationFenceEvent is an operational durability fact: it advances the
 // narrow OCC lane shared by authorization-changing writes and mutations whose
 // authorization decision must remain valid until commit. Policy state stays in
 // its owning events and projections.
-func authorizationFenceEvent(actorID string) *corev1.Event {
-	return newEvent(actorID, &corev1.Event{Event: &corev1.Event_AuthorizationFenceAdvanced{
-		AuthorizationFenceAdvanced: &corev1.AuthorizationFenceAdvancedEvent{},
+func authorizationFenceEvent(actorID string) *evtv1.Event {
+	return newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_AuthorizationFenceAdvanced{
+		AuthorizationFenceAdvanced: &evtv1.AuthorizationFenceAdvancedEvent{},
 	}})
 }
 

@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	. "hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	. "hmans.de/chatto/pkg/events"
 )
@@ -128,26 +128,26 @@ func appendRecreatedStreamEvent(t *testing.T, ctx context.Context, js jetstream.
 
 // makeEvent constructs a minimal event with a UserJoinedRoom payload so
 // validateEvent passes. The room_id field is what tests typically assert on.
-func makeEvent(roomID, userID string) *corev1.Event {
-	return &corev1.Event{
+func makeEvent(roomID, userID string) *evtv1.Event {
+	return &evtv1.Event{
 		Id:        "EVT-" + roomID + "-" + userID,
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_UserJoinedRoom{
-			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+		Event: &evtv1.Event_UserJoinedRoom{
+			UserJoinedRoom: &evtv1.UserJoinedRoomEvent{
 				RoomId: roomID,
 			},
 		},
 	}
 }
 
-func makeMessagePostedEvent(roomID, userID string) *corev1.Event {
-	return &corev1.Event{
+func makeMessagePostedEvent(roomID, userID string) *evtv1.Event {
+	return &evtv1.Event{
 		Id:        "EVT-msg-" + roomID + "-" + userID,
 		ActorId:   userID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
+		Event: &evtv1.Event_MessagePosted{
+			MessagePosted: &evtv1.MessagePostedEvent{
 				RoomId: roomID,
 			},
 		},
@@ -239,10 +239,10 @@ func TestPublisher_Append_RejectsInvalidEvent(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		event *corev1.Event
+		event *evtv1.Event
 	}{
 		{"nil event", nil},
-		{"empty wrapper", &corev1.Event{}},
+		{"empty wrapper", &evtv1.Event{}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -490,7 +490,7 @@ func TestPublisher_AppendBatch_EmptyIsNoOp(t *testing.T) {
 // observed event stream.
 type trackingProjection struct {
 	mu                sync.Mutex
-	events            []*corev1.Event
+	events            []*evtv1.Event
 	seqs              []uint64
 	subs              []string
 	replayCompletions int
@@ -502,7 +502,7 @@ func newTrackingProjection(subs ...string) *trackingProjection {
 
 func (p *trackingProjection) Subjects() []string { return p.subs }
 
-func (p *trackingProjection) Apply(e *corev1.Event, seq uint64) error {
+func (p *trackingProjection) Apply(e *evtv1.Event, seq uint64) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.events = append(p.events, e)
@@ -558,7 +558,7 @@ type minimalProjection struct {
 
 func (p *minimalProjection) Subjects() []string { return []string{p.subject} }
 
-func (p *minimalProjection) Apply(*corev1.Event, uint64) error {
+func (p *minimalProjection) Apply(*evtv1.Event, uint64) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.count++
@@ -617,7 +617,7 @@ func (p *startupBatchTrackingProjection) ApplyStartupBatch(items []SequencedEven
 	return nil
 }
 
-func (p *startupBatchTrackingProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *startupBatchTrackingProjection) Apply(event *evtv1.Event, seq uint64) error {
 	p.batchMu.Lock()
 	p.liveCalls++
 	p.batchMu.Unlock()
@@ -786,7 +786,7 @@ func newBlockingProjection(subs ...string) *blockingProjection {
 	}
 }
 
-func (p *blockingProjection) Apply(e *corev1.Event, seq uint64) error {
+func (p *blockingProjection) Apply(e *evtv1.Event, seq uint64) error {
 	p.once.Do(func() { close(p.entered) })
 	<-p.release
 	return p.trackingProjection.Apply(e, seq)
@@ -1741,7 +1741,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 type structSnapshotBlockingProjection struct{ blockingProjection *blockingProjection }
 
 func (p structSnapshotBlockingProjection) Subjects() []string { return p.blockingProjection.Subjects() }
-func (p structSnapshotBlockingProjection) Apply(e *corev1.Event, seq uint64) error {
+func (p structSnapshotBlockingProjection) Apply(e *evtv1.Event, seq uint64) error {
 	return p.blockingProjection.Apply(e, seq)
 }
 func (structSnapshotBlockingProjection) Snapshot() ([]byte, error) { return []byte("captured"), nil }
@@ -2085,7 +2085,7 @@ type failingProjection struct {
 	err error
 }
 
-func (p *failingProjection) Apply(_ *corev1.Event, _ uint64) error {
+func (p *failingProjection) Apply(_ *evtv1.Event, _ uint64) error {
 	return p.err
 }
 
@@ -2266,8 +2266,8 @@ func TestSubjectHelpers(t *testing.T) {
 
 	t.Run("OAuthClientAggregate hashes the client ID", func(t *testing.T) {
 		const clientID = "https://remote.example/oauth/client-metadata.json"
-		event := &corev1.Event{Event: &corev1.Event_OauthClientAuthorizationRecorded{
-			OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{ClientId: clientID},
+		event := &evtv1.Event{Event: &evtv1.Event_OauthClientAuthorizationRecorded{
+			OauthClientAuthorizationRecorded: &evtv1.OAuthClientAuthorizationRecordedEvent{ClientId: clientID},
 		}}
 		got := OAuthClientAggregate(clientID).SubjectFor(event)
 		want := "evt.oauth_client.5e155b7992d0702f7826580094fee3aff9d6bfb6e94d4ddd25da630c5b0e6035.authorization_recorded"
@@ -2360,24 +2360,24 @@ func TestSubjectHelpers(t *testing.T) {
 func TestEventTypeOf_MessageEvents(t *testing.T) {
 	cases := []struct {
 		name  string
-		event *corev1.Event
+		event *evtv1.Event
 		want  string
 	}{
 		{
 			name: "RoomSlowModeChanged",
-			event: &corev1.Event{
-				Event: &corev1.Event_RoomSlowModeChanged{
-					RoomSlowModeChanged: &corev1.RoomSlowModeChangedEvent{RoomId: "R1", SlowModeSeconds: 30},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_RoomSlowModeChanged{
+					RoomSlowModeChanged: &evtv1.RoomSlowModeChangedEvent{RoomId: "R1", SlowModeSeconds: 30},
 				},
 			},
 			want: EventRoomSlowModeChanged,
 		},
 		{
 			name: "RoomThreadingModeChanged",
-			event: &corev1.Event{
-				Event: &corev1.Event_RoomThreadingModeChanged{
-					RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
-						RoomId: "R1", ThreadingMode: corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED,
+			event: &evtv1.Event{
+				Event: &evtv1.Event_RoomThreadingModeChanged{
+					RoomThreadingModeChanged: &evtv1.RoomThreadingModeChangedEvent{
+						RoomId: "R1", ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED,
 					},
 				},
 			},
@@ -2385,252 +2385,252 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 		},
 		{
 			name: "MessagePosted",
-			event: &corev1.Event{
-				Event: &corev1.Event_MessagePosted{
-					MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_MessagePosted{
+					MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"},
 				},
 			},
 			want: EventMessagePosted,
 		},
 		{
 			name: "MessageEdited",
-			event: &corev1.Event{
-				Event: &corev1.Event_MessageEdited{
-					MessageEdited: &corev1.MessageEditedEvent{RoomId: "R1", EventId: "M1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_MessageEdited{
+					MessageEdited: &evtv1.MessageEditedEvent{RoomId: "R1", EventId: "M1"},
 				},
 			},
 			want: EventMessageEdited,
 		},
 		{
 			name: "MessageRetracted",
-			event: &corev1.Event{
-				Event: &corev1.Event_MessageRetracted{
-					MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_MessageRetracted{
+					MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"},
 				},
 			},
 			want: EventMessageRetracted,
 		},
 		{
 			name: "MessagePinned",
-			event: &corev1.Event{
-				Event: &corev1.Event_MessagePinned{
-					MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_MessagePinned{
+					MessagePinned: &evtv1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"},
 				},
 			},
 			want: EventMessagePinned,
 		},
 		{
 			name: "MessageUnpinned",
-			event: &corev1.Event{
-				Event: &corev1.Event_MessageUnpinned{
-					MessageUnpinned: &corev1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_MessageUnpinned{
+					MessageUnpinned: &evtv1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M1"},
 				},
 			},
 			want: EventMessageUnpinned,
 		},
 		{
 			name: "ThreadCreated",
-			event: &corev1.Event{
-				Event: &corev1.Event_ThreadCreated{
-					ThreadCreated: &corev1.ThreadCreatedEvent{RoomId: "R1", ThreadRootEventId: "M1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_ThreadCreated{
+					ThreadCreated: &evtv1.ThreadCreatedEvent{RoomId: "R1", ThreadRootEventId: "M1"},
 				},
 			},
 			want: EventThreadCreated,
 		},
 		{
 			name: "ThreadFollowed",
-			event: &corev1.Event{
-				Event: &corev1.Event_ThreadFollowed{
-					ThreadFollowed: &corev1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: "M1", UserId: "U1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_ThreadFollowed{
+					ThreadFollowed: &evtv1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: "M1", UserId: "U1"},
 				},
 			},
 			want: EventThreadFollowed,
 		},
 		{
 			name: "ThreadUnfollowed",
-			event: &corev1.Event{
-				Event: &corev1.Event_ThreadUnfollowed{
-					ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{RoomId: "R1", ThreadRootEventId: "M1", UserId: "U1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_ThreadUnfollowed{
+					ThreadUnfollowed: &evtv1.ThreadUnfollowedEvent{RoomId: "R1", ThreadRootEventId: "M1", UserId: "U1"},
 				},
 			},
 			want: EventThreadUnfollowed,
 		},
 		{
 			name: "CallStarted",
-			event: &corev1.Event{
-				Event: &corev1.Event_VoiceCallStarted{
-					VoiceCallStarted: &corev1.CallStartedEvent{RoomId: "R1", CallId: "C1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_VoiceCallStarted{
+					VoiceCallStarted: &evtv1.CallStartedEvent{RoomId: "R1", CallId: "C1"},
 				},
 			},
 			want: EventCallStarted,
 		},
 		{
 			name: "CallParticipantJoined",
-			event: &corev1.Event{
-				Event: &corev1.Event_VoiceCallParticipantJoined{
-					VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R1", CallId: "C1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_VoiceCallParticipantJoined{
+					VoiceCallParticipantJoined: &evtv1.CallParticipantJoinedEvent{RoomId: "R1", CallId: "C1"},
 				},
 			},
 			want: EventCallParticipantJoined,
 		},
 		{
 			name: "CallParticipantLeft",
-			event: &corev1.Event{
-				Event: &corev1.Event_VoiceCallParticipantLeft{
-					VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: "R1", CallId: "C1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_VoiceCallParticipantLeft{
+					VoiceCallParticipantLeft: &evtv1.CallParticipantLeftEvent{RoomId: "R1", CallId: "C1"},
 				},
 			},
 			want: EventCallParticipantLeft,
 		},
 		{
 			name: "CallEnded",
-			event: &corev1.Event{
-				Event: &corev1.Event_VoiceCallEnded{
-					VoiceCallEnded: &corev1.CallEndedEvent{RoomId: "R1", CallId: "C1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_VoiceCallEnded{
+					VoiceCallEnded: &evtv1.CallEndedEvent{RoomId: "R1", CallId: "C1"},
 				},
 			},
 			want: EventCallEnded,
 		},
 		{
 			name: "UserKeyShreddingRequested",
-			event: &corev1.Event{
-				Event: &corev1.Event_UserKeyShreddingRequested{
-					UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_UserKeyShreddingRequested{
+					UserKeyShreddingRequested: &evtv1.UserKeyShreddingRequestedEvent{UserId: "U1"},
 				},
 			},
 			want: EventUserKeyShreddingRequested,
 		},
 		{
 			name: "UserKeyShredded",
-			event: &corev1.Event{
-				Event: &corev1.Event_UserKeyShredded{
-					UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_UserKeyShredded{
+					UserKeyShredded: &evtv1.UserKeyShreddedEvent{UserId: "U1"},
 				},
 			},
 			want: EventUserKeyShredded,
 		},
 		{
 			name: "UserDEKGenerated",
-			event: &corev1.Event{
-				Event: &corev1.Event_UserDekGenerated{
-					UserDekGenerated: &corev1.UserDEKGeneratedEvent{UserId: "U1", Epoch: 1, Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_UserDekGenerated{
+					UserDekGenerated: &evtv1.UserDEKGeneratedEvent{UserId: "U1", Epoch: 1, Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY},
 				},
 			},
 			want: EventUserDEKGenerated,
 		},
 		{
 			name: "RegistrationVerificationCodeIssued",
-			event: &corev1.Event{
-				Event: &corev1.Event_RegistrationVerificationCodeIssued{
-					RegistrationVerificationCodeIssued: &corev1.RegistrationVerificationCodeIssuedEvent{EmailHash: "hash"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_RegistrationVerificationCodeIssued{
+					RegistrationVerificationCodeIssued: &evtv1.RegistrationVerificationCodeIssuedEvent{EmailHash: "hash"},
 				},
 			},
 			want: EventRegistrationVerificationCodeIssued,
 		},
 		{
 			name: "EmailVerificationCodeIssued",
-			event: &corev1.Event{
-				Event: &corev1.Event_EmailVerificationCodeIssued{
-					EmailVerificationCodeIssued: &corev1.EmailVerificationCodeIssuedEvent{UserId: "U1", EmailHash: "hash"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_EmailVerificationCodeIssued{
+					EmailVerificationCodeIssued: &evtv1.EmailVerificationCodeIssuedEvent{UserId: "U1", EmailHash: "hash"},
 				},
 			},
 			want: EventEmailVerificationCodeIssued,
 		},
 		{
 			name: "PasswordResetLinkIssued",
-			event: &corev1.Event{
-				Event: &corev1.Event_PasswordResetLinkIssued{
-					PasswordResetLinkIssued: &corev1.PasswordResetLinkIssuedEvent{UserId: "U1", EmailHash: "hash"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_PasswordResetLinkIssued{
+					PasswordResetLinkIssued: &evtv1.PasswordResetLinkIssuedEvent{UserId: "U1", EmailHash: "hash"},
 				},
 			},
 			want: EventPasswordResetLinkIssued,
 		},
 		{
 			name: "AccountDeletionConfirmationIssued",
-			event: &corev1.Event{
-				Event: &corev1.Event_AccountDeletionConfirmationIssued{
-					AccountDeletionConfirmationIssued: &corev1.AccountDeletionConfirmationIssuedEvent{UserId: "U1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_AccountDeletionConfirmationIssued{
+					AccountDeletionConfirmationIssued: &evtv1.AccountDeletionConfirmationIssuedEvent{UserId: "U1"},
 				},
 			},
 			want: EventAccountDeletionConfirmationIssued,
 		},
 		{
 			name: "PasswordResetCompleted",
-			event: &corev1.Event{
-				Event: &corev1.Event_PasswordResetCompleted{
-					PasswordResetCompleted: &corev1.PasswordResetCompletedEvent{UserId: "U1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_PasswordResetCompleted{
+					PasswordResetCompleted: &evtv1.PasswordResetCompletedEvent{UserId: "U1"},
 				},
 			},
 			want: EventPasswordResetCompleted,
 		},
 		{
 			name: "LoginSucceeded",
-			event: &corev1.Event{
-				Event: &corev1.Event_LoginSucceeded{
-					LoginSucceeded: &corev1.LoginSucceededEvent{UserId: "U1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_LoginSucceeded{
+					LoginSucceeded: &evtv1.LoginSucceededEvent{UserId: "U1"},
 				},
 			},
 			want: EventLoginSucceeded,
 		},
 		{
 			name: "LoginFailed",
-			event: &corev1.Event{
-				Event: &corev1.Event_LoginFailed{
-					LoginFailed: &corev1.LoginFailedEvent{IdentifierHash: "hash"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_LoginFailed{
+					LoginFailed: &evtv1.LoginFailedEvent{IdentifierHash: "hash"},
 				},
 			},
 			want: EventLoginFailed,
 		},
 		{
 			name: "LogoutSucceeded",
-			event: &corev1.Event{
-				Event: &corev1.Event_LogoutSucceeded{
-					LogoutSucceeded: &corev1.LogoutSucceededEvent{UserId: "U1"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_LogoutSucceeded{
+					LogoutSucceeded: &evtv1.LogoutSucceededEvent{UserId: "U1"},
 				},
 			},
 			want: EventLogoutSucceeded,
 		},
 		{
 			name: "AuthCodeIssued",
-			event: &corev1.Event{
-				Event: &corev1.Event_AuthCodeIssued{
-					AuthCodeIssued: &corev1.AuthCodeIssuedEvent{UserId: "U1", RedirectUriHash: "hash"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_AuthCodeIssued{
+					AuthCodeIssued: &evtv1.AuthCodeIssuedEvent{UserId: "U1", RedirectUriHash: "hash"},
 				},
 			},
 			want: EventAuthCodeIssued,
 		},
 		{
 			name: "AuthCodeExchangeSucceeded",
-			event: &corev1.Event{
-				Event: &corev1.Event_AuthCodeExchangeSucceeded{
-					AuthCodeExchangeSucceeded: &corev1.AuthCodeExchangeSucceededEvent{UserId: "U1", RedirectUriHash: "hash"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_AuthCodeExchangeSucceeded{
+					AuthCodeExchangeSucceeded: &evtv1.AuthCodeExchangeSucceededEvent{UserId: "U1", RedirectUriHash: "hash"},
 				},
 			},
 			want: EventAuthCodeExchangeSucceeded,
 		},
 		{
 			name: "AuthCodeExchangeFailed",
-			event: &corev1.Event{
-				Event: &corev1.Event_AuthCodeExchangeFailed{
-					AuthCodeExchangeFailed: &corev1.AuthCodeExchangeFailedEvent{UserId: "U1", RedirectUriHash: "hash", Reason: "invalid_verifier"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_AuthCodeExchangeFailed{
+					AuthCodeExchangeFailed: &evtv1.AuthCodeExchangeFailedEvent{UserId: "U1", RedirectUriHash: "hash", Reason: "invalid_verifier"},
 				},
 			},
 			want: EventAuthCodeExchangeFailed,
 		},
 		{
 			name: "BearerTokenIssued",
-			event: &corev1.Event{
-				Event: &corev1.Event_BearerTokenIssued{
-					BearerTokenIssued: &corev1.BearerTokenIssuedEvent{UserId: "U1", Source: "password_login"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_BearerTokenIssued{
+					BearerTokenIssued: &evtv1.BearerTokenIssuedEvent{UserId: "U1", Source: "password_login"},
 				},
 			},
 			want: EventBearerTokenIssued,
 		},
 		{
 			name: "BearerTokenRevoked",
-			event: &corev1.Event{
-				Event: &corev1.Event_BearerTokenRevoked{
-					BearerTokenRevoked: &corev1.BearerTokenRevokedEvent{UserId: "U1", Reason: "logout"},
+			event: &evtv1.Event{
+				Event: &evtv1.Event_BearerTokenRevoked{
+					BearerTokenRevoked: &evtv1.BearerTokenRevokedEvent{UserId: "U1", Reason: "logout"},
 				},
 			},
 			want: EventBearerTokenRevoked,
@@ -2674,8 +2674,8 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 }
 
 func TestEventTypeOf_AssetAttached(t *testing.T) {
-	event := &corev1.Event{Event: &corev1.Event_AssetAttached{
-		AssetAttached: &corev1.AssetAttachedEvent{AssetId: "A1", RoomId: "R1", MessageEventId: "M1", UserId: "U1"},
+	event := &evtv1.Event{Event: &evtv1.Event_AssetAttached{
+		AssetAttached: &evtv1.AssetAttachedEvent{AssetId: "A1", RoomId: "R1", MessageEventId: "M1", UserId: "U1"},
 	}}
 	if got := EventTypeOf(event); got != EventAssetAttached {
 		t.Fatalf("EventTypeOf(asset attached) = %q, want %q", got, EventAssetAttached)
@@ -2703,7 +2703,7 @@ func TestMessagePostedEvent_RemovedLegacyMessageBodyIDRoundTripsUnknown(t *testi
 	legacyBytes = protowire.AppendTag(legacyBytes, 3, protowire.BytesType)
 	legacyBytes = protowire.AppendString(legacyBytes, "U1.M1")
 
-	var decoded corev1.MessagePostedEvent
+	var decoded evtv1.MessagePostedEvent
 	if err := proto.Unmarshal(legacyBytes, &decoded); err != nil {
 		t.Fatalf("unmarshal legacy under new schema: %v", err)
 	}
@@ -2722,7 +2722,7 @@ func TestEventOneofDurableFieldNumberPolicy(t *testing.T) {
 		"reaction_removed": 1051,
 	}
 
-	desc := (&corev1.Event{}).ProtoReflect().Descriptor()
+	desc := (&evtv1.Event{}).ProtoReflect().Descriptor()
 	oneof := desc.Oneofs().ByName("event")
 	if oneof == nil {
 		t.Fatal("Event oneof not found")
@@ -2743,7 +2743,7 @@ func TestEventOneofDurableFieldNumberPolicy(t *testing.T) {
 }
 
 func TestRemovedEventShapeFieldsRemainReserved(t *testing.T) {
-	eventDesc := (&corev1.Event{}).ProtoReflect().Descriptor()
+	eventDesc := (&evtv1.Event{}).ProtoReflect().Descriptor()
 	if !eventDesc.ReservedRanges().Has(9001) {
 		t.Error("Event tag 9001 must stay reserved for removed sequence_id")
 	}
@@ -2751,7 +2751,7 @@ func TestRemovedEventShapeFieldsRemainReserved(t *testing.T) {
 		t.Error("Event name sequence_id must stay reserved")
 	}
 
-	postedDesc := (&corev1.MessagePostedEvent{}).ProtoReflect().Descriptor()
+	postedDesc := (&evtv1.MessagePostedEvent{}).ProtoReflect().Descriptor()
 	if !postedDesc.ReservedRanges().Has(3) {
 		t.Error("MessagePostedEvent tag 3 must stay reserved for removed message_body_id")
 	}
@@ -2774,7 +2774,7 @@ func TestRemovedEventShapeFieldsRemainReserved(t *testing.T) {
 		t.Error("MessagePostedEvent must not reintroduce event_id")
 	}
 
-	editedDesc := (&corev1.MessageEditedEvent{}).ProtoReflect().Descriptor()
+	editedDesc := (&evtv1.MessageEditedEvent{}).ProtoReflect().Descriptor()
 	if !editedDesc.ReservedRanges().Has(3) {
 		t.Error("MessageEditedEvent tag 3 must stay reserved for removed body")
 	}
@@ -2785,7 +2785,7 @@ func TestRemovedEventShapeFieldsRemainReserved(t *testing.T) {
 		t.Error("MessageEditedEvent must not reintroduce body")
 	}
 
-	updatedDesc := (&corev1.MessageUpdatedEvent{}).ProtoReflect().Descriptor()
+	updatedDesc := (&evtv1.MessageUpdatedEvent{}).ProtoReflect().Descriptor()
 	if !updatedDesc.ReservedRanges().Has(3) {
 		t.Error("MessageUpdatedEvent tag 3 must stay reserved for removed sequence_id")
 	}

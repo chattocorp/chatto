@@ -7,7 +7,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -120,7 +120,7 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *evts
 // without tombstoning the HLS children. The durable cleanup consumer can still
 // recover those child IDs from the source aggregate after an upgrade and append
 // their deletion facts before removing the source bytes.
-func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, sourceEvent *corev1.Event, sourceAssetID string) error {
+func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, sourceEvent *evtv1.Event, sourceAssetID string) error {
 	processedEvents, _, err := s.EventPublisher.SubjectEvents(
 		ctx,
 		evtstream.AssetAggregate(sourceAssetID).Subject(evtstream.EventAssetProcessingSucceeded),
@@ -142,7 +142,7 @@ func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, so
 
 	type derivativeRef struct {
 		assetID string
-		role    corev1.AssetDerivativeRole
+		role    evtv1.AssetDerivativeRole
 	}
 	var refs []derivativeRef
 	for _, rendition := range hls.GetRenditions() {
@@ -155,7 +155,7 @@ func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, so
 			}
 			refs = append(refs, derivativeRef{
 				assetID: segment.GetAssetId(),
-				role:    corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT,
+				role:    evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT,
 			})
 		}
 	}
@@ -183,7 +183,7 @@ func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, so
 	return nil
 }
 
-func (s *AssetModel) validateCleanupStorage(assetID string, asset *corev1.AssetRecord) error {
+func (s *AssetModel) validateCleanupStorage(assetID string, asset *evtv1.AssetRecord) error {
 	switch {
 	case asset.GetNats() != nil:
 		if asset.GetNats().GetKey() != assetID {

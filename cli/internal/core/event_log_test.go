@@ -5,16 +5,16 @@ import (
 	"strings"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestMarshalEventLogPayloadJSONRedactsPasswordHash(t *testing.T) {
 	hash := []byte("$2a$10$password-verifier")
-	event := &corev1.Event{
+	event := &evtv1.Event{
 		Id:      "event-password-changed",
 		ActorId: "audited-actor",
-		Event: &corev1.Event_UserPasswordHashChanged{
-			UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+		Event: &evtv1.Event_UserPasswordHashChanged{
+			UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{
 				UserId:                      "target-user",
 				PasswordHash:                append([]byte(nil), hash...),
 				PreserveExistingCredentials: true,
@@ -41,8 +41,8 @@ func TestMarshalEventLogPayloadJSONRedactsPasswordHash(t *testing.T) {
 
 func TestMarshalEventLogPayloadJSONRedactsBotAPIKeyVerifier(t *testing.T) {
 	verifier := []byte("bot-api-key-verifier")
-	event := &corev1.Event{Event: &corev1.Event_BotApiKeyRotated{
-		BotApiKeyRotated: &corev1.BotApiKeyRotatedEvent{UserId: "bot-user", Verifier: append([]byte(nil), verifier...)},
+	event := &evtv1.Event{Event: &evtv1.Event_BotApiKeyRotated{
+		BotApiKeyRotated: &evtv1.BotApiKeyRotatedEvent{UserId: "bot-user", Verifier: append([]byte(nil), verifier...)},
 	}}
 	payload, err := marshalEventLogPayloadJSON(event)
 	if err != nil {
@@ -58,8 +58,8 @@ func TestMarshalEventLogPayloadJSONRedactsBotAPIKeyVerifier(t *testing.T) {
 
 func TestMarshalEventLogPayloadJSONRedactsBotIncomingWebhookVerifier(t *testing.T) {
 	verifier := []byte("bot-incoming-webhook-verifier")
-	event := &corev1.Event{Event: &corev1.Event_BotIncomingWebhookCreated{
-		BotIncomingWebhookCreated: &corev1.BotIncomingWebhookCreatedEvent{UserId: "bot-user", WebhookId: "webhook", Verifier: append([]byte(nil), verifier...)},
+	event := &evtv1.Event{Event: &evtv1.Event_BotIncomingWebhookCreated{
+		BotIncomingWebhookCreated: &evtv1.BotIncomingWebhookCreatedEvent{UserId: "bot-user", WebhookId: "webhook", Verifier: append([]byte(nil), verifier...)},
 	}}
 	payload, err := marshalEventLogPayloadJSON(event)
 	if err != nil {

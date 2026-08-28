@@ -23,9 +23,9 @@ Publishing all events to JetStream would waste storage on high-frequency transie
 Split events into two channels based on persistence:
 
 1. **JetStream events** (messages, joins, leaves, room lifecycle, reactions): Originally published to `space.{id}.>` subjects on a persisted per-space stream; currently published as durable `EVT` facts and exposed internally through `live.evt.>`.
-2. **Live-only signals** (typing indicators, presence, notification sync, session/user/config invalidations): Originally published to `live.space.{id}.>` subjects via bare NATS Core pub/sub; currently published as `corev1.LiveEvent` messages under `live.sync.>`. Not stored. Consumed via plain NATS subscriptions.
+2. **Live-only signals** (typing indicators, presence, notification sync, session/user/config invalidations): Originally published to `live.space.{id}.>` subjects via bare NATS Core pub/sub; currently published as `livev1.LiveEvent` messages under `live.sync.>`. Not stored. Consumed via plain NATS subscriptions.
 
-The realtime delivery layer merges both internal channels, then maps authorized input to the public protocol. Durable and canonical latest-value changes become `RealtimeProjectionEvent` operations. Only genuinely non-replayable activity—typing, presence transitions, and session termination—uses `RealtimeEventEnvelope`. Notifications are durable lifecycle facts in the bounded `NOTIFICATIONS` stream; a transient internal notification-sync signal merely causes the server to assemble an authoritative finite `NotificationOccurrencesReplace` projection operation. Internal `corev1.LiveEvent` variants are triggers, not a public event schema. See ADR-076 and ADR-077.
+The realtime delivery layer merges both internal channels, then maps authorized input to the public protocol. Durable and canonical latest-value changes become `RealtimeProjectionEvent` operations. Only genuinely non-replayable activity—typing, presence transitions, and session termination—uses `RealtimeEventEnvelope`. Notifications are durable lifecycle facts in the bounded `NOTIFICATIONS` stream; a transient internal notification-sync signal merely causes the server to assemble an authoritative finite `NotificationOccurrencesReplace` projection operation. Internal `livev1.LiveEvent` variants are triggers, not a public event schema. See ADR-076 and ADR-077.
 
 ## Consequences
 

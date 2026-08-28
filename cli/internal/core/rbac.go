@@ -17,7 +17,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -218,8 +218,8 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 		return ErrImplicitRole
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
-		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{
+		RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
@@ -256,8 +256,8 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 		return ErrImplicitRole
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
-		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{
+		RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
@@ -294,8 +294,8 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 		return ErrImplicitRole
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
-		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleRevoked{
+		RbacRoleRevoked: &evtv1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
@@ -335,8 +335,8 @@ func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actor
 		return ErrImplicitRole
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
-		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleRevoked{
+		RbacRoleRevoked: &evtv1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
@@ -409,7 +409,7 @@ func (c *ChattoCore) RevokeServerPermission(ctx context.Context, actorID, roleNa
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 		RbacPermissionCleared: rbacRolePermissionClearedEvent(ScopeServer, "", roleName, perm),
 	}})
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
@@ -526,8 +526,8 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 		return nil, ErrRoleAlreadyExists
 	}
 
-	var role *corev1.Role
-	event := newEvent(actorID, &corev1.Event{})
+	var role *evtv1.Role
+	event := newEvent(actorID, &evtv1.Event{})
 	if _, err := c.appendRBACEventWithMentionableCheck(ctx, event, func() error {
 		if c.rbacModel.roleExists(name) {
 			return ErrRoleAlreadyExists
@@ -535,15 +535,15 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 		if err := c.requireRoleMentionHandleAvailable(name); err != nil {
 			return err
 		}
-		role = &corev1.Role{
+		role = &evtv1.Role{
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
 			Position:    c.rbacModel.nextAvailablePosition(),
 			Pingable:    pingable,
 		}
-		event.Event = &corev1.Event_RbacRoleCreated{
-			RbacRoleCreated: &corev1.RbacRoleCreatedEvent{
+		event.Event = &evtv1.Event_RbacRoleCreated{
+			RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{
 				RoleName:    role.GetName(),
 				DisplayName: role.GetDisplayName(),
 				Description: role.GetDescription(),
@@ -577,9 +577,9 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 		return nil, err
 	}
 
-	var updated *corev1.Role
-	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleDisplayNameChanged{
-		RbacRoleDisplayNameChanged: &corev1.RbacRoleDisplayNameChangedEvent{RoleName: name, DisplayName: displayName},
+	var updated *evtv1.Role
+	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleDisplayNameChanged{
+		RbacRoleDisplayNameChanged: &evtv1.RbacRoleDisplayNameChangedEvent{RoleName: name, DisplayName: displayName},
 	}}), func() error {
 		existing, ok := c.rbacModel.role(name)
 		if !ok {
@@ -589,7 +589,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 			updated = existing
 			return errRBACNoop
 		}
-		updated = &corev1.Role{
+		updated = &evtv1.Role{
 			Name:        existing.GetName(),
 			DisplayName: displayName,
 			Description: existing.GetDescription(),
@@ -603,8 +603,8 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 		}
 	}
 
-	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleDescriptionChanged{
-		RbacRoleDescriptionChanged: &corev1.RbacRoleDescriptionChangedEvent{RoleName: name, Description: description},
+	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleDescriptionChanged{
+		RbacRoleDescriptionChanged: &evtv1.RbacRoleDescriptionChangedEvent{RoleName: name, Description: description},
 	}}), func() error {
 		existing, ok := c.rbacModel.role(name)
 		if !ok {
@@ -614,7 +614,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 			updated = existing
 			return errRBACNoop
 		}
-		updated = &corev1.Role{
+		updated = &evtv1.Role{
 			Name:        existing.GetName(),
 			DisplayName: existing.GetDisplayName(),
 			Description: description,
@@ -630,8 +630,8 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 
 	if len(pingableValue) > 0 {
 		pingable := pingableValue[0]
-		if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRolePingableChanged{
-			RbacRolePingableChanged: &corev1.RbacRolePingableChangedEvent{RoleName: name, Pingable: pingable},
+		if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRolePingableChanged{
+			RbacRolePingableChanged: &evtv1.RbacRolePingableChangedEvent{RoleName: name, Pingable: pingable},
 		}}), func() error {
 			existing, ok := c.rbacModel.role(name)
 			if !ok {
@@ -641,7 +641,7 @@ func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displa
 				updated = existing
 				return errRBACNoop
 			}
-			updated = &corev1.Role{
+			updated = &evtv1.Role{
 				Name:        existing.GetName(),
 				DisplayName: existing.GetDisplayName(),
 				Description: existing.GetDescription(),
@@ -711,8 +711,8 @@ func (c *ChattoCore) DeleteServerRole(ctx context.Context, actorID, name string)
 		return ErrCannotDeleteSystemRole
 	}
 
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleDeleted{
-		RbacRoleDeleted: &corev1.RbacRoleDeletedEvent{RoleName: name},
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleDeleted{
+		RbacRoleDeleted: &evtv1.RbacRoleDeletedEvent{RoleName: name},
 	}})
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
 		if !c.rbacModel.roleExists(name) {
@@ -739,7 +739,7 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 		}
 	}
 
-	event := newEvent(actorID, &corev1.Event{})
+	event := newEvent(actorID, &evtv1.Event{})
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
 		customRoles := make(map[string]struct{})
 		for _, role := range c.rbacModel.roles() {
@@ -762,8 +762,8 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 				return fmt.Errorf("role %s: %w", name, ErrRoleNotFound)
 			}
 		}
-		event.Event = &corev1.Event_RbacRolesReordered{
-			RbacRolesReordered: &corev1.RbacRolesReorderedEvent{RoleNames: roleNames},
+		event.Event = &evtv1.Event_RbacRolesReordered{
+			RbacRolesReordered: &evtv1.RbacRolesReorderedEvent{RoleNames: roleNames},
 		}
 		return nil
 	}); err != nil {
@@ -812,7 +812,7 @@ func (c *ChattoCore) GrantGroupPermission(ctx context.Context, actorID, groupID,
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeGroup, groupID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -824,7 +824,7 @@ func (c *ChattoCore) DenyGroupPermission(ctx context.Context, actorID, groupID, 
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionDenied{
 		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeGroup, groupID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -833,7 +833,7 @@ func (c *ChattoCore) DenyGroupPermission(ctx context.Context, actorID, groupID, 
 
 // ClearGroupPermissionState removes both allow and deny for a role on a set.
 func (c *ChattoCore) ClearGroupPermissionState(ctx context.Context, actorID, groupID, roleName string, perm Permission) error {
-	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacPermissionCleared{
 		RbacPermissionCleared: rbacRolePermissionClearedEvent(ScopeGroup, groupID, roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, nil)
@@ -876,8 +876,8 @@ func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, actorID, userID str
 	roles := c.rbacModel.userRoles(userID)
 	entries := make([]evtstream.BatchEntry, 0, len(roles))
 	for _, roleName := range roles {
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
-			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
+		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleRevoked{
+			RbacRoleRevoked: &evtv1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 		}})
 		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}

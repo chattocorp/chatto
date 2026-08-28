@@ -8,23 +8,23 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/encryption"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestMentionablesProjection_RetainsOnlyLoginDigestsAndShredReleasesHandle(t *testing.T) {
 	key, err := encryption.GenerateKey()
 	require.NoError(t, err)
 	p := NewMentionablesProjection(staticProjectionKeyWrapper{key: key}, staticProjectionDEKStore{})
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "K1",
-		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+		Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
 			UserId:        "U1",
 			Epoch:         1,
-			Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
+			Purpose:       evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
 			ContentKeyRef: "dek.test",
 		}},
 	}, 1))
-	contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 	require.NoError(t, p.Apply(userEvent("E1", time.Now(), accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
 
 	p.RLock()
@@ -39,9 +39,9 @@ func TestMentionablesProjection_RetainsOnlyLoginDigestsAndShredReleasesHandle(t 
 	require.False(t, p.Availability("alice", nil).Available)
 	require.True(t, p.Availability("alice2", nil).Available)
 
-	require.NoError(t, p.Apply(&corev1.Event{
+	require.NoError(t, p.Apply(&evtv1.Event{
 		Id: "E2",
-		Event: &corev1.Event_UserKeyShreddingRequested{UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{
+		Event: &evtv1.Event_UserKeyShreddingRequested{UserKeyShreddingRequested: &evtv1.UserKeyShreddingRequestedEvent{
 			UserId: "U1",
 		}},
 	}, 4))

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -103,7 +103,7 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	if err := c.SetPasswordHash(ctx, bot.User.GetId(), "password123"); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetPasswordHash(bot) err = %v, want ErrHumanAccountRequired", err)
 	}
-	if err := c.SetUserAvatar(ctx, bot.User.GetId(), &corev1.AssetRecord{Id: "avatar"}); !errors.Is(err, ErrHumanAccountRequired) {
+	if err := c.SetUserAvatar(ctx, bot.User.GetId(), &evtv1.AssetRecord{Id: "avatar"}); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetUserAvatar(bot) err = %v, want ErrHumanAccountRequired", err)
 	}
 	if _, err := c.SetUserCustomStatus(ctx, bot.User.GetId(), "🤖", "online", nil); !errors.Is(err, ErrHumanAccountRequired) {
@@ -737,6 +737,29 @@ func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
 	}
 }
 
+func TestBotPermissionCeilingResolvesTransitiveInclusion(t *testing.T) {
+	broad, _, narrow := installTestPermissionChain(t)
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := core.CreateUser(ctx, SystemActorID, "transitive_bot_owner", "Transitive Bot Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, owner.GetId(), broad); err != nil {
+		t.Fatalf("grant owner broad permission: %v", err)
+	}
+	bot, err := core.CreateBot(ctx, owner.GetId(), "transitive_permission_bot", "Transitive Permission Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if err := core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, narrow, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot narrow permission: %v", err)
+	}
+	if got, err := core.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", narrow); err != nil || got != DecisionAllow {
+		t.Fatalf("bot transitive decision = %s, %v; want allow", got, err)
+	}
+}
+
 func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -901,7 +924,7 @@ func TestBotDisabledDirectMentionDoesNotActivateOrFollow(t *testing.T) {
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow); err != nil {
 		t.Fatalf("grant bot message.read.interactions: %v", err)
 	}
-	if _, err := c.NotificationPolicy().SetRoomNotificationMode(ctx, bot.User.GetId(), room.GetId(), notificationTestSignalDirectMention, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
+	if _, err := c.NotificationPolicy().SetRoomNotificationMode(ctx, bot.User.GetId(), room.GetId(), notificationTestSignalDirectMention, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
 		t.Fatalf("SetRoomNotificationMode: %v", err)
 	}
 

@@ -3,13 +3,14 @@ package connectapi
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sort"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -21,10 +22,10 @@ type notificationService struct {
 	api *API
 	// assembleOccurrence is an unexported failure-injection seam for proving
 	// that response hydration completes before a triage mutation commits.
-	assembleOccurrence func(context.Context, *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error)
+	assembleOccurrence func(context.Context, *notificationv1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error)
 }
 
-func (s *notificationService) hydratedOccurrence(ctx context.Context, occurrence *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
+func (s *notificationService) hydratedOccurrence(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
 	if s.assembleOccurrence != nil {
 		return s.assembleOccurrence(ctx, occurrence)
 	}
@@ -151,7 +152,7 @@ type notificationRoomSummary struct {
 	importantUnreadCount int32
 }
 
-func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificationOccurrenceSummary {
+func notificationSummary(occurrences []*notificationv1.NotificationOccurrence) notificationOccurrenceSummary {
 	summary := notificationOccurrenceSummary{}
 	roomCounts := make(map[string]notificationRoomSummary)
 	for _, occurrence := range occurrences {
@@ -161,7 +162,7 @@ func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificat
 		if !occurrence.GetRead() {
 			summary.unreadCount++
 			// Unknown future levels are conservatively Important.
-			important := occurrence.GetAttentionLevel() != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
+			important := occurrence.GetAttentionLevel() != notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
 			if important {
 				summary.importantUnreadCount++
 			}
@@ -193,7 +194,7 @@ func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificat
 	return summary
 }
 
-func (s *notificationService) visibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*corev1.NotificationOccurrence) ([]*corev1.NotificationOccurrence, error) {
+func (s *notificationService) visibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*notificationv1.NotificationOccurrence) ([]*notificationv1.NotificationOccurrence, error) {
 	allowedOccurrences, err := s.api.core.NotificationOccurrences().VisibleOccurrences(ctx, userID, occurrences)
 	if err != nil {
 		return nil, err
@@ -202,7 +203,7 @@ func (s *notificationService) visibleNotificationOccurrences(ctx context.Context
 	for _, occurrence := range allowedOccurrences {
 		allowedIDs[occurrence.GetId()] = struct{}{}
 	}
-	visible := make([]*corev1.NotificationOccurrence, 0, len(allowedOccurrences))
+	visible := make([]*notificationv1.NotificationOccurrence, 0, len(allowedOccurrences))
 	for _, occurrence := range occurrences {
 		if _, allowed := allowedIDs[occurrence.GetId()]; !allowed {
 			if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
@@ -218,12 +219,12 @@ func (s *notificationService) visibleNotificationOccurrences(ctx context.Context
 	return visible, nil
 }
 
-func (s *notificationService) notificationOccurrenceVisible(ctx context.Context, userID string, occurrence *corev1.NotificationOccurrence) (bool, error) {
-	visible, err := s.api.core.NotificationOccurrences().VisibleOccurrences(ctx, userID, []*corev1.NotificationOccurrence{occurrence})
+func (s *notificationService) notificationOccurrenceVisible(ctx context.Context, userID string, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
+	visible, err := s.api.core.NotificationOccurrences().VisibleOccurrences(ctx, userID, []*notificationv1.NotificationOccurrence{occurrence})
 	return len(visible) == 1, err
 }
 
-func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*corev1.NotificationOccurrence) (int, error) {
+func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*notificationv1.NotificationOccurrence) (int, error) {
 	if err := requireSupportedNotificationSignals(occurrences...); err != nil {
 		return 0, err
 	}
@@ -238,7 +239,7 @@ func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.C
 	return s.api.core.NotificationOccurrences().DeleteMany(ctx, userID, ids)
 }
 
-func requireSupportedNotificationSignals(occurrences ...*corev1.NotificationOccurrence) error {
+func requireSupportedNotificationSignals(occurrences ...*notificationv1.NotificationOccurrence) error {
 	for _, occurrence := range occurrences {
 		if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
 			return connect.NewError(
@@ -250,16 +251,16 @@ func requireSupportedNotificationSignals(occurrences ...*corev1.NotificationOccu
 	return nil
 }
 
-func (s *notificationService) notificationOccurrencesByID(ctx context.Context, userID string, occurrenceIDs []string) ([]*corev1.NotificationOccurrence, error) {
+func (s *notificationService) notificationOccurrencesByID(ctx context.Context, userID string, occurrenceIDs []string) ([]*notificationv1.NotificationOccurrence, error) {
 	all, err := s.api.core.NotificationOccurrences().List(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	byID := make(map[string]*corev1.NotificationOccurrence, len(all))
+	byID := make(map[string]*notificationv1.NotificationOccurrence, len(all))
 	for _, occurrence := range all {
 		byID[occurrence.GetId()] = occurrence
 	}
-	occurrences := make([]*corev1.NotificationOccurrence, 0, len(occurrenceIDs))
+	occurrences := make([]*notificationv1.NotificationOccurrence, 0, len(occurrenceIDs))
 	seen := make(map[string]struct{}, len(occurrenceIDs))
 	for _, occurrenceID := range occurrenceIDs {
 		if _, duplicate := seen[occurrenceID]; duplicate {
@@ -329,7 +330,7 @@ func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, 
 	if err != nil {
 		return nil, connectError(err)
 	}
-	deleted, err := s.deleteVisibleNotificationOccurrences(ctx, caller.UserID, []*corev1.NotificationOccurrence{existing})
+	deleted, err := s.deleteVisibleNotificationOccurrences(ctx, caller.UserID, []*notificationv1.NotificationOccurrence{existing})
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -374,27 +375,27 @@ func (s *notificationService) DeleteAllNotificationOccurrences(ctx context.Conte
 	return connect.NewResponse(&apiv1.DeleteAllNotificationOccurrencesResponse{DeletedCount: int32(count)}), nil
 }
 
-func apiNotificationDeliveryMode(mode corev1.NotificationDeliveryMode) (apiv1.NotificationDeliveryMode, error) {
+func apiNotificationDeliveryMode(mode evtv1.NotificationDeliveryMode) (apiv1.NotificationDeliveryMode, error) {
 	switch mode {
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE:
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, nil
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION:
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, nil
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION:
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION, nil
 	default:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED, core.ErrInvalidArgument
 	}
 }
 
-func apiNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) (*apiv1.NotificationDeliveryModes, error) {
+func apiNotificationDeliveryModes(modes *evtv1.NotificationDeliveryModes) (*apiv1.NotificationDeliveryModes, error) {
 	if modes == nil {
 		return &apiv1.NotificationDeliveryModes{}, nil
 	}
 	result := &apiv1.NotificationDeliveryModes{}
-	set := func(source *corev1.NotificationDeliveryMode, target **apiv1.NotificationDeliveryMode) error {
+	set := func(source *evtv1.NotificationDeliveryMode, target **apiv1.NotificationDeliveryMode) error {
 		if source == nil {
 			return nil
 		}
@@ -406,7 +407,7 @@ func apiNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) (*api
 		return nil
 	}
 	for _, pair := range []struct {
-		source *corev1.NotificationDeliveryMode
+		source *evtv1.NotificationDeliveryMode
 		target **apiv1.NotificationDeliveryMode
 	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}, {modes.RoomMessages, &result.RoomMessages}} {
 		if err := set(pair.source, pair.target); err != nil {
@@ -416,12 +417,12 @@ func apiNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) (*api
 	return result, nil
 }
 
-func coreNotificationDeliveryModes(modes *apiv1.NotificationDeliveryModes) (*corev1.NotificationDeliveryModes, error) {
+func coreNotificationDeliveryModes(modes *apiv1.NotificationDeliveryModes) (*evtv1.NotificationDeliveryModes, error) {
 	if modes == nil {
-		return &corev1.NotificationDeliveryModes{}, nil
+		return &evtv1.NotificationDeliveryModes{}, nil
 	}
-	result := &corev1.NotificationDeliveryModes{}
-	set := func(source *apiv1.NotificationDeliveryMode, target **corev1.NotificationDeliveryMode) error {
+	result := &evtv1.NotificationDeliveryModes{}
+	set := func(source *apiv1.NotificationDeliveryMode, target **evtv1.NotificationDeliveryMode) error {
 		if source == nil {
 			return nil
 		}
@@ -434,7 +435,7 @@ func coreNotificationDeliveryModes(modes *apiv1.NotificationDeliveryModes) (*cor
 	}
 	for _, pair := range []struct {
 		source *apiv1.NotificationDeliveryMode
-		target **corev1.NotificationDeliveryMode
+		target **evtv1.NotificationDeliveryMode
 	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}, {modes.RoomMessages, &result.RoomMessages}} {
 		if err := set(pair.source, pair.target); err != nil {
 			return nil, err
@@ -458,18 +459,18 @@ func apiNotificationPolicy(policy *core.NotificationPolicy) (*apiv1.Notification
 	return &apiv1.NotificationPolicy{Overrides: overrides, Effective: effective}, nil
 }
 
-func coreNotificationDeliveryMode(mode apiv1.NotificationDeliveryMode) (corev1.NotificationDeliveryMode, error) {
+func coreNotificationDeliveryMode(mode apiv1.NotificationDeliveryMode) (evtv1.NotificationDeliveryMode, error) {
 	switch mode {
 	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
+		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
 	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, nil
+		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, nil
 	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, nil
+		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, nil
 	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION, nil
+		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION, nil
 	default:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED, core.ErrInvalidArgument
+		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED, core.ErrInvalidArgument
 	}
 }
 

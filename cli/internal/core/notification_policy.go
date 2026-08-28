@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -11,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // NotificationPolicyScopeKind identifies one supported notification-policy
@@ -36,8 +37,8 @@ type NotificationPolicy struct {
 	Scope NotificationPolicyScope
 	// RoomID remains populated for the legacy server/room API adapter.
 	RoomID    string
-	Overrides *corev1.NotificationDeliveryModes
-	Effective *corev1.NotificationDeliveryModes
+	Overrides *evtv1.NotificationDeliveryModes
+	Effective *evtv1.NotificationDeliveryModes
 }
 
 const maxNotificationPolicyBatchSize = 100
@@ -54,14 +55,14 @@ func (c *ChattoCore) NotificationPolicy() *NotificationPolicyModel {
 	return c.notificationPolicy
 }
 
-func cloneNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) *corev1.NotificationDeliveryModes {
+func cloneNotificationDeliveryModes(modes *evtv1.NotificationDeliveryModes) *evtv1.NotificationDeliveryModes {
 	if modes == nil {
-		return &corev1.NotificationDeliveryModes{}
+		return &evtv1.NotificationDeliveryModes{}
 	}
-	return proto.Clone(modes).(*corev1.NotificationDeliveryModes)
+	return proto.Clone(modes).(*evtv1.NotificationDeliveryModes)
 }
 
-func notificationDeliveryModesEmpty(modes *corev1.NotificationDeliveryModes) bool {
+func notificationDeliveryModesEmpty(modes *evtv1.NotificationDeliveryModes) bool {
 	if modes == nil {
 		return true
 	}
@@ -76,12 +77,12 @@ func notificationDeliveryModesEmpty(modes *corev1.NotificationDeliveryModes) boo
 	return empty
 }
 
-func validNotificationMode(mode corev1.NotificationDeliveryMode) bool {
+func validNotificationMode(mode evtv1.NotificationDeliveryMode) bool {
 	switch mode {
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE:
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE:
 		return true
 	default:
 		return false
@@ -91,31 +92,31 @@ func validNotificationMode(mode corev1.NotificationDeliveryMode) bool {
 // notificationModeProducesAttention accepts every concrete mode that makes
 // activity visible to the recipient. Unknown future values fail closed during
 // version skew.
-func notificationModeProducesAttention(mode corev1.NotificationDeliveryMode) bool {
-	return mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE ||
+func notificationModeProducesAttention(mode evtv1.NotificationDeliveryMode) bool {
+	return mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE ||
 		notificationModeProducesOccurrence(mode)
 }
 
 // notificationModeProducesOccurrence accepts only modes this binary knows how
 // to materialize. Unknown future enum values fail closed during version skew
 // instead of entering the durable worker's retry loop.
-func notificationModeProducesOccurrence(mode corev1.NotificationDeliveryMode) bool {
+func notificationModeProducesOccurrence(mode evtv1.NotificationDeliveryMode) bool {
 	switch mode {
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION:
+	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION:
 		return true
 	default:
 		return false
 	}
 }
 
-func validateNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) error {
+func validateNotificationDeliveryModes(modes *evtv1.NotificationDeliveryModes) error {
 	if modes == nil {
 		return nil
 	}
 	var validationErr error
 	modes.ProtoReflect().Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
-		if field.Kind() != protoreflect.EnumKind || !validNotificationMode(corev1.NotificationDeliveryMode(value.Enum())) {
+		if field.Kind() != protoreflect.EnumKind || !validNotificationMode(evtv1.NotificationDeliveryMode(value.Enum())) {
 			validationErr = invalidArgument(fmt.Sprintf("invalid notification delivery mode for %s", field.Name()))
 			return false
 		}
@@ -124,7 +125,7 @@ func validateNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) 
 	return validationErr
 }
 
-func applyNotificationDeliveryModesPatch(current, patch *corev1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*corev1.NotificationDeliveryModes, error) {
+func applyNotificationDeliveryModesPatch(current, patch *evtv1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*evtv1.NotificationDeliveryModes, error) {
 	if mask == nil || len(mask.GetPaths()) == 0 {
 		return nil, invalidArgument("notification policy update mask must select at least one field")
 	}
@@ -146,7 +147,7 @@ func applyNotificationDeliveryModesPatch(current, patch *corev1.NotificationDeli
 			return nil, invalidArgument(fmt.Sprintf("unsupported notification policy field %q", path))
 		}
 		if patchMessage.Has(field) {
-			mode := corev1.NotificationDeliveryMode(patchMessage.Get(field).Enum())
+			mode := evtv1.NotificationDeliveryMode(patchMessage.Get(field).Enum())
 			if !validNotificationMode(mode) {
 				return nil, invalidArgument(fmt.Sprintf("invalid notification delivery mode for %s", path))
 			}
@@ -158,46 +159,46 @@ func applyNotificationDeliveryModesPatch(current, patch *corev1.NotificationDeli
 	return result, nil
 }
 
-func (cm *ConfigModel) notificationServerModes(userID string) *corev1.NotificationDeliveryModes {
+func (cm *ConfigModel) notificationServerModes(userID string) *evtv1.NotificationDeliveryModes {
 	if cm == nil || cm.config.Projection() == nil {
-		return &corev1.NotificationDeliveryModes{}
+		return &evtv1.NotificationDeliveryModes{}
 	}
 	cm.config.Projection().RLock()
 	defer cm.config.Projection().RUnlock()
 	u := cm.config.Projection().users[userID]
 	if u == nil {
-		return &corev1.NotificationDeliveryModes{}
+		return &evtv1.NotificationDeliveryModes{}
 	}
 	return cloneNotificationDeliveryModes(u.serverModes)
 }
 
-func (cm *ConfigModel) notificationRoomModes(userID, roomID string) *corev1.NotificationDeliveryModes {
+func (cm *ConfigModel) notificationRoomModes(userID, roomID string) *evtv1.NotificationDeliveryModes {
 	if cm == nil || cm.config.Projection() == nil {
-		return &corev1.NotificationDeliveryModes{}
+		return &evtv1.NotificationDeliveryModes{}
 	}
 	cm.config.Projection().RLock()
 	defer cm.config.Projection().RUnlock()
 	u := cm.config.Projection().users[userID]
 	if u == nil {
-		return &corev1.NotificationDeliveryModes{}
+		return &evtv1.NotificationDeliveryModes{}
 	}
 	return cloneNotificationDeliveryModes(u.roomModesByRoom[roomID])
 }
 
-func (cm *ConfigModel) notificationRoomGroupModes(userID, groupID string) *corev1.NotificationDeliveryModes {
+func (cm *ConfigModel) notificationRoomGroupModes(userID, groupID string) *evtv1.NotificationDeliveryModes {
 	if cm == nil || cm.config.Projection() == nil {
-		return &corev1.NotificationDeliveryModes{}
+		return &evtv1.NotificationDeliveryModes{}
 	}
 	cm.config.Projection().RLock()
 	defer cm.config.Projection().RUnlock()
 	u := cm.config.Projection().users[userID]
 	if u == nil {
-		return &corev1.NotificationDeliveryModes{}
+		return &evtv1.NotificationDeliveryModes{}
 	}
 	return cloneNotificationDeliveryModes(u.roomGroupModesByGroup[groupID])
 }
 
-func resolvedNotificationMode(room, group, server *corev1.NotificationDeliveryMode, fallback corev1.NotificationDeliveryMode) corev1.NotificationDeliveryMode {
+func resolvedNotificationMode(room, group, server *evtv1.NotificationDeliveryMode, fallback evtv1.NotificationDeliveryMode) evtv1.NotificationDeliveryMode {
 	if room != nil {
 		return *room
 	}
@@ -210,61 +211,61 @@ func resolvedNotificationMode(room, group, server *corev1.NotificationDeliveryMo
 	return fallback
 }
 
-func effectiveNotificationDeliveryModesAtScope(server, group, room *corev1.NotificationDeliveryModes) *corev1.NotificationDeliveryModes {
+func effectiveNotificationDeliveryModesAtScope(server, group, room *evtv1.NotificationDeliveryModes) *evtv1.NotificationDeliveryModes {
 	server = cloneNotificationDeliveryModes(server)
 	group = cloneNotificationDeliveryModes(group)
 	room = cloneNotificationDeliveryModes(room)
-	return &corev1.NotificationDeliveryModes{
-		DirectMessages:  resolvedNotificationMode(room.DirectMessages, group.DirectMessages, server.DirectMessages, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
-		DirectMentions:  resolvedNotificationMode(room.DirectMentions, group.DirectMentions, server.DirectMentions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
-		Replies:         resolvedNotificationMode(room.Replies, group.Replies, server.Replies, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
-		RoleMentions:    resolvedNotificationMode(room.RoleMentions, group.RoleMentions, server.RoleMentions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
-		HereMentions:    resolvedNotificationMode(room.HereMentions, group.HereMentions, server.HereMentions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
-		AllMentions:     resolvedNotificationMode(room.AllMentions, group.AllMentions, server.AllMentions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
-		FollowedThreads: resolvedNotificationMode(room.FollowedThreads, group.FollowedThreads, server.FollowedThreads, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
-		FollowedRooms:   resolvedNotificationMode(room.FollowedRooms, group.FollowedRooms, server.FollowedRooms, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF).Enum(),
-		Reactions:       resolvedNotificationMode(room.Reactions, group.Reactions, server.Reactions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
-		RoomMessages:    resolvedNotificationMode(room.RoomMessages, group.RoomMessages, server.RoomMessages, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE).Enum(),
+	return &evtv1.NotificationDeliveryModes{
+		DirectMessages:  resolvedNotificationMode(room.DirectMessages, group.DirectMessages, server.DirectMessages, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
+		DirectMentions:  resolvedNotificationMode(room.DirectMentions, group.DirectMentions, server.DirectMentions, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
+		Replies:         resolvedNotificationMode(room.Replies, group.Replies, server.Replies, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
+		RoleMentions:    resolvedNotificationMode(room.RoleMentions, group.RoleMentions, server.RoleMentions, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
+		HereMentions:    resolvedNotificationMode(room.HereMentions, group.HereMentions, server.HereMentions, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
+		AllMentions:     resolvedNotificationMode(room.AllMentions, group.AllMentions, server.AllMentions, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
+		FollowedThreads: resolvedNotificationMode(room.FollowedThreads, group.FollowedThreads, server.FollowedThreads, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
+		FollowedRooms:   resolvedNotificationMode(room.FollowedRooms, group.FollowedRooms, server.FollowedRooms, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF).Enum(),
+		Reactions:       resolvedNotificationMode(room.Reactions, group.Reactions, server.Reactions, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
+		RoomMessages:    resolvedNotificationMode(room.RoomMessages, group.RoomMessages, server.RoomMessages, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE).Enum(),
 	}
 }
 
-func effectiveNotificationDeliveryModes(server, room *corev1.NotificationDeliveryModes) *corev1.NotificationDeliveryModes {
+func effectiveNotificationDeliveryModes(server, room *evtv1.NotificationDeliveryModes) *evtv1.NotificationDeliveryModes {
 	return effectiveNotificationDeliveryModesAtScope(server, nil, room)
 }
 
-func notificationModeForSignal(modes *corev1.NotificationDeliveryModes, signal *corev1.NotificationSignal) corev1.NotificationDeliveryMode {
+func notificationModeForSignal(modes *evtv1.NotificationDeliveryModes, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {
 	if modes == nil || signal == nil {
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
+		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
 	switch signal.GetKind().(type) {
-	case *corev1.NotificationSignal_DirectMessageReceived:
+	case *notificationv1.NotificationSignal_DirectMessageReceived:
 		return modes.GetDirectMessages()
-	case *corev1.NotificationSignal_DirectMentionReceived:
+	case *notificationv1.NotificationSignal_DirectMentionReceived:
 		return modes.GetDirectMentions()
-	case *corev1.NotificationSignal_ReplyReceived:
+	case *notificationv1.NotificationSignal_ReplyReceived:
 		return modes.GetReplies()
-	case *corev1.NotificationSignal_RoleMentionReceived:
+	case *notificationv1.NotificationSignal_RoleMentionReceived:
 		return modes.GetRoleMentions()
-	case *corev1.NotificationSignal_HereMentionReceived:
+	case *notificationv1.NotificationSignal_HereMentionReceived:
 		return modes.GetHereMentions()
-	case *corev1.NotificationSignal_AllMentionReceived:
+	case *notificationv1.NotificationSignal_AllMentionReceived:
 		return modes.GetAllMentions()
-	case *corev1.NotificationSignal_FollowedThreadActivity:
+	case *notificationv1.NotificationSignal_FollowedThreadActivity:
 		return modes.GetFollowedThreads()
-	case *corev1.NotificationSignal_FollowedRoomActivity:
+	case *notificationv1.NotificationSignal_FollowedRoomActivity:
 		return modes.GetFollowedRooms()
-	case *corev1.NotificationSignal_ReactionReceived:
+	case *notificationv1.NotificationSignal_ReactionReceived:
 		return modes.GetReactions()
-	case *corev1.NotificationSignal_RoomMessageReceived:
+	case *notificationv1.NotificationSignal_RoomMessageReceived:
 		return modes.GetRoomMessages()
 	default:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
+		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
 }
 
 // GetEffectiveNotificationModeForSignal resolves room, current room-group,
 // server, and product-default policy for the rich signal variant.
-func (c *ChattoCore) GetEffectiveNotificationModeForSignal(userID, roomID string, signal *corev1.NotificationSignal) corev1.NotificationDeliveryMode {
+func (c *ChattoCore) GetEffectiveNotificationModeForSignal(userID, roomID string, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {
 	groupID := c.roomModel.roomGroupForRoom(roomID)
 	return notificationModeForSignal(effectiveNotificationDeliveryModesAtScope(
 		c.configModel.notificationServerModes(userID),
@@ -323,8 +324,8 @@ func (s *NotificationPolicyModel) GetScopedNotificationPolicy(ctx context.Contex
 // caller has crossed the shared configuration and room-group read boundary.
 func (s *NotificationPolicyModel) getScopedNotificationPolicyCurrent(ctx context.Context, actorID string, scope NotificationPolicyScope) (*NotificationPolicy, error) {
 	server := s.core.configModel.notificationServerModes(actorID)
-	group := &corev1.NotificationDeliveryModes{}
-	room := &corev1.NotificationDeliveryModes{}
+	group := &evtv1.NotificationDeliveryModes{}
+	room := &evtv1.NotificationDeliveryModes{}
 	overrides := server
 
 	switch scope.Kind {
@@ -389,7 +390,7 @@ func (s *NotificationPolicyModel) BatchGetNotificationPolicies(ctx context.Conte
 }
 
 // UpdateNotificationPolicy preserves the legacy server/room operation model.
-func (s *NotificationPolicyModel) UpdateNotificationPolicy(ctx context.Context, actorID, roomID string, patch *corev1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*NotificationPolicy, error) {
+func (s *NotificationPolicyModel) UpdateNotificationPolicy(ctx context.Context, actorID, roomID string, patch *evtv1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*NotificationPolicy, error) {
 	scope := NotificationPolicyScope{Kind: NotificationPolicyScopeServer}
 	if roomID != "" {
 		scope = NotificationPolicyScope{Kind: NotificationPolicyScopeRoom, ID: roomID}
@@ -399,7 +400,7 @@ func (s *NotificationPolicyModel) UpdateNotificationPolicy(ctx context.Context, 
 
 // UpdateScopedNotificationPolicy sparsely sets or clears overrides. The
 // complete resulting scope is committed as one OCC-protected domain fact.
-func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Context, actorID string, scope NotificationPolicyScope, patch *corev1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*NotificationPolicy, error) {
+func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Context, actorID string, scope NotificationPolicyScope, patch *evtv1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*NotificationPolicy, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
@@ -413,7 +414,7 @@ func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Con
 		return nil, err
 	}
 	if scope.Kind == NotificationPolicyScopeServer {
-		err := s.core.configModel.updateSubject(ctx, actorID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		err := s.core.configModel.updateSubject(ctx, actorID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 			current := s.core.configModel.notificationServerModes(actorID)
 			next, err := applyNotificationDeliveryModesPatch(current, patch, mask)
 			if err != nil {
@@ -422,8 +423,8 @@ func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Con
 			if proto.Equal(current, next) {
 				return nil, nil
 			}
-			return []*corev1.Event{newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPolicyChanged{
-				UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{UserId: actorID, Overrides: next},
+			return []*evtv1.Event{newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserNotificationPolicyChanged{
+				UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{UserId: actorID, Overrides: next},
 			}})}, nil
 		})
 		if err != nil {
@@ -432,7 +433,7 @@ func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Con
 		return s.GetScopedNotificationPolicy(ctx, actorID, scope)
 	}
 
-	err := s.core.configModel.updateSubject(ctx, actorID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := s.core.configModel.updateSubject(ctx, actorID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		if err := s.checkScopedResourceAccess(ctx, actorID, scope); err != nil {
 			return nil, err
 		}
@@ -444,7 +445,7 @@ func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Con
 		if proto.Equal(current, next) {
 			return nil, nil
 		}
-		return []*corev1.Event{scopedNotificationPolicyChangedEvent(actorID, scope, next)}, nil
+		return []*evtv1.Event{scopedNotificationPolicyChangedEvent(actorID, scope, next)}, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update scoped notification policy: %w", err)
@@ -479,24 +480,24 @@ func roomIDForNotificationPolicyScope(scope NotificationPolicyScope) string {
 	return ""
 }
 
-func (s *NotificationPolicyModel) notificationModesForScope(actorID string, scope NotificationPolicyScope) *corev1.NotificationDeliveryModes {
+func (s *NotificationPolicyModel) notificationModesForScope(actorID string, scope NotificationPolicyScope) *evtv1.NotificationDeliveryModes {
 	if scope.Kind == NotificationPolicyScopeRoomGroup {
 		return s.core.configModel.notificationRoomGroupModes(actorID, scope.ID)
 	}
 	return s.core.configModel.notificationRoomModes(actorID, scope.ID)
 }
 
-func scopedNotificationPolicyChangedEvent(actorID string, scope NotificationPolicyScope, overrides *corev1.NotificationDeliveryModes) *corev1.Event {
+func scopedNotificationPolicyChangedEvent(actorID string, scope NotificationPolicyScope, overrides *evtv1.NotificationDeliveryModes) *evtv1.Event {
 	if scope.Kind == NotificationPolicyScopeRoomGroup {
-		return newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserRoomGroupNotificationPolicyChanged{
-			UserRoomGroupNotificationPolicyChanged: &corev1.UserRoomGroupNotificationPolicyChangedEvent{
+		return newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserRoomGroupNotificationPolicyChanged{
+			UserRoomGroupNotificationPolicyChanged: &evtv1.UserRoomGroupNotificationPolicyChangedEvent{
 				UserId: actorID, RoomGroupId: scope.ID, Overrides: overrides,
 			},
 		}})
 	}
 	roomID := scope.ID
-	return newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPolicyChanged{
-		UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
+	return newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserNotificationPolicyChanged{
+		UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
 			UserId: actorID, RoomId: &roomID, Overrides: overrides,
 		},
 	}})

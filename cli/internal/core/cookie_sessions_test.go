@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"sync"
 	"testing"
 	"time"
@@ -12,12 +13,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 	core, _ := setupTestCore(t)
-	ctx := WithAuditRequestMetadata(testContext(t), &corev1.AuditRequestMetadata{
+	ctx := WithAuditRequestMetadata(testContext(t), &evtv1.AuditRequestMetadata{
 		UserAgent: "cookie-session-test",
 		IpHash:    "hashed-ip",
 	})
@@ -151,7 +152,7 @@ func TestChattoCore_MigrateLegacyCookieSessionAddsExpiryOnce(t *testing.T) {
 	}
 
 	const callers = 8
-	results := make(chan *corev1.CookieSession, callers)
+	results := make(chan *runtimestatev1.CookieSession, callers)
 	errs := make(chan error, callers)
 	var wait sync.WaitGroup
 	for range callers {
@@ -553,7 +554,7 @@ func TestChattoCore_LegacyCookieSessionRecordIsIgnored(t *testing.T) {
 
 	sessionID := "cht_CSlegacy-session"
 	key := core.runtimeTokenKey("cookie_session."+user.Id+".", sessionID)
-	legacyRecord, err := proto.Marshal(&corev1.CookieSession{
+	legacyRecord, err := proto.Marshal(&runtimestatev1.CookieSession{
 		UserId:    user.Id,
 		CreatedAt: timestamppb.Now(),
 		ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),

@@ -13,7 +13,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -35,7 +35,7 @@ func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
 	originalRequestAppend := chatto.keyShredding.appendRequestAtFn
 	var failRequestAppend atomic.Bool
 	failRequestAppend.Store(true)
-	chatto.keyShredding.appendRequestAtFn = func(ctx context.Context, subject string, event *corev1.Event, filter string, expectedSeq uint64) (uint64, error) {
+	chatto.keyShredding.appendRequestAtFn = func(ctx context.Context, subject string, event *evtv1.Event, filter string, expectedSeq uint64) (uint64, error) {
 		if failRequestAppend.Load() {
 			return 0, errors.New("injected request append failure")
 		}
@@ -77,7 +77,7 @@ func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
 	body, err := chatto.GetFullMessageBody(ctx, message.GetId())
 	require.NoError(t, err)
 	require.Nil(t, body, "a committed request must tombstone content before physical deletion")
-	_, err = chatto.ensureActiveUserDEK(ctx, user.GetId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	_, err = chatto.ensureActiveUserDEK(ctx, user.GetId(), evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.ErrorIs(t, err, encryption.ErrKeyNotFound, "a committed request must prevent lazy key regeneration")
 	for _, ref := range contentRefs {
 		_, err := chatto.encryption.contentKeys.Get(ctx, ref)
@@ -110,16 +110,16 @@ func TestUserKeyShreddingDiscoversCoordinatesAfterAggregateConflict(t *testing.T
 	originalRequestAppend := chatto.keyShredding.appendRequestAtFn
 	var inserted atomic.Bool
 	var competingContentRef, competingWrappingRef string
-	chatto.keyShredding.appendRequestAtFn = func(ctx context.Context, subject string, event *corev1.Event, filter string, expectedSeq uint64) (uint64, error) {
+	chatto.keyShredding.appendRequestAtFn = func(ctx context.Context, subject string, event *evtv1.Event, filter string, expectedSeq uint64) (uint64, error) {
 		if inserted.CompareAndSwap(false, true) {
 			competingWrappingRef, err = chatto.encryption.keyWrapper.CreateKey(ctx, user.GetId())
 			require.NoError(t, err)
-			_, wrapped, wrapErr := chatto.newWrappedUserDEK(ctx, user.GetId(), competingWrappingRef, 2, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+			_, wrapped, wrapErr := chatto.newWrappedUserDEK(ctx, user.GetId(), competingWrappingRef, 2, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 			require.NoError(t, wrapErr)
 			competingContentRef = wrapped.GetContentKeyRef()
 			_, appendErr := chatto.EventPublisher.AppendAtFilter(ctx,
 				aggregate.Subject(evtstream.EventUserDEKGenerated),
-				newEvent(user.GetId(), &corev1.Event{Event: &corev1.Event_UserDekGenerated{UserDekGenerated: wrapped}}),
+				newEvent(user.GetId(), &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: wrapped}}),
 				filter,
 				expectedSeq,
 			)
@@ -146,7 +146,7 @@ func TestDeleteUserRequiresDurableKeyShreddingRequest(t *testing.T) {
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-delete", "Shred Delete", "password123")
 	require.NoError(t, err)
 
-	chatto.keyShredding.appendRequestAtFn = func(context.Context, string, *corev1.Event, string, uint64) (uint64, error) {
+	chatto.keyShredding.appendRequestAtFn = func(context.Context, string, *evtv1.Event, string, uint64) (uint64, error) {
 		return 0, errors.New("injected request append failure")
 	}
 	err = chatto.DeleteUser(ctx, user.GetId(), user.GetId())
@@ -169,7 +169,7 @@ func TestUserKeyShreddingRetryRecordsCompletionAfterPhysicalSuccess(t *testing.T
 	originalAppend := chatto.keyShredding.appendOnceFn
 	var failCompletionAppend atomic.Bool
 	failCompletionAppend.Store(true)
-	chatto.keyShredding.appendOnceFn = func(ctx context.Context, userID string, event *corev1.Event, eventType string) (uint64, error) {
+	chatto.keyShredding.appendOnceFn = func(ctx context.Context, userID string, event *evtv1.Event, eventType string) (uint64, error) {
 		if eventType == evtstream.EventUserKeyShredded && failCompletionAppend.Load() {
 			return 0, errors.New("injected completion append failure")
 		}
@@ -251,8 +251,8 @@ func TestUserKeyShreddingWorkerHandsOffInterruptedRequestToAnotherReplica(t *tes
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	request := newEvent(user.GetId(), &corev1.Event{Event: &corev1.Event_UserKeyShreddingRequested{
-		UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: user.GetId()},
+	request := newEvent(user.GetId(), &evtv1.Event{Event: &evtv1.Event_UserKeyShreddingRequested{
+		UserKeyShreddingRequested: &evtv1.UserKeyShreddingRequestedEvent{UserId: user.GetId()},
 	}})
 	requestSubject := evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserKeyShreddingRequested)
 	if _, err := first.EventPublisher.AppendEventually(ctx, requestSubject, request); err != nil {

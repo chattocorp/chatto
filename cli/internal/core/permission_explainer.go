@@ -110,7 +110,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 			groupID = room.GroupId
 		}
 	}
-	for _, including := range directlyIncludingPermissions(perm) {
+	for _, including := range includingPermissions(perm) {
 		included := PermissionExplanation{Permission: including, State: DecisionNone}
 		if err := r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, including, &included); err != nil {
 			return err
@@ -188,7 +188,7 @@ func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID,
 }
 
 func (r *PermissionResolver) botDelegatedExplanation(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, Permission, *TraceEntry) {
-	for _, candidate := range append(directlyIncludingPermissions(perm), perm) {
+	for _, candidate := range append(includingPermissions(perm), perm) {
 		parts := candidate.KeyParts()
 		if parts.Verb == "" || parts.ObjectType == "" {
 			continue

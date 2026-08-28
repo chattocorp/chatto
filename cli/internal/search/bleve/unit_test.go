@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"strings"
 	"sync"
@@ -21,7 +22,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/search"
@@ -70,10 +71,10 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	require.NoError(t, err)
 	contentKey, err := encryption.GenerateKey()
 	require.NoError(t, err)
-	wrapped, err := keyStore.WrapContentKey(ctx, wrappingKeyRef, contentKey, encryption.UserDEKAAD("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, 1))
+	wrapped, err := keyStore.WrapContentKey(ctx, wrappingKeyRef, contentKey, encryption.UserDEKAAD("U1", evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, 1))
 	require.NoError(t, err)
 	contentKeyRef := "dek.integration"
-	storedDEK, err := proto.Marshal(&corev1.UserDataEncryptionKey{
+	storedDEK, err := proto.Marshal(&runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: wrapped.EncryptedContentKey,
 		ContentKeyNonce:     wrapped.Nonce,
 		WrappingAlgorithm:   wrapped.Algorithm,
@@ -85,10 +86,10 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	require.NoError(t, err)
 
 	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
-	_, err = publisher.AppendEventually(ctx, evtstream.UserAggregate("U1").Subject(evtstream.EventUserDEKGenerated), &corev1.Event{
+	_, err = publisher.AppendEventually(ctx, evtstream.UserAggregate("U1").Subject(evtstream.EventUserDEKGenerated), &evtv1.Event{
 		Id: "D1", ActorId: "U1", CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
-			UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
+			UserId: "U1", Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
 			Epoch: 1, ContentKeyRef: contentKeyRef, WrappingKeyRef: wrappingKeyRef,
 		}},
 	})
@@ -96,10 +97,10 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	createdAt := timestamppb.Now()
 	encrypted, err := encryption.EncryptWithContentKey(contentKey, []byte("search contract integration"), encryption.MessageBodyAAD("M1", "B1", "R1", "U1", 1))
 	require.NoError(t, err)
-	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessageBody), &corev1.Event{
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessageBody), &evtv1.Event{
 		Id: "B1", ActorId: "U1", CreatedAt: createdAt,
-		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
-			RoomId: "R1", EventId: "M1", Body: &corev1.MessageBody{
+		Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{
+			RoomId: "R1", EventId: "M1", Body: &evtv1.MessageBody{
 				AuthorId: "U1", CreatedAt: createdAt, BodyEventId: "B1",
 				EncryptionVersion: encryption.EnvelopeVersionV2, ContentKeyEpoch: 1,
 				EncryptedBody: encrypted.Ciphertext, EncryptionNonce: encrypted.Nonce,
@@ -107,9 +108,9 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 		}},
 	})
 	require.NoError(t, err)
-	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &corev1.Event{
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &evtv1.Event{
 		Id: "M1", ActorId: "U1", CreatedAt: createdAt,
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}},
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}},
 	})
 	require.NoError(t, err)
 
@@ -192,7 +193,7 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	require.Less(t, checkpoint.CutoffSequence, unrelatedAck.Sequence)
 	// Simulate the previous broad projection filters, which atomically recorded
 	// irrelevant EVT positions even though they did not change the search index.
-	require.NoError(t, legacyProjection.Apply(&corev1.Event{Id: "ignored-legacy-event"}, unrelatedAck.Sequence))
+	require.NoError(t, legacyProjection.Apply(&evtv1.Event{Id: "ignored-legacy-event"}, unrelatedAck.Sequence))
 	require.NoError(t, legacyProjection.Close())
 
 	startUnit()
@@ -234,9 +235,9 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	logger := log.New(io.Discard)
 	keyStore := kms.NewBuiltin(encryptionKeys, logger)
 
-	retraction := &corev1.Event{
+	retraction := &evtv1.Event{
 		Id: "E1", ActorId: "U1", CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"}},
+		Event: &evtv1.Event_MessageRetracted{MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"}},
 	}
 	payload, err := proto.Marshal(retraction)
 	require.NoError(t, err)

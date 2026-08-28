@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -108,7 +109,7 @@ func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T)
 	followed, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadFollowed))
 	require.NoError(t, err)
 	require.Len(t, followed, 1)
-	require.Equal(t, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED, followed[0].GetThreadFollowed().GetSource())
+	require.Equal(t, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED, followed[0].GetThreadFollowed().GetSource())
 }
 
 func TestExplicitThreadCreationRechecksAuthorizationAfterConcurrentRevocation(t *testing.T) {
@@ -390,7 +391,7 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 		t.Fatalf("nil echo option should preserve echo; got id=%q ok=%v", gotEchoID, ok)
 	}
 	agg := evtstream.RoomAggregate(room.Id)
-	if _, err := core.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(_ context.Context, _ *corev1.MessageBody) (string, error) {
+	if _, err := core.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(_ context.Context, _ *evtv1.MessageBody) (string, error) {
 		return "independently edited echo", nil
 	}); err != nil {
 		t.Fatalf("Diverge linked echo body: %v", err)
@@ -486,7 +487,7 @@ func TestPublishMessageEditRejectsRetractionCommittedDuringAttempt(t *testing.T)
 
 	agg := evtstream.RoomAggregate(room.Id)
 	attempts := 0
-	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *corev1.MessageBody) (string, error) {
+	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *evtv1.MessageBody) (string, error) {
 		attempts++
 		if attempts == 1 {
 			require.NoError(t, chattoCore.publishMessageRetract(ctx, user.Id, KindChannel, agg, room.Id, posted.Id, nil))
@@ -515,13 +516,13 @@ func TestPublishMessageEditRebuildsBodyAfterOCCConflict(t *testing.T) {
 	require.NoError(t, err)
 	_, err = chattoCore.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
-	preview := &corev1.LinkPreview{Url: "https://example.com/original"}
+	preview := &evtv1.LinkPreview{Url: "https://example.com/original"}
 	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, user.Id, "original", nil, "", "", preview, false)
 	require.NoError(t, err)
 
 	agg := evtstream.RoomAggregate(room.Id)
 	attempts := 0
-	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *corev1.MessageBody) (string, error) {
+	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *evtv1.MessageBody) (string, error) {
 		attempts++
 		if attempts == 1 {
 			require.NoError(t, chattoCore.DeleteLinkPreviewFromMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, preview.GetUrl()))
@@ -558,7 +559,7 @@ func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
 	echoID, ok := chattoCore.roomModel.channelEchoEventID(reply.Id)
 	require.True(t, ok)
 
-	removeAsset := func(body *corev1.MessageBody, assetID string) {
+	removeAsset := func(body *evtv1.MessageBody, assetID string) {
 		ids := body.AssetIds[:0]
 		for _, id := range body.GetAssetIds() {
 			if id != assetID {
@@ -576,7 +577,7 @@ func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
 	}
 
 	agg := evtstream.RoomAggregate(room.Id)
-	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(ctx context.Context, body *corev1.MessageBody) (string, error) {
+	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(ctx context.Context, body *evtv1.MessageBody) (string, error) {
 		plaintext, err := chattoCore.decryptMessageBody(ctx, echoID, room.Id, body)
 		if err != nil {
 			return "", err
@@ -586,7 +587,7 @@ func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = chattoCore.editEmbeddedBody(ctx, user.Id, KindChannel, room.Id, reply.Id, nil, func(body *corev1.MessageBody) error {
+	err = chattoCore.editEmbeddedBody(ctx, user.Id, KindChannel, room.Id, reply.Id, nil, func(body *evtv1.MessageBody) error {
 		removeAsset(body, attachmentA.Id)
 		return nil
 	})
@@ -1327,7 +1328,7 @@ func TestPartialMessageEditReauthorizesAfterMemberRemoval(t *testing.T) {
 	require.NoError(t, err)
 	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
 	require.NoError(t, err)
-	preview := &corev1.LinkPreview{Url: "https://example.com/race"}
+	preview := &evtv1.LinkPreview{Url: "https://example.com/race"}
 	message, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "original", nil, "", "", preview, false)
 	require.NoError(t, err)
 
@@ -1342,7 +1343,7 @@ func TestPartialMessageEditReauthorizesAfterMemberRemoval(t *testing.T) {
 			}
 			return nil
 		},
-		func(body *corev1.MessageBody) error {
+		func(body *evtv1.MessageBody) error {
 			body.LinkPreview = nil
 			return nil
 		},
@@ -1771,14 +1772,14 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 	t.Run("link preview at max lengths succeeds", func(t *testing.T) {
 		embedID := strings.Repeat("i", MaxLinkPreviewEmbedIDLength)
 		imageAssetID := strings.Repeat("a", MaxLinkPreviewImageAssetIDLength)
-		preview := &corev1.LinkPreview{
+		preview := &evtv1.LinkPreview{
 			Url:          strings.Repeat("u", MaxLinkPreviewURLLength),
 			Title:        strings.Repeat("t", MaxLinkPreviewTitleLength),
 			Description:  strings.Repeat("d", MaxLinkPreviewDescriptionLength),
 			ImageAssetId: &imageAssetID,
-			ImageAsset: &corev1.AssetRecord{
+			ImageAsset: &evtv1.AssetRecord{
 				Id:      imageAssetID,
-				Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: imageAssetID}},
+				Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: imageAssetID}},
 			},
 			SiteName:  strings.Repeat("s", MaxLinkPreviewSiteNameLength),
 			EmbedType: strings.Repeat("e", MaxLinkPreviewEmbedTypeLength),
@@ -1793,49 +1794,49 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 	overLimitImageAssetID := strings.Repeat("a", MaxLinkPreviewImageAssetIDLength+1)
 	tests := []struct {
 		name    string
-		preview *corev1.LinkPreview
+		preview *evtv1.LinkPreview
 		field   string
 		max     int
 	}{
 		{
 			name:    "URL",
-			preview: &corev1.LinkPreview{Url: strings.Repeat("u", MaxLinkPreviewURLLength+1)},
+			preview: &evtv1.LinkPreview{Url: strings.Repeat("u", MaxLinkPreviewURLLength+1)},
 			field:   "link preview URL",
 			max:     MaxLinkPreviewURLLength,
 		},
 		{
 			name:    "title",
-			preview: &corev1.LinkPreview{Title: strings.Repeat("t", MaxLinkPreviewTitleLength+1)},
+			preview: &evtv1.LinkPreview{Title: strings.Repeat("t", MaxLinkPreviewTitleLength+1)},
 			field:   "link preview title",
 			max:     MaxLinkPreviewTitleLength,
 		},
 		{
 			name:    "description",
-			preview: &corev1.LinkPreview{Description: strings.Repeat("d", MaxLinkPreviewDescriptionLength+1)},
+			preview: &evtv1.LinkPreview{Description: strings.Repeat("d", MaxLinkPreviewDescriptionLength+1)},
 			field:   "link preview description",
 			max:     MaxLinkPreviewDescriptionLength,
 		},
 		{
 			name:    "image asset ID",
-			preview: &corev1.LinkPreview{ImageAssetId: &overLimitImageAssetID},
+			preview: &evtv1.LinkPreview{ImageAssetId: &overLimitImageAssetID},
 			field:   "link preview image asset ID",
 			max:     MaxLinkPreviewImageAssetIDLength,
 		},
 		{
 			name:    "site name",
-			preview: &corev1.LinkPreview{SiteName: strings.Repeat("s", MaxLinkPreviewSiteNameLength+1)},
+			preview: &evtv1.LinkPreview{SiteName: strings.Repeat("s", MaxLinkPreviewSiteNameLength+1)},
 			field:   "link preview site name",
 			max:     MaxLinkPreviewSiteNameLength,
 		},
 		{
 			name:    "embed type",
-			preview: &corev1.LinkPreview{EmbedType: strings.Repeat("e", MaxLinkPreviewEmbedTypeLength+1)},
+			preview: &evtv1.LinkPreview{EmbedType: strings.Repeat("e", MaxLinkPreviewEmbedTypeLength+1)},
 			field:   "link preview embed type",
 			max:     MaxLinkPreviewEmbedTypeLength,
 		},
 		{
 			name:    "embed ID",
-			preview: &corev1.LinkPreview{EmbedId: &overLimitEmbedID},
+			preview: &evtv1.LinkPreview{EmbedId: &overLimitEmbedID},
 			field:   "link preview embed ID",
 			max:     MaxLinkPreviewEmbedIDLength,
 		},
@@ -1850,11 +1851,11 @@ func TestChattoCore_PostMessage_LinkPreviewLengthLimits(t *testing.T) {
 }
 
 func TestValidateLinkPreviewSocialPost(t *testing.T) {
-	valid := func() *corev1.LinkPreview {
-		return &corev1.LinkPreview{
-			SocialPost: &corev1.SocialPostPreview{
+	valid := func() *evtv1.LinkPreview {
+		return &evtv1.LinkPreview{
+			SocialPost: &evtv1.SocialPostPreview{
 				Provider: "bluesky",
-				Author: &corev1.SocialPostAuthor{
+				Author: &evtv1.SocialPostAuthor{
 					DisplayName: "Bluesky",
 					Handle:      "bsky.app",
 				},
@@ -1867,61 +1868,61 @@ func TestValidateLinkPreviewSocialPost(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		mutate func(*corev1.SocialPostPreview)
+		mutate func(*evtv1.SocialPostPreview)
 		match  string
 	}{
 		{
 			name:   "provider required",
-			mutate: func(post *corev1.SocialPostPreview) { post.Provider = "" },
+			mutate: func(post *evtv1.SocialPostPreview) { post.Provider = "" },
 			match:  "provider is required",
 		},
 		{
 			name:   "author required",
-			mutate: func(post *corev1.SocialPostPreview) { post.Author = nil },
+			mutate: func(post *evtv1.SocialPostPreview) { post.Author = nil },
 			match:  "author is required",
 		},
 		{
 			name: "external URL required",
-			mutate: func(post *corev1.SocialPostPreview) {
-				post.ExternalLink = &corev1.SocialPostExternalLink{Title: "Missing URL"}
+			mutate: func(post *evtv1.SocialPostPreview) {
+				post.ExternalLink = &evtv1.SocialPostExternalLink{Title: "Missing URL"}
 			},
 			match: "external URL is required",
 		},
 		{
 			name: "image asset required",
-			mutate: func(post *corev1.SocialPostPreview) {
-				post.Images = []*corev1.SocialPostImage{{Alt: "Missing asset"}}
+			mutate: func(post *evtv1.SocialPostPreview) {
+				post.Images = []*evtv1.SocialPostImage{{Alt: "Missing asset"}}
 			},
 			match: "image asset is required",
 		},
 		{
 			name: "image count bounded",
-			mutate: func(post *corev1.SocialPostPreview) {
-				post.Images = make([]*corev1.SocialPostImage, 5)
+			mutate: func(post *evtv1.SocialPostPreview) {
+				post.Images = make([]*evtv1.SocialPostImage, 5)
 			},
 			match: "more than 4 images",
 		},
 		{
 			name: "quoted post URL required",
-			mutate: func(post *corev1.SocialPostPreview) {
-				post.QuotedPost = &corev1.SocialPostPreview{
+			mutate: func(post *evtv1.SocialPostPreview) {
+				post.QuotedPost = &evtv1.SocialPostPreview{
 					Provider: "bluesky",
-					Author:   &corev1.SocialPostAuthor{Handle: "quoted.example"},
+					Author:   &evtv1.SocialPostAuthor{Handle: "quoted.example"},
 				}
 			},
 			match: "quoted social post URL is required",
 		},
 		{
 			name: "quote nesting bounded",
-			mutate: func(post *corev1.SocialPostPreview) {
-				post.QuotedPost = &corev1.SocialPostPreview{
+			mutate: func(post *evtv1.SocialPostPreview) {
+				post.QuotedPost = &evtv1.SocialPostPreview{
 					Provider: "bluesky",
 					Url:      "https://bsky.app/profile/quoted.example/post/one",
-					Author:   &corev1.SocialPostAuthor{Handle: "quoted.example"},
-					QuotedPost: &corev1.SocialPostPreview{
+					Author:   &evtv1.SocialPostAuthor{Handle: "quoted.example"},
+					QuotedPost: &evtv1.SocialPostPreview{
 						Provider: "bluesky",
 						Url:      "https://bsky.app/profile/nested.example/post/two",
-						Author:   &corev1.SocialPostAuthor{Handle: "nested.example"},
+						Author:   &evtv1.SocialPostAuthor{Handle: "nested.example"},
 					},
 				}
 			},
@@ -1939,9 +1940,9 @@ func TestValidateLinkPreviewSocialPost(t *testing.T) {
 }
 
 func TestLinkPreviewSocialPostFieldNumbers(t *testing.T) {
-	fields := (&corev1.LinkPreview{}).ProtoReflect().Descriptor().Fields()
+	fields := (&evtv1.LinkPreview{}).ProtoReflect().Descriptor().Fields()
 	require.EqualValues(t, 9, fields.ByName("social_post").Number())
-	socialFields := (&corev1.SocialPostPreview{}).ProtoReflect().Descriptor().Fields()
+	socialFields := (&evtv1.SocialPostPreview{}).ProtoReflect().Descriptor().Fields()
 	require.EqualValues(t, 8, socialFields.ByName("url").Number())
 	require.EqualValues(t, 9, socialFields.ByName("quoted_post").Number())
 }
@@ -2422,7 +2423,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testi
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	if err := core.assetModel.RecordAssetProcessed(ctx, SystemActorID, room.Id, roomEvent.Id, original.Id, 1234, 640, 360, thumb, []*corev1.VideoVariant{
+	if err := core.assetModel.RecordAssetProcessed(ctx, SystemActorID, room.Id, roomEvent.Id, original.Id, 1234, 640, 360, thumb, []*runtimestatev1.VideoVariant{
 		{
 			AttachmentId: variantAttachment.Id,
 			Quality:      "720p",
@@ -2439,7 +2440,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testi
 	if err != nil {
 		t.Fatalf("Failed to get attachments store: %v", err)
 	}
-	for _, attachment := range []*corev1.Attachment{original, thumb, variantAttachment} {
+	for _, attachment := range []*evtv1.Attachment{original, thumb, variantAttachment} {
 		if _, err := store.Get(ctx, attachment.Id); err != nil {
 			t.Fatalf("Attachment %s should exist before deletion: %v", attachment.Id, err)
 		}
@@ -2449,7 +2450,7 @@ func TestChattoCore_DeleteAttachmentFromMessage_DeletesVideoDerivatives(t *testi
 		t.Fatalf("Failed to delete video attachment: %v", err)
 	}
 
-	for _, attachment := range []*corev1.Attachment{original, thumb, variantAttachment} {
+	for _, attachment := range []*evtv1.Attachment{original, thumb, variantAttachment} {
 		if _, err := store.Get(ctx, attachment.Id); err == nil {
 			t.Fatalf("Attachment %s should be deleted", attachment.Id)
 		}

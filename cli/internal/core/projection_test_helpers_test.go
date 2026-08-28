@@ -5,15 +5,15 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type testProjection interface {
-	Apply(*corev1.Event, uint64) error
+	Apply(*evtv1.Event, uint64) error
 }
 
 // applyAll feeds events into a projection in order with seq starting at 1.
-func applyAll(t *testing.T, p testProjection, events []*corev1.Event) {
+func applyAll(t *testing.T, p testProjection, events []*evtv1.Event) {
 	t.Helper()
 	for i, e := range events {
 		if err := p.Apply(e, uint64(i+1)); err != nil {
@@ -22,9 +22,9 @@ func applyAll(t *testing.T, p testProjection, events []*corev1.Event) {
 	}
 }
 
-func assertApplyDoesNotMutateEvent(t *testing.T, p testProjection, event *corev1.Event, seq uint64) {
+func assertApplyDoesNotMutateEvent(t *testing.T, p testProjection, event *evtv1.Event, seq uint64) {
 	t.Helper()
-	before := proto.Clone(event).(*corev1.Event)
+	before := proto.Clone(event).(*evtv1.Event)
 	if err := p.Apply(event, seq); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}

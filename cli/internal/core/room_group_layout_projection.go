@@ -2,7 +2,7 @@ package core
 
 import (
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -25,9 +25,9 @@ func (p *RoomGroupLayoutProjection) Subjects() []string {
 	return []string{evtstream.GroupSubjectFilter(), evtstream.LayoutSubjectFilter()}
 }
 
-func (p *RoomGroupLayoutProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *RoomGroupLayoutProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event != nil {
-		if _, ok := event.GetEvent().(*corev1.Event_RoomGroupsReordered); ok {
+		if _, ok := event.GetEvent().(*evtv1.Event_RoomGroupsReordered); ok {
 			return p.Layout.Apply(event, seq)
 		}
 	}

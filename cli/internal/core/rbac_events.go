@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -15,107 +15,107 @@ const maxRBACMutationRetries = 5
 
 var errRBACNoop = errors.New("rbac mutation is a no-op")
 
-func rbacPermissionGrantedEvent(scope PermissionScope, scopeID string, subjectKind corev1.RbacPermissionSubjectKind, subjectID string, perm Permission) *corev1.RbacPermissionGrantedEvent {
-	return &corev1.RbacPermissionGrantedEvent{
+func rbacPermissionGrantedEvent(scope PermissionScope, scopeID string, subjectKind evtv1.RbacPermissionSubjectKind, subjectID string, perm Permission) *evtv1.RbacPermissionGrantedEvent {
+	return &evtv1.RbacPermissionGrantedEvent{
 		Scope:      rbacPermissionScope(scope, scopeID),
 		Subject:    rbacPermissionSubject(subjectKind, subjectID),
 		Permission: string(perm),
 	}
 }
 
-func rbacPermissionDeniedEvent(scope PermissionScope, scopeID string, subjectKind corev1.RbacPermissionSubjectKind, subjectID string, perm Permission) *corev1.RbacPermissionDeniedEvent {
-	return &corev1.RbacPermissionDeniedEvent{
+func rbacPermissionDeniedEvent(scope PermissionScope, scopeID string, subjectKind evtv1.RbacPermissionSubjectKind, subjectID string, perm Permission) *evtv1.RbacPermissionDeniedEvent {
+	return &evtv1.RbacPermissionDeniedEvent{
 		Scope:      rbacPermissionScope(scope, scopeID),
 		Subject:    rbacPermissionSubject(subjectKind, subjectID),
 		Permission: string(perm),
 	}
 }
 
-func rbacPermissionClearedEvent(scope PermissionScope, scopeID string, subjectKind corev1.RbacPermissionSubjectKind, subjectID string, perm Permission) *corev1.RbacPermissionClearedEvent {
-	return &corev1.RbacPermissionClearedEvent{
+func rbacPermissionClearedEvent(scope PermissionScope, scopeID string, subjectKind evtv1.RbacPermissionSubjectKind, subjectID string, perm Permission) *evtv1.RbacPermissionClearedEvent {
+	return &evtv1.RbacPermissionClearedEvent{
 		Scope:      rbacPermissionScope(scope, scopeID),
 		Subject:    rbacPermissionSubject(subjectKind, subjectID),
 		Permission: string(perm),
 	}
 }
 
-func rbacRolePermissionGrantedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *corev1.RbacPermissionGrantedEvent {
-	return rbacPermissionGrantedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
+func rbacRolePermissionGrantedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *evtv1.RbacPermissionGrantedEvent {
+	return rbacPermissionGrantedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
 }
 
-func rbacRolePermissionDeniedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *corev1.RbacPermissionDeniedEvent {
-	return rbacPermissionDeniedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
+func rbacRolePermissionDeniedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *evtv1.RbacPermissionDeniedEvent {
+	return rbacPermissionDeniedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
 }
 
-func rbacRolePermissionClearedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *corev1.RbacPermissionClearedEvent {
-	return rbacPermissionClearedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
+func rbacRolePermissionClearedEvent(scope PermissionScope, scopeID, roleName string, perm Permission) *evtv1.RbacPermissionClearedEvent {
+	return rbacPermissionClearedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE, roleName, perm)
 }
 
-func rbacUserPermissionGrantedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *corev1.RbacPermissionGrantedEvent {
-	return rbacPermissionGrantedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
+func rbacUserPermissionGrantedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *evtv1.RbacPermissionGrantedEvent {
+	return rbacPermissionGrantedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
 }
 
-func rbacUserPermissionDeniedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *corev1.RbacPermissionDeniedEvent {
-	return rbacPermissionDeniedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
+func rbacUserPermissionDeniedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *evtv1.RbacPermissionDeniedEvent {
+	return rbacPermissionDeniedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
 }
 
-func rbacUserPermissionClearedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *corev1.RbacPermissionClearedEvent {
-	return rbacPermissionClearedEvent(scope, scopeID, corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
+func rbacUserPermissionClearedEvent(scope PermissionScope, scopeID, userID string, perm Permission) *evtv1.RbacPermissionClearedEvent {
+	return rbacPermissionClearedEvent(scope, scopeID, evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER, userID, perm)
 }
 
-func rbacPermissionScope(scope PermissionScope, scopeID string) *corev1.RbacPermissionScope {
-	kind := corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED
+func rbacPermissionScope(scope PermissionScope, scopeID string) *evtv1.RbacPermissionScope {
+	kind := evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED
 	switch scope {
 	case ScopeServer:
-		kind = corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER
+		kind = evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER
 		scopeID = ""
 	case ScopeGroup:
-		kind = corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP
+		kind = evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP
 	case ScopeRoom:
-		kind = corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM
+		kind = evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM
 	}
-	return &corev1.RbacPermissionScope{Kind: kind, Id: scopeID}
+	return &evtv1.RbacPermissionScope{Kind: kind, Id: scopeID}
 }
 
-func rbacPermissionSubject(kind corev1.RbacPermissionSubjectKind, id string) *corev1.RbacPermissionSubject {
-	return &corev1.RbacPermissionSubject{Kind: kind, Id: id}
+func rbacPermissionSubject(kind evtv1.RbacPermissionSubjectKind, id string) *evtv1.RbacPermissionSubject {
+	return &evtv1.RbacPermissionSubject{Kind: kind, Id: id}
 }
 
-func rbacPermissionSubjectKindForID(subject string) corev1.RbacPermissionSubjectKind {
+func rbacPermissionSubjectKindForID(subject string) evtv1.RbacPermissionSubjectKind {
 	if IsUserSubject(subject) {
-		return corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER
+		return evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER
 	}
-	return corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE
+	return evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE
 }
 
-func rbacSubjectForEvent(event *corev1.Event) string {
+func rbacSubjectForEvent(event *evtv1.Event) string {
 	return rbacAggregateForEvent(event).SubjectFor(event)
 }
 
-func rbacAggregateForEvent(event *corev1.Event) evtstream.Aggregate {
+func rbacAggregateForEvent(event *evtv1.Event) evtstream.Aggregate {
 	if event == nil {
 		return evtstream.RBACServerAggregate()
 	}
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_RbacPermissionGranted:
+	case *evtv1.Event_RbacPermissionGranted:
 		return rbacAggregateForPermissionScope(e.RbacPermissionGranted.GetScope())
-	case *corev1.Event_RbacPermissionDenied:
+	case *evtv1.Event_RbacPermissionDenied:
 		return rbacAggregateForPermissionScope(e.RbacPermissionDenied.GetScope())
-	case *corev1.Event_RbacPermissionCleared:
+	case *evtv1.Event_RbacPermissionCleared:
 		return rbacAggregateForPermissionScope(e.RbacPermissionCleared.GetScope())
 	default:
 		return evtstream.RBACServerAggregate()
 	}
 }
 
-func rbacAggregateForPermissionScope(scope *corev1.RbacPermissionScope) evtstream.Aggregate {
-	if scope == nil || scope.GetKind() == corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER {
+func rbacAggregateForPermissionScope(scope *evtv1.RbacPermissionScope) evtstream.Aggregate {
+	if scope == nil || scope.GetKind() == evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER {
 		return evtstream.RBACServerAggregate()
 	}
 	return evtstream.RBACScopedAggregate(scope.GetId())
 }
 
-func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, check func() error) (uint64, error) {
+func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {
 	filter := evtstream.RBACSubjectFilter()
 
 	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {
@@ -168,7 +168,7 @@ func (c *ChattoCore) appendRBACEvent(ctx context.Context, event *corev1.Event, c
 // appendRoleAssignmentEvent fences every projection used by role-assignment
 // authorization against the narrow authorization boundary. Unrelated chat
 // traffic does not advance that lane or force retries.
-func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID string, requireExistingUser bool, event *corev1.Event, check func() error) (uint64, error) {
+func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID string, requireExistingUser bool, event *evtv1.Event, check func() error) (uint64, error) {
 	filter := evtstream.RBACSubjectFilter()
 	userFilter := evtstream.UserAggregate(userID).AllEventsFilter()
 	actorID := event.GetActorId()
@@ -255,7 +255,7 @@ func (c *ChattoCore) appendRoleAssignmentEvent(ctx context.Context, userID strin
 	return 0, fmt.Errorf("role assignment OCC retry exhausted after %d attempts: %w", maxRBACMutationRetries, events.ErrConflict)
 }
 
-func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, event *corev1.Event, check func() error) (uint64, error) {
+func (c *ChattoCore) appendRBACEventWithMentionableCheck(ctx context.Context, event *evtv1.Event, check func() error) (uint64, error) {
 	filter := evtstream.EventSubjectFilter()
 
 	for attempt := 0; attempt < maxRBACMutationRetries; attempt++ {

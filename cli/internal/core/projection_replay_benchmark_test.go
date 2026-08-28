@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -175,7 +175,7 @@ func TestProjectionBenchmarkFixture(t *testing.T) {
 		if first[i].subject != second[i].subject || !bytes.Equal(first[i].data, second[i].data) {
 			t.Fatalf("fixture is not deterministic at event %d", i)
 		}
-		var event corev1.Event
+		var event evtv1.Event
 		if err := proto.Unmarshal(first[i].data, &event); err != nil {
 			t.Fatalf("decode fixture event %d: %v", i, err)
 		}
@@ -245,7 +245,7 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 	createdAt := func() *timestamppb.Timestamp {
 		return timestamppb.New(time.Unix(1_700_000_000+int64(serial), 0).UTC())
 	}
-	appendEvent := func(aggregate evtstream.Aggregate, event *corev1.Event) {
+	appendEvent := func(aggregate evtstream.Aggregate, event *evtv1.Event) {
 		data, err := proto.Marshal(event)
 		if err != nil {
 			tb.Fatalf("marshal benchmark event: %v", err)
@@ -269,24 +269,24 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 			threadRoot = previousRoot
 			if _, exists := createdThreads[threadRoot]; !exists {
 				createdThreads[threadRoot] = struct{}{}
-				appendEvent(roomAggregate, &corev1.Event{
+				appendEvent(roomAggregate, &evtv1.Event{
 					Id:        nextID("T"),
 					ActorId:   actorID,
 					CreatedAt: createdAt(),
-					Event: &corev1.Event_ThreadCreated{ThreadCreated: &corev1.ThreadCreatedEvent{
+					Event: &evtv1.Event_ThreadCreated{ThreadCreated: &evtv1.ThreadCreatedEvent{
 						RoomId:            roomID,
 						ThreadRootEventId: threadRoot,
 					}},
 				})
-				appendEvent(roomAggregate, &corev1.Event{
+				appendEvent(roomAggregate, &evtv1.Event{
 					Id:        nextID("F"),
 					ActorId:   actorID,
 					CreatedAt: createdAt(),
-					Event: &corev1.Event_ThreadFollowed{ThreadFollowed: &corev1.ThreadFollowedEvent{
+					Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{
 						RoomId:            roomID,
 						ThreadRootEventId: threadRoot,
 						UserId:            actorID,
-						Source:            corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL,
+						Source:            evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL,
 					}},
 				})
 			}
@@ -298,11 +298,11 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 		if threadRoot == "" && previousRoot != "" && ordinalInRoom%20 == 11 {
 			echoOfEventID = previousRoot
 		}
-		appendEvent(roomAggregate, &corev1.Event{
+		appendEvent(roomAggregate, &evtv1.Event{
 			Id:        messageID,
 			ActorId:   actorID,
 			CreatedAt: createdAt(),
-			Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+			Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
 				RoomId:        roomID,
 				InReplyTo:     threadRoot,
 				InThread:      threadRoot,
@@ -318,11 +318,11 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 		appendEvent(roomAggregate, projectionBenchmarkBodyEvent(bodyID, messageID, roomID, actorID, assetIDs, createdAt()))
 
 		if messageIndex > 0 && messageIndex%25 == 0 {
-			appendEvent(roomAggregate, &corev1.Event{
+			appendEvent(roomAggregate, &evtv1.Event{
 				Id:        nextID("X"),
 				ActorId:   actorID,
 				CreatedAt: createdAt(),
-				Event: &corev1.Event_MessageEdited{MessageEdited: &corev1.MessageEditedEvent{
+				Event: &evtv1.Event_MessageEdited{MessageEdited: &evtv1.MessageEditedEvent{
 					RoomId:  roomID,
 					EventId: messageID,
 				}},
@@ -331,11 +331,11 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 			appendEvent(roomAggregate, projectionBenchmarkBodyEvent(bodyID, messageID, roomID, actorID, assetIDs, createdAt()))
 		}
 		if messageIndex > 0 && messageIndex%100 == 0 {
-			appendEvent(roomAggregate, &corev1.Event{
+			appendEvent(roomAggregate, &evtv1.Event{
 				Id:        nextID("D"),
 				ActorId:   actorID,
 				CreatedAt: createdAt(),
-				Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{
+				Event: &evtv1.Event_MessageRetracted{MessageRetracted: &evtv1.MessageRetractedEvent{
 					RoomId:  roomID,
 					EventId: messageID,
 				}},
@@ -345,10 +345,10 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 
 	if logicalMessages >= 1_000 {
 		userID := fmt.Sprintf("U%025d", 0)
-		appendEvent(evtstream.UserAggregate(userID), &corev1.Event{
+		appendEvent(evtstream.UserAggregate(userID), &evtv1.Event{
 			Id:        nextID("S"),
 			CreatedAt: createdAt(),
-			Event: &corev1.Event_UserKeyShreddingRequested{UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{
+			Event: &evtv1.Event_UserKeyShreddingRequested{UserKeyShreddingRequested: &evtv1.UserKeyShreddingRequestedEvent{
 				UserId: userID,
 			}},
 		})
@@ -357,15 +357,15 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 	return fixture
 }
 
-func projectionBenchmarkBodyEvent(id, messageID, roomID, actorID string, assetIDs []string, createdAt *timestamppb.Timestamp) *corev1.Event {
-	return &corev1.Event{
+func projectionBenchmarkBodyEvent(id, messageID, roomID, actorID string, assetIDs []string, createdAt *timestamppb.Timestamp) *evtv1.Event {
+	return &evtv1.Event{
 		Id:        id,
 		ActorId:   actorID,
 		CreatedAt: createdAt,
-		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
+		Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{
 			RoomId:  roomID,
 			EventId: messageID,
-			Body: &corev1.MessageBody{
+			Body: &evtv1.MessageBody{
 				AuthorId:      actorID,
 				BodyEventId:   id,
 				EncryptedBody: []byte(strings.Repeat("benchmark message body ", 8)),
@@ -381,7 +381,7 @@ func replayProjectionBenchmarkFixture(fixture []projectionBenchmarkWireEvent, sc
 		return nil, err
 	}
 	for i, wireEvent := range fixture {
-		var event corev1.Event
+		var event evtv1.Event
 		if err := proto.Unmarshal(wireEvent.data, &event); err != nil {
 			return nil, fmt.Errorf("decode event %d: %w", i, err)
 		}

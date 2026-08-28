@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestAuthorizedRoomAttachmentReadsRequireMessageRead(t *testing.T) {
@@ -277,19 +277,19 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	messageEventID := NewEventID()
 	bodyEventID := NewEventID()
 	createdAt := timestamppb.Now()
-	corruptBody := &corev1.MessageBody{
+	corruptBody := &evtv1.MessageBody{
 		AuthorId:        user.Id,
 		CreatedAt:       createdAt,
 		BodyEventId:     bodyEventID,
 		EncryptedBody:   []byte("not-valid-ciphertext"),
 		EncryptionNonce: []byte("bad-nonce"),
 	}
-	if err := core.roomModel.timeline.Projection().Apply(&corev1.Event{
+	if err := core.roomModel.timeline.Projection().Apply(&evtv1.Event{
 		Id:        bodyEventID,
 		ActorId:   user.Id,
 		CreatedAt: createdAt,
-		Event: &corev1.Event_MessageBody{
-			MessageBody: &corev1.MessageBodyEvent{
+		Event: &evtv1.Event_MessageBody{
+			MessageBody: &evtv1.MessageBodyEvent{
 				RoomId:  room.Id,
 				EventId: messageEventID,
 				Body:    corruptBody,
@@ -298,12 +298,12 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	}, 1_000_000); err != nil {
 		t.Fatalf("Apply corrupt text body: %v", err)
 	}
-	if err := core.roomModel.timeline.Projection().Apply(&corev1.Event{
+	if err := core.roomModel.timeline.Projection().Apply(&evtv1.Event{
 		Id:        messageEventID,
 		ActorId:   user.Id,
 		CreatedAt: createdAt,
-		Event: &corev1.Event_MessagePosted{
-			MessagePosted: &corev1.MessagePostedEvent{
+		Event: &evtv1.Event_MessagePosted{
+			MessagePosted: &evtv1.MessagePostedEvent{
 				RoomId: room.Id,
 			},
 		},
@@ -320,7 +320,7 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	}
 }
 
-func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context) (*corev1.Room, *corev1.User) {
+func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context) (*evtv1.Room, *evtv1.User) {
 	t.Helper()
 	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	if err != nil {
@@ -336,7 +336,7 @@ func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context
 	return room, user
 }
 
-func uploadRoomAttachment(t *testing.T, core *ChattoCore, ctx context.Context, actorID, roomID, filename string) *corev1.Attachment {
+func uploadRoomAttachment(t *testing.T, core *ChattoCore, ctx context.Context, actorID, roomID, filename string) *evtv1.Attachment {
 	t.Helper()
 	attachment, err := core.UploadAttachment(ctx, actorID, roomID, filename, "image/png", bytes.NewReader(createTestPNG(16, 16)))
 	if err != nil {

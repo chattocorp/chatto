@@ -1,13 +1,13 @@
 package core
 
 import (
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestExtractMentionUsernames(t *testing.T) {
@@ -571,7 +571,7 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	if err != nil {
 		t.Fatalf("waiting for DND notification occurrence change: %v", err)
 	}
-	var live corev1.LiveEvent
+	var live livev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal live event: %v", err)
 	}

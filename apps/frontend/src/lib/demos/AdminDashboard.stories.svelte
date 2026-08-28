@@ -10,7 +10,7 @@
 </script>
 
 <script lang="ts">
-  import StatCard from '$lib/components/admin/StatCard.svelte';
+  import StatCard from '$lib/ui/StatCard.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import DataTable from '$lib/ui/DataTable.svelte';
   import CopyId from '$lib/ui/CopyId.svelte';

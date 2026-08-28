@@ -33,7 +33,9 @@ authorization, live events, backup and restore, and backend tests.
 
 - `cli/internal/core` is domain logic and service/projection code.
 - `cli/internal/connectapi` is the protobuf/ConnectRPC API.
-- `proto/chatto/core/v1` holds persisted/internal protobufs.
+- `proto/chatto/core` holds lifecycle-specific internal protobuf packages. Its
+  package names distinguish EVT, notification-log, runtime-state, key-material,
+  cache-state, projection-snapshot, and transient live contracts.
 - `proto/chatto/api/v1` holds public ConnectRPC API protobufs.
 - The relevant `docs/architecture/` inventories, FDRs, and ADRs should move
   with architectural changes.
@@ -134,7 +136,7 @@ authorization, live events, backup and restore, and backend tests.
   the projection apply barrier across NATS or other external I/O.
 - Keep the package dependency direction application/core code ->
   `internal/evtstream` -> the `hmans.de/chatto/pkg/events` shared module.
-  Chatto's `corev1.Event` codec,
+  Chatto's `evtv1.Event` codec,
   aggregate subjects, event tokens, typed publisher/projector constructors, and
   envelope-aware effect consumers belong in `internal/evtstream`.
   The framework lives in the independently versioned `../pkg/events` module.
@@ -227,7 +229,7 @@ authorization, live events, backup and restore, and backend tests.
 
 - Durable facts publish to `evt.>` through `EventPublisher`; JetStream republish
   exposes committed facts on `live.evt.>`.
-- Transient UI sync publishes `corev1.LiveEvent` on `live.sync.>` through
+- Transient UI sync publishes `livev1.LiveEvent` on `live.sync.>` through
   `publishLiveEvent`.
 - Pick one delivery path per conceptual update. Do not double-publish both a
   durable event and a transient live event for the same UI change.
@@ -266,9 +268,10 @@ authorization, live events, backup and restore, and backend tests.
 - Permission strings use two or more non-empty dot-separated components.
   Hyphens can stay inside a component: `room.ban-member`,
   `message.post-in-thread`, and `message.read.interactions` are valid.
-- A dotted prefix does not automatically include a longer permission. Record
-  each permission inclusion explicitly in code and in the applicable ADR and
-  FDR. Currently, `message.read` includes `message.read.interactions`.
+- Each registered dotted prefix includes its registered descendants. A nested
+  permission must have a registered immediate parent with the same category
+  and scopes. Treat each permission name as an authorization contract.
+  Currently, `message.read` includes `message.read.interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-boundary behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses

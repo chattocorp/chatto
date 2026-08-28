@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"math"
 	"os"
@@ -16,7 +17,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ProbeResult contains metadata extracted from a video file via ffprobe.
@@ -441,7 +442,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	parentCtx := ctx
 	ctx, cancel := context.WithTimeout(parentCtx, videoProcessingAttemptTimeout)
 	defer cancel()
-	fail := func(attachments []*corev1.Attachment, err error) error {
+	fail := func(attachments []*evtv1.Attachment, err error) error {
 		return s.finalizeProcessingFailure(parentCtx, req, attachments, processingAttemptFailure(parentCtx, ctx, err))
 	}
 
@@ -499,12 +500,12 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// upload writes its own AssetCreatedEvent with parent_asset_id set, so
 	// the projection knows immediately that this asset is a child of the
 	// original — no separate "claim as derivative" step downstream.
-	var thumbnailAttachment *corev1.Attachment
+	var thumbnailAttachment *evtv1.Attachment
 	if thumbPath != "" {
-		thumb, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
+		thumb, err := s.uploadDerivativeFile(ctx, req.AssetID, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
 		if err != nil {
 			if thumb != nil {
-				return fail([]*corev1.Attachment{thumb}, fmt.Errorf("upload thumbnail with ambiguous asset creation: %w", err))
+				return fail([]*evtv1.Attachment{thumb}, fmt.Errorf("upload thumbnail with ambiguous asset creation: %w", err))
 			}
 			s.logger.Warn("Failed to upload thumbnail", "error", err)
 		} else {
@@ -515,7 +516,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// Transcode variants
 	heights := selectVariantHeights(probeResult.Height)
 	hasAudio := probeResult.AudioCodec != ""
-	var variants []*corev1.VideoVariant
+	var variants []*runtimestatev1.VideoVariant
 	var variantOutputs []processedVariantOutput
 
 	for _, h := range heights {
@@ -555,8 +556,8 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		return fail(nil, fmt.Errorf("all variant transcodes failed"))
 	}
 
-	var hls *corev1.AssetProcessedHLS
-	var generatedAttachments []*corev1.Attachment
+	var hls *evtv1.AssetProcessedHLS
+	var generatedAttachments []*evtv1.Attachment
 	if thumbnailAttachment != nil {
 		generatedAttachments = append(generatedAttachments, thumbnailAttachment)
 	}
@@ -565,15 +566,15 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		// autoplay/loop playback is simpler and does not need seeking support.
 		for _, output := range variantOutputs {
 			filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), output.quality)
-			attachment, err := s.uploadDerivativeFileWithDimensions(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", output.path, output.width, output.height)
+			attachment, err := s.uploadDerivativeFileWithDimensions(ctx, req.AssetID, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", output.path, output.width, output.height)
 			if err != nil {
 				return fail(generatedAttachments, fmt.Errorf("upload GIF video variant: %w", err))
 			}
-			variants = append(variants, &corev1.VideoVariant{AttachmentId: attachment.Id, Quality: output.quality, Width: output.width, Height: output.height, Size: output.size, Attachment: attachment})
+			variants = append(variants, &runtimestatev1.VideoVariant{AttachmentId: attachment.Id, Quality: output.quality, Width: output.width, Height: output.height, Size: output.size, Attachment: attachment})
 			generatedAttachments = append(generatedAttachments, attachment)
 		}
 	} else {
-		var hlsAttachments []*corev1.Attachment
+		var hlsAttachments []*evtv1.Attachment
 		hls, hlsAttachments, err = s.generateAndUploadHLS(ctx, req, tmpDir, variantOutputs)
 		generatedAttachments = append(generatedAttachments, hlsAttachments...)
 		if err != nil {
@@ -605,10 +606,10 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	return nil
 }
 
-func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, tmpDir string, outputs []processedVariantOutput) (*corev1.AssetProcessedHLS, []*corev1.Attachment, error) {
+func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, tmpDir string, outputs []processedVariantOutput) (*evtv1.AssetProcessedHLS, []*evtv1.Attachment, error) {
 	hlsDir := filepath.Join(tmpDir, "hls")
-	manifest := &corev1.AssetProcessedHLS{}
-	var uploaded []*corev1.Attachment
+	manifest := &evtv1.AssetProcessedHLS{}
+	var uploaded []*evtv1.Attachment
 
 	for i, output := range outputs {
 		renditionDir := filepath.Join(hlsDir, fmt.Sprintf("rendition-%d", i))
@@ -621,20 +622,20 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 			return nil, uploaded, err
 		}
 
-		rendition := &corev1.AssetHLSRendition{
+		rendition := &evtv1.AssetHLSRendition{
 			Width:     output.width,
 			Height:    output.height,
 			Bandwidth: bandwidth,
 		}
 		for segmentIndex, segmentPath := range segmentPaths {
-			segment, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, req.RoomID, fmt.Sprintf("%s-%05d.ts", output.quality, segmentIndex), "video/mp2t", segmentPath)
+			segment, err := s.uploadDerivativeFile(ctx, req.AssetID, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, req.RoomID, fmt.Sprintf("%s-%05d.ts", output.quality, segmentIndex), "video/mp2t", segmentPath)
 			if segment != nil {
 				uploaded = append(uploaded, segment)
 			}
 			if err != nil {
 				return nil, uploaded, fmt.Errorf("upload HLS segment: %w", err)
 			}
-			rendition.Segments = append(rendition.Segments, &corev1.AssetHLSSegment{AssetId: segment.GetId(), DurationMs: durations[segmentIndex]})
+			rendition.Segments = append(rendition.Segments, &evtv1.AssetHLSSegment{AssetId: segment.GetId(), DurationMs: durations[segmentIndex]})
 		}
 		manifest.Renditions = append(manifest.Renditions, rendition)
 	}
@@ -645,7 +646,7 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 	return manifest, uploaded, nil
 }
 
-func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processRequest, attachments []*corev1.Attachment) {
+func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processRequest, attachments []*evtv1.Attachment) {
 	for _, attachment := range attachments {
 		if attachment == nil {
 			continue
@@ -662,7 +663,7 @@ func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processReq
 
 // finalizeProcessingFailure cleans generated output and records a durable
 // failed outcome even when the processing context has already been cancelled.
-func (s *Service) finalizeProcessingFailure(ctx context.Context, req processRequest, attachments []*corev1.Attachment, originalErr error) error {
+func (s *Service) finalizeProcessingFailure(ctx context.Context, req processRequest, attachments []*evtv1.Attachment, originalErr error) error {
 	if processingInterrupted(ctx, originalErr) {
 		return originalErr
 	}
@@ -671,7 +672,7 @@ func (s *Service) finalizeProcessingFailure(ctx context.Context, req processRequ
 	return s.finalizeProcessingFailureWithContext(finalizeCtx, req, attachments, originalErr)
 }
 
-func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req processRequest, attachments []*corev1.Attachment, originalErr error) error {
+func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req processRequest, attachments []*evtv1.Attachment, originalErr error) error {
 	// Unit shutdown and per-attempt deadlines are retryable interruptions. Do
 	// not turn them into a durable failed manifest; leaving the queue delivery
 	// unacknowledged lets another worker resume it.
@@ -685,7 +686,7 @@ func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req 
 	// Terminal publication has its own budget and happens before cleanup. A
 	// large generation can therefore never consume the failure event's context.
 	terminalCtx, terminalCancel := videoProcessingFinalizationContext(ctx)
-	if err := s.core.RecordAssetProcessingFailed(terminalCtx, core.SystemActorID, req.RoomID, req.MessageEventID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+	if err := s.core.RecordAssetProcessingFailed(terminalCtx, core.SystemActorID, req.RoomID, req.MessageEventID, req.AssetID, evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
 	terminalCancel()
@@ -703,7 +704,7 @@ func processingInterrupted(ctx context.Context, err error) bool {
 }
 
 // downloadAttachment downloads an attachment from the asset store to a local file.
-func (s *Service) downloadAttachment(ctx context.Context, attachment *corev1.Attachment, destPath string) error {
+func (s *Service) downloadAttachment(ctx context.Context, attachment *evtv1.Attachment, destPath string) error {
 	if attachment == nil {
 		return fmt.Errorf("attachment is nil")
 	}
@@ -732,11 +733,11 @@ func (s *Service) downloadAttachment(ctx context.Context, attachment *corev1.Att
 // or transcoded variant) as a derivative of `parentAssetID`. The single
 // AssetCreatedEvent emitted carries the parent + role so the projection
 // links the derivative to its origin immediately.
-func (s *Service) uploadDerivativeFile(ctx context.Context, parentAssetID string, derivativeRole corev1.AssetDerivativeRole, roomID, filename, contentType, srcPath string) (*corev1.Attachment, error) {
+func (s *Service) uploadDerivativeFile(ctx context.Context, parentAssetID string, derivativeRole evtv1.AssetDerivativeRole, roomID, filename, contentType, srcPath string) (*evtv1.Attachment, error) {
 	return s.uploadDerivativeFileWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, srcPath, 0, 0)
 }
 
-func (s *Service) uploadDerivativeFileWithDimensions(ctx context.Context, parentAssetID string, derivativeRole corev1.AssetDerivativeRole, roomID, filename, contentType, srcPath string, width, height int32) (*corev1.Attachment, error) {
+func (s *Service) uploadDerivativeFileWithDimensions(ctx context.Context, parentAssetID string, derivativeRole evtv1.AssetDerivativeRole, roomID, filename, contentType, srcPath string, width, height int32) (*evtv1.Attachment, error) {
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return nil, err

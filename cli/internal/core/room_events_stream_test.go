@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -41,7 +41,7 @@ func TestChattoCore_StreamRoomEventsLive(t *testing.T) {
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	event := testutil.WaitForValue(t, eventChan, 2*time.Second, "live room MessagePosted event", func(event *corev1.Event) bool {
+	event := testutil.WaitForValue(t, eventChan, 2*time.Second, "live room MessagePosted event", func(event *evtv1.Event) bool {
 		return event.GetMessagePosted() != nil
 	})
 

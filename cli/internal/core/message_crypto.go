@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"time"
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
 type userDEK struct {
 	epoch   int32
-	purpose corev1.UserDEKPurpose
+	purpose evtv1.UserDEKPurpose
 	key     []byte
 }
 
@@ -24,11 +25,11 @@ func messageBodyAAD(eventID, bodyEventID, roomID, authorID string, epoch int32) 
 	return encryption.MessageBodyAAD(eventID, bodyEventID, roomID, authorID, epoch)
 }
 
-func userDEKAAD(userID string, purpose corev1.UserDEKPurpose, epoch int32) []byte {
+func userDEKAAD(userID string, purpose evtv1.UserDEKPurpose, epoch int32) []byte {
 	return encryption.UserDEKAAD(userID, purpose, epoch)
 }
 
-func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *corev1.MessageBody, roomID, eventID, bodyEventID, plaintext string) error {
+func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *evtv1.MessageBody, roomID, eventID, bodyEventID, plaintext string) error {
 	if body == nil {
 		return fmt.Errorf("message body is nil")
 	}
@@ -57,14 +58,14 @@ func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *corev1.Messag
 }
 
 func (c *ChattoCore) ensureActiveMessageContentKey(ctx context.Context, userID string) (*messageContentKey, error) {
-	return c.ensureActiveUserDEK(ctx, userID, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	return c.ensureActiveUserDEK(ctx, userID, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 }
 
 func (c *ChattoCore) ensureActiveUserPIIDEK(ctx context.Context, userID string) (*userDEK, error) {
-	return c.ensureActiveUserDEK(ctx, userID, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
+	return c.ensureActiveUserDEK(ctx, userID, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
 }
 
-func (c *ChattoCore) ensureActiveUserDEK(ctx context.Context, userID string, purpose corev1.UserDEKPurpose) (*userDEK, error) {
+func (c *ChattoCore) ensureActiveUserDEK(ctx context.Context, userID string, purpose evtv1.UserDEKPurpose) (*userDEK, error) {
 	event, ok, err := c.userModel.activeContentKey(userID, purpose)
 	if err != nil {
 		return nil, err
@@ -75,18 +76,18 @@ func (c *ChattoCore) ensureActiveUserDEK(ctx context.Context, userID string, pur
 	return c.generateInitialUserDEK(ctx, userID, purpose)
 }
 
-func (c *ChattoCore) unwrapMessageContentKey(ctx context.Context, event *corev1.UserDEKGeneratedEvent) (*messageContentKey, error) {
-	return c.unwrapUserDEK(ctx, event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+func (c *ChattoCore) unwrapMessageContentKey(ctx context.Context, event *evtv1.UserDEKGeneratedEvent) (*messageContentKey, error) {
+	return c.unwrapUserDEK(ctx, event, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 }
 
-func (c *ChattoCore) unwrapUserDEK(ctx context.Context, event *corev1.UserDEKGeneratedEvent, purpose corev1.UserDEKPurpose) (*userDEK, error) {
+func (c *ChattoCore) unwrapUserDEK(ctx context.Context, event *evtv1.UserDEKGeneratedEvent, purpose evtv1.UserDEKPurpose) (*userDEK, error) {
 	if c.dekResolver == nil {
 		return nil, encryption.ErrKeyNotFound
 	}
 	return c.dekResolver.Resolve(ctx, event, purpose)
 }
 
-func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, purpose corev1.UserDEKPurpose) (*userDEK, error) {
+func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, purpose evtv1.UserDEKPurpose) (*userDEK, error) {
 	agg := evtstream.UserAggregate(userID)
 	filter := agg.AllEventsFilter()
 	subject := agg.Subject(evtstream.EventUserDEKGenerated)
@@ -126,7 +127,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 			}
 			return nil, err
 		}
-		event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
+		event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserDekGenerated{
 			UserDekGenerated: wrapped,
 		}})
 
@@ -154,11 +155,11 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 	return nil, fmt.Errorf("DEK OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
 }
 
-func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID, keyRef string, epoch int32) ([]byte, *corev1.UserDEKGeneratedEvent, error) {
-	return c.newWrappedUserDEK(ctx, userID, keyRef, epoch, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+func (c *ChattoCore) newWrappedMessageContentKey(ctx context.Context, userID, keyRef string, epoch int32) ([]byte, *evtv1.UserDEKGeneratedEvent, error) {
+	return c.newWrappedUserDEK(ctx, userID, keyRef, epoch, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 }
 
-func (c *ChattoCore) newWrappedUserDEK(ctx context.Context, userID, keyRef string, epoch int32, purpose corev1.UserDEKPurpose) ([]byte, *corev1.UserDEKGeneratedEvent, error) {
+func (c *ChattoCore) newWrappedUserDEK(ctx context.Context, userID, keyRef string, epoch int32, purpose evtv1.UserDEKPurpose) ([]byte, *evtv1.UserDEKGeneratedEvent, error) {
 	if c.encryption.keyWrapper == nil {
 		return nil, nil, encryption.ErrKeyNotFound
 	}
@@ -173,7 +174,7 @@ func (c *ChattoCore) newWrappedUserDEK(ctx context.Context, userID, keyRef strin
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to wrap DEK: %w", err)
 	}
-	stored := &corev1.UserDataEncryptionKey{
+	stored := &runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: wrapped.EncryptedContentKey,
 		ContentKeyNonce:     wrapped.Nonce,
 		WrappingAlgorithm:   wrapped.Algorithm,
@@ -184,7 +185,7 @@ func (c *ChattoCore) newWrappedUserDEK(ctx context.Context, userID, keyRef strin
 	if err != nil {
 		return nil, nil, err
 	}
-	return key, &corev1.UserDEKGeneratedEvent{
+	return key, &evtv1.UserDEKGeneratedEvent{
 		UserId:            userID,
 		Epoch:             epoch,
 		Purpose:           purpose,

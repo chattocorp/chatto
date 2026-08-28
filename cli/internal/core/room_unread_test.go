@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_GetRoomLastEvent(t *testing.T) {
@@ -329,7 +329,7 @@ func TestChattoCore_HasUnread_RoomMessageOffKeepsCursorWithoutBadge(t *testing.T
 	}
 	if _, err := core.NotificationPolicy().SetRoomNotificationMode(
 		ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	); err != nil {
 		t.Fatalf("disable room-message attention: %v", err)
 	}

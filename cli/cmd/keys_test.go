@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/key_material/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +14,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestEncryptDecryptKeysRoundTrip(t *testing.T) {
@@ -83,7 +84,7 @@ func TestKeysExportImportRoundTrip(t *testing.T) {
 		t.Fatal("Failed to create ENCRYPTION_KEYS bucket:", err)
 	}
 
-	userKeyEncryptionKey, err := proto.Marshal(&corev1.UserKeyEncryptionKey{
+	userKeyEncryptionKey, err := proto.Marshal(&keymaterialv1.UserKeyEncryptionKey{
 		Key:       []byte("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"),
 		Algorithm: "builtin-xchacha20-poly1305-v1",
 	})
@@ -247,7 +248,7 @@ func TestImportKeysSkipsWrappedDEKExportsWithoutBlockingKEKs(t *testing.T) {
 		t.Fatal("Failed to create ENCRYPTION_KEYS bucket:", err)
 	}
 
-	wrappedDEK, err := proto.Marshal(&corev1.UserDataEncryptionKey{
+	wrappedDEK, err := proto.Marshal(&runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		ContentKeyNonce:     []byte("nonce"),
 		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
@@ -289,7 +290,7 @@ func TestImportKeysRejectsMalformedKnownRecords(t *testing.T) {
 		t.Fatal("Failed to create ENCRYPTION_KEYS bucket:", err)
 	}
 
-	malformedDEK, err := proto.Marshal(&corev1.UserDataEncryptionKey{
+	malformedDEK, err := proto.Marshal(&runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
 		WrappingKeyRef:      "kek.valid",
@@ -323,7 +324,7 @@ func TestExportAllKeysRejectsInvalidBucketRecords(t *testing.T) {
 	defer cancel()
 
 	_, _, js := startTestNATS(t)
-	malformedDEK, err := proto.Marshal(&corev1.UserDataEncryptionKey{
+	malformedDEK, err := proto.Marshal(&runtimestatev1.UserDataEncryptionKey{
 		EncryptedContentKey: []byte("wrapped"),
 		WrappingAlgorithm:   kms.AlgorithmBuiltinXChaCha20Poly1305V1,
 		WrappingKeyRef:      "kek.valid",

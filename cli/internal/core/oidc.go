@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 var (
@@ -34,7 +34,7 @@ func externalIdentityHash(issuer, subject string) string {
 }
 
 // GetUserByExternalIdentity looks up a user by provider issuer namespace and subject.
-func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*corev1.User, error) {
+func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subject string) (*evtv1.User, error) {
 	user, ok, err := c.userModel.userByExternalIdentity(ctx, issuer, subject)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subj
 // GetUserByExternalIdentityForAuthentication returns the mapped user and the
 // authentication generation that was current in the same projection snapshot
 // as the identity mapping. Credential issuance must use that generation.
-func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*corev1.User, uint64, error) {
+func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*evtv1.User, uint64, error) {
 	user, authGeneration, ok, err := c.userModel.userByExternalIdentityForAuthentication(ctx, issuer, subject)
 	if err != nil {
 		return nil, 0, err
@@ -60,7 +60,7 @@ func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Cont
 }
 
 // GetUserByOIDCSubject looks up a user by their OIDC issuer and subject.
-func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject string) (*corev1.User, error) {
+func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject string) (*evtv1.User, error) {
 	return c.GetUserByExternalIdentity(ctx, issuer, subject)
 }
 
@@ -73,8 +73,8 @@ func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, provi
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return err
 	}
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityLinked{
-		UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
+		UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
 			UserId:       userID,
 			Issuer:       issuer,
 			Subject:      subject,

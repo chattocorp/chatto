@@ -12,13 +12,13 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestAdminOAuthClientServiceLifecycleAndAuthorization(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	clientID := "https://remote.example/oauth/client-metadata.json"
-	if err := env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatalf("RecordOAuthClientAuthorization: %v", err)
 	}
 	if _, err := env.adminOAuthClients.ListOAuthClients(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ListOAuthClientsRequest{})); err == nil || connect.CodeOf(err) != connect.CodePermissionDenied {
@@ -64,7 +64,7 @@ func TestAdminOAuthClientServicePreservesFutureEnumValues(t *testing.T) {
 		"Future Client",
 		"https://future.example",
 		"https://future.example",
-		corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+		evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
 	); err != nil {
 		t.Fatalf("RecordOAuthClientAuthorization: %v", err)
 	}
@@ -77,13 +77,13 @@ func TestAdminOAuthClientServicePreservesFutureEnumValues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read OAuth client aggregate sequence: %v", err)
 	}
-	futureSource := corev1.OAuthClientSource(99)
-	sourceEvent := &corev1.Event{
+	futureSource := evtv1.OAuthClientSource(99)
+	sourceEvent := &evtv1.Event{
 		Id:        core.NewEventID(),
 		ActorId:   env.viewer.Id,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_OauthClientAuthorizationRecorded{
-			OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{
+		Event: &evtv1.Event_OauthClientAuthorizationRecorded{
+			OauthClientAuthorizationRecorded: &evtv1.OAuthClientAuthorizationRecordedEvent{
 				ClientId:       clientID,
 				ClientName:     "Future Client",
 				ClientUri:      "https://future.example",
@@ -107,13 +107,13 @@ func TestAdminOAuthClientServicePreservesFutureEnumValues(t *testing.T) {
 	}
 	accessDenied, stopAccessWatch := env.core.WatchOAuthClientAccessDenied(clientID)
 	defer stopAccessWatch()
-	futurePolicy := corev1.OAuthClientPolicy(101)
-	event := &corev1.Event{
+	futurePolicy := evtv1.OAuthClientPolicy(101)
+	event := &evtv1.Event{
 		Id:        core.NewEventID(),
 		ActorId:   env.viewer.Id,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_OauthClientPolicyChanged{
-			OauthClientPolicyChanged: &corev1.OAuthClientPolicyChangedEvent{
+		Event: &evtv1.Event_OauthClientPolicyChanged{
+			OauthClientPolicyChanged: &evtv1.OAuthClientPolicyChangedEvent{
 				ClientId: clientID,
 				Policy:   futurePolicy,
 			},
@@ -179,7 +179,7 @@ func TestAdminOAuthClientServicePaginationDoesNotReshuffleOnAuthorization(t *tes
 	}
 	for _, clientID := range clientIDs {
 		origin := strings.TrimSuffix(clientID, "/oauth/client-metadata.json")
-		if err := env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, clientID, clientID, origin, origin, corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		if err := env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, clientID, clientID, origin, origin, evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 			t.Fatalf("RecordOAuthClientAuthorization(%q): %v", clientID, err)
 		}
 	}
@@ -197,7 +197,7 @@ func TestAdminOAuthClientServicePaginationDoesNotReshuffleOnAuthorization(t *tes
 
 	// Reauthorizing the oldest client changes its last-authorization timestamp,
 	// but must not move any client across the offset boundary between requests.
-	if err := env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, clientIDs[0], clientIDs[0], "https://alpha.example", "https://alpha.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, clientIDs[0], clientIDs[0], "https://alpha.example", "https://alpha.example", evtv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatalf("reauthorize client: %v", err)
 	}
 	second, err := env.adminOAuthClients.ListOAuthClients(ctx, connect.NewRequest(&adminv1.ListOAuthClientsRequest{

@@ -20,7 +20,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -31,11 +31,11 @@ func requireConnectCode(t testing.TB, err error, want connect.Code) {
 	}
 }
 
-func withCaller(ctx context.Context, user *corev1.User) context.Context {
+func withCaller(ctx context.Context, user *evtv1.User) context.Context {
 	return authn.SetInfo(ctx, Caller{UserID: user.Id})
 }
 
-func withBearerCredential(ctx context.Context, user *corev1.User, token string) context.Context {
+func withBearerCredential(ctx context.Context, user *evtv1.User, token string) context.Context {
 	ctx = withCaller(ctx, user)
 	return authctx.WithCredential(ctx, authctx.RuntimeCredential{
 		Kind:   authctx.RuntimeCredentialKindBearerToken,
@@ -127,7 +127,7 @@ type connectAPITestEnv struct {
 	users                *userService
 	viewerService        *viewerService
 	voice                *voiceCallService
-	viewer               *corev1.User
+	viewer               *evtv1.User
 }
 
 func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
@@ -244,7 +244,7 @@ func apiPermissionGranted(grants []*apiv1.PermissionGrant, permission string) bo
 	return false
 }
 
-func (e *connectAPITestEnv) createJoinedRoom(name string) *corev1.Room {
+func (e *connectAPITestEnv) createJoinedRoom(name string) *evtv1.Room {
 	room, err := e.core.CreateRoom(e.ctx, e.viewer.Id, core.KindChannel, "", name, "")
 	if err != nil {
 		panic(err)
@@ -302,7 +302,7 @@ func (e *connectAPITestEnv) defaultRoomGroupID(t *testing.T) string {
 	return groups[0].Id
 }
 
-func (e *connectAPITestEnv) post(roomID, actorID, body, inReplyTo string) *corev1.Event {
+func (e *connectAPITestEnv) post(roomID, actorID, body, inReplyTo string) *evtv1.Event {
 	event, err := e.core.PostMessage(e.ctx, core.KindChannel, roomID, actorID, body, nil, inReplyTo, "", nil, false)
 	if err != nil {
 		panic(err)
