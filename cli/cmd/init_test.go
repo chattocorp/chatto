@@ -61,6 +61,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if cfg.SMTP.TLS != config.SMTPTLSMandatory {
 		t.Fatalf("generated SMTP TLS policy = %q, want %q", cfg.SMTP.TLS, config.SMTPTLSMandatory)
 	}
+	if cfg.Email.Transport != config.EmailTransportSMTP {
+		t.Fatalf("generated email transport = %q, want %q", cfg.Email.Transport, config.EmailTransportSMTP)
+	}
 	if !cfg.AssetProcessing.Enabled {
 		t.Fatal("generated config should enable the built-in asset-processing worker")
 	}

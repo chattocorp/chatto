@@ -111,6 +111,9 @@ var initCmd = &cobra.Command{
 				Port:    587,
 				TLS:     config.SMTPTLSMandatory,
 			},
+			Email: config.EmailConfig{
+				Transport: config.EmailTransportSMTP,
+			},
 			AssetProcessing: config.AssetProcessingConfig{
 				Enabled: true,
 			},

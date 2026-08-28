@@ -81,8 +81,9 @@ configuration.
 - **Login methods:** Select direct registration, external login providers, or
   the two methods. Do a test of an external provider before you set
   `auth.direct_login` to `false`.
-- **SMTP:** Configure SMTP for direct registration, email verification, and
-  other email features. Do a test of the credentials before you invite users.
+- **Transactional email:** Configure SMTP (the default transport) or JMAP for
+  direct registration, email verification, and other email features. Do a test
+  of the credentials before you invite users.
 - **Backups:** Select storage for data backups, key exports, and S3 assets. Do a
   test of the restore procedure at regular intervals.
 

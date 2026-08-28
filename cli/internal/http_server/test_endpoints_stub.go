@@ -8,10 +8,10 @@ import (
 	"hmans.de/chatto/internal/email"
 )
 
-// createMailer creates a real email mailer for production builds.
+// createMailer creates the configured transactional email sender for production builds.
 // Returns (nil, mailer) since mock mailer is not used in production.
-func createMailer(smtpConfig config.SMTPConfig) (*email.MockSender, email.Sender) {
-	return nil, email.NewMailer(smtpConfig)
+func createMailer(emailConfig config.EmailConfig, smtpConfig config.SMTPConfig) (*email.MockSender, email.Sender) {
+	return nil, email.NewSender(emailConfig, smtpConfig)
 }
 
 // registerTestEndpoints is a no-op in production builds.
