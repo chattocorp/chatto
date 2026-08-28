@@ -171,6 +171,49 @@ describe('PermissionMatrix', () => {
     expect(cell?.title).toContain('Effective Allow (included by message.read)');
   });
 
+  it('shows an allow from a transitive including permission', async () => {
+    nextTierRoles = {
+      applicablePermissions: [
+        'server.manage',
+        'server.manage.neighbors',
+        'server.manage.neighbors.publish'
+      ],
+      permissionDefinitions: [
+        { permission: 'server.manage' },
+        { permission: 'server.manage.neighbors', includedByPermission: 'server.manage' },
+        {
+          permission: 'server.manage.neighbors.publish',
+          includedByPermission: 'server.manage.neighbors'
+        }
+      ],
+      roles: [
+        {
+          roleName: 'publisher',
+          displayName: 'Publisher',
+          description: '',
+          isSystem: false,
+          position: 1,
+          override: {
+            permissions: ['server.manage'],
+            permissionDenials: [
+              'server.manage.neighbors',
+              'server.manage.neighbors.publish'
+            ]
+          },
+          inheritedAllows: [],
+          inheritedDenials: []
+        }
+      ]
+    };
+    const { container } = render(PermissionMatrix);
+    await settle();
+
+    const cell = container.querySelector<HTMLButtonElement>(
+      'td[data-role="publisher"][data-permission="server.manage.neighbors.publish"] button'
+    );
+    expect(cell?.title).toContain('Effective Allow (included by server.manage)');
+  });
+
   it('filters permission names as the query changes', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();

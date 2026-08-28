@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getIncludedByPermission, PERMISSION_METADATA } from './permissions';
+import {
+  getIncludedByPermission,
+  getIncludingPermissions,
+  PERMISSION_METADATA
+} from './permissions';
 
 describe('PERMISSION_METADATA', () => {
   it('covers every current backend permission', () => {
@@ -46,5 +50,29 @@ describe('PERMISSION_METADATA', () => {
     expect(getIncludedByPermission(definitions, 'message.read')).toBeNull();
     expect(getIncludedByPermission(definitions, 'message.post-in-thread')).toBeNull();
     expect(getIncludedByPermission(undefined, 'message.read.interactions')).toBeNull();
+  });
+
+  it('returns transitive inclusion without looping on invalid server metadata', () => {
+    const definitions = [
+      { permission: 'server.manage' },
+      { permission: 'server.manage.neighbors', includedByPermission: 'server.manage' },
+      {
+        permission: 'server.manage.neighbors.publish',
+        includedByPermission: 'server.manage.neighbors'
+      }
+    ];
+    expect(getIncludingPermissions(definitions, 'server.manage.neighbors.publish')).toEqual([
+      'server.manage.neighbors',
+      'server.manage'
+    ]);
+    expect(
+      getIncludingPermissions(
+        [
+          { permission: 'cycle.a', includedByPermission: 'cycle.b' },
+          { permission: 'cycle.b', includedByPermission: 'cycle.a' }
+        ],
+        'cycle.a'
+      )
+    ).toEqual(['cycle.b']);
   });
 });

@@ -35,6 +35,7 @@ focusing a cell highlights its permission row and role column.
   import { toast } from '$lib/ui/toast';
   import {
     getIncludedByPermission,
+    getIncludingPermissions,
     getPermissionDescription,
     type PermissionDefinition
   } from '$lib/permissions';
@@ -227,12 +228,14 @@ focusing a cell highlights its permission row and role column.
   }
 
   function includingPermission(role: TierRole, permission: string): string | null {
-    const including = getIncludedByPermission(data?.permissionDefinitions, permission);
-    if (!including) return null;
-    const includingOverride = overrideState(role, including);
-    if (includingOverride === 'allow') return including;
-    if (includingOverride === 'deny') return null;
-    return exactInheritedState(role, including) === 'allow' ? including : null;
+    for (const including of getIncludingPermissions(data?.permissionDefinitions, permission)) {
+      const includingOverride = overrideState(role, including);
+      if (includingOverride === 'allow') return including;
+      if (includingOverride === 'neutral' && exactInheritedState(role, including) === 'allow') {
+        return including;
+      }
+    }
+    return null;
   }
 
   function inheritedState(role: TierRole, permission: string): State {

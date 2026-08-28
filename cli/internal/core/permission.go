@@ -289,9 +289,22 @@ func validatePermissionCatalog(catalog []PermissionMetadata) (map[Permission]Per
 }
 
 func samePermissionScopes(left, right []PermissionScope) bool {
-	return len(left) == len(right) && slices.ContainsFunc(left, func(scope PermissionScope) bool {
-		return slices.Contains(right, scope)
-	})
+	if len(left) != len(right) {
+		return false
+	}
+	counts := make(map[PermissionScope]int, len(left))
+	for _, scope := range left {
+		counts[scope]++
+	}
+	for _, scope := range right {
+		counts[scope]--
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // AllPermissions returns all defined permissions with their metadata.

@@ -371,6 +371,13 @@ func TestValidatePermissionCatalog(t *testing.T) {
 			},
 		},
 		{
+			name: "duplicate scopes do not match",
+			catalog: []PermissionMetadata{
+				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, []PermissionScope{ScopeServer, ScopeGroup}),
+				includedPermissionMetadata("server.manage.neighbors", "server.manage", "Neighbors", "Neighbors", CategoryServer, []PermissionScope{ScopeServer, ScopeServer}),
+			},
+		},
+		{
 			name: "not immediate child",
 			catalog: []PermissionMetadata{
 				permissionMetadata("server.manage", "Manage", "Manage", CategoryServer, scopes),
