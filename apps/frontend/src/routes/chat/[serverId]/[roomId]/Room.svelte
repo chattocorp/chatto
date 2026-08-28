@@ -29,6 +29,7 @@
   } from '$lib/state/room';
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
+  import { startDMWith } from '$lib/dm/startDM';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
@@ -41,6 +42,7 @@
   import { EmptyState } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import { tick } from 'svelte';
   import RoomEventsPane from './RoomEventsPane.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';
@@ -226,7 +228,12 @@
     ) {
       return null;
     }
-    return recentThreadRootCandidate(roomMessageStore.rootEvents, roomId, currentUserId, Date.now());
+    return recentThreadRootCandidate(
+      roomMessageStore.rootEvents,
+      roomId,
+      currentUserId,
+      Date.now()
+    );
   }
 
   createRoomPermissions(() => permissions);
@@ -386,6 +393,26 @@
       supportsPinnedMessages
     )
   );
+  const activeRoomSidebarProfileUserId = $derived(appUi.activeRoomSidebarProfileUserId);
+  const activeDesktopRoomSidebarProfileUserId = $derived(
+    desktopRoomLayout.current ? activeRoomSidebarProfileUserId : null
+  );
+  const activeMobileRoomSidebarProfileUserId = $derived(
+    desktopRoomLayout.current ? null : activeRoomSidebarProfileUserId
+  );
+  const directMessageProfileUserId = $derived.by(() => {
+    const participantIds = room.dmData?.participantIds ?? [];
+    const otherParticipantIds = participantIds.filter(
+      (participantId) => participantId !== room.dmData?.currentUserId
+    );
+    if (otherParticipantIds.length === 1) return otherParticipantIds[0];
+    return participantIds.length === 1 && participantIds[0] === room.dmData?.currentUserId
+      ? participantIds[0]
+      : null;
+  });
+  const hasMobileRoomSidebar = $derived(
+    mobileRoomSidebarPanel !== null || activeMobileRoomSidebarProfileUserId !== null
+  );
   const roomFilesPanelActive = $derived(
     visibleRoomSidebarPanel(
       desktopRoomLayout.current,
@@ -426,7 +453,8 @@
     livekitUrl: serverInfo.livekitUrl ?? undefined,
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
     currentUserId: currentUser.user?.id ?? null,
-    membersStore: roomMembersStore
+    membersStore: roomMembersStore,
+    onOpenProfile: openUserDirectMessageProfile
   });
 
   const syncRoomMembers: Attachment = () => {
@@ -476,12 +504,40 @@
     appUi.toggleDesktopRoomSidebarPanel(panel);
   }
 
+  function openDirectMessageProfile(userId: string): void {
+    appUi.openRoomSidebarProfile(userId);
+  }
+
+  /** Open a user's one-to-one DM, then show their information in its sidebar. */
+  function openUserDirectMessageProfile(userId: string): void {
+    void startDMWith(activeServerId, userId, {
+      onRoomReady: (directMessageRoomId) =>
+        appUi.requestRoomSidebarProfile(activeServerId, directMessageRoomId, userId)
+    });
+  }
+
   function openRoomCall(): void {
     appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
   }
 
   function closeDesktopRoomSidebarPanel(): void {
     appUi.closeDesktopRoomSidebarPanel();
+  }
+
+  function closeDesktopRoomSidebar(): void {
+    if (activeRoomSidebarProfileUserId) {
+      appUi.closeRoomSidebarProfile();
+      return;
+    }
+    closeDesktopRoomSidebarPanel();
+  }
+
+  function closeMobileRoomSidebar(): void {
+    if (activeRoomSidebarProfileUserId) {
+      appUi.closeRoomSidebarProfile();
+      return;
+    }
+    appUi.closeMobileRoomSidebarPanel();
   }
 
   function handleWindowKeydown(event: KeyboardEvent): void {
@@ -572,9 +628,9 @@
     handleWindowKeydown(e);
     if (e.defaultPrevented) return;
 
-    if (e.key === 'Escape' && mobileRoomSidebarPanel && !e.defaultPrevented) {
+    if (e.key === 'Escape' && hasMobileRoomSidebar && !e.defaultPrevented) {
       e.preventDefault();
-      appUi.closeMobileRoomSidebarPanel();
+      closeMobileRoomSidebar();
       return;
     }
 
@@ -584,7 +640,7 @@
     }
   }}
   onpointerdown={(e) => {
-    if (mobileRoomSidebarPanel && e.button === 0) {
+    if (hasMobileRoomSidebar && e.button === 0) {
       const target = e.target as HTMLElement;
       if (
         target.closest(
@@ -593,7 +649,7 @@
       ) {
         return;
       }
-      appUi.closeMobileRoomSidebarPanel();
+      closeMobileRoomSidebar();
       return;
     }
 
@@ -644,10 +700,10 @@
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
           threadId && canReadMessages ? 'opacity-30 @min-[768px]:opacity-100' : '',
-          mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
+          hasMobileRoomSidebar ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"
-        inert={(threadId && canReadMessages && !splitThreadLayout) || mobileRoomSidebarPanel
+        inert={(threadId && canReadMessages && !splitThreadLayout) || hasMobileRoomSidebar
           ? true
           : undefined}
         {@attach roomDropZone}
@@ -662,7 +718,7 @@
           {#snippet actions()}
             <RoomSidebarToggle
               mode="mobile"
-              activePanel={mobileRoomSidebarPanel}
+              activePanel={activeMobileRoomSidebarProfileUserId ? null : mobileRoomSidebarPanel}
               panels={roomSidebarTogglePanels}
               hasActiveCall={hasActiveRoomCall}
               hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
@@ -676,6 +732,16 @@
               hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
               onToggle={toggleDesktopRoomSidebarPanel}
             />
+            {#if room.isDM && directMessageProfileUserId}
+              <HeaderIconButton
+                icon="icon-[uil--info-circle]"
+                label={m('chat.profile.title')}
+                tone={activeRoomSidebarProfileUserId
+                  ? 'active'
+                  : 'default'}
+                onclick={() => openDirectMessageProfile(directMessageProfileUserId)}
+              />
+            {/if}
             {#if showLeaveRoom}
               <button
                 class="group/pane-header-icon-button pane-header-icon-button"
@@ -707,6 +773,7 @@
             onOpenThread={openThread}
             onOpenCall={openRoomCall}
             pendingHighlightId={navigation.pendingMainHighlightId}
+            onOpenProfile={openUserDirectMessageProfile}
             onHighlightComplete={() => navigation.clearMainHighlight()}
             typingUserIds={typingIndicator.userIds}
             typingMembers={getRoomMembers()}
@@ -734,7 +801,7 @@
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}
           onCancelReply={() => replyState.cancelReply()}
-          autoFocus={!threadId && !mobileRoomSidebarPanel}
+          autoFocus={!threadId && !hasMobileRoomSidebar}
           onReady={(api) => (composerApi = api)}
           onTyping={() => typingIndicator?.sendTypingIndicator()}
           onMessageSent={(event) => {
@@ -782,6 +849,7 @@
             pendingQuote={navigation.pendingThreadQuote}
             pendingReply={navigation.pendingThreadReply}
             {threadingMode}
+            onOpenProfile={openUserDirectMessageProfile}
             onHighlightComplete={() => navigation.clearThreadHighlight()}
             onQuoteConsumed={() => navigation.clearThreadQuote()}
             onReplyConsumed={() => navigation.clearThreadReply()}
@@ -811,34 +879,36 @@
 
       <RoomSidebarPane
         presentation="mobile"
-        sidebarProps={mobileRoomSidebarPanel
+        sidebarProps={hasMobileRoomSidebar
           ? {
               ...sharedRoomSidebarProps,
-              activePanel: mobileRoomSidebarPanel,
+              activePanel: mobileRoomSidebarPanel ?? 'members',
+              activeProfileUserId: activeMobileRoomSidebarProfileUserId,
               onOpenFile: (messageEventId, threadRootEventId) =>
                 openFileMessage(messageEventId, threadRootEventId, true),
               onOpenSearchResult: (messageEventId, threadRootEventId) =>
                 openSearchResult(messageEventId, threadRootEventId, true),
               onOpenPin: (messageEventId, threadRootEventId) =>
                 openPinnedMessage(messageEventId, threadRootEventId, true),
-              onClose: () => appUi.closeMobileRoomSidebarPanel()
+              onClose: closeMobileRoomSidebar
             }
           : null}
       />
     </div>
 
-    {#if activeRoomSidebarPanel}
+    {#if activeRoomSidebarPanel || activeDesktopRoomSidebarProfileUserId}
       <RoomSidebarPane
         presentation="desktop"
         sidebarProps={{
           ...sharedRoomSidebarProps,
-          activePanel: activeRoomSidebarPanel,
+          activePanel: activeRoomSidebarPanel ?? 'members',
+          activeProfileUserId: activeDesktopRoomSidebarProfileUserId,
           maximized: isDesktopCallMaximized,
           onOpenFile: openFileMessage,
           onOpenSearchResult: openSearchResult,
           onOpenPin: openPinnedMessage,
           onToggleMaximized: toggleDesktopCallWide,
-          onClose: closeDesktopRoomSidebarPanel
+          onClose: closeDesktopRoomSidebar
         }}
       />
     {/if}

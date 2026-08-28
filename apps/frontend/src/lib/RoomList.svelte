@@ -385,6 +385,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
 {#snippet navigationRoomLink(room: RoomsListItem)}
   {@const isDM = room.type === RoomKind.DM}
+  {@const isCurrentRoom = room.id === activeRoomId}
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const hasUnread = roomUnreadStore.roomIsUnread(room.id)}
   {@const isJoined = room.viewerIsMember}
@@ -395,11 +396,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
       'group/badges @container sidebar-item',
-      room.id === activeRoomId ? 'bg-surface' : '',
-      showUnread && room.id !== activeRoomId ? 'sidebar-item-attention' : '',
+      showUnread && !isCurrentRoom ? 'sidebar-item-attention' : '',
       !isDM && !isJoined ? 'opacity-60 hover:opacity-85' : ''
     ]}
-    aria-current={room.id === activeRoomId ? 'page' : undefined}
+    aria-current={isCurrentRoom ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
     {@attach roomMenuTrigger(room)}
@@ -417,19 +417,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           <span
             class={[
               'iconify sidebar-icon icon-[uil--globe]',
-              showUnread && room.id !== activeRoomId ? 'text-text-top' : 'text-muted'
+              showUnread ? 'text-text-top' : 'text-muted'
             ]}
             role="img"
             aria-label={m('room.directory.universal')}
             title={m('room.directory.universal_title')}
           ></span>
         {:else}
-          <span
-            class={[
-              'sidebar-icon',
-              showUnread && room.id !== activeRoomId ? 'text-text-top' : 'text-muted'
-            ]}>#</span
-          >
+          <span class={['sidebar-icon', showUnread ? 'text-text-top' : 'text-muted']}>#</span>
         {/if}
       {:else if room.viewerCanJoinRoom}
         <span class="sidebar-icon text-muted">+</span>

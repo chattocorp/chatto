@@ -904,9 +904,10 @@ func (x *JoinRoomGroupResponse) GetJoinedRoomIds() []string {
 	return nil
 }
 
-// Request to start or fetch a direct-message room for a human caller. A valid
-// request from a bot receives PERMISSION_DENIED, including when the room
-// already exists.
+// Request to start a direct-message room for a human caller, or fetch an
+// existing one. A human caller can fetch an existing DM without message.post.
+// A valid request from a bot receives PERMISSION_DENIED, including when the
+// room already exists.
 type StartDMRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Other participants to include in the direct-message room. The current user

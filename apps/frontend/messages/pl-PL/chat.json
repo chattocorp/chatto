@@ -41,6 +41,7 @@
       "profile": "Profil użytkownika",
       "send_message": "Wyślij wiadomość",
       "view_profile": "Zobacz profil",
+      "profile_requires_direct_message": "Aby zobaczyć ten profil, potrzebujesz bezpośredniej wiadomości.",
       "view_in_admin": "Wyświetl w administracji serwera",
       "copy_user_id": "Kopiuj identyfikator użytkownika"
     },

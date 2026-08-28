@@ -60,6 +60,7 @@
     permalinkThreadRootEventId = null,
     messageStore = null,
     onOpenThread,
+    onOpenProfile,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
@@ -68,6 +69,7 @@
     permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
+    onOpenProfile?: (userId: string) => void;
     threadingMode?: RoomThreadingMode;
   } = $props();
 
@@ -725,6 +727,7 @@
     currentUserId={currentUser.user?.id}
     {canStartDMs}
     canBanRoomMembers={roomPermissions.canBanRoomMembers}
+    {onOpenProfile}
   />
 
   {#if !isDeleted}

@@ -1,4 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -12,13 +13,15 @@ const viewerSettingsState = {
   timezone: 'Europe/Berlin',
   timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
 };
-vi.mock('$app/state', () => ({ page: { params: { serverId: '-' } } }));
 const serverScopeMock = vi.hoisted(() => ({
   serverId: 'server-1',
   permissions: {
     loaded: true,
-    canAdminViewUsers: false
-  }
+    canAdminViewUsers: false,
+    canStartDMs: true
+  },
+  currentUser: { user: { id: 'viewer-1' } },
+  projection: { rooms: new Map() }
 }));
 
 vi.mock('$lib/navigation', () => ({
@@ -27,8 +30,12 @@ vi.mock('$lib/navigation', () => ({
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
-    serverId: serverScopeMock.serverId,
-    store: { permissions: serverScopeMock.permissions }
+      serverId: serverScopeMock.serverId,
+      store: {
+        permissions: serverScopeMock.permissions,
+        currentUser: serverScopeMock.currentUser,
+        projection: serverScopeMock.projection
+      }
   })
 }));
 
@@ -70,9 +77,8 @@ function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement
 
 function linkWithText(container: HTMLElement, text: string): HTMLAnchorElement | null {
   return (
-    Array.from(container.querySelectorAll('a')).find(
-      (link) => link.textContent?.trim() === text
-    ) ?? null
+    Array.from(container.querySelectorAll('a')).find((link) => link.textContent?.trim() === text) ??
+    null
   );
 }
 
@@ -104,6 +110,9 @@ beforeEach(() => {
   serverScopeMock.serverId = 'server-1';
   serverScopeMock.permissions.loaded = true;
   serverScopeMock.permissions.canAdminViewUsers = false;
+  serverScopeMock.permissions.canStartDMs = true;
+  serverScopeMock.currentUser.user = { id: 'viewer-1' };
+  serverScopeMock.projection.rooms.clear();
   toast.clear();
   writeClipboardText.mockReset();
   writeClipboardText.mockResolvedValue(undefined);
@@ -163,13 +172,53 @@ describe('UserContextMenu', () => {
     expect(q(container, '[role="dialog"]')?.textContent).toContain('16:30');
   });
 
-  it('renders the profile action as an ordinary link', () => {
+  it('calls the supplied profile callback and closes the menu', () => {
     const onClose = vi.fn();
-    const { container } = renderMenu({ onClose });
-    const link = q(container, 'a[href="/chat/-/users/user-1"]') as HTMLAnchorElement;
+    const onOpenProfile = vi.fn();
+    const { container } = renderMenu({ onClose, onOpenProfile });
+    const viewProfile = buttonWithText(container, 'View profile');
 
-    expect(link.getAttribute('href')).toBe('/chat/-/users/user-1');
+    viewProfile?.click();
+
+    expect(onOpenProfile).toHaveBeenCalledExactlyOnceWith('user-1');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('disables profile navigation when no direct message exists and the viewer cannot create one', () => {
+    serverScopeMock.permissions.canStartDMs = false;
+    const onClose = vi.fn();
+    const onOpenProfile = vi.fn();
+    const { container } = renderMenu({ onClose, onOpenProfile });
+    const viewProfile = buttonWithText(container, 'View profile');
+
+    expect(viewProfile?.disabled).toBe(true);
+    expect(viewProfile?.title).toBe('A direct message is required to view this profile.');
+    viewProfile?.click();
+
+    expect(onOpenProfile).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('keeps profile navigation available for an existing direct message without DM-create permission', () => {
+    serverScopeMock.permissions.canStartDMs = false;
+    serverScopeMock.projection.rooms.set('dm-1', {
+      room: { room: { kind: RoomKind.DM }, viewerState: { isMember: true } },
+      memberUserIds: ['viewer-1', 'user-1']
+    });
+    const onOpenProfile = vi.fn();
+    const { container } = renderMenu({ onOpenProfile });
+    const viewProfile = buttonWithText(container, 'View profile');
+
+    expect(viewProfile?.disabled).toBe(false);
+    viewProfile?.click();
+
+    expect(onOpenProfile).toHaveBeenCalledExactlyOnceWith('user-1');
+  });
+
+  it('omits the profile action outside a room', () => {
+    const { container } = renderMenu();
+
+    expect(buttonWithText(container, 'View profile')).toBeNull();
   });
 
   it('renders custom status as its own profile line', async () => {
@@ -238,7 +287,11 @@ describe('UserContextMenu', () => {
 
   it('separates the profile and actions with sibling menu surfaces', () => {
     serverScopeMock.permissions.canAdminViewUsers = true;
-    const { container } = renderMenu({ canSendMessage: true, canBanFromRoom: true });
+    const { container } = renderMenu({
+      canSendMessage: true,
+      canBanFromRoom: true,
+      onOpenProfile: vi.fn()
+    });
     const dialog = q(container, '[role="dialog"]')!;
     const sections = dialog.querySelectorAll('.menu-section');
     const actionLabels = Array.from(sections[1]!.querySelectorAll('button, a')).map((action) =>

@@ -32,6 +32,7 @@ function projectedRoom(
   threadingMode = RoomThreadingMode.ENABLED
 ) {
   return {
+    memberUserIds: [roomId],
     room: {
       room: {
         id: roomId,
@@ -126,12 +127,14 @@ describe('useRoomData projection selector', () => {
       expect(room.roomData?.canPostInThread).toBe(true);
       expect(room.roomData?.canAttach).toBe(true);
       expect(room.roomData?.canReact).toBe(true);
+      expect(room.dmData?.participantIds).toEqual(['dm-a']);
       expect(room.dmData?.participants[0]?.id).toBe('dm-a');
       expect(room.isRoomLoading).toBe(false);
 
       switchRoom('dm-b');
 
       expect(room.roomData?.room.id).toBe('dm-b');
+      expect(room.dmData?.participantIds).toEqual(['dm-b']);
       expect(room.dmData?.participants[0]?.id).toBe('dm-b');
       expect(room.isRoomLoading).toBe(false);
     } finally {

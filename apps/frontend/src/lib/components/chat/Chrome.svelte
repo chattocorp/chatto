@@ -52,12 +52,12 @@
       icon: 'iconify icon-[uil--setting]'
     },
     {
-      href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/settings/profile', { serverId: serverSegment }),
       label: m('settings.nav.profile'),
       icon: 'iconify icon-[uil--user]'
     },
     {
-      href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/settings/time', { serverId: serverSegment }),
       label: m('settings.preferences.title'),
       icon: 'iconify icon-[uil--clock]'
     },
@@ -69,7 +69,7 @@
   ]);
   const appPreferenceNavItems = $derived([
     {
-      href: resolve('/chat/[serverId]/settings/app', { serverId: serverSegment }),
+      href: resolve('/chat/[serverId]/settings/appearance', { serverId: serverSegment }),
       label: m('settings.app_preferences.appearance.title'),
       icon: 'iconify icon-[uil--palette]'
     },
@@ -212,7 +212,8 @@
     }
   ]);
   const settingsHref = $derived(
-    adminNavItems[0]?.href ?? resolve('/chat/[serverId]/settings', { serverId: serverSegment })
+    adminNavItems[0]?.href ??
+      resolve('/chat/[serverId]/settings/profile', { serverId: serverSegment })
   );
 </script>
 
@@ -263,14 +264,19 @@
       <nav class="sidebar-nav p-2">
         <a
           href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
-          class={['sidebar-item', isHomeActive ? 'bg-surface' : '']}
+          aria-current={isHomeActive ? 'page' : undefined}
+          class="sidebar-item"
         >
           <span class="iconify sidebar-icon icon-[uil--estate]"></span>
           {m('chat.overview.title')}
         </a>
         {#if messageSearchAvailable}
           <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- searchHref is resolved above -->
-          <a href={searchHref} class={['sidebar-item', isSearchActive ? 'bg-surface' : '']}>
+          <a
+            href={searchHref}
+            aria-current={isSearchActive ? 'page' : undefined}
+            class="sidebar-item"
+          >
             <span class="iconify sidebar-icon icon-[uil--search]" aria-hidden="true"></span>
             {m('search.action')}
           </a>

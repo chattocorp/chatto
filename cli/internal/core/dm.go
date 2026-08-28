@@ -81,13 +81,10 @@ func DMRoomID(participantIDs []string) string {
 // DM Room Management
 // ============================================================================
 
-// FindOrCreateDM finds an existing DM conversation or creates a new one.
-// The caller (creatorID) is automatically included in the participant list.
-// Returns the room and a boolean indicating whether it was newly created.
-//
-// For existing DMs, the caller must already be a participant.
-// For new DMs, all participants are automatically joined to the room.
-func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
+// FindDM returns the existing DM for the caller and participant set.
+// The caller is automatically included in the participant set. A missing DM
+// returns (nil, false, nil). The caller must be a member of a found DM.
+func (c *ChattoCore) FindDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
 	// Ensure creator is in participants
 	allParticipants := ensureInList(participantIDs, creatorID)
 
@@ -114,11 +111,31 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 		if !isMember {
 			return nil, false, fmt.Errorf("access denied: not a participant in this DM")
 		}
-		return room, false, nil
+		return room, true, nil
 	}
 	if !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil, false, fmt.Errorf("failed to check existing DM: %w", err)
 	}
+	return nil, false, nil
+}
+
+// FindOrCreateDM finds an existing DM conversation or creates a new one.
+// The caller (creatorID) is automatically included in the participant list.
+// Returns the room and a boolean indicating whether it was newly created.
+//
+// For existing DMs, the caller must already be a participant.
+// For new DMs, all participants are automatically joined to the room.
+func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
+	room, found, err := c.FindDM(ctx, creatorID, participantIDs)
+	if err != nil {
+		return nil, false, err
+	}
+	if found {
+		return room, false, nil
+	}
+
+	allParticipants := ensureInList(participantIDs, creatorID)
+	roomID := DMRoomID(allParticipants)
 
 	// Create new DM room
 	room, err = c.createDMRoom(ctx, roomID, allParticipants)

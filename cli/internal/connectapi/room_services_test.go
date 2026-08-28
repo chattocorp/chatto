@@ -506,10 +506,23 @@ func TestRoomServiceStartDM(t *testing.T) {
 	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, blocked.Id, "connect-dm-blocked-role"); err != nil {
 		t.Fatalf("AssignServerRole blocked: %v", err)
 	}
-	if _, err := env.rooms.StartDM(withCaller(env.ctx, blocked), connect.NewRequest(&apiv1.StartDMRequest{
+	existingForBlocked, created, err := env.core.FindOrCreateDM(env.ctx, participant.Id, []string{blocked.Id})
+	if err != nil || !created {
+		t.Fatalf("FindOrCreateDM for blocked user = %v, created=%v, want existing DM setup", err, created)
+	}
+	foundForBlocked, err := env.rooms.StartDM(withCaller(env.ctx, blocked), connect.NewRequest(&apiv1.StartDMRequest{
 		ParticipantIds: []string{participant.Id},
+	}))
+	if err != nil {
+		t.Fatalf("StartDM existing DM for denied user: %v", err)
+	}
+	if foundForBlocked.Msg.GetRoom().GetId() != existingForBlocked.GetId() {
+		t.Fatalf("StartDM existing DM ID = %q, want %q", foundForBlocked.Msg.GetRoom().GetId(), existingForBlocked.GetId())
+	}
+	if _, err := env.rooms.StartDM(withCaller(env.ctx, blocked), connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participantTwo.Id},
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("StartDM denied user code = %v, want permission denied", connect.CodeOf(err))
+		t.Fatalf("StartDM new DM for denied user code = %v, want permission denied", connect.CodeOf(err))
 	}
 
 	bot, err := env.core.CreateBot(env.ctx, env.viewer.GetId(), "connect_dm_start_bot", "Connect DM Start Bot")

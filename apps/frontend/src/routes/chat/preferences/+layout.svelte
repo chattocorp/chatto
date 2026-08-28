@@ -43,7 +43,7 @@
       ? '/language'
       : page.url.pathname.endsWith('/composer')
         ? '/composer'
-        : '/app';
+        : '/appearance';
     const settingsPath = resolve('/chat/[serverId]/settings', {
       serverId: serverIdToSegment(authenticatedServerId)
     });

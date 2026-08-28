@@ -41,6 +41,7 @@
       "profile": "פרופיל משתמש",
       "send_message": "שלח הודעה",
       "view_profile": "הצגת פרופיל",
+      "profile_requires_direct_message": "נדרשת הודעה ישירה כדי להציג את הפרופיל הזה.",
       "view_in_admin": "הצגה בניהול השרת",
       "copy_user_id": "העתקת מזהה המשתמש"
     },

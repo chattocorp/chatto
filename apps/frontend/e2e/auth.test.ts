@@ -201,8 +201,7 @@ test.describe('Authentication', () => {
 
     await page.getByTitle('Sign out').click();
     await page.getByRole('dialog').getByRole('button', { name: 'Current Server' }).click();
-    await page.waitForURL('/');
-    await page.goto('/login');
+    await page.waitForURL(routes.login);
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   });
 
@@ -490,7 +489,7 @@ test.describe('Authentication', () => {
       await authPage.expectLoggedIn();
     });
 
-    test('can confirm logout and be redirected to home', async ({ authPage }) => {
+    test('can confirm logout and be redirected to sign in', async ({ authPage }) => {
       const timestamp = Date.now();
       const testLogin = `logoutconfirmyes${timestamp}`;
       const testPassword = 'testpassword123';
@@ -503,7 +502,7 @@ test.describe('Authentication', () => {
       // Confirm logout
       await authPage.logoutViaUI();
 
-      // Should be redirected to home page
+      // Should be redirected to the sign-in page.
       await authPage.expectLoggedOut();
     });
   });

@@ -41,6 +41,7 @@
       "profile": "Brukerprofil",
       "send_message": "Send melding",
       "view_profile": "Vis profil",
+      "profile_requires_direct_message": "En direktemelding er nødvendig for å vise denne profilen.",
       "view_in_admin": "Vis i serveradministrasjonen",
       "copy_user_id": "Kopier bruker-ID"
     },

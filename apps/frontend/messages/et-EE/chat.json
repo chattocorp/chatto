@@ -41,6 +41,7 @@
       "profile": "Kasutajaprofiil",
       "send_message": "Saada sõnum",
       "view_profile": "Vaata profiili",
+      "profile_requires_direct_message": "Selle profiili vaatamiseks on vaja privaatsõnumit.",
       "view_in_admin": "Vaata serveri halduses",
       "copy_user_id": "Kopeeri kasutaja ID"
     },

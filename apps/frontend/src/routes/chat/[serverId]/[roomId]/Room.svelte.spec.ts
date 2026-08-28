@@ -56,6 +56,7 @@ const { mocks } = vi.hoisted(() => {
       messageSearchSupported: false,
       livekitUrl: null as string | null,
       roomKind: 1,
+      dmParticipantIds: ['test-user', 'user-1'] as string[],
       threadingMode: 3,
       canReadMessages: true as boolean | null,
       canPostMessage: true,
@@ -136,7 +137,27 @@ vi.mock('$lib/hooks', () => ({
       canManageRoom: false,
       canBanRoomMembers: false
     },
-    dmData: null,
+    dmData:
+      mocks.roomKind === RoomKind.DM
+        ? {
+            participantIds: mocks.dmParticipantIds,
+            participants: [
+              {
+                id: 'test-user',
+                login: 'testuser',
+                displayName: 'Test User',
+                presenceStatus: 1
+              },
+              {
+                id: 'user-1',
+                login: 'userone',
+                displayName: 'User One',
+                presenceStatus: 1
+              }
+            ],
+            currentUserId: 'test-user'
+          }
+        : null,
     isDM: mocks.roomKind === RoomKind.DM,
     isRoomLoading: false
   }),
@@ -253,6 +274,10 @@ vi.mock('$lib/state/globals.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveDisplayName: (_userId: string, fallback: string) => fallback
+}));
+
 vi.mock('$lib/state/appUi.svelte', async (importActual) => {
   const actual = await importActual<typeof import('$lib/state/appUi.svelte')>();
   return {
@@ -314,8 +339,8 @@ vi.mock('$lib/ui/PageTitle.svelte', async () => {
 });
 
 vi.mock('$lib/ui/PaneHeader.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: PaneHeaderMock } = await import('./RoomPaneHeaderMock.svelte');
+  return { default: PaneHeaderMock };
 });
 
 vi.mock('$lib/ui', async () => {
@@ -365,20 +390,37 @@ function roomMessageEvent(id: string) {
   };
 }
 
-function stubMatchMedia(matches: boolean): void {
+function stubMatchMedia(matches: boolean): (nextMatches: boolean) => void {
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+  const mediaQueryList = {
+    matches,
+    media: '(min-width: 1024px)',
+    onchange: null,
+    addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type !== 'change' || typeof listener !== 'function') return;
+      listeners.add(listener as (event: MediaQueryListEvent) => void);
+    },
+    removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type !== 'change' || typeof listener !== 'function') return;
+      listeners.delete(listener as (event: MediaQueryListEvent) => void);
+    },
+    addListener: (listener: (event: MediaQueryListEvent) => void) => listeners.add(listener),
+    removeListener: (listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener),
+    dispatchEvent: vi.fn(() => true)
+  };
   vi.stubGlobal(
     'matchMedia',
-    vi.fn((media: string) => ({
-      matches,
-      media,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(() => true)
-    }))
+    vi.fn(() => mediaQueryList)
   );
+  return (nextMatches: boolean) => {
+    mediaQueryList.matches = nextMatches;
+    const event = new Event('change') as MediaQueryListEvent;
+    Object.defineProperties(event, {
+      matches: { value: nextMatches },
+      media: { value: mediaQueryList.media }
+    });
+    for (const listener of listeners) listener(event);
+  };
 }
 
 async function waitForElement<T extends Element>(
@@ -414,6 +456,7 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.dmParticipantIds = ['test-user', 'user-1'];
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
   mocks.canPostMessage = true;
@@ -466,12 +509,8 @@ describe('Room interaction bundles', () => {
     await expect
       .element(container)
       .toHaveTextContent('You do not have permission to read messages in this room.');
-    await expect
-      .element(q(container, '[data-testid="room-event-ids"]'))
-      .not.toBeInTheDocument();
-    await expect
-      .element(q(container, '[data-testid="emit-returned-post"]'))
-      .toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="room-event-ids"]')).not.toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="emit-returned-post"]')).toBeInTheDocument();
     expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
   });
 
@@ -480,9 +519,7 @@ describe('Room interaction bundles', () => {
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
-    await expect
-      .element(q(container, '[data-testid="room-event-ids"]'))
-      .toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="room-event-ids"]')).toBeInTheDocument();
   });
 
   it('loads the thread pane when the thread route is active', async () => {
@@ -502,7 +539,58 @@ describe('Room interaction bundles', () => {
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+  });
+
+  it('loads the desktop room sidebar for a transient profile view', async () => {
+    appUi.openRoomSidebarProfile('user-1');
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
     await vi.waitFor(() => expect(mocks.roomSidebarModuleLoaded).toHaveBeenCalledOnce());
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+  });
+
+  it('opens the other direct-message participant information from the header', async () => {
+    mocks.roomKind = RoomKind.DM;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    const profileButton = await waitForElement<HTMLButtonElement>(
+      container,
+      'button[aria-label="Profile"]'
+    );
+    profileButton.click();
+
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
+  });
+
+  it('opens the current user profile from a self-DM header', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.dmParticipantIds = ['test-user'];
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    const profileButton = await waitForElement<HTMLButtonElement>(
+      container,
+      'button[aria-label="Profile"]'
+    );
+    profileButton.click();
+
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('test-user');
+  });
+
+  it('keeps a thread pane open beside a desktop profile view', async () => {
+    appUi.openRoomSidebarProfile('user-1');
+
+    const { container } = render(Room, {
+      props: { roomId: 'room-1', threadId: 'thread-root' }
+    });
+
+    await expect.element(q(container, '[data-testid="thread-pane"]')).toBeInTheDocument();
     await expect
       .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
       .toBeInTheDocument();
@@ -545,6 +633,55 @@ describe('Room interaction bundles', () => {
     expect(
       await waitForElement(container, '[data-testid="room-sidebar-mobile-pane"]')
     ).toBeTruthy();
+  });
+
+  it('closes a mobile profile with Escape and restores its room-extras panel', async () => {
+    stubMatchMedia(false);
+    appUi.openMobileRoomSidebarPanel('files');
+    appUi.openRoomSidebarProfile('user-1');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toBeInTheDocument();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await tick();
+
+    expect(appUi.activeRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.mobileRoomSidebarPanel).toBe('files');
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toBeInTheDocument();
+  });
+
+  it('keeps an open profile visible while the viewport crosses the layout breakpoint', async () => {
+    const setMatchMedia = stubMatchMedia(true);
+    appUi.openRoomSidebarProfile('user-1');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+
+    setMatchMedia(false);
+    await tick();
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .not.toBeInTheDocument();
+
+    setMatchMedia(true);
+    await tick();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .not.toBeInTheDocument();
   });
 });
 

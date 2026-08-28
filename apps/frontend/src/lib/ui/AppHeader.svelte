@@ -98,7 +98,7 @@
 
     <a
       href={preferencesServerId
-        ? resolve('/chat/[serverId]/settings/app', {
+        ? resolve('/chat/[serverId]/settings/appearance', {
             serverId: serverIdToSegment(preferencesServerId)
           })
         : resolve('/chat/preferences')}

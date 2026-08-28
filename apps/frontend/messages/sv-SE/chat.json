@@ -41,6 +41,7 @@
       "profile": "Användarprofil",
       "send_message": "Skicka meddelande",
       "view_profile": "Visa profil",
+      "profile_requires_direct_message": "Ett direktmeddelande krävs för att visa den här profilen.",
       "view_in_admin": "Visa i serveradministrationen",
       "copy_user_id": "Kopiera användar-ID"
     },

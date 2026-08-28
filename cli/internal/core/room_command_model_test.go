@@ -104,11 +104,25 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if err := core.AssignServerRole(ctx, SystemActorID, blocked.Id, "room-command-dm-blocked-role"); err != nil {
 		t.Fatalf("AssignServerRole blocked: %v", err)
 	}
-	if _, _, err := commands.StartDM(ctx, RoomStartDMInput{
+	existingDM, created, err := core.FindOrCreateDM(ctx, dmParticipant.Id, []string{blocked.Id})
+	if err != nil || !created {
+		t.Fatalf("FindOrCreateDM for blocked user = %v, created=%v, want existing DM setup", err, created)
+	}
+	foundDM, created, err := commands.StartDM(ctx, RoomStartDMInput{
 		ActorID:        blocked.Id,
 		ParticipantIDs: []string{dmParticipant.Id},
+	})
+	if err != nil {
+		t.Fatalf("StartDM existing DM for denied user: %v", err)
+	}
+	if created || foundDM.GetId() != existingDM.GetId() {
+		t.Fatalf("StartDM existing DM = %q, created=%v, want %q without creation", foundDM.GetId(), created, existingDM.GetId())
+	}
+	if _, _, err := commands.StartDM(ctx, RoomStartDMInput{
+		ActorID:        blocked.Id,
+		ParticipantIDs: []string{actor.Id},
 	}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("StartDM denied user error = %v, want ErrPermissionDenied", err)
+		t.Fatalf("StartDM new DM for denied user error = %v, want ErrPermissionDenied", err)
 	}
 
 	target, err := core.CreateUser(ctx, SystemActorID, "room-command-target", "Room Command Target", "password")

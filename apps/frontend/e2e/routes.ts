@@ -72,11 +72,13 @@ export const serverAdminMemberPermissions = (userId: string) =>
 
 // --- User settings ---
 
-export const settings = `/chat/${HOME}/settings`;
+export const settingsProfile = `/chat/${HOME}/settings/profile`;
+/** The canonical default page for user-settings test flows. */
+export const settings = settingsProfile;
 export const settingsAccount = `/chat/${HOME}/settings/account`;
 export const settingsNotifications = `/chat/${HOME}/settings/notifications`;
-export const settingsPreferences = `/chat/${HOME}/settings/preferences`;
-export const settingsAppearance = `/chat/${HOME}/settings/app`;
+export const settingsTime = `/chat/${HOME}/settings/time`;
+export const settingsAppearance = `/chat/${HOME}/settings/appearance`;
 export const settingsLanguage = `/chat/${HOME}/settings/language`;
 export const settingsComposer = `/chat/${HOME}/settings/composer`;
 // Legacy App Preferences routes remain available as authenticated redirects

@@ -64,4 +64,13 @@ describe('MyThreadsNavItem', () => {
 
     expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
   });
+
+  it('marks the active route semantically for the shared sidebar item treatment', async () => {
+    const { container } = render(MyThreadsNavItem, { props: { active: true } });
+
+    const link = container.querySelector('a');
+    await expect.element(link).toHaveAttribute('aria-current', 'page');
+    expect(link?.classList.contains('sidebar-item')).toBe(true);
+    expect(link?.classList.contains('bg-surface')).toBe(false);
+  });
 });

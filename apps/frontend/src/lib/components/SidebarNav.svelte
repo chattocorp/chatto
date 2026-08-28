@@ -42,12 +42,17 @@
   );
 
   function defaultIsActive(href: string, items: NavItem[]): boolean {
-    // First item gets exact match, others get prefix match
-    const isFirstItem = items[0]?.href === href;
-    if (isFirstItem) {
-      return page.url.pathname === href;
-    }
-    return page.url.pathname.startsWith(href);
+    const pathname = page.url.pathname;
+    if (pathname === href) return true;
+    if (!pathname.startsWith(`${href}/`)) return false;
+
+    // A parent route can represent a section, but only its most-specific
+    // matching navigation item is the current page.
+    return !items.some(
+      (item) =>
+        item.href.length > href.length &&
+        (pathname === item.href || pathname.startsWith(`${item.href}/`))
+    );
   }
 </script>
 
@@ -56,7 +61,7 @@
   <a
     href={resolve(item.href as '/')}
     aria-current={active ? 'page' : undefined}
-    class={['sidebar-item', active ? 'bg-surface' : '']}
+    class="sidebar-item"
   >
     <span class="sidebar-icon {item.icon}"></span>
     {item.label}
@@ -73,7 +78,7 @@
         <a
           href={resolve(item.href as '/')}
           aria-current={active ? 'page' : undefined}
-          class={['sidebar-item', active ? 'bg-surface' : '']}
+          class="sidebar-item"
         >
           <span class="sidebar-icon {item.icon}"></span>
           {item.label}

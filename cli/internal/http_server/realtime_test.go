@@ -2107,6 +2107,12 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil {
 		t.Fatalf("PostMessage root: %v", err)
 	}
+	// Posting a root also records the author's automatic thread follow. Fence
+	// the materializer before the reply whose notification depends on that
+	// durable premise.
+	if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+		t.Fatalf("wait for root notification materialization: %v", err)
+	}
 	_, err = env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "hello", nil, root.Id, "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)

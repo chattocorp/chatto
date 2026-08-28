@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -17,9 +17,9 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
 - **User Preferences** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). The server stores these choices and syncs them across devices. If a choice is not set, the frontend uses the browser timezone and locale time-format default. The web client reports the device timezone to the server once when no explicit timezone is set; an explicitly chosen zone is never overwritten by a later device report. The unified Settings sidebar puts these personal choices in the Your account group. Permission-gated Server configuration remains separate.
-- **Bio** — human and bot accounts can set a self-authored Markdown bio of up to 1,000 characters through `MyAccountService.UpdateProfile`. The bio is shown on the profile card and the user's profile page. The client disables source HTML and sanitizes rendered output.
+- **Bio** — human and bot accounts can set a self-authored Markdown bio of up to 1,000 characters through `MyAccountService.UpdateProfile`. The bio is shown on the profile card and in the room-sidebar profile view. The client disables source HTML and sanitizes rendered output.
 - **Public time zone** — a user's stored timezone doubles as the shareable zone on their public profile: user reads hydrate `User.timezone` from the user's User Preferences, and clients render current local time in that zone on profile surfaces. Users who never set a zone simply have no public timezone.
-- **Profile page** — each user (human or bot) has a full profile page at `/chat/{serverId}/users/{userId}` showing the avatar, display name, login, custom status, bio, bot marker, and local time; it is reachable from "View profile" in the profile card. The popup card shows the identity, bio snippet, live local time in the user's shared zone, message/moderation actions, and "Copy User ID".
+- **Direct-message profile view** — “View profile” opens or returns to a one-to-one direct message with that user, then opens their information in that conversation's sidebar. It stays available when the viewer can open an existing DM but cannot create a new one. If no such DM exists, the action is disabled. The sidebar shows the avatar, display name, login, custom status, bio, bot marker, and local time. The direct-message header has an information button that opens the same view again, including in a self-DM. Closing it returns to the prior room-extras panel, or hides the sidebar when no panel was open. The same profile view follows the responsive room-sidebar layout when the viewport changes. The popup card shows the identity, bio snippet, live local time in the user's shared zone, message/moderation actions, and “Copy User ID”.
 - **App Preferences** — users can select System, Light, or Dark appearance, a language, a message editor, and send-key behavior. System appearance follows the browser or OS colour-scheme preference. The app applies these choices to every registered server. The Application Header gear opens Appearance for the active authenticated server. The unified Settings sidebar puts Appearance, Language, and Composer in an App preferences group. If no authenticated server is available, the same pages use a separate App Preferences sidebar. App Preferences do not sync to another browser or device.
 - **Profile menu** — opening a user's profile popup or touch sheet shows their public identity and any available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
 - **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
@@ -98,6 +98,12 @@ A user's profile carries the public identity they present to the rest of the ser
 **Decision:** There is one stored timezone per account. It formats the user's own timestamps, drives device self-report at connect time, and hydrates the public `User.timezone`. Clients show the IANA name plus derived local time rather than only an offset.
 **Why:** Duplicating a private formatting preference and a public profile field would invite drift between the two. Derived local time stays correct across DST without leaking more than the zone itself.
 **Tradeoff:** A user who wants timestamps formatted in their zone but hidden publicly cannot split the two today.
+
+### 13. Full profiles belong to one-to-one direct messages
+
+**Decision:** A full profile is a transient view in the sidebar of that user's one-to-one direct message. “View profile” opens that direct message and its profile sidebar. It can reuse an existing DM without permission to create new DMs, but it is disabled when no reusable DM exists. The direct-message header has an information button for the same sidebar. Channel-room information will use that information-button pattern later.
+**Why:** A profile is context for a person-to-person conversation, not a room-extras category. The message timeline stays visible beside the profile and the header has one stable place to reopen it. Reusing a DM does not create a new conversation. The pattern also gives channel rooms a clear future home for room information without making two unrelated sidebar modes look alike.
+**Tradeoff:** Viewing a profile can navigate away from the current room and can create a direct message when permission allows it. A direct profile URL is not available. Closing the profile preserves the selected sidebar panel in the direct message.
 
 ## Permissions
 

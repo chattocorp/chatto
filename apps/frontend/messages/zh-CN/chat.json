@@ -41,6 +41,7 @@
       "profile": "用户个人资料",
       "send_message": "发送消息",
       "view_profile": "查看个人资料",
+      "profile_requires_direct_message": "查看此个人资料需要有私信会话。",
       "view_in_admin": "在服务器管理中查看",
       "copy_user_id": "复制用户 ID"
     },

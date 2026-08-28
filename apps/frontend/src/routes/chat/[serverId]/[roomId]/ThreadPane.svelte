@@ -45,6 +45,7 @@
     pendingQuote = null,
     pendingReply = null,
     threadingMode = RoomThreadingMode.ENABLED,
+    onOpenProfile,
     onHighlightComplete,
     onQuoteConsumed,
     onReplyConsumed
@@ -63,6 +64,7 @@
     pendingQuote?: QuoteInsertionRequest | null;
     pendingReply?: PendingThreadReplyRequest | null;
     threadingMode?: RoomThreadingMode;
+    onOpenProfile?: (userId: string) => void;
     onHighlightComplete?: () => void;
     onQuoteConsumed?: () => void;
     onReplyConsumed?: () => void;
@@ -326,6 +328,7 @@
     }}
     pendingHighlightId={highlightEventId}
     {threadingMode}
+    {onOpenProfile}
   />
   <MessageComposer
     {roomId}
