@@ -71,9 +71,11 @@ recorded use. This state does not prove that the credential was not used. The
 management API reports telemetry as unavailable if it cannot read or decode
 the record.
 
-Credential revocation and process-local recording use one ordering lock. The
-recorder checks the current projected credential before it accepts a new
-observation. Revocation removes all local state for the credential. If a
+Credential revocation and process-local recording use one ordering lock on the
+replica that handles the revocation. The recorder checks the current projected
+credential before it accepts a new observation. Each replica also checks this
+projected state before and after a storage write. A periodic sweep removes
+local and stored telemetry for credentials that another replica revoked. If a
 storage write completes after revocation, the writer attempts a second delete.
 The recorder does not retain a revocation tombstone.
 

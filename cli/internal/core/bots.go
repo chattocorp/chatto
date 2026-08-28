@@ -321,6 +321,21 @@ func (c *ChattoCore) HydrateBotCredentialUsage(ctx context.Context, bot *Bot) {
 	}
 }
 
+func (c *ChattoCore) credentialUsageIsActive(botID, credentialKey string) bool {
+	prefix := credentialUsageWebhookKind + ":"
+	if !strings.HasPrefix(credentialKey, prefix) {
+		// A future credential kind must define its lifecycle check before this
+		// recorder can remove its telemetry.
+		return true
+	}
+	webhookID := strings.TrimPrefix(credentialKey, prefix)
+	if webhookID == "" {
+		return false
+	}
+	_, active := c.userModel.botIncomingWebhookCredential(botID, webhookID)
+	return active
+}
+
 // CreateBot creates a passwordless bot owned by actorID and returns its raw key once.
 func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName string) (*Bot, error) {
 	check := func() error {

@@ -6,9 +6,9 @@
   import { createBotAPI } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
   import { viewerResponseToState } from '$lib/api-client/viewer';
-	import DataTable from '$lib/ui/DataTable.svelte';
-	import Panel from '$lib/ui/Panel.svelte';
-	import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
+  import DataTable from '$lib/ui/DataTable.svelte';
+  import Panel from '$lib/ui/Panel.svelte';
+  import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { m } from '$lib/i18n/messages';

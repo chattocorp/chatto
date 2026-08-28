@@ -24,7 +24,7 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil)
+			recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
 			if err := recorder.writeMax(ctx, botID, credentialKey, usedAt); err != nil {
 				t.Errorf("writeMax(%s): %v", usedAt, err)
 			}
@@ -32,7 +32,7 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 	}
 	wg.Wait()
 
-	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil)
+	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
 	lastUsed, available := recorder.LastUsed(ctx, botID)
 	if !available || !lastUsed[credentialKey].Equal(base.Add(19*time.Second)) {
 		t.Fatalf("LastUsed = %v, %v", lastUsed, available)
@@ -42,7 +42,7 @@ func TestCredentialUsageRecorderKeepsMaximumTimestampAcrossConcurrentWriters(t *
 func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
-	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil)
+	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
 	recorder.flushInterval = time.Hour
 	botID := NewUserID()
 	credentialKey := incomingWebhookUsageKey(NewBotIncomingWebhookID())
@@ -96,7 +96,7 @@ func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T
 		started:  make(chan struct{}),
 		release:  make(chan struct{}),
 	}
-	recorder := newCredentialUsageRecorder(kv, nil)
+	recorder := newCredentialUsageRecorder(kv, nil, nil)
 	botID := NewUserID()
 	credentialKey := incomingWebhookUsageKey(NewBotIncomingWebhookID())
 	usedAt := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
@@ -124,7 +124,7 @@ func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T
 
 func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
 	c, _ := setupTestCore(t)
-	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil)
+	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, nil)
 	recorder.recordIfActive(NewUserID(), incomingWebhookUsageKey(NewBotIncomingWebhookID()), time.Now(), func() bool {
 		return false
 	})
@@ -133,6 +133,34 @@ func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
 	defer recorder.mu.RUnlock()
 	if len(recorder.pending) != 0 || len(recorder.observed) != 0 {
 		t.Fatalf("inactive observation was retained: pending %v, observed %v", recorder.pending, recorder.observed)
+	}
+}
+
+func TestCredentialUsageRecorderSweepsCredentialRevokedOnAnotherReplica(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	active := true
+	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil, func(string, string) bool { return active })
+	recorder.sweepInterval = time.Minute
+	botID := NewUserID()
+	credentialKey := incomingWebhookUsageKey(NewBotIncomingWebhookID())
+	usedAt := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+
+	recorder.Record(botID, credentialKey, usedAt)
+	recorder.flushDue(ctx, usedAt)
+	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); err != nil {
+		t.Fatalf("Get initial usage: %v", err)
+	}
+	active = false
+	recorder.flushDue(ctx, usedAt.Add(time.Minute))
+
+	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); !isRuntimeStateKeyAbsent(err) {
+		t.Fatalf("persisted state after remote revocation = %v, want absent", err)
+	}
+	recorder.mu.RLock()
+	defer recorder.mu.RUnlock()
+	if len(recorder.pending) != 0 || len(recorder.observed) != 0 || len(recorder.lastFlush) != 0 {
+		t.Fatalf("local state after remote revocation = pending %v, observed %v, lastFlush %v", recorder.pending, recorder.observed, recorder.lastFlush)
 	}
 }
 

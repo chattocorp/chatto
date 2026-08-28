@@ -18,6 +18,7 @@ const (
 	credentialUsageRuntimeStatePrefix = "credential_usage.bot."
 	credentialUsageFlushInterval      = time.Minute
 	credentialUsageRetryInterval      = 5 * time.Second
+	credentialUsageSweepInterval      = time.Minute
 	credentialUsageWebhookKind        = "incoming_webhook"
 )
 
@@ -30,20 +31,25 @@ type credentialUsageRecorder struct {
 	logger        *log.Logger
 	flushInterval time.Duration
 	retryInterval time.Duration
+	sweepInterval time.Duration
+	isActive      func(botID, credentialKey string) bool
 	wake          chan struct{}
 
 	mu        sync.RWMutex
 	pending   map[string]map[string]time.Time
 	observed  map[string]map[string]time.Time
 	lastFlush map[string]map[string]time.Time
+	lastSweep time.Time
 }
 
-func newCredentialUsageRecorder(kv jetstream.KeyValue, logger *log.Logger) *credentialUsageRecorder {
+func newCredentialUsageRecorder(kv jetstream.KeyValue, logger *log.Logger, isActive func(botID, credentialKey string) bool) *credentialUsageRecorder {
 	return &credentialUsageRecorder{
 		kv:            kv,
 		logger:        logger,
 		flushInterval: credentialUsageFlushInterval,
 		retryInterval: credentialUsageRetryInterval,
+		sweepInterval: credentialUsageSweepInterval,
+		isActive:      isActive,
 		wake:          make(chan struct{}, 1),
 		pending:       make(map[string]map[string]time.Time),
 		observed:      make(map[string]map[string]time.Time),
@@ -180,34 +186,52 @@ type credentialUsageFlush struct {
 	botID         string
 	credentialKey string
 	usedAt        time.Time
+	due           bool
 }
 
 func (r *credentialUsageRecorder) flushDue(ctx context.Context, now time.Time) {
 	r.mu.RLock()
-	due := make([]credentialUsageFlush, 0)
+	flushes := make([]credentialUsageFlush, 0)
 	for botID, credentials := range r.pending {
 		for key, usedAt := range credentials {
-			if last := r.lastFlush[botID][key]; !last.IsZero() && now.Sub(last) < r.flushInterval {
-				continue
-			}
-			due = append(due, credentialUsageFlush{botID: botID, credentialKey: key, usedAt: usedAt})
+			last := r.lastFlush[botID][key]
+			flushes = append(flushes, credentialUsageFlush{
+				botID: botID, credentialKey: key, usedAt: usedAt,
+				due: last.IsZero() || now.Sub(last) >= r.flushInterval,
+			})
 		}
 	}
 	r.mu.RUnlock()
-	for _, item := range due {
+	for _, item := range flushes {
+		if !r.credentialIsActive(item.botID, item.credentialKey) {
+			r.forgetLocal(item.botID, item.credentialKey)
+			if cleanupErr := r.deletePersisted(ctx, item.botID, item.credentialKey); cleanupErr != nil && ctx.Err() == nil && r.logger != nil {
+				r.logger.Warn("Failed to remove revoked credential usage telemetry", "error", cleanupErr)
+			}
+			continue
+		}
+		if !item.due {
+			continue
+		}
 		err := r.writeMax(ctx, item.botID, item.credentialKey, item.usedAt)
+		credentialActive := r.credentialIsActive(item.botID, item.credentialKey)
 		r.mu.Lock()
-		_, active := r.observed[item.botID][item.credentialKey]
-		if err == nil && active {
+		observedAt, locallyTracked := r.observed[item.botID][item.credentialKey]
+		if err == nil && locallyTracked && credentialActive {
 			setNewestUsage(r.lastFlush, item.botID, item.credentialKey, now)
 			if pendingAt := r.pending[item.botID][item.credentialKey]; !pendingAt.After(item.usedAt) {
 				deleteCredentialUsage(r.pending, item.botID, item.credentialKey)
 			}
+			if !observedAt.After(item.usedAt) {
+				deleteCredentialUsage(r.observed, item.botID, item.credentialKey)
+			}
 		}
 		r.mu.Unlock()
-		if !active {
+		if !locallyTracked || !credentialActive {
 			// Forget can run while writeMax is in flight. Remove a late or
 			// ambiguously committed write after the local observation is gone.
+			// The projected check also covers revocation on another replica.
+			r.forgetLocal(item.botID, item.credentialKey)
 			if cleanupErr := r.deletePersisted(ctx, item.botID, item.credentialKey); cleanupErr != nil && ctx.Err() == nil && r.logger != nil {
 				r.logger.Warn("Failed to remove revoked credential usage telemetry", "error", cleanupErr)
 			}
@@ -217,6 +241,58 @@ func (r *credentialUsageRecorder) flushDue(ctx context.Context, now time.Time) {
 			r.logger.Warn("Failed to record credential usage telemetry", "error", err)
 		}
 	}
+	r.sweepInactive(ctx, now)
+}
+
+func (r *credentialUsageRecorder) credentialIsActive(botID, credentialKey string) bool {
+	return r.isActive == nil || r.isActive(botID, credentialKey)
+}
+
+// sweepInactive removes state left by a request that another replica revoked.
+// It checks projected lifecycle state outside the recorder lock to keep the
+// projection and recorder lock order acyclic.
+func (r *credentialUsageRecorder) sweepInactive(ctx context.Context, now time.Time) {
+	if r.isActive == nil {
+		return
+	}
+	r.mu.Lock()
+	if !r.lastSweep.IsZero() && now.Sub(r.lastSweep) < r.sweepInterval {
+		r.mu.Unlock()
+		return
+	}
+	r.lastSweep = now
+	tracked := make(map[string]map[string]struct{})
+	for botID, credentials := range r.observed {
+		for key := range credentials {
+			setCredentialUsageTracked(tracked, botID, key)
+		}
+	}
+	for botID, credentials := range r.lastFlush {
+		for key := range credentials {
+			setCredentialUsageTracked(tracked, botID, key)
+		}
+	}
+	r.mu.Unlock()
+
+	for botID, credentials := range tracked {
+		for key := range credentials {
+			if r.credentialIsActive(botID, key) {
+				continue
+			}
+			r.forgetLocal(botID, key)
+			if err := r.deletePersisted(ctx, botID, key); err != nil && ctx.Err() == nil && r.logger != nil {
+				r.logger.Warn("Failed to remove revoked credential usage telemetry", "error", err)
+			}
+		}
+	}
+}
+
+func (r *credentialUsageRecorder) forgetLocal(botID, credentialKey string) {
+	r.mu.Lock()
+	deleteCredentialUsage(r.pending, botID, credentialKey)
+	deleteCredentialUsage(r.observed, botID, credentialKey)
+	deleteCredentialUsage(r.lastFlush, botID, credentialKey)
+	r.mu.Unlock()
 }
 
 func (r *credentialUsageRecorder) writeMax(ctx context.Context, botID, credentialKey string, usedAt time.Time) error {
@@ -309,4 +385,11 @@ func deleteCredentialUsage(target map[string]map[string]time.Time, botID, key st
 	if len(target[botID]) == 0 {
 		delete(target, botID)
 	}
+}
+
+func setCredentialUsageTracked(target map[string]map[string]struct{}, botID, key string) {
+	if target[botID] == nil {
+		target[botID] = make(map[string]struct{})
+	}
+	target[botID][key] = struct{}{}
 }

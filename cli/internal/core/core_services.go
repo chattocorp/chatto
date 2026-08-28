@@ -105,6 +105,7 @@ func initializeCoreServices(
 	core.credentialUsage = newCredentialUsageRecorder(
 		infra.storage.runtimeStateKV,
 		logger.WithPrefix("core.CredentialUsage"),
+		core.credentialUsageIsActive,
 	)
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
