@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Gestire il server",
+      "room_create": "Creare stanze",
+      "room_join": "Entrare nelle stanze",
+      "room_list": "Scoprire stanze",
+      "room_manage": "Gestire le stanze",
+      "room_ban_member": "Bannare membri",
+      "message_read": "Leggere messaggi",
+      "message_read_interactions": "Leggere thread di interazione",
+      "message_post": "Pubblicare messaggi",
+      "message_post_in_thread": "Scrivere nei thread",
+      "message_attach": "Allegare file",
+      "message_echo": "Mostrare nel canale",
+      "message_manage": "Gestire i messaggi",
+      "message_react": "Reagire ai messaggi",
+      "role_manage": "Configurare ruoli",
+      "role_assign": "Assegnare ruoli",
+      "admin_view_users": "Visualizzare utenti",
+      "admin_view_audit": "Visualizzare registro di audit",
+      "user_delete_any": "Eliminare qualsiasi account",
+      "user_delete_self": "Eliminare il proprio account",
+      "user_invite": "Invitare utenti",
+      "user_manage_accounts": "Gestire account",
+      "user_manage_permissions": "Gestire permessi",
+      "bot_create": "Creare bot",
+      "bot_manage": "Gestire bot"
+    },
     "permission_descriptions": {
       "server_manage": "Aggiorna le impostazioni del server (nome, descrizione, logo)",
       "room_create": "Crea nuove stanze",
@@ -119,7 +146,9 @@
       "user_delete_self": "Elimina il tuo account",
       "user_invite": "Crea e gestisci i link di invito",
       "user_manage_accounts": "Crea utenti, modifica l'identità dell'account, reimposta le password, allega e-mail verificate e cancella i tempi di recupero dell'accesso",
-      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente"
+      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente",
+      "bot_create": "Creare account bot di tua proprietà",
+      "bot_manage": "Visualizzare e gestire tutti gli account bot"
     }
   }
 }

@@ -74,7 +74,7 @@ permission.
 - Existing servers receive no automatic RBAC changes.
 - Operators can configure read-only and write-only channel-room accounts.
 - Bots remain deny-by-default. The bot allowlist and the owner's effective
-  authority are each evaluated with the name-derived permission hierarchy.
+  authority are each evaluated with explicit permission-catalog inclusion.
 - APIs and clients can distinguish room visibility from message-content
   visibility without treating missing permission as an implicit privacy mode.
 - The authorization change is breaking experimental behavior under ADR-045.

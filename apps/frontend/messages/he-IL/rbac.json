@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "ניהול השרת",
+      "room_create": "יצירת חדרים",
+      "room_join": "הצטרפות לחדרים",
+      "room_list": "גילוי חדרים",
+      "room_manage": "ניהול חדרים",
+      "room_ban_member": "חסימת חברים",
+      "message_read": "קריאת הודעות",
+      "message_read_interactions": "קריאת שרשורי אינטראקציה",
+      "message_post": "פרסום הודעות",
+      "message_post_in_thread": "פרסום בשרשורים",
+      "message_attach": "צירוף קבצים",
+      "message_echo": "הצגה בערוץ",
+      "message_manage": "ניהול הודעות",
+      "message_react": "תגובה להודעות",
+      "role_manage": "הגדרת תפקידים",
+      "role_assign": "הקצאת תפקידים",
+      "admin_view_users": "הצגת משתמשים",
+      "admin_view_audit": "הצגת יומן ביקורת",
+      "user_delete_any": "מחיקת כל חשבון",
+      "user_delete_self": "מחיקת החשבון שלך",
+      "user_invite": "הזמנת משתמשים",
+      "user_manage_accounts": "ניהול חשבונות",
+      "user_manage_permissions": "ניהול הרשאות",
+      "bot_create": "יצירת בוטים",
+      "bot_manage": "ניהול בוטים"
+    },
     "permission_descriptions": {
       "server_manage": "עדכון הגדרות שרת (שם, תיאור, לוגו)",
       "room_create": "צור חדרים חדשים",
@@ -119,7 +146,9 @@
       "user_delete_self": "מחק את החשבון שלך",
       "user_invite": "יצירה וניהול של קישורי הזמנה",
       "user_manage_accounts": "צור משתמשים, ערוך את זהות החשבון, אפס סיסמאות, צרף הודעות אימייל מאומתות ונקה צינון התחברות",
-      "user_manage_permissions": "עריכה ישירה של הרשאות לכל משתמש"
+      "user_manage_permissions": "עריכה ישירה של הרשאות לכל משתמש",
+      "bot_create": "יצירת חשבונות בוט בבעלותך",
+      "bot_manage": "הצגה וניהול של כל חשבונות הבוט"
     }
   }
 }

@@ -133,6 +133,9 @@ func TestRBACProjection_PermissionLocations(t *testing.T) {
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeGroup, "Gabc123", "moderator", PermRoomJoin),
 	}})
+	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", "reader", PermMessageReadInteractions),
+	}})
 
 	if got := p.GetDecision(ScopeServer, "", "admin", PermMessagePost); got != DecisionAllow {
 		t.Fatalf("server decision = %v, want DecisionAllow", got)
@@ -142,6 +145,12 @@ func TestRBACProjection_PermissionLocations(t *testing.T) {
 	}
 	if got := p.GetDecision(ScopeGroup, "Gabc123", "moderator", PermRoomJoin); got != DecisionAllow {
 		t.Fatalf("group decision = %v, want DecisionAllow", got)
+	}
+	if got := p.GetDecision(ScopeServer, "", "reader", PermMessageReadInteractions); got != DecisionAllow {
+		t.Fatalf("opaque dotted permission decision = %v, want DecisionAllow", got)
+	}
+	if got := p.GetDecision(ScopeServer, "", "reader", PermMessageRead); got != DecisionNone {
+		t.Fatalf("broader permission decision = %v, want DecisionNone", got)
 	}
 
 	applyRBACProjectionEvent(t, p, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{

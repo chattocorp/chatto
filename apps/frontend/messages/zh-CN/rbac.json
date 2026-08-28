@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "管理服务器",
+      "room_create": "创建房间",
+      "room_join": "加入房间",
+      "room_list": "发现房间",
+      "room_manage": "管理房间",
+      "room_ban_member": "封禁成员",
+      "message_read": "阅读消息",
+      "message_read_interactions": "阅读互动话题",
+      "message_post": "发布消息",
+      "message_post_in_thread": "在话题中发布",
+      "message_attach": "附加文件",
+      "message_echo": "显示到频道",
+      "message_manage": "管理消息",
+      "message_react": "回应消息",
+      "role_manage": "配置角色",
+      "role_assign": "分配角色",
+      "admin_view_users": "查看用户",
+      "admin_view_audit": "查看审计日志",
+      "user_delete_any": "删除任意账户",
+      "user_delete_self": "删除自己的账户",
+      "user_invite": "邀请用户",
+      "user_manage_accounts": "管理账户",
+      "user_manage_permissions": "管理权限",
+      "bot_create": "创建机器人",
+      "bot_manage": "管理机器人"
+    },
     "permission_descriptions": {
       "server_manage": "更新服务器设置（名称、描述、徽标）",
       "room_create": "创建新聊天室",
@@ -119,7 +146,9 @@
       "user_delete_self": "删除自己的账号",
       "user_invite": "创建和管理邀请链接",
       "user_manage_accounts": "创建用户、编辑账号身份信息、重置密码、关联已验证的电子邮箱，以及清除登录冷却时间",
-      "user_manage_permissions": "编辑针对单个用户的直接权限覆盖"
+      "user_manage_permissions": "编辑针对单个用户的直接权限覆盖",
+      "bot_create": "创建您拥有的机器人账户",
+      "bot_manage": "查看和管理所有机器人账户"
     }
   }
 }

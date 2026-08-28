@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "إدارة الخادم",
+      "room_create": "إنشاء غرف",
+      "room_join": "الانضمام إلى الغرف",
+      "room_list": "استكشاف الغرف",
+      "room_manage": "إدارة الغرف",
+      "room_ban_member": "حظر الأعضاء",
+      "message_read": "قراءة الرسائل",
+      "message_read_interactions": "قراءة سلاسل التفاعل",
+      "message_post": "نشر الرسائل",
+      "message_post_in_thread": "النشر في السلاسل",
+      "message_attach": "إرفاق الملفات",
+      "message_echo": "الإظهار في القناة",
+      "message_manage": "إدارة الرسائل",
+      "message_react": "التفاعل مع الرسائل",
+      "role_manage": "إعداد الأدوار",
+      "role_assign": "تعيين الأدوار",
+      "admin_view_users": "عرض المستخدمين",
+      "admin_view_audit": "عرض سجل التدقيق",
+      "user_delete_any": "حذف أي حساب",
+      "user_delete_self": "حذف الحساب الشخصي",
+      "user_invite": "دعوة المستخدمين",
+      "user_manage_accounts": "إدارة الحسابات",
+      "user_manage_permissions": "إدارة الأذونات",
+      "bot_create": "إنشاء بوتات",
+      "bot_manage": "إدارة البوتات"
+    },
     "permission_descriptions": {
       "server_manage": "تحديث إعدادات الخادم (الاسم والوصف والشعار)",
       "room_create": "إنشاء غرف جديدة",
@@ -119,7 +146,9 @@
       "user_delete_self": "قم بحذف حسابك الخاص",
       "user_invite": "إنشاء روابط الدعوة وإدارتها",
       "user_manage_accounts": "إنشاء المستخدمين، وتحرير هوية الحساب، وإعادة تعيين كلمات المرور، وإرفاق رسائل البريد الإلكتروني التي تم التحقق منها، ومسح فترات تهدئة تسجيل الدخول",
-      "user_manage_permissions": "تحرير تجاوزات الأذونات المباشرة لكل مستخدم"
+      "user_manage_permissions": "تحرير تجاوزات الأذونات المباشرة لكل مستخدم",
+      "bot_create": "إنشاء حسابات بوت تملكها",
+      "bot_manage": "عرض جميع حسابات البوت وإدارتها"
     }
   }
 }

@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Gerenciar servidor",
+      "room_create": "Criar salas",
+      "room_join": "Entrar em salas",
+      "room_list": "Descobrir salas",
+      "room_manage": "Gerenciar salas",
+      "room_ban_member": "Banir membros",
+      "message_read": "Ler mensagens",
+      "message_read_interactions": "Ler tópicos de interação",
+      "message_post": "Publicar mensagens",
+      "message_post_in_thread": "Publicar em tópicos",
+      "message_attach": "Anexar arquivos",
+      "message_echo": "Mostrar no canal",
+      "message_manage": "Gerenciar mensagens",
+      "message_react": "Reagir a mensagens",
+      "role_manage": "Configurar cargos",
+      "role_assign": "Atribuir cargos",
+      "admin_view_users": "Ver usuários",
+      "admin_view_audit": "Ver registro de auditoria",
+      "user_delete_any": "Excluir qualquer conta",
+      "user_delete_self": "Excluir a própria conta",
+      "user_invite": "Convidar usuários",
+      "user_manage_accounts": "Gerenciar contas",
+      "user_manage_permissions": "Gerenciar permissões",
+      "bot_create": "Criar bots",
+      "bot_manage": "Gerenciar bots"
+    },
     "permission_descriptions": {
       "server_manage": "Atualizar configurações do servidor (nome, descrição, logotipo)",
       "room_create": "Criar novas salas",
@@ -119,7 +146,9 @@
       "user_delete_self": "Exclua sua própria conta",
       "user_invite": "Crie e gerencie links de convite",
       "user_manage_accounts": "Crie usuários, edite a identidade da conta, redefina senhas, anexe e-mails verificados e limpe os tempos de espera de login",
-      "user_manage_permissions": "Editar substituições de permissão direta por usuário"
+      "user_manage_permissions": "Editar substituições de permissão direta por usuário",
+      "bot_create": "Criar contas de bot que pertencem a você",
+      "bot_manage": "Ver e gerenciar todas as contas de bot"
     }
   }
 }

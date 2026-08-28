@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Pārvaldīt serveri",
+      "room_create": "Izveidot telpas",
+      "room_join": "Pievienoties telpām",
+      "room_list": "Atklāt telpas",
+      "room_manage": "Pārvaldīt telpas",
+      "room_ban_member": "Bloķēt dalībniekus",
+      "message_read": "Lasīt ziņojumus",
+      "message_read_interactions": "Lasīt mijiedarbības pavedienus",
+      "message_post": "Publicēt ziņojumus",
+      "message_post_in_thread": "Rakstīt pavedienos",
+      "message_attach": "Pievienot failus",
+      "message_echo": "Rādīt kanālā",
+      "message_manage": "Pārvaldīt ziņojumus",
+      "message_react": "Reaģēt uz ziņojumiem",
+      "role_manage": "Konfigurēt lomas",
+      "role_assign": "Piešķirt lomas",
+      "admin_view_users": "Skatīt lietotājus",
+      "admin_view_audit": "Skatīt audita žurnālu",
+      "user_delete_any": "Dzēst jebkuru kontu",
+      "user_delete_self": "Dzēst savu kontu",
+      "user_invite": "Uzaicināt lietotājus",
+      "user_manage_accounts": "Pārvaldīt kontus",
+      "user_manage_permissions": "Pārvaldīt atļaujas",
+      "bot_create": "Izveidot botus",
+      "bot_manage": "Pārvaldīt botus"
+    },
     "permission_descriptions": {
       "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
       "room_create": "Izveidojiet jaunas telpas",
@@ -119,7 +146,9 @@
       "user_delete_self": "Izdzēsiet savu kontu",
       "user_invite": "Izveidojiet un pārvaldiet uzaicinājumu saites",
       "user_manage_accounts": "Izveidojiet lietotājus, rediģējiet konta identitāti, atiestatiet paroles, pievienojiet pārbaudītus e-pastus un notīriet pieteikšanās atdzišanu",
-      "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu"
+      "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu",
+      "bot_create": "Izveidot sev piederošus botu kontus",
+      "bot_manage": "Skatīt un pārvaldīt visus botu kontus"
     }
   }
 }

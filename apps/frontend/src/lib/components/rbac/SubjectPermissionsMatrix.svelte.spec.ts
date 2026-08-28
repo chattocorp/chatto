@@ -123,7 +123,7 @@ it('renders one alphabetically ordered matrix without category dividers', () => 
   expect(container.querySelector('thead th:last-child')?.className).toContain('bg-background');
   expect(
     [...container.querySelectorAll('[data-testid="permission-name"]')].map((row) => row.textContent)
-  ).toEqual(['room.manage', 'server.manage', 'user.delete-self']);
+  ).toEqual(['Delete own account', 'Manage rooms', 'Manage server']);
 });
 
 it('filters permission names as the query changes', () => {
@@ -222,7 +222,7 @@ it('renders an ungrantable binary permission as a non-interactive locked cell', 
     }
   });
   const button = container.querySelector(
-    'button[aria-label^="message.post is"]'
+    'button[aria-label^="Post messages is"]'
   ) as HTMLButtonElement;
 
   expect(button.disabled).toBe(true);
@@ -332,9 +332,11 @@ it('localizes binary cell labels, state details, and owner ceilings', async () =
       decisionMode: 'binary'
     }
   });
-  const button = container.querySelector('button[aria-label^="message.post"]') as HTMLButtonElement;
+  const button = container.querySelector(
+    'button[aria-label^="Nachrichten schreiben"]'
+  ) as HTMLButtonElement;
 
-  expect(button.ariaLabel).toBe('message.post ist für Bot in Server aktiviert');
+  expect(button.ariaLabel).toBe('Nachrichten schreiben ist für Bot in Server aktiviert');
   expect(button.title).toContain('Derzeit nicht verfügbar');
-  expect(button.title).toContain('Du kannst message.post in Server nicht vergeben');
+  expect(button.title).toContain('Du kannst Nachrichten schreiben in Server nicht vergeben');
 });

@@ -1121,7 +1121,7 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 	}
 
 	// Synthetic DM room ID — the walker doesn't care about room existence,
-	// only about whether room-scope KV entries exist for it (we set none).
+	// only about whether room-scope permission facts exist for it (we set none).
 	dmRoomID := "R_dm_contract_test"
 
 	// Each row encodes the expected resolution for the given persona at
@@ -1263,7 +1263,7 @@ func TestPermissionResolver_RoomOverridesServerForSameRole(t *testing.T) {
 			t.Fatalf("DenyServerPermission: %v", err)
 		}
 
-		// Deny operation clears the prior grant, so only the deny remains in KV.
+		// Deny operation clears the prior grant, so only the deny remains in the projection.
 		has, err := core.permissionResolver.HasSpacePermission(ctx, newUser.Id, KindChannel, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasSpacePermission: %v", err)

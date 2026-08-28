@@ -68,9 +68,9 @@ Each setting can be **Allow**, **Deny**, or **Inherit**. Inherit means "use the 
 
 Room-relevant permissions such as `message.read`, `message.read.interactions`, `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
 
-Permission identifiers contain two or more dot-separated components. A dotted
-prefix does not automatically grant a longer permission. Chatto defines one
-explicit inclusion: an effective `message.read` allow also allows
+Permission identifiers are opaque, stable values. Their punctuation does not
+define authority. Chatto defines one explicit inclusion: an effective
+`message.read` allow also allows
 `message.read.interactions`. The reverse is not true. A deny for the narrower
 permission cannot restrict broad read access, and a deny for broad read access
 does not restrict a separate narrow allow.

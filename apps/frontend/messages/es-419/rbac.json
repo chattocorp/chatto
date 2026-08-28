@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Administrar servidor",
+      "room_create": "Crear salas",
+      "room_join": "Unirse a salas",
+      "room_list": "Descubrir salas",
+      "room_manage": "Administrar salas",
+      "room_ban_member": "Bloquear miembros",
+      "message_read": "Leer mensajes",
+      "message_read_interactions": "Leer hilos de interacción",
+      "message_post": "Publicar mensajes",
+      "message_post_in_thread": "Publicar en hilos",
+      "message_attach": "Adjuntar archivos",
+      "message_echo": "Mostrar en el canal",
+      "message_manage": "Administrar mensajes",
+      "message_react": "Reaccionar a mensajes",
+      "role_manage": "Configurar roles",
+      "role_assign": "Asignar roles",
+      "admin_view_users": "Ver usuarios",
+      "admin_view_audit": "Ver registro de auditoría",
+      "user_delete_any": "Eliminar cualquier cuenta",
+      "user_delete_self": "Eliminar cuenta propia",
+      "user_invite": "Invitar usuarios",
+      "user_manage_accounts": "Administrar cuentas",
+      "user_manage_permissions": "Administrar permisos",
+      "bot_create": "Crear bots",
+      "bot_manage": "Administrar bots"
+    },
     "permission_descriptions": {
       "server_manage": "Actualizar configuración del servidor (nombre, descripción, logo)",
       "room_create": "Crear nuevas salas",
@@ -119,7 +146,9 @@
       "user_delete_self": "Elimina tu propia cuenta",
       "user_invite": "Crea y administra enlaces de invitación",
       "user_manage_accounts": "Cree usuarios, edite la identidad de la cuenta, restablezca contraseñas, adjunte correos electrónicos verificados y borre los tiempos de reutilización de inicio de sesión",
-      "user_manage_permissions": "Editar anulaciones de permisos directos por usuario"
+      "user_manage_permissions": "Editar anulaciones de permisos directos por usuario",
+      "bot_create": "Crear cuentas de bot propias",
+      "bot_manage": "Ver y administrar todas las cuentas de bot"
     }
   }
 }

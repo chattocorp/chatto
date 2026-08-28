@@ -2,9 +2,9 @@
 
 **Date:** 2026-08-25
 
-> **Amended 2026-08-28:** ADR-040 now makes each registered dotted prefix a
-> broader permission. This replaces the explicit inclusion that this ADR
-> originally specified for `message.read` and `message.read.interactions`.
+> **Amended 2026-08-28:** ADR-040 now treats permission identifiers as opaque
+> values and defines inclusion in the permission catalog. The explicit
+> relationship between `message.read` and `message.read.interactions` remains.
 
 ## Context
 
@@ -29,8 +29,8 @@ room-group, and room scope. Keep `message.read` as the broad channel-room read
 permission. Keep room membership as a separate required boundary. Keep DM
 reads membership-based under ADR-037.
 
-Under ADR-040, registered dotted prefixes define permission inclusion. An
-effective `message.read` allow therefore includes
+Under ADR-040, the permission catalog defines inclusion. It explicitly states
+that an effective `message.read` allow includes
 `message.read.interactions`. An allow for `message.read.interactions` does not
 include `message.read`. A deny for
 `message.read.interactions` cannot restrict an effective `message.read` allow.
@@ -90,9 +90,9 @@ an explicit read grant, bounded by its owner's effective read authority.
 
 - Operators can grant narrow message access without creating one RBAC object
   for each thread.
-- Operators can see the narrower capability in its three-component name and in
-  permission explanations. Each future registered descendant is also included
-  by its registered dotted ancestors.
+- Operators can see the narrower capability through its localized label and in
+  permission explanations. Future permissions are included only through an
+  explicit catalog relationship.
 - The durable room event log remains the source of relationship truth.
 - A direct mention gives access to content that was already in the thread.
 - Typed mention provenance is required. Ambiguous legacy mention rows fail

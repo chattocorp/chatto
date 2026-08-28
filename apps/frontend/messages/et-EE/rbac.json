@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Halda serverit",
+      "room_create": "Loo ruume",
+      "room_join": "Liitu ruumidega",
+      "room_list": "Avasta ruume",
+      "room_manage": "Halda ruume",
+      "room_ban_member": "Keela liikmeid",
+      "message_read": "Loe sõnumeid",
+      "message_read_interactions": "Loe suhtluslõimi",
+      "message_post": "Postita sõnumeid",
+      "message_post_in_thread": "Postita lõimedesse",
+      "message_attach": "Manusta faile",
+      "message_echo": "Kuva kanalis",
+      "message_manage": "Halda sõnumeid",
+      "message_react": "Reageeri sõnumitele",
+      "role_manage": "Seadista rolle",
+      "role_assign": "Määra rolle",
+      "admin_view_users": "Vaata kasutajaid",
+      "admin_view_audit": "Vaata auditilogi",
+      "user_delete_any": "Kustuta mis tahes konto",
+      "user_delete_self": "Kustuta oma konto",
+      "user_invite": "Kutsu kasutajaid",
+      "user_manage_accounts": "Halda kontosid",
+      "user_manage_permissions": "Halda õigusi",
+      "bot_create": "Loo botte",
+      "bot_manage": "Halda botte"
+    },
     "permission_descriptions": {
       "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
       "room_create": "Looge uusi ruume",
@@ -119,7 +146,9 @@
       "user_delete_self": "Kustutage oma konto",
       "user_invite": "Looge ja hallake kutselinke",
       "user_manage_accounts": "Looge kasutajaid, muutke konto identiteeti, lähtestage paroolid, lisage kinnitatud e-kirjad ja tühjendage sisselogimisperioodid",
-      "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi"
+      "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi",
+      "bot_create": "Loo endale kuuluvaid botikontosid",
+      "bot_manage": "Vaata ja halda kõiki botikontosid"
     }
   }
 }

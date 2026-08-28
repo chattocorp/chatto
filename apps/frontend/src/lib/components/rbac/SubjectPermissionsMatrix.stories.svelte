@@ -109,7 +109,7 @@
   parameters={{
     docs: {
       description: {
-        story: 'The permission names stay visible while scope columns scroll horizontally.'
+        story: 'The permission labels stay visible while scope columns scroll horizontally.'
       }
     }
   }}

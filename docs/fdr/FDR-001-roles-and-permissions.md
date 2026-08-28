@@ -12,10 +12,9 @@ Chatto controls who can do what through role-based access control. Every authent
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
-- A permission identifier has two or more non-empty dot-separated components.
-  New identifiers use `<domain>.<capability>[.<narrower-capability>...]`.
-  Each registered dotted prefix is a broader permission that includes its
-  descendants.
+- A permission identifier is an opaque, stable value. Current identifiers use
+  punctuation to help developers recognize them, but punctuation does not
+  define authority. The permission catalog defines inclusion explicitly.
 - Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads. `message.read` supplies broad
@@ -97,25 +96,22 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
 **Tradeoff:** Adding a new code default does not grant it to existing servers or rooms automatically. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 
-### 10. Permission names define inclusion
+### 10. The permission catalog defines inclusion
 
-**Decision:** Use `<domain>.<capability>[.<narrower-capability>...]` for new
-permission identifiers. Use a hyphen only inside one component. Prefer no more
-than three components unless the product needs a deeper capability tree. Each
-registered dotted prefix includes its descendants. The resolver follows these
-ancestors transitively. `message.read` therefore includes
+**Decision:** Treat permission identifiers as opaque, stable values. Define
+inclusion explicitly in the permission catalog and follow those relationships
+transitively. The catalog states that `message.read` includes
 `message.read.interactions`. The child does not include the parent. A child
 deny cannot restrict an effective parent allow, and a parent deny cannot
 restrict a separate child allow. Inclusion changes effective authorization
-only and does not store an additional grant. Catalog validation rejects a
-nested permission without its immediate parent and parent-child pairs with
-different categories or scopes.
-**Why:** The three-component name shows that interaction reads are a narrower
-part of message reads. One naming rule keeps authorization, explanations,
-delegation limits, and the admin UI consistent without separate relationship
-metadata.
-**Tradeoff:** A permission name is an authorization contract. A capability
-that does not belong below an existing permission must use a different name.
+only and does not store an additional grant. Catalog validation rejects
+unknown targets, cycles, and relationships with incompatible categories or
+scopes. Public APIs and EVT facts continue to use the stable identifier.
+**Why:** Authorization must not change because a developer chose punctuation
+for a new identifier. Explicit metadata keeps inclusion reviewable while stable
+identifiers preserve persisted facts and integrations.
+**Tradeoff:** The backend and frontend catalogs must keep their explicit
+relationships in sync. Tests cover the current relationship.
 
 ## Permissions
 
@@ -148,5 +144,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and name-derived permission inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
+- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit catalog inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
 - **FDRs:** Every FDR that mentions a permission depends on this one; see also FDR-012 (Notifications), FDR-038 (Bot Accounts), and FDR-039 (Message Access & Interactions).

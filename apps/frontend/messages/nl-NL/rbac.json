@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Server beheren",
+      "room_create": "Kamers maken",
+      "room_join": "Deelnemen aan kamers",
+      "room_list": "Kamers ontdekken",
+      "room_manage": "Kamers beheren",
+      "room_ban_member": "Leden verbannen",
+      "message_read": "Berichten lezen",
+      "message_read_interactions": "Interactiethreads lezen",
+      "message_post": "Berichten plaatsen",
+      "message_post_in_thread": "In threads plaatsen",
+      "message_attach": "Bestanden bijvoegen",
+      "message_echo": "In kanaal tonen",
+      "message_manage": "Berichten beheren",
+      "message_react": "Op berichten reageren",
+      "role_manage": "Rollen configureren",
+      "role_assign": "Rollen toewijzen",
+      "admin_view_users": "Gebruikers bekijken",
+      "admin_view_audit": "Auditlog bekijken",
+      "user_delete_any": "Elk account verwijderen",
+      "user_delete_self": "Eigen account verwijderen",
+      "user_invite": "Gebruikers uitnodigen",
+      "user_manage_accounts": "Accounts beheren",
+      "user_manage_permissions": "Machtigingen beheren",
+      "bot_create": "Bots maken",
+      "bot_manage": "Bots beheren"
+    },
     "permission_descriptions": {
       "server_manage": "Serverinstellingen bijwerken (naam, beschrijving, logo)",
       "room_create": "Maak nieuwe kamers",
@@ -119,7 +146,9 @@
       "user_delete_self": "Verwijder je eigen account",
       "user_invite": "Uitnodigingslinks maken en beheren",
       "user_manage_accounts": "Gebruikers aanmaken, accountidentiteit bewerken, wachtwoorden opnieuw instellen, geverifieerde e-mails bijvoegen en cooldowns voor inloggen wissen",
-      "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker"
+      "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker",
+      "bot_create": "Botaccounts maken waarvan je eigenaar bent",
+      "bot_manage": "Alle botaccounts bekijken en beheren"
     }
   }
 }

@@ -18,8 +18,8 @@ const (
 	// RoleModerator has moderation permissions. Must be explicitly assigned.
 	RoleModerator = "moderator"
 
-	// RoleEveryone is implicit for all authenticated users. Virtual — not
-	// stored in KV; permission grants on this role apply to every
+	// RoleEveryone is implicit for all authenticated users. It has no role
+	// assignment facts; permission facts on this role apply to every
 	// authenticated viewer.
 	RoleEveryone = "everyone"
 )

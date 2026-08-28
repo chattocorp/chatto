@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Manage server",
+      "room_create": "Create rooms",
+      "room_join": "Join rooms",
+      "room_list": "Discover rooms",
+      "room_manage": "Manage rooms",
+      "room_ban_member": "Ban members",
+      "message_read": "Read messages",
+      "message_read_interactions": "Read interaction threads",
+      "message_post": "Post messages",
+      "message_post_in_thread": "Post in threads",
+      "message_attach": "Attach files",
+      "message_echo": "Echo to channel",
+      "message_manage": "Manage messages",
+      "message_react": "React to messages",
+      "role_manage": "Configure roles",
+      "role_assign": "Assign roles",
+      "admin_view_users": "View users",
+      "admin_view_audit": "View audit log",
+      "user_delete_any": "Delete any account",
+      "user_delete_self": "Delete own account",
+      "user_invite": "Invite users",
+      "user_manage_accounts": "Manage accounts",
+      "user_manage_permissions": "Manage permissions",
+      "bot_create": "Create bots",
+      "bot_manage": "Manage bots"
+    },
     "permission_descriptions": {
       "server_manage": "Update server settings (name, description, logo)",
       "room_create": "Create new rooms",
@@ -119,7 +146,9 @@
       "user_delete_self": "Delete your own account",
       "user_invite": "Create and manage invite links",
       "user_manage_accounts": "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns",
-      "user_manage_permissions": "Edit direct per-user permission overrides"
+      "user_manage_permissions": "Edit direct per-user permission overrides",
+      "bot_create": "Create bot accounts that you own",
+      "bot_manage": "View and manage every bot account"
     }
   }
 }

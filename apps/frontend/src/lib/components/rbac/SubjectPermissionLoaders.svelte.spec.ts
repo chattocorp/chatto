@@ -344,7 +344,7 @@ describe('subject permission loaders', () => {
     await settle();
 
     const child = scopedCellButton(rendered.container, 'server', 'message.read.interactions');
-    expect(child.title).toContain('Included by message.read');
+    expect(child.title).toContain('Included by Read messages');
     expect(child.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
     expect(child.disabled).toBe(true);
   });

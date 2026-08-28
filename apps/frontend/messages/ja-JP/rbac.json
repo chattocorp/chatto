@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "サーバーを管理",
+      "room_create": "ルームを作成",
+      "room_join": "ルームに参加",
+      "room_list": "ルームを探す",
+      "room_manage": "ルームを管理",
+      "room_ban_member": "メンバーを禁止",
+      "message_read": "メッセージを読む",
+      "message_read_interactions": "交流スレッドを読む",
+      "message_post": "メッセージを投稿",
+      "message_post_in_thread": "スレッドに投稿",
+      "message_attach": "ファイルを添付",
+      "message_echo": "チャンネルに表示",
+      "message_manage": "メッセージを管理",
+      "message_react": "メッセージにリアクション",
+      "role_manage": "ロールを設定",
+      "role_assign": "ロールを割り当て",
+      "admin_view_users": "ユーザーを表示",
+      "admin_view_audit": "監査ログを表示",
+      "user_delete_any": "任意のアカウントを削除",
+      "user_delete_self": "自分のアカウントを削除",
+      "user_invite": "ユーザーを招待",
+      "user_manage_accounts": "アカウントを管理",
+      "user_manage_permissions": "権限を管理",
+      "bot_create": "ボットを作成",
+      "bot_manage": "ボットを管理"
+    },
     "permission_descriptions": {
       "server_manage": "サーバー設定の更新 (名前、説明、ロゴ)",
       "room_create": "新しいルームを作成する",
@@ -119,7 +146,9 @@
       "user_delete_self": "自分のアカウントを削除してください",
       "user_invite": "招待リンクを作成・管理する",
       "user_manage_accounts": "ユーザーの作成、アカウント ID の編集、パスワードのリセット、確認済みメールの添付、ログインのクールダウンのクリア",
-      "user_manage_permissions": "ユーザーごとの権限オーバーライドを直接編集する"
+      "user_manage_permissions": "ユーザーごとの権限オーバーライドを直接編集する",
+      "bot_create": "自分が所有するボットアカウントを作成",
+      "bot_manage": "すべてのボットアカウントを表示して管理"
     }
   }
 }

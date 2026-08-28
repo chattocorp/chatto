@@ -14,8 +14,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nats-io/nats.go/jetstream"
-
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
@@ -43,20 +41,6 @@ type RoleWithPermissions struct {
 	IsSystem          bool
 	Position          int32 // Display/order position. Everyone=0, Owner=1000.
 	Pingable          bool
-}
-
-// listKeysWithPattern returns all keys matching a pattern from a KV bucket.
-func listKeysWithPattern(ctx context.Context, kv jetstream.KeyValue, pattern string) ([]string, error) {
-	lister, err := kv.ListKeysFiltered(ctx, pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	var keys []string
-	for key := range lister.Keys() {
-		keys = append(keys, key)
-	}
-	return keys, nil
 }
 
 // ============================================================================

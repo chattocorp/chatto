@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getIncludedByPermission,
   getIncludingPermissions,
+  getPermissionLabel,
   PERMISSION_METADATA
 } from './permissions';
 
@@ -10,6 +11,8 @@ describe('PERMISSION_METADATA', () => {
     expect(Object.keys(PERMISSION_METADATA).sort()).toEqual([
       'admin.view-audit',
       'admin.view-users',
+      'bot.create',
+      'bot.manage',
       'message.attach',
       'message.echo',
       'message.manage',
@@ -41,23 +44,21 @@ describe('PERMISSION_METADATA', () => {
     expect(PERMISSION_METADATA).not.toHaveProperty('message.delete-any');
   });
 
-  it('derives inclusion from registered dotted ancestors', () => {
+  it('uses explicit inclusion metadata', () => {
     const permissions = ['message.read', 'message.read.interactions', 'message.post-in-thread'];
     expect(getIncludedByPermission(permissions, 'message.read.interactions')).toBe('message.read');
     expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
     expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
   });
 
-  it('returns all registered dotted ancestors in order', () => {
-    const permissions = [
-      'server.manage',
-      'server.manage.neighbors',
-      'server.manage.neighbors.publish'
-    ];
-    expect(getIncludingPermissions(permissions, 'server.manage.neighbors.publish')).toEqual([
-      'server.manage.neighbors',
-      'server.manage'
-    ]);
+  it('does not derive inclusion from identifier punctuation', () => {
+    const permissions = ['server.manage', 'server.manage.neighbors'];
+    expect(getIncludingPermissions(permissions, 'server.manage.neighbors')).toEqual([]);
     expect(getIncludingPermissions(['server.manage'], 'server.manage.neighbors')).toEqual([]);
+  });
+
+  it('returns a localized label with an opaque ID fallback', () => {
+    expect(getPermissionLabel('server.manage')).toBe('Manage server');
+    expect(getPermissionLabel('future.permission')).toBe('future.permission');
   });
 });

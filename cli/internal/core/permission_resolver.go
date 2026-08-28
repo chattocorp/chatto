@@ -177,12 +177,11 @@ func (r *PermissionResolver) botDelegatedDecision(botUserID string, kind RoomKin
 }
 
 func (r *PermissionResolver) botDelegatedExactDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
+	if _, known := GetPermissionMetadata(perm); !known {
 		return DecisionNone
 	}
 	scopes := r.applicableScopeTargets(kind, roomID, groupID, perm)
-	entry, ok := r.nearestDecision(botUserID, parts, scopes)
+	entry, ok := r.nearestDecision(botUserID, perm, scopes)
 	if !ok {
 		return DecisionNone
 	}
@@ -272,8 +271,7 @@ func (r *PermissionResolver) applicableDecisions(
 	ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission,
 ) (applicablePermissionDecisions, error) {
 	var out applicablePermissionDecisions
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
+	if _, known := GetPermissionMetadata(perm); !known {
 		return out, nil
 	}
 
@@ -288,20 +286,20 @@ func (r *PermissionResolver) applicableDecisions(
 	subjects := append([]string{userID}, roles...)
 
 	for _, subject := range subjects {
-		if entry, ok := r.nearestDecision(subject, parts, scopes); ok {
+		if entry, ok := r.nearestDecision(subject, perm, scopes); ok {
 			out.named = append(out.named, entry)
 		}
 	}
 
-	if entry, ok := r.nearestDecision(RoleEveryone, parts, scopes); ok {
+	if entry, ok := r.nearestDecision(RoleEveryone, perm, scopes); ok {
 		out.everyone = &entry
 	}
 	return out, nil
 }
 
-func (r *PermissionResolver) nearestDecision(subject string, parts PermissionKeyParts, scopes []permissionScopeTarget) (TraceEntry, bool) {
+func (r *PermissionResolver) nearestDecision(subject string, perm Permission, scopes []permissionScopeTarget) (TraceEntry, bool) {
 	for _, target := range scopes {
-		decision := r.decisionFor(target.scope, target.id, subject, parts)
+		decision := r.decisionFor(target.scope, target.id, subject, perm)
 		if decision == DecisionNone {
 			continue
 		}
@@ -437,12 +435,11 @@ func dmDefaultAllows(perm Permission) bool {
 
 // decisionFor returns the current projection-backed RBAC decision for a
 // subject at a specific scope.
-func (r *PermissionResolver) decisionFor(scope PermissionScope, scopeID, subject string, parts PermissionKeyParts) DecisionKind {
-	if subject == "" || parts.Verb == "" || parts.ObjectType == "" {
+func (r *PermissionResolver) decisionFor(scope PermissionScope, scopeID, subject string, perm Permission) DecisionKind {
+	if subject == "" {
 		return DecisionNone
 	}
-	perm := ReconstructPermission(parts.Verb, parts.ObjectType)
-	if perm == "" {
+	if _, known := GetPermissionMetadata(perm); !known {
 		return DecisionNone
 	}
 	return r.core.rbacModel.decision(scope, scopeID, subject, perm)

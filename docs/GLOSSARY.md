@@ -118,7 +118,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Role** — Named bundle of permissions, assignable to users. System roles are seeded; custom roles can be created. Role names share the message-mention namespace with user logins, and each role can be marked pingable to allow `@role` pings.
 
-**Permission** — Named capability gate, e.g. `message.post`, `role.assign`. Strings use hyphens, never underscores. The full list lives in `cli/internal/core/permission.go`.
+**Permission** — Capability gate with an opaque, stable identifier, for example `message.post` or `role.assign`. Punctuation does not define authority. The catalog in `cli/internal/core/permission.go` defines scope and explicit inclusion.
 
 **Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 

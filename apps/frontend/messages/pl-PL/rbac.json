@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Zarządzaj serwerem",
+      "room_create": "Twórz pokoje",
+      "room_join": "Dołączaj do pokoi",
+      "room_list": "Odkrywaj pokoje",
+      "room_manage": "Zarządzaj pokojami",
+      "room_ban_member": "Banuj członków",
+      "message_read": "Czytaj wiadomości",
+      "message_read_interactions": "Czytaj wątki interakcji",
+      "message_post": "Wysyłaj wiadomości",
+      "message_post_in_thread": "Pisz w wątkach",
+      "message_attach": "Załączaj pliki",
+      "message_echo": "Pokaż na kanale",
+      "message_manage": "Zarządzaj wiadomościami",
+      "message_react": "Reaguj na wiadomości",
+      "role_manage": "Konfiguruj role",
+      "role_assign": "Przypisuj role",
+      "admin_view_users": "Wyświetl użytkowników",
+      "admin_view_audit": "Wyświetl dziennik audytu",
+      "user_delete_any": "Usuń dowolne konto",
+      "user_delete_self": "Usuń własne konto",
+      "user_invite": "Zaproś użytkowników",
+      "user_manage_accounts": "Zarządzaj kontami",
+      "user_manage_permissions": "Zarządzaj uprawnieniami",
+      "bot_create": "Twórz boty",
+      "bot_manage": "Zarządzaj botami"
+    },
     "permission_descriptions": {
       "server_manage": "Aktualizuj ustawienia serwera (nazwa, opis, logo)",
       "room_create": "Utwórz nowe pokoje",
@@ -119,7 +146,9 @@
       "user_delete_self": "Usuń własne konto",
       "user_invite": "Twórz linki z zaproszeniem i zarządzaj nimi",
       "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
-      "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników"
+      "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników",
+      "bot_create": "Tworzyć własne konta botów",
+      "bot_manage": "Wyświetlać wszystkie konta botów i zarządzać nimi"
     }
   }
 }

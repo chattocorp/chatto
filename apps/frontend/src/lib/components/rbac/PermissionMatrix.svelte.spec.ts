@@ -119,7 +119,7 @@ describe('PermissionMatrix', () => {
     expect(container.querySelectorAll('tbody h3')).toHaveLength(0);
   });
 
-  it('orders permission names alphabetically', async () => {
+  it('orders permission labels alphabetically', async () => {
     nextTierRoles = {
       ...HAPPY_TIER_ROLES,
       applicablePermissions: ['user.delete-self', 'room.manage', 'server.manage', 'user.delete-any']
@@ -131,7 +131,8 @@ describe('PermissionMatrix', () => {
       [...container.querySelectorAll('[data-testid="permission-name"]')].map(
         (permission) => permission.textContent
       )
-    ).toEqual(['room.manage', 'server.manage', 'user.delete-any', 'user.delete-self']);
+    ).toEqual(['Delete any account', 'Delete own account', 'Manage rooms', 'Manage server']);
+    expect(container.querySelector('button[aria-label^="About "]')).toBeNull();
   });
 
   it('shows that message.read includes the nested interaction permission', async () => {
@@ -158,15 +159,15 @@ describe('PermissionMatrix', () => {
 
     const rowName = [
       ...container.querySelectorAll<HTMLElement>('[data-testid="permission-name"]')
-    ].find((permission) => permission.textContent === 'message.read.interactions');
+    ].find((permission) => permission.textContent === 'Read interaction threads');
     const cell = container.querySelector<HTMLButtonElement>(
       'td[data-role="reader"][data-permission="message.read.interactions"] button'
     );
-    expect(rowName?.parentElement?.className).toContain('ml-4');
-    expect(cell?.title).toContain('Effective Allow (included by message.read)');
+    expect(rowName?.className).not.toContain('ml-4');
+    expect(cell?.title).toContain('Effective Allow (included by Read messages)');
   });
 
-  it('shows an allow from a transitive including permission', async () => {
+  it('does not derive inclusion from identifier punctuation', async () => {
     nextTierRoles = {
       applicablePermissions: [
         'server.manage',
@@ -182,10 +183,7 @@ describe('PermissionMatrix', () => {
           position: 1,
           override: {
             permissions: ['server.manage'],
-            permissionDenials: [
-              'server.manage.neighbors',
-              'server.manage.neighbors.publish'
-            ]
+            permissionDenials: ['server.manage.neighbors', 'server.manage.neighbors.publish']
           },
           inheritedAllows: [],
           inheritedDenials: []
@@ -198,7 +196,8 @@ describe('PermissionMatrix', () => {
     const cell = container.querySelector<HTMLButtonElement>(
       'td[data-role="publisher"][data-permission="server.manage.neighbors.publish"] button'
     );
-    expect(cell?.title).toContain('Effective Allow (included by server.manage)');
+    expect(cell?.title).not.toContain('Effective Allow');
+    expect(cell?.title).toContain('Deny');
   });
 
   it('filters permission names as the query changes', async () => {
@@ -206,7 +205,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
-    filter.value = 'room';
+    filter.value = 'create';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
@@ -214,7 +213,7 @@ describe('PermissionMatrix', () => {
       [...container.querySelectorAll('[data-testid="permission-name"]')].map(
         (row) => row.textContent
       )
-    ).toEqual(['room.create']);
+    ).toEqual(['Create rooms']);
 
     filter.value = 'missing';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
@@ -416,14 +415,14 @@ describe('PermissionMatrix', () => {
 
     // Admin / message.post: explicit override Allow → aria-pressed=true.
     const adminMessagePost = container.querySelector(
-      'button[aria-label*="Admin"][aria-label*="message.post"]'
+      'button[aria-label*="Admin"][aria-label*="Post messages"]'
     );
     expect(adminMessagePost?.getAttribute('aria-pressed')).toBe('true');
 
     // Moderator / message.post: no override but inherited allow → aria-pressed=false,
     // visible icon is the check (allow).
     const modMessagePost = container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="message.post"]'
+      'button[aria-label*="Moderator"][aria-label*="Post messages"]'
     );
     expect(modMessagePost?.getAttribute('aria-pressed')).toBe('false');
     expect(modMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
@@ -438,7 +437,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const button = container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+      'button[aria-label*="Moderator"][aria-label*="Create rooms"]'
     ) as HTMLButtonElement;
     button.click();
     flushSync();
@@ -470,7 +469,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const button = container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+      'button[aria-label*="Moderator"][aria-label*="Create rooms"]'
     ) as HTMLButtonElement;
     button.click();
 
@@ -494,14 +493,14 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const button = rendered.container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+      'button[aria-label*="Moderator"][aria-label*="Create rooms"]'
     ) as HTMLButtonElement;
     button.click();
     await rendered.rerender({ roomId: 'room-b' });
     await settle();
 
     const replacementButton = rendered.container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+      'button[aria-label*="Moderator"][aria-label*="Create rooms"]'
     ) as HTMLButtonElement;
     expect(replacementButton.disabled).toBe(false);
 
@@ -560,7 +559,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const ownerMessagePost = container.querySelector(
-      'button[aria-label*="Owner"][aria-label*="message.post"]'
+      'button[aria-label*="Owner"][aria-label*="Post messages"]'
     ) as HTMLButtonElement | null;
     expect(ownerMessagePost).not.toBeNull();
     expect(ownerMessagePost?.disabled).toBe(true);

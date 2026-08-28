@@ -16,6 +16,12 @@
 > from 2026-08-26. Registered dotted prefixes now define transitive permission
 > inclusion.
 >
+> **Amended 2026-08-28:** This later amendment supersedes the preceding
+> permission-name rule. Permission identifiers are opaque, stable values.
+> The permission catalog defines inclusion explicitly. This keeps existing EVT
+> facts and public API values valid while it removes authorization meaning from
+> identifier punctuation.
+>
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,
@@ -71,9 +77,9 @@ Use a permission-only RBAC model for everyone except effective owners.
   `everyone`, so normal rooms work immediately. Room and group decisions are
   local exceptions; the built-in announcements room adds a room-level
   `everyone` deny for `message.post`.
-- Permission identifiers contain two or more non-empty dot-separated
-  components. A component can contain hyphens. Each registered dotted prefix
-  is a broader permission. For example, `message.read` includes
+- Permission identifiers are opaque, stable values. Their punctuation has no
+  authorization meaning. The permission catalog defines inclusion explicitly.
+  For example, the catalog states that `message.read` includes
   `message.read.interactions`. Inclusion is transitive.
 - An allow for a broader permission satisfies its narrower descendants. An
   allow for a descendant does not include an ancestor. A descendant deny
@@ -101,9 +107,9 @@ This supersedes ADR-005.
   persisted event contract is migrated.
 - Permission inclusion changes effective authorization only. It does not write
   or synthesize an additional RBAC grant.
-- A new permission name can change authority if it is below an existing
-  permission. Each new nested permission must therefore have a registered
-  immediate parent with the same category and scopes.
+- A new permission does not change other permissions by its name alone. An
+  explicit catalog relationship can change authority. Catalog validation
+  rejects unknown targets, cycles, and incompatible categories or scopes.
 - The authorization fence adds an empty operational fact to protected batches.
   During a mixed-version rollout, its full concurrency guarantee starts only
   after all writing replicas understand and advance the fence.

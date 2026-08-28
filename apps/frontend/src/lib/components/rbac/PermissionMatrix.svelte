@@ -28,12 +28,12 @@ focusing a cell highlights its permission row and role column.
   import { onDestroy, type Snippet } from 'svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
-  import { Hint, HelpTooltip } from '$lib/ui';
+  import { Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import { getIncludingPermissions, getPermissionDescription } from '$lib/permissions';
+  import { getIncludingPermissions, getPermissionLabel } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
@@ -188,7 +188,11 @@ focusing a cell highlights its permission row and role column.
   // ----- Layout -----------------------------------------------------------
 
   const permissions = $derived.by<string[]>(() =>
-    data ? [...data.applicablePermissions].sort((a, b) => a.localeCompare(b)) : []
+    data
+      ? [...data.applicablePermissions].sort((a, b) =>
+          getPermissionLabel(a).localeCompare(getPermissionLabel(b))
+        )
+      : []
   );
   const inclusionChains = $derived.by(() => {
     // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
@@ -202,7 +206,9 @@ focusing a cell highlights its permission row and role column.
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
     return query
-      ? permissions.filter((permission) => permission.toLowerCase().includes(query))
+      ? permissions.filter((permission) =>
+          getPermissionLabel(permission).toLowerCase().includes(query)
+        )
       : permissions;
   });
   const panelTitle = $derived(
@@ -422,22 +428,14 @@ focusing a cell highlights its permission row and role column.
         {/if}
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        {@const includedBy = inclusionChains.get(permission)?.[0] ?? null}
-        <div class={['flex items-center gap-2', includedBy ? 'ml-4' : '']}>
-          <HelpTooltip label={`About ${permission}`}>
-            {getPermissionDescription(permission)}
-            {#if includedBy}
-              <span class="mt-1 block">
-                {m('rbac.permissions.included_by', { permission: includedBy })}
-              </span>
-            {/if}
-          </HelpTooltip>
-          <code data-testid="permission-name" class={['text-sm', highlighted ? 'text-action' : '']}
-            >{permission}</code
-          >
-        </div>
+        <span
+          data-testid="permission-name"
+          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
+          >{getPermissionLabel(permission)}</span
+        >
       {/snippet}
       {#snippet cell(permission, role)}
+        {@const permissionLabel = getPermissionLabel(permission)}
         {@const ov = overrideState(role, permission)}
         {@const inh = inheritedState(role, permission)}
         {@const includedBy = includingPermission(role, permission)}
@@ -445,11 +443,11 @@ focusing a cell highlights its permission row and role column.
         {@const displayOverride = virtualOwner ? 'allow' : ov}
         {@const displayInherited = virtualOwner ? 'neutral' : inh}
         {@const ariaParts = virtualOwner
-          ? [`Owner is always granted ${permission}`]
+          ? [`Owner is always granted ${permissionLabel}`]
           : [
               ov !== 'neutral'
-                ? `Override ${ov} for ${role.displayName} on ${permission}`
-                : `No override for ${role.displayName} on ${permission}`,
+                ? `Override ${ov} for ${role.displayName} on ${permissionLabel}`
+                : `No override for ${role.displayName} on ${permissionLabel}`,
               inh !== 'neutral' && inheritedFromLabel
                 ? `inheriting ${inh} from ${inheritedFromLabel}`
                 : null
@@ -467,7 +465,7 @@ focusing a cell highlights its permission row and role column.
               inh !== 'neutral' && inheritedFromLabel
                 ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
                 : null,
-              includedBy ? `Effective Allow (included by ${includedBy})` : null,
+              includedBy ? `Effective Allow (included by ${getPermissionLabel(includedBy)})` : null,
               ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
             ].filter(Boolean)}
         <MatrixCell

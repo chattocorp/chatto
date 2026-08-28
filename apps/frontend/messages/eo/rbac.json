@@ -95,6 +95,33 @@
         }
       }
     },
+    "permission_labels": {
+      "server_manage": "Administri servilon",
+      "room_create": "Krei ĉambrojn",
+      "room_join": "Aliĝi al ĉambroj",
+      "room_list": "Malkovri ĉambrojn",
+      "room_manage": "Administri ĉambrojn",
+      "room_ban_member": "Forbari membrojn",
+      "message_read": "Legi mesaĝojn",
+      "message_read_interactions": "Legi interagajn fadenojn",
+      "message_post": "Afiŝi mesaĝojn",
+      "message_post_in_thread": "Afiŝi en fadenoj",
+      "message_attach": "Aldoni dosierojn",
+      "message_echo": "Montri en kanalo",
+      "message_manage": "Administri mesaĝojn",
+      "message_react": "Reagi al mesaĝoj",
+      "role_manage": "Agordi rolojn",
+      "role_assign": "Atribui rolojn",
+      "admin_view_users": "Vidi uzantojn",
+      "admin_view_audit": "Vidi kontrolprotokolon",
+      "user_delete_any": "Forigi ajnan konton",
+      "user_delete_self": "Forigi propran konton",
+      "user_invite": "Inviti uzantojn",
+      "user_manage_accounts": "Administri kontojn",
+      "user_manage_permissions": "Administri permesojn",
+      "bot_create": "Krei robotojn",
+      "bot_manage": "Administri robotojn"
+    },
     "permission_descriptions": {
       "server_manage": "Ĝisdatigu servilajn agordojn (nomo, priskribo, emblemo)",
       "room_create": "Krei novajn ĉambrojn",
@@ -119,7 +146,9 @@
       "user_delete_self": "Forigu vian propran konton",
       "user_invite": "Kreu kaj administru invitligilojn",
       "user_manage_accounts": "Kreu uzantojn, redaktu kontan identecon, restarigi pasvortojn, kunsendi kontrolitajn retpoŝtojn kaj malplenigi ensalutajn malfunkciojn",
-      "user_manage_permissions": "Redakti rektajn per-uzantajn permesojn anstataŭigas"
+      "user_manage_permissions": "Redakti rektajn per-uzantajn permesojn anstataŭigas",
+      "bot_create": "Krei robotajn kontojn, kiujn vi posedas",
+      "bot_manage": "Vidi kaj administri ĉiujn robotajn kontojn"
     }
   }
 }
