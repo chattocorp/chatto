@@ -14,7 +14,7 @@
     goto(resolve('/'), { replaceState: true });
   }
 
-  // Authenticated → use $effect to wait for reactive state (instances, permissions)
+  // Authenticated → use $effect to wait for reactive server registration.
   $effect(() => {
     if (!data.user) return;
     if (hasPendingReturnNavigation()) return;
@@ -29,12 +29,9 @@
 
     const lastPos = data.welcome ? null : resolveLastPosition(homeId);
     if (lastPos) {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- resolveLastPosition returns a resolved internal path
       goto(lastPos, { replaceState: true });
       return;
     }
-
-    if (!serverRegistry.tryGetStore(homeId)?.permissions.loaded) return;
 
     // Land in the server's chrome — its +page redirects to the user's room
     // (or to /chat/spaces / welcome state) once the primary spaceId resolves.
