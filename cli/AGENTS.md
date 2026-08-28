@@ -266,9 +266,10 @@ authorization, live events, backup and restore, and backend tests.
 - Permission strings use two or more non-empty dot-separated components.
   Hyphens can stay inside a component: `room.ban-member`,
   `message.post-in-thread`, and `message.read.interactions` are valid.
-- A dotted prefix does not automatically include a longer permission. Record
-  each permission inclusion explicitly in code and in the applicable ADR and
-  FDR. Currently, `message.read` includes `message.read.interactions`.
+- Each registered dotted prefix includes its registered descendants. A nested
+  permission must have a registered immediate parent with the same category
+  and scopes. Treat each permission name as an authorization contract.
+  Currently, `message.read` includes `message.read.interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-boundary behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses
