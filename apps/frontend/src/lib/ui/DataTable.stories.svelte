@@ -2,7 +2,7 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import DataTable from './DataTable.svelte';
   import Panel from './Panel.svelte';
-  import CopyId from '$lib/components/admin/CopyId.svelte';
+  import CopyId from './CopyId.svelte';
   import Pill from '$lib/ui/Pill.svelte';
   import { Button } from '$lib/ui/form';
 

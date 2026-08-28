@@ -18,7 +18,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
   import Panel from '$lib/ui/Panel.svelte';
-  import { MatrixTable } from '$lib/components/matrix';
+  import { MatrixTable } from '$lib/ui/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';

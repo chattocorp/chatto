@@ -5,6 +5,7 @@ export { default as ChoiceRow } from './ChoiceRow.svelte';
 export { default as CollapsibleGroup } from './CollapsibleGroup.svelte';
 export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 export { default as ContextMenu } from './ContextMenu.svelte';
+export { default as CopyId } from './CopyId.svelte';
 export { default as DataTable } from './DataTable.svelte';
 export { default as Dialog } from './Dialog.svelte';
 export { default as Divider } from './Divider.svelte';

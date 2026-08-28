@@ -1,5 +1,5 @@
 import { NotificationDeliveryMode } from '$lib/api-client/notifications';
-import type { MatrixCellTone } from '$lib/components/matrix';
+import type { MatrixCellTone } from '$lib/ui/matrix';
 import { m } from '$lib/i18n/messages';
 
 export type NotificationDeliveryModePresentation = {

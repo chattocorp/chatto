@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { AdminMember } from '$lib/api-client/adminUsers';
   import { m } from '$lib/i18n/messages';
-  import { Panel } from '$lib/components/admin';
+  import { Panel } from '$lib/ui';
   import { Hint } from '$lib/ui';
   import { Button, FormError, TextInput } from '$lib/ui/form';
 

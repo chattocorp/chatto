@@ -7,7 +7,7 @@ Inherited room-group and room cells render the effective mode at reduced
 intensity.
 -->
 <script lang="ts">
-  import { MatrixCellButton } from '$lib/components/matrix';
+  import { MatrixCellButton } from '$lib/ui/matrix';
   import {
     NotificationDeliveryMode,
     type NotificationPolicyField,

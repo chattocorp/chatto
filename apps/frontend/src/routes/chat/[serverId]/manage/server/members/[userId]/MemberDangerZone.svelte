@@ -4,7 +4,7 @@
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Panel } from '$lib/components/admin';
+  import { Panel } from '$lib/ui';
   import { Button } from '$lib/ui/form';
 
   let { member }: { member: AdminMember } = $props();
