@@ -88,6 +88,15 @@ describe('AppHeader', () => {
     expect(container.querySelector('a[href="/chat/preferences"]')).not.toBeNull();
   });
 
+  it('treats a server without a store as having no unread notifications', () => {
+    mocks.servers = [{ id: 'remote' }];
+
+    const { container } = render(AppHeader);
+
+    expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="notifications-unread-dot"]')).toBeNull();
+  });
+
   it('opens Appearance for the active authenticated server', () => {
     mocks.servers = [{ id: 'remote' }];
     mocks.activeServer = 'remote';
