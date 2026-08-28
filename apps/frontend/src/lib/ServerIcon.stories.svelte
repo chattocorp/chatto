@@ -29,7 +29,7 @@
       href="#remote"
       title="Remote Server needs sign-in"
       dimmed
-      reauthRequired
+      signInRequired
     />
     <ServerIcon
       server={legacy}
@@ -41,14 +41,14 @@
   </div>
 </Story>
 
-<Story name="Reauthentication required" asChild>
+<Story name="Sign-in required" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
     <ServerIcon
       server={remote}
       href="#remote"
       title="Remote Server needs sign-in"
       dimmed
-      reauthRequired
+      signInRequired
     />
   </div>
 </Story>
