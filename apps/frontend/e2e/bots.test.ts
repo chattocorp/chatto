@@ -236,32 +236,32 @@ test.describe('Bot account lifecycle', () => {
 
     const permissionFilter = page.getByTestId('permission-filter');
     await expect(permissionFilter).toBeVisible();
-    await permissionFilter.fill('Discover rooms');
+    await permissionFilter.fill('room.list');
     const disabledRoomList = page.getByRole('button', {
-      name: 'Discover rooms is Disabled for bot at Server',
+      name: 'room.list is Disabled for bot at Server',
       exact: true
     });
     await expect(disabledRoomList).toBeEnabled();
     await disabledRoomList.click();
     await expect(
       page.getByRole('button', {
-        name: 'Discover rooms is Enabled for bot at Server',
+        name: 'room.list is Enabled for bot at Server',
         exact: true
       })
     ).toBeVisible();
 
     await expect(getRoomAsBot(serverURL, originalKey, roomId)).resolves.toEqual({ status: 200 });
 
-    await permissionFilter.fill('Post messages');
+    await permissionFilter.fill('message.post');
     const disabledMessagePost = page.getByRole('button', {
-      name: 'Post messages is Disabled for bot at Server',
+      name: 'message.post is Disabled for bot at Server',
       exact: true
     });
     await expect(disabledMessagePost).toBeEnabled();
     await disabledMessagePost.click();
     await expect(
       page.getByRole('button', {
-        name: 'Post messages is Enabled for bot at Server',
+        name: 'message.post is Enabled for bot at Server',
         exact: true
       })
     ).toBeVisible();

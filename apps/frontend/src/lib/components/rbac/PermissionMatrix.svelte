@@ -37,7 +37,7 @@ focusing a cell highlights its permission row and role column.
     getIncludingPermissions,
     getPermissionCategory,
     getPermissionCategoryLabel,
-    getPermissionLabel
+    getPermissionDescription
   } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
@@ -210,7 +210,7 @@ focusing a cell highlights its permission row and role column.
       ? permissions.filter(
           (permission) =>
             permission.toLowerCase().includes(query) ||
-            getPermissionLabel(permission).toLowerCase().includes(query)
+            getPermissionDescription(permission).toLowerCase().includes(query)
         )
       : permissions;
   });
@@ -441,12 +441,13 @@ focusing a cell highlights its permission row and role column.
       {#snippet rowHeader(permission, highlighted)}
         <span
           data-testid="permission-name"
+          title={getPermissionDescription(permission)}
           class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
-          >{getPermissionLabel(permission)}</span
+          >{permission}</span
         >
       {/snippet}
       {#snippet cell(permission, role)}
-        {@const permissionLabel = getPermissionLabel(permission)}
+        {@const permissionId = permission}
         {@const ov = overrideState(role, permission)}
         {@const inh = inheritedState(role, permission)}
         {@const includedBy = includingPermission(role, permission)}
@@ -454,11 +455,11 @@ focusing a cell highlights its permission row and role column.
         {@const displayOverride = virtualOwner ? 'allow' : ov}
         {@const displayInherited = virtualOwner ? 'neutral' : inh}
         {@const ariaParts = virtualOwner
-          ? [`Owner is always granted ${permissionLabel}`]
+          ? [`Owner is always granted ${permissionId}`]
           : [
               ov !== 'neutral'
-                ? `Override ${ov} for ${role.displayName} on ${permissionLabel}`
-                : `No override for ${role.displayName} on ${permissionLabel}`,
+                ? `Override ${ov} for ${role.displayName} on ${permissionId}`
+                : `No override for ${role.displayName} on ${permissionId}`,
               inh !== 'neutral' && inheritedFromLabel
                 ? `inheriting ${inh} from ${inheritedFromLabel}`
                 : null
@@ -476,7 +477,7 @@ focusing a cell highlights its permission row and role column.
               inh !== 'neutral' && inheritedFromLabel
                 ? `Inherits ${inh === 'allow' ? 'Allow' : 'Deny'} from ${inheritedFromLabel}`
                 : null,
-              includedBy ? `Effective Allow (included by ${getPermissionLabel(includedBy)})` : null,
+              includedBy ? `Effective Allow (included by ${includedBy})` : null,
               ov === 'neutral' && inh === 'neutral' ? 'No decision' : null
             ].filter(Boolean)}
         <MatrixCell

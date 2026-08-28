@@ -133,7 +133,10 @@ describe('PermissionMatrix', () => {
       [...container.querySelectorAll('[data-testid="permission-name"]')].map(
         (permission) => permission.textContent
       )
-    ).toEqual(['Manage rooms', 'Manage server', 'Delete any account', 'Delete own account']);
+    ).toEqual(['room.manage', 'server.manage', 'user.delete-any', 'user.delete-self']);
+    expect(
+      container.querySelector('[data-testid="permission-name"]')?.getAttribute('title')
+    ).toBe("Edit a room's settings and permissions, and delete rooms");
     expect(container.querySelector('button[aria-label^="About "]')).toBeNull();
   });
 
@@ -161,12 +164,12 @@ describe('PermissionMatrix', () => {
 
     const rowName = [
       ...container.querySelectorAll<HTMLElement>('[data-testid="permission-name"]')
-    ].find((permission) => permission.textContent === 'Read interaction threads');
+    ].find((permission) => permission.textContent === 'message.read.interactions');
     const cell = container.querySelector<HTMLButtonElement>(
       'td[data-role="reader"][data-permission="message.read.interactions"] button'
     );
     expect(rowName?.className).not.toContain('ml-4');
-    expect(cell?.title).toContain('Effective Allow (included by Read messages)');
+    expect(cell?.title).toContain('Effective Allow (included by message.read)');
   });
 
   it('does not derive inclusion from identifier punctuation', async () => {
@@ -207,7 +210,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
-    filter.value = 'create';
+    filter.value = 'root messages';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
@@ -215,7 +218,7 @@ describe('PermissionMatrix', () => {
       [...container.querySelectorAll('[data-testid="permission-name"]')].map(
         (row) => row.textContent
       )
-    ).toEqual(['Create rooms']);
+    ).toEqual(['message.post']);
 
     filter.value = 'missing';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
@@ -417,14 +420,14 @@ describe('PermissionMatrix', () => {
 
     // Admin / message.post: explicit override Allow → aria-pressed=true.
     const adminMessagePost = container.querySelector(
-      'button[aria-label*="Admin"][aria-label*="Post messages"]'
+      'button[aria-label*="Admin"][aria-label*="message.post"]'
     );
     expect(adminMessagePost?.getAttribute('aria-pressed')).toBe('true');
 
     // Moderator / message.post: no override but inherited allow → aria-pressed=false,
     // visible icon is the check (allow).
     const modMessagePost = container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="Post messages"]'
+      'button[aria-label*="Moderator"][aria-label*="message.post"]'
     );
     expect(modMessagePost?.getAttribute('aria-pressed')).toBe('false');
     expect(modMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
@@ -439,7 +442,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const button = container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="Create rooms"]'
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
     ) as HTMLButtonElement;
     button.click();
     flushSync();
@@ -471,7 +474,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const button = container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="Create rooms"]'
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
     ) as HTMLButtonElement;
     button.click();
 
@@ -495,14 +498,14 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const button = rendered.container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="Create rooms"]'
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
     ) as HTMLButtonElement;
     button.click();
     await rendered.rerender({ roomId: 'room-b' });
     await settle();
 
     const replacementButton = rendered.container.querySelector(
-      'button[aria-label*="Moderator"][aria-label*="Create rooms"]'
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
     ) as HTMLButtonElement;
     expect(replacementButton.disabled).toBe(false);
 
@@ -561,7 +564,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const ownerMessagePost = container.querySelector(
-      'button[aria-label*="Owner"][aria-label*="Post messages"]'
+      'button[aria-label*="Owner"][aria-label*="message.post"]'
     ) as HTMLButtonElement | null;
     expect(ownerMessagePost).not.toBeNull();
     expect(ownerMessagePost?.disabled).toBe(true);

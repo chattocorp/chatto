@@ -4,7 +4,6 @@ import {
   getIncludingPermissions,
   getPermissionCategory,
   getPermissionCategoryLabel,
-  getPermissionLabel,
   PERMISSION_METADATA
 } from './permissions';
 
@@ -57,11 +56,6 @@ describe('PERMISSION_METADATA', () => {
     const permissions = ['server.manage', 'server.manage.neighbors'];
     expect(getIncludingPermissions(permissions, 'server.manage.neighbors')).toEqual([]);
     expect(getIncludingPermissions(['server.manage'], 'server.manage.neighbors')).toEqual([]);
-  });
-
-  it('returns a localized label with an opaque ID fallback', () => {
-    expect(getPermissionLabel('server.manage')).toBe('Manage server');
-    expect(getPermissionLabel('future.permission')).toBe('future.permission');
   });
 
   it('uses explicit categories with a presentation-only fallback for newer IDs', () => {

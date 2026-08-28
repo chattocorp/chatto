@@ -25,7 +25,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     getIncludingPermissions,
     getPermissionCategory,
     getPermissionCategoryLabel,
-    getPermissionLabel
+    getPermissionDescription
   } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
@@ -120,7 +120,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       ? permissions.filter(
           (permission) =>
             permission.toLowerCase().includes(query) ||
-            getPermissionLabel(permission).toLowerCase().includes(query)
+            getPermissionDescription(permission).toLowerCase().includes(query)
         )
       : permissions;
   });
@@ -257,12 +257,13 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       {#snippet rowHeader(permission, highlighted)}
         <span
           data-testid="permission-name"
+          title={getPermissionDescription(permission)}
           class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
-          >{getPermissionLabel(permission)}</span
+          >{permission}</span
         >
       {/snippet}
       {#snippet cell(permission, scope)}
-        {@const permissionLabel = getPermissionLabel(permission)}
+        {@const permissionId = permission}
         {@const cell = cellFor(scope.id, permission)}
         {#if cell}
           {@const ov = decisionToState(cell.override)}
@@ -288,10 +289,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 : 'neutral'
               : eff}
           {@const ariaLabel = forceAllow
-            ? `${subjectKind} is always granted ${permissionLabel} at ${scope.label}`
+            ? `${subjectKind} is always granted ${permissionId} at ${scope.label}`
             : decisionMode === 'binary'
               ? m('rbac.permissions.binary.aria', {
-                  permission: permissionLabel,
+                  permission: permissionId,
                   state: binaryEnabled
                     ? m('rbac.permissions.binary.enabled')
                     : m('rbac.permissions.binary.disabled'),
@@ -299,12 +300,12 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                   scope: scope.label
                 })
               : ov !== 'neutral'
-                ? `Override ${ov} for ${permissionLabel} at ${scope.label}`
-                : `No override for ${permissionLabel} at ${scope.label}, effective ${eff}`}
+                ? `Override ${ov} for ${permissionId} at ${scope.label}`
+                : `No override for ${permissionId} at ${scope.label}, effective ${eff}`}
           {@const allowConstraint =
             cell.allowPermitted === false
               ? m('rbac.permissions.binary.owner_ceiling', {
-                  permission: permissionLabel,
+                  permission: permissionId,
                   scope: scope.label
                 })
               : null}
@@ -320,7 +321,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                         m('rbac.permissions.binary.enabled'),
                         includedBy
                           ? m('rbac.permissions.included_by', {
-                              permission: getPermissionLabel(includedBy)
+                              permission: includedBy
                             })
                           : null,
                         cell.override === 'NONE' ? m('rbac.permissions.binary.inherited') : null,
@@ -338,7 +339,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                     ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
                     : null,
                   includedBy
-                    ? `Effective Allow (included by ${getPermissionLabel(includedBy)})`
+                    ? `Effective Allow (included by ${includedBy})`
                     : null,
                   ov === 'neutral' && eff !== 'neutral'
                     ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
