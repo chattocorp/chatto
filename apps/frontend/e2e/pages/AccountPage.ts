@@ -98,8 +98,8 @@ export class AccountPage {
     await this.openDeleteModal();
     await this.typeConfirmation('DELETE');
     await this.confirmDelete();
-    // Wait for redirect to landing page after deletion
-    await this.page.waitForURL('/');
+    // Wait for redirect to sign-in after deletion.
+    await this.page.waitForURL('/login');
   }
 
   // --- Assertions ---

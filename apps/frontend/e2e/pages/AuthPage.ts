@@ -339,7 +339,7 @@ export class AuthPage {
    *
    * Going through the UI button triggers the SPA's full sign-out path
    * (serverRegistry.removeAll() + `window.location.href = '/'`), which
-   * forces a hard reload and lands cleanly on the landing page.
+   * forces a hard reload and lands cleanly on the sign-in page.
    */
   async logout(): Promise<void> {
     await this.logoutViaUI();
@@ -363,12 +363,12 @@ export class AuthPage {
 
   /**
    * Logout the current user by clicking the logout button.
-   * Confirms the logout dialog and waits for redirect to home page.
+   * Confirms the logout dialog and waits for redirect to the sign-in page.
    */
   async logoutViaUI(): Promise<void> {
     await this.openLogoutDialog();
     await this.confirmLogoutButton.click();
-    await this.page.waitForURL('/');
+    await this.page.waitForURL('/login');
   }
 
   /**

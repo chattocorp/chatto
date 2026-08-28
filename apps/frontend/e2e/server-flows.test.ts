@@ -433,7 +433,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
 });
 
 test.describe('Sign Out', () => {
-  test('sign out removes all instances and redirects to landing page', async ({
+  test('sign out removes all instances and redirects to sign in', async ({
     page,
     chatPage
   }) => {
@@ -473,11 +473,10 @@ test.describe('/chat backward compatibility', () => {
     });
   });
 
-  test('/chat redirects authenticated users to /', async ({ page }) => {
+  test('/chat redirects authenticated users into chat', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto('/chat');
 
-    // / redirects to the home server for authenticated users.
-    await page.waitForURL((url) => url.pathname === '/' || url.pathname.startsWith('/chat/'));
+    await page.waitForURL(routes.patterns.chatRedirect);
   });
 });
