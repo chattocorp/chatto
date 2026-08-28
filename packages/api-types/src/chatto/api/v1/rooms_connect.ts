@@ -95,10 +95,10 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Starts or fetches a direct-message room for the current human user and the
-     * requested participant set. The caller must have message.post. A valid
-     * request from a bot receives PERMISSION_DENIED and cannot use this RPC to
-     * fetch an existing DM.
+     * Starts a direct-message room for the current human user and the requested
+     * participant set, or fetches its existing DM. message.post is required
+     * only when the DM must be created. A valid request from a bot receives
+     * PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
      *
      * @generated from rpc chatto.api.v1.RoomService.StartDM
      */

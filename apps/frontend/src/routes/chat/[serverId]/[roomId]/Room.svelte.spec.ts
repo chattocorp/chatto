@@ -56,6 +56,7 @@ const { mocks } = vi.hoisted(() => {
       messageSearchSupported: false,
       livekitUrl: null as string | null,
       roomKind: 1,
+      dmParticipantIds: ['test-user', 'user-1'] as string[],
       threadingMode: 3,
       canReadMessages: true as boolean | null,
       canPostMessage: true,
@@ -139,7 +140,7 @@ vi.mock('$lib/hooks', () => ({
     dmData:
       mocks.roomKind === RoomKind.DM
         ? {
-            participantIds: ['test-user', 'user-1'],
+            participantIds: mocks.dmParticipantIds,
             participants: [
               {
                 id: 'test-user',
@@ -389,20 +390,37 @@ function roomMessageEvent(id: string) {
   };
 }
 
-function stubMatchMedia(matches: boolean): void {
+function stubMatchMedia(matches: boolean): (nextMatches: boolean) => void {
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+  const mediaQueryList = {
+    matches,
+    media: '(min-width: 1024px)',
+    onchange: null,
+    addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type !== 'change' || typeof listener !== 'function') return;
+      listeners.add(listener as (event: MediaQueryListEvent) => void);
+    },
+    removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type !== 'change' || typeof listener !== 'function') return;
+      listeners.delete(listener as (event: MediaQueryListEvent) => void);
+    },
+    addListener: (listener: (event: MediaQueryListEvent) => void) => listeners.add(listener),
+    removeListener: (listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener),
+    dispatchEvent: vi.fn(() => true)
+  };
   vi.stubGlobal(
     'matchMedia',
-    vi.fn((media: string) => ({
-      matches,
-      media,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(() => true)
-    }))
+    vi.fn(() => mediaQueryList)
   );
+  return (nextMatches: boolean) => {
+    mediaQueryList.matches = nextMatches;
+    const event = new Event('change') as MediaQueryListEvent;
+    Object.defineProperties(event, {
+      matches: { value: nextMatches },
+      media: { value: mediaQueryList.media }
+    });
+    for (const listener of listeners) listener(event);
+  };
 }
 
 async function waitForElement<T extends Element>(
@@ -438,6 +456,7 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.dmParticipantIds = ['test-user', 'user-1'];
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
   mocks.canPostMessage = true;
@@ -526,8 +545,8 @@ describe('Room interaction bundles', () => {
   });
 
   it('loads the desktop room sidebar for a transient profile view', async () => {
-    appUi.openDesktopRoomSidebarProfile('user-1');
-    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe('user-1');
+    appUi.openRoomSidebarProfile('user-1');
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
@@ -547,11 +566,25 @@ describe('Room interaction bundles', () => {
     );
     profileButton.click();
 
-    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe('user-1');
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
+  });
+
+  it('opens the current user profile from a self-DM header', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.dmParticipantIds = ['test-user'];
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    const profileButton = await waitForElement<HTMLButtonElement>(
+      container,
+      'button[aria-label="Profile"]'
+    );
+    profileButton.click();
+
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('test-user');
   });
 
   it('keeps a thread pane open beside a desktop profile view', async () => {
-    appUi.openDesktopRoomSidebarProfile('user-1');
+    appUi.openRoomSidebarProfile('user-1');
 
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
@@ -605,7 +638,7 @@ describe('Room interaction bundles', () => {
   it('closes a mobile profile with Escape and restores its room-extras panel', async () => {
     stubMatchMedia(false);
     appUi.openMobileRoomSidebarPanel('files');
-    appUi.openMobileRoomSidebarProfile('user-1');
+    appUi.openRoomSidebarProfile('user-1');
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await expect
@@ -615,11 +648,40 @@ describe('Room interaction bundles', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await tick();
 
-    expect(appUi.activeMobileRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.activeRoomSidebarProfileUserId).toBe(null);
     expect(appUi.mobileRoomSidebarPanel).toBe('files');
     await expect
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
+  });
+
+  it('keeps an open profile visible while the viewport crosses the layout breakpoint', async () => {
+    const setMatchMedia = stubMatchMedia(true);
+    appUi.openRoomSidebarProfile('user-1');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+
+    setMatchMedia(false);
+    await tick();
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .not.toBeInTheDocument();
+
+    setMatchMedia(true);
+    await tick();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .not.toBeInTheDocument();
   });
 });
 

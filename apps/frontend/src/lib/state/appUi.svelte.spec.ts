@@ -90,14 +90,14 @@ describe('AppUiState', () => {
 
     appUi.setActiveRoomScope('server-a', 'room-1');
     appUi.openDesktopRoomSidebarPanel('files');
-    appUi.openDesktopRoomSidebarProfile('user-1');
+    appUi.openRoomSidebarProfile('user-1');
 
-    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe('user-1');
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
     expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
 
-    appUi.closeDesktopRoomSidebarProfile();
+    appUi.closeRoomSidebarProfile();
 
-    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.activeRoomSidebarProfileUserId).toBe(null);
     expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
   });
 
@@ -106,10 +106,10 @@ describe('AppUiState', () => {
 
     appUi.setActiveRoomScope('server-a', 'room-1');
     appUi.openDesktopRoomSidebarPanel('files');
-    appUi.openDesktopRoomSidebarProfile('user-1');
+    appUi.openRoomSidebarProfile('user-1');
     appUi.toggleDesktopRoomSidebarPanel('files');
 
-    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.activeRoomSidebarProfileUserId).toBe(null);
     expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
   });
 
@@ -117,12 +117,10 @@ describe('AppUiState', () => {
     const appUi = new AppUiState();
 
     appUi.setActiveRoomScope('server-a', 'room-1');
-    appUi.openDesktopRoomSidebarProfile('user-1');
-    appUi.openMobileRoomSidebarProfile('user-1');
+    appUi.openRoomSidebarProfile('user-1');
     appUi.setActiveRoomScope('server-a', 'room-2');
 
-    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe(null);
-    expect(appUi.activeMobileRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.activeRoomSidebarProfileUserId).toBe(null);
   });
 
   it('applies a desktop sidebar request when its room becomes active', () => {
@@ -169,23 +167,13 @@ describe('AppUiState', () => {
     const appUi = new AppUiState();
 
     appUi.setActiveRoomScope('server-a', 'room-1');
-    appUi.requestRoomSidebarProfile('server-a', 'dm-1', 'user-1', 'desktop');
+    appUi.requestRoomSidebarProfile('server-a', 'dm-1', 'user-1');
 
-    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe(null);
+    expect(appUi.activeRoomSidebarProfileUserId).toBe(null);
 
     appUi.setActiveRoomScope('server-a', 'dm-1');
 
-    expect(appUi.activeDesktopRoomSidebarProfileUserId).toBe('user-1');
-  });
-
-  it('applies a pending mobile profile request after direct-message navigation', () => {
-    const appUi = new AppUiState();
-
-    appUi.setActiveRoomScope('server-a', 'room-1');
-    appUi.requestRoomSidebarProfile('server-a', 'dm-1', 'user-1', 'mobile');
-    appUi.setActiveRoomScope('server-a', 'dm-1');
-
-    expect(appUi.activeMobileRoomSidebarProfileUserId).toBe('user-1');
+    expect(appUi.activeRoomSidebarProfileUserId).toBe('user-1');
   });
 
   it('tracks the scoped wide call room', () => {

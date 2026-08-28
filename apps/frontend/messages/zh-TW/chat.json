@@ -41,6 +41,7 @@
       "profile": "使用者個人檔案",
       "send_message": "傳送訊息",
       "view_profile": "查看個人資料",
+      "profile_requires_direct_message": "需要有私訊對話才能查看此個人資料。",
       "view_in_admin": "在伺服器管理中檢視",
       "copy_user_id": "複製使用者 ID"
     },

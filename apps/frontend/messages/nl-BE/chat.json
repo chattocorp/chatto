@@ -41,6 +41,7 @@
       "profile": "Gebruikersprofiel",
       "send_message": "Bericht verzenden",
       "view_profile": "Profiel bekijken",
+      "profile_requires_direct_message": "Een rechtstreeks bericht is nodig om dit profiel te bekijken.",
       "view_in_admin": "Bekijken in serverbeheer",
       "copy_user_id": "Gebruikers-ID kopiëren"
     },

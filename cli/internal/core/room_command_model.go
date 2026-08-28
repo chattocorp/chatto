@@ -244,6 +244,22 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if len(input.ParticipantIDs) > MaxDMParticipants-1 {
 		return nil, false, invalidArgument("DM conversations are limited to 10 participants")
 	}
+	isBot, _, accountExists := s.core.userModel.isBotAndOwner(input.ActorID)
+	if !accountExists {
+		return nil, false, ErrNotFound
+	}
+	// Bots cannot use StartDM as a lookup operation. This prevents an existing
+	// membership from becoming a bot-discoverable DM directory.
+	if isBot {
+		return nil, false, ErrPermissionDenied
+	}
+	room, found, err := s.core.FindDM(ctx, input.ActorID, input.ParticipantIDs)
+	if err != nil {
+		return nil, false, err
+	}
+	if found {
+		return room, false, nil
+	}
 	can, err := s.core.CanStartDM(ctx, input.ActorID)
 	if err != nil {
 		return nil, false, err

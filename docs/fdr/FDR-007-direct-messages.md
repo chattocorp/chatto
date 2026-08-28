@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -31,8 +31,9 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - A user can read a DM only when they are a participant. `message.read` and
   `message.read.interactions` do not apply to DMs, and there is no `dm.*` read
   permission.
-- Operators can prevent a human user from starting DMs, or any user from
-  sending messages in existing DMs, by revoking `message.post`.
+- Operators can prevent a human user from creating new DMs, or any user from
+  sending messages in existing DMs, by revoking `message.post`. A human user
+  can still open an existing DM that they are a participant in.
 - Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
 - Inside a DM room, ordinary message-related features apply: posting, flat reply attribution, reactions, edits, deletes, mentions, and attachments.
 - DMs do not support threads. The client does not offer thread actions, and the server rejects attempts to create or extend a DM thread even for owners. Thread data written by older versions remains readable but read-only.
@@ -50,8 +51,9 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 
 **Decision:** DM membership authorizes complete DM reads for humans and bots.
 `message.read` and `message.read.interactions` grants and denials do not change
-DM access. A human needs `message.post` to start a DM. All users need
-`message.post` to post messages in an existing DM. Reply attribution does not
+DM access. A human needs `message.post` to create a DM. A human participant
+can open an existing DM without that permission. All users need `message.post`
+to post messages in an existing DM. Reply attribution does not
 change that permission, and thread posting does not apply to DMs.
 **Why:** Membership is the fixed private participant boundary. Chatto has no
 permission UI for one DM, and hiding a DM from its participant is surprising.
@@ -111,8 +113,9 @@ realtime events.
 
 ## Permissions
 
-- `message.post` — let a human start DMs, and let a human or bot send messages
-  in existing DM rooms.
+- `message.post` — let a human create DMs, and let a human or bot send messages
+  in existing DM rooms. It does not prevent a human participant from opening
+  an existing DM.
 - `message.react` — add and remove reactions in DM rooms.
 
 DMs have no `dm.*` permissions. Membership authorizes reads. Message-action and

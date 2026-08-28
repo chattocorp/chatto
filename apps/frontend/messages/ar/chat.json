@@ -41,6 +41,7 @@
       "profile": "الملف الشخصي للمستخدم",
       "send_message": "أرسل رسالة",
       "view_profile": "عرض الملف الشخصي",
+      "profile_requires_direct_message": "تحتاج إلى رسالة مباشرة لعرض هذا الملف الشخصي.",
       "view_in_admin": "عرض في إدارة الخادم",
       "copy_user_id": "نسخ معرّف المستخدم"
     },

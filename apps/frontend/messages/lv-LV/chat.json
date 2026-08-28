@@ -41,6 +41,7 @@
       "profile": "Lietotāja profils",
       "send_message": "Nosūtīt ziņu",
       "view_profile": "Skatīt profilu",
+      "profile_requires_direct_message": "Lai skatītu šo profilu, ir nepieciešams tiešais ziņojums.",
       "view_in_admin": "Skatīt servera administrēšanā",
       "copy_user_id": "Kopēt lietotāja ID"
     },

@@ -393,16 +393,22 @@
       supportsPinnedMessages
     )
   );
+  const activeRoomSidebarProfileUserId = $derived(appUi.activeRoomSidebarProfileUserId);
   const activeDesktopRoomSidebarProfileUserId = $derived(
-    appUi.activeDesktopRoomSidebarProfileUserId
+    desktopRoomLayout.current ? activeRoomSidebarProfileUserId : null
   );
-  const activeMobileRoomSidebarProfileUserId = $derived(appUi.activeMobileRoomSidebarProfileUserId);
+  const activeMobileRoomSidebarProfileUserId = $derived(
+    desktopRoomLayout.current ? null : activeRoomSidebarProfileUserId
+  );
   const directMessageProfileUserId = $derived.by(() => {
     const participantIds = room.dmData?.participantIds ?? [];
     const otherParticipantIds = participantIds.filter(
       (participantId) => participantId !== room.dmData?.currentUserId
     );
-    return otherParticipantIds.length === 1 ? otherParticipantIds[0] : null;
+    if (otherParticipantIds.length === 1) return otherParticipantIds[0];
+    return participantIds.length === 1 && participantIds[0] === room.dmData?.currentUserId
+      ? participantIds[0]
+      : null;
   });
   const hasMobileRoomSidebar = $derived(
     mobileRoomSidebarPanel !== null || activeMobileRoomSidebarProfileUserId !== null
@@ -499,19 +505,14 @@
   }
 
   function openDirectMessageProfile(userId: string): void {
-    if (desktopRoomLayout.current) {
-      appUi.openDesktopRoomSidebarProfile(userId);
-      return;
-    }
-    appUi.openMobileRoomSidebarProfile(userId);
+    appUi.openRoomSidebarProfile(userId);
   }
 
   /** Open a user's one-to-one DM, then show their information in its sidebar. */
   function openUserDirectMessageProfile(userId: string): void {
-    const presentation = getRoomSidebarPresentation();
     void startDMWith(activeServerId, userId, {
       onRoomReady: (directMessageRoomId) =>
-        appUi.requestRoomSidebarProfile(activeServerId, directMessageRoomId, userId, presentation)
+        appUi.requestRoomSidebarProfile(activeServerId, directMessageRoomId, userId)
     });
   }
 
@@ -524,16 +525,16 @@
   }
 
   function closeDesktopRoomSidebar(): void {
-    if (activeDesktopRoomSidebarProfileUserId) {
-      appUi.closeDesktopRoomSidebarProfile();
+    if (activeRoomSidebarProfileUserId) {
+      appUi.closeRoomSidebarProfile();
       return;
     }
     closeDesktopRoomSidebarPanel();
   }
 
   function closeMobileRoomSidebar(): void {
-    if (activeMobileRoomSidebarProfileUserId) {
-      appUi.closeMobileRoomSidebarProfile();
+    if (activeRoomSidebarProfileUserId) {
+      appUi.closeRoomSidebarProfile();
       return;
     }
     appUi.closeMobileRoomSidebarPanel();
@@ -735,7 +736,7 @@
               <HeaderIconButton
                 icon="icon-[uil--info-circle]"
                 label={m('chat.profile.title')}
-                tone={activeDesktopRoomSidebarProfileUserId || activeMobileRoomSidebarProfileUserId
+                tone={activeRoomSidebarProfileUserId
                   ? 'active'
                   : 'default'}
                 onclick={() => openDirectMessageProfile(directMessageProfileUserId)}

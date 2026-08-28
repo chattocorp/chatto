@@ -41,6 +41,7 @@
       "profile": "Profilo de uzanto",
       "send_message": "Sendu Mesaĝon",
       "view_profile": "Vidi profilon",
+      "profile_requires_direct_message": "Necesas rekta mesaĝo por vidi ĉi tiun profilon.",
       "view_in_admin": "Vidi en servila administrado",
       "copy_user_id": "Kopii identigilon de uzanto"
     },
