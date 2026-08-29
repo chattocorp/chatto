@@ -77,7 +77,7 @@ three for a text-only entry.
   const leadingClasses = $derived([
     'menu-entry-leading',
     'self-start',
-    isSheet ? 'menu-entry-leading-sheet' : 'mt-px'
+    isSheet ? 'menu-entry-leading-sheet' : 'menu-entry-leading-floating'
   ]);
 
   function handleClick(event: MouseEvent): void {
