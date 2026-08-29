@@ -174,7 +174,7 @@ test.describe('Composer keyboard behavior', () => {
     const message = `Keyboard send ${Date.now()}`;
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(message);
-    await expect(page.getByTestId('composer-toolbar')).not.toContainText(/to send/i);
+    await expect(page.getByTestId('composer-action-toolbar')).not.toContainText(/to send/i);
 
     await roomPage.messageInput.press('Enter');
     await expect(roomPage.getMessage(message).locator).not.toBeVisible();
@@ -299,6 +299,13 @@ test.describe('Markdown composer', () => {
     await waitForRoomReady(page, 'general');
 
     await roomPage.messageInput.fill('first\nsecond');
+    const formattingToggle = page.getByRole('button', {
+      name: 'Formatting options',
+      exact: true
+    });
+    await expect(formattingToggle).toHaveAttribute('aria-expanded', 'false');
+    await formattingToggle.click();
+    await expect(formattingToggle).toHaveAttribute('aria-expanded', 'true');
     const indent = page.getByRole('button', { name: 'Indent', exact: true });
     const outdent = page.getByRole('button', { name: 'Outdent', exact: true });
     await expect(indent).toBeEnabled();
