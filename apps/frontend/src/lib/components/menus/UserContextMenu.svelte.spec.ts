@@ -306,6 +306,19 @@ describe('UserContextMenu', () => {
       'View in Server Admin',
       'Ban from room'
     ]);
+    const actionIcons = Array.from(dialog.querySelectorAll('.sidebar-item > .sidebar-icon'));
+    expect(
+      actionIcons.map((icon) =>
+        Array.from(icon.classList).find((className) => className.startsWith('icon-[uil--'))
+      )
+    ).toEqual([
+      'icon-[uil--comment-alt-message]',
+      'icon-[uil--user]',
+      'icon-[uil--servers]',
+      'icon-[uil--ban]',
+      'icon-[uil--copy]'
+    ]);
+    expect(actionIcons.every((icon) => icon.classList.contains('self-start'))).toBe(true);
     expect(sections[2]?.textContent).toContain('Copy User ID');
     expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);
     expect(sections[1]?.parentElement).toBe(sections[2]?.parentElement);
