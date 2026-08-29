@@ -193,6 +193,10 @@ keep the compact menu without a navigation action.
       <nav class="sidebar-nav">
         {#if canSendMessage}
           <button type="button" class="sidebar-item" onclick={handleSendMessage}>
+            <span
+              class="iconify sidebar-icon self-start icon-[uil--comment-alt-message]"
+              aria-hidden="true"
+            ></span>
             {m('chat.user_menu.send_message')}
           </button>
         {/if}
@@ -204,6 +208,10 @@ keep the compact menu without a navigation action.
             disabled={!canOpenProfile}
             title={canOpenProfile ? undefined : m('chat.user_menu.profile_requires_direct_message')}
           >
+            <span
+              class="iconify sidebar-icon self-start icon-[uil--user]"
+              aria-hidden="true"
+            ></span>
             {m('chat.user_menu.view_profile')}
           </button>
         {/if}
@@ -214,6 +222,10 @@ keep the compact menu without a navigation action.
             onclick={() => onClose?.()}
             data-testid="view-user-admin"
           >
+            <span
+              class="iconify sidebar-icon self-start icon-[uil--servers]"
+              aria-hidden="true"
+            ></span>
             {m('chat.user_menu.view_in_admin')}
           </a>
         {/if}
@@ -224,6 +236,10 @@ keep the compact menu without a navigation action.
             onclick={handleBanFromRoom}
             disabled={banningFromRoom}
           >
+            <span
+              class="iconify sidebar-icon self-start icon-[uil--ban]"
+              aria-hidden="true"
+            ></span>
             {banningFromRoom ? m('admin.moderation.banning') : m('admin.moderation.ban_action')}
           </button>
         {/if}
@@ -239,6 +255,10 @@ keep the compact menu without a navigation action.
         onclick={() => void handleCopyUserId()}
         data-testid="copy-user-id"
       >
+        <span
+          class="iconify sidebar-icon self-start icon-[uil--copy]"
+          aria-hidden="true"
+        ></span>
         {m('chat.user_menu.copy_user_id')}
       </button>
     </nav>
