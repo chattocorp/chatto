@@ -46,9 +46,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { toast } from '$lib/ui/toast';
   import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import type { Attachment } from 'svelte/attachments';
+  import { fromAction, type Attachment } from 'svelte/attachments';
   import { SvelteMap } from 'svelte/reactivity';
-  import { dndzone, dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
+  import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
   import type { AdminRoomLayoutItemMutationInput } from '$lib/api-client/adminRoomLayout';
 
   let { canReorderGroups = false }: { canReorderGroups?: boolean } = $props();
@@ -117,43 +117,40 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     });
   }
 
-  const dndHandleAttachment: Attachment<HTMLElement> = (node) => {
-    const result = dragHandle(node);
-    return () => result?.destroy?.();
-  };
+  const dndHandleAttachment = fromAction(dragHandle);
 
-  function groupDragAttachment(items: NavigationSection[]): Attachment<HTMLElement> {
-    return (node) => {
-      const action = dndzone(node, {
-        items,
-        flipDurationMs: 160,
-        dropTargetStyle: {},
-        type: 'sidebar-room-groups'
-      });
-      const consider = (event: Event) => {
-        const detail = (event as CustomEvent<DndEvent<NavigationSection>>).detail;
-        optimisticGroupOrder = detail.items.flatMap((section) => section.group?.id ?? []);
-      };
-      const finalize = (event: Event) => {
-        const detail = (event as CustomEvent<DndEvent<NavigationSection>>).detail;
-        const order = detail.items.flatMap((section) => section.group?.id ?? []);
-        optimisticGroupOrder = order;
-        const movedSectionId = String(detail.info?.id ?? '');
-        const moved = detail.items.find((section) => section.id === movedSectionId);
-        if (!moved?.group) return;
-        const index = detail.items.indexOf(moved);
-        const beforeGroupId = detail.items[index + 1]?.group?.id;
-        void persistGroupPlacement(moved.group.id, beforeGroupId);
-      };
-      node.addEventListener('consider', consider);
-      node.addEventListener('finalize', finalize);
-      return () => {
-        node.removeEventListener('consider', consider);
-        node.removeEventListener('finalize', finalize);
-        action?.destroy?.();
-      };
+  const groupDragZoneAttachment = fromAction(dragHandleZone, () => ({
+    items: managedSections,
+    flipDurationMs: 160,
+    dropTargetStyle: {},
+    type: 'sidebar-room-groups'
+  }));
+
+  const groupDragAttachment: Attachment<HTMLElement> = (node) => {
+    const detachZone = groupDragZoneAttachment(node);
+    const consider = (event: Event) => {
+      const detail = (event as CustomEvent<DndEvent<NavigationSection>>).detail;
+      optimisticGroupOrder = detail.items.flatMap((section) => section.group?.id ?? []);
     };
-  }
+    const finalize = (event: Event) => {
+      const detail = (event as CustomEvent<DndEvent<NavigationSection>>).detail;
+      const order = detail.items.flatMap((section) => section.group?.id ?? []);
+      optimisticGroupOrder = order;
+      const movedSectionId = String(detail.info?.id ?? '');
+      const moved = detail.items.find((section) => section.id === movedSectionId);
+      if (!moved?.group) return;
+      const index = detail.items.indexOf(moved);
+      const beforeGroupId = detail.items[index + 1]?.group?.id;
+      void persistGroupPlacement(moved.group.id, beforeGroupId);
+    };
+    node.addEventListener('consider', consider);
+    node.addEventListener('finalize', finalize);
+    return () => {
+      node.removeEventListener('consider', consider);
+      node.removeEventListener('finalize', finalize);
+      detachZone?.();
+    };
+  };
 
   async function persistGroupPlacement(groupId: string, beforeGroupId?: string): Promise<void> {
     try {
@@ -169,26 +166,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
   }
 
-  function itemDragAttachment(
-    group: RoomsListGroup,
-    items: RoomsListGroupItem[]
-  ): Attachment<HTMLDivElement> | undefined {
-    if (!supportsSidebarRoomManagement || !group.viewerCanManageGroup) return undefined;
-    return (node) => {
-      const action = dragHandleZone(node, {
-        items,
-        flipDurationMs: 160,
-        dropTargetStyle: {
-          outline: '2px dashed var(--color-action)',
-          'outline-offset': '-2px',
-          'border-radius': '0.375rem'
-        },
-        type: 'sidebar-room-items'
-      });
+  function createItemDragAttachment(groupId: string): Attachment<HTMLDivElement> {
+    const zoneAttachment = fromAction(dragHandleZone, () => ({
+      items: managedSections.find((section) => section.group.id === groupId)?.items ?? [],
+      flipDurationMs: 160,
+      dropTargetStyle: {
+        outline: '2px dashed var(--color-action)',
+        'outline-offset': '-2px',
+        'border-radius': '0.375rem'
+      },
+      type: 'sidebar-room-items'
+    }));
+    const attachment: Attachment<HTMLDivElement> = (node) => {
+      const detachZone = zoneAttachment(node);
       const updateItems = (event: Event) => {
         const detail = (event as CustomEvent<DndEvent<RoomsListGroupItem>>).detail;
         activeItemDragId ??= String(detail.info?.id ?? '');
-        optimisticGroupItems.set(group.id, detail.items);
+        optimisticGroupItems.set(groupId, detail.items);
       };
       const finalize = (event: Event) => {
         updateItems(event);
@@ -204,9 +198,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       return () => {
         node.removeEventListener('consider', updateItems);
         node.removeEventListener('finalize', finalize);
-        action?.destroy?.();
+        detachZone?.();
       };
     };
+    return attachment;
   }
 
   function itemMutationInput(item: RoomsListGroupItem): AdminRoomLayoutItemMutationInput {
@@ -476,6 +471,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     persistKey: string;
     keepVisibleWhenCollapsed: typeof isGroupItemHighlighted;
     contextMenuTrigger?: ReturnType<typeof groupMenuTrigger>;
+    itemsAttachment?: Attachment<HTMLDivElement>;
     group?: RoomsListGroup;
   };
 
@@ -525,6 +521,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           persistKey: serverStorageKey(activeServerId, `collapsible:set:${group.id}`),
           keepVisibleWhenCollapsed: isGroupItemHighlighted,
           contextMenuTrigger: groupMenuTrigger(group),
+          itemsAttachment:
+            supportsSidebarRoomManagement && group.viewerCanManageGroup
+              ? createItemDragAttachment(group.id)
+              : undefined,
           group
         }))
       );
@@ -986,7 +986,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         ? 'room-groups-dropzone'
         : undefined}
       {@attach supportsSidebarRoomManagement && canReorderGroups
-        ? groupDragAttachment(managedSections)
+        ? groupDragAttachment
         : undefined}
     >
       {#each managedSections as section, i (section.id)}
@@ -1000,7 +1000,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           persistKey={section.persistKey}
           keepVisibleWhenCollapsed={section.keepVisibleWhenCollapsed}
           contextMenuTrigger={section.contextMenuTrigger}
-          itemsAttachment={itemDragAttachment(section.group, section.items)}
+          itemsAttachment={section.itemsAttachment}
           {headerActions}
           separated={i > 0}
         />

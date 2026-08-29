@@ -1065,6 +1065,110 @@ describe('RoomList', () => {
       .toBeInTheDocument();
   });
 
+  it('starts room-group dragging only from the group drag handle', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      },
+      {
+        id: 'operations',
+        name: 'Operations',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const header = Array.from(container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]'))
+      .find((button) => button.textContent?.trim() === 'Projects');
+    const title = header?.querySelector('span:last-child');
+    expect(title).not.toBeNull();
+
+    title!.dispatchEvent(
+      new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 20,
+        clientY: 20
+      })
+    );
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 50,
+        clientY: 50
+      })
+    );
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    expect(document.querySelector('#dnd-action-dragged-el')).toBeNull();
+    window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
+  });
+
+  it('keeps room groups mounted while a room drag updates its drop zones', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        roomIds: ['channel-1'],
+        items: [{ id: 'room:channel-1', type: 'room', roomId: 'channel-1' }]
+      },
+      {
+        id: 'operations',
+        name: 'Operations',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const handle = q(container, '[data-testid="room-drag-handle"]') as HTMLButtonElement;
+    const target = handle.querySelector('span') ?? handle;
+
+    target.dispatchEvent(
+      new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 20,
+        clientY: 20
+      })
+    );
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 50,
+        clientY: 50
+      })
+    );
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    expect(document.querySelector('#dnd-action-dragged-el')).not.toBeNull();
+    expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(2);
+    expect(container.textContent).toContain('Projects');
+    expect(container.textContent).toContain('Operations');
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: 50, clientY: 50 })
+    );
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  });
+
   it('keeps an empty group visible when the viewer can create rooms in it', async () => {
     mocks.store.navigation.rooms = [];
     mocks.store.navigation.roomGroups = [
