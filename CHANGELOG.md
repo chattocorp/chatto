@@ -3,6 +3,24 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.2](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.1...v0.5.0-alpha.2) (2026-08-29)
+
+
+### Features
+
+* **frontend:** add compact composer formatting shelf ([#2182](https://github.com/chattocorp/chatto/issues/2182)) ([98c072b](https://github.com/chattocorp/chatto/commit/98c072bdec558975759086e3a2b3b594980b5356))
+
+
+### Bug Fixes
+
+* **auth:** publish frontend CIMD for origin aliases ([#2186](https://github.com/chattocorp/chatto/issues/2186)) ([3bc4dd1](https://github.com/chattocorp/chatto/commit/3bc4dd196491abe479da7c6189719a06dbe3a223))
+* **frontend:** divide member search from presence groups ([#2187](https://github.com/chattocorp/chatto/issues/2187)) ([d7c2195](https://github.com/chattocorp/chatto/commit/d7c2195225a551355ce85b472fe4c422bae6d79c))
+
+
+### Performance Improvements
+
+* **ci:** shorten and harden validation ([#2185](https://github.com/chattocorp/chatto/issues/2185)) ([68d68ba](https://github.com/chattocorp/chatto/commit/68d68ba530c3cdc1825e0241752361d3bbf38254))
+
 ## [0.5.0-alpha.1](https://github.com/chattocorp/chatto/compare/v0.4.8...v0.5.0-alpha.1) (2026-08-29)
 
 
