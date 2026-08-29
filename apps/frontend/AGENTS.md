@@ -312,6 +312,10 @@ and Storybook.
   timers or dispatch the complete input value synchronously instead of timing
   multi-keystroke `userEvent.type` calls against the production delay.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
+- Page objects that open a canonical entry route must model its actual landing
+  page. If a method promises a child page, first open the entry route, then
+  select and wait for that child page. When an entry route changes, inspect all
+  page-object methods and callers that depend on its landing page.
 - When changing multi-server authentication or shared chat providers, cover an
   authenticated remote server with an anonymous origin server.
 - Use helpers from `$lib/test-utils` rather than re-rolling connection/context
