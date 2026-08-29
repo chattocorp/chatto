@@ -13,6 +13,8 @@ recommendation, not a trust or reciprocal relationship.
 
 - An administrator can create, read, update, and delete Neighbors in Server
   Configuration.
+- The administration form accepts a server hostname or URL. The client sends
+  only the canonical HTTP or HTTPS origin for storage.
 - Each Neighbor contains one canonical HTTP or HTTPS server origin. A server
   can advertise at most 100 Neighbors.
 - The directory has no ordering contract.
@@ -20,9 +22,10 @@ recommendation, not a trust or reciprocal relationship.
 - The Server Directory page combines the direct Neighbors from all servers
   registered in the client. It removes duplicate canonical origins but does
   not rank or sort the results.
-- The client loads each advertised server's public name, description, logo,
-  and banner. A failed source or profile request does not hide results from
-  other servers.
+- The Server Directory and Neighbor administration page load each advertised
+  server's public name, description, logo, and banner. An administrator can use
+  this information to review a Neighbor. A failed source or profile request
+  does not hide results from other servers.
 - An advertised server that is already registered remains visible and is
   marked as joined.
 - A user can enter a server address directly when the wanted server is not in
@@ -66,14 +69,14 @@ Administrators and clients must not present a Neighbor as trusted or mutual.
 **Decision:** The server validates and stores canonical origins. It does not
 request discovery data, images, or health information from a Neighbor. The
 client requests public discovery data directly from advertised origins when it
-builds the Server Directory.
+displays the Server Directory or the Neighbor administration page.
 
 **Why:** Passive storage keeps writes deterministic and avoids remote effects
 inside the configuration operation.
 
-**Tradeoff:** Opening the Server Directory sends browser requests to advertised
-servers. An offline or invalid server appears without a public profile, while
-the rest of the directory remains available.
+**Tradeoff:** Opening the Server Directory or Neighbor administration page sends
+browser requests to advertised servers. An offline or invalid server appears
+without a public profile, while the rest of the directory remains available.
 
 ### 4. Permission inclusion is explicit
 

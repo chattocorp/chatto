@@ -9,6 +9,7 @@
     type PublicServerInfo
   } from '$lib/api-client/server';
   import { startRemoteReauthentication, startServerOAuthFlow } from '$lib/auth/reauth';
+  import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { queryClient } from '$lib/query/client';
@@ -20,7 +21,6 @@
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
   import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
-  import ServerDirectoryCard from './ServerDirectoryCard.svelte';
 
   let customInput = $state('');
   let customOrigin = $state('');
@@ -189,16 +189,26 @@
         </Form>
 
         {#if customProfile && customOrigin}
+          {@const profile = customProfile}
           {@const joined = registeredServer(customOrigin)}
           <div class="mt-5 max-w-md">
-            <ServerDirectoryCard
+            {#snippet customActions()}
+              <Button
+                variant={joined ? 'secondary' : 'action'}
+                fullWidth
+                loading={pendingOrigin === customOrigin}
+                disabled={!joined && !profile.authorizeUrl}
+                onclick={() => openOrJoin(customOrigin, profile)}
+              >
+                {actionLabel(customOrigin, customProfile)}
+              </Button>
+            {/snippet}
+            <ServerProfileCard
               origin={customOrigin}
-              profile={customProfile}
-              joined={!!joined}
-              actionLabel={actionLabel(customOrigin, customProfile)}
-              actionLoading={pendingOrigin === customOrigin}
-              actionDisabled={!joined && !customProfile.authorizeUrl}
-              onaction={() => openOrJoin(customOrigin, customProfile)}
+              {profile}
+              badge={joined ? m('add_server.directory.joined') : undefined}
+              actions={customActions}
+              testId="server-directory-entry"
             />
           </div>
         {/if}
@@ -242,14 +252,23 @@
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each entries as entry (entry.origin)}
               {@const joined = registeredServer(entry.origin)}
-              <ServerDirectoryCard
+              {#snippet cardActions()}
+                <Button
+                  variant={joined ? 'secondary' : 'action'}
+                  fullWidth
+                  loading={pendingOrigin === entry.origin}
+                  disabled={cardDisabled(entry)}
+                  onclick={() => openOrJoin(entry.origin, entry.profile)}
+                >
+                  {actionLabel(entry.origin, entry.profile)}
+                </Button>
+              {/snippet}
+              <ServerProfileCard
                 origin={entry.origin}
                 profile={entry.profile}
-                joined={!!joined}
-                actionLabel={actionLabel(entry.origin, entry.profile)}
-                actionLoading={pendingOrigin === entry.origin}
-                actionDisabled={cardDisabled(entry)}
-                onaction={() => openOrJoin(entry.origin, entry.profile)}
+                badge={joined ? m('add_server.directory.joined') : undefined}
+                actions={cardActions}
+                testId="server-directory-entry"
               />
             {/each}
           </div>

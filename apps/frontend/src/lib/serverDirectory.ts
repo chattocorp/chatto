@@ -26,6 +26,8 @@ type DirectoryLoadOptions = {
   getServerInfo?: typeof getPublicServerInfo;
 };
 
+type ProfileLoadOptions = Pick<DirectoryLoadOptions, 'signal' | 'getServerInfo'>;
+
 /** Convert an advertised URL to a canonical HTTP(S) origin. */
 export function canonicalServerOrigin(value: string): string | null {
   try {
@@ -37,6 +39,28 @@ export function canonicalServerOrigin(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Convert a hostname or HTTP(S) URL entered by a person to its origin. */
+export function serverOriginFromInput(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) return null;
+  return canonicalServerOrigin(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+}
+
+/** Load public profiles without making one failed server hide the others. */
+export async function loadServerProfiles(
+  origins: readonly string[],
+  options: ProfileLoadOptions = {}
+): Promise<ServerDirectoryEntry[]> {
+  const getServerInfo = options.getServerInfo ?? getPublicServerInfo;
+  const profiles = await mapWithConcurrency(origins, PROFILE_CONCURRENCY, (origin) =>
+    getServerInfo(origin, { signal: discoverySignal(options.signal) }).catch(() => null)
+  );
+  throwIfAborted(options.signal);
+
+  return origins.map((origin, index) => ({ origin, profile: profiles[index] ?? null }));
 }
 
 /**
@@ -77,16 +101,13 @@ export async function loadServerDirectory(
     }
   }
 
-  const profiles = await mapWithConcurrency(advertisedOrigins, PROFILE_CONCURRENCY, (origin) =>
-    getServerInfo(origin, { signal: discoverySignal(options.signal) }).catch(() => null)
-  );
-  throwIfAborted(options.signal);
+  const entries = await loadServerProfiles(advertisedOrigins, {
+    signal: options.signal,
+    getServerInfo
+  });
 
   return {
-    entries: advertisedOrigins.map((origin, index) => ({
-      origin,
-      profile: profiles[index] ?? null
-    })),
+    entries,
     failedSourceCount,
     sourceCount: registeredOrigins.length
   };

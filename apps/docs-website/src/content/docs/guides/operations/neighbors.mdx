@@ -9,21 +9,25 @@ Neighbor is a recommendation. It is not a trust or reciprocal relationship.
 ## Add a Neighbor
 
 1. Open **Server Configuration → Neighbors**.
-2. Enter the server origin, such as `https://chat.example.com`.
+2. Enter a hostname or URL, such as `chat.example.com` or a link to a room on
+   that server.
 3. Select **Add Neighbor**.
 
 You need `server.manage-neighbors`. The broader `server.manage` permission also
 includes this authority.
 
-Chatto accepts HTTP and HTTPS origins without paths, queries, fragments, or
-credentials. It normalizes the origin before storage. A server can advertise
-at most 100 Neighbors.
+The administration page extracts the HTTP or HTTPS origin from the value. It
+removes paths, queries, and fragments before storage. A server can advertise at
+most 100 Neighbors.
 
 ## Edit or delete a Neighbor
 
 Use **Edit** to change one advertised origin. Use **Delete** to remove it.
 Chatto rejects a stale edit when another administrator changed the same
 Neighbor first. Reload the list, review the current origin, and try again.
+
+The Neighbors panel loads each server's public profile, logo, and banner. Use
+this information to review the advertised server before you keep or remove it.
 
 The directory has no ordering contract. Clients must not use its response order
 as a rank or preference.
@@ -57,9 +61,9 @@ Neighbor. It does not verify that:
 Reciprocal confirmation is future work. Describe current Neighbors as
 advertised or recommended servers, not as verified partners.
 
-Opening the Server Directory makes the client contact advertised origins and
-load their public images. The server-side Neighbor configuration remains
-passive.
+Opening the Neighbors administration page or the Server Directory makes the
+client contact advertised origins and load their public images. The
+server-side Neighbor configuration remains passive.
 
 ## Use the API
 
@@ -67,6 +71,10 @@ The authenticated `chatto.admin.v1.AdminServerService` provides list, get,
 create, update, and delete methods. The public
 `chatto.discovery.v1.ServerDiscoveryService.ListNeighbors` method returns the
 advertised origins without a session.
+
+Administrative API callers must send a canonical HTTP or HTTPS origin without
+a path, query, fragment, or credentials. The hostname and deep-link input
+normalization is a bundled-client feature.
 
 An older server can return `Unimplemented` for the public method. Treat that
 result as no available Neighbor directory.

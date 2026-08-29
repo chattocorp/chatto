@@ -1,31 +1,28 @@
 <!--
 @component
 
-One public server in the Server Directory. Server-supplied profile content is
-kept inside the card; action labels remain trusted, static client copy.
+One public Chatto server profile. Server-supplied content stays inside the
+card. Callers supply trusted badges and actions through explicit props.
 -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { PublicServerInfo } from '$lib/api-client/server';
   import { m } from '$lib/i18n/messages';
   import { Pill, SkeletonImg } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
 
   let {
     origin,
     profile,
-    joined = false,
-    actionLabel,
-    actionLoading = false,
-    actionDisabled = false,
-    onaction
+    badge,
+    actions,
+    testId = 'server-profile-card'
   }: {
     origin: string;
-    profile: PublicServerInfo | null;
-    joined?: boolean;
-    actionLabel?: string;
-    actionLoading?: boolean;
-    actionDisabled?: boolean;
-    onaction?: () => void;
+    /** `undefined` means loading; `null` means that discovery failed. */
+    profile?: PublicServerInfo | null;
+    badge?: string;
+    actions?: Snippet;
+    testId?: string;
   } = $props();
 
   const hostname = $derived.by(() => {
@@ -39,7 +36,7 @@ kept inside the card; action labels remain trusted, static client copy.
 
 <article
   class="flex min-h-64 flex-col overflow-hidden rounded-xl border border-border bg-surface"
-  data-testid="server-directory-entry"
+  data-testid={testId}
   data-origin={origin}
 >
   {#if profile?.bannerUrl}
@@ -68,7 +65,7 @@ kept inside the card; action labels remain trusted, static client copy.
           <h3 class="min-w-0 truncate font-semibold text-text-top">
             <bdi dir="auto">{profile?.name ?? hostname}</bdi>
           </h3>
-          {#if joined}<Pill tone="success">{m('add_server.directory.joined')}</Pill>{/if}
+          {#if badge}<Pill tone="success">{badge}</Pill>{/if}
         </div>
         <p class="truncate text-sm text-muted" dir="ltr">{hostname}</p>
       </div>
@@ -77,21 +74,13 @@ kept inside the card; action labels remain trusted, static client copy.
     <div class="flex-1">
       {#if profile?.description}
         <p class="line-clamp-3 text-sm text-muted"><bdi dir="auto">{profile.description}</bdi></p>
-      {:else if !profile}
+      {:else if profile === null}
         <p class="text-sm text-muted">{m('add_server.directory.profile_unavailable')}</p>
       {/if}
     </div>
 
-    {#if actionLabel && onaction}
-      <Button
-        variant={joined ? 'secondary' : 'action'}
-        fullWidth
-        loading={actionLoading}
-        disabled={actionDisabled}
-        onclick={onaction}
-      >
-        {actionLabel}
-      </Button>
+    {#if actions}
+      {@render actions()}
     {/if}
   </div>
 </article>

@@ -1,6 +1,10 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { describe, expect, it, vi } from 'vitest';
-import { canonicalServerOrigin, loadServerDirectory } from './serverDirectory';
+import {
+  canonicalServerOrigin,
+  loadServerDirectory,
+  serverOriginFromInput
+} from './serverDirectory';
 import type { PublicServerInfo } from '$lib/api-client/server';
 
 function profile(name: string): PublicServerInfo {
@@ -24,6 +28,22 @@ describe('canonicalServerOrigin', () => {
     expect(canonicalServerOrigin('HTTPS://Example.COM:443/path')).toBe('https://example.com');
     expect(canonicalServerOrigin('ftp://example.com')).toBeNull();
     expect(canonicalServerOrigin('https://user@example.com')).toBeNull();
+  });
+});
+
+describe('serverOriginFromInput', () => {
+  it('accepts a hostname or full server URL and keeps only its origin', () => {
+    expect(serverOriginFromInput('dev.preview.chatto.run')).toBe(
+      'https://dev.preview.chatto.run'
+    );
+    expect(serverOriginFromInput('https://dev.preview.chatto.run/chat/-/RMch1OYtMwZ7sOJ')).toBe(
+      'https://dev.preview.chatto.run'
+    );
+  });
+
+  it('rejects credentials and unsupported schemes', () => {
+    expect(serverOriginFromInput('https://user@example.com/path')).toBeNull();
+    expect(serverOriginFromInput('ftp://example.com/path')).toBeNull();
   });
 });
 

@@ -1,13 +1,14 @@
 <script lang="ts">
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { createNeighborAPI, type Neighbor } from '$lib/api-client/neighbors';
+  import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
+  import { loadServerProfiles, serverOriginFromInput } from '$lib/serverDirectory';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, Hint, PaneContent } from '$lib/ui';
-  import DataTable from '$lib/ui/DataTable.svelte';
+  import { ConfirmDialog, EmptyState, Hint, PaneContent } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import Panel from '$lib/ui/Panel.svelte';
@@ -17,6 +18,8 @@
   const serverScope = useServerScope();
   let newOrigin = $state('');
   let editOrigin = $state('');
+  const normalizedNewOrigin = $derived(serverOriginFromInput(newOrigin));
+  const normalizedEditOrigin = $derived(serverOriginFromInput(editOrigin));
 
   type NeighborMutationVariables = {
     serverId: string;
@@ -100,6 +103,21 @@
   );
 
   const neighbors = $derived(neighborsQuery.data ?? []);
+  const profilesQuery = createQuery(
+    () => ({
+      queryKey: ['public', 'neighbor-profiles', neighbors.map((neighbor) => neighbor.origin)],
+      queryFn: ({ signal }) =>
+        loadServerProfiles(
+          neighbors.map((neighbor) => neighbor.origin),
+          { signal }
+        ),
+      enabled: neighbors.length > 0
+    }),
+    () => queryClient
+  );
+  const profilesByOrigin = $derived(
+    new Map((profilesQuery.data ?? []).map((entry) => [entry.origin, entry.profile]))
+  );
 
   function startEdit(neighbor: Neighbor) {
     editTarget = { ...mutationVariables(), neighbor, origin: neighbor.origin };
@@ -152,15 +170,18 @@
           class="flex max-w-3xl items-end gap-3"
           onsubmit={(event) => {
             event.preventDefault();
-            if (newOrigin.trim())
-              createMutationState.mutate({ ...mutationVariables(), origin: newOrigin });
+            if (normalizedNewOrigin)
+              createMutationState.mutate({
+                ...mutationVariables(),
+                origin: normalizedNewOrigin
+              });
           }}
         >
           <div class="min-w-0 flex-1">
             <TextInput
               id="new-neighbor-origin"
               label={m('admin.neighbors.origin')}
-              placeholder="https://chat.example"
+              placeholder="chat.example"
               bind:value={newOrigin}
               disabled={createMutationState.isPending}
             />
@@ -168,7 +189,7 @@
           <Button
             type="submit"
             loading={createMutationState.isPending}
-            disabled={!newOrigin.trim()}
+            disabled={!normalizedNewOrigin}
           >
             <span class="iconify icon-[uil--plus]"></span>
             {m('admin.neighbors.add')}
@@ -177,65 +198,76 @@
         <p class="mt-3 text-sm text-muted">{m('admin.neighbors.origin_help')}</p>
       </Panel>
 
-      <Panel title={m('admin.neighbors.list_title')} noPadding>
+      <Panel title={m('admin.neighbors.list_title')} count={neighbors.length || undefined}>
         {#if neighborsQuery.error}
-          <div class="p-5"><Hint tone="danger">{String(neighborsQuery.error)}</Hint></div>
+          <div class="mb-4"><Hint tone="danger">{String(neighborsQuery.error)}</Hint></div>
         {/if}
-        <DataTable items={neighbors} columns={2} emptyMessage={m('admin.neighbors.empty')}>
-          {#snippet header()}
-            <th class="table-header-cell">{m('admin.neighbors.origin')}</th>
-            <th class="table-header-cell text-end">{m('admin.neighbors.actions')}</th>
-          {/snippet}
-          {#snippet row(neighbor)}
-            <td class="px-4 py-3">
-              {#if editTarget?.neighbor.id === neighbor.id}
-                <TextInput
-                  id={`neighbor-origin-${neighbor.id}`}
-                  label={m('admin.neighbors.origin')}
-                  labelHidden
-                  bind:value={editOrigin}
-                  disabled={updateMutationState.isPending}
-                />
-              {:else}
-                <span class="font-mono text-sm break-all">{neighbor.origin}</span>
-              {/if}
-            </td>
-            <td class="px-4 py-3">
-              <div class="flex justify-end gap-2">
-                {#if editTarget?.neighbor.id === neighbor.id}
-                  <Button size="sm" variant="secondary" onclick={cancelEdit}>
-                    {m('admin.neighbors.cancel')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    loading={updateMutationState.isPending}
-                    disabled={!editOrigin.trim() || editOrigin === neighbor.origin}
-                    onclick={() =>
-                      editTarget &&
-                      updateMutationState.mutate({ ...editTarget, origin: editOrigin })}
-                  >
-                    {m('admin.neighbors.save')}
-                  </Button>
-                {:else}
-                  <Button size="sm" variant="secondary" onclick={() => startEdit(neighbor)}>
-                    <span class="iconify icon-[uil--edit]"></span>
-                    {m('admin.neighbors.edit')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onclick={() => (deleteTarget = { ...mutationVariables(), neighbor })}
-                  >
-                    <span class="iconify icon-[uil--trash-alt]"></span>
-                    {m('admin.neighbors.delete')}
-                  </Button>
-                {/if}
-              </div>
-            </td>
-          {/snippet}
-        </DataTable>
+
         {#if neighborsQuery.isPending && neighbors.length === 0}
-          <div class="p-5 text-muted">{m('admin.common.loading')}</div>
+          <div class="text-muted">{m('admin.common.loading')}</div>
+        {:else if neighbors.length === 0}
+          <EmptyState icon="icon-[uil--server-connection]" title={m('admin.neighbors.empty')} />
+        {:else}
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {#each neighbors as neighbor (neighbor.id)}
+              {#snippet actions()}
+                <div class="flex flex-col gap-3">
+                  {#if editTarget?.neighbor.id === neighbor.id}
+                    <TextInput
+                      id={`neighbor-origin-${neighbor.id}`}
+                      label={m('admin.neighbors.origin')}
+                      labelHidden
+                      bind:value={editOrigin}
+                      disabled={updateMutationState.isPending}
+                    />
+                  {/if}
+
+                  <div class="flex justify-end gap-2">
+                    {#if editTarget?.neighbor.id === neighbor.id}
+                      <Button size="sm" variant="secondary" onclick={cancelEdit}>
+                        {m('admin.neighbors.cancel')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        loading={updateMutationState.isPending}
+                        disabled={!normalizedEditOrigin || normalizedEditOrigin === neighbor.origin}
+                        onclick={() =>
+                          editTarget &&
+                          normalizedEditOrigin &&
+                          updateMutationState.mutate({
+                            ...editTarget,
+                            origin: normalizedEditOrigin
+                          })}
+                      >
+                        {m('admin.neighbors.save')}
+                      </Button>
+                    {:else}
+                      <Button size="sm" variant="secondary" onclick={() => startEdit(neighbor)}>
+                        <span class="iconify icon-[uil--edit]"></span>
+                        {m('admin.neighbors.edit')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onclick={() => (deleteTarget = { ...mutationVariables(), neighbor })}
+                      >
+                        <span class="iconify icon-[uil--trash-alt]"></span>
+                        {m('admin.neighbors.delete')}
+                      </Button>
+                    {/if}
+                  </div>
+                </div>
+              {/snippet}
+              <ServerProfileCard
+                origin={neighbor.origin}
+                profile={profilesQuery.isPending
+                  ? undefined
+                  : (profilesByOrigin.get(neighbor.origin) ?? null)}
+                {actions}
+                testId="neighbor-card"
+              />
+            {/each}
+          </div>
         {/if}
       </Panel>
     </div>
