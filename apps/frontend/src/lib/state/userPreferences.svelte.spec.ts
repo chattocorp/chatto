@@ -33,13 +33,14 @@ describe('UserPreferencesState', () => {
     document.documentElement.style.colorScheme = '';
   });
 
-  it('uses the system theme, Markdown editor, and Return-to-send by default', () => {
+  it('uses the system theme, Markdown editor, Return-to-send, and a closed formatting shelf by default', () => {
     const state = new UserPreferencesState();
 
     expect(state.displayTheme).toBe('system');
     expect(state.effectiveDisplayTheme).toBe('light');
     expect(state.composerEditor).toBe('markdown');
     expect(state.composerSendMode).toBe('enter');
+    expect(state.composerFormattingToolbarVisible).toBe(false);
   });
 
   it('resolves the system display theme from prefers-color-scheme', () => {
@@ -69,7 +70,8 @@ describe('UserPreferencesState', () => {
       JSON.stringify({
         displayTheme: 'sepia',
         composerEditor: 'plain-text',
-        composerSendMode: 'spacebar'
+        composerSendMode: 'spacebar',
+        composerFormattingToolbarVisible: 'yes'
       })
     );
 
@@ -78,6 +80,7 @@ describe('UserPreferencesState', () => {
     expect(state.displayTheme).toBe('system');
     expect(state.composerEditor).toBe('markdown');
     expect(state.composerSendMode).toBe('enter');
+    expect(state.composerFormattingToolbarVisible).toBe(false);
   });
 
   it('updates, persists, and applies the display theme', () => {
@@ -99,13 +102,25 @@ describe('UserPreferencesState', () => {
 
     state.composerEditor = 'visual';
     state.composerSendMode = 'modifier-enter';
+    state.composerFormattingToolbarVisible = true;
 
     expect(state.composerEditor).toBe('visual');
     expect(state.composerSendMode).toBe('modifier-enter');
+    expect(state.composerFormattingToolbarVisible).toBe(true);
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
       composerEditor: 'visual',
-      composerSendMode: 'modifier-enter'
+      composerSendMode: 'modifier-enter',
+      composerFormattingToolbarVisible: true
     });
+  });
+
+  it('hydrates a persisted formatting shelf choice', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ composerFormattingToolbarVisible: true })
+    );
+
+    expect(new UserPreferencesState().composerFormattingToolbarVisible).toBe(true);
   });
 
   it('keeps former global sound fields available only as a migration seed', () => {

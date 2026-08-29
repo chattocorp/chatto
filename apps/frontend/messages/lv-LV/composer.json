@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Pievienojiet failu",
+    "formatting_options": "Formatēšanas opcijas",
     "send": "Nosūtīt ziņu",
     "send_label": "Sūtīt",
     "also_send_to_channel": "Sūtīt arī uz kanālu",

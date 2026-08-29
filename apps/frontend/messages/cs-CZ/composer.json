@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Připojit soubor",
+    "formatting_options": "Možnosti formátování",
     "send": "Odeslat zprávu",
     "send_label": "Odeslat",
     "also_send_to_channel": "Také odeslat na kanál",

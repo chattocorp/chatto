@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Прикрепить файл",
+    "formatting_options": "Параметры форматирования",
     "send": "Отправить сообщение",
     "send_label": "Отправить",
     "also_send_to_channel": "Также отправь на канал",

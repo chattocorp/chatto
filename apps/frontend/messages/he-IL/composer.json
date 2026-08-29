@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "צרף קובץ",
+    "formatting_options": "אפשרויות עיצוב",
     "send": "שלח הודעה",
     "send_label": "שלח",
     "also_send_to_channel": "שלח גם לערוץ",

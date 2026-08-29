@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "ファイルを添付",
+    "formatting_options": "書式設定オプション",
     "send": "メッセージを送信",
     "send_label": "送信",
     "also_send_to_channel": "チャンネルにも送信します",

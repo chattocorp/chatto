@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "قم بإرفاق الملف",
+    "formatting_options": "خيارات التنسيق",
     "send": "أرسل الرسالة",
     "send_label": "إرسال",
     "also_send_to_channel": "أرسل أيضًا إلى القناة",

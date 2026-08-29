@@ -732,6 +732,11 @@
   }
 }
 
+/* Composer input and formatting surfaces share the app shell's compact radius. */
+@utility composer-surface {
+  @apply rounded-xl bg-surface;
+}
+
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
 @utility server-gutter-item {
   @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] duration-150;

@@ -23,6 +23,7 @@ interface AppPreferences {
   displayTheme: DisplayTheme;
   composerEditor: ComposerEditorKind;
   composerSendMode: ComposerSendMode;
+  composerFormattingToolbarVisible: boolean;
 }
 
 export interface LegacyNotificationSoundPreferences {
@@ -35,7 +36,8 @@ interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPrefe
 const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
   composerEditor: 'markdown',
-  composerSendMode: 'enter'
+  composerSendMode: 'enter',
+  composerFormattingToolbarVisible: false
 };
 
 const defaultStoredPreferences: StoredPreferences = {
@@ -134,7 +136,11 @@ function loadAppPreferences(): AppPreferences {
       : defaultAppPreferences.composerEditor,
     composerSendMode: isComposerSendMode(stored.composerSendMode)
       ? stored.composerSendMode
-      : defaultAppPreferences.composerSendMode
+      : defaultAppPreferences.composerSendMode,
+    composerFormattingToolbarVisible:
+      typeof stored.composerFormattingToolbarVisible === 'boolean'
+        ? stored.composerFormattingToolbarVisible
+        : defaultAppPreferences.composerFormattingToolbarVisible
   };
 }
 
@@ -191,6 +197,17 @@ export class UserPreferencesState {
     this.#preferences.composerSendMode = isComposerSendMode(value)
       ? value
       : defaultAppPreferences.composerSendMode;
+    this.#persist();
+  }
+
+  /** Whether message formatting controls stay visible above each composer. */
+  get composerFormattingToolbarVisible(): boolean {
+    return this.#preferences.composerFormattingToolbarVisible;
+  }
+
+  set composerFormattingToolbarVisible(value: boolean) {
+    this.#preferences.composerFormattingToolbarVisible =
+      typeof value === 'boolean' ? value : defaultAppPreferences.composerFormattingToolbarVisible;
     this.#persist();
   }
 
