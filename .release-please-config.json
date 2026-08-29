@@ -6,7 +6,6 @@
   "versioning": "prerelease",
   "prerelease": true,
   "prerelease-type": "alpha.1",
-  "always-update": true,
   "separate-pull-requests": true,
   "draft": true,
   "force-tag-creation": true,
