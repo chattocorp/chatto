@@ -80,6 +80,10 @@ inside the icon. Do not add a side stripe or a shadow for navigation selection.
 | Empty collection or search result         | `EmptyState`                                                               | Bespoke centered placeholder markup                          |
 | Loading image                             | `SkeletonImg`                                                              | `<img class="skeleton">`                                     |
 
+`Checkbox` and `ChoiceRow` use the same option-row shape and selected fill.
+Use the square check indicator for an independent boolean setting. Use the
+circular radio indicator for one choice in a group.
+
 ## Standard Pane Pages
 
 Use the pane-page composition for primary application pages such as search,

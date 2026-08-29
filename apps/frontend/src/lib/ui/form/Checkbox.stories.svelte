@@ -6,7 +6,8 @@
   const componentDescription = `
     Use Checkbox for independent boolean settings. Prefer immediate-save behavior for settings where
     one checkbox maps to one backend change, and keep supporting text inside the component instead of
-    building custom option rows.
+    building custom option rows. Its selected row matches ChoiceRow, while the square check indicator
+    distinguishes a boolean setting from a one-of-many choice.
   `.trim();
 
   const { Story } = defineMeta({
@@ -46,7 +47,9 @@
   asChild
   parameters={{
     docs: {
-      description: { story: 'Checked state uses the shared action treatment.' }
+      description: {
+        story: 'The complete checked row uses the same action treatment as a selected ChoiceRow.'
+      }
     }
   }}
 >

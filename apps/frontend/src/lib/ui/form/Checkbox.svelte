@@ -3,8 +3,9 @@
 
 Reusable checkbox option row for forms. Use this for settings, toggles, and
 other boolean controls that need a label plus optional helper or error text.
-The visible box is custom-styled, while the native checkbox remains in the
-DOM for form semantics, keyboard focus, and screen-reader state.
+The complete row shows the selected state, and its square indicator distinguishes
+it from the circular ChoiceRow radio pattern. The native checkbox remains in
+the DOM for form semantics, keyboard focus, and screen-reader state.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -41,8 +42,10 @@ DOM for form semantics, keyboard focus, and screen-reader state.
   aria-busy={loading || undefined}
   class={[
     'checkbox-option',
-    error && 'border-error/70 bg-error/5 hover:border-error/80 hover:bg-error/10',
-    disabled && 'cursor-not-allowed opacity-60 hover:border-border hover:bg-surface/45'
+    checked && !error && 'checkbox-option-selected',
+    error && 'checkbox-option-error',
+    disabled && 'cursor-not-allowed opacity-60',
+    disabled && !checked && !error && 'hover:border-border hover:bg-transparent'
   ]}
 >
   <input
@@ -60,8 +63,8 @@ DOM for form semantics, keyboard focus, and screen-reader state.
     class={[
       'checkbox-box',
       'peer-focus-visible:ring-2 peer-focus-visible:ring-action/35 peer-focus-visible:ring-offset-0',
-      'peer-checked:border-action peer-checked:bg-action peer-checked:text-background',
-      error && 'border-error peer-focus-visible:ring-error/30',
+      checked && 'checkbox-box-selected',
+      error && 'checkbox-box-error peer-focus-visible:ring-error/30',
       loading && 'animate-pulse'
     ]}
     aria-hidden="true"
@@ -69,8 +72,8 @@ DOM for form semantics, keyboard focus, and screen-reader state.
     <span class="iconify text-base icon-[uil--check]"></span>
   </span>
 
-  <span class="flex min-w-0 flex-1 flex-col gap-1">
-    <span class="text-sm font-semibold text-text">
+  <span class="min-w-0 flex-1">
+    <span class={['block text-text', checked && 'font-medium']}>
       {#if children}
         {@render children()}
       {:else if label}
@@ -79,9 +82,9 @@ DOM for form semantics, keyboard focus, and screen-reader state.
     </span>
 
     {#if error}
-      <span id={`${id}-error`} role="alert" class="text-xs leading-5 text-error">{error}</span>
+      <span id={`${id}-error`} role="alert" class="block text-sm text-error">{error}</span>
     {:else if description}
-      <span id={`${id}-description`} class="text-xs leading-5 text-muted">{description}</span>
+      <span id={`${id}-description`} class="block text-sm text-muted">{description}</span>
     {/if}
   </span>
 </label>

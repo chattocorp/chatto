@@ -386,23 +386,31 @@
   @apply input resize-none;
 }
 
-/* Checkbox utility */
-@utility checkbox {
-  @apply h-4 w-4 cursor-pointer rounded border-input-border bg-input text-action;
-  @apply transition-[border-color,box-shadow] duration-100;
-  @apply focus:ring-2 focus:ring-action/30 focus:ring-offset-0;
-  @apply disabled:cursor-not-allowed disabled:opacity-60;
+@utility checkbox-option {
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2;
+  @apply transition-[background-color,border-color,box-shadow] duration-100;
+  @apply hover:border-input-border hover:bg-surface;
 }
 
-@utility checkbox-option {
-  @apply flex cursor-pointer items-start gap-3 rounded-md border border-border bg-surface px-3 py-3;
-  @apply transition-[background-color,border-color,box-shadow] duration-100;
-  @apply hover:border-input-border hover:bg-surface-emphasized;
+@utility checkbox-option-selected {
+  @apply border-action bg-action/10 hover:border-action hover:bg-action/10;
+}
+
+@utility checkbox-option-error {
+  @apply border-error/70 bg-error/5 hover:border-error/80 hover:bg-error/10;
 }
 
 @utility checkbox-box {
-  @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border border-input-border bg-input text-transparent;
-  @apply transition-[background-color,border-color,box-shadow,color] duration-100;
+  @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
+  @apply transition-[background-color,border-color,color] duration-100;
+}
+
+@utility checkbox-box-selected {
+  @apply border-action bg-action text-on-action;
+}
+
+@utility checkbox-box-error {
+  @apply border-error;
 }
 
 /* Single-choice rows used by settings radio groups. */
