@@ -47,7 +47,9 @@
     }),
     () => queryClient
   );
-  const entries = $derived(directoryQuery.data?.entries ?? []);
+  const entries = $derived(
+    directoryQuery.data?.entries.filter((entry) => entry.profile !== null) ?? []
+  );
   const allSourcesFailed = $derived(
     !!directoryQuery.data &&
       directoryQuery.data.sourceCount > 0 &&

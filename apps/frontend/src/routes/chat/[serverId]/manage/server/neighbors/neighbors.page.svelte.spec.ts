@@ -125,7 +125,11 @@ describe('Neighbor management page', () => {
     mocks.loadServerProfiles.mockResolvedValue([{ origin: current.origin, profile: null }]);
 
     const { container } = render(Page);
-    await vi.waitFor(() => expect(button(container, 'Edit')).toBeDefined());
+    await vi.waitFor(() => {
+      expect(button(container, 'Edit')).toBeDefined();
+      expect(container.querySelectorAll('[data-testid="neighbor-card"]')).toHaveLength(1);
+      expect(container.textContent).toContain('public profile could not be loaded');
+    });
     flushSync(() => button(container, 'Edit').click());
     await vi.waitFor(() => {
       expect(container.querySelector('#neighbor-origin-neighbor-1')).not.toBeNull();

@@ -41,8 +41,10 @@ rank the results.
 
 The client requests each advertised server's public profile. A result can show
 the server name, description, logo, and banner. If a server is offline or does
-not return a valid public profile, its origin remains visible. A failed server
-does not prevent the client from showing other results.
+not return a valid public profile, the Server Directory omits it. The Neighbors
+administration page keeps the failed server visible so that an administrator
+can review or remove it. A failed server does not prevent the client from
+showing other results.
 
 Servers that are already registered remain in the directory and have a
 **Joined** label. Use the direct server-address field when the wanted server is

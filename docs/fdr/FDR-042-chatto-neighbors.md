@@ -23,9 +23,10 @@ recommendation, not a trust or reciprocal relationship.
   registered in the client. It removes duplicate canonical origins but does
   not rank or sort the results.
 - The Server Directory and Neighbor administration page load each advertised
-  server's public name, description, logo, and banner. An administrator can use
-  this information to review a Neighbor. A failed source or profile request
-  does not hide results from other servers.
+  server's public name, description, logo, and banner. The Server Directory
+  omits a server when its public profile does not load. The administration page
+  keeps that server visible so that an administrator can review or remove it.
+  A failed request does not hide profiles that loaded successfully.
 - An advertised server that is already registered remains visible and is
   marked as joined.
 - A user can enter a server address directly when the wanted server is not in
@@ -75,8 +76,9 @@ displays the Server Directory or the Neighbor administration page.
 inside the configuration operation.
 
 **Tradeoff:** Opening the Server Directory or Neighbor administration page sends
-browser requests to advertised servers. An offline or invalid server appears
-without a public profile, while the rest of the directory remains available.
+browser requests to advertised servers. The Server Directory omits an offline
+or invalid server. The administration page shows it without a public profile
+so that an administrator can remove it.
 
 ### 4. Permission inclusion is explicit
 

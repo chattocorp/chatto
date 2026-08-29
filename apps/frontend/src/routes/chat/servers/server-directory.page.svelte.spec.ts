@@ -132,9 +132,12 @@ describe('Server Directory page', () => {
     expect(entries[1]?.querySelector('img')?.src).toContain('/Alpha/banner.webp');
   });
 
-  it('keeps unavailable entries and reports partial source failures', async () => {
+  it('hides unavailable entries and reports partial source failures', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
-      entries: [{ origin: 'https://offline.example', profile: null }],
+      entries: [
+        { origin: 'https://offline.example', profile: null },
+        { origin: 'https://online.example', profile: profile('Online') }
+      ],
       failedSourceCount: 1,
       sourceCount: 2
     });
@@ -144,8 +147,14 @@ describe('Server Directory page', () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain('Some joined servers could not provide');
     });
-    expect(container.textContent).toContain('public profile could not be loaded');
-    expect(button(container, 'Sign-in unavailable')?.disabled).toBe(true);
+    const entries = container.querySelectorAll<HTMLElement>(
+      '[data-testid="server-directory-entry"]'
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.dataset.origin).toBe('https://online.example');
+    expect(container.textContent).not.toContain('offline.example');
+    expect(container.textContent).not.toContain('public profile could not be loaded');
+    expect(button(container, 'Sign-in unavailable')).toBeUndefined();
   });
 
   it('starts the OAuth flow for an advertised server', async () => {
