@@ -498,11 +498,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     return items.filter((item) => item.type === 'link' || channelMap.has(item.roomId));
   }
 
-  // Keep manageable groups discoverable even when none of their rooms are
+  // Keep actionable groups discoverable even when none of their rooms are
   // visible to the viewer.
   let visibleSets = $derived.by(() => {
     const sets = navigation.roomGroups;
-    return sets.filter((s) => s.viewerCanManageGroup || getSetItems(s).length > 0);
+    return sets.filter(
+      (s) => s.viewerCanManageGroup || s.viewerCanCreateRoom || getSetItems(s).length > 0
+    );
   });
 
   // When no layout exists, display channels alphabetically

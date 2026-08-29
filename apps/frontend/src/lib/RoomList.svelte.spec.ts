@@ -1065,6 +1065,25 @@ describe('RoomList', () => {
       .toBeInTheDocument();
   });
 
+  it('keeps an empty group visible when the viewer can create rooms in it', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: false,
+        viewerCanCreateRoom: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    await expect.element(q(container, '[data-testid="room-group-section"]')).toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="create-room-button"]')).toBeInTheDocument();
+  });
+
   it('keeps context actions but hides drag handles for a server without relative moves', () => {
     mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
     mocks.store.navigation.roomGroups = [

@@ -105,9 +105,9 @@ navigation, member presence groups, and attachment date groups.
       {/if}
     </div>
 
-    {#if visibleItems.length > 0}
+    {#if visibleItems.length > 0 || (itemsAttachment && !collapsed)}
       <div
-        class="flex flex-col gap-0.5"
+        class={['flex flex-col gap-0.5', visibleItems.length === 0 ? 'min-h-8' : '']}
         data-testid={itemsAttachment ? 'room-group-items-dropzone' : undefined}
         {@attach itemsAttachment}
       >
