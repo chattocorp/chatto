@@ -6,7 +6,6 @@
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
-  import IdleTracker from '$lib/components/IdleTracker.svelte';
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
@@ -73,7 +72,6 @@
 </script>
 
 <GlobalKeyboardShortcuts />
-<IdleTracker />
 {#key data.user?.id}
   <ServerRuntimeCoordinator user={data.user} />
 {/key}
