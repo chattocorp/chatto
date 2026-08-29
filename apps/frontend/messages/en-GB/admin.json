@@ -2,6 +2,7 @@
   "admin": {
     "nav": {
       "general": "General",
+      "neighbors": "Neighbors",
       "members": "Members",
       "rooms": "Rooms",
       "moderation": "Moderation",
@@ -11,6 +12,26 @@
       "system": "System",
       "back_to_server": "Return to Server",
       "invitations": "Invite links"
+    },
+    "neighbors": {
+      "title": "Neighbors",
+      "subtitle": "Advertise friendly Chatto servers in your public directory",
+      "add_title": "Add Neighbor",
+      "list_title": "Advertised servers",
+      "origin": "Server address",
+      "origin_help": "Enter an HTTP or HTTPS server address without a path. Chatto stores the address but does not contact the server.",
+      "add": "Add Neighbor",
+      "empty": "No Neighbors are advertised",
+      "actions": "Actions",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "delete_title": "Delete Neighbor",
+      "delete_description": "Stop advertising {origin}?",
+      "created": "Neighbor added",
+      "updated": "Neighbor updated",
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} | Admin",

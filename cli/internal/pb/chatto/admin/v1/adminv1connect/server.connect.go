@@ -57,6 +57,21 @@ const (
 	// AdminServerServiceUpdateBlockedUsernamesProcedure is the fully-qualified name of the
 	// AdminServerService's UpdateBlockedUsernames RPC.
 	AdminServerServiceUpdateBlockedUsernamesProcedure = "/chatto.admin.v1.AdminServerService/UpdateBlockedUsernames"
+	// AdminServerServiceListNeighborsProcedure is the fully-qualified name of the AdminServerService's
+	// ListNeighbors RPC.
+	AdminServerServiceListNeighborsProcedure = "/chatto.admin.v1.AdminServerService/ListNeighbors"
+	// AdminServerServiceGetNeighborProcedure is the fully-qualified name of the AdminServerService's
+	// GetNeighbor RPC.
+	AdminServerServiceGetNeighborProcedure = "/chatto.admin.v1.AdminServerService/GetNeighbor"
+	// AdminServerServiceCreateNeighborProcedure is the fully-qualified name of the AdminServerService's
+	// CreateNeighbor RPC.
+	AdminServerServiceCreateNeighborProcedure = "/chatto.admin.v1.AdminServerService/CreateNeighbor"
+	// AdminServerServiceUpdateNeighborProcedure is the fully-qualified name of the AdminServerService's
+	// UpdateNeighbor RPC.
+	AdminServerServiceUpdateNeighborProcedure = "/chatto.admin.v1.AdminServerService/UpdateNeighbor"
+	// AdminServerServiceDeleteNeighborProcedure is the fully-qualified name of the AdminServerService's
+	// DeleteNeighbor RPC.
+	AdminServerServiceDeleteNeighborProcedure = "/chatto.admin.v1.AdminServerService/DeleteNeighbor"
 )
 
 // AdminServerServiceClient is a client for the chatto.admin.v1.AdminServerService service.
@@ -80,6 +95,18 @@ type AdminServerServiceClient interface {
 	GetServerSecurityConfig(context.Context, *connect.Request[v1.GetServerSecurityConfigRequest]) (*connect.Response[v1.GetServerSecurityConfigResponse], error)
 	// Updates the blocked-username list. This RPC requires server.manage.
 	UpdateBlockedUsernames(context.Context, *connect.Request[v1.UpdateBlockedUsernamesRequest]) (*connect.Response[v1.UpdateBlockedUsernamesResponse], error)
+	// Lists configured Neighbors. This RPC requires server.manage-neighbors.
+	ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error)
+	// Gets one configured Neighbor. This RPC requires server.manage-neighbors.
+	GetNeighbor(context.Context, *connect.Request[v1.GetNeighborRequest]) (*connect.Response[v1.GetNeighborResponse], error)
+	// Advertises one server origin. This RPC requires server.manage-neighbors.
+	CreateNeighbor(context.Context, *connect.Request[v1.CreateNeighborRequest]) (*connect.Response[v1.CreateNeighborResponse], error)
+	// Changes one advertised server origin. This RPC requires
+	// server.manage-neighbors.
+	UpdateNeighbor(context.Context, *connect.Request[v1.UpdateNeighborRequest]) (*connect.Response[v1.UpdateNeighborResponse], error)
+	// Stops advertising one server origin. This RPC requires
+	// server.manage-neighbors.
+	DeleteNeighbor(context.Context, *connect.Request[v1.DeleteNeighborRequest]) (*connect.Response[v1.DeleteNeighborResponse], error)
 }
 
 // NewAdminServerServiceClient constructs a client for the chatto.admin.v1.AdminServerService
@@ -141,6 +168,36 @@ func NewAdminServerServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(adminServerServiceMethods.ByName("UpdateBlockedUsernames")),
 			connect.WithClientOptions(opts...),
 		),
+		listNeighbors: connect.NewClient[v1.ListNeighborsRequest, v1.ListNeighborsResponse](
+			httpClient,
+			baseURL+AdminServerServiceListNeighborsProcedure,
+			connect.WithSchema(adminServerServiceMethods.ByName("ListNeighbors")),
+			connect.WithClientOptions(opts...),
+		),
+		getNeighbor: connect.NewClient[v1.GetNeighborRequest, v1.GetNeighborResponse](
+			httpClient,
+			baseURL+AdminServerServiceGetNeighborProcedure,
+			connect.WithSchema(adminServerServiceMethods.ByName("GetNeighbor")),
+			connect.WithClientOptions(opts...),
+		),
+		createNeighbor: connect.NewClient[v1.CreateNeighborRequest, v1.CreateNeighborResponse](
+			httpClient,
+			baseURL+AdminServerServiceCreateNeighborProcedure,
+			connect.WithSchema(adminServerServiceMethods.ByName("CreateNeighbor")),
+			connect.WithClientOptions(opts...),
+		),
+		updateNeighbor: connect.NewClient[v1.UpdateNeighborRequest, v1.UpdateNeighborResponse](
+			httpClient,
+			baseURL+AdminServerServiceUpdateNeighborProcedure,
+			connect.WithSchema(adminServerServiceMethods.ByName("UpdateNeighbor")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteNeighbor: connect.NewClient[v1.DeleteNeighborRequest, v1.DeleteNeighborResponse](
+			httpClient,
+			baseURL+AdminServerServiceDeleteNeighborProcedure,
+			connect.WithSchema(adminServerServiceMethods.ByName("DeleteNeighbor")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -154,6 +211,11 @@ type adminServerServiceClient struct {
 	deleteServerBanner      *connect.Client[v1.DeleteServerBannerRequest, v1.DeleteServerBannerResponse]
 	getServerSecurityConfig *connect.Client[v1.GetServerSecurityConfigRequest, v1.GetServerSecurityConfigResponse]
 	updateBlockedUsernames  *connect.Client[v1.UpdateBlockedUsernamesRequest, v1.UpdateBlockedUsernamesResponse]
+	listNeighbors           *connect.Client[v1.ListNeighborsRequest, v1.ListNeighborsResponse]
+	getNeighbor             *connect.Client[v1.GetNeighborRequest, v1.GetNeighborResponse]
+	createNeighbor          *connect.Client[v1.CreateNeighborRequest, v1.CreateNeighborResponse]
+	updateNeighbor          *connect.Client[v1.UpdateNeighborRequest, v1.UpdateNeighborResponse]
+	deleteNeighbor          *connect.Client[v1.DeleteNeighborRequest, v1.DeleteNeighborResponse]
 }
 
 // GetServerConfig calls chatto.admin.v1.AdminServerService.GetServerConfig.
@@ -196,6 +258,31 @@ func (c *adminServerServiceClient) UpdateBlockedUsernames(ctx context.Context, r
 	return c.updateBlockedUsernames.CallUnary(ctx, req)
 }
 
+// ListNeighbors calls chatto.admin.v1.AdminServerService.ListNeighbors.
+func (c *adminServerServiceClient) ListNeighbors(ctx context.Context, req *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error) {
+	return c.listNeighbors.CallUnary(ctx, req)
+}
+
+// GetNeighbor calls chatto.admin.v1.AdminServerService.GetNeighbor.
+func (c *adminServerServiceClient) GetNeighbor(ctx context.Context, req *connect.Request[v1.GetNeighborRequest]) (*connect.Response[v1.GetNeighborResponse], error) {
+	return c.getNeighbor.CallUnary(ctx, req)
+}
+
+// CreateNeighbor calls chatto.admin.v1.AdminServerService.CreateNeighbor.
+func (c *adminServerServiceClient) CreateNeighbor(ctx context.Context, req *connect.Request[v1.CreateNeighborRequest]) (*connect.Response[v1.CreateNeighborResponse], error) {
+	return c.createNeighbor.CallUnary(ctx, req)
+}
+
+// UpdateNeighbor calls chatto.admin.v1.AdminServerService.UpdateNeighbor.
+func (c *adminServerServiceClient) UpdateNeighbor(ctx context.Context, req *connect.Request[v1.UpdateNeighborRequest]) (*connect.Response[v1.UpdateNeighborResponse], error) {
+	return c.updateNeighbor.CallUnary(ctx, req)
+}
+
+// DeleteNeighbor calls chatto.admin.v1.AdminServerService.DeleteNeighbor.
+func (c *adminServerServiceClient) DeleteNeighbor(ctx context.Context, req *connect.Request[v1.DeleteNeighborRequest]) (*connect.Response[v1.DeleteNeighborResponse], error) {
+	return c.deleteNeighbor.CallUnary(ctx, req)
+}
+
 // AdminServerServiceHandler is an implementation of the chatto.admin.v1.AdminServerService service.
 type AdminServerServiceHandler interface {
 	// Gets runtime-editable server profile settings. This RPC requires
@@ -217,6 +304,18 @@ type AdminServerServiceHandler interface {
 	GetServerSecurityConfig(context.Context, *connect.Request[v1.GetServerSecurityConfigRequest]) (*connect.Response[v1.GetServerSecurityConfigResponse], error)
 	// Updates the blocked-username list. This RPC requires server.manage.
 	UpdateBlockedUsernames(context.Context, *connect.Request[v1.UpdateBlockedUsernamesRequest]) (*connect.Response[v1.UpdateBlockedUsernamesResponse], error)
+	// Lists configured Neighbors. This RPC requires server.manage-neighbors.
+	ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error)
+	// Gets one configured Neighbor. This RPC requires server.manage-neighbors.
+	GetNeighbor(context.Context, *connect.Request[v1.GetNeighborRequest]) (*connect.Response[v1.GetNeighborResponse], error)
+	// Advertises one server origin. This RPC requires server.manage-neighbors.
+	CreateNeighbor(context.Context, *connect.Request[v1.CreateNeighborRequest]) (*connect.Response[v1.CreateNeighborResponse], error)
+	// Changes one advertised server origin. This RPC requires
+	// server.manage-neighbors.
+	UpdateNeighbor(context.Context, *connect.Request[v1.UpdateNeighborRequest]) (*connect.Response[v1.UpdateNeighborResponse], error)
+	// Stops advertising one server origin. This RPC requires
+	// server.manage-neighbors.
+	DeleteNeighbor(context.Context, *connect.Request[v1.DeleteNeighborRequest]) (*connect.Response[v1.DeleteNeighborResponse], error)
 }
 
 // NewAdminServerServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -274,6 +373,36 @@ func NewAdminServerServiceHandler(svc AdminServerServiceHandler, opts ...connect
 		connect.WithSchema(adminServerServiceMethods.ByName("UpdateBlockedUsernames")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServerServiceListNeighborsHandler := connect.NewUnaryHandler(
+		AdminServerServiceListNeighborsProcedure,
+		svc.ListNeighbors,
+		connect.WithSchema(adminServerServiceMethods.ByName("ListNeighbors")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServerServiceGetNeighborHandler := connect.NewUnaryHandler(
+		AdminServerServiceGetNeighborProcedure,
+		svc.GetNeighbor,
+		connect.WithSchema(adminServerServiceMethods.ByName("GetNeighbor")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServerServiceCreateNeighborHandler := connect.NewUnaryHandler(
+		AdminServerServiceCreateNeighborProcedure,
+		svc.CreateNeighbor,
+		connect.WithSchema(adminServerServiceMethods.ByName("CreateNeighbor")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServerServiceUpdateNeighborHandler := connect.NewUnaryHandler(
+		AdminServerServiceUpdateNeighborProcedure,
+		svc.UpdateNeighbor,
+		connect.WithSchema(adminServerServiceMethods.ByName("UpdateNeighbor")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServerServiceDeleteNeighborHandler := connect.NewUnaryHandler(
+		AdminServerServiceDeleteNeighborProcedure,
+		svc.DeleteNeighbor,
+		connect.WithSchema(adminServerServiceMethods.ByName("DeleteNeighbor")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.admin.v1.AdminServerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServerServiceGetServerConfigProcedure:
@@ -292,6 +421,16 @@ func NewAdminServerServiceHandler(svc AdminServerServiceHandler, opts ...connect
 			adminServerServiceGetServerSecurityConfigHandler.ServeHTTP(w, r)
 		case AdminServerServiceUpdateBlockedUsernamesProcedure:
 			adminServerServiceUpdateBlockedUsernamesHandler.ServeHTTP(w, r)
+		case AdminServerServiceListNeighborsProcedure:
+			adminServerServiceListNeighborsHandler.ServeHTTP(w, r)
+		case AdminServerServiceGetNeighborProcedure:
+			adminServerServiceGetNeighborHandler.ServeHTTP(w, r)
+		case AdminServerServiceCreateNeighborProcedure:
+			adminServerServiceCreateNeighborHandler.ServeHTTP(w, r)
+		case AdminServerServiceUpdateNeighborProcedure:
+			adminServerServiceUpdateNeighborHandler.ServeHTTP(w, r)
+		case AdminServerServiceDeleteNeighborProcedure:
+			adminServerServiceDeleteNeighborHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -331,4 +470,24 @@ func (UnimplementedAdminServerServiceHandler) GetServerSecurityConfig(context.Co
 
 func (UnimplementedAdminServerServiceHandler) UpdateBlockedUsernames(context.Context, *connect.Request[v1.UpdateBlockedUsernamesRequest]) (*connect.Response[v1.UpdateBlockedUsernamesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminServerService.UpdateBlockedUsernames is not implemented"))
+}
+
+func (UnimplementedAdminServerServiceHandler) ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminServerService.ListNeighbors is not implemented"))
+}
+
+func (UnimplementedAdminServerServiceHandler) GetNeighbor(context.Context, *connect.Request[v1.GetNeighborRequest]) (*connect.Response[v1.GetNeighborResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminServerService.GetNeighbor is not implemented"))
+}
+
+func (UnimplementedAdminServerServiceHandler) CreateNeighbor(context.Context, *connect.Request[v1.CreateNeighborRequest]) (*connect.Response[v1.CreateNeighborResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminServerService.CreateNeighbor is not implemented"))
+}
+
+func (UnimplementedAdminServerServiceHandler) UpdateNeighbor(context.Context, *connect.Request[v1.UpdateNeighborRequest]) (*connect.Response[v1.UpdateNeighborResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminServerService.UpdateNeighbor is not implemented"))
+}
+
+func (UnimplementedAdminServerServiceHandler) DeleteNeighbor(context.Context, *connect.Request[v1.DeleteNeighborRequest]) (*connect.Response[v1.DeleteNeighborResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminServerService.DeleteNeighbor is not implemented"))
 }

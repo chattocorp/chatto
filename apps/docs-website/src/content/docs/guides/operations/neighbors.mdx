@@ -1,0 +1,52 @@
+---
+title: Advertise Neighbor Servers
+description: Maintain the public directory of friendly Chatto servers.
+---
+
+Use **Neighbors** to advertise friendly Chatto servers to your users. A
+Neighbor is a recommendation. It is not a trust or reciprocal relationship.
+
+## Add a Neighbor
+
+1. Open **Server Configuration → Neighbors**.
+2. Enter the server origin, such as `https://chat.example.com`.
+3. Select **Add Neighbor**.
+
+You need `server.manage-neighbors`. The broader `server.manage` permission also
+includes this authority.
+
+Chatto accepts HTTP and HTTPS origins without paths, queries, fragments, or
+credentials. It normalizes the origin before storage. A server can advertise
+at most 100 Neighbors.
+
+## Edit or delete a Neighbor
+
+Use **Edit** to change one advertised origin. Use **Delete** to remove it.
+Chatto rejects a stale edit when another administrator changed the same
+Neighbor first. Reload the list, review the current origin, and try again.
+
+The directory has no ordering contract. Clients must not use its response order
+as a rank or preference.
+
+## Understand the trust boundary
+
+The Chatto server stores and publishes the origin. It does not contact the
+Neighbor. It does not verify that:
+
+- the origin runs Chatto;
+- the server is online or compatible;
+- the remote administrator approves the listing; or
+- the two servers trust each other.
+
+Reciprocal confirmation is future work. Describe current Neighbors as
+advertised or recommended servers, not as verified partners.
+
+## Use the API
+
+The authenticated `chatto.admin.v1.AdminServerService` provides list, get,
+create, update, and delete methods. The public
+`chatto.discovery.v1.ServerDiscoveryService.ListNeighbors` method returns the
+advertised origins without a session.
+
+An older server can return `Unimplemented` for the public method. Treat that
+result as no available Neighbor directory.

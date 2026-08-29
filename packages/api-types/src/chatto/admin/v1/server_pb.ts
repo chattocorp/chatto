@@ -740,3 +740,456 @@ export class UpdateBlockedUsernamesResponse extends Message<UpdateBlockedUsernam
     return proto3.util.equals(UpdateBlockedUsernamesResponse, a, b);
   }
 }
+
+/**
+ * One server advertised in the public Neighbor directory.
+ *
+ * @generated from message chatto.admin.v1.Neighbor
+ */
+export class Neighbor extends Message<Neighbor> {
+  /**
+   * Stable opaque resource ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Canonical HTTP or HTTPS server origin.
+   *
+   * @generated from field: string origin = 2;
+   */
+  origin = "";
+
+  /**
+   * Opaque revision required for update and delete requests.
+   *
+   * @generated from field: string revision = 3;
+   */
+  revision = "";
+
+  constructor(data?: PartialMessage<Neighbor>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.Neighbor";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "revision", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Neighbor {
+    return new Neighbor().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Neighbor {
+    return new Neighbor().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Neighbor {
+    return new Neighbor().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Neighbor | PlainMessage<Neighbor> | undefined, b: Neighbor | PlainMessage<Neighbor> | undefined): boolean {
+    return proto3.util.equals(Neighbor, a, b);
+  }
+}
+
+/**
+ * Request to list configured Neighbors.
+ *
+ * @generated from message chatto.admin.v1.ListNeighborsRequest
+ */
+export class ListNeighborsRequest extends Message<ListNeighborsRequest> {
+  constructor(data?: PartialMessage<ListNeighborsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ListNeighborsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNeighborsRequest {
+    return new ListNeighborsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNeighborsRequest {
+    return new ListNeighborsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNeighborsRequest {
+    return new ListNeighborsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNeighborsRequest | PlainMessage<ListNeighborsRequest> | undefined, b: ListNeighborsRequest | PlainMessage<ListNeighborsRequest> | undefined): boolean {
+    return proto3.util.equals(ListNeighborsRequest, a, b);
+  }
+}
+
+/**
+ * Configured Neighbors. The response has no ordering contract.
+ *
+ * @generated from message chatto.admin.v1.ListNeighborsResponse
+ */
+export class ListNeighborsResponse extends Message<ListNeighborsResponse> {
+  /**
+   * @generated from field: repeated chatto.admin.v1.Neighbor neighbors = 1;
+   */
+  neighbors: Neighbor[] = [];
+
+  constructor(data?: PartialMessage<ListNeighborsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ListNeighborsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "neighbors", kind: "message", T: Neighbor, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNeighborsResponse {
+    return new ListNeighborsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNeighborsResponse {
+    return new ListNeighborsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNeighborsResponse {
+    return new ListNeighborsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNeighborsResponse | PlainMessage<ListNeighborsResponse> | undefined, b: ListNeighborsResponse | PlainMessage<ListNeighborsResponse> | undefined): boolean {
+    return proto3.util.equals(ListNeighborsResponse, a, b);
+  }
+}
+
+/**
+ * Request for one configured Neighbor.
+ *
+ * @generated from message chatto.admin.v1.GetNeighborRequest
+ */
+export class GetNeighborRequest extends Message<GetNeighborRequest> {
+  /**
+   * @generated from field: string neighbor_id = 1;
+   */
+  neighborId = "";
+
+  constructor(data?: PartialMessage<GetNeighborRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetNeighborRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "neighbor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNeighborRequest {
+    return new GetNeighborRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNeighborRequest {
+    return new GetNeighborRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNeighborRequest {
+    return new GetNeighborRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNeighborRequest | PlainMessage<GetNeighborRequest> | undefined, b: GetNeighborRequest | PlainMessage<GetNeighborRequest> | undefined): boolean {
+    return proto3.util.equals(GetNeighborRequest, a, b);
+  }
+}
+
+/**
+ * One configured Neighbor.
+ *
+ * @generated from message chatto.admin.v1.GetNeighborResponse
+ */
+export class GetNeighborResponse extends Message<GetNeighborResponse> {
+  /**
+   * @generated from field: chatto.admin.v1.Neighbor neighbor = 1;
+   */
+  neighbor?: Neighbor;
+
+  constructor(data?: PartialMessage<GetNeighborResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetNeighborResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "neighbor", kind: "message", T: Neighbor },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNeighborResponse {
+    return new GetNeighborResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNeighborResponse {
+    return new GetNeighborResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNeighborResponse {
+    return new GetNeighborResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNeighborResponse | PlainMessage<GetNeighborResponse> | undefined, b: GetNeighborResponse | PlainMessage<GetNeighborResponse> | undefined): boolean {
+    return proto3.util.equals(GetNeighborResponse, a, b);
+  }
+}
+
+/**
+ * Request to advertise one server origin.
+ *
+ * @generated from message chatto.admin.v1.CreateNeighborRequest
+ */
+export class CreateNeighborRequest extends Message<CreateNeighborRequest> {
+  /**
+   * @generated from field: string origin = 1;
+   */
+  origin = "";
+
+  constructor(data?: PartialMessage<CreateNeighborRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.CreateNeighborRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateNeighborRequest {
+    return new CreateNeighborRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateNeighborRequest {
+    return new CreateNeighborRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateNeighborRequest {
+    return new CreateNeighborRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateNeighborRequest | PlainMessage<CreateNeighborRequest> | undefined, b: CreateNeighborRequest | PlainMessage<CreateNeighborRequest> | undefined): boolean {
+    return proto3.util.equals(CreateNeighborRequest, a, b);
+  }
+}
+
+/**
+ * Newly configured Neighbor.
+ *
+ * @generated from message chatto.admin.v1.CreateNeighborResponse
+ */
+export class CreateNeighborResponse extends Message<CreateNeighborResponse> {
+  /**
+   * @generated from field: chatto.admin.v1.Neighbor neighbor = 1;
+   */
+  neighbor?: Neighbor;
+
+  constructor(data?: PartialMessage<CreateNeighborResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.CreateNeighborResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "neighbor", kind: "message", T: Neighbor },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateNeighborResponse {
+    return new CreateNeighborResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateNeighborResponse {
+    return new CreateNeighborResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateNeighborResponse {
+    return new CreateNeighborResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateNeighborResponse | PlainMessage<CreateNeighborResponse> | undefined, b: CreateNeighborResponse | PlainMessage<CreateNeighborResponse> | undefined): boolean {
+    return proto3.util.equals(CreateNeighborResponse, a, b);
+  }
+}
+
+/**
+ * Request to change one advertised server origin.
+ *
+ * @generated from message chatto.admin.v1.UpdateNeighborRequest
+ */
+export class UpdateNeighborRequest extends Message<UpdateNeighborRequest> {
+  /**
+   * @generated from field: string neighbor_id = 1;
+   */
+  neighborId = "";
+
+  /**
+   * @generated from field: string origin = 2;
+   */
+  origin = "";
+
+  /**
+   * @generated from field: string revision = 3;
+   */
+  revision = "";
+
+  constructor(data?: PartialMessage<UpdateNeighborRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.UpdateNeighborRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "neighbor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "revision", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNeighborRequest {
+    return new UpdateNeighborRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNeighborRequest {
+    return new UpdateNeighborRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNeighborRequest {
+    return new UpdateNeighborRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateNeighborRequest | PlainMessage<UpdateNeighborRequest> | undefined, b: UpdateNeighborRequest | PlainMessage<UpdateNeighborRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateNeighborRequest, a, b);
+  }
+}
+
+/**
+ * Updated Neighbor.
+ *
+ * @generated from message chatto.admin.v1.UpdateNeighborResponse
+ */
+export class UpdateNeighborResponse extends Message<UpdateNeighborResponse> {
+  /**
+   * @generated from field: chatto.admin.v1.Neighbor neighbor = 1;
+   */
+  neighbor?: Neighbor;
+
+  constructor(data?: PartialMessage<UpdateNeighborResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.UpdateNeighborResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "neighbor", kind: "message", T: Neighbor },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNeighborResponse {
+    return new UpdateNeighborResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNeighborResponse {
+    return new UpdateNeighborResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNeighborResponse {
+    return new UpdateNeighborResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateNeighborResponse | PlainMessage<UpdateNeighborResponse> | undefined, b: UpdateNeighborResponse | PlainMessage<UpdateNeighborResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateNeighborResponse, a, b);
+  }
+}
+
+/**
+ * Request to stop advertising one server origin.
+ *
+ * @generated from message chatto.admin.v1.DeleteNeighborRequest
+ */
+export class DeleteNeighborRequest extends Message<DeleteNeighborRequest> {
+  /**
+   * @generated from field: string neighbor_id = 1;
+   */
+  neighborId = "";
+
+  /**
+   * @generated from field: string revision = 2;
+   */
+  revision = "";
+
+  constructor(data?: PartialMessage<DeleteNeighborRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.DeleteNeighborRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "neighbor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "revision", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteNeighborRequest {
+    return new DeleteNeighborRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteNeighborRequest {
+    return new DeleteNeighborRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteNeighborRequest {
+    return new DeleteNeighborRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteNeighborRequest | PlainMessage<DeleteNeighborRequest> | undefined, b: DeleteNeighborRequest | PlainMessage<DeleteNeighborRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteNeighborRequest, a, b);
+  }
+}
+
+/**
+ * Empty result after a Neighbor is deleted.
+ *
+ * @generated from message chatto.admin.v1.DeleteNeighborResponse
+ */
+export class DeleteNeighborResponse extends Message<DeleteNeighborResponse> {
+  constructor(data?: PartialMessage<DeleteNeighborResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.DeleteNeighborResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteNeighborResponse {
+    return new DeleteNeighborResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteNeighborResponse {
+    return new DeleteNeighborResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteNeighborResponse {
+    return new DeleteNeighborResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteNeighborResponse | PlainMessage<DeleteNeighborResponse> | undefined, b: DeleteNeighborResponse | PlainMessage<DeleteNeighborResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteNeighborResponse, a, b);
+  }
+}

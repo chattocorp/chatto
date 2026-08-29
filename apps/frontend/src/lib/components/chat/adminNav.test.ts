@@ -9,6 +9,7 @@ function chrome(overrides: Partial<AdminNavChromePermissions> = {}): AdminNavChr
   return {
     canViewAdmin: false,
     canManage: false,
+    canManageNeighbors: false,
     canManageRooms: false,
     canManageRoles: false,
     canAssignRoles: false,
@@ -98,6 +99,24 @@ describe('getAdminNavItems', () => {
     expect(hidden.some((item) => item.label === 'Invite links')).toBe(false);
     expect(visible.find((item) => item.label === 'Invite links')?.href).toBe(
       '/chat/local/manage/server/invite-links'
+    );
+  });
+
+  it('shows Neighbors only for Neighbor managers', () => {
+    const hidden = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome(),
+      server: server()
+    });
+    const visible = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canManageNeighbors: true }),
+      server: server()
+    });
+
+    expect(hidden.some((item) => item.label === 'Neighbors')).toBe(false);
+    expect(visible.find((item) => item.label === 'Neighbors')?.href).toBe(
+      '/chat/local/manage/server/neighbors'
     );
   });
 

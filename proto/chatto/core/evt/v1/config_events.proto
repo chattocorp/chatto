@@ -13,7 +13,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
-//   - 501-519: durable server/user configuration events on evt.config.*
+//   - 501-522: durable server/user configuration events on evt.config.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -109,6 +109,25 @@ message UserRoomGroupNotificationPolicyChangedEvent {
   string user_id = 1;
   string room_group_id = 2;
   NotificationDeliveryModes overrides = 3;
+}
+
+// Records one server origin that an administrator added to the public
+// Neighbor directory. The event envelope ID is the first resource revision.
+message ServerNeighborCreatedEvent {
+  string neighbor_id = 1;
+  string origin = 2;
+}
+
+// Records a change to one Neighbor origin. The event envelope ID becomes the
+// resource revision.
+message ServerNeighborOriginChangedEvent {
+  string neighbor_id = 1;
+  string origin = 2;
+}
+
+// Removes one Neighbor from the public directory.
+message ServerNeighborDeletedEvent {
+  string neighbor_id = 1;
 }
 
 // Notifies clients that server configuration was updated.

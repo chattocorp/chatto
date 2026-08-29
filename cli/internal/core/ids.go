@@ -83,6 +83,11 @@ func NewInvitationID() string {
 	return newID("I")
 }
 
+// NewNeighborID generates a stable opaque Neighbor resource ID.
+func NewNeighborID() string {
+	return newID("N")
+}
+
 // NewPasswordResetToken generates a new password reset token with "PR" prefix.
 func NewPasswordResetToken() string {
 	return newID("PR")

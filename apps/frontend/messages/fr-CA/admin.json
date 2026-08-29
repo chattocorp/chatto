@@ -2,6 +2,7 @@
   "admin": {
     "nav": {
       "general": "Général",
+      "neighbors": "Voisins",
       "members": "Membres",
       "rooms": "Chambres",
       "moderation": "Modération",
@@ -11,6 +12,26 @@
       "system": "Système",
       "back_to_server": "Retourner au serveur",
       "invitations": "Invite links"
+    },
+    "neighbors": {
+      "title": "Voisins",
+      "subtitle": "Publiez des serveurs Chatto amis dans votre répertoire public",
+      "add_title": "Ajouter un voisin",
+      "list_title": "Serveurs publiés",
+      "origin": "Adresse du serveur",
+      "origin_help": "Entrez une adresse de serveur HTTP ou HTTPS sans chemin. Chatto conserve l’adresse, mais ne communique pas avec le serveur.",
+      "add": "Ajouter un voisin",
+      "empty": "Aucun voisin n’est publié",
+      "actions": "Actions",
+      "edit": "Modifier",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "delete_title": "Supprimer le voisin",
+      "delete_description": "Ne plus publier {origin} ?",
+      "created": "Voisin ajouté",
+      "updated": "Voisin mis à jour",
+      "deleted": "Voisin supprimé"
     },
     "common": {
       "page_title": "{title} | Administrateur",

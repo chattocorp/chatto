@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetServerRequest, GetServerResponse } from "./server_pb.js";
+import { GetServerRequest, GetServerResponse, ListNeighborsRequest, ListNeighborsResponse } from "./server_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -25,6 +25,18 @@ export const ServerDiscoveryService = {
       name: "GetServer",
       I: GetServerRequest,
       O: GetServerResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Returns the public Neighbor directory without requiring a session.
+     *
+     * @generated from rpc chatto.discovery.v1.ServerDiscoveryService.ListNeighbors
+     */
+    listNeighbors: {
+      name: "ListNeighbors",
+      I: ListNeighborsRequest,
+      O: ListNeighborsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

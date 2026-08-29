@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Oppdater serverinnstillinger (navn, beskrivelse, logo)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Opprett nye rom",
       "room_join": "Bli med i eksisterende rom",
       "room_list": "Se rom i katalogen. En bruker kan få lov til å se et rom (f.eks. for å be om tilgang) uten å få lov til å bli med i det.",

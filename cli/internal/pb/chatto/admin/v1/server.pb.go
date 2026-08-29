@@ -845,6 +845,528 @@ func (x *UpdateBlockedUsernamesResponse) GetBlockedUsernames() []string {
 	return nil
 }
 
+// One server advertised in the public Neighbor directory.
+type Neighbor struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable opaque resource ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Canonical HTTP or HTTPS server origin.
+	Origin string `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	// Opaque revision required for update and delete requests.
+	Revision      string `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Neighbor) Reset() {
+	*x = Neighbor{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Neighbor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Neighbor) ProtoMessage() {}
+
+func (x *Neighbor) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Neighbor.ProtoReflect.Descriptor instead.
+func (*Neighbor) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Neighbor) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Neighbor) GetOrigin() string {
+	if x != nil {
+		return x.Origin
+	}
+	return ""
+}
+
+func (x *Neighbor) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+// Request to list configured Neighbors.
+type ListNeighborsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNeighborsRequest) Reset() {
+	*x = ListNeighborsRequest{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNeighborsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNeighborsRequest) ProtoMessage() {}
+
+func (x *ListNeighborsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNeighborsRequest.ProtoReflect.Descriptor instead.
+func (*ListNeighborsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{18}
+}
+
+// Configured Neighbors. The response has no ordering contract.
+type ListNeighborsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Neighbors     []*Neighbor            `protobuf:"bytes,1,rep,name=neighbors,proto3" json:"neighbors,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNeighborsResponse) Reset() {
+	*x = ListNeighborsResponse{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNeighborsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNeighborsResponse) ProtoMessage() {}
+
+func (x *ListNeighborsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNeighborsResponse.ProtoReflect.Descriptor instead.
+func (*ListNeighborsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListNeighborsResponse) GetNeighbors() []*Neighbor {
+	if x != nil {
+		return x.Neighbors
+	}
+	return nil
+}
+
+// Request for one configured Neighbor.
+type GetNeighborRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NeighborId    string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNeighborRequest) Reset() {
+	*x = GetNeighborRequest{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNeighborRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNeighborRequest) ProtoMessage() {}
+
+func (x *GetNeighborRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNeighborRequest.ProtoReflect.Descriptor instead.
+func (*GetNeighborRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetNeighborRequest) GetNeighborId() string {
+	if x != nil {
+		return x.NeighborId
+	}
+	return ""
+}
+
+// One configured Neighbor.
+type GetNeighborResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Neighbor      *Neighbor              `protobuf:"bytes,1,opt,name=neighbor,proto3" json:"neighbor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNeighborResponse) Reset() {
+	*x = GetNeighborResponse{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNeighborResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNeighborResponse) ProtoMessage() {}
+
+func (x *GetNeighborResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNeighborResponse.ProtoReflect.Descriptor instead.
+func (*GetNeighborResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetNeighborResponse) GetNeighbor() *Neighbor {
+	if x != nil {
+		return x.Neighbor
+	}
+	return nil
+}
+
+// Request to advertise one server origin.
+type CreateNeighborRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Origin        string                 `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateNeighborRequest) Reset() {
+	*x = CreateNeighborRequest{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateNeighborRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateNeighborRequest) ProtoMessage() {}
+
+func (x *CreateNeighborRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateNeighborRequest.ProtoReflect.Descriptor instead.
+func (*CreateNeighborRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *CreateNeighborRequest) GetOrigin() string {
+	if x != nil {
+		return x.Origin
+	}
+	return ""
+}
+
+// Newly configured Neighbor.
+type CreateNeighborResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Neighbor      *Neighbor              `protobuf:"bytes,1,opt,name=neighbor,proto3" json:"neighbor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateNeighborResponse) Reset() {
+	*x = CreateNeighborResponse{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateNeighborResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateNeighborResponse) ProtoMessage() {}
+
+func (x *CreateNeighborResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateNeighborResponse.ProtoReflect.Descriptor instead.
+func (*CreateNeighborResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *CreateNeighborResponse) GetNeighbor() *Neighbor {
+	if x != nil {
+		return x.Neighbor
+	}
+	return nil
+}
+
+// Request to change one advertised server origin.
+type UpdateNeighborRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NeighborId    string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
+	Origin        string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	Revision      string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateNeighborRequest) Reset() {
+	*x = UpdateNeighborRequest{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateNeighborRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateNeighborRequest) ProtoMessage() {}
+
+func (x *UpdateNeighborRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateNeighborRequest.ProtoReflect.Descriptor instead.
+func (*UpdateNeighborRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UpdateNeighborRequest) GetNeighborId() string {
+	if x != nil {
+		return x.NeighborId
+	}
+	return ""
+}
+
+func (x *UpdateNeighborRequest) GetOrigin() string {
+	if x != nil {
+		return x.Origin
+	}
+	return ""
+}
+
+func (x *UpdateNeighborRequest) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+// Updated Neighbor.
+type UpdateNeighborResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Neighbor      *Neighbor              `protobuf:"bytes,1,opt,name=neighbor,proto3" json:"neighbor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateNeighborResponse) Reset() {
+	*x = UpdateNeighborResponse{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateNeighborResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateNeighborResponse) ProtoMessage() {}
+
+func (x *UpdateNeighborResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateNeighborResponse.ProtoReflect.Descriptor instead.
+func (*UpdateNeighborResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UpdateNeighborResponse) GetNeighbor() *Neighbor {
+	if x != nil {
+		return x.Neighbor
+	}
+	return nil
+}
+
+// Request to stop advertising one server origin.
+type DeleteNeighborRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NeighborId    string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
+	Revision      string                 `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteNeighborRequest) Reset() {
+	*x = DeleteNeighborRequest{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteNeighborRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteNeighborRequest) ProtoMessage() {}
+
+func (x *DeleteNeighborRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteNeighborRequest.ProtoReflect.Descriptor instead.
+func (*DeleteNeighborRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *DeleteNeighborRequest) GetNeighborId() string {
+	if x != nil {
+		return x.NeighborId
+	}
+	return ""
+}
+
+func (x *DeleteNeighborRequest) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+// Empty result after a Neighbor is deleted.
+type DeleteNeighborResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteNeighborResponse) Reset() {
+	*x = DeleteNeighborResponse{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteNeighborResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteNeighborResponse) ProtoMessage() {}
+
+func (x *DeleteNeighborResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteNeighborResponse.ProtoReflect.Descriptor instead.
+func (*DeleteNeighborResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{27}
+}
+
 var File_chatto_admin_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_server_proto_rawDesc = "" +
@@ -893,7 +1415,38 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\x1dUpdateBlockedUsernamesRequest\x126\n" +
 	"\x11blocked_usernames\x18\x01 \x03(\tB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x10blockedUsernames\"M\n" +
 	"\x1eUpdateBlockedUsernamesResponse\x12+\n" +
-	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames2\x92\a\n" +
+	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames\"N\n" +
+	"\bNeighbor\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\"\x16\n" +
+	"\x14ListNeighborsRequest\"P\n" +
+	"\x15ListNeighborsResponse\x127\n" +
+	"\tneighbors\x18\x01 \x03(\v2\x19.chatto.admin.v1.NeighborR\tneighbors\"@\n" +
+	"\x12GetNeighborRequest\x12*\n" +
+	"\vneighbor_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\n" +
+	"neighborId\"L\n" +
+	"\x13GetNeighborResponse\x125\n" +
+	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\";\n" +
+	"\x15CreateNeighborRequest\x12\"\n" +
+	"\x06origin\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x06origin\"O\n" +
+	"\x16CreateNeighborResponse\x125\n" +
+	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"\x8e\x01\n" +
+	"\x15UpdateNeighborRequest\x12*\n" +
+	"\vneighbor_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\n" +
+	"neighborId\x12\"\n" +
+	"\x06origin\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x06origin\x12%\n" +
+	"\brevision\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\brevision\"O\n" +
+	"\x16UpdateNeighborResponse\x125\n" +
+	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"j\n" +
+	"\x15DeleteNeighborRequest\x12*\n" +
+	"\vneighbor_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\n" +
+	"neighborId\x12%\n" +
+	"\brevision\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\brevision\"\x18\n" +
+	"\x16DeleteNeighborResponse2\xf5\n" +
+	"\n" +
 	"\x12AdminServerService\x12d\n" +
 	"\x0fGetServerConfig\x12'.chatto.admin.v1.GetServerConfigRequest\x1a(.chatto.admin.v1.GetServerConfigResponse\x12m\n" +
 	"\x12UpdateServerConfig\x12*.chatto.admin.v1.UpdateServerConfigRequest\x1a+.chatto.admin.v1.UpdateServerConfigResponse\x12g\n" +
@@ -902,7 +1455,12 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\x12UploadServerBanner\x12*.chatto.admin.v1.UploadServerBannerRequest\x1a+.chatto.admin.v1.UploadServerBannerResponse\x12m\n" +
 	"\x12DeleteServerBanner\x12*.chatto.admin.v1.DeleteServerBannerRequest\x1a+.chatto.admin.v1.DeleteServerBannerResponse\x12|\n" +
 	"\x17GetServerSecurityConfig\x12/.chatto.admin.v1.GetServerSecurityConfigRequest\x1a0.chatto.admin.v1.GetServerSecurityConfigResponse\x12y\n" +
-	"\x16UpdateBlockedUsernames\x12..chatto.admin.v1.UpdateBlockedUsernamesRequest\x1a/.chatto.admin.v1.UpdateBlockedUsernamesResponseB\xb5\x01\n" +
+	"\x16UpdateBlockedUsernames\x12..chatto.admin.v1.UpdateBlockedUsernamesRequest\x1a/.chatto.admin.v1.UpdateBlockedUsernamesResponse\x12^\n" +
+	"\rListNeighbors\x12%.chatto.admin.v1.ListNeighborsRequest\x1a&.chatto.admin.v1.ListNeighborsResponse\x12X\n" +
+	"\vGetNeighbor\x12#.chatto.admin.v1.GetNeighborRequest\x1a$.chatto.admin.v1.GetNeighborResponse\x12a\n" +
+	"\x0eCreateNeighbor\x12&.chatto.admin.v1.CreateNeighborRequest\x1a'.chatto.admin.v1.CreateNeighborResponse\x12a\n" +
+	"\x0eUpdateNeighbor\x12&.chatto.admin.v1.UpdateNeighborRequest\x1a'.chatto.admin.v1.UpdateNeighborResponse\x12a\n" +
+	"\x0eDeleteNeighbor\x12&.chatto.admin.v1.DeleteNeighborRequest\x1a'.chatto.admin.v1.DeleteNeighborResponseB\xb5\x01\n" +
 	"\x13com.chatto.admin.v1B\vServerProtoP\x01Z3hmans.de/chatto/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
 
 var (
@@ -917,7 +1475,7 @@ func file_chatto_admin_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_admin_v1_server_proto_rawDescData
 }
 
-var file_chatto_admin_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_chatto_admin_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_chatto_admin_v1_server_proto_goTypes = []any{
 	(*ServerConfig)(nil),                    // 0: chatto.admin.v1.ServerConfig
 	(*GetServerConfigRequest)(nil),          // 1: chatto.admin.v1.GetServerConfigRequest
@@ -936,41 +1494,66 @@ var file_chatto_admin_v1_server_proto_goTypes = []any{
 	(*GetServerSecurityConfigResponse)(nil), // 14: chatto.admin.v1.GetServerSecurityConfigResponse
 	(*UpdateBlockedUsernamesRequest)(nil),   // 15: chatto.admin.v1.UpdateBlockedUsernamesRequest
 	(*UpdateBlockedUsernamesResponse)(nil),  // 16: chatto.admin.v1.UpdateBlockedUsernamesResponse
-	(*v1.ServerPublicProfile)(nil),          // 17: chatto.api.v1.ServerPublicProfile
-	(*v1.ImageUpload)(nil),                  // 18: chatto.api.v1.ImageUpload
+	(*Neighbor)(nil),                        // 17: chatto.admin.v1.Neighbor
+	(*ListNeighborsRequest)(nil),            // 18: chatto.admin.v1.ListNeighborsRequest
+	(*ListNeighborsResponse)(nil),           // 19: chatto.admin.v1.ListNeighborsResponse
+	(*GetNeighborRequest)(nil),              // 20: chatto.admin.v1.GetNeighborRequest
+	(*GetNeighborResponse)(nil),             // 21: chatto.admin.v1.GetNeighborResponse
+	(*CreateNeighborRequest)(nil),           // 22: chatto.admin.v1.CreateNeighborRequest
+	(*CreateNeighborResponse)(nil),          // 23: chatto.admin.v1.CreateNeighborResponse
+	(*UpdateNeighborRequest)(nil),           // 24: chatto.admin.v1.UpdateNeighborRequest
+	(*UpdateNeighborResponse)(nil),          // 25: chatto.admin.v1.UpdateNeighborResponse
+	(*DeleteNeighborRequest)(nil),           // 26: chatto.admin.v1.DeleteNeighborRequest
+	(*DeleteNeighborResponse)(nil),          // 27: chatto.admin.v1.DeleteNeighborResponse
+	(*v1.ServerPublicProfile)(nil),          // 28: chatto.api.v1.ServerPublicProfile
+	(*v1.ImageUpload)(nil),                  // 29: chatto.api.v1.ImageUpload
 }
 var file_chatto_admin_v1_server_proto_depIdxs = []int32{
 	0,  // 0: chatto.admin.v1.GetServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
-	17, // 1: chatto.admin.v1.GetServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	17, // 2: chatto.admin.v1.UpdateServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	28, // 1: chatto.admin.v1.GetServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	28, // 2: chatto.admin.v1.UpdateServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
 	0,  // 3: chatto.admin.v1.UpdateServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
-	18, // 4: chatto.admin.v1.UploadServerLogoRequest.image:type_name -> chatto.api.v1.ImageUpload
-	17, // 5: chatto.admin.v1.UploadServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	17, // 6: chatto.admin.v1.DeleteServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	18, // 7: chatto.admin.v1.UploadServerBannerRequest.image:type_name -> chatto.api.v1.ImageUpload
-	17, // 8: chatto.admin.v1.UploadServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	17, // 9: chatto.admin.v1.DeleteServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	1,  // 10: chatto.admin.v1.AdminServerService.GetServerConfig:input_type -> chatto.admin.v1.GetServerConfigRequest
-	3,  // 11: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
-	5,  // 12: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest
-	7,  // 13: chatto.admin.v1.AdminServerService.DeleteServerLogo:input_type -> chatto.admin.v1.DeleteServerLogoRequest
-	9,  // 14: chatto.admin.v1.AdminServerService.UploadServerBanner:input_type -> chatto.admin.v1.UploadServerBannerRequest
-	11, // 15: chatto.admin.v1.AdminServerService.DeleteServerBanner:input_type -> chatto.admin.v1.DeleteServerBannerRequest
-	13, // 16: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:input_type -> chatto.admin.v1.GetServerSecurityConfigRequest
-	15, // 17: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:input_type -> chatto.admin.v1.UpdateBlockedUsernamesRequest
-	2,  // 18: chatto.admin.v1.AdminServerService.GetServerConfig:output_type -> chatto.admin.v1.GetServerConfigResponse
-	4,  // 19: chatto.admin.v1.AdminServerService.UpdateServerConfig:output_type -> chatto.admin.v1.UpdateServerConfigResponse
-	6,  // 20: chatto.admin.v1.AdminServerService.UploadServerLogo:output_type -> chatto.admin.v1.UploadServerLogoResponse
-	8,  // 21: chatto.admin.v1.AdminServerService.DeleteServerLogo:output_type -> chatto.admin.v1.DeleteServerLogoResponse
-	10, // 22: chatto.admin.v1.AdminServerService.UploadServerBanner:output_type -> chatto.admin.v1.UploadServerBannerResponse
-	12, // 23: chatto.admin.v1.AdminServerService.DeleteServerBanner:output_type -> chatto.admin.v1.DeleteServerBannerResponse
-	14, // 24: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:output_type -> chatto.admin.v1.GetServerSecurityConfigResponse
-	16, // 25: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:output_type -> chatto.admin.v1.UpdateBlockedUsernamesResponse
-	18, // [18:26] is the sub-list for method output_type
-	10, // [10:18] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	29, // 4: chatto.admin.v1.UploadServerLogoRequest.image:type_name -> chatto.api.v1.ImageUpload
+	28, // 5: chatto.admin.v1.UploadServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	28, // 6: chatto.admin.v1.DeleteServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	29, // 7: chatto.admin.v1.UploadServerBannerRequest.image:type_name -> chatto.api.v1.ImageUpload
+	28, // 8: chatto.admin.v1.UploadServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	28, // 9: chatto.admin.v1.DeleteServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	17, // 10: chatto.admin.v1.ListNeighborsResponse.neighbors:type_name -> chatto.admin.v1.Neighbor
+	17, // 11: chatto.admin.v1.GetNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
+	17, // 12: chatto.admin.v1.CreateNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
+	17, // 13: chatto.admin.v1.UpdateNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
+	1,  // 14: chatto.admin.v1.AdminServerService.GetServerConfig:input_type -> chatto.admin.v1.GetServerConfigRequest
+	3,  // 15: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
+	5,  // 16: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest
+	7,  // 17: chatto.admin.v1.AdminServerService.DeleteServerLogo:input_type -> chatto.admin.v1.DeleteServerLogoRequest
+	9,  // 18: chatto.admin.v1.AdminServerService.UploadServerBanner:input_type -> chatto.admin.v1.UploadServerBannerRequest
+	11, // 19: chatto.admin.v1.AdminServerService.DeleteServerBanner:input_type -> chatto.admin.v1.DeleteServerBannerRequest
+	13, // 20: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:input_type -> chatto.admin.v1.GetServerSecurityConfigRequest
+	15, // 21: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:input_type -> chatto.admin.v1.UpdateBlockedUsernamesRequest
+	18, // 22: chatto.admin.v1.AdminServerService.ListNeighbors:input_type -> chatto.admin.v1.ListNeighborsRequest
+	20, // 23: chatto.admin.v1.AdminServerService.GetNeighbor:input_type -> chatto.admin.v1.GetNeighborRequest
+	22, // 24: chatto.admin.v1.AdminServerService.CreateNeighbor:input_type -> chatto.admin.v1.CreateNeighborRequest
+	24, // 25: chatto.admin.v1.AdminServerService.UpdateNeighbor:input_type -> chatto.admin.v1.UpdateNeighborRequest
+	26, // 26: chatto.admin.v1.AdminServerService.DeleteNeighbor:input_type -> chatto.admin.v1.DeleteNeighborRequest
+	2,  // 27: chatto.admin.v1.AdminServerService.GetServerConfig:output_type -> chatto.admin.v1.GetServerConfigResponse
+	4,  // 28: chatto.admin.v1.AdminServerService.UpdateServerConfig:output_type -> chatto.admin.v1.UpdateServerConfigResponse
+	6,  // 29: chatto.admin.v1.AdminServerService.UploadServerLogo:output_type -> chatto.admin.v1.UploadServerLogoResponse
+	8,  // 30: chatto.admin.v1.AdminServerService.DeleteServerLogo:output_type -> chatto.admin.v1.DeleteServerLogoResponse
+	10, // 31: chatto.admin.v1.AdminServerService.UploadServerBanner:output_type -> chatto.admin.v1.UploadServerBannerResponse
+	12, // 32: chatto.admin.v1.AdminServerService.DeleteServerBanner:output_type -> chatto.admin.v1.DeleteServerBannerResponse
+	14, // 33: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:output_type -> chatto.admin.v1.GetServerSecurityConfigResponse
+	16, // 34: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:output_type -> chatto.admin.v1.UpdateBlockedUsernamesResponse
+	19, // 35: chatto.admin.v1.AdminServerService.ListNeighbors:output_type -> chatto.admin.v1.ListNeighborsResponse
+	21, // 36: chatto.admin.v1.AdminServerService.GetNeighbor:output_type -> chatto.admin.v1.GetNeighborResponse
+	23, // 37: chatto.admin.v1.AdminServerService.CreateNeighbor:output_type -> chatto.admin.v1.CreateNeighborResponse
+	25, // 38: chatto.admin.v1.AdminServerService.UpdateNeighbor:output_type -> chatto.admin.v1.UpdateNeighborResponse
+	27, // 39: chatto.admin.v1.AdminServerService.DeleteNeighbor:output_type -> chatto.admin.v1.DeleteNeighborResponse
+	27, // [27:40] is the sub-list for method output_type
+	14, // [14:27] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_server_proto_init() }
@@ -985,7 +1568,7 @@ func file_chatto_admin_v1_server_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_server_proto_rawDesc), len(file_chatto_admin_v1_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

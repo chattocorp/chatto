@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Looge uusi ruume",
       "room_join": "Liituge olemasolevate ruumidega",
       "room_list": "Vaadake ruume kataloogis. Kasutajal võib lubada ruumi näha (nt taotleda juurdepääsu), ilma et tal lubataks sellega liituda.",

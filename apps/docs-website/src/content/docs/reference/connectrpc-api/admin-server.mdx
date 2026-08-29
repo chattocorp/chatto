@@ -268,3 +268,160 @@ Result of updating the server blocked-username list.
 | Field | Type | Description |
 | --- | --- | --- |
 | `blocked_usernames` | `repeated string` | Effective blocked usernames after the update. |
+
+
+<a id="chatto-admin-v1-AdminServerService-ListNeighbors"></a>
+
+### ListNeighbors
+
+Lists configured Neighbors. This RPC requires server.manage-neighbors.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/ListNeighbors
+```
+
+<a id="chatto-admin-v1-ListNeighborsRequest"></a>
+
+#### Input: ListNeighborsRequest
+
+Request to list configured Neighbors.
+
+
+<a id="chatto-admin-v1-ListNeighborsResponse"></a>
+
+#### Result: ListNeighborsResponse
+
+Configured Neighbors. The response has no ordering contract.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `neighbors` | repeated [`Neighbor`](/reference/connectrpc-api/types/#chatto-admin-v1-Neighbor) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminServerService-GetNeighbor"></a>
+
+### GetNeighbor
+
+Gets one configured Neighbor. This RPC requires server.manage-neighbors.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/GetNeighbor
+```
+
+<a id="chatto-admin-v1-GetNeighborRequest"></a>
+
+#### Input: GetNeighborRequest
+
+Request for one configured Neighbor.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `neighbor_id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-GetNeighborResponse"></a>
+
+#### Result: GetNeighborResponse
+
+One configured Neighbor.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `neighbor` | [`Neighbor`](/reference/connectrpc-api/types/#chatto-admin-v1-Neighbor) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminServerService-CreateNeighbor"></a>
+
+### CreateNeighbor
+
+Advertises one server origin. This RPC requires server.manage-neighbors.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/CreateNeighbor
+```
+
+<a id="chatto-admin-v1-CreateNeighborRequest"></a>
+
+#### Input: CreateNeighborRequest
+
+Request to advertise one server origin.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `origin` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-CreateNeighborResponse"></a>
+
+#### Result: CreateNeighborResponse
+
+Newly configured Neighbor.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `neighbor` | [`Neighbor`](/reference/connectrpc-api/types/#chatto-admin-v1-Neighbor) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminServerService-UpdateNeighbor"></a>
+
+### UpdateNeighbor
+
+Changes one advertised server origin. This RPC requires
+server.manage-neighbors.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/UpdateNeighbor
+```
+
+<a id="chatto-admin-v1-UpdateNeighborRequest"></a>
+
+#### Input: UpdateNeighborRequest
+
+Request to change one advertised server origin.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `neighbor_id` | `string` | No field description provided. |
+| `origin` | `string` | No field description provided. |
+| `revision` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-UpdateNeighborResponse"></a>
+
+#### Result: UpdateNeighborResponse
+
+Updated Neighbor.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `neighbor` | [`Neighbor`](/reference/connectrpc-api/types/#chatto-admin-v1-Neighbor) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminServerService-DeleteNeighbor"></a>
+
+### DeleteNeighbor
+
+Stops advertising one server origin. This RPC requires
+server.manage-neighbors.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/DeleteNeighbor
+```
+
+<a id="chatto-admin-v1-DeleteNeighborRequest"></a>
+
+#### Input: DeleteNeighborRequest
+
+Request to stop advertising one server origin.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `neighbor_id` | `string` | No field description provided. |
+| `revision` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-DeleteNeighborResponse"></a>
+
+#### Result: DeleteNeighborResponse
+
+Empty result after a Neighbor is deleted.

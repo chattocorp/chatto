@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteServerBannerRequest, DeleteServerBannerResponse, DeleteServerLogoRequest, DeleteServerLogoResponse, GetServerConfigRequest, GetServerConfigResponse, GetServerSecurityConfigRequest, GetServerSecurityConfigResponse, UpdateBlockedUsernamesRequest, UpdateBlockedUsernamesResponse, UpdateServerConfigRequest, UpdateServerConfigResponse, UploadServerBannerRequest, UploadServerBannerResponse, UploadServerLogoRequest, UploadServerLogoResponse } from "./server_pb.js";
+import { CreateNeighborRequest, CreateNeighborResponse, DeleteNeighborRequest, DeleteNeighborResponse, DeleteServerBannerRequest, DeleteServerBannerResponse, DeleteServerLogoRequest, DeleteServerLogoResponse, GetNeighborRequest, GetNeighborResponse, GetServerConfigRequest, GetServerConfigResponse, GetServerSecurityConfigRequest, GetServerSecurityConfigResponse, ListNeighborsRequest, ListNeighborsResponse, UpdateBlockedUsernamesRequest, UpdateBlockedUsernamesResponse, UpdateNeighborRequest, UpdateNeighborResponse, UpdateServerConfigRequest, UpdateServerConfigResponse, UploadServerBannerRequest, UploadServerBannerResponse, UploadServerLogoRequest, UploadServerLogoResponse } from "./server_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -104,6 +104,63 @@ export const AdminServerService = {
       name: "UpdateBlockedUsernames",
       I: UpdateBlockedUsernamesRequest,
       O: UpdateBlockedUsernamesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists configured Neighbors. This RPC requires server.manage-neighbors.
+     *
+     * @generated from rpc chatto.admin.v1.AdminServerService.ListNeighbors
+     */
+    listNeighbors: {
+      name: "ListNeighbors",
+      I: ListNeighborsRequest,
+      O: ListNeighborsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets one configured Neighbor. This RPC requires server.manage-neighbors.
+     *
+     * @generated from rpc chatto.admin.v1.AdminServerService.GetNeighbor
+     */
+    getNeighbor: {
+      name: "GetNeighbor",
+      I: GetNeighborRequest,
+      O: GetNeighborResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Advertises one server origin. This RPC requires server.manage-neighbors.
+     *
+     * @generated from rpc chatto.admin.v1.AdminServerService.CreateNeighbor
+     */
+    createNeighbor: {
+      name: "CreateNeighbor",
+      I: CreateNeighborRequest,
+      O: CreateNeighborResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Changes one advertised server origin. This RPC requires
+     * server.manage-neighbors.
+     *
+     * @generated from rpc chatto.admin.v1.AdminServerService.UpdateNeighbor
+     */
+    updateNeighbor: {
+      name: "UpdateNeighbor",
+      I: UpdateNeighborRequest,
+      O: UpdateNeighborResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Stops advertising one server origin. This RPC requires
+     * server.manage-neighbors.
+     *
+     * @generated from rpc chatto.admin.v1.AdminServerService.DeleteNeighbor
+     */
+    deleteNeighbor: {
+      name: "DeleteNeighbor",
+      I: DeleteNeighborRequest,
+      O: DeleteNeighborResponse,
       kind: MethodKind.Unary,
     },
   }

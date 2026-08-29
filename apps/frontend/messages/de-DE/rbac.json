@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Servereinstellungen aktualisieren (Name, Beschreibung, Logo)",
+      "server_manage_neighbors": "Öffentliches Nachbarverzeichnis verwalten",
       "room_create": "Neue Räume erstellen",
       "room_join": "Bestehenden Räumen beitreten",
       "room_list": "Räume im Verzeichnis sehen. Ein Benutzer kann einen Raum sehen dürfen (z. B. um Zugriff anzufragen), ohne ihm beitreten zu dürfen.",

@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Ĝisdatigu servilajn agordojn (nomo, priskribo, emblemo)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Krei novajn ĉambrojn",
       "room_join": "Aliĝu al ekzistantaj ĉambroj",
       "room_list": "Vidu ĉambrojn en la dosierujo. Uzanto povas esti permesita vidi ĉambron (ekz. por peti aliron) sen esti permesita aliĝi al ĝi.",

@@ -17,12 +17,25 @@ message GetServerResponse {
   chatto.api.v1.ServerLogin login = 2;
 }
 
+// Request for the public Neighbor directory.
+message ListNeighborsRequest {}
+
+// Publicly advertised canonical server origins. The response has no ordering
+// contract.
+message ListNeighborsResponse {
+  repeated string origins = 1;
+}
+
 // Provides unauthenticated server discovery metadata.
 service ServerDiscoveryService {
   // Returns public server metadata, branding, registration status, and login
   // provider information. This fully public RPC is available before login so
   // clients can render the first server screen and authentication choices.
   rpc GetServer(GetServerRequest) returns (GetServerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Returns the public Neighbor directory without requiring a session.
+  rpc ListNeighbors(ListNeighborsRequest) returns (ListNeighborsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }

@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "更新伺服器設定（名稱、說明、標誌）",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "建立新聊天室",
       "room_join": "加入現有聊天室",
       "room_list": "在聊天室目錄中查看聊天室。可允許使用者查看聊天室（例如申請存取權），但不允許加入。",

@@ -26,6 +26,15 @@ type serverConfigState struct {
 	blockedUsernames *string
 	logo             *evtv1.AssetRecord
 	banner           *evtv1.AssetRecord
+	neighbors        map[string]Neighbor
+}
+
+// Neighbor is one server advertised through the public Neighbor directory.
+// Revision is the envelope ID of the latest durable fact for this resource.
+type Neighbor struct {
+	ID       string
+	Origin   string
+	Revision string
 }
 
 type userConfigState struct {
@@ -37,7 +46,7 @@ type userConfigState struct {
 }
 
 func NewConfigProjection() *ConfigProjection {
-	return &ConfigProjection{users: make(map[string]*userConfigState)}
+	return &ConfigProjection{server: serverConfigState{neighbors: make(map[string]Neighbor)}, users: make(map[string]*userConfigState)}
 }
 
 func (p *ConfigProjection) Subjects() []string {
@@ -75,6 +84,28 @@ func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 		p.server.banner = cloneAssetRecord(e.ServerBannerSet.GetAsset())
 	case *evtv1.Event_ServerBannerCleared:
 		p.server.banner = nil
+	case *evtv1.Event_ServerNeighborCreated:
+		neighbor := e.ServerNeighborCreated
+		if neighbor == nil || neighbor.GetNeighborId() == "" {
+			break
+		}
+		if p.server.neighbors == nil {
+			p.server.neighbors = make(map[string]Neighbor)
+		}
+		p.server.neighbors[neighbor.GetNeighborId()] = Neighbor{ID: neighbor.GetNeighborId(), Origin: neighbor.GetOrigin(), Revision: event.GetId()}
+	case *evtv1.Event_ServerNeighborOriginChanged:
+		neighbor := e.ServerNeighborOriginChanged
+		if neighbor == nil {
+			break
+		}
+		if current, exists := p.server.neighbors[neighbor.GetNeighborId()]; exists {
+			current.Origin = neighbor.GetOrigin()
+			current.Revision = event.GetId()
+			p.server.neighbors[neighbor.GetNeighborId()] = current
+		}
+	case *evtv1.Event_ServerNeighborDeleted:
+		neighborID := e.ServerNeighborDeleted.GetNeighborId()
+		delete(p.server.neighbors, neighborID)
 	case *evtv1.Event_UserTimezoneChanged:
 		u := p.ensureUserLocked(e.UserTimezoneChanged.GetUserId())
 		tz := e.UserTimezoneChanged.GetTimezone()

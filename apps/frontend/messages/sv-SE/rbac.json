@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Uppdatera serverinställningar (namn, beskrivning, logotyp)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Skapa nya rum",
       "room_join": "Gå med i befintliga rum",
       "room_list": "Se rum i katalogen. En användare kan tillåtas se ett rum (t.ex. för att begära åtkomst) utan att få gå med i det.",

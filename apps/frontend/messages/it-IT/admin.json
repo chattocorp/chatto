@@ -2,6 +2,7 @@
   "admin": {
     "nav": {
       "general": "Generale",
+      "neighbors": "Vicini",
       "members": "Membri",
       "rooms": "Camere",
       "moderation": "Moderazione",
@@ -11,6 +12,26 @@
       "system": "Sistema",
       "back_to_server": "Ritorna al server",
       "invitations": "Invite links"
+    },
+    "neighbors": {
+      "title": "Vicini",
+      "subtitle": "Pubblica server Chatto amici nella directory pubblica",
+      "add_title": "Aggiungi vicino",
+      "list_title": "Server pubblicati",
+      "origin": "Indirizzo del server",
+      "origin_help": "Inserisci un indirizzo server HTTP o HTTPS senza percorso. Chatto memorizza l’indirizzo, ma non contatta il server.",
+      "add": "Aggiungi vicino",
+      "empty": "Nessun vicino pubblicato",
+      "actions": "Azioni",
+      "edit": "Modifica",
+      "save": "Salva",
+      "cancel": "Annulla",
+      "delete": "Elimina",
+      "delete_title": "Elimina vicino",
+      "delete_description": "Smettere di pubblicare {origin}?",
+      "created": "Vicino aggiunto",
+      "updated": "Vicino aggiornato",
+      "deleted": "Vicino eliminato"
     },
     "common": {
       "page_title": "{title} | Ammin",

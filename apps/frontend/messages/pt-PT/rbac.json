@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Atualizar as definições do servidor (nome, descrição, logótipo)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Criar novas salas",
       "room_join": "Junte-se a salas existentes",
       "room_list": "Ver salas no directório. Um utilizador pode ter permissão para ver uma sala (por exemplo, para solicitar acesso) sem ter permissão para aderir a ela.",

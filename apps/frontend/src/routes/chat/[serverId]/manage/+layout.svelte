@@ -23,6 +23,7 @@
     const serverBase = resolve('/chat/[serverId]/manage/server', params);
     const manageBase = serverBase.slice(0, -'/server'.length);
     const generalBase = serverBase + '/general';
+    const neighborsBase = serverBase + '/neighbors';
     const botsBase = serverBase + '/bots';
     const membersBase = serverBase + '/members';
     const invitationsBase = serverBase + '/invite-links';
@@ -37,6 +38,10 @@
     // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
       return () => chromePermissions?.canManage ?? false;
+    }
+
+    if (pathname.startsWith(neighborsBase)) {
+      return () => chromePermissions?.canManageNeighbors ?? false;
     }
 
     // Bot owners retain management of existing bots after losing bot.create.

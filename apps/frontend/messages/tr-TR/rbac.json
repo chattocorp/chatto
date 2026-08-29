@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Sunucu ayarlarını güncelleyin (ad, açıklama, logo)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Yeni odalar oluştur",
       "room_join": "Mevcut odalara katılın",
       "room_list": "Dizindeki odalara bakın. Bir kullanıcının, bir odaya katılmasına izin verilmeden bir odayı görmesine (örneğin erişim talebinde bulunmasına) izin verilebilir.",

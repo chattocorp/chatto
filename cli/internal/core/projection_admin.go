@@ -185,7 +185,7 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 	p.RLock()
 	defer p.RUnlock()
 	var values int64
-	var notificationPolicyValues, notificationPolicyPayloadBytes int64
+	var notificationPolicyValues, notificationPolicyPayloadBytes, neighborPayloadBytes int64
 	if p.server.serverName != "" {
 		values++
 	}
@@ -206,6 +206,10 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 	}
 	if p.server.banner != nil {
 		values++
+	}
+	values += int64(len(p.server.neighbors)) * 3
+	for _, neighbor := range p.server.neighbors {
+		neighborPayloadBytes += projectionMapEntryOverhead + int64(len(neighbor.ID)+len(neighbor.Origin)+len(neighbor.Revision))
 	}
 	for _, u := range p.users {
 		if u.timezone != nil {
@@ -240,14 +244,16 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 		p.server.motd != "" ||
 		p.server.blockedUsernames != nil ||
 		p.server.logo != nil ||
-		p.server.banner != nil {
+		p.server.banner != nil ||
+		len(p.server.neighbors) > 0 {
 		subjects++
 	}
-	bytes := values*projectionMapEntryOverhead + notificationPolicyPayloadBytes
+	bytes := values*projectionMapEntryOverhead + notificationPolicyPayloadBytes + neighborPayloadBytes
 	return values, bytes, []ProjectionAdminMetric{
 		{Name: "subjects", Value: subjects, Bytes: 0},
 		{Name: "values", Value: values, Bytes: bytes},
 		{Name: "notification_policy_values", Value: notificationPolicyValues, Bytes: notificationPolicyValues*projectionMapEntryOverhead + notificationPolicyPayloadBytes},
+		{Name: "neighbors", Value: int64(len(p.server.neighbors)), Bytes: neighborPayloadBytes},
 	}
 }
 

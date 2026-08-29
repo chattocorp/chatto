@@ -21,6 +21,12 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 		value := *p.server.blockedUsernames
 		snapshot.BlockedUsernames = &value
 	}
+	for _, neighborID := range sortedMapKeys(p.server.neighbors) {
+		neighbor := p.server.neighbors[neighborID]
+		snapshot.Neighbors = append(snapshot.Neighbors, &projectionv1.ServerNeighborSnapshot{
+			Id: neighbor.ID, Origin: neighbor.Origin, Revision: neighbor.Revision,
+		})
+	}
 	for _, userID := range sortedMapKeys(p.users) {
 		user := p.users[userID]
 		row := &projectionv1.UserConfigSnapshot{UserId: userID}
@@ -57,10 +63,19 @@ func (p *ConfigProjection) Restore(data []byte) error {
 			return fmt.Errorf("unmarshal config snapshot: %w", err)
 		}
 	}
-	server := serverConfigState{serverName: snapshot.GetServerName(), description: snapshot.GetDescription(), welcomeMessage: snapshot.GetWelcomeMessage(), motd: snapshot.GetMotd(), logo: cloneAssetRecord(snapshot.GetLogo()), banner: cloneAssetRecord(snapshot.GetBanner())}
+	server := serverConfigState{serverName: snapshot.GetServerName(), description: snapshot.GetDescription(), welcomeMessage: snapshot.GetWelcomeMessage(), motd: snapshot.GetMotd(), logo: cloneAssetRecord(snapshot.GetLogo()), banner: cloneAssetRecord(snapshot.GetBanner()), neighbors: make(map[string]Neighbor, len(snapshot.GetNeighbors()))}
 	if snapshot.BlockedUsernames != nil {
 		value := snapshot.GetBlockedUsernames()
 		server.blockedUsernames = &value
+	}
+	for _, row := range snapshot.GetNeighbors() {
+		if row.GetId() == "" || row.GetOrigin() == "" || row.GetRevision() == "" {
+			return fmt.Errorf("config snapshot has incomplete Neighbor")
+		}
+		if _, duplicate := server.neighbors[row.GetId()]; duplicate {
+			return fmt.Errorf("config snapshot repeats Neighbor %q", row.GetId())
+		}
+		server.neighbors[row.GetId()] = Neighbor{ID: row.GetId(), Origin: row.GetOrigin(), Revision: row.GetRevision()}
 	}
 	users := make(map[string]*userConfigState, len(snapshot.GetUsers()))
 	for _, row := range snapshot.GetUsers() {

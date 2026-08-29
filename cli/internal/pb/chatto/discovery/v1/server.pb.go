@@ -116,6 +116,89 @@ func (x *GetServerResponse) GetLogin() *v1.ServerLogin {
 	return nil
 }
 
+// Request for the public Neighbor directory.
+type ListNeighborsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNeighborsRequest) Reset() {
+	*x = ListNeighborsRequest{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNeighborsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNeighborsRequest) ProtoMessage() {}
+
+func (x *ListNeighborsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNeighborsRequest.ProtoReflect.Descriptor instead.
+func (*ListNeighborsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{2}
+}
+
+// Publicly advertised canonical server origins. The response has no ordering
+// contract.
+type ListNeighborsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Origins       []string               `protobuf:"bytes,1,rep,name=origins,proto3" json:"origins,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNeighborsResponse) Reset() {
+	*x = ListNeighborsResponse{}
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNeighborsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNeighborsResponse) ProtoMessage() {}
+
+func (x *ListNeighborsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_discovery_v1_server_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNeighborsResponse.ProtoReflect.Descriptor instead.
+func (*ListNeighborsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_discovery_v1_server_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListNeighborsResponse) GetOrigins() []string {
+	if x != nil {
+		return x.Origins
+	}
+	return nil
+}
+
 var File_chatto_discovery_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_discovery_v1_server_proto_rawDesc = "" +
@@ -124,9 +207,13 @@ const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\x10GetServerRequest\"\x83\x01\n" +
 	"\x11GetServerResponse\x12<\n" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +
-	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login2y\n" +
+	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login\"\x16\n" +
+	"\x14ListNeighborsRequest\"1\n" +
+	"\x15ListNeighborsResponse\x12\x18\n" +
+	"\aorigins\x18\x01 \x03(\tR\aorigins2\xe6\x01\n" +
 	"\x16ServerDiscoveryService\x12_\n" +
-	"\tGetServer\x12%.chatto.discovery.v1.GetServerRequest\x1a&.chatto.discovery.v1.GetServerResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
+	"\tGetServer\x12%.chatto.discovery.v1.GetServerRequest\x1a&.chatto.discovery.v1.GetServerResponse\"\x03\x90\x02\x01\x12k\n" +
+	"\rListNeighbors\x12).chatto.discovery.v1.ListNeighborsRequest\x1a*.chatto.discovery.v1.ListNeighborsResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
 	"\x17com.chatto.discovery.v1B\vServerProtoP\x01Z;hmans.de/chatto/internal/pb/chatto/discovery/v1;discoveryv1\xa2\x02\x03CDX\xaa\x02\x13Chatto.Discovery.V1\xca\x02\x13Chatto\\Discovery\\V1\xe2\x02\x1fChatto\\Discovery\\V1\\GPBMetadata\xea\x02\x15Chatto::Discovery::V1b\x06proto3"
 
 var (
@@ -141,20 +228,24 @@ func file_chatto_discovery_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_discovery_v1_server_proto_rawDescData
 }
 
-var file_chatto_discovery_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_discovery_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_discovery_v1_server_proto_goTypes = []any{
 	(*GetServerRequest)(nil),       // 0: chatto.discovery.v1.GetServerRequest
 	(*GetServerResponse)(nil),      // 1: chatto.discovery.v1.GetServerResponse
-	(*v1.ServerPublicProfile)(nil), // 2: chatto.api.v1.ServerPublicProfile
-	(*v1.ServerLogin)(nil),         // 3: chatto.api.v1.ServerLogin
+	(*ListNeighborsRequest)(nil),   // 2: chatto.discovery.v1.ListNeighborsRequest
+	(*ListNeighborsResponse)(nil),  // 3: chatto.discovery.v1.ListNeighborsResponse
+	(*v1.ServerPublicProfile)(nil), // 4: chatto.api.v1.ServerPublicProfile
+	(*v1.ServerLogin)(nil),         // 5: chatto.api.v1.ServerLogin
 }
 var file_chatto_discovery_v1_server_proto_depIdxs = []int32{
-	2, // 0: chatto.discovery.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
-	3, // 1: chatto.discovery.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
+	4, // 0: chatto.discovery.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
+	5, // 1: chatto.discovery.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
 	0, // 2: chatto.discovery.v1.ServerDiscoveryService.GetServer:input_type -> chatto.discovery.v1.GetServerRequest
-	1, // 3: chatto.discovery.v1.ServerDiscoveryService.GetServer:output_type -> chatto.discovery.v1.GetServerResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
+	2, // 3: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:input_type -> chatto.discovery.v1.ListNeighborsRequest
+	1, // 4: chatto.discovery.v1.ServerDiscoveryService.GetServer:output_type -> chatto.discovery.v1.GetServerResponse
+	3, // 5: chatto.discovery.v1.ServerDiscoveryService.ListNeighbors:output_type -> chatto.discovery.v1.ListNeighborsResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -171,7 +262,7 @@ func file_chatto_discovery_v1_server_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_discovery_v1_server_proto_rawDesc), len(file_chatto_discovery_v1_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

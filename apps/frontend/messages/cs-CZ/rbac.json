@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Aktualizace nastavení serveru (název, popis, logo)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Vytvořte nové místnosti",
       "room_join": "Připojte se ke stávajícím místnostem",
       "room_list": "Podívejte se na místnosti v adresáři. Uživateli může být povoleno vidět místnost (např. požádat o přístup), aniž by mu bylo povoleno se k ní připojit.",

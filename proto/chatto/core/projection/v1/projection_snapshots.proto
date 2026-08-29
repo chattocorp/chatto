@@ -224,6 +224,14 @@ message ConfigProjectionSnapshot {
   chatto.core.evt.v1.AssetRecord logo = 6;
   chatto.core.evt.v1.AssetRecord banner = 7;
   repeated UserConfigSnapshot users = 8;
+  repeated ServerNeighborSnapshot neighbors = 9;
+}
+
+// Restorable state for one advertised server in the Neighbor directory.
+message ServerNeighborSnapshot {
+  string id = 1;
+  string origin = 2;
+  string revision = 3;
 }
 
 message UserConfigSnapshot {

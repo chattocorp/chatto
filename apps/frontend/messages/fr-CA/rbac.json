@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Mettre à jour les paramètres du serveur (nom, description, logo)",
+      "server_manage_neighbors": "Gérer le répertoire public des voisins",
       "room_create": "Créer de nouvelles salles",
       "room_join": "Se joindre à des salons existants",
       "room_list": "Voir les salles dans l'annuaire. Un utilisateur peut être autorisé à voir une salle (par exemple pour demander l'accès) sans être autorisé à la rejoindre.",

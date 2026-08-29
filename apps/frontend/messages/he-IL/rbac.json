@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "עדכון הגדרות שרת (שם, תיאור, לוגו)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "צור חדרים חדשים",
       "room_join": "הצטרפו לחדרים קיימים",
       "room_list": "ראה חדרים בספרייה. ניתן לאפשר למשתמש לראות חדר (למשל לבקש גישה) מבלי שיוכל להצטרף אליו.",

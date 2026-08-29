@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "تحديث إعدادات الخادم (الاسم والوصف والشعار)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "إنشاء غرف جديدة",
       "room_join": "انضم إلى الغرف الموجودة",
       "room_list": "شاهد الغرف في الدليل. يمكن السماح للمستخدم برؤية غرفة (على سبيل المثال لطلب الوصول) دون السماح له بالانضمام إليها.",

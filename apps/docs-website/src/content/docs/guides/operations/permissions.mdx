@@ -66,19 +66,21 @@ Permissions can be configured at different scopes:
 
 Each setting can be **Allow**, **Deny**, or **Inherit**. Inherit means "use the next broader setting for this same user or role". For example, a room set to Inherit checks the room group, then the server. It never inherits a setting from another role.
 
-Room-relevant permissions such as `message.read`, `message.read-interactions`, `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
+Room-relevant permissions such as `message.read`, `message.read-interactions`, `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `server.manage-neighbors`, `role.manage`, and `admin.view-audit` are configured only at server scope.
 
 Permission identifiers are opaque, stable values. Their punctuation does not
 define authority. Chatto defines one explicit inclusion: an effective
 `message.read` allow also allows
 `message.read-interactions`. The reverse is not true. A deny for the narrower
 permission cannot restrict broad read access, and a deny for broad read access
-does not restrict a separate narrow allow.
+does not restrict a separate narrow allow. An effective `server.manage` allow
+also includes `server.manage-neighbors` through the same explicit metadata.
 
 ## Important permissions
 
 | Permission                | Meaning                                                                                                                                                                         |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server.manage-neighbors` | Create, read, update, and delete servers in the public Neighbor directory. `server.manage` includes this permission. |
 | `message.read`            | Read channel-room message and thread content, attachments, message search results, typing indicators, and message-derived activity. It includes `message.read-interactions`. Channel-room membership is also required. DM membership authorizes DM reads. Fresh servers allow this for `everyone`; existing servers are never backfilled. |
 | `message.read-interactions` | Read a complete channel-room thread when the account authored its root or another account directly mentioned it in that thread. This includes messages from before the relationship started. Role mentions, broadcast mentions, self-mentions, and authored replies do not create access. Channel-room membership is also required. Fresh servers get this authority through the `message.read` grant; existing servers are never backfilled. |
 | `message.post`            | Post root messages. A human with this permission can also start DMs. A bot cannot start a DM. Explicitly establishing a channel-room root as a thread also requires `message.post-in-thread`. |

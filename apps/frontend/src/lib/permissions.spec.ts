@@ -30,6 +30,7 @@ describe('PERMISSION_METADATA', () => {
       'room.list',
       'room.manage',
       'server.manage',
+      'server.manage-neighbors',
       'user.delete-any',
       'user.delete-self',
       'user.invite',
@@ -50,6 +51,12 @@ describe('PERMISSION_METADATA', () => {
     expect(getIncludedByPermission(permissions, 'message.read-interactions')).toBe('message.read');
     expect(getIncludedByPermission(permissions, 'message.read')).toBeNull();
     expect(getIncludedByPermission(permissions, 'message.post-in-thread')).toBeNull();
+    expect(
+      getIncludedByPermission(
+        ['server.manage', 'server.manage-neighbors'],
+        'server.manage-neighbors'
+      )
+    ).toBe('server.manage');
   });
 
   it('does not derive inclusion from identifier punctuation', () => {

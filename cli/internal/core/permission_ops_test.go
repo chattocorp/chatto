@@ -345,6 +345,11 @@ func TestInitServerDefaults(t *testing.T) {
 			if perm.Category == CategoryMessage && perm.Permission != PermMessageManage {
 				continue
 			}
+			// The admin role stores the broad server.manage grant. The resolver
+			// supplies its explicitly included Neighbor authority.
+			if perm.Permission == PermServerManageNeighbors {
+				continue
+			}
 			// bot.create is deliberately inherited from everyone rather than
 			// persisted as an admin-role grant.
 			if perm.Permission == PermBotCreate {

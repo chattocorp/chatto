@@ -1813,15 +1813,16 @@ func (x *RBACDecisionSnapshot) GetDecision() string {
 }
 
 type ConfigProjectionSnapshot struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	ServerName       string                 `protobuf:"bytes,1,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
-	Description      string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	WelcomeMessage   string                 `protobuf:"bytes,3,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
-	Motd             string                 `protobuf:"bytes,4,opt,name=motd,proto3" json:"motd,omitempty"`
-	BlockedUsernames *string                `protobuf:"bytes,5,opt,name=blocked_usernames,json=blockedUsernames,proto3,oneof" json:"blocked_usernames,omitempty"`
-	Logo             *v1.AssetRecord        `protobuf:"bytes,6,opt,name=logo,proto3" json:"logo,omitempty"`
-	Banner           *v1.AssetRecord        `protobuf:"bytes,7,opt,name=banner,proto3" json:"banner,omitempty"`
-	Users            []*UserConfigSnapshot  `protobuf:"bytes,8,rep,name=users,proto3" json:"users,omitempty"`
+	state            protoimpl.MessageState    `protogen:"open.v1"`
+	ServerName       string                    `protobuf:"bytes,1,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	Description      string                    `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	WelcomeMessage   string                    `protobuf:"bytes,3,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
+	Motd             string                    `protobuf:"bytes,4,opt,name=motd,proto3" json:"motd,omitempty"`
+	BlockedUsernames *string                   `protobuf:"bytes,5,opt,name=blocked_usernames,json=blockedUsernames,proto3,oneof" json:"blocked_usernames,omitempty"`
+	Logo             *v1.AssetRecord           `protobuf:"bytes,6,opt,name=logo,proto3" json:"logo,omitempty"`
+	Banner           *v1.AssetRecord           `protobuf:"bytes,7,opt,name=banner,proto3" json:"banner,omitempty"`
+	Users            []*UserConfigSnapshot     `protobuf:"bytes,8,rep,name=users,proto3" json:"users,omitempty"`
+	Neighbors        []*ServerNeighborSnapshot `protobuf:"bytes,9,rep,name=neighbors,proto3" json:"neighbors,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1912,6 +1913,74 @@ func (x *ConfigProjectionSnapshot) GetUsers() []*UserConfigSnapshot {
 	return nil
 }
 
+func (x *ConfigProjectionSnapshot) GetNeighbors() []*ServerNeighborSnapshot {
+	if x != nil {
+		return x.Neighbors
+	}
+	return nil
+}
+
+// Restorable state for one advertised server in the Neighbor directory.
+type ServerNeighborSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Origin        string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	Revision      string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerNeighborSnapshot) Reset() {
+	*x = ServerNeighborSnapshot{}
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerNeighborSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerNeighborSnapshot) ProtoMessage() {}
+
+func (x *ServerNeighborSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerNeighborSnapshot.ProtoReflect.Descriptor instead.
+func (*ServerNeighborSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ServerNeighborSnapshot) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ServerNeighborSnapshot) GetOrigin() string {
+	if x != nil {
+		return x.Origin
+	}
+	return ""
+}
+
+func (x *ServerNeighborSnapshot) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
 type UserConfigSnapshot struct {
 	state                      protoimpl.MessageState                `protogen:"open.v1"`
 	UserId                     string                                `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1926,7 +1995,7 @@ type UserConfigSnapshot struct {
 
 func (x *UserConfigSnapshot) Reset() {
 	*x = UserConfigSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[26]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1938,7 +2007,7 @@ func (x *UserConfigSnapshot) String() string {
 func (*UserConfigSnapshot) ProtoMessage() {}
 
 func (x *UserConfigSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[26]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1951,7 +2020,7 @@ func (x *UserConfigSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserConfigSnapshot.ProtoReflect.Descriptor instead.
 func (*UserConfigSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{26}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *UserConfigSnapshot) GetUserId() string {
@@ -2006,7 +2075,7 @@ type RoomNotificationModesSnapshot struct {
 
 func (x *RoomNotificationModesSnapshot) Reset() {
 	*x = RoomNotificationModesSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[27]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2018,7 +2087,7 @@ func (x *RoomNotificationModesSnapshot) String() string {
 func (*RoomNotificationModesSnapshot) ProtoMessage() {}
 
 func (x *RoomNotificationModesSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[27]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2031,7 +2100,7 @@ func (x *RoomNotificationModesSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomNotificationModesSnapshot.ProtoReflect.Descriptor instead.
 func (*RoomNotificationModesSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{27}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RoomNotificationModesSnapshot) GetRoomId() string {
@@ -2058,7 +2127,7 @@ type RoomGroupNotificationModesSnapshot struct {
 
 func (x *RoomGroupNotificationModesSnapshot) Reset() {
 	*x = RoomGroupNotificationModesSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[28]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2070,7 +2139,7 @@ func (x *RoomGroupNotificationModesSnapshot) String() string {
 func (*RoomGroupNotificationModesSnapshot) ProtoMessage() {}
 
 func (x *RoomGroupNotificationModesSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[28]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2083,7 +2152,7 @@ func (x *RoomGroupNotificationModesSnapshot) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use RoomGroupNotificationModesSnapshot.ProtoReflect.Descriptor instead.
 func (*RoomGroupNotificationModesSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{28}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RoomGroupNotificationModesSnapshot) GetRoomGroupId() string {
@@ -2110,7 +2179,7 @@ type NotificationProjectionSnapshot struct {
 
 func (x *NotificationProjectionSnapshot) Reset() {
 	*x = NotificationProjectionSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[29]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2122,7 +2191,7 @@ func (x *NotificationProjectionSnapshot) String() string {
 func (*NotificationProjectionSnapshot) ProtoMessage() {}
 
 func (x *NotificationProjectionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[29]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2135,7 +2204,7 @@ func (x *NotificationProjectionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationProjectionSnapshot.ProtoReflect.Descriptor instead.
 func (*NotificationProjectionSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{29}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *NotificationProjectionSnapshot) GetNotifications() []*v11.NotificationOccurrence {
@@ -2164,7 +2233,7 @@ type NotificationProjectionTombstone struct {
 
 func (x *NotificationProjectionTombstone) Reset() {
 	*x = NotificationProjectionTombstone{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[30]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2176,7 +2245,7 @@ func (x *NotificationProjectionTombstone) String() string {
 func (*NotificationProjectionTombstone) ProtoMessage() {}
 
 func (x *NotificationProjectionTombstone) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[30]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2189,7 +2258,7 @@ func (x *NotificationProjectionTombstone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationProjectionTombstone.ProtoReflect.Descriptor instead.
 func (*NotificationProjectionTombstone) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{30}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *NotificationProjectionTombstone) GetNotificationId() string {
@@ -2235,7 +2304,7 @@ type AssetProjectionSnapshot struct {
 
 func (x *AssetProjectionSnapshot) Reset() {
 	*x = AssetProjectionSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[31]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2247,7 +2316,7 @@ func (x *AssetProjectionSnapshot) String() string {
 func (*AssetProjectionSnapshot) ProtoMessage() {}
 
 func (x *AssetProjectionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[31]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2260,7 +2329,7 @@ func (x *AssetProjectionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetProjectionSnapshot.ProtoReflect.Descriptor instead.
 func (*AssetProjectionSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{31}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *AssetProjectionSnapshot) GetCreations() []*v1.AssetCreatedEvent {
@@ -2322,7 +2391,7 @@ type AssetChildrenSnapshot struct {
 
 func (x *AssetChildrenSnapshot) Reset() {
 	*x = AssetChildrenSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[32]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2334,7 +2403,7 @@ func (x *AssetChildrenSnapshot) String() string {
 func (*AssetChildrenSnapshot) ProtoMessage() {}
 
 func (x *AssetChildrenSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[32]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2347,7 +2416,7 @@ func (x *AssetChildrenSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetChildrenSnapshot.ProtoReflect.Descriptor instead.
 func (*AssetChildrenSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{32}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *AssetChildrenSnapshot) GetParentAssetId() string {
@@ -2376,7 +2445,7 @@ type AssetManifestSnapshot struct {
 
 func (x *AssetManifestSnapshot) Reset() {
 	*x = AssetManifestSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[33]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2388,7 +2457,7 @@ func (x *AssetManifestSnapshot) String() string {
 func (*AssetManifestSnapshot) ProtoMessage() {}
 
 func (x *AssetManifestSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[33]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2401,7 +2470,7 @@ func (x *AssetManifestSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetManifestSnapshot.ProtoReflect.Descriptor instead.
 func (*AssetManifestSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{33}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *AssetManifestSnapshot) GetAssetId() string {
@@ -2442,7 +2511,7 @@ type DeletedAssetSnapshot struct {
 
 func (x *DeletedAssetSnapshot) Reset() {
 	*x = DeletedAssetSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[34]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2454,7 +2523,7 @@ func (x *DeletedAssetSnapshot) String() string {
 func (*DeletedAssetSnapshot) ProtoMessage() {}
 
 func (x *DeletedAssetSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[34]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2467,7 +2536,7 @@ func (x *DeletedAssetSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletedAssetSnapshot.ProtoReflect.Descriptor instead.
 func (*DeletedAssetSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{34}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *DeletedAssetSnapshot) GetAssetId() string {
@@ -2498,7 +2567,7 @@ type ReactionProjectionSnapshot struct {
 
 func (x *ReactionProjectionSnapshot) Reset() {
 	*x = ReactionProjectionSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[35]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2510,7 +2579,7 @@ func (x *ReactionProjectionSnapshot) String() string {
 func (*ReactionProjectionSnapshot) ProtoMessage() {}
 
 func (x *ReactionProjectionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[35]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2523,7 +2592,7 @@ func (x *ReactionProjectionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReactionProjectionSnapshot.ProtoReflect.Descriptor instead.
 func (*ReactionProjectionSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{35}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ReactionProjectionSnapshot) GetMessages() []*MessageReactionsSnapshot {
@@ -2578,7 +2647,7 @@ type MessageReactionsSnapshot struct {
 
 func (x *MessageReactionsSnapshot) Reset() {
 	*x = MessageReactionsSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[36]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2590,7 +2659,7 @@ func (x *MessageReactionsSnapshot) String() string {
 func (*MessageReactionsSnapshot) ProtoMessage() {}
 
 func (x *MessageReactionsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[36]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2603,7 +2672,7 @@ func (x *MessageReactionsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageReactionsSnapshot.ProtoReflect.Descriptor instead.
 func (*MessageReactionsSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{36}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *MessageReactionsSnapshot) GetMessageEventId() string {
@@ -2630,7 +2699,7 @@ type EmojiReactionsSnapshot struct {
 
 func (x *EmojiReactionsSnapshot) Reset() {
 	*x = EmojiReactionsSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[37]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2642,7 +2711,7 @@ func (x *EmojiReactionsSnapshot) String() string {
 func (*EmojiReactionsSnapshot) ProtoMessage() {}
 
 func (x *EmojiReactionsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[37]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2655,7 +2724,7 @@ func (x *EmojiReactionsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmojiReactionsSnapshot.ProtoReflect.Descriptor instead.
 func (*EmojiReactionsSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{37}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *EmojiReactionsSnapshot) GetEmoji() string {
@@ -2683,7 +2752,7 @@ type UserReactionSnapshot struct {
 
 func (x *UserReactionSnapshot) Reset() {
 	*x = UserReactionSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[38]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2695,7 +2764,7 @@ func (x *UserReactionSnapshot) String() string {
 func (*UserReactionSnapshot) ProtoMessage() {}
 
 func (x *UserReactionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[38]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2708,7 +2777,7 @@ func (x *UserReactionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserReactionSnapshot.ProtoReflect.Descriptor instead.
 func (*UserReactionSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{38}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *UserReactionSnapshot) GetUserId() string {
@@ -2742,7 +2811,7 @@ type StringUint64Snapshot struct {
 
 func (x *StringUint64Snapshot) Reset() {
 	*x = StringUint64Snapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[39]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2754,7 +2823,7 @@ func (x *StringUint64Snapshot) String() string {
 func (*StringUint64Snapshot) ProtoMessage() {}
 
 func (x *StringUint64Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[39]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2767,7 +2836,7 @@ func (x *StringUint64Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringUint64Snapshot.ProtoReflect.Descriptor instead.
 func (*StringUint64Snapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{39}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *StringUint64Snapshot) GetKey() string {
@@ -2794,7 +2863,7 @@ type StringStringSnapshot struct {
 
 func (x *StringStringSnapshot) Reset() {
 	*x = StringStringSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[40]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2806,7 +2875,7 @@ func (x *StringStringSnapshot) String() string {
 func (*StringStringSnapshot) ProtoMessage() {}
 
 func (x *StringStringSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[40]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2819,7 +2888,7 @@ func (x *StringStringSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringStringSnapshot.ProtoReflect.Descriptor instead.
 func (*StringStringSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{40}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *StringStringSnapshot) GetKey() string {
@@ -2847,7 +2916,7 @@ type MentionablesProjectionSnapshot struct {
 
 func (x *MentionablesProjectionSnapshot) Reset() {
 	*x = MentionablesProjectionSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[41]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2859,7 +2928,7 @@ func (x *MentionablesProjectionSnapshot) String() string {
 func (*MentionablesProjectionSnapshot) ProtoMessage() {}
 
 func (x *MentionablesProjectionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[41]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2872,7 +2941,7 @@ func (x *MentionablesProjectionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MentionablesProjectionSnapshot.ProtoReflect.Descriptor instead.
 func (*MentionablesProjectionSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{41}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *MentionablesProjectionSnapshot) GetUserLoginSources() []*v1.Event {
@@ -2912,7 +2981,7 @@ type UserProfileProjectionSnapshot struct {
 
 func (x *UserProfileProjectionSnapshot) Reset() {
 	*x = UserProfileProjectionSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[42]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2924,7 +2993,7 @@ func (x *UserProfileProjectionSnapshot) String() string {
 func (*UserProfileProjectionSnapshot) ProtoMessage() {}
 
 func (x *UserProfileProjectionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[42]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2937,7 +3006,7 @@ func (x *UserProfileProjectionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserProfileProjectionSnapshot.ProtoReflect.Descriptor instead.
 func (*UserProfileProjectionSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{42}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *UserProfileProjectionSnapshot) GetUsers() []*ProjectedUserProfileSnapshot {
@@ -2995,7 +3064,7 @@ type ProjectedUserProfileSnapshot struct {
 
 func (x *ProjectedUserProfileSnapshot) Reset() {
 	*x = ProjectedUserProfileSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[43]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3007,7 +3076,7 @@ func (x *ProjectedUserProfileSnapshot) String() string {
 func (*ProjectedUserProfileSnapshot) ProtoMessage() {}
 
 func (x *ProjectedUserProfileSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[43]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3020,7 +3089,7 @@ func (x *ProjectedUserProfileSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedUserProfileSnapshot.ProtoReflect.Descriptor instead.
 func (*ProjectedUserProfileSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{43}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ProjectedUserProfileSnapshot) GetUserId() string {
@@ -3119,7 +3188,7 @@ type ProjectedEncryptedUserStringSnapshot struct {
 
 func (x *ProjectedEncryptedUserStringSnapshot) Reset() {
 	*x = ProjectedEncryptedUserStringSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[44]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3131,7 +3200,7 @@ func (x *ProjectedEncryptedUserStringSnapshot) String() string {
 func (*ProjectedEncryptedUserStringSnapshot) ProtoMessage() {}
 
 func (x *ProjectedEncryptedUserStringSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[44]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3144,7 +3213,7 @@ func (x *ProjectedEncryptedUserStringSnapshot) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use ProjectedEncryptedUserStringSnapshot.ProtoReflect.Descriptor instead.
 func (*ProjectedEncryptedUserStringSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{44}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ProjectedEncryptedUserStringSnapshot) GetEventId() string {
@@ -3186,7 +3255,7 @@ type ProjectedVerifiedEmailSnapshot struct {
 
 func (x *ProjectedVerifiedEmailSnapshot) Reset() {
 	*x = ProjectedVerifiedEmailSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[45]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3198,7 +3267,7 @@ func (x *ProjectedVerifiedEmailSnapshot) String() string {
 func (*ProjectedVerifiedEmailSnapshot) ProtoMessage() {}
 
 func (x *ProjectedVerifiedEmailSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[45]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3211,7 +3280,7 @@ func (x *ProjectedVerifiedEmailSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectedVerifiedEmailSnapshot.ProtoReflect.Descriptor instead.
 func (*ProjectedVerifiedEmailSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{45}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ProjectedVerifiedEmailSnapshot) GetDigest() string {
@@ -3253,7 +3322,7 @@ type RoomTimelineProjectionSnapshot struct {
 
 func (x *RoomTimelineProjectionSnapshot) Reset() {
 	*x = RoomTimelineProjectionSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[46]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3265,7 +3334,7 @@ func (x *RoomTimelineProjectionSnapshot) String() string {
 func (*RoomTimelineProjectionSnapshot) ProtoMessage() {}
 
 func (x *RoomTimelineProjectionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[46]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3278,7 +3347,7 @@ func (x *RoomTimelineProjectionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomTimelineProjectionSnapshot.ProtoReflect.Descriptor instead.
 func (*RoomTimelineProjectionSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{46}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *RoomTimelineProjectionSnapshot) GetEntries() []*TimelineEntrySnapshot {
@@ -3364,7 +3433,7 @@ type PinnedMessageSnapshot struct {
 
 func (x *PinnedMessageSnapshot) Reset() {
 	*x = PinnedMessageSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[47]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3376,7 +3445,7 @@ func (x *PinnedMessageSnapshot) String() string {
 func (*PinnedMessageSnapshot) ProtoMessage() {}
 
 func (x *PinnedMessageSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[47]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3389,7 +3458,7 @@ func (x *PinnedMessageSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PinnedMessageSnapshot.ProtoReflect.Descriptor instead.
 func (*PinnedMessageSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{47}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *PinnedMessageSnapshot) GetPinEventId() string {
@@ -3432,7 +3501,7 @@ type LatestRoomPinSnapshot struct {
 
 func (x *LatestRoomPinSnapshot) Reset() {
 	*x = LatestRoomPinSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[48]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3444,7 +3513,7 @@ func (x *LatestRoomPinSnapshot) String() string {
 func (*LatestRoomPinSnapshot) ProtoMessage() {}
 
 func (x *LatestRoomPinSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[48]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3457,7 +3526,7 @@ func (x *LatestRoomPinSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LatestRoomPinSnapshot.ProtoReflect.Descriptor instead.
 func (*LatestRoomPinSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{48}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *LatestRoomPinSnapshot) GetRoomId() string {
@@ -3491,7 +3560,7 @@ type TimelineEntrySnapshot struct {
 
 func (x *TimelineEntrySnapshot) Reset() {
 	*x = TimelineEntrySnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[49]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3503,7 +3572,7 @@ func (x *TimelineEntrySnapshot) String() string {
 func (*TimelineEntrySnapshot) ProtoMessage() {}
 
 func (x *TimelineEntrySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[49]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3516,7 +3585,7 @@ func (x *TimelineEntrySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineEntrySnapshot.ProtoReflect.Descriptor instead.
 func (*TimelineEntrySnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{49}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *TimelineEntrySnapshot) GetStreamSequence() uint64 {
@@ -3545,7 +3614,7 @@ type TimelineBodySnapshot struct {
 
 func (x *TimelineBodySnapshot) Reset() {
 	*x = TimelineBodySnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[50]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3557,7 +3626,7 @@ func (x *TimelineBodySnapshot) String() string {
 func (*TimelineBodySnapshot) ProtoMessage() {}
 
 func (x *TimelineBodySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[50]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3570,7 +3639,7 @@ func (x *TimelineBodySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineBodySnapshot.ProtoReflect.Descriptor instead.
 func (*TimelineBodySnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{50}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *TimelineBodySnapshot) GetMessageEventId() string {
@@ -3611,7 +3680,7 @@ type StringTimestampSnapshot struct {
 
 func (x *StringTimestampSnapshot) Reset() {
 	*x = StringTimestampSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[51]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3623,7 +3692,7 @@ func (x *StringTimestampSnapshot) String() string {
 func (*StringTimestampSnapshot) ProtoMessage() {}
 
 func (x *StringTimestampSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[51]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3636,7 +3705,7 @@ func (x *StringTimestampSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringTimestampSnapshot.ProtoReflect.Descriptor instead.
 func (*StringTimestampSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{51}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *StringTimestampSnapshot) GetKey() string {
@@ -3665,7 +3734,7 @@ type AssetMessageOwnerSnapshot struct {
 
 func (x *AssetMessageOwnerSnapshot) Reset() {
 	*x = AssetMessageOwnerSnapshot{}
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[52]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3677,7 +3746,7 @@ func (x *AssetMessageOwnerSnapshot) String() string {
 func (*AssetMessageOwnerSnapshot) ProtoMessage() {}
 
 func (x *AssetMessageOwnerSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[52]
+	mi := &file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3690,7 +3759,7 @@ func (x *AssetMessageOwnerSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetMessageOwnerSnapshot.ProtoReflect.Descriptor instead.
 func (*AssetMessageOwnerSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{52}
+	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *AssetMessageOwnerSnapshot) GetAssetId() string {
@@ -3873,7 +3942,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\n" +
 	"permission\x18\x05 \x01(\tR\n" +
 	"permission\x12\x1a\n" +
-	"\bdecision\x18\x06 \x01(\tR\bdecision\"\x95\x03\n" +
+	"\bdecision\x18\x06 \x01(\tR\bdecision\"\xe6\x03\n" +
 	"\x18ConfigProjectionSnapshot\x12\x1f\n" +
 	"\vserver_name\x18\x01 \x01(\tR\n" +
 	"serverName\x12 \n" +
@@ -3883,8 +3952,13 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x11blocked_usernames\x18\x05 \x01(\tH\x00R\x10blockedUsernames\x88\x01\x01\x123\n" +
 	"\x04logo\x18\x06 \x01(\v2\x1f.chatto.core.evt.v1.AssetRecordR\x04logo\x127\n" +
 	"\x06banner\x18\a \x01(\v2\x1f.chatto.core.evt.v1.AssetRecordR\x06banner\x12C\n" +
-	"\x05users\x18\b \x03(\v2-.chatto.core.projection.v1.UserConfigSnapshotR\x05usersB\x14\n" +
-	"\x12_blocked_usernames\"\x91\x04\n" +
+	"\x05users\x18\b \x03(\v2-.chatto.core.projection.v1.UserConfigSnapshotR\x05users\x12O\n" +
+	"\tneighbors\x18\t \x03(\v21.chatto.core.projection.v1.ServerNeighborSnapshotR\tneighborsB\x14\n" +
+	"\x12_blocked_usernames\"\\\n" +
+	"\x16ServerNeighborSnapshot\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\"\x91\x04\n" +
 	"\x12UserConfigSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1f\n" +
 	"\btimezone\x18\x02 \x01(\tH\x00R\btimezone\x88\x01\x01\x12D\n" +
@@ -4048,7 +4122,7 @@ func file_chatto_core_projection_v1_projection_snapshots_proto_rawDescGZIP() []b
 	return file_chatto_core_projection_v1_projection_snapshots_proto_rawDescData
 }
 
-var file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_chatto_core_projection_v1_projection_snapshots_proto_goTypes = []any{
 	(*ProjectionSnapshotGeneration)(nil),           // 0: chatto.core.projection.v1.ProjectionSnapshotGeneration
 	(*ProjectionSnapshotPointer)(nil),              // 1: chatto.core.projection.v1.ProjectionSnapshotPointer
@@ -4076,58 +4150,59 @@ var file_chatto_core_projection_v1_projection_snapshots_proto_goTypes = []any{
 	(*RBACAssignmentSnapshot)(nil),                 // 23: chatto.core.projection.v1.RBACAssignmentSnapshot
 	(*RBACDecisionSnapshot)(nil),                   // 24: chatto.core.projection.v1.RBACDecisionSnapshot
 	(*ConfigProjectionSnapshot)(nil),               // 25: chatto.core.projection.v1.ConfigProjectionSnapshot
-	(*UserConfigSnapshot)(nil),                     // 26: chatto.core.projection.v1.UserConfigSnapshot
-	(*RoomNotificationModesSnapshot)(nil),          // 27: chatto.core.projection.v1.RoomNotificationModesSnapshot
-	(*RoomGroupNotificationModesSnapshot)(nil),     // 28: chatto.core.projection.v1.RoomGroupNotificationModesSnapshot
-	(*NotificationProjectionSnapshot)(nil),         // 29: chatto.core.projection.v1.NotificationProjectionSnapshot
-	(*NotificationProjectionTombstone)(nil),        // 30: chatto.core.projection.v1.NotificationProjectionTombstone
-	(*AssetProjectionSnapshot)(nil),                // 31: chatto.core.projection.v1.AssetProjectionSnapshot
-	(*AssetChildrenSnapshot)(nil),                  // 32: chatto.core.projection.v1.AssetChildrenSnapshot
-	(*AssetManifestSnapshot)(nil),                  // 33: chatto.core.projection.v1.AssetManifestSnapshot
-	(*DeletedAssetSnapshot)(nil),                   // 34: chatto.core.projection.v1.DeletedAssetSnapshot
-	(*ReactionProjectionSnapshot)(nil),             // 35: chatto.core.projection.v1.ReactionProjectionSnapshot
-	(*MessageReactionsSnapshot)(nil),               // 36: chatto.core.projection.v1.MessageReactionsSnapshot
-	(*EmojiReactionsSnapshot)(nil),                 // 37: chatto.core.projection.v1.EmojiReactionsSnapshot
-	(*UserReactionSnapshot)(nil),                   // 38: chatto.core.projection.v1.UserReactionSnapshot
-	(*StringUint64Snapshot)(nil),                   // 39: chatto.core.projection.v1.StringUint64Snapshot
-	(*StringStringSnapshot)(nil),                   // 40: chatto.core.projection.v1.StringStringSnapshot
-	(*MentionablesProjectionSnapshot)(nil),         // 41: chatto.core.projection.v1.MentionablesProjectionSnapshot
-	(*UserProfileProjectionSnapshot)(nil),          // 42: chatto.core.projection.v1.UserProfileProjectionSnapshot
-	(*ProjectedUserProfileSnapshot)(nil),           // 43: chatto.core.projection.v1.ProjectedUserProfileSnapshot
-	(*ProjectedEncryptedUserStringSnapshot)(nil),   // 44: chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	(*ProjectedVerifiedEmailSnapshot)(nil),         // 45: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot
-	(*RoomTimelineProjectionSnapshot)(nil),         // 46: chatto.core.projection.v1.RoomTimelineProjectionSnapshot
-	(*PinnedMessageSnapshot)(nil),                  // 47: chatto.core.projection.v1.PinnedMessageSnapshot
-	(*LatestRoomPinSnapshot)(nil),                  // 48: chatto.core.projection.v1.LatestRoomPinSnapshot
-	(*TimelineEntrySnapshot)(nil),                  // 49: chatto.core.projection.v1.TimelineEntrySnapshot
-	(*TimelineBodySnapshot)(nil),                   // 50: chatto.core.projection.v1.TimelineBodySnapshot
-	(*StringTimestampSnapshot)(nil),                // 51: chatto.core.projection.v1.StringTimestampSnapshot
-	(*AssetMessageOwnerSnapshot)(nil),              // 52: chatto.core.projection.v1.AssetMessageOwnerSnapshot
-	(*timestamppb.Timestamp)(nil),                  // 53: google.protobuf.Timestamp
-	(*v1.Room)(nil),                                // 54: chatto.core.evt.v1.Room
-	(*v1.RoomGroup)(nil),                           // 55: chatto.core.evt.v1.RoomGroup
-	(v1.CallParticipantEventSource)(0),             // 56: chatto.core.evt.v1.CallParticipantEventSource
-	(*v1.UserDEKGeneratedEvent)(nil),               // 57: chatto.core.evt.v1.UserDEKGeneratedEvent
-	(*v1.Role)(nil),                                // 58: chatto.core.evt.v1.Role
-	(v1.RbacPermissionSubjectKind)(0),              // 59: chatto.core.evt.v1.RbacPermissionSubjectKind
-	(*v1.AssetRecord)(nil),                         // 60: chatto.core.evt.v1.AssetRecord
-	(v1.TimeFormat)(0),                             // 61: chatto.core.evt.v1.TimeFormat
-	(*v1.NotificationDeliveryModes)(nil),           // 62: chatto.core.evt.v1.NotificationDeliveryModes
-	(*v11.NotificationOccurrence)(nil),             // 63: chatto.core.notification.v1.NotificationOccurrence
-	(*v1.AssetCreatedEvent)(nil),                   // 64: chatto.core.evt.v1.AssetCreatedEvent
-	(*v1.AssetProcessingStartedEvent)(nil),         // 65: chatto.core.evt.v1.AssetProcessingStartedEvent
-	(*v1.AssetProcessingSucceededEvent)(nil),       // 66: chatto.core.evt.v1.AssetProcessingSucceededEvent
-	(*v1.AssetProcessingFailedEvent)(nil),          // 67: chatto.core.evt.v1.AssetProcessingFailedEvent
-	(*v1.Event)(nil),                               // 68: chatto.core.evt.v1.Event
-	(*v1.User)(nil),                                // 69: chatto.core.evt.v1.User
-	(*v1.ServerUserPreferences)(nil),               // 70: chatto.core.evt.v1.ServerUserPreferences
-	(*v1.EncryptedUserString)(nil),                 // 71: chatto.core.evt.v1.EncryptedUserString
-	(*v1.MessageBody)(nil),                         // 72: chatto.core.evt.v1.MessageBody
+	(*ServerNeighborSnapshot)(nil),                 // 26: chatto.core.projection.v1.ServerNeighborSnapshot
+	(*UserConfigSnapshot)(nil),                     // 27: chatto.core.projection.v1.UserConfigSnapshot
+	(*RoomNotificationModesSnapshot)(nil),          // 28: chatto.core.projection.v1.RoomNotificationModesSnapshot
+	(*RoomGroupNotificationModesSnapshot)(nil),     // 29: chatto.core.projection.v1.RoomGroupNotificationModesSnapshot
+	(*NotificationProjectionSnapshot)(nil),         // 30: chatto.core.projection.v1.NotificationProjectionSnapshot
+	(*NotificationProjectionTombstone)(nil),        // 31: chatto.core.projection.v1.NotificationProjectionTombstone
+	(*AssetProjectionSnapshot)(nil),                // 32: chatto.core.projection.v1.AssetProjectionSnapshot
+	(*AssetChildrenSnapshot)(nil),                  // 33: chatto.core.projection.v1.AssetChildrenSnapshot
+	(*AssetManifestSnapshot)(nil),                  // 34: chatto.core.projection.v1.AssetManifestSnapshot
+	(*DeletedAssetSnapshot)(nil),                   // 35: chatto.core.projection.v1.DeletedAssetSnapshot
+	(*ReactionProjectionSnapshot)(nil),             // 36: chatto.core.projection.v1.ReactionProjectionSnapshot
+	(*MessageReactionsSnapshot)(nil),               // 37: chatto.core.projection.v1.MessageReactionsSnapshot
+	(*EmojiReactionsSnapshot)(nil),                 // 38: chatto.core.projection.v1.EmojiReactionsSnapshot
+	(*UserReactionSnapshot)(nil),                   // 39: chatto.core.projection.v1.UserReactionSnapshot
+	(*StringUint64Snapshot)(nil),                   // 40: chatto.core.projection.v1.StringUint64Snapshot
+	(*StringStringSnapshot)(nil),                   // 41: chatto.core.projection.v1.StringStringSnapshot
+	(*MentionablesProjectionSnapshot)(nil),         // 42: chatto.core.projection.v1.MentionablesProjectionSnapshot
+	(*UserProfileProjectionSnapshot)(nil),          // 43: chatto.core.projection.v1.UserProfileProjectionSnapshot
+	(*ProjectedUserProfileSnapshot)(nil),           // 44: chatto.core.projection.v1.ProjectedUserProfileSnapshot
+	(*ProjectedEncryptedUserStringSnapshot)(nil),   // 45: chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	(*ProjectedVerifiedEmailSnapshot)(nil),         // 46: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot
+	(*RoomTimelineProjectionSnapshot)(nil),         // 47: chatto.core.projection.v1.RoomTimelineProjectionSnapshot
+	(*PinnedMessageSnapshot)(nil),                  // 48: chatto.core.projection.v1.PinnedMessageSnapshot
+	(*LatestRoomPinSnapshot)(nil),                  // 49: chatto.core.projection.v1.LatestRoomPinSnapshot
+	(*TimelineEntrySnapshot)(nil),                  // 50: chatto.core.projection.v1.TimelineEntrySnapshot
+	(*TimelineBodySnapshot)(nil),                   // 51: chatto.core.projection.v1.TimelineBodySnapshot
+	(*StringTimestampSnapshot)(nil),                // 52: chatto.core.projection.v1.StringTimestampSnapshot
+	(*AssetMessageOwnerSnapshot)(nil),              // 53: chatto.core.projection.v1.AssetMessageOwnerSnapshot
+	(*timestamppb.Timestamp)(nil),                  // 54: google.protobuf.Timestamp
+	(*v1.Room)(nil),                                // 55: chatto.core.evt.v1.Room
+	(*v1.RoomGroup)(nil),                           // 56: chatto.core.evt.v1.RoomGroup
+	(v1.CallParticipantEventSource)(0),             // 57: chatto.core.evt.v1.CallParticipantEventSource
+	(*v1.UserDEKGeneratedEvent)(nil),               // 58: chatto.core.evt.v1.UserDEKGeneratedEvent
+	(*v1.Role)(nil),                                // 59: chatto.core.evt.v1.Role
+	(v1.RbacPermissionSubjectKind)(0),              // 60: chatto.core.evt.v1.RbacPermissionSubjectKind
+	(*v1.AssetRecord)(nil),                         // 61: chatto.core.evt.v1.AssetRecord
+	(v1.TimeFormat)(0),                             // 62: chatto.core.evt.v1.TimeFormat
+	(*v1.NotificationDeliveryModes)(nil),           // 63: chatto.core.evt.v1.NotificationDeliveryModes
+	(*v11.NotificationOccurrence)(nil),             // 64: chatto.core.notification.v1.NotificationOccurrence
+	(*v1.AssetCreatedEvent)(nil),                   // 65: chatto.core.evt.v1.AssetCreatedEvent
+	(*v1.AssetProcessingStartedEvent)(nil),         // 66: chatto.core.evt.v1.AssetProcessingStartedEvent
+	(*v1.AssetProcessingSucceededEvent)(nil),       // 67: chatto.core.evt.v1.AssetProcessingSucceededEvent
+	(*v1.AssetProcessingFailedEvent)(nil),          // 68: chatto.core.evt.v1.AssetProcessingFailedEvent
+	(*v1.Event)(nil),                               // 69: chatto.core.evt.v1.Event
+	(*v1.User)(nil),                                // 70: chatto.core.evt.v1.User
+	(*v1.ServerUserPreferences)(nil),               // 71: chatto.core.evt.v1.ServerUserPreferences
+	(*v1.EncryptedUserString)(nil),                 // 72: chatto.core.evt.v1.EncryptedUserString
+	(*v1.MessageBody)(nil),                         // 73: chatto.core.evt.v1.MessageBody
 }
 var file_chatto_core_projection_v1_projection_snapshots_proto_depIdxs = []int32{
-	53, // 0: chatto.core.projection.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
-	53, // 1: chatto.core.projection.v1.ProjectionSnapshotPointer.current_created_at:type_name -> google.protobuf.Timestamp
-	53, // 2: chatto.core.projection.v1.ProjectionSnapshotPointer.previous_created_at:type_name -> google.protobuf.Timestamp
+	54, // 0: chatto.core.projection.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
+	54, // 1: chatto.core.projection.v1.ProjectionSnapshotPointer.current_created_at:type_name -> google.protobuf.Timestamp
+	54, // 2: chatto.core.projection.v1.ProjectionSnapshotPointer.previous_created_at:type_name -> google.protobuf.Timestamp
 	3,  // 3: chatto.core.projection.v1.ThreadProjectionSnapshot.threads:type_name -> chatto.core.projection.v1.ThreadSnapshot
 	5,  // 4: chatto.core.projection.v1.ThreadProjectionSnapshot.replies:type_name -> chatto.core.projection.v1.ThreadReplySnapshot
 	6,  // 5: chatto.core.projection.v1.ThreadProjectionSnapshot.follows:type_name -> chatto.core.projection.v1.ThreadFollowSnapshot
@@ -4135,15 +4210,15 @@ var file_chatto_core_projection_v1_projection_snapshots_proto_depIdxs = []int32{
 	7,  // 7: chatto.core.projection.v1.ThreadProjectionSnapshot.messages:type_name -> chatto.core.projection.v1.ThreadMessageSnapshot
 	8,  // 8: chatto.core.projection.v1.ThreadProjectionSnapshot.interactions:type_name -> chatto.core.projection.v1.ThreadInteractionSnapshot
 	4,  // 9: chatto.core.projection.v1.ThreadSnapshot.entries:type_name -> chatto.core.projection.v1.ThreadTimelineEntrySnapshot
-	53, // 10: chatto.core.projection.v1.ThreadReplySnapshot.created_at:type_name -> google.protobuf.Timestamp
-	53, // 11: chatto.core.projection.v1.ThreadInteractionSnapshot.created_at:type_name -> google.protobuf.Timestamp
-	54, // 12: chatto.core.projection.v1.RoomDirectoryProjectionSnapshot.rooms:type_name -> chatto.core.evt.v1.Room
+	54, // 10: chatto.core.projection.v1.ThreadReplySnapshot.created_at:type_name -> google.protobuf.Timestamp
+	54, // 11: chatto.core.projection.v1.ThreadInteractionSnapshot.created_at:type_name -> google.protobuf.Timestamp
+	55, // 12: chatto.core.projection.v1.RoomDirectoryProjectionSnapshot.rooms:type_name -> chatto.core.evt.v1.Room
 	11, // 13: chatto.core.projection.v1.RoomDirectoryProjectionSnapshot.memberships:type_name -> chatto.core.projection.v1.RoomMembershipSnapshot
 	12, // 14: chatto.core.projection.v1.RoomDirectoryProjectionSnapshot.bans:type_name -> chatto.core.projection.v1.RoomBanSnapshot
-	53, // 15: chatto.core.projection.v1.RoomBanSnapshot.created_at:type_name -> google.protobuf.Timestamp
-	53, // 16: chatto.core.projection.v1.RoomBanSnapshot.expires_at:type_name -> google.protobuf.Timestamp
+	54, // 15: chatto.core.projection.v1.RoomBanSnapshot.created_at:type_name -> google.protobuf.Timestamp
+	54, // 16: chatto.core.projection.v1.RoomBanSnapshot.expires_at:type_name -> google.protobuf.Timestamp
 	14, // 17: chatto.core.projection.v1.RoomGroupLayoutProjectionSnapshot.groups:type_name -> chatto.core.projection.v1.RoomGroupStateSnapshot
-	55, // 18: chatto.core.projection.v1.RoomGroupStateSnapshot.group:type_name -> chatto.core.evt.v1.RoomGroup
+	56, // 18: chatto.core.projection.v1.RoomGroupStateSnapshot.group:type_name -> chatto.core.evt.v1.RoomGroup
 	10, // 19: chatto.core.projection.v1.NotificationDecisionProjectionSnapshot.room_directory:type_name -> chatto.core.projection.v1.RoomDirectoryProjectionSnapshot
 	13, // 20: chatto.core.projection.v1.NotificationDecisionProjectionSnapshot.room_group_layout:type_name -> chatto.core.projection.v1.RoomGroupLayoutProjectionSnapshot
 	22, // 21: chatto.core.projection.v1.NotificationDecisionProjectionSnapshot.rbac:type_name -> chatto.core.projection.v1.RBACProjectionSnapshot
@@ -4153,77 +4228,78 @@ var file_chatto_core_projection_v1_projection_snapshots_proto_depIdxs = []int32{
 	18, // 25: chatto.core.projection.v1.CallStateProjectionSnapshot.rooms:type_name -> chatto.core.projection.v1.CallRoomStateSnapshot
 	19, // 26: chatto.core.projection.v1.CallRoomStateSnapshot.call:type_name -> chatto.core.projection.v1.CallSessionSnapshot
 	20, // 27: chatto.core.projection.v1.CallRoomStateSnapshot.participants:type_name -> chatto.core.projection.v1.CallParticipantSnapshot
-	56, // 28: chatto.core.projection.v1.CallSessionSnapshot.source:type_name -> chatto.core.evt.v1.CallParticipantEventSource
-	56, // 29: chatto.core.projection.v1.CallParticipantSnapshot.source:type_name -> chatto.core.evt.v1.CallParticipantEventSource
-	57, // 30: chatto.core.projection.v1.ContentKeyProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
+	57, // 28: chatto.core.projection.v1.CallSessionSnapshot.source:type_name -> chatto.core.evt.v1.CallParticipantEventSource
+	57, // 29: chatto.core.projection.v1.CallParticipantSnapshot.source:type_name -> chatto.core.evt.v1.CallParticipantEventSource
+	58, // 30: chatto.core.projection.v1.ContentKeyProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
 	9,  // 31: chatto.core.projection.v1.ContentKeyProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	58, // 32: chatto.core.projection.v1.RBACProjectionSnapshot.roles:type_name -> chatto.core.evt.v1.Role
+	59, // 32: chatto.core.projection.v1.RBACProjectionSnapshot.roles:type_name -> chatto.core.evt.v1.Role
 	23, // 33: chatto.core.projection.v1.RBACProjectionSnapshot.assignments:type_name -> chatto.core.projection.v1.RBACAssignmentSnapshot
 	24, // 34: chatto.core.projection.v1.RBACProjectionSnapshot.decisions:type_name -> chatto.core.projection.v1.RBACDecisionSnapshot
 	9,  // 35: chatto.core.projection.v1.RBACProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	59, // 36: chatto.core.projection.v1.RBACDecisionSnapshot.subject_kind:type_name -> chatto.core.evt.v1.RbacPermissionSubjectKind
-	60, // 37: chatto.core.projection.v1.ConfigProjectionSnapshot.logo:type_name -> chatto.core.evt.v1.AssetRecord
-	60, // 38: chatto.core.projection.v1.ConfigProjectionSnapshot.banner:type_name -> chatto.core.evt.v1.AssetRecord
-	26, // 39: chatto.core.projection.v1.ConfigProjectionSnapshot.users:type_name -> chatto.core.projection.v1.UserConfigSnapshot
-	61, // 40: chatto.core.projection.v1.UserConfigSnapshot.time_format:type_name -> chatto.core.evt.v1.TimeFormat
-	62, // 41: chatto.core.projection.v1.UserConfigSnapshot.server_notification_modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
-	27, // 42: chatto.core.projection.v1.UserConfigSnapshot.room_notification_modes:type_name -> chatto.core.projection.v1.RoomNotificationModesSnapshot
-	28, // 43: chatto.core.projection.v1.UserConfigSnapshot.room_group_notification_modes:type_name -> chatto.core.projection.v1.RoomGroupNotificationModesSnapshot
-	62, // 44: chatto.core.projection.v1.RoomNotificationModesSnapshot.modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
-	62, // 45: chatto.core.projection.v1.RoomGroupNotificationModesSnapshot.modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
-	63, // 46: chatto.core.projection.v1.NotificationProjectionSnapshot.notifications:type_name -> chatto.core.notification.v1.NotificationOccurrence
-	30, // 47: chatto.core.projection.v1.NotificationProjectionSnapshot.tombstones:type_name -> chatto.core.projection.v1.NotificationProjectionTombstone
-	53, // 48: chatto.core.projection.v1.NotificationProjectionTombstone.expires_at:type_name -> google.protobuf.Timestamp
-	64, // 49: chatto.core.projection.v1.AssetProjectionSnapshot.creations:type_name -> chatto.core.evt.v1.AssetCreatedEvent
-	32, // 50: chatto.core.projection.v1.AssetProjectionSnapshot.children:type_name -> chatto.core.projection.v1.AssetChildrenSnapshot
-	33, // 51: chatto.core.projection.v1.AssetProjectionSnapshot.manifests:type_name -> chatto.core.projection.v1.AssetManifestSnapshot
-	34, // 52: chatto.core.projection.v1.AssetProjectionSnapshot.deleted_assets:type_name -> chatto.core.projection.v1.DeletedAssetSnapshot
-	9,  // 53: chatto.core.projection.v1.AssetProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	52, // 54: chatto.core.projection.v1.AssetProjectionSnapshot.message_owners:type_name -> chatto.core.projection.v1.AssetMessageOwnerSnapshot
-	65, // 55: chatto.core.projection.v1.AssetManifestSnapshot.started:type_name -> chatto.core.evt.v1.AssetProcessingStartedEvent
-	66, // 56: chatto.core.projection.v1.AssetManifestSnapshot.succeeded:type_name -> chatto.core.evt.v1.AssetProcessingSucceededEvent
-	67, // 57: chatto.core.projection.v1.AssetManifestSnapshot.failed:type_name -> chatto.core.evt.v1.AssetProcessingFailedEvent
-	36, // 58: chatto.core.projection.v1.ReactionProjectionSnapshot.messages:type_name -> chatto.core.projection.v1.MessageReactionsSnapshot
-	39, // 59: chatto.core.projection.v1.ReactionProjectionSnapshot.room_sequences:type_name -> chatto.core.projection.v1.StringUint64Snapshot
-	40, // 60: chatto.core.projection.v1.ReactionProjectionSnapshot.message_rooms:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	40, // 61: chatto.core.projection.v1.ReactionProjectionSnapshot.echo_originals:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	40, // 62: chatto.core.projection.v1.ReactionProjectionSnapshot.asset_rooms:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	9,  // 63: chatto.core.projection.v1.ReactionProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	37, // 64: chatto.core.projection.v1.MessageReactionsSnapshot.emojis:type_name -> chatto.core.projection.v1.EmojiReactionsSnapshot
-	38, // 65: chatto.core.projection.v1.EmojiReactionsSnapshot.users:type_name -> chatto.core.projection.v1.UserReactionSnapshot
-	68, // 66: chatto.core.projection.v1.MentionablesProjectionSnapshot.user_login_sources:type_name -> chatto.core.evt.v1.Event
-	57, // 67: chatto.core.projection.v1.MentionablesProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
-	43, // 68: chatto.core.projection.v1.UserProfileProjectionSnapshot.users:type_name -> chatto.core.projection.v1.ProjectedUserProfileSnapshot
-	57, // 69: chatto.core.projection.v1.UserProfileProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
-	9,  // 70: chatto.core.projection.v1.UserProfileProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	40, // 71: chatto.core.projection.v1.UserProfileProjectionSnapshot.login_index:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	40, // 72: chatto.core.projection.v1.UserProfileProjectionSnapshot.email_index:type_name -> chatto.core.projection.v1.StringStringSnapshot
-	69, // 73: chatto.core.projection.v1.ProjectedUserProfileSnapshot.user:type_name -> chatto.core.evt.v1.User
-	44, // 74: chatto.core.projection.v1.ProjectedUserProfileSnapshot.login:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	44, // 75: chatto.core.projection.v1.ProjectedUserProfileSnapshot.display_name:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	60, // 76: chatto.core.projection.v1.ProjectedUserProfileSnapshot.avatar:type_name -> chatto.core.evt.v1.AssetRecord
-	45, // 77: chatto.core.projection.v1.ProjectedUserProfileSnapshot.verified_emails:type_name -> chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot
-	70, // 78: chatto.core.projection.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.evt.v1.ServerUserPreferences
-	53, // 79: chatto.core.projection.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
-	44, // 80: chatto.core.projection.v1.ProjectedUserProfileSnapshot.bio:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	71, // 81: chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.evt.v1.EncryptedUserString
-	44, // 82: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
-	53, // 83: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
-	49, // 84: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.projection.v1.TimelineEntrySnapshot
-	50, // 85: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.projection.v1.TimelineBodySnapshot
-	51, // 86: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.projection.v1.StringTimestampSnapshot
-	51, // 87: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.projection.v1.StringTimestampSnapshot
-	9,  // 88: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
-	47, // 89: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.pinned_messages:type_name -> chatto.core.projection.v1.PinnedMessageSnapshot
-	48, // 90: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.latest_room_pins:type_name -> chatto.core.projection.v1.LatestRoomPinSnapshot
-	68, // 91: chatto.core.projection.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.evt.v1.Event
-	72, // 92: chatto.core.projection.v1.TimelineBodySnapshot.body:type_name -> chatto.core.evt.v1.MessageBody
-	53, // 93: chatto.core.projection.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
-	94, // [94:94] is the sub-list for method output_type
-	94, // [94:94] is the sub-list for method input_type
-	94, // [94:94] is the sub-list for extension type_name
-	94, // [94:94] is the sub-list for extension extendee
-	0,  // [0:94] is the sub-list for field type_name
+	60, // 36: chatto.core.projection.v1.RBACDecisionSnapshot.subject_kind:type_name -> chatto.core.evt.v1.RbacPermissionSubjectKind
+	61, // 37: chatto.core.projection.v1.ConfigProjectionSnapshot.logo:type_name -> chatto.core.evt.v1.AssetRecord
+	61, // 38: chatto.core.projection.v1.ConfigProjectionSnapshot.banner:type_name -> chatto.core.evt.v1.AssetRecord
+	27, // 39: chatto.core.projection.v1.ConfigProjectionSnapshot.users:type_name -> chatto.core.projection.v1.UserConfigSnapshot
+	26, // 40: chatto.core.projection.v1.ConfigProjectionSnapshot.neighbors:type_name -> chatto.core.projection.v1.ServerNeighborSnapshot
+	62, // 41: chatto.core.projection.v1.UserConfigSnapshot.time_format:type_name -> chatto.core.evt.v1.TimeFormat
+	63, // 42: chatto.core.projection.v1.UserConfigSnapshot.server_notification_modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	28, // 43: chatto.core.projection.v1.UserConfigSnapshot.room_notification_modes:type_name -> chatto.core.projection.v1.RoomNotificationModesSnapshot
+	29, // 44: chatto.core.projection.v1.UserConfigSnapshot.room_group_notification_modes:type_name -> chatto.core.projection.v1.RoomGroupNotificationModesSnapshot
+	63, // 45: chatto.core.projection.v1.RoomNotificationModesSnapshot.modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	63, // 46: chatto.core.projection.v1.RoomGroupNotificationModesSnapshot.modes:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	64, // 47: chatto.core.projection.v1.NotificationProjectionSnapshot.notifications:type_name -> chatto.core.notification.v1.NotificationOccurrence
+	31, // 48: chatto.core.projection.v1.NotificationProjectionSnapshot.tombstones:type_name -> chatto.core.projection.v1.NotificationProjectionTombstone
+	54, // 49: chatto.core.projection.v1.NotificationProjectionTombstone.expires_at:type_name -> google.protobuf.Timestamp
+	65, // 50: chatto.core.projection.v1.AssetProjectionSnapshot.creations:type_name -> chatto.core.evt.v1.AssetCreatedEvent
+	33, // 51: chatto.core.projection.v1.AssetProjectionSnapshot.children:type_name -> chatto.core.projection.v1.AssetChildrenSnapshot
+	34, // 52: chatto.core.projection.v1.AssetProjectionSnapshot.manifests:type_name -> chatto.core.projection.v1.AssetManifestSnapshot
+	35, // 53: chatto.core.projection.v1.AssetProjectionSnapshot.deleted_assets:type_name -> chatto.core.projection.v1.DeletedAssetSnapshot
+	9,  // 54: chatto.core.projection.v1.AssetProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
+	53, // 55: chatto.core.projection.v1.AssetProjectionSnapshot.message_owners:type_name -> chatto.core.projection.v1.AssetMessageOwnerSnapshot
+	66, // 56: chatto.core.projection.v1.AssetManifestSnapshot.started:type_name -> chatto.core.evt.v1.AssetProcessingStartedEvent
+	67, // 57: chatto.core.projection.v1.AssetManifestSnapshot.succeeded:type_name -> chatto.core.evt.v1.AssetProcessingSucceededEvent
+	68, // 58: chatto.core.projection.v1.AssetManifestSnapshot.failed:type_name -> chatto.core.evt.v1.AssetProcessingFailedEvent
+	37, // 59: chatto.core.projection.v1.ReactionProjectionSnapshot.messages:type_name -> chatto.core.projection.v1.MessageReactionsSnapshot
+	40, // 60: chatto.core.projection.v1.ReactionProjectionSnapshot.room_sequences:type_name -> chatto.core.projection.v1.StringUint64Snapshot
+	41, // 61: chatto.core.projection.v1.ReactionProjectionSnapshot.message_rooms:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	41, // 62: chatto.core.projection.v1.ReactionProjectionSnapshot.echo_originals:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	41, // 63: chatto.core.projection.v1.ReactionProjectionSnapshot.asset_rooms:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	9,  // 64: chatto.core.projection.v1.ReactionProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
+	38, // 65: chatto.core.projection.v1.MessageReactionsSnapshot.emojis:type_name -> chatto.core.projection.v1.EmojiReactionsSnapshot
+	39, // 66: chatto.core.projection.v1.EmojiReactionsSnapshot.users:type_name -> chatto.core.projection.v1.UserReactionSnapshot
+	69, // 67: chatto.core.projection.v1.MentionablesProjectionSnapshot.user_login_sources:type_name -> chatto.core.evt.v1.Event
+	58, // 68: chatto.core.projection.v1.MentionablesProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
+	44, // 69: chatto.core.projection.v1.UserProfileProjectionSnapshot.users:type_name -> chatto.core.projection.v1.ProjectedUserProfileSnapshot
+	58, // 70: chatto.core.projection.v1.UserProfileProjectionSnapshot.keys:type_name -> chatto.core.evt.v1.UserDEKGeneratedEvent
+	9,  // 71: chatto.core.projection.v1.UserProfileProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
+	41, // 72: chatto.core.projection.v1.UserProfileProjectionSnapshot.login_index:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	41, // 73: chatto.core.projection.v1.UserProfileProjectionSnapshot.email_index:type_name -> chatto.core.projection.v1.StringStringSnapshot
+	70, // 74: chatto.core.projection.v1.ProjectedUserProfileSnapshot.user:type_name -> chatto.core.evt.v1.User
+	45, // 75: chatto.core.projection.v1.ProjectedUserProfileSnapshot.login:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	45, // 76: chatto.core.projection.v1.ProjectedUserProfileSnapshot.display_name:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	61, // 77: chatto.core.projection.v1.ProjectedUserProfileSnapshot.avatar:type_name -> chatto.core.evt.v1.AssetRecord
+	46, // 78: chatto.core.projection.v1.ProjectedUserProfileSnapshot.verified_emails:type_name -> chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot
+	71, // 79: chatto.core.projection.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.evt.v1.ServerUserPreferences
+	54, // 80: chatto.core.projection.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
+	45, // 81: chatto.core.projection.v1.ProjectedUserProfileSnapshot.bio:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	72, // 82: chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.evt.v1.EncryptedUserString
+	45, // 83: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshot
+	54, // 84: chatto.core.projection.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
+	50, // 85: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.projection.v1.TimelineEntrySnapshot
+	51, // 86: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.projection.v1.TimelineBodySnapshot
+	52, // 87: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.projection.v1.StringTimestampSnapshot
+	52, // 88: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.projection.v1.StringTimestampSnapshot
+	9,  // 89: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
+	48, // 90: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.pinned_messages:type_name -> chatto.core.projection.v1.PinnedMessageSnapshot
+	49, // 91: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.latest_room_pins:type_name -> chatto.core.projection.v1.LatestRoomPinSnapshot
+	69, // 92: chatto.core.projection.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.evt.v1.Event
+	73, // 93: chatto.core.projection.v1.TimelineBodySnapshot.body:type_name -> chatto.core.evt.v1.MessageBody
+	54, // 94: chatto.core.projection.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	95, // [95:95] is the sub-list for method output_type
+	95, // [95:95] is the sub-list for method input_type
+	95, // [95:95] is the sub-list for extension type_name
+	95, // [95:95] is the sub-list for extension extendee
+	0,  // [0:95] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_projection_v1_projection_snapshots_proto_init() }
@@ -4232,14 +4308,14 @@ func file_chatto_core_projection_v1_projection_snapshots_proto_init() {
 		return
 	}
 	file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[25].OneofWrappers = []any{}
-	file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[26].OneofWrappers = []any{}
+	file_chatto_core_projection_v1_projection_snapshots_proto_msgTypes[27].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc), len(file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   53,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

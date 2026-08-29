@@ -3,6 +3,7 @@ import { createContext } from 'svelte';
 export type ChromePermissions = {
   canViewAdmin: boolean;
   canManage: boolean;
+  canManageNeighbors: boolean;
   canManageRooms: boolean;
   canManageRoles: boolean;
   canAssignRoles: boolean;

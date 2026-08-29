@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Serverinstellingen bijwerken (naam, beschrijving, logo)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Maak nieuwe kamers",
       "room_join": "Sluit je aan bij bestaande kamers",
       "room_list": "Bekijk kamers in de directory. Een gebruiker kan toestemming krijgen om een ​​ruimte te zien (bijvoorbeeld om toegang aan te vragen) zonder dat hij er toegang toe mag hebben.",

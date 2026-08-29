@@ -271,6 +271,9 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.config.{subject}.server_logo_cleared`                   | `ServerLogoClearedEvent`                            |
 | `evt.config.{subject}.server_banner_set`                     | `ServerBannerSetEvent`                              |
 | `evt.config.{subject}.server_banner_cleared`                 | `ServerBannerClearedEvent`                          |
+| `evt.config.server.server_neighbor_created`                  | `ServerNeighborCreatedEvent`; creates one advertised Neighbor |
+| `evt.config.server.server_neighbor_origin_changed`           | `ServerNeighborOriginChangedEvent`; changes one advertised origin |
+| `evt.config.server.server_neighbor_deleted`                  | `ServerNeighborDeletedEvent`; removes one advertised Neighbor |
 | `evt.config.{subject}.user_timezone_changed`                 | `UserTimezoneChangedEvent`                          |
 | `evt.config.{subject}.user_timezone_cleared`                 | `UserTimezoneClearedEvent`                          |
 | `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent`                        |

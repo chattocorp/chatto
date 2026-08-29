@@ -1627,6 +1627,18 @@ One item reference in a sidebar order replacement.
 | `kind` | [`AdminRoomLayoutItemKind`](#chatto-admin-v1-AdminRoomLayoutItemKind) | Item kind. |
 | `id` | `string` | Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK. |
 
+<a id="chatto-admin-v1-Neighbor"></a>
+
+### Neighbor
+
+One server advertised in the public Neighbor directory.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable opaque resource ID. |
+| `origin` | `string` | Canonical HTTP or HTTPS server origin. |
+| `revision` | `string` | Opaque revision required for update and delete requests. |
+
 <a id="chatto-admin-v1-ServerConfig"></a>
 
 ### ServerConfig

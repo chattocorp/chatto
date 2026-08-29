@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "サーバー設定の更新 (名前、説明、ロゴ)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "新しいルームを作成する",
       "room_join": "既存のルームに参加する",
       "room_list": "ディレクトリ内のルームを参照してください。ユーザーは、ルームへの参加を許可されずに、ルームの閲覧を許可される (アクセスを要求するなど) ことができます。",

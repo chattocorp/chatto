@@ -74,6 +74,7 @@ export default defineConfig({
           label: "Operating Your Server",
           items: [
             "guides/operations/community-structure",
+            "guides/operations/neighbors",
             "guides/operations/identity-login",
             "guides/operations/permissions",
             "guides/operations/notifications-web-push",

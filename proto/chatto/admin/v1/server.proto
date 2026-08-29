@@ -140,6 +140,65 @@ message UpdateBlockedUsernamesResponse {
   repeated string blocked_usernames = 1;
 }
 
+// One server advertised in the public Neighbor directory.
+message Neighbor {
+  // Stable opaque resource ID.
+  string id = 1;
+  // Canonical HTTP or HTTPS server origin.
+  string origin = 2;
+  // Opaque revision required for update and delete requests.
+  string revision = 3;
+}
+
+// Request to list configured Neighbors.
+message ListNeighborsRequest {}
+
+// Configured Neighbors. The response has no ordering contract.
+message ListNeighborsResponse {
+  repeated Neighbor neighbors = 1;
+}
+
+// Request for one configured Neighbor.
+message GetNeighborRequest {
+  string neighbor_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+}
+
+// One configured Neighbor.
+message GetNeighborResponse {
+  Neighbor neighbor = 1;
+}
+
+// Request to advertise one server origin.
+message CreateNeighborRequest {
+  string origin = 1 [(buf.validate.field).string = {min_len: 1, max_len: 2048}];
+}
+
+// Newly configured Neighbor.
+message CreateNeighborResponse {
+  Neighbor neighbor = 1;
+}
+
+// Request to change one advertised server origin.
+message UpdateNeighborRequest {
+  string neighbor_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string origin = 2 [(buf.validate.field).string = {min_len: 1, max_len: 2048}];
+  string revision = 3 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+}
+
+// Updated Neighbor.
+message UpdateNeighborResponse {
+  Neighbor neighbor = 1;
+}
+
+// Request to stop advertising one server origin.
+message DeleteNeighborRequest {
+  string neighbor_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string revision = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+}
+
+// Empty result after a Neighbor is deleted.
+message DeleteNeighborResponse {}
+
 // Provides server-administration commands for profile, branding, and security
 // settings.
 service AdminServerService {
@@ -162,4 +221,16 @@ service AdminServerService {
   rpc GetServerSecurityConfig(GetServerSecurityConfigRequest) returns (GetServerSecurityConfigResponse);
   // Updates the blocked-username list. This RPC requires server.manage.
   rpc UpdateBlockedUsernames(UpdateBlockedUsernamesRequest) returns (UpdateBlockedUsernamesResponse);
+  // Lists configured Neighbors. This RPC requires server.manage-neighbors.
+  rpc ListNeighbors(ListNeighborsRequest) returns (ListNeighborsResponse);
+  // Gets one configured Neighbor. This RPC requires server.manage-neighbors.
+  rpc GetNeighbor(GetNeighborRequest) returns (GetNeighborResponse);
+  // Advertises one server origin. This RPC requires server.manage-neighbors.
+  rpc CreateNeighbor(CreateNeighborRequest) returns (CreateNeighborResponse);
+  // Changes one advertised server origin. This RPC requires
+  // server.manage-neighbors.
+  rpc UpdateNeighbor(UpdateNeighborRequest) returns (UpdateNeighborResponse);
+  // Stops advertising one server origin. This RPC requires
+  // server.manage-neighbors.
+  rpc DeleteNeighbor(DeleteNeighborRequest) returns (DeleteNeighborResponse);
 }

@@ -212,6 +212,77 @@ func (s *serverService) UpdateBlockedUsernames(ctx context.Context, req *connect
 	}), nil
 }
 
+func (s *serverService) ListNeighbors(ctx context.Context, _ *connect.Request[adminv1.ListNeighborsRequest]) (*connect.Response[adminv1.ListNeighborsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	neighbors, err := s.api.core.ListManagedNeighbors(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.ListNeighborsResponse{Neighbors: adminNeighbors(neighbors)}), nil
+}
+
+func (s *serverService) GetNeighbor(ctx context.Context, req *connect.Request[adminv1.GetNeighborRequest]) (*connect.Response[adminv1.GetNeighborResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	neighbor, err := s.api.core.GetManagedNeighbor(ctx, caller.UserID, req.Msg.GetNeighborId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.GetNeighborResponse{Neighbor: adminNeighbor(neighbor)}), nil
+}
+
+func (s *serverService) CreateNeighbor(ctx context.Context, req *connect.Request[adminv1.CreateNeighborRequest]) (*connect.Response[adminv1.CreateNeighborResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	neighbor, err := s.api.core.CreateNeighbor(ctx, caller.UserID, req.Msg.GetOrigin())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.CreateNeighborResponse{Neighbor: adminNeighbor(neighbor)}), nil
+}
+
+func (s *serverService) UpdateNeighbor(ctx context.Context, req *connect.Request[adminv1.UpdateNeighborRequest]) (*connect.Response[adminv1.UpdateNeighborResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	neighbor, err := s.api.core.UpdateNeighbor(ctx, caller.UserID, req.Msg.GetNeighborId(), req.Msg.GetOrigin(), req.Msg.GetRevision())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.UpdateNeighborResponse{Neighbor: adminNeighbor(neighbor)}), nil
+}
+
+func (s *serverService) DeleteNeighbor(ctx context.Context, req *connect.Request[adminv1.DeleteNeighborRequest]) (*connect.Response[adminv1.DeleteNeighborResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.api.core.DeleteNeighbor(ctx, caller.UserID, req.Msg.GetNeighborId(), req.Msg.GetRevision()); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.DeleteNeighborResponse{}), nil
+}
+
+func adminNeighbors(neighbors []core.Neighbor) []*adminv1.Neighbor {
+	result := make([]*adminv1.Neighbor, 0, len(neighbors))
+	for _, neighbor := range neighbors {
+		result = append(result, adminNeighbor(neighbor))
+	}
+	return result
+}
+
+func adminNeighbor(neighbor core.Neighbor) *adminv1.Neighbor {
+	return &adminv1.Neighbor{Id: neighbor.ID, Origin: neighbor.Origin, Revision: neighbor.Revision}
+}
+
 func adminServerConfig(cfg *configv1.ServerConfig) *adminv1.ServerConfig {
 	if cfg == nil {
 		return &adminv1.ServerConfig{}

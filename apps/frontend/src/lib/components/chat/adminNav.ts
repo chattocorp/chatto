@@ -4,6 +4,7 @@ import { m } from '$lib/i18n/messages';
 export type AdminNavChromePermissions = {
   canViewAdmin: boolean;
   canManage: boolean;
+  canManageNeighbors: boolean;
   canManageRooms: boolean;
   canManageRoles: boolean;
   canAssignRoles: boolean;
@@ -44,6 +45,14 @@ export function getAdminNavItems({
       href: resolve('/chat/[serverId]/manage/server/general', { serverId: serverSegment }),
       label: m('admin.nav.general'),
       icon: 'iconify icon-[uil--setting]'
+    });
+  }
+
+  if (chrome.canManageNeighbors) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/neighbors', { serverId: serverSegment }),
+      label: m('admin.nav.neighbors'),
+      icon: 'iconify icon-[uil--servers]'
     });
   }
 

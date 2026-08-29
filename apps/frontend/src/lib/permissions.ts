@@ -37,7 +37,12 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Server permissions
   'server.manage': {
     category: 'server',
-    description: () => m('rbac.permission_descriptions.server_manage')
+    description: () => m('rbac.permission_descriptions.server_manage'),
+    includes: ['server.manage-neighbors']
+  },
+  'server.manage-neighbors': {
+    category: 'server',
+    description: () => m('rbac.permission_descriptions.server_manage_neighbors')
   },
 
   // Room permissions
@@ -159,9 +164,7 @@ export function getIncludedByPermission(permissions: readonly string[], id: stri
 export function getIncludingPermissions(permissions: readonly string[], id: string): string[] {
   const registered = new Set(permissions);
   if (!registered.has(id)) return [];
-  return permissions.filter((candidate) =>
-    PERMISSION_METADATA[candidate]?.includes?.includes(id)
-  );
+  return permissions.filter((candidate) => PERMISSION_METADATA[candidate]?.includes?.includes(id));
 }
 
 /**

@@ -50,3 +50,32 @@ initial server view.
 | --- | --- | --- |
 | `profile` | `chatto.api.v1.ServerPublicProfile` | Public server profile and branding. |
 | `login` | `chatto.api.v1.ServerLogin` | Login and registration options. |
+
+
+<a id="chatto-discovery-v1-ServerDiscoveryService-ListNeighbors"></a>
+
+### ListNeighbors
+
+Returns the public Neighbor directory without requiring a session.
+
+```http
+POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/ListNeighbors
+```
+
+<a id="chatto-discovery-v1-ListNeighborsRequest"></a>
+
+#### Input: ListNeighborsRequest
+
+Request for the public Neighbor directory.
+
+
+<a id="chatto-discovery-v1-ListNeighborsResponse"></a>
+
+#### Result: ListNeighborsResponse
+
+Publicly advertised canonical server origins. The response has no ordering
+contract.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `origins` | `repeated string` | No field description provided. |

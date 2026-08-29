@@ -61,6 +61,29 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 	return connect.NewResponse(response), nil
 }
 
+func (s *serverDiscoveryService) ListNeighbors(ctx context.Context, _ *connect.Request[discoveryv1.ListNeighborsRequest]) (*connect.Response[discoveryv1.ListNeighborsResponse], error) {
+	neighbors := s.api.core.ConfigModel().ListNeighbors()
+	origins := make([]string, 0, len(neighbors))
+	for _, neighbor := range neighbors {
+		origins = append(origins, neighbor.Origin)
+	}
+	response := &discoveryv1.ListNeighborsResponse{Origins: origins}
+	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
+		etag, err := discoveryResponseETag(response)
+		if err != nil {
+			return nil, connectInternalError(fmt.Errorf("marshal Neighbor discovery response for ETag: %w", err))
+		}
+		cacheHeaders := http.Header{"Cache-Control": []string{discoveryCacheControl}, "Etag": []string{etag}}
+		if ifNoneMatch(callInfo.RequestHeader().Get("If-None-Match"), etag) {
+			return nil, connect.NewNotModifiedError(cacheHeaders)
+		}
+		for name, values := range cacheHeaders {
+			callInfo.ResponseHeader()[name] = values
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
 func apiAccountCreationPolicy(policy string) apiv1.AccountCreationPolicy {
 	if policy == config.AccountCreationPolicyInviteOnly {
 		return apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_INVITE_ONLY
@@ -68,7 +91,7 @@ func apiAccountCreationPolicy(policy string) apiv1.AccountCreationPolicy {
 	return apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN
 }
 
-func discoveryResponseETag(response *discoveryv1.GetServerResponse) (string, error) {
+func discoveryResponseETag(response proto.Message) (string, error) {
 	data, err := (proto.MarshalOptions{Deterministic: true}).Marshal(response)
 	if err != nil {
 		return "", err

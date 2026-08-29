@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Aggiorna le impostazioni del server (nome, descrizione, logo)",
+      "server_manage_neighbors": "Gestisci la directory pubblica dei vicini",
       "room_create": "Crea nuove stanze",
       "room_join": "Unisciti alle stanze esistenti",
       "room_list": "Vedi le stanze nella directory. A un utente può essere consentito di vedere una stanza (ad esempio per richiedere l'accesso) senza che gli sia consentito accedervi.",

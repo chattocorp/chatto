@@ -41,6 +41,9 @@ const (
 	// PermServerManage allows updating server settings (name, description, logo).
 	PermServerManage Permission = "server.manage"
 
+	// PermServerManageNeighbors allows maintaining the public Neighbor directory.
+	PermServerManageNeighbors Permission = "server.manage-neighbors"
+
 	// ===== Room Permissions =====
 
 	// PermRoomCreate allows creating new rooms.
@@ -169,7 +172,8 @@ type PermissionMetadata struct {
 // allPermissions holds metadata for all permissions.
 var allPermissions = []PermissionMetadata{
 	// Server
-	{Permission: PermServerManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermServerManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, Includes: []Permission{PermServerManageNeighbors}},
+	{Permission: PermServerManageNeighbors, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}},
 
 	// Room
 	{Permission: PermRoomCreate, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup}},

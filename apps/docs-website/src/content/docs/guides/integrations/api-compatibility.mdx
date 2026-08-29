@@ -87,6 +87,12 @@ Existing protobuf JSON responses continue to use the previous names so older
 JSON clients can decode them. A JSON client that sends a new alias requires a
 server that includes the new schema.
 
+Chatto 0.5 adds Neighbor CRUD methods to `AdminServerService` and the public
+`ServerDiscoveryService.ListNeighbors` method. These additions do not change
+existing methods. An older server returns `Unimplemented` for the new method.
+Treat that result as no available Neighbor directory. Do not infer support from
+a discovery capability flag.
+
 Chatto 0.5 also requires `message.read` for channel-room message-content APIs
 and realtime message delivery. Fresh servers grant it to `everyone`. Existing
 servers do not receive an automatic grant because startup never changes

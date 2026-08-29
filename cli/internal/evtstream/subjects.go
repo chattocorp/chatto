@@ -150,6 +150,9 @@ const (
 	EventUserRoomNotificationLevelCleared       = "user_room_notification_level_cleared"
 	EventUserNotificationPolicyChanged          = "user_notification_policy_changed"
 	EventUserRoomGroupNotificationPolicyChanged = "user_room_group_notification_policy_changed"
+	EventServerNeighborCreated                  = "server_neighbor_created"
+	EventServerNeighborOriginChanged            = "server_neighbor_origin_changed"
+	EventServerNeighborDeleted                  = "server_neighbor_deleted"
 
 	// User aggregate
 	EventUserAccountCreated           = "account_created"
@@ -368,6 +371,12 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventUserNotificationPolicyChanged
 	case *evtv1.Event_UserRoomGroupNotificationPolicyChanged:
 		return EventUserRoomGroupNotificationPolicyChanged
+	case *evtv1.Event_ServerNeighborCreated:
+		return EventServerNeighborCreated
+	case *evtv1.Event_ServerNeighborOriginChanged:
+		return EventServerNeighborOriginChanged
+	case *evtv1.Event_ServerNeighborDeleted:
+		return EventServerNeighborDeleted
 
 	case *evtv1.Event_UserAccountCreated:
 		return EventUserAccountCreated

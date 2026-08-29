@@ -107,6 +107,7 @@
     },
     "permission_descriptions": {
       "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
+      "server_manage_neighbors": "Manage the public Neighbor directory",
       "room_create": "Izveidojiet jaunas telpas",
       "room_join": "Pievienojieties esošajām telpām",
       "room_list": "Skatīt telpas direktorijā. Lietotājam var atļaut redzēt telpu (piemēram, pieprasīt piekļuvi), neļaujot tai pievienoties.",
