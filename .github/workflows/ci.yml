@@ -310,6 +310,8 @@ jobs:
       - name: Setup Playwright
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
+        with:
+          save-cache: "true"
 
       - name: Run workspace unit tests
         run: pnpm test
