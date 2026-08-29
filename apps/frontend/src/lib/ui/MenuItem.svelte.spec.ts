@@ -39,6 +39,7 @@ describe('MenuItem', () => {
       )
     ).toBe(true);
     expect(iconButton.querySelector('.menu-entry-leading')?.classList).toContain('self-start');
+    expect(iconButton.querySelector('.menu-entry-leading')?.classList).toContain('mt-px');
     expect(textButton.querySelector('.menu-entry-leading')).toBeNull();
     expect(link.tagName).toBe('A');
     expect(link.getAttribute('href')).toBe('/settings');
@@ -88,6 +89,7 @@ describe('MenuItem', () => {
     expect(item?.querySelector('.menu-entry-leading')?.classList).toContain(
       'menu-entry-leading-sheet'
     );
+    expect(item?.querySelector('.menu-entry-leading')?.classList).not.toContain('mt-px');
   });
 
   it('does not add menu roles inside a dialog-style context menu', () => {
