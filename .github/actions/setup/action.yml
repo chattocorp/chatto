@@ -34,8 +34,9 @@ runs:
       uses: actions/cache/restore@v5
       with:
         path: ~/.cache/go-build
-        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}
+        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-${{ github.sha }}
         restore-keys: |
+          go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-
           go-build-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Restore and save Go build artifacts
@@ -43,11 +44,11 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.cache/go-build
-        # Go's build cache is content-addressed. Share compiled dependencies
-        # across jobs and invalidate them only when the toolchain or module
-        # graph changes. Source changes are handled by Go's cache keys.
-        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}
+        # Go's build cache is content-addressed. Restore the newest compatible
+        # cache, then save this commit's compiled source state for the next run.
+        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-${{ github.sha }}
         restore-keys: |
+          go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-
           go-build-${{ runner.os }}-${{ runner.arch }}-
 
     # mise-action installs mise and the tools defined in mise.toml (Go, Node)

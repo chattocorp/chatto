@@ -327,7 +327,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
         with:
-          save-go-build-cache: "true"
+          # PR caches are isolated from main and cannot accelerate a merge run.
+          save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Run Authling tests
         working-directory: authling
