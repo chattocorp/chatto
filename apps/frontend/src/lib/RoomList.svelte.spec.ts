@@ -875,10 +875,8 @@ describe('RoomList', () => {
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
 
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
-    const wasNotCanceled = row.dispatchEvent(event);
-
-    expect(wasNotCanceled).toBe(true);
+    expect(row.getAttribute('href')).toBe('/chat/-/joinable-channel');
+    expect(row.getAttribute('aria-disabled')).toBeNull();
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
@@ -892,10 +890,8 @@ describe('RoomList', () => {
     expect(icon?.classList.contains('icon-[uil--lock]')).toBe(true);
     expect(row.querySelectorAll('[class~="icon-[uil--lock]"]')).toHaveLength(1);
 
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
-    const wasNotCanceled = row.dispatchEvent(event);
-
-    expect(wasNotCanceled).toBe(true);
+    expect(row.getAttribute('href')).toBe('/chat/-/restricted-channel');
+    expect(row.getAttribute('aria-disabled')).toBeNull();
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
@@ -1023,7 +1019,7 @@ describe('RoomList', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/private-group');
   });
 
-  it('shows permission-gated group, room, and link controls in the sidebar action rails', async () => {
+  it('shows permission-gated group, room, and link controls without a room menu button', async () => {
     const channel = mocks.store.navigation.rooms.find(
       (room: { id: string }) => room.id === 'channel-1'
     );
@@ -1056,7 +1052,7 @@ describe('RoomList', () => {
       .element(q(container, '[data-testid="room-group-actions-button"]'))
       .toBeInTheDocument();
     await expect.element(q(container, '[data-testid="room-drag-handle"]')).toBeInTheDocument();
-    await expect.element(q(container, '[data-testid="room-actions-button"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
     await expect
       .element(q(container, '[data-testid="sidebar-link-drag-handle"]'))
       .toBeInTheDocument();
@@ -1084,8 +1080,9 @@ describe('RoomList', () => {
       }
     ];
     const { container } = render(RoomList, { props: { canReorderGroups: true } });
-    const header = Array.from(container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]'))
-      .find((button) => button.textContent?.trim() === 'Projects');
+    const header = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
+    ).find((button) => button.textContent?.trim() === 'Projects');
     const title = header?.querySelector('span:last-child');
     expect(title).not.toBeNull();
 
@@ -1169,6 +1166,44 @@ describe('RoomList', () => {
     await new Promise((resolve) => setTimeout(resolve, 250));
   });
 
+  it('does not treat bubbling room drag events as room-group drag events', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    const roomItem = { id: 'room:channel-1', type: 'room' as const, roomId: 'channel-1' };
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        roomIds: ['channel-1'],
+        items: [roomItem]
+      },
+      {
+        id: 'operations',
+        name: 'Operations',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const itemDropzone = q(container, '[data-testid="room-group-items-dropzone"]') as HTMLElement;
+
+    itemDropzone.dispatchEvent(
+      new CustomEvent('consider', {
+        bubbles: true,
+        detail: { items: [roomItem], info: { id: roomItem.id } }
+      })
+    );
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(2);
+    expect(container.textContent).toContain('Projects');
+    expect(container.textContent).toContain('Operations');
+  });
+
   it('keeps an empty group visible when the viewer can create rooms in it', async () => {
     mocks.store.navigation.rooms = [];
     mocks.store.navigation.roomGroups = [
@@ -1205,7 +1240,7 @@ describe('RoomList', () => {
     expect(container.querySelector('[data-testid="room-group-drag-handle"]')).toBeNull();
     expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
     expect(container.querySelector('[data-testid="room-group-actions-button"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="room-actions-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
   });
 
   it('persists a relative sidebar-item placement after a handled drop', async () => {
@@ -1265,8 +1300,23 @@ describe('RoomList', () => {
     mocks.store.navigation.roomGroups = [first, second];
     const { container } = render(RoomList, { props: { canReorderGroups: true } });
     const dropzone = q(container, '[data-testid="room-groups-dropzone"]') as HTMLElement;
-    const movedSection = { id: 'group:second', group: second };
-    const nextSection = { id: 'group:first', group: first };
+    const keepVisibleWhenCollapsed = () => false;
+    const movedSection = {
+      id: 'group:second',
+      label: second.name,
+      items: [],
+      persistKey: 'second',
+      keepVisibleWhenCollapsed,
+      group: second
+    };
+    const nextSection = {
+      id: 'group:first',
+      label: first.name,
+      items: [],
+      persistKey: 'first',
+      keepVisibleWhenCollapsed,
+      group: first
+    };
 
     dropzone.dispatchEvent(
       new CustomEvent('finalize', {

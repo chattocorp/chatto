@@ -26,6 +26,8 @@ navigation, member presence groups, and attachment date groups.
 <script lang="ts" generics="T extends { id: string }">
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
+  import { flip } from 'svelte/animate';
+  import { SHADOW_ITEM_MARKER_PROPERTY_NAME, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
   import { slide } from 'svelte/transition';
   import { COMPACT_MOTION_DURATION_MS, expoOutTransition } from '$lib/ui/motion';
 
@@ -41,6 +43,10 @@ navigation, member presence groups, and attachment date groups.
     contextMenuTrigger?: Attachment<HTMLElement>;
     /** Optional behavior attached to the rendered item collection. */
     itemsAttachment?: Attachment<HTMLDivElement>;
+    /** Prevent item drags from also reaching a containing section drag zone. */
+    containItemDrag?: boolean;
+    /** Whether this section is the temporary shadow for a containing drag zone. */
+    isDndShadow?: boolean;
     /** Unique localStorage key for persisting collapsed state. */
     persistKey: string;
     /** Collapsed state when no preference is stored. */
@@ -58,6 +64,8 @@ navigation, member presence groups, and attachment date groups.
     separated = false,
     contextMenuTrigger,
     itemsAttachment,
+    containItemDrag = false,
+    isDndShadow = false,
     persistKey,
     defaultCollapsed = false,
     keepVisibleWhenCollapsed,
@@ -72,9 +80,37 @@ navigation, member presence groups, and attachment date groups.
   function toggle(): void {
     saveCollapsed(persistKey, !collapsed);
   }
+
+  function isDndShadowItem(item: T): boolean {
+    const dndItem = item as T & Record<string, unknown>;
+    return (
+      item.id === SHADOW_PLACEHOLDER_ITEM_ID || dndItem[SHADOW_ITEM_MARKER_PROPERTY_NAME] === true
+    );
+  }
+
+  function containNestedDrag(event: MouseEvent | TouchEvent): void {
+    if (!containItemDrag) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('[data-room-group-drag-handle]')) return;
+    event.stopPropagation();
+  }
+
+  const containNestedDragAttachment: Attachment<HTMLElement> = (node) => {
+    node.addEventListener('mousedown', containNestedDrag);
+    node.addEventListener('touchstart', containNestedDrag);
+    return () => {
+      node.removeEventListener('mousedown', containNestedDrag);
+      node.removeEventListener('touchstart', containNestedDrag);
+    };
+  };
 </script>
 
-<section class={separated ? 'border-t border-border' : undefined} data-testid="room-group-section">
+<section
+  class={[separated ? 'border-t border-border' : '', isDndShadow ? 'rounded-md' : '']}
+  data-is-dnd-shadow-item-hint={isDndShadow || undefined}
+  data-testid="room-group-section"
+  {@attach containNestedDragAttachment}
+>
   <div class="px-2 py-1.5">
     <div
       class="group/section-header flex min-h-8 w-full min-w-0 items-center rounded-md transition-colors hover:text-text"
@@ -111,11 +147,22 @@ navigation, member presence groups, and attachment date groups.
         data-testid={itemsAttachment ? 'room-group-items-dropzone' : undefined}
         {@attach itemsAttachment}
       >
-        {#each visibleItems as entry (entry.id)}
-          <div transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}>
-            {@render item(entry)}
-          </div>
-        {/each}
+        {#if itemsAttachment}
+          {#each visibleItems as entry (entry.id)}
+            <div
+              animate:flip={{ duration: COMPACT_MOTION_DURATION_MS }}
+              data-is-dnd-shadow-item-hint={isDndShadowItem(entry) || undefined}
+            >
+              {@render item(entry)}
+            </div>
+          {/each}
+        {:else}
+          {#each visibleItems as entry (entry.id)}
+            <div transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}>
+              {@render item(entry)}
+            </div>
+          {/each}
+        {/if}
       </div>
     {/if}
   </div>
