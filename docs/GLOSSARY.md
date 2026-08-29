@@ -26,15 +26,25 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — *Room View* is the canonical name.
 
+**Message Header** — Line above a non-compact message body that contains the author identity, time, and other message metadata.
+
 **Message Meta Bar** — Compact row beneath a message showing state and secondary actions such as thread status, reactions, and pin status.
 
 **Room Sidebar** — Right-hand pane scoped to the current room. Hosts room-specific extras such as the member list today and future surfaces like files or calls. Implemented in `apps/frontend/src/routes/chat/[serverId]/[roomId]/RoomSidebar.svelte`.
+
+**Member List** — Room Sidebar panel that lists and searches the members of the current room.
+
+**Profile View** — Complete public user profile shown in the Room Sidebar of a one-to-one DM. See [FDR-022](fdr/FDR-022-user-profile.md).
 
 **Composer** — The message input at the bottom of the Room View. Includes text input, attachment picker, emoji picker, mentions autocomplete.
 
 **Pane Header** — The top bar of a content pane (Room View, settings page, admin page, etc.). Carries the title, optional subtitle, optional back arrow, and icon-only action buttons via the `actions` snippet. Chunky labelled buttons belong in the body, not here. See [`AGENTS.md`](../AGENTS.md).
 
 **Quick Switcher** — Cmd-K / Ctrl-K palette for jumping between rooms, DMs, servers, and admin pages. Distinct from the Server Gutter — both let you change server, but the Quick Switcher is keyboard-first and searchable. See [FDR-015](fdr/FDR-015-quick-switcher.md).
+
+**Profile Card** — Compact user profile shown in a popover on pointer devices or a bottom sheet on touch devices. It contains public identity details and relevant actions. See [FDR-022](fdr/FDR-022-user-profile.md).
+
+**Role Badge** — Compact label that identifies one of a user's assigned roles. A server operator selects which roles provide badges. See [FDR-001](fdr/FDR-001-roles-and-permissions.md) and [FDR-022](fdr/FDR-022-user-profile.md).
 
 **Slideover** — A pane that slides in over existing content (e.g. settings, thread view on mobile). Distinct from a modal: dismissable by navigation, not by an explicit close.
 
@@ -122,7 +132,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 
-**Effective owner** — A user who either has the durable `owner` role or has a verified email listed in `owners.emails`. Effective owners receive every known RBAC permission virtually. DM contents remain protected by participation checks at the API boundary.
+**Effective owner** — A user with the durable `owner` role. A verified email listed in `owners.emails` causes Chatto to materialize this role. Effective owners receive every known RBAC permission virtually. DM contents remain protected by participation checks at the API boundary.
 
 **Owner** — Top system role (position 1000). Conferred through role assignment or through verified `owners.emails` configuration.
 
