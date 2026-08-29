@@ -144,7 +144,7 @@ describe('Server Directory page', () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain('Some joined servers could not provide');
     });
-    expect(container.textContent).toContain("public profile could not be loaded");
+    expect(container.textContent).toContain('public profile could not be loaded');
     expect(button(container, 'Sign-in unavailable')?.disabled).toBe(true);
   });
 
@@ -157,8 +157,17 @@ describe('Server Directory page', () => {
     });
 
     const { container } = render(Page);
-    await vi.waitFor(() => expect(button(container, 'Join')).toBeDefined());
-    button(container, 'Join')?.click();
+    await vi.waitFor(() => {
+      expect(
+        container.querySelector('[data-testid="server-directory-entry-icon-action"]')
+      ).toBeTruthy();
+    });
+    const iconAction = container.querySelector<HTMLButtonElement>(
+      '[data-testid="server-directory-entry-icon-action"]'
+    )!;
+    expect(iconAction.getAttribute('aria-label')).toBe('Join: Remote');
+    expect(iconAction.querySelector('.shimmer-hover.rounded-xl')).toBeTruthy();
+    iconAction.click();
 
     await vi.waitFor(() => {
       expect(mocks.startServerOAuthFlow).toHaveBeenCalledWith(

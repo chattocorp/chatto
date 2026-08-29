@@ -7,6 +7,7 @@ card. Callers supply trusted badges and actions through explicit props.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { PublicServerInfo } from '$lib/api-client/server';
+  import ServerLogo from '$lib/components/ServerLogo.svelte';
   import { m } from '$lib/i18n/messages';
   import { Pill, SkeletonImg } from '$lib/ui';
 
@@ -15,6 +16,9 @@ card. Callers supply trusted badges and actions through explicit props.
     profile,
     badge,
     actions,
+    onIconClick,
+    iconActionLabel,
+    iconActionDisabled = false,
     testId = 'server-profile-card'
   }: {
     origin: string;
@@ -22,6 +26,10 @@ card. Callers supply trusted badges and actions through explicit props.
     profile?: PublicServerInfo | null;
     badge?: string;
     actions?: Snippet;
+    /** Makes the server icon perform the caller's existing open or join action. */
+    onIconClick?: () => void;
+    iconActionLabel?: string;
+    iconActionDisabled?: boolean;
     testId?: string;
   } = $props();
 
@@ -32,6 +40,13 @@ card. Callers supply trusted badges and actions through explicit props.
       return origin;
     }
   });
+  const logoServer = $derived({
+    name: profile?.name ?? hostname,
+    logoUrl: profile?.iconUrl
+  });
+  const accessibleIconActionLabel = $derived(
+    iconActionLabel ? `${iconActionLabel}: ${logoServer.name}` : logoServer.name
+  );
 </script>
 
 <article
@@ -49,15 +64,25 @@ card. Callers supply trusted badges and actions through explicit props.
 
   <div class="flex flex-1 flex-col gap-4 p-4">
     <div class="flex min-w-0 items-start gap-3">
-      <div
-        class="-mt-10 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-border bg-surface-emphasized"
-      >
-        {#if profile?.iconUrl}
-          <SkeletonImg src={profile.iconUrl} alt="" class="h-full w-full object-cover" />
-        {:else}
-          <span class="iconify icon-[uil--globe] text-2xl text-muted" aria-hidden="true"></span>
-        {/if}
-      </div>
+      {#if onIconClick}
+        <button
+          type="button"
+          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] disabled:pointer-events-none disabled:cursor-not-allowed"
+          aria-label={accessibleIconActionLabel}
+          title={accessibleIconActionLabel}
+          disabled={iconActionDisabled}
+          onclick={onIconClick}
+          data-testid={`${testId}-icon-action`}
+        >
+          <ServerLogo server={logoServer} fill />
+        </button>
+      {:else}
+        <div
+          class="-mt-10 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized"
+        >
+          <ServerLogo server={logoServer} fill />
+        </div>
+      {/if}
 
       <div class="min-w-0 flex-1">
         <div class="flex min-w-0 flex-wrap items-center gap-2">

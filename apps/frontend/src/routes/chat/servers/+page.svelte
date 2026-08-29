@@ -207,6 +207,11 @@
               origin={customOrigin}
               {profile}
               badge={joined ? m('add_server.directory.joined') : undefined}
+              onIconClick={!joined && !profile.authorizeUrl
+                ? undefined
+                : () => openOrJoin(customOrigin, profile)}
+              iconActionLabel={actionLabel(customOrigin, profile)}
+              iconActionDisabled={pendingOrigin === customOrigin}
               actions={customActions}
               testId="server-directory-entry"
             />
@@ -229,7 +234,7 @@
         {#if directoryQuery.isPending}
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
             {#each Array(3) as _, index (index)}
-              <div class="h-64 rounded-xl bg-surface skeleton"></div>
+              <div class="skeleton h-64 rounded-xl bg-surface"></div>
             {/each}
           </div>
         {:else if directoryQuery.isError || allSourcesFailed}
@@ -267,6 +272,11 @@
                 origin={entry.origin}
                 profile={entry.profile}
                 badge={joined ? m('add_server.directory.joined') : undefined}
+                onIconClick={cardDisabled(entry)
+                  ? undefined
+                  : () => openOrJoin(entry.origin, entry.profile)}
+                iconActionLabel={actionLabel(entry.origin, entry.profile)}
+                iconActionDisabled={pendingOrigin === entry.origin}
                 actions={cardActions}
                 testId="server-directory-entry"
               />

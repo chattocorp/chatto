@@ -11,9 +11,12 @@
   }
 
   let {
-    server
+    server,
+    fill = false
   }: {
     server: ServerForLogo;
+    /** Fill the available parent frame instead of using the default gutter size. */
+    fill?: boolean;
   } = $props();
 
   const gradientStyle = $derived(server.logoUrl ? undefined : getGradientForName(server.name));
@@ -26,7 +29,9 @@
 	Used by ServerIcon for the server gutter icon.
 -->
 <div
-  class="shimmer-hover flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-3xl font-black transition-[background-color,color] duration-100"
+  class="shimmer-hover flex shrink-0 items-center justify-center overflow-hidden rounded-xl text-3xl font-black transition-[background-color,color] duration-100 {fill
+    ? 'h-full w-full'
+    : 'h-12 w-12'}"
   style:background={gradientStyle}
 >
   {#if server.logoUrl}
