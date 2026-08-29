@@ -99,13 +99,12 @@ test.describe('Message Threading', () => {
     await roomPage.messageInput.fill(rootMessage);
     await roomPage.messageInput.press('Control+Enter');
 
-    await expect(roomPage.threadPane).toBeHidden();
-    await roomPage.expectThreadRouteClosed();
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.expectThreadRouteActive();
     const root = roomPage.getMessage(rootMessage);
     await expect(root.locator.getByRole('link', { name: 'Thread' })).toBeVisible();
     await root.expectFollowingThread();
 
-    await root.openThread();
     await roomPage.expectTextInThreadPane(rootMessage);
     await roomPage.expectThreadPaneFollowing();
   });
@@ -122,7 +121,12 @@ test.describe('Message Threading', () => {
     const rootMessage = `Recent thread ${Date.now()}`;
     await roomPage.waitForInputEditable();
     await page.getByRole('button', { name: 'Post as thread' }).click();
-    await roomPage.sendMessage(rootMessage);
+    await roomPage.messageInput.fill(rootMessage);
+    await roomPage.messageInput.press('Control+Enter');
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.expectTextInThreadPane(rootMessage);
+    await roomPage.closeThread();
+    await roomPage.expectThreadRouteClosed();
 
     const followup = `Recent follow-up ${Date.now()}`;
     await roomPage.messageInput.fill(followup);
