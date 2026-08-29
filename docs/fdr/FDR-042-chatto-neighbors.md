@@ -15,14 +15,17 @@ recommendation, not a trust or reciprocal relationship.
   Configuration.
 - The administration form accepts a server hostname or URL. The client sends
   only the canonical HTTP or HTTPS origin for storage.
-- Each Neighbor contains one canonical HTTP or HTTPS server origin. A server
-  can advertise at most 100 Neighbors.
+- Each Neighbor contains one canonical HTTP or HTTPS server origin and can
+  contain one public testimonial. The testimonial contains at most 500 Unicode
+  characters. A server can advertise at most 100 Neighbors.
 - The directory has no ordering contract.
 - Any caller can list the advertised origins through the public discovery API.
 - The Server Directory page combines the direct Neighbors from all servers
   registered in the client. It removes duplicate canonical origins but does
   not rank or sort the results. Each result identifies the registered servers
-  that recommend it.
+  that recommend it. It preserves each source's testimonial.
+- The Server Directory uses a tapestry layout. It shows each testimonial with
+  the device-local name of the registered server that supplied it.
 - The Server Directory and Neighbor administration page load each advertised
   server's public name, description, logo, and banner. The Server Directory
   omits a server when its public profile does not load. The administration page
@@ -45,9 +48,9 @@ recommendation, not a trust or reciprocal relationship.
 
 ### 1. A Neighbor is an individual resource
 
-**Decision:** Each Neighbor has a stable ID, a canonical origin, and an opaque
-revision. The administrative API provides list, get, create, update, and delete
-operations.
+**Decision:** Each Neighbor has a stable ID, a canonical origin, an optional
+testimonial, and an opaque revision. The administrative API provides list,
+get, create, update, and delete operations.
 
 **Why:** Individual operations match administrator intent and do not replace
 unrelated directory state.
@@ -127,6 +130,32 @@ duplicate server cards.
 **Tradeoff:** The source names depend on the server catalogue on the user's
 device.
 
+### 8. A testimonial belongs to one recommendation
+
+**Decision:** A Neighbor can contain one optional plain-text testimonial. The
+server trims outer white space and limits the text to 500 Unicode characters.
+An empty testimonial clears the value. When one update changes the origin and
+testimonial, the server writes both facts in one atomic `EVT` batch.
+
+**Why:** A testimonial explains why one server recommends another server. It
+must stay associated with that directed recommendation when clients combine
+results from several sources.
+
+**Tradeoff:** Different sources can publish different testimonials for the
+same target server. The directory must preserve the source of each text.
+
+### 9. Structured discovery extends the origin list
+
+**Decision:** Public discovery returns structured Neighbor values with an
+origin and optional testimonial. It also returns the existing origin list.
+New clients prefer the structured values and use the origin list as a fallback.
+
+**Why:** Old clients can continue to read the origin list. New clients can show
+testimonials when the server supplies them.
+
+**Tradeoff:** The server sends the origins in two fields during the
+compatibility period.
+
 ## Non-goals
 
 - Reciprocal requests, approval, rejection, or revocation
@@ -141,4 +170,5 @@ device.
 - **ADRs:** ADR-033, ADR-034, ADR-040, ADR-044, ADR-045
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-020 (Server Branding &
   Configuration), FDR-031 (Client–Server Compatibility Discovery)
-- **Issue:** [#1669](https://github.com/chattocorp/chatto/issues/1669)
+- **Issues:** [#1669](https://github.com/chattocorp/chatto/issues/1669),
+  [#2208](https://github.com/chattocorp/chatto/issues/2208)

@@ -31,7 +31,10 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted"
+      "deleted": "Neighbor deleted",
+      "testimonial": "推荐语（可选）",
+      "testimonial_help": "说明您推荐此服务器的原因。这段文字将公开显示，最多可输入 500 个字符。",
+      "testimonial_label": "公开推荐语"
     },
     "common": {
       "page_title": "{title} | 管理后台",

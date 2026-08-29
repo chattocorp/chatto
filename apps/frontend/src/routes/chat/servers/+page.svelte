@@ -173,7 +173,10 @@
     const remaining = names.length - 2;
     const visibleNames =
       remaining > 0
-        ? [...names.slice(0, 2), m('add_server.directory.more_recommenders_count', { count: remaining })]
+        ? [
+            ...names.slice(0, 2),
+            m('add_server.directory.more_recommenders_count', { count: remaining })
+          ]
         : names;
     return {
       visible: m('add_server.directory.recommended_by', {
@@ -181,6 +184,20 @@
       }),
       full: m('add_server.directory.recommended_by', { servers: formatter.format(names) })
     };
+  }
+
+  function testimonialRecommendations(entry: ServerDirectoryEntry) {
+    return entry.recommendations.flatMap((recommendation) =>
+      recommendation.testimonial
+        ? [
+            {
+              sourceOrigin: recommendation.sourceOrigin,
+              sourceName: sourceName(recommendation.sourceOrigin),
+              testimonial: recommendation.testimonial
+            }
+          ]
+        : []
+    );
   }
 </script>
 
@@ -286,10 +303,37 @@
             {m('add_server.directory.empty_body')}
           </EmptyState>
         {:else}
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div class="columns-1 gap-4 sm:columns-2 lg:columns-3">
             {#each entries as entry (entry.origin)}
               {@const joined = registeredServer(entry.origin)}
               {@const attribution = sourceAttribution(entry)}
+              {@const testimonials = testimonialRecommendations(entry)}
+              {#snippet details()}
+                {#if testimonials.length > 0}
+                  <section
+                    class="flex flex-col gap-2"
+                    aria-label={m('add_server.directory.testimonials_for', {
+                      server: entry.profile?.name ?? entry.origin
+                    })}
+                    data-testid="server-testimonials"
+                  >
+                    {#each testimonials as testimonial (testimonial.sourceOrigin)}
+                      <figure class="surface-box p-3">
+                        <blockquote class="text-sm leading-relaxed text-text">
+                          <bdi dir="auto">{testimonial.testimonial}</bdi>
+                        </blockquote>
+                        <figcaption class="mt-2 text-sm font-medium text-muted">
+                          <bdi dir="auto">
+                            {m('add_server.directory.recommended_by', {
+                              servers: testimonial.sourceName
+                            })}
+                          </bdi>
+                        </figcaption>
+                      </figure>
+                    {/each}
+                  </section>
+                {/if}
+              {/snippet}
               {#snippet cardActions()}
                 <div class="flex flex-col gap-3">
                   <p
@@ -311,18 +355,21 @@
                   </Button>
                 </div>
               {/snippet}
-              <ServerProfileCard
-                origin={entry.origin}
-                profile={entry.profile}
-                badge={joined ? m('add_server.directory.joined') : undefined}
-                onIconClick={cardDisabled(entry)
-                  ? undefined
-                  : () => openOrJoin(entry.origin, entry.profile)}
-                iconActionLabel={actionLabel(entry.origin, entry.profile)}
-                iconActionDisabled={pendingOrigin === entry.origin}
-                actions={cardActions}
-                testId="server-directory-entry"
-              />
+              <div class="mb-4 break-inside-avoid">
+                <ServerProfileCard
+                  origin={entry.origin}
+                  profile={entry.profile}
+                  badge={joined ? m('add_server.directory.joined') : undefined}
+                  onIconClick={cardDisabled(entry)
+                    ? undefined
+                    : () => openOrJoin(entry.origin, entry.profile)}
+                  iconActionLabel={actionLabel(entry.origin, entry.profile)}
+                  iconActionDisabled={pendingOrigin === entry.origin}
+                  {details}
+                  actions={cardActions}
+                  testId="server-directory-entry"
+                />
+              </div>
             {/each}
           </div>
         {/if}

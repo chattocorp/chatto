@@ -31,7 +31,10 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted"
+      "deleted": "Neighbor deleted",
+      "testimonial": "Iseloomustus (valikuline)",
+      "testimonial_help": "Selgitage, miks te seda serverit soovitate. See tekst on avalik ja võib sisaldada kuni 500 märki.",
+      "testimonial_label": "Avalik iseloomustus"
     },
     "common": {
       "page_title": "{title} | Haldus",

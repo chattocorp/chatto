@@ -31,7 +31,10 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted"
+      "deleted": "Neighbor deleted",
+      "testimonial": "推薦語（選填）",
+      "testimonial_help": "說明您推薦此伺服器的原因。這段文字會公開顯示，最多可輸入 500 個字元。",
+      "testimonial_label": "公開推薦語"
     },
     "common": {
       "page_title": "{title} | 管理後台",

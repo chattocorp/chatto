@@ -148,6 +148,8 @@ message Neighbor {
   string origin = 2;
   // Opaque revision required for update and delete requests.
   string revision = 3;
+  // Optional public explanation of why this server is recommended.
+  optional string testimonial = 4;
 }
 
 // Request to list configured Neighbors.
@@ -171,6 +173,8 @@ message GetNeighborResponse {
 // Request to advertise one server origin.
 message CreateNeighborRequest {
   string origin = 1 [(buf.validate.field).string = {min_len: 1, max_len: 2048}];
+  // Optional public explanation of why this server is recommended.
+  optional string testimonial = 2 [(buf.validate.field).string.max_len = 500];
 }
 
 // Newly configured Neighbor.
@@ -183,6 +187,9 @@ message UpdateNeighborRequest {
   string neighbor_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
   string origin = 2 [(buf.validate.field).string = {min_len: 1, max_len: 2048}];
   string revision = 3 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  // New testimonial. Omit this field to keep the current value. Send an empty
+  // value to clear it.
+  optional string testimonial = 4 [(buf.validate.field).string.max_len = 500];
 }
 
 // Updated Neighbor.

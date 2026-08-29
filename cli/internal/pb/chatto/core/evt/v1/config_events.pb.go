@@ -986,9 +986,11 @@ func (x *UserRoomGroupNotificationPolicyChangedEvent) GetOverrides() *Notificati
 // Records one server origin that an administrator added to the public
 // Neighbor directory. The event envelope ID is the first resource revision.
 type ServerNeighborCreatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NeighborId    string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
-	Origin        string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	NeighborId string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
+	Origin     string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	// Optional public explanation from the source server's operator.
+	Testimonial   string `protobuf:"bytes,3,opt,name=testimonial,proto3" json:"testimonial,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1033,6 +1035,13 @@ func (x *ServerNeighborCreatedEvent) GetNeighborId() string {
 func (x *ServerNeighborCreatedEvent) GetOrigin() string {
 	if x != nil {
 		return x.Origin
+	}
+	return ""
+}
+
+func (x *ServerNeighborCreatedEvent) GetTestimonial() string {
+	if x != nil {
+		return x.Testimonial
 	}
 	return ""
 }
@@ -1091,6 +1100,60 @@ func (x *ServerNeighborOriginChangedEvent) GetOrigin() string {
 	return ""
 }
 
+// Records a change to one Neighbor testimonial. An empty value clears the
+// testimonial. The event envelope ID becomes the resource revision.
+type ServerNeighborTestimonialChangedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NeighborId    string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
+	Testimonial   string                 `protobuf:"bytes,2,opt,name=testimonial,proto3" json:"testimonial,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerNeighborTestimonialChangedEvent) Reset() {
+	*x = ServerNeighborTestimonialChangedEvent{}
+	mi := &file_chatto_core_evt_v1_config_events_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerNeighborTestimonialChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerNeighborTestimonialChangedEvent) ProtoMessage() {}
+
+func (x *ServerNeighborTestimonialChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_config_events_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerNeighborTestimonialChangedEvent.ProtoReflect.Descriptor instead.
+func (*ServerNeighborTestimonialChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_config_events_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ServerNeighborTestimonialChangedEvent) GetNeighborId() string {
+	if x != nil {
+		return x.NeighborId
+	}
+	return ""
+}
+
+func (x *ServerNeighborTestimonialChangedEvent) GetTestimonial() string {
+	if x != nil {
+		return x.Testimonial
+	}
+	return ""
+}
+
 // Removes one Neighbor from the public directory.
 type ServerNeighborDeletedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1101,7 +1164,7 @@ type ServerNeighborDeletedEvent struct {
 
 func (x *ServerNeighborDeletedEvent) Reset() {
 	*x = ServerNeighborDeletedEvent{}
-	mi := &file_chatto_core_evt_v1_config_events_proto_msgTypes[22]
+	mi := &file_chatto_core_evt_v1_config_events_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1113,7 +1176,7 @@ func (x *ServerNeighborDeletedEvent) String() string {
 func (*ServerNeighborDeletedEvent) ProtoMessage() {}
 
 func (x *ServerNeighborDeletedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_config_events_proto_msgTypes[22]
+	mi := &file_chatto_core_evt_v1_config_events_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1126,7 +1189,7 @@ func (x *ServerNeighborDeletedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerNeighborDeletedEvent.ProtoReflect.Descriptor instead.
 func (*ServerNeighborDeletedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_config_events_proto_rawDescGZIP(), []int{22}
+	return file_chatto_core_evt_v1_config_events_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ServerNeighborDeletedEvent) GetNeighborId() string {
@@ -1192,15 +1255,20 @@ const file_chatto_core_evt_v1_config_events_proto_rawDesc = "" +
 	"+UserRoomGroupNotificationPolicyChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\"\n" +
 	"\rroom_group_id\x18\x02 \x01(\tR\vroomGroupId\x12K\n" +
-	"\toverrides\x18\x03 \x01(\v2-.chatto.core.evt.v1.NotificationDeliveryModesR\toverrides\"U\n" +
+	"\toverrides\x18\x03 \x01(\v2-.chatto.core.evt.v1.NotificationDeliveryModesR\toverrides\"w\n" +
 	"\x1aServerNeighborCreatedEvent\x12\x1f\n" +
 	"\vneighbor_id\x18\x01 \x01(\tR\n" +
 	"neighborId\x12\x16\n" +
-	"\x06origin\x18\x02 \x01(\tR\x06origin\"[\n" +
+	"\x06origin\x18\x02 \x01(\tR\x06origin\x12 \n" +
+	"\vtestimonial\x18\x03 \x01(\tR\vtestimonial\"[\n" +
 	" ServerNeighborOriginChangedEvent\x12\x1f\n" +
 	"\vneighbor_id\x18\x01 \x01(\tR\n" +
 	"neighborId\x12\x16\n" +
-	"\x06origin\x18\x02 \x01(\tR\x06origin\"=\n" +
+	"\x06origin\x18\x02 \x01(\tR\x06origin\"j\n" +
+	"%ServerNeighborTestimonialChangedEvent\x12\x1f\n" +
+	"\vneighbor_id\x18\x01 \x01(\tR\n" +
+	"neighborId\x12 \n" +
+	"\vtestimonial\x18\x02 \x01(\tR\vtestimonial\"=\n" +
 	"\x1aServerNeighborDeletedEvent\x12\x1f\n" +
 	"\vneighbor_id\x18\x01 \x01(\tR\n" +
 	"neighborIdB\xcc\x01\n" +
@@ -1218,7 +1286,7 @@ func file_chatto_core_evt_v1_config_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_evt_v1_config_events_proto_rawDescData
 }
 
-var file_chatto_core_evt_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_chatto_core_evt_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_chatto_core_evt_v1_config_events_proto_goTypes = []any{
 	(*ServerNameChangedEvent)(nil),                      // 0: chatto.core.evt.v1.ServerNameChangedEvent
 	(*ServerDescriptionChangedEvent)(nil),               // 1: chatto.core.evt.v1.ServerDescriptionChangedEvent
@@ -1242,20 +1310,21 @@ var file_chatto_core_evt_v1_config_events_proto_goTypes = []any{
 	(*UserRoomGroupNotificationPolicyChangedEvent)(nil), // 19: chatto.core.evt.v1.UserRoomGroupNotificationPolicyChangedEvent
 	(*ServerNeighborCreatedEvent)(nil),                  // 20: chatto.core.evt.v1.ServerNeighborCreatedEvent
 	(*ServerNeighborOriginChangedEvent)(nil),            // 21: chatto.core.evt.v1.ServerNeighborOriginChangedEvent
-	(*ServerNeighborDeletedEvent)(nil),                  // 22: chatto.core.evt.v1.ServerNeighborDeletedEvent
-	(*AssetRecord)(nil),                                 // 23: chatto.core.evt.v1.AssetRecord
-	(TimeFormat)(0),                                     // 24: chatto.core.evt.v1.TimeFormat
-	(NotificationLevel)(0),                              // 25: chatto.core.evt.v1.NotificationLevel
-	(*NotificationDeliveryModes)(nil),                   // 26: chatto.core.evt.v1.NotificationDeliveryModes
+	(*ServerNeighborTestimonialChangedEvent)(nil),       // 22: chatto.core.evt.v1.ServerNeighborTestimonialChangedEvent
+	(*ServerNeighborDeletedEvent)(nil),                  // 23: chatto.core.evt.v1.ServerNeighborDeletedEvent
+	(*AssetRecord)(nil),                                 // 24: chatto.core.evt.v1.AssetRecord
+	(TimeFormat)(0),                                     // 25: chatto.core.evt.v1.TimeFormat
+	(NotificationLevel)(0),                              // 26: chatto.core.evt.v1.NotificationLevel
+	(*NotificationDeliveryModes)(nil),                   // 27: chatto.core.evt.v1.NotificationDeliveryModes
 }
 var file_chatto_core_evt_v1_config_events_proto_depIdxs = []int32{
-	23, // 0: chatto.core.evt.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.evt.v1.AssetRecord
-	23, // 1: chatto.core.evt.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.evt.v1.AssetRecord
-	24, // 2: chatto.core.evt.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.evt.v1.TimeFormat
-	25, // 3: chatto.core.evt.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.evt.v1.NotificationLevel
-	25, // 4: chatto.core.evt.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.evt.v1.NotificationLevel
-	26, // 5: chatto.core.evt.v1.UserNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
-	26, // 6: chatto.core.evt.v1.UserRoomGroupNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	24, // 0: chatto.core.evt.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.evt.v1.AssetRecord
+	24, // 1: chatto.core.evt.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.evt.v1.AssetRecord
+	25, // 2: chatto.core.evt.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.evt.v1.TimeFormat
+	26, // 3: chatto.core.evt.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.evt.v1.NotificationLevel
+	26, // 4: chatto.core.evt.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.evt.v1.NotificationLevel
+	27, // 5: chatto.core.evt.v1.UserNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
+	27, // 6: chatto.core.evt.v1.UserRoomGroupNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.evt.v1.NotificationDeliveryModes
 	7,  // [7:7] is the sub-list for method output_type
 	7,  // [7:7] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name
@@ -1278,7 +1347,7 @@ func file_chatto_core_evt_v1_config_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_config_events_proto_rawDesc), len(file_chatto_core_evt_v1_config_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

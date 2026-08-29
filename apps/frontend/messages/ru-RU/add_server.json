@@ -18,7 +18,9 @@
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
       "recommended_by": "Рекомендуют {servers}",
-      "more_recommenders_count": { "other": "ещё {count}" },
+      "more_recommenders_count": {
+        "other": "ещё {count}"
+      },
       "joined": "Joined",
       "join": "Join",
       "open": "Open",
@@ -28,7 +30,8 @@
       "unavailable_title": "Directory unavailable",
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
-      "empty_body": "You can still connect directly with a server address."
+      "empty_body": "You can still connect directly with a server address.",
+      "testimonials_for": "Отзывы о {server}"
     }
   }
 }

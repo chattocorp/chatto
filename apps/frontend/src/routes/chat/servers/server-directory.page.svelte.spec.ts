@@ -75,6 +75,13 @@ function button(container: HTMLElement, label: string): HTMLButtonElement | unde
   );
 }
 
+function recommendation(
+  sourceOrigin = 'https://source.example',
+  testimonial: string | null = null
+) {
+  return { sourceOrigin, testimonial };
+}
+
 describe('Server Directory page', () => {
   beforeEach(() => {
     queryClient.clear();
@@ -111,12 +118,14 @@ describe('Server Directory page', () => {
         {
           origin: 'https://z.example',
           profile: profile('Zulu'),
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         },
         {
           origin: 'https://a.example',
           profile: profile('Alpha'),
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         }
       ],
       failedSourceCount: 0,
@@ -146,12 +155,14 @@ describe('Server Directory page', () => {
         {
           origin: 'https://offline.example',
           profile: null,
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         },
         {
           origin: 'https://online.example',
           profile: profile('Online'),
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         }
       ],
       failedSourceCount: 1,
@@ -180,7 +191,8 @@ describe('Server Directory page', () => {
         {
           origin: 'https://remote.example',
           profile: remoteProfile,
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         }
       ],
       failedSourceCount: 0,
@@ -214,7 +226,8 @@ describe('Server Directory page', () => {
         {
           origin: 'https://a.example',
           profile: profile('Alpha'),
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         }
       ],
       failedSourceCount: 0,
@@ -265,20 +278,26 @@ describe('Server Directory page', () => {
         {
           origin: 'https://single.example',
           profile: profile('Single'),
-          sourceOrigins: ['https://one.example']
+          sourceOrigins: ['https://one.example'],
+          recommendations: [recommendation('https://one.example')]
         },
         {
           origin: 'https://double.example',
           profile: profile('Double'),
-          sourceOrigins: ['https://one.example', 'https://two.example']
+          sourceOrigins: ['https://one.example', 'https://two.example'],
+          recommendations: [
+            recommendation('https://one.example'),
+            recommendation('https://two.example')
+          ]
         },
         {
           origin: 'https://triple.example',
           profile: profile('Triple'),
-          sourceOrigins: [
-            'https://one.example',
-            'https://two.example',
-            'https://three.example'
+          sourceOrigins: ['https://one.example', 'https://two.example', 'https://three.example'],
+          recommendations: [
+            recommendation('https://one.example'),
+            recommendation('https://two.example'),
+            recommendation('https://three.example')
           ]
         }
       ],
@@ -288,9 +307,9 @@ describe('Server Directory page', () => {
 
     const { container } = render(Page);
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="server-recommendation-sources"]')).toHaveLength(
-        3
-      );
+      expect(
+        container.querySelectorAll('[data-testid="server-recommendation-sources"]')
+      ).toHaveLength(3);
     });
     const attributions = Array.from(
       container.querySelectorAll<HTMLElement>('[data-testid="server-recommendation-sources"]')
@@ -300,5 +319,40 @@ describe('Server Directory page', () => {
     expect(attributions[2]?.textContent).toContain('Recommended by One, Two, and 1 more');
     expect(attributions[2]?.getAttribute('aria-label')).toContain('One, Two, and Three');
     expect(attributions[2]?.title).toContain('One, Two, and Three');
+  });
+
+  it('shows source-specific testimonials in a labelled tapestry card', async () => {
+    mocks.servers = [
+      { id: 'one', url: 'https://one.example', name: 'One', iconUrl: null, addedAt: 1 },
+      { id: 'two', url: 'https://two.example', name: 'Two', iconUrl: null, addedAt: 2 }
+    ];
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://remote.example',
+          profile: profile('Remote'),
+          sourceOrigins: ['https://one.example', 'https://two.example'],
+          recommendations: [
+            recommendation('https://one.example', 'A thoughtful place for long conversations.'),
+            recommendation('https://two.example', 'Friendly people and excellent moderation.')
+          ]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="server-testimonials"] figure')).toHaveLength(
+        2
+      );
+    });
+    const section = container.querySelector<HTMLElement>('[data-testid="server-testimonials"]')!;
+    expect(section.getAttribute('aria-label')).toBe('Testimonials for Remote');
+    expect(section.textContent).toContain('A thoughtful place for long conversations.');
+    expect(section.textContent).toContain('Recommended by One');
+    expect(section.textContent).toContain('Recommended by Two');
+    expect(container.querySelector('.columns-1')).not.toBeNull();
   });
 });

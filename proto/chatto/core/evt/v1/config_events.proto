@@ -121,6 +121,8 @@ message UserRoomGroupNotificationPolicyChangedEvent {
 message ServerNeighborCreatedEvent {
   string neighbor_id = 1;
   string origin = 2;
+  // Optional public explanation from the source server's operator.
+  string testimonial = 3;
 }
 
 // Records a change to one Neighbor origin. The event envelope ID becomes the
@@ -128,6 +130,13 @@ message ServerNeighborCreatedEvent {
 message ServerNeighborOriginChangedEvent {
   string neighbor_id = 1;
   string origin = 2;
+}
+
+// Records a change to one Neighbor testimonial. An empty value clears the
+// testimonial. The event envelope ID becomes the resource revision.
+message ServerNeighborTestimonialChangedEvent {
+  string neighbor_id = 1;
+  string testimonial = 2;
 }
 
 // Removes one Neighbor from the public directory.

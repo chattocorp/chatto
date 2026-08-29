@@ -31,7 +31,10 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted"
+      "deleted": "Neighbor deleted",
+      "testimonial": "Omdöme (valfritt)",
+      "testimonial_help": "Förklara varför du rekommenderar den här servern. Texten är offentlig och får innehålla högst 500 tecken.",
+      "testimonial_label": "Offentligt omdöme"
     },
     "common": {
       "page_title": "{title} | Admin",

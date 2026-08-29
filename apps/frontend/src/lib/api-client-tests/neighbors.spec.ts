@@ -33,20 +33,30 @@ describe('createNeighborAPI', () => {
 
   it('maps CRUD requests and opaque revisions', async () => {
     const api = createNeighborAPI({ baseUrl: 'https://local.example', bearerToken: 'token' });
-    const first = { id: 'N1', origin: 'https://one.example', revision: 'E1' };
-    const second = { ...first, origin: 'https://two.example', revision: 'E2' };
+    const first = {
+      id: 'N1',
+      origin: 'https://one.example',
+      testimonial: 'A kind place.',
+      revision: 'E1'
+    };
+    const second = {
+      ...first,
+      origin: 'https://two.example',
+      testimonial: null,
+      revision: 'E2'
+    };
     mocks.listNeighbors.mockResolvedValue({ neighbors: [first] });
     mocks.createNeighbor.mockResolvedValue({ neighbor: first });
     mocks.updateNeighbor.mockResolvedValue({ neighbor: second });
     mocks.deleteNeighbor.mockResolvedValue({});
 
     await expect(api.list()).resolves.toEqual([first]);
-    await expect(api.create(first.origin)).resolves.toEqual(first);
-    await expect(api.update(first, second.origin)).resolves.toEqual(second);
+    await expect(api.create(first.origin, first.testimonial)).resolves.toEqual(first);
+    await expect(api.update(first, second.origin, '')).resolves.toEqual(second);
     await expect(api.delete(second)).resolves.toBeUndefined();
 
     expect(mocks.updateNeighbor).toHaveBeenCalledWith(
-      { neighborId: 'N1', origin: 'https://two.example', revision: 'E1' },
+      { neighborId: 'N1', origin: 'https://two.example', testimonial: '', revision: 'E1' },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(mocks.deleteNeighbor).toHaveBeenCalledWith(

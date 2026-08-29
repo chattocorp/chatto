@@ -240,6 +240,7 @@ function parseAnchoredSections(source, heading) {
     const match = matches[i];
     const next = matches[i + 1];
     sections.set(match[2], {
+      name: match[2],
       anchor: match[1],
       content: source.slice(match.index, next?.index ?? source.length).trimEnd()
     });
@@ -550,10 +551,10 @@ function renderServicePage(service, serviceSections) {
 
 function renderTypesPage(typeSections, enumSections) {
   const normalTypes = [...typeSections.entries()]
-    .filter(([name]) => !isRealtimeType(name))
+    .filter(([, section]) => !isRealtimeType(section.name))
     .map(([, section]) => section.content);
   const normalEnums = [...enumSections.entries()]
-    .filter(([name]) => !isRealtimeType(name))
+    .filter(([, section]) => !isRealtimeType(section.name))
     .map(([, section]) => section.content);
 
   const body = [
@@ -577,10 +578,10 @@ function renderTypesPage(typeSections, enumSections) {
 
 function renderRealtimePage(typeSections, enumSections) {
   const realtimeTypes = [...typeSections.entries()]
-    .filter(([name]) => isRealtimeType(name))
+    .filter(([, section]) => isRealtimeType(section.name))
     .map(([, section]) => rewriteRealtimeExternalLinks(section.content));
   const realtimeEnums = [...enumSections.entries()]
-    .filter(([name]) => isRealtimeType(name))
+    .filter(([, section]) => isRealtimeType(section.name))
     .map(([, section]) => rewriteRealtimeExternalLinks(section.content));
 
   const body = [
@@ -699,11 +700,11 @@ for (const rawReferencePath of rawReferencePaths) {
   for (const [name, section] of parseAnchoredSections(serviceSource, '##')) {
     serviceSections.set(name, section);
   }
-  for (const [name, section] of parseAnchoredSections(typeSource, '###')) {
-    typeSections.set(name, section);
+  for (const [, section] of parseAnchoredSections(typeSource, '###')) {
+    typeSections.set(section.anchor, section);
   }
-  for (const [name, section] of parseAnchoredSections(enumSource, '###')) {
-    enumSections.set(name, section);
+  for (const [, section] of parseAnchoredSections(enumSource, '###')) {
+    enumSections.set(section.anchor, section);
   }
 }
 

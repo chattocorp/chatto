@@ -15,6 +15,7 @@ card. Callers supply trusted badges and actions through explicit props.
     origin,
     profile,
     badge,
+    details,
     actions,
     onIconClick,
     iconActionLabel,
@@ -25,6 +26,8 @@ card. Callers supply trusted badges and actions through explicit props.
     /** `undefined` means loading; `null` means that discovery failed. */
     profile?: PublicServerInfo | null;
     badge?: string;
+    /** Optional caller-owned content between the public profile and actions. */
+    details?: Snippet;
     actions?: Snippet;
     /** Makes the server icon perform the caller's existing open or join action. */
     onIconClick?: () => void;
@@ -102,6 +105,10 @@ card. Callers supply trusted badges and actions through explicit props.
         <p class="text-sm text-muted">{m('add_server.directory.profile_unavailable')}</p>
       {/if}
     </div>
+
+    {#if details}
+      {@render details()}
+    {/if}
 
     {#if actions}
       {@render actions()}

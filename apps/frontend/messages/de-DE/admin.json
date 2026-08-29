@@ -31,7 +31,10 @@
       "delete_description": "{origin} nicht mehr bewerben?",
       "created": "Nachbar hinzugefügt",
       "updated": "Nachbar aktualisiert",
-      "deleted": "Nachbar gelöscht"
+      "deleted": "Nachbar gelöscht",
+      "testimonial": "Empfehlungstext (optional)",
+      "testimonial_help": "Erkläre, warum du diesen Server empfiehlst. Dieser Text ist öffentlich und darf bis zu 500 Zeichen enthalten.",
+      "testimonial_label": "Öffentlicher Empfehlungstext"
     },
     "common": {
       "page_title": "{title} | Admin",

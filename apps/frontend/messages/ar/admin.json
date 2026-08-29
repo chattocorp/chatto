@@ -31,7 +31,10 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted"
+      "deleted": "Neighbor deleted",
+      "testimonial": "شهادة (اختياري)",
+      "testimonial_help": "اشرح سبب توصيتك بهذا الخادم. هذا النص علني ويمكن أن يحتوي على ما يصل إلى 500 حرف.",
+      "testimonial_label": "شهادة علنية"
     },
     "common": {
       "page_title": "{title} | مسؤل",

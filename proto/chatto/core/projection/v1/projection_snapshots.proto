@@ -232,6 +232,7 @@ message ServerNeighborSnapshot {
   string id = 1;
   string origin = 2;
   string revision = 3;
+  string testimonial = 4;
 }
 
 message UserConfigSnapshot {
