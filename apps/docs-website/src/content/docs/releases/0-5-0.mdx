@@ -21,54 +21,47 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     best-ranked matches from all your registered servers into one quick result list.
   </ReleaseFeatureCard>
 
-<ReleaseFeatureCard
-  title="Rooms are easier to discover and manage"
-  size="large"
->
-  Preview joinable rooms before entering, use natural room names with spaces,
-  punctuation, emoji, and any writing system, and manage explicit channel
-  members from room settings. Context menus put join, leave, read, and
-  management actions directly beside rooms, groups, and servers.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Rooms are easier to discover and manage" size="large">
+    Preview joinable rooms before entering, use natural room names with spaces,
+    punctuation, emoji, and any writing system, and manage explicit channel members from
+    room settings. Context menus put join, leave, read, and management actions directly
+    beside rooms, groups, and servers.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Native social post previews">
-  Bluesky and Mastodon links render as native cards with quoted posts, attached
-  media, link cards, and concealed content warnings instead of relying on
-  third-party embeds.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Native social post previews">
+    Bluesky and Mastodon links render as native cards with quoted posts, attached media,
+    link cards, and concealed content warnings instead of relying on third-party embeds.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="More expressive messages">
-  Insert localized timestamps, render GFM tables, and copy message text from its
-  action menu. Attachment sends now show per-file progress and preserve failed
-  uploads for retry.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="More expressive messages">
+    Insert localized timestamps, render GFM tables, and copy message text from its action
+    menu. Attachment sends now show per-file progress and preserve failed uploads for retry.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="More useful user profiles">
-  Open a user's profile from their user card, add a Markdown bio to your own
-  profile, and see the local time that a user chooses to share. Stored time
-  zones are private by default. You can use your time zone for date formatting
-  without publishing it on your profile. Bios can contain up to 1,000
-  characters. Local times use your preferred 12-hour or 24-hour format. Bots use
-  the same self-profile API when authenticated with their API key.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="More useful user profiles">
+    Open a user's profile from their user card, add a Markdown bio to your own profile, and see
+    the local time that a user chooses to share. Stored time zones are private by default. You
+    can use your time zone for date formatting without publishing it on your profile. Bios can
+    contain up to 1,000 characters. Local times use your preferred 12-hour or 24-hour format.
+    Bots use the same self-profile API when authenticated with their API key.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Notifications that stay useful after you read them">
-  Notifications now stay in one chronological list after you read them. Delete
-  an item whenever you no longer want to retain it; per-signal-class controls
-  distinguish mentions, replies, followed conversations, direct messages, and
-  reactions.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Notifications that stay useful after you read them">
+    Notifications now stay in one chronological list after you read them. Delete an item whenever
+    you no longer want to retain it; per-signal-class controls distinguish mentions,
+    replies, followed conversations, direct messages, and reactions.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Pinned messages">
-  Room managers can pin useful channel messages in a shared sidebar. A subtle
-  dot shows when a newer pin has not been viewed.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Pinned messages">
+    Room managers can pin useful channel messages in a shared sidebar. A subtle dot shows
+    when a newer pin has not been viewed.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="More languages and regional choices">
-  Choose from complete regional catalogues for English, German, Dutch, Swedish,
-  French, Spanish, Portuguese, Norwegian, Polish, Ukrainian, Japanese,
-  Esperanto, Simplified Chinese, and Traditional Chinese.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="More languages and regional choices">
+    Choose from complete regional catalogues for English, German, Dutch, Swedish, French,
+    Spanish, Portuguese, Norwegian, Polish, Ukrainian, Japanese, Esperanto, Simplified
+    Chinese, and Traditional Chinese.
+  </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Remote sign-in stays in context" size="small">
     Authentication for another server opens in a focused popup, keeping your main client
@@ -85,86 +78,72 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     role assignment is bounded by the manager's own authority.
   </ReleaseFeatureCard>
 
-<ReleaseFeatureCard
-  title="Delete accounts from member administration"
-  size="small"
->
-  Admins with `user.delete-any` can permanently delete another human member from
-  the member detail page. They confirm the exact login before deletion; this
-  action does not request the admin's password.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Delete accounts from member administration" size="small">
+    Admins with `user.delete-any` can permanently delete another human member from the
+    member detail page. They confirm the exact login before deletion; this action does not
+    request the admin's password.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Version-aware compatibility">
-  Public server discovery reports the running server version. The multi-server
-  client owns its minimum expected server release and uses explicit release
-  boundaries to show useful upgrade guidance.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Version-aware compatibility">
+    Public server discovery reports the running server version. The multi-server client owns
+    its minimum expected server release and uses explicit release boundaries to show useful
+    upgrade guidance.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Advertise friendly Chatto servers">
-  Server administrators can maintain a public Neighbor directory. The Server
-  Directory combines recommendations from a user's registered servers, loads
-  their public profiles, and keeps joined servers visible. Administrators can
-  add a public testimonial to each recommendation. The directory shows these
-  source-labelled testimonials in a tapestry layout. A listing is a
-  recommendation, not a verified or reciprocal relationship.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Advertise friendly Chatto servers">
+    Server administrators can maintain a public Neighbor directory. The Server
+    Directory combines recommendations from a user's registered servers, loads
+    their public profiles, and keeps joined servers visible. Administrators can
+    add a public testimonial to each recommendation. The directory shows these
+    source-labelled testimonials in a tapestry layout. A listing is a
+    recommendation, not a verified or reciprocal relationship.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard
-  title="Remote clients connect without allowlists"
-  size="large"
->
-  Browser frontends publish a verifiable CIMD identity and exact callback, while
-  Chatto Desktop uses its built-in identity. Servers accept bearer-authenticated
-  cross-origin API and realtime traffic without CORS or OAuth redirect-origin
-  configuration. Server managers can review successfully authorized clients,
-  label them trusted, or block their access.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Remote clients connect without allowlists" size="large">
+    Browser frontends publish a verifiable CIMD identity and exact callback, while Chatto
+    Desktop uses its built-in identity. Servers accept bearer-authenticated cross-origin API
+    and realtime traffic without CORS or OAuth redirect-origin configuration. Server managers
+    can review successfully authorized clients, label them trusted, or block their access.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Bearer sessions renew without another login">
-  Human clients use short-lived access tokens and rotating refresh credentials.
-  The bundled frontend renews the session window in the background and
-  reconnects realtime in place without reopening OAuth, showing a manual
-  warning, or losing the current route. The bundled same-origin client uses only
-  its safer HttpOnly cookie and renews it automatically. Separately hosted
-  browser clients use Chatto OAuth for renewable bearer sessions.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Bearer sessions renew without another login">
+    Human clients use short-lived access tokens and rotating refresh credentials. The bundled
+    frontend renews the session window in the background and reconnects realtime in place
+    without reopening OAuth, showing a manual warning, or losing the current route. The bundled
+    same-origin client uses only its safer HttpOnly cookie and renews it automatically.
+    Separately hosted browser clients use Chatto OAuth for renewable bearer sessions.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Faster, leaner restarts">
-  Encrypted projection snapshots and faster cold replay shorten restart catch-up
-  on servers with substantial history, while more compact timeline state reduces
-  memory use.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Faster, leaner restarts">
+    Encrypted projection snapshots and faster cold replay shorten restart catch-up on
+    servers with substantial history, while more compact timeline state reduces memory use.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="A more practical permission baseline">
-  The `everyone` role now acts as a scoped default that named roles and
-  direct-user decisions can override at the same or a narrower scope. Fresh
-  announcement rooms also give admins an explicit room-level posting grant. The
-  new `message.read` and `message.read-interactions` permissions separate broad
-  and relationship-scoped channel-room message access from membership. Broad
-  read access includes the narrower interaction permission.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="A more practical permission baseline">
+    The `everyone` role now acts as a scoped default that named roles and direct-user
+    decisions can override at the same or a narrower scope. Fresh announcement rooms also
+    give admins an explicit room-level posting grant. The new `message.read` and
+    `message.read-interactions` permissions separate broad and relationship-scoped
+    channel-room message access from membership. Broad read access includes the narrower
+    interaction permission.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard
-  title="Bots activate through normal notifications"
-  size="large"
->
-  Bot integrations can use the same ConnectRPC API and realtime subscription as
-  human clients. Direct messages, direct mentions, replies, and followed-thread
-  activity arrive as exact notification occurrences. A direct mention in a root
-  or reply follows that thread for later activity when notification policy
-  permits it.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Bots activate through normal notifications" size="large">
+    Bot integrations can use the same ConnectRPC API and realtime subscription as human
+    clients. Direct messages, direct mentions, replies, and followed-thread activity arrive
+    as exact notification occurrences. A direct mention in a root or reply follows that
+    thread for later activity when notification policy permits it.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Visible cleanup health" size="small">
-  Owner diagnostics show whether physical asset cleanup is healthy, catching up,
-  or accumulating retries without exposing asset details.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Visible cleanup health" size="small">
+    Owner diagnostics show whether physical asset cleanup is healthy, catching up, or
+    accumulating retries without exposing asset details.
+  </ReleaseFeatureCard>
 
-<ReleaseFeatureCard title="Test Web Push delivery" size="small">
-  Members can send themselves a real test notification from notification
-  settings and get direct feedback when a subscription has expired or delivery
-  fails.
-</ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Test Web Push delivery" size="small">
+    Members can send themselves a real test notification from notification settings and get
+    direct feedback when a subscription has expired or delivery fails.
+  </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Opt-in community badges" size="small">
     Operators can publish aggregate online and registered-member counts through
