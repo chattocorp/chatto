@@ -117,6 +117,20 @@ describe('loadServerDirectory', () => {
     ]);
   });
 
+  it('normalizes and bounds untrusted testimonial text', async () => {
+    const oversized = `  ${'界'.repeat(505)}  `;
+    const snapshot = await loadServerDirectory(['https://source.example'], {
+      listNeighbors: vi.fn(async () => [
+        recommendation('https://bounded.example', oversized),
+        recommendation('https://empty.example', '   ')
+      ]),
+      getServerInfo: vi.fn(async (origin: string) => profile(origin))
+    });
+
+    expect(snapshot.entries[0]?.recommendations[0]?.testimonial).toBe('界'.repeat(500));
+    expect(snapshot.entries[1]?.recommendations[0]?.testimonial).toBeNull();
+  });
+
   it('canonicalizes and deduplicates registered source origins', async () => {
     const listNeighbors = vi.fn(async () => [recommendation('https://neighbor.example')]);
 

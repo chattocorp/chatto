@@ -10,6 +10,7 @@ const DISCOVERY_TIMEOUT_MS = 10_000;
 const SOURCE_CONCURRENCY = 6;
 const PROFILE_CONCURRENCY = 6;
 const MAX_NEIGHBORS_PER_SOURCE = 100;
+const MAX_TESTIMONIAL_LENGTH = 500;
 
 export type ServerProfileEntry = {
   origin: string;
@@ -163,7 +164,20 @@ function recommendationFrom(
   sourceOrigin: string,
   advertised: PublicNeighbor
 ): ServerDirectoryRecommendation {
-  return { sourceOrigin, testimonial: advertised.testimonial };
+  return { sourceOrigin, testimonial: boundedTestimonial(advertised.testimonial) };
+}
+
+function boundedTestimonial(value: string | null): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  let bounded = '';
+  let length = 0;
+  for (const character of trimmed) {
+    if (length === MAX_TESTIMONIAL_LENGTH) break;
+    bounded += character;
+    length += 1;
+  }
+  return bounded;
 }
 
 function discoverySignal(parent?: AbortSignal): AbortSignal {
