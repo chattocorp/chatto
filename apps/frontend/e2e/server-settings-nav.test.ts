@@ -95,7 +95,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectSettingsLinkVisible();
     });
 
-    test('regular member enters Server Admin through Bots', async ({ serverAdminPage }) => {
+    test('regular member enters Settings through Appearance', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create admin user and load the primary server
@@ -111,10 +111,11 @@ test.describe('Server Admin Navigation Permissions', () => {
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
       // Fresh servers grant bot.create to everyone, so Bots is this member's
-      // only Server Admin entry point. Unrelated sections remain hidden.
+      // only Server Configuration page. Settings still starts at Appearance.
       await serverAdminPage.expectSettingsLinkVisible();
       await serverAdminPage.settingsLink.click();
-      await page.waitForURL(routes.serverAdminBots);
+      await page.waitForURL(routes.settingsAppearance);
+      await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
       await serverAdminPage.expectBotsNavVisible();
       await serverAdminPage.expectGeneralNavNotVisible();
     });

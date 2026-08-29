@@ -97,7 +97,7 @@ describe('AppHeader', () => {
     expect(container.querySelector('[data-testid="notifications-unread-dot"]')).toBeNull();
   });
 
-  it('opens Appearance for the active authenticated server', () => {
+  it('opens the canonical Settings entry point for the active authenticated server', () => {
     mocks.servers = [{ id: 'remote' }];
     mocks.activeServer = 'remote';
     mocks.authenticated = { remote: true };
@@ -106,7 +106,7 @@ describe('AppHeader', () => {
     const { container } = render(AppHeader);
 
     expect(
-      container.querySelector('a[href="/chat/remote.example.com/settings/appearance"]')
+      container.querySelector('a[href="/chat/remote.example.com/settings"]')
     ).not.toBeNull();
     expect(container.querySelector('a[href="/chat/preferences"]')).toBeNull();
   });

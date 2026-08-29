@@ -264,19 +264,20 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
-  test('sidebar Settings entry opens the first permitted server settings page', async ({
-    page,
-    adminPage
-  }) => {
+  test('sidebar Settings entry opens Appearance', async ({ page, adminPage }) => {
     await createAndLoginAdminUser(page);
 
     await page.goto(routes.chat);
 
     await adminPage.expectSettingsLinkVisible();
+    await expect(adminPage.settingsLink).toHaveAttribute('href', routes.settingsRoot);
     await adminPage.navigateToSettings();
-    await adminPage.expectGeneralPageVisible();
+    await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
     await adminPage.expectBackToChatVisible();
-    await adminPage.expectSidebarLinkActive('General');
+    await expect(page.getByRole('link', { name: 'Appearance' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
   });
 
   test('admin pages use the dedicated manage/server sidebar shell', async ({ page, adminPage }) => {

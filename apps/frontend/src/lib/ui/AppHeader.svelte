@@ -10,6 +10,7 @@
   import { m } from '$lib/i18n/messages';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import MotdContent from '$lib/ui/MotdContent.svelte';
+  import { SERVER_SETTINGS_ROOT_ROUTE } from '$lib/navigation/settingsRoutes';
 
   // MOTD follows the active server; the connection-lost icon below stays
   // bound to the origin store since it reflects the SPA host's own connection.
@@ -98,7 +99,7 @@
 
     <a
       href={preferencesServerId
-        ? resolve('/chat/[serverId]/settings/appearance', {
+        ? resolve(SERVER_SETTINGS_ROOT_ROUTE, {
             serverId: serverIdToSegment(preferencesServerId)
           })
         : resolve('/chat/preferences')}

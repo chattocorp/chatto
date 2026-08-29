@@ -72,6 +72,8 @@ export const serverAdminMemberPermissions = (userId: string) =>
 
 // --- User settings ---
 
+/** The canonical Settings entry point. */
+export const settingsRoot = `/chat/${HOME}/settings`;
 export const settingsProfile = `/chat/${HOME}/settings/profile`;
 /** The canonical default page for user-settings test flows. */
 export const settings = settingsProfile;

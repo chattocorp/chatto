@@ -170,9 +170,7 @@ test.describe('Server Admin Page', () => {
     await serverAdminPage.expectSaveDisabled();
   });
 
-  test('Settings link leads each member to their first permitted Server Configuration section', async ({
-    serverAdminPage
-  }) => {
+  test('Settings link leads each member to Appearance', async ({ serverAdminPage }) => {
     const { page } = serverAdminPage;
 
     // Create first user (server admin)
@@ -199,7 +197,8 @@ test.describe('Server Admin Page', () => {
 
     await serverAdminPage.expectSettingsLinkVisible();
     await serverAdminPage.settingsLink.click();
-    await page.waitForURL(routes.serverAdminBots);
+    await page.waitForURL(routes.settingsAppearance);
+    await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
     await serverAdminPage.expectBotsNavVisible();
     await serverAdminPage.expectGeneralNavNotVisible();
   });

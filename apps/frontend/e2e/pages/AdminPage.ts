@@ -159,7 +159,7 @@ export class AdminPage {
 
   async navigateToSettings(): Promise<void> {
     await this.settingsLink.click();
-    await this.page.waitForURL(routes.serverAdminGeneral);
+    await this.page.waitForURL(routes.settingsAppearance);
   }
 
   async navigateBackToChat(): Promise<void> {

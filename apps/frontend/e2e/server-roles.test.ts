@@ -660,7 +660,8 @@ test.describe('Server Permission Enforcement', () => {
       // General stays hidden without server.manage.
       await serverAdminPage.expectSettingsLinkVisible();
       await serverAdminPage.settingsLink.click();
-      await page.waitForURL(routes.serverAdminBots);
+      await page.waitForURL(routes.settingsAppearance);
+      await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
       await serverAdminPage.expectBotsNavVisible();
       await serverAdminPage.expectGeneralNavNotVisible();
     });
@@ -841,7 +842,8 @@ test.describe('Server Permission Enforcement', () => {
       // Fresh servers grant bot.create to everyone, so the administration
       // entry remains available for Bots while room management stays hidden.
       await page.getByRole('link', { name: 'Settings', exact: true }).click();
-      await page.waitForURL(routes.serverAdminBots);
+      await page.waitForURL(routes.settingsAppearance);
+      await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
       await expect(page.getByRole('link', { name: 'Rooms', exact: true })).not.toBeVisible();
     });
