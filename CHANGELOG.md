@@ -3,6 +3,28 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.3](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.2...v0.5.0-alpha.3) (2026-08-29)
+
+
+### Features
+
+* **frontend:** finish version easter egg ([#2192](https://github.com/chattocorp/chatto/issues/2192)) ([bef8139](https://github.com/chattocorp/chatto/commit/bef8139665d3c94d738a33283c7f6ffabb0ad4e9))
+* **frontend:** restore configurable thread overlays ([#2191](https://github.com/chattocorp/chatto/issues/2191)) ([9e89dd3](https://github.com/chattocorp/chatto/commit/9e89dd30b93956018fad7958eba6f043356bb234))
+* **frontend:** unify checkbox and choice row styling ([#2199](https://github.com/chattocorp/chatto/issues/2199)) ([c3b3908](https://github.com/chattocorp/chatto/commit/c3b390815c0fc5f8c6b73f0eba6952e251b5b6af))
+* **neighbors:** add advertised server directory ([#2183](https://github.com/chattocorp/chatto/issues/2183)) ([eebf6df](https://github.com/chattocorp/chatto/commit/eebf6dfba808538ab42df3d0eba8fa3f6905262d))
+* **privacy:** make timezone sharing opt-in ([#2195](https://github.com/chattocorp/chatto/issues/2195)) ([f660d21](https://github.com/chattocorp/chatto/commit/f660d216a83ed1b67ac4711614e8006d8956ae6a))
+
+
+### Bug Fixes
+
+* **auth:** extend email verification codes to 30 minutes ([#2197](https://github.com/chattocorp/chatto/issues/2197)) ([11e16b3](https://github.com/chattocorp/chatto/commit/11e16b3011f803c124e8e8567e59812531a91231))
+* **ci:** roll Go build cache between commits ([#2188](https://github.com/chattocorp/chatto/issues/2188)) ([4685b4e](https://github.com/chattocorp/chatto/commit/4685b4efe98642a582d1fdd2edbd67f5bf9b0b6d))
+* **frontend:** keep current room text regular ([#2194](https://github.com/chattocorp/chatto/issues/2194)) ([eb44b8c](https://github.com/chattocorp/chatto/commit/eb44b8c720af0a989ee414fc78a08a2824ee6713))
+* **frontend:** open settings on appearance ([#2193](https://github.com/chattocorp/chatto/issues/2193)) ([32317e5](https://github.com/chattocorp/chatto/commit/32317e599944ed2bbe9f729f42cf3f55adae4d3b))
+* **frontend:** restore bright notification orange ([#2189](https://github.com/chattocorp/chatto/issues/2189)) ([bede63d](https://github.com/chattocorp/chatto/commit/bede63d734ab0d6e5e3e5b920608790166bb28d0))
+* **frontend:** restore visual composer caret ([#2196](https://github.com/chattocorp/chatto/issues/2196)) ([3d29dc5](https://github.com/chattocorp/chatto/commit/3d29dc51d1b8285f3411e6078049e6d978edb21a))
+* **frontend:** stop automatic app update reloads ([#2198](https://github.com/chattocorp/chatto/issues/2198)) ([6caada1](https://github.com/chattocorp/chatto/commit/6caada12479f517f45f10b9220a3acd4c0bf27dc))
+
 ## [0.5.0-alpha.2](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.1...v0.5.0-alpha.2) (2026-08-29)
 
 
