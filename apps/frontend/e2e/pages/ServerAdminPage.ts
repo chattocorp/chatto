@@ -153,6 +153,8 @@ export class ServerAdminPage {
   async goto(_spaceId: string): Promise<void> {
     await this.page.goto(routes.chat);
     await this.settingsLink.click();
+    await this.page.waitForURL(routes.settingsAppearance);
+    await this.generalNavItem.click();
     await this.page.waitForURL(routes.serverAdminGeneral);
     await expect(this.pageHeading).toBeVisible();
   }
