@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import MessageActionMenu from './MessageActionMenu.svelte';
+import MessageActionMenuTestHarness from './MessageActionMenuTestHarness.svelte';
 import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
 import { MessageEventInteractionState } from './messageEventInteractions.svelte';
 import { buildMessageActionModel } from './messageActionModel';
@@ -81,7 +81,7 @@ function renderMenu({
   presentation?: 'menu' | 'sheet';
   onOpenEmojiPicker?: () => void;
 } = {}) {
-  return render(MessageActionMenu, {
+  return render(MessageActionMenuTestHarness, {
     props: {
       action: buildAction(overrides),
       presentation,
@@ -91,8 +91,8 @@ function renderMenu({
   });
 }
 
-function navActionLabels(container: HTMLElement): string[] {
-  return Array.from(container.querySelectorAll<HTMLButtonElement>('nav button'))
+function actionLabels(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('.menu-entry'))
     .map((button) => button.textContent?.trim())
     .filter((label): label is string => !!label);
 }
@@ -162,7 +162,7 @@ describe('MessageActionMenu', () => {
       onSecondaryReplyInRoom: vi.fn()
     });
 
-    expect(navActionLabels(container)).toEqual([
+    expect(actionLabels(container)).toEqual([
       'Reply',
       'Reply in thread',
       'Reply in room',
@@ -310,7 +310,7 @@ describe('MessageActionMenu', () => {
         onReplyInRoom: vi.fn()
       });
 
-      expect(navActionLabels(container)).toEqual([
+      expect(actionLabels(container)).toEqual([
         'Reply',
         'Reply in thread',
         'Edit',
@@ -319,15 +319,19 @@ describe('MessageActionMenu', () => {
         'Delete'
       ]);
       expect(
-        Array.from(container.querySelectorAll('nav')).map((section) =>
-          Array.from(section.querySelectorAll('button')).map((button) => button.textContent?.trim())
-        )
+        Array.from(container.querySelectorAll('.menu-section'))
+          .filter((section) => section.querySelector('.menu-entry'))
+          .map((section) =>
+            Array.from(section.querySelectorAll('button')).map((button) =>
+              button.textContent?.trim()
+            )
+          )
       ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy link'], ['Delete']]);
       expect(container.querySelector('[role="menuitem"]')).toBeNull();
-      expect(container.querySelector('nav button')).toHaveClass('min-h-11');
+      expect(container.querySelector('.menu-entry')).toHaveClass('menu-entry-sheet');
       expect(q(container, '[aria-label="React with 👍"]')).toHaveClass('rounded-full', 'text-xl');
       expect(
-        Array.from(container.querySelectorAll<HTMLButtonElement>('nav button')).find((button) =>
+        Array.from(container.querySelectorAll<HTMLButtonElement>('.menu-entry')).find((button) =>
           button.textContent?.includes('Delete')
         )
       ).toHaveClass('text-danger');
@@ -340,7 +344,7 @@ describe('MessageActionMenu', () => {
         onReplyInRoom
       });
 
-      Array.from(container.querySelectorAll<HTMLButtonElement>('nav button'))
+      Array.from(container.querySelectorAll<HTMLButtonElement>('.menu-entry'))
         .find((button) => button.textContent?.trim() === 'Reply')!
         .click();
 

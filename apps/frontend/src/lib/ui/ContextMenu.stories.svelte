@@ -1,6 +1,8 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import ContextMenu from './ContextMenu.svelte';
+  import MenuItem from './MenuItem.svelte';
+  import MenuSection from './MenuSection.svelte';
 
   const { Story } = defineMeta({
     title: 'UI/ContextMenu',
@@ -40,20 +42,13 @@
       ariaLabel="Example actions"
       onclose={() => (open = false)}
     >
-      <div class="menu-section">
-        <button type="button" class="menu-item" onclick={() => (open = false)}>
-          <span class="sidebar-icon iconify icon-[uil--edit]"></span>
-          Edit
-        </button>
-        <button type="button" class="menu-item" onclick={() => (open = false)}>
-          <span class="sidebar-icon iconify icon-[uil--copy]"></span>
-          Copy
-        </button>
-        <button type="button" class="menu-item text-danger" onclick={() => (open = false)}>
-          <span class="sidebar-icon iconify icon-[uil--trash]"></span>
+      <MenuSection>
+        <MenuItem icon="icon-[uil--edit]" onclick={() => (open = false)}>Edit</MenuItem>
+        <MenuItem icon="icon-[uil--copy]" onclick={() => (open = false)}>Copy</MenuItem>
+        <MenuItem icon="icon-[uil--trash]" tone="danger" onclick={() => (open = false)}>
           Delete
-        </button>
-      </div>
+        </MenuItem>
+      </MenuSection>
     </ContextMenu>
   {/if}
 </Story>
@@ -67,30 +62,15 @@
       ariaLabel="Example touch actions"
       onclose={() => (sheetOpen = false)}
     >
-      <div class="menu-section">
-        <nav class="sidebar-nav">
-          <button type="button" class="sidebar-item" onclick={() => (sheetOpen = false)}>
-            <span class="iconify sidebar-icon icon-[uil--edit]" aria-hidden="true"></span>
-            Edit
-          </button>
-          <button type="button" class="sidebar-item" onclick={() => (sheetOpen = false)}>
-            <span class="iconify sidebar-icon icon-[uil--copy]" aria-hidden="true"></span>
-            Copy
-          </button>
-        </nav>
-      </div>
-      <div class="menu-section">
-        <nav class="sidebar-nav">
-          <button
-            type="button"
-            class="sidebar-item text-danger"
-            onclick={() => (sheetOpen = false)}
-          >
-            <span class="iconify sidebar-icon icon-[uil--trash]" aria-hidden="true"></span>
-            Delete
-          </button>
-        </nav>
-      </div>
+      <MenuSection>
+        <MenuItem icon="icon-[uil--edit]" onclick={() => (sheetOpen = false)}>Edit</MenuItem>
+        <MenuItem icon="icon-[uil--copy]" onclick={() => (sheetOpen = false)}>Copy</MenuItem>
+      </MenuSection>
+      <MenuSection>
+        <MenuItem icon="icon-[uil--trash]" tone="danger" onclick={() => (sheetOpen = false)}>
+          Delete
+        </MenuItem>
+      </MenuSection>
     </ContextMenu>
   {/if}
 </Story>

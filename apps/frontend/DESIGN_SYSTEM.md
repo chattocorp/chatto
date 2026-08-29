@@ -67,6 +67,7 @@ inside the icon. Do not add a side stripe or a shadow for navigation selection.
 | Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
 | General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
 | Floating menu or tooltip                  | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                         | Hand-written fixed positioning and z-index                   |
+| Context-menu command                      | `MenuItem` inside `MenuSection`                                            | `sidebar-item` or repeated icon and state markup             |
 | Standard pane page                        | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections      | Hand-rolled page widths, scrolling, and section cards        |
 | Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
 | Inline icon action with standard hit area | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
@@ -316,9 +317,15 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 Menus, compact chat hover bars, media overlays, and icon toolbars use their
 context-specific primitive.
 
-Context-menu action groups use sibling `menu-section` surfaces. Let the
-`ContextMenu` gap separate those surfaces; never draw a hairline divider inside
-a `menu-section`, because it conflicts with the standard surface-gap separator.
+Context-menu commands use `MenuItem` inside sibling `MenuSection` components.
+`ContextMenu` supplies the compact or touch-safe density. `MenuItem` supplies
+button and link semantics, optional leading and trailing content, disabled and
+selected states, and danger tone. It also aligns an icon with the first line of
+a wrapped label. Use `sidebar-item` only for sidebar navigation.
+
+Let the `ContextMenu` gap separate sibling sections. Do not draw a hairline
+divider inside a section because it conflicts with the standard surface-gap
+separator.
 
 The supported variants are `action`, `neutral`, `secondary`, `ghost`,
 `warning`, `danger`, and `danger-secondary`. Use the variant whose meaning

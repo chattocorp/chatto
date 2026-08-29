@@ -22,6 +22,8 @@ export { default as ImageModal } from './ImageModal.svelte';
 export type { ImageItem } from './ImageModal.svelte';
 export { default as LoadingPage } from './LoadingPage.svelte';
 export { default as MarkdownHtml } from './MarkdownHtml.svelte';
+export { default as MenuItem } from './MenuItem.svelte';
+export { default as MenuSection } from './MenuSection.svelte';
 export { default as MotdContent } from './MotdContent.svelte';
 export { default as NotificationBadge } from './NotificationBadge.svelte';
 export { default as PageTitle } from './PageTitle.svelte';

@@ -34,6 +34,8 @@ keep the compact menu without a navigation action.
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
   import {
     getLiveBio,
     getLiveCustomStatus,
@@ -122,10 +124,15 @@ keep the compact menu without a navigation action.
     if (!currentUserId) return false;
     return [...serverScope.store.projection.rooms.values()].some((entry) => {
       const memberIds = entry.memberUserIds;
-      const isSelfDM = memberIds.length === 1 && memberIds[0] === currentUserId && user.id === currentUserId;
+      const isSelfDM =
+        memberIds.length === 1 && memberIds[0] === currentUserId && user.id === currentUserId;
       const isOneToOneDM =
         memberIds.length === 2 && memberIds.includes(currentUserId) && memberIds.includes(user.id);
-      return entry.room?.room?.kind === RoomKind.DM && entry.room.viewerState?.isMember && (isSelfDM || isOneToOneDM);
+      return (
+        entry.room?.room?.kind === RoomKind.DM &&
+        entry.room.viewerState?.isMember &&
+        (isSelfDM || isOneToOneDM)
+      );
     });
   });
   function handleSendMessage() {
@@ -189,78 +196,52 @@ keep the compact menu without a navigation action.
   {/if}
 
   {#if canSendMessage || onOpenProfile || adminUserHref || canBanFromRoom}
-    <div class="menu-section">
-      <nav class="sidebar-nav">
-        {#if canSendMessage}
-          <button type="button" class="sidebar-item" onclick={handleSendMessage}>
-            <span
-              class="iconify sidebar-icon self-start icon-[uil--comment-alt-message]"
-              aria-hidden="true"
-            ></span>
-            {m('chat.user_menu.send_message')}
-          </button>
-        {/if}
-        {#if onOpenProfile}
-          <button
-            type="button"
-            class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
-            onclick={handleOpenProfile}
-            disabled={!canOpenProfile}
-            title={canOpenProfile ? undefined : m('chat.user_menu.profile_requires_direct_message')}
-          >
-            <span
-              class="iconify sidebar-icon self-start icon-[uil--user]"
-              aria-hidden="true"
-            ></span>
-            {m('chat.user_menu.view_profile')}
-          </button>
-        {/if}
-        {#if adminUserHref}
-          <a
-            class="sidebar-item"
-            href={adminUserHref}
-            onclick={() => onClose?.()}
-            data-testid="view-user-admin"
-          >
-            <span
-              class="iconify sidebar-icon self-start icon-[uil--servers]"
-              aria-hidden="true"
-            ></span>
-            {m('chat.user_menu.view_in_admin')}
-          </a>
-        {/if}
-        {#if canBanFromRoom}
-          <button
-            type="button"
-            class="sidebar-item text-danger disabled:cursor-not-allowed disabled:opacity-50"
-            onclick={handleBanFromRoom}
-            disabled={banningFromRoom}
-          >
-            <span
-              class="iconify sidebar-icon self-start icon-[uil--ban]"
-              aria-hidden="true"
-            ></span>
-            {banningFromRoom ? m('admin.moderation.banning') : m('admin.moderation.ban_action')}
-          </button>
-        {/if}
-      </nav>
-    </div>
+    <MenuSection>
+      {#if canSendMessage}
+        <MenuItem icon="icon-[uil--comment-alt-message]" onclick={handleSendMessage}>
+          {m('chat.user_menu.send_message')}
+        </MenuItem>
+      {/if}
+      {#if onOpenProfile}
+        <MenuItem
+          icon="icon-[uil--user]"
+          onclick={handleOpenProfile}
+          disabled={!canOpenProfile}
+          title={canOpenProfile ? undefined : m('chat.user_menu.profile_requires_direct_message')}
+        >
+          {m('chat.user_menu.view_profile')}
+        </MenuItem>
+      {/if}
+      {#if adminUserHref}
+        <MenuItem
+          href={adminUserHref}
+          icon="icon-[uil--servers]"
+          onclick={() => onClose?.()}
+          dataTestid="view-user-admin"
+        >
+          {m('chat.user_menu.view_in_admin')}
+        </MenuItem>
+      {/if}
+      {#if canBanFromRoom}
+        <MenuItem
+          icon="icon-[uil--ban]"
+          tone="danger"
+          onclick={handleBanFromRoom}
+          disabled={banningFromRoom}
+        >
+          {banningFromRoom ? m('admin.moderation.banning') : m('admin.moderation.ban_action')}
+        </MenuItem>
+      {/if}
+    </MenuSection>
   {/if}
 
-  <div class="menu-section">
-    <nav class="sidebar-nav">
-      <button
-        type="button"
-        class="sidebar-item"
-        onclick={() => void handleCopyUserId()}
-        data-testid="copy-user-id"
-      >
-        <span
-          class="iconify sidebar-icon self-start icon-[uil--copy]"
-          aria-hidden="true"
-        ></span>
-        {m('chat.user_menu.copy_user_id')}
-      </button>
-    </nav>
-  </div>
+  <MenuSection>
+    <MenuItem
+      icon="icon-[uil--copy]"
+      onclick={() => void handleCopyUserId()}
+      dataTestid="copy-user-id"
+    >
+      {m('chat.user_menu.copy_user_id')}
+    </MenuItem>
+  </MenuSection>
 </ContextMenu>

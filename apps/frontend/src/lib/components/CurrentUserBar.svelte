@@ -23,6 +23,8 @@ sidebar. Shows the avatar with presence and the live display name.
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
   import UserAvatar from './UserAvatar.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
   import ScreenShareControlButton from './voice/ScreenShareControlButton.svelte';
@@ -292,52 +294,45 @@ sidebar. Shows the avatar with presence and the live display name.
     class="w-80 max-w-[calc(100vw-2rem)]"
     onclose={() => (statusMenuAnchor = null)}
   >
-    <div class="flex w-full flex-col gap-1">
-      <div class="menu-section p-1">
-        <div class="px-2 py-1 text-xs font-semibold text-muted">
-          {m('settings.profile.presence.title')}
-        </div>
-        {#each presenceModes as mode (mode)}
-          <button
-            type="button"
-            class={[
-              'sidebar-item w-full gap-3 text-start',
-              presencePreference.mode === mode ? 'bg-surface' : ''
-            ]}
-            role="menuitemradio"
-            aria-checked={presencePreference.mode === mode}
-            onclick={() => choosePresenceMode(mode)}
-          >
-            <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
+    <MenuSection ariaLabel={m('settings.profile.presence.title')}>
+      <div class="px-2 py-1 text-xs font-semibold text-muted">
+        {m('settings.profile.presence.title')}
+      </div>
+      {#each presenceModes as mode (mode)}
+        <MenuItem
+          role="menuitemradio"
+          checked={presencePreference.mode === mode}
+          selected={presencePreference.mode === mode}
+          onclick={() => choosePresenceMode(mode)}
+        >
+          {#snippet leading()}
+            <span class="grid size-full place-items-center">
               <span class={['h-2.5 w-2.5 rounded-full', presenceModeDotClass(mode)]}></span>
             </span>
-            <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
+          {/snippet}
+          {#snippet trailing()}
             {#if presencePreference.mode === mode}
-              <span class="iconify ms-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
+              <span class="iconify icon-[uil--check]"></span>
             {/if}
-          </button>
-        {/each}
-      </div>
-      <div class="menu-section p-1">
-        <button
-          type="button"
-          class="sidebar-item w-full gap-3 text-start"
-          data-testid="current-user-custom-status-action"
-          onclick={openCustomStatusDialog}
-        >
-          <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
+          {/snippet}
+          <span class="block truncate">{presenceModeLabel(mode)}</span>
+        </MenuItem>
+      {/each}
+    </MenuSection>
+    <MenuSection>
+      <MenuItem dataTestid="current-user-custom-status-action" onclick={openCustomStatusDialog}>
+        {#snippet leading()}
+          <span class="grid size-full place-items-center">
             {#if activeServerUser.customStatus}
               {activeServerUser.customStatus.emoji}
             {:else}
               <span class="iconify icon-[uil--comment-alt-edit] text-muted"></span>
             {/if}
           </span>
-          <span class="min-w-0 truncate">
-            {m('settings.profile.status.set_custom_status')}
-          </span>
-        </button>
-      </div>
-    </div>
+        {/snippet}
+        <span class="block truncate">{m('settings.profile.status.set_custom_status')}</span>
+      </MenuItem>
+    </MenuSection>
   </ContextMenu>
 {/if}
 
