@@ -197,7 +197,9 @@ describe('ServerSettings', () => {
         'btn-action'
       );
     }
-    for (const button of buttons.filter((candidate) => candidate.textContent?.includes('Remove'))) {
+    const removeButtons = buttons.filter((candidate) => candidate.textContent?.includes('Remove'));
+    expect(removeButtons).toHaveLength(2);
+    for (const button of removeButtons) {
       expect(button).toHaveClass('btn-danger-secondary');
     }
   });
