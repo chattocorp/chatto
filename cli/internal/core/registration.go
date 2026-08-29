@@ -20,7 +20,7 @@ import (
 
 const (
 	// RegistrationCodeTTL is the duration a registration verification code is valid.
-	RegistrationCodeTTL = 15 * time.Minute
+	RegistrationCodeTTL = 30 * time.Minute
 
 	// RegistrationCompletionTokenTTL is the duration a code-exchanged completion token is valid.
 	RegistrationCompletionTokenTTL = 15 * time.Minute

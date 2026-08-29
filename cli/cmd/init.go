@@ -191,8 +191,8 @@ func addEmailOTPDefaults(tomlText string) string {
 [auth.email_otp]
 # Enable email OTP throttling for registration and email verification. Default: true.
 throttling_enabled = true
-# How long registration and email-verification codes stay valid. Default: 15m.
-# ttl = '15m'
+# How long registration and email-verification codes stay valid. Default: 30m.
+# ttl = '30m'
 # Maximum successfully delivered codes per email challenge before throttling. Default: 10.
 # max_delivered_codes = 10
 # Maximum wrong-code attempts per email challenge before throttling. Default: 5.

@@ -93,7 +93,7 @@ func (c *AuthConfig) InvitationRequired() bool {
 // EmailOTPConfig controls registration and email-verification one-time-password guardrails.
 type EmailOTPConfig struct {
 	ThrottlingEnabled *bool    `toml:"throttling_enabled,commented" env:"CHATTO_AUTH_EMAIL_OTP_THROTTLING_ENABLED" comment:"Enable email OTP throttling for registration and email verification. Default: true."`
-	TTL               Duration `toml:"ttl,commented" env:"CHATTO_AUTH_EMAIL_OTP_TTL" comment:"How long registration and email-verification codes stay valid. Default: 15m."`
+	TTL               Duration `toml:"ttl,commented" env:"CHATTO_AUTH_EMAIL_OTP_TTL" comment:"How long registration and email-verification codes stay valid. Default: 30m."`
 	MaxDeliveredCodes int      `toml:"max_delivered_codes,commented" env:"CHATTO_AUTH_EMAIL_OTP_MAX_DELIVERED_CODES" comment:"Maximum successfully delivered codes per email challenge before throttling. Default: 10."`
 	MaxWrongAttempts  int      `toml:"max_wrong_attempts,commented" env:"CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS" comment:"Maximum wrong-code attempts per email challenge before throttling. Default: 5."`
 }
@@ -106,10 +106,10 @@ func (c *EmailOTPConfig) ThrottlingEnabledOrDefault() bool {
 	return *c.ThrottlingEnabled
 }
 
-// TTLOrDefault returns the configured email OTP TTL, or 15 minutes if unset.
+// TTLOrDefault returns the configured email OTP TTL, or 30 minutes if unset.
 func (c *EmailOTPConfig) TTLOrDefault() time.Duration {
 	if c.TTL == 0 {
-		return 15 * time.Minute
+		return 30 * time.Minute
 	}
 	return c.TTL.Duration()
 }

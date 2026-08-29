@@ -82,7 +82,7 @@ generates both secrets automatically.
 
 ### Email verification
 
-Registration sends a six-digit verification code with a 15-minute TTL. An email address must be verified before it can be used for password reset or for matching against the `owners.emails` config (see [Authorization](#authorization) below). Email lookup is case-insensitive — addresses are normalized and indexed by SHA-256 hash for the lookup bucket.
+Registration sends a six-digit verification code with a 30-minute TTL. An email address must be verified before it can be used for password reset or for matching against the `owners.emails` config (see [Authorization](#authorization) below). Email lookup is case-insensitive — addresses are normalized and indexed by SHA-256 hash for the lookup bucket.
 
 The registration endpoint always returns `200 OK` regardless of whether the email is already claimed, so it cannot be used as an oracle to enumerate registered addresses.
 

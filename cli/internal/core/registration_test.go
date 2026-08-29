@@ -54,8 +54,8 @@ func TestChattoCore_CreateRegistrationCode(t *testing.T) {
 		t.Fatalf("runtime state leaked raw code: %s", entry.Value())
 	}
 
-	if RegistrationCodeTTL != 15*time.Minute {
-		t.Fatalf("RegistrationCodeTTL = %v, want 15m", RegistrationCodeTTL)
+	if RegistrationCodeTTL != 30*time.Minute {
+		t.Fatalf("RegistrationCodeTTL = %v, want 30m", RegistrationCodeTTL)
 	}
 }
 

@@ -60,8 +60,8 @@ func TestEmailOTPConfig_Defaults(t *testing.T) {
 	if got := c.ThrottlingEnabledOrDefault(); got != true {
 		t.Errorf("ThrottlingEnabledOrDefault() with unset = %v, want true", got)
 	}
-	if got := c.TTLOrDefault(); got != 15*time.Minute {
-		t.Errorf("TTLOrDefault() with unset = %v, want 15m", got)
+	if got := c.TTLOrDefault(); got != 30*time.Minute {
+		t.Errorf("TTLOrDefault() with unset = %v, want 30m", got)
 	}
 	if got := c.MaxDeliveredCodesOrDefault(); got != 10 {
 		t.Errorf("MaxDeliveredCodesOrDefault() with unset = %d, want 10", got)
@@ -72,15 +72,15 @@ func TestEmailOTPConfig_Defaults(t *testing.T) {
 
 	c = &EmailOTPConfig{
 		ThrottlingEnabled: boolPtr(false),
-		TTL:               Duration(30 * time.Minute),
+		TTL:               Duration(45 * time.Minute),
 		MaxDeliveredCodes: 3,
 		MaxWrongAttempts:  2,
 	}
 	if got := c.ThrottlingEnabledOrDefault(); got != false {
 		t.Errorf("ThrottlingEnabledOrDefault() with custom value = %v, want false", got)
 	}
-	if got := c.TTLOrDefault(); got != 30*time.Minute {
-		t.Errorf("TTLOrDefault() with custom value = %v, want 30m", got)
+	if got := c.TTLOrDefault(); got != 45*time.Minute {
+		t.Errorf("TTLOrDefault() with custom value = %v, want 45m", got)
 	}
 	if got := c.MaxDeliveredCodesOrDefault(); got != 3 {
 		t.Errorf("MaxDeliveredCodesOrDefault() with custom value = %d, want 3", got)

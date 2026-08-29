@@ -124,7 +124,7 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if !strings.Contains(rawText, "\nthrottling_enabled = true\n") {
 		t.Fatal("generated config should explicitly enable email OTP throttling")
 	}
-	if !strings.Contains(rawText, "\n# ttl = '15m'\n") {
+	if !strings.Contains(rawText, "\n# ttl = '30m'\n") {
 		t.Fatal("generated config should include commented default email OTP TTL")
 	}
 	if !strings.Contains(rawText, "\n# max_delivered_codes = 10\n") {

@@ -347,7 +347,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   Enable throttling for registration and email-verification code delivery and wrong-code attempts. Set to `false` to disable these throttles while keeping OTP TTL enforcement.
 </EnvVar>
 
-<EnvVar name="CHATTO_AUTH_EMAIL_OTP_TTL" toml="auth.email_otp.ttl" default="15m">
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_TTL" toml="auth.email_otp.ttl" default="30m">
   How long registration and email-verification codes remain valid. Supports durations like `15m`, `30m`, or `1h`.
 </EnvVar>
 
