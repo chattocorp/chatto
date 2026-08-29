@@ -202,10 +202,9 @@ describe('role management page identity', () => {
     displayName.value = 'Role A updated';
     displayName.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
-    const save = [...container.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Save')
-    )!;
-    save.click();
+    const form = container.querySelector('form')!;
+    expect(form.querySelector('button[type="submit"]')).toHaveClass('btn-action');
+    form.requestSubmit();
 
     await vi.waitFor(() => expect(mocks.updateRole).toHaveBeenCalledOnce());
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
