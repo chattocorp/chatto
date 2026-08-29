@@ -658,6 +658,22 @@
   @apply focus-visible:outline-2 focus-visible:outline-action;
 }
 
+/* Keep a row action visible on touch devices. Reveal it on hover or keyboard
+ * focus only when the primary input can hover precisely.
+ */
+@utility hover-reveal-action {
+  @apply transition-opacity duration-150;
+
+  @media (hover: hover) and (pointer: fine) {
+    @apply pointer-events-none opacity-0;
+
+    .group:hover &,
+    .group:focus-within & {
+      @apply pointer-events-auto opacity-100;
+    }
+  }
+}
+
 /* Hide scrollbar while maintaining scroll functionality */
 @utility scrollbar-hide {
   -ms-overflow-style: none; /* IE and Edge */

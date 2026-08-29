@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Meldingen",
       "subtitle": "Dit is wat er nieuw is",
-      "clear_all": "Alles wissen",
+      "clear_read": "Gelezen wissen",
       "empty_title": "Geen meldingen",
       "empty_body": "Jullie zijn helemaal in beslag genomen!",
       "time_now": "Zojuist",

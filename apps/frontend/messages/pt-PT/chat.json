@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Notificações",
       "subtitle": "Aqui estão as novidades",
-      "clear_all": "Limpar tudo",
+      "clear_read": "Limpar lidas",
       "empty_title": "Sem notificação",
       "empty_body": "Estão todos actualizados!",
       "time_now": "Neste momento",

@@ -3,7 +3,7 @@
     "notifications": {
       "title": "通知",
       "subtitle": "最新消息",
-      "clear_all": "全部清除",
+      "clear_read": "清除已讀",
       "empty_title": "沒有通知",
       "empty_body": "所有通知都已查看！",
       "time_now": "剛剛",

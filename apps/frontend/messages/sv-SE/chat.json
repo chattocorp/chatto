@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Aviseringar",
       "subtitle": "Här är vad som är nytt",
-      "clear_all": "Rensa alla",
+      "clear_read": "Rensa lästa",
       "empty_title": "Inga aviseringar",
       "empty_body": "Ni är alla ikapp!",
       "time_now": "Just nu",

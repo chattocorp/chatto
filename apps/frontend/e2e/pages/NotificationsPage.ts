@@ -105,18 +105,19 @@ export class NotificationsPage {
    * Permanently dismiss a specific notification group.
    */
   async dismiss(notification: Locator): Promise<void> {
+    await notification.hover();
     await this.getDeleteButton(notification).click();
   }
 
   /**
-   * Permanently dismiss every currently visible notification group.
+   * Permanently dismiss every loaded notification occurrence that is already read.
    */
-  async dismissAll(): Promise<void> {
-    await expect(this.notificationItems.first()).toBeVisible({
+  async dismissRead(): Promise<void> {
+    await expect(this.readItems.first()).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    await this.page.getByRole('button', { name: 'Dismiss all' }).click();
-    await expect(this.notificationItems).toHaveCount(0);
+    await this.page.getByRole('button', { name: 'Dismiss read' }).click();
+    await expect(this.readItems).toHaveCount(0);
   }
 
   // --- Assertions ---

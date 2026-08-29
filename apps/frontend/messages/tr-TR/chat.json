@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Bildirimler",
       "subtitle": "İşte yenilikler",
-      "clear_all": "Tümünü temizle",
+      "clear_read": "Okunanları temizle",
       "empty_title": "Bildirim yok",
       "empty_body": "Hepiniz yakalandınız!",
       "time_now": "Az önce",

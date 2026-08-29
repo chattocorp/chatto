@@ -3,7 +3,7 @@
     "notifications": {
       "title": "通知",
       "subtitle": "新機能はこちら",
-      "clear_all": "すべてクリア",
+      "clear_read": "既読を削除",
       "empty_title": "通知はありません",
       "empty_body": "みんなも追いつきました！",
       "time_now": "ただいま",

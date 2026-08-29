@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Сповіщення",
       "subtitle": "Ось що нового",
-      "clear_all": "Очистити все",
+      "clear_read": "Видалити прочитані",
       "empty_title": "Немає сповіщень",
       "empty_body": "Ви все наздогнали!",
       "time_now": "Щойно",

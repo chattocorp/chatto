@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Varsler",
       "subtitle": "Her er hva som er nytt",
-      "clear_all": "Fjern alt",
+      "clear_read": "Fjern leste",
       "empty_title": "Ingen varsler",
       "empty_body": "Dere er helt fanget!",
       "time_now": "Akkurat nå",
