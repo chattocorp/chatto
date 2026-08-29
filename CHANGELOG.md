@@ -21,7 +21,6 @@ conventional-commit messages on `main` — do not edit by hand.
 * **push:** support remote-server web push ([#2055](https://github.com/chattocorp/chatto/issues/2055))
 * **notifications:** replace Notifications 1.0 with persistent notifications ([#2061](https://github.com/chattocorp/chatto/issues/2061))
 * **notifications:** replace Notifications 1.0 with persistent notifications ([#2020](https://github.com/chattocorp/chatto/issues/2020))
-* **authling:** limit Authling to identity provider ([#2044](https://github.com/chattocorp/chatto/issues/2044))
 * **auth:** require CIMD clients for remote access ([#2013](https://github.com/chattocorp/chatto/issues/2013))
 * **search:** rank cross-server Cmd-K results ([#1862](https://github.com/chattocorp/chatto/issues/1862))
 * **cli:** remove passphrase argument flags ([#1705](https://github.com/chattocorp/chatto/issues/1705))
@@ -43,12 +42,6 @@ conventional-commit messages on `main` — do not edit by hand.
 * **auth:** add server invite links ([#1983](https://github.com/chattocorp/chatto/issues/1983)) ([ce6b525](https://github.com/chattocorp/chatto/commit/ce6b5252fc5a1891fef96ec85c22d8115468e12f))
 * **auth:** allow operators to disable password login ([#2042](https://github.com/chattocorp/chatto/issues/2042)) ([1df8f3e](https://github.com/chattocorp/chatto/commit/1df8f3e175098a86384fca264697f40e85d546ba))
 * **auth:** identify OAuth clients through CIMD ([#2012](https://github.com/chattocorp/chatto/issues/2012)) ([8ac44de](https://github.com/chattocorp/chatto/commit/8ac44de281496f7372f7db3b5682c5e3e9b4bc12))
-* **authling:** add CIMD-native OIDC provider ([#1875](https://github.com/chattocorp/chatto/issues/1875)) ([a026593](https://github.com/chattocorp/chatto/commit/a0265939916537d34026964271bd24a6dd6cf51d))
-* **authling:** add OIDC-authorized account data sync ([#1886](https://github.com/chattocorp/chatto/issues/1886)) ([4953bf1](https://github.com/chattocorp/chatto/commit/4953bf1a2dd5452b273e85684ecbb3ebd35c00ea))
-* **authling:** add server-rendered web foundation ([#1861](https://github.com/chattocorp/chatto/issues/1861)) ([12c8957](https://github.com/chattocorp/chatto/commit/12c89579e7b4c18d16e389454f720d8ea1c33e32))
-* **authling:** add standalone account runtime ([#1842](https://github.com/chattocorp/chatto/issues/1842)) ([e563d68](https://github.com/chattocorp/chatto/commit/e563d681e9a6452c2529e070bd65056a3f6c3a25))
-* **authling:** add verified email signup ([#1866](https://github.com/chattocorp/chatto/issues/1866)) ([30fef96](https://github.com/chattocorp/chatto/commit/30fef964fe94151f597d7457aef1e5f8d57488c3))
-* **authling:** incubate standalone identity provider ([#1828](https://github.com/chattocorp/chatto/issues/1828)) ([93b4637](https://github.com/chattocorp/chatto/commit/93b4637ee498bb45c19399a9b28360b4851aece4))
 * **auth:** manage member-authorized OAuth clients ([#2014](https://github.com/chattocorp/chatto/issues/2014)) ([2e6f1d0](https://github.com/chattocorp/chatto/commit/2e6f1d044c9af42e3ecec20b2c70d2a21462f031))
 * **auth:** require CIMD clients for remote access ([#2013](https://github.com/chattocorp/chatto/issues/2013)) ([792f9bb](https://github.com/chattocorp/chatto/commit/792f9bb218d62722aa485e599d05a56585d88eec))
 * **auth:** transfer Authling profiles to Chatto ([#2076](https://github.com/chattocorp/chatto/issues/2076)) ([c91cac7](https://github.com/chattocorp/chatto/commit/c91cac7ecb880669f14a24a261c38f0bfcf035d5))
@@ -297,7 +290,6 @@ conventional-commit messages on `main` — do not edit by hand.
 
 ### Code Refactoring
 
-* **authling:** limit Authling to identity provider ([#2044](https://github.com/chattocorp/chatto/issues/2044)) ([ec00d62](https://github.com/chattocorp/chatto/commit/ec00d629f467d1d87c342b929a398db3af26c148))
 * **auth:** remove legacy cookie sessions ([#2087](https://github.com/chattocorp/chatto/issues/2087)) ([0e30804](https://github.com/chattocorp/chatto/commit/0e308044fd3e70560225346b9eecce02716cf8fe))
 * **authz:** flatten interaction read permission ([#2175](https://github.com/chattocorp/chatto/issues/2175)) ([8f4e86c](https://github.com/chattocorp/chatto/commit/8f4e86c9d5d1ef5a6fea264b9ac4a51d483d9a8f))
 * **cli:** remove passphrase argument flags ([#1705](https://github.com/chattocorp/chatto/issues/1705)) ([bb84c8a](https://github.com/chattocorp/chatto/commit/bb84c8ac8d6ef31fa395c8d7ed6353feaa8f620c))
