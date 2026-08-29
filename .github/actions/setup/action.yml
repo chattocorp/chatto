@@ -13,6 +13,10 @@ inputs:
     description: "Install frontend dependencies"
     required: false
     default: "true"
+  save-go-build-cache:
+    description: "Save the shared Go build cache when the job completes"
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -25,8 +29,17 @@ runs:
         restore-keys: |
           go-mod-${{ runner.os }}-${{ runner.arch }}-
 
-    - name: Cache Go build artifacts
-      if: inputs.install-cli-deps == 'true'
+    - name: Restore Go build artifacts
+      if: inputs.install-cli-deps == 'true' && inputs.save-go-build-cache != 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: ~/.cache/go-build
+        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}
+        restore-keys: |
+          go-build-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Restore and save Go build artifacts
+      if: inputs.install-cli-deps == 'true' && inputs.save-go-build-cache == 'true'
       uses: actions/cache@v5
       with:
         path: ~/.cache/go-build
