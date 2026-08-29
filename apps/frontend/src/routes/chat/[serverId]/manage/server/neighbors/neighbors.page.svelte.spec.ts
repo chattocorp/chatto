@@ -145,12 +145,18 @@ describe('Neighbor management page', () => {
   });
 
   it('displays and edits a public testimonial', async () => {
-    const current = neighbor('https://neighbor.example', 'A welcoming community.');
+    const current = neighbor(
+      'https://neighbor.example',
+      'A **welcoming** community.\n\nPeople listen.'
+    );
     mocks.list.mockResolvedValue([current]);
     mocks.loadServerProfiles.mockResolvedValue([{ origin: current.origin, profile: profile() }]);
 
     const { container } = render(Page);
     await vi.waitFor(() => expect(container.textContent).toContain('A welcoming community.'));
+    const testimonial = container.querySelector('[data-testid="neighbor-testimonial"]')!;
+    expect(testimonial.querySelectorAll('p')).toHaveLength(2);
+    expect(testimonial.querySelector('strong')?.textContent).toBe('welcoming');
 
     flushSync(() => button(container, 'Edit').click());
     input(container, '#neighbor-testimonial-neighbor-1', '  Clear and kind moderation.  ');

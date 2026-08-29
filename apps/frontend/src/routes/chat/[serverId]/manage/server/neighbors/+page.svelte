@@ -2,6 +2,7 @@
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { createNeighborAPI, type Neighbor } from '$lib/api-client/neighbors';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
+  import TestimonialText from '$lib/components/TestimonialText.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { loadServerProfiles, serverOriginFromInput } from '$lib/serverDirectory';
@@ -240,8 +241,8 @@
               {#snippet details()}
                 {#if editTarget?.neighbor.id !== neighbor.id && neighbor.testimonial}
                   <figure class="surface-box p-3" data-testid="neighbor-testimonial">
-                    <blockquote class="text-sm leading-relaxed text-text">
-                      <bdi dir="auto">{neighbor.testimonial}</bdi>
+                    <blockquote class="text-sm">
+                      <TestimonialText testimonial={neighbor.testimonial} />
                     </blockquote>
                     <figcaption class="mt-2 text-sm font-medium text-muted">
                       {m('admin.neighbors.testimonial_label')}

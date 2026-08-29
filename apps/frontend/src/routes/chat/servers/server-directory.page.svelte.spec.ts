@@ -323,7 +323,13 @@ describe('Server Directory page', () => {
 
   it('shows source-specific testimonials in a labelled tapestry card', async () => {
     mocks.servers = [
-      { id: 'one', url: 'https://one.example', name: 'One', iconUrl: null, addedAt: 1 },
+      {
+        id: 'one',
+        url: 'https://one.example',
+        name: 'One',
+        iconUrl: 'https://cdn.example/one.webp',
+        addedAt: 1
+      },
       { id: 'two', url: 'https://two.example', name: 'Two', iconUrl: null, addedAt: 2 }
     ];
     mocks.loadServerDirectory.mockResolvedValue({
@@ -333,7 +339,10 @@ describe('Server Directory page', () => {
           profile: profile('Remote'),
           sourceOrigins: ['https://one.example', 'https://two.example'],
           recommendations: [
-            recommendation('https://one.example', 'A thoughtful place for long conversations.'),
+            recommendation(
+              'https://one.example',
+              'A **thoughtful** place for long conversations.\n\nPeople listen.'
+            ),
             recommendation('https://two.example', 'Friendly people and excellent moderation.')
           ]
         }
@@ -344,15 +353,21 @@ describe('Server Directory page', () => {
 
     const { container } = render(Page);
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="server-testimonials"] figure')).toHaveLength(
-        2
-      );
+      expect(container.querySelectorAll('[data-testid="server-testimonial"]')).toHaveLength(2);
     });
     const section = container.querySelector<HTMLElement>('[data-testid="server-testimonials"]')!;
     expect(section.getAttribute('aria-label')).toBe('Testimonials for Remote');
-    expect(section.textContent).toContain('A thoughtful place for long conversations.');
+    expect(section.querySelectorAll('p')).toHaveLength(3);
+    expect(section.querySelector('strong')?.textContent).toBe('thoughtful');
+    expect(
+      section.querySelector<HTMLImageElement>('[data-testid="server-testimonial-source-icon"] img')
+        ?.src
+    ).toBe('https://cdn.example/one.webp');
     expect(section.textContent).toContain('Recommended by One');
     expect(section.textContent).toContain('Recommended by Two');
+    const profileCard = container.querySelector('[data-testid="server-directory-entry"]')!;
+    expect(profileCard.contains(section)).toBe(false);
+    expect(profileCard.nextElementSibling).toBe(section);
     expect(container.querySelector('.columns-1')).not.toBeNull();
   });
 });

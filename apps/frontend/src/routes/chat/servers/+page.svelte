@@ -10,6 +10,7 @@
   } from '$lib/api-client/server';
   import { startRemoteReauthentication, startServerOAuthFlow } from '$lib/auth/reauth';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
+  import ServerTestimonialCard from '$lib/components/ServerTestimonialCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { serverIdToSegment } from '$lib/navigation';
@@ -193,6 +194,7 @@
             {
               sourceOrigin: recommendation.sourceOrigin,
               sourceName: sourceName(recommendation.sourceOrigin),
+              sourceIconUrl: registeredServer(recommendation.sourceOrigin)?.iconUrl ?? null,
               testimonial: recommendation.testimonial
             }
           ]
@@ -308,32 +310,6 @@
               {@const joined = registeredServer(entry.origin)}
               {@const attribution = sourceAttribution(entry)}
               {@const testimonials = testimonialRecommendations(entry)}
-              {#snippet details()}
-                {#if testimonials.length > 0}
-                  <section
-                    class="flex flex-col gap-2"
-                    aria-label={m('add_server.directory.testimonials_for', {
-                      server: entry.profile?.name ?? entry.origin
-                    })}
-                    data-testid="server-testimonials"
-                  >
-                    {#each testimonials as testimonial (testimonial.sourceOrigin)}
-                      <figure class="surface-box p-3">
-                        <blockquote class="text-sm leading-relaxed text-text">
-                          <bdi dir="auto">{testimonial.testimonial}</bdi>
-                        </blockquote>
-                        <figcaption class="mt-2 text-sm font-medium text-muted">
-                          <bdi dir="auto">
-                            {m('add_server.directory.recommended_by', {
-                              servers: testimonial.sourceName
-                            })}
-                          </bdi>
-                        </figcaption>
-                      </figure>
-                    {/each}
-                  </section>
-                {/if}
-              {/snippet}
               {#snippet cardActions()}
                 <div class="flex flex-col gap-3">
                   <p
@@ -365,10 +341,26 @@
                     : () => openOrJoin(entry.origin, entry.profile)}
                   iconActionLabel={actionLabel(entry.origin, entry.profile)}
                   iconActionDisabled={pendingOrigin === entry.origin}
-                  {details}
                   actions={cardActions}
                   testId="server-directory-entry"
                 />
+                {#if testimonials.length > 0}
+                  <section
+                    class="mt-2 flex flex-col gap-2"
+                    aria-label={m('add_server.directory.testimonials_for', {
+                      server: entry.profile?.name ?? entry.origin
+                    })}
+                    data-testid="server-testimonials"
+                  >
+                    {#each testimonials as testimonial (testimonial.sourceOrigin)}
+                      <ServerTestimonialCard
+                        testimonial={testimonial.testimonial}
+                        sourceName={testimonial.sourceName}
+                        sourceIconUrl={testimonial.sourceIconUrl}
+                      />
+                    {/each}
+                  </section>
+                {/if}
               </div>
             {/each}
           </div>

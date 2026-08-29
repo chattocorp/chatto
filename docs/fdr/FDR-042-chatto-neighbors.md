@@ -26,8 +26,9 @@ recommendation, not a trust or reciprocal relationship.
   registered in the client. It removes duplicate canonical origins but does
   not rank or sort the results. Each result identifies the registered servers
   that recommend it. It preserves each source's testimonial.
-- The Server Directory uses a tapestry layout. It shows each testimonial with
-  the device-local name of the registered server that supplied it.
+- The Server Directory uses a tapestry layout. It shows each testimonial in a
+  review card below the server profile. The review card shows the device-local
+  name and icon of the registered server that supplied it.
 - The Server Directory and Neighbor administration page load each advertised
   server's public name, description, logo, and banner. The Server Directory
   omits a server when its public profile does not load. The administration page
@@ -134,9 +135,11 @@ device.
 
 ### 8. A testimonial belongs to one recommendation
 
-**Decision:** A Neighbor can contain one optional plain-text testimonial. The
-server trims outer white space and limits the text to 500 Unicode characters.
-An empty testimonial clears the value. When one update changes the origin and
+**Decision:** A Neighbor can contain one optional testimonial. The server trims
+outer white space and limits the text to 500 Unicode characters. Clients can
+render paragraphs, emphasis, strong emphasis, and inline code. They do not
+render links, headings, lists, tables, images, or source HTML. An empty
+testimonial clears the value. When one update changes the origin and
 testimonial, the server writes both facts in one atomic `EVT` batch.
 
 **Why:** A testimonial explains why one server recommends another server. It
