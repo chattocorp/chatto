@@ -121,32 +121,55 @@ func TestFrontendCIMDDocumentIsPublishedWithoutAuthling(t *testing.T) {
 
 func TestFrontendCIMDDocumentUsesExactAllowedOriginAlias(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	server := &HTTPServer{
-		config: config.ChattoConfig{Webserver: config.WebserverConfig{
-			URL:            "https://primary.example",
-			AllowedOrigins: []string{"https://custom.example:443"},
-		}},
-		router: gin.New(),
+	tests := []struct {
+		name          string
+		allowedOrigin string
+		requestURL    string
+		wantOrigin    string
+	}{
+		{
+			name:          "HTTPS default port",
+			allowedOrigin: "https://custom.example:443",
+			requestURL:    "https://CUSTOM.example",
+			wantOrigin:    "https://custom.example",
+		},
+		{
+			name:          "loopback HTTP default port",
+			allowedOrigin: "http://127.0.0.1:80",
+			requestURL:    "http://127.0.0.1:80",
+			wantOrigin:    "http://127.0.0.1",
+		},
 	}
-	server.setupCIMDRoutes()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := &HTTPServer{
+				config: config.ChattoConfig{Webserver: config.WebserverConfig{
+					URL:            "https://primary.example",
+					AllowedOrigins: []string{test.allowedOrigin},
+				}},
+				router: gin.New(),
+			}
+			server.setupCIMDRoutes()
 
-	response := httptest.NewRecorder()
-	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "https://CUSTOM.example"+frontendCIMDPath, nil))
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
-	}
-	var document cimdDocument
-	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
-		t.Fatal(err)
-	}
-	if got, want := document.ClientID, "https://custom.example"+frontendCIMDPath; got != want {
-		t.Fatalf("client_id = %q, want %q", got, want)
-	}
-	if got, want := document.ClientURI, "https://custom.example"; got != want {
-		t.Fatalf("client_uri = %q, want %q", got, want)
-	}
-	if got, want := document.RedirectURIs[0], "https://custom.example"+popupCallbackPath; got != want {
-		t.Fatalf("redirect_uris[0] = %q, want %q", got, want)
+			response := httptest.NewRecorder()
+			server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.requestURL+frontendCIMDPath, nil))
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+			}
+			var document cimdDocument
+			if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := document.ClientID, test.wantOrigin+frontendCIMDPath; got != want {
+				t.Fatalf("client_id = %q, want %q", got, want)
+			}
+			if got, want := document.ClientURI, test.wantOrigin; got != want {
+				t.Fatalf("client_uri = %q, want %q", got, want)
+			}
+			if got, want := document.RedirectURIs[0], test.wantOrigin+popupCallbackPath; got != want {
+				t.Fatalf("redirect_uris[0] = %q, want %q", got, want)
+			}
+		})
 	}
 }
 

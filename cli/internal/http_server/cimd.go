@@ -85,11 +85,6 @@ func (s *HTTPServer) frontendCIMDOrigin(requestHost string) (string, bool) {
 	if err != nil || hostURL.Host == "" || hostURL.User != nil || hostURL.Path != "" || hostURL.RawQuery != "" || hostURL.Fragment != "" {
 		return "", false
 	}
-	hostURL.Scheme = "https"
-	canonicalRequestURL, err := url.Parse(canonicalOrigin(hostURL))
-	if err != nil {
-		return "", false
-	}
 
 	origins := make([]string, 0, len(s.config.Webserver.AllowedOrigins)+1)
 	origins = append(origins, s.config.Webserver.URL)
@@ -103,8 +98,9 @@ func (s *HTTPServer) frontendCIMDOrigin(requestHost string) (string, bool) {
 			continue
 		}
 		origin := canonicalOrigin(originURL)
-		canonicalOriginURL, err := url.Parse(origin)
-		if err == nil && canonicalOriginURL.Host == canonicalRequestURL.Host {
+		requestOriginURL := *hostURL
+		requestOriginURL.Scheme = originURL.Scheme
+		if canonicalOrigin(&requestOriginURL) == origin {
 			return origin, true
 		}
 	}
