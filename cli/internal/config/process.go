@@ -61,6 +61,33 @@ type WebserverConfig struct {
 	Shields                ShieldsConfig `toml:"shields,commented" comment:"Public Shields.io-compatible community badges. Disabled by default."`
 }
 
+// ServerOrigins returns the canonical HTTP or HTTPS origins that identify this
+// server. It includes webserver.url and exact allowed origins, but not wildcard
+// entries. Invalid entries are omitted because ChattoConfig.Validate reports
+// them before the server starts.
+func (c WebserverConfig) ServerOrigins() []string {
+	origins := make([]string, 0, len(c.AllowedOrigins)+1)
+	seen := make(map[string]struct{}, len(c.AllowedOrigins)+1)
+	appendOrigin := func(raw string) {
+		origin, _, ok := canonicalHTTPOriginAndRequestHost(raw)
+		if !ok {
+			return
+		}
+		if _, exists := seen[origin]; exists {
+			return
+		}
+		seen[origin] = struct{}{}
+		origins = append(origins, origin)
+	}
+	appendOrigin(c.URL)
+	for _, origin := range c.AllowedOrigins {
+		if origin != "*" {
+			appendOrigin(origin)
+		}
+	}
+	return origins
+}
+
 // MetricsConfig controls the process-local Prometheus scrape endpoint.
 type MetricsConfig struct {
 	Enabled     bool   `toml:"enabled" env:"CHATTO_METRICS_ENABLED" comment:"Expose a Prometheus-compatible metrics endpoint on a separate internal HTTP listener. Default: false."`

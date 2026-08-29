@@ -3,7 +3,7 @@
     "notifications": {
       "title": "الإشعارات",
       "subtitle": "إليك ما هو جديد",
-      "clear_all": "مسح الكل",
+      "clear_read": "حذف المقروءة",
       "empty_title": "لا توجد إخطارات",
       "empty_body": "أنتم جميعًا محاصرون!",
       "time_now": "الآن",

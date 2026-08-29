@@ -546,7 +546,7 @@ test.describe('Notification dismissal', () => {
     await notificationsPage.expectEmptyState();
   });
 
-  test('dismisses all notifications via Dismiss All', async ({
+  test('Dismiss read preserves a notification that just arrived', async ({
     page,
     chatPage,
     roomPage,
@@ -558,7 +558,7 @@ test.describe('Notification dismissal', () => {
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    const rootMessage = `Dismiss all test ${Date.now()}`;
+    const rootMessage = `Dismiss read test ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
     // User A creates the additional room (room.create is not granted to everyone by default)
     const secondRoomName = await chatPage.createRoom();
@@ -575,26 +575,32 @@ test.describe('Notification dismissal', () => {
       await chatPage.enterRoom(secondRoomName);
 
       // Create mention in the second room (User A is not in any room)
-      await roomPage.sendMessage(`@${userA.login} dismiss all test 1`);
+      await roomPage.sendMessage(`@${userA.login} dismiss read test 1`);
       await chatPage.enterRoom('general');
       const message2 = roomPage.getMessage(rootMessage);
       await message2.openThread();
       await roomPage.expectThreadPaneVisible();
-      await roomPage.postThreadReply('Dismiss all test 2');
+      await roomPage.postThreadReply('Dismiss read test 2');
     });
 
-    // User A: Dismiss every notification group.
-    // Use longer timeout to allow real-time events to propagate
+    // Handle the mention, then return while the newer reply remains unread.
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
-    await notificationsPage.dismissAll();
+    const mention = notificationsPage.getNotificationBySummary('mentioned you.');
+    await notificationsPage.clickNotification(mention);
+    await page.waitForURL(routes.patterns.anyRoomWithQuery);
+    await notificationsPage.gotoDirectly();
+    await notificationsPage.expectReadNotEmpty();
+    await notificationsPage.expectUnreadNotEmpty();
 
-    // Dismissed groups are no longer visible.
-    await notificationsPage.expectUnreadEmpty();
-    await notificationsPage.expectEmptyState();
+    await notificationsPage.dismissRead();
+
+    // The handled notification is gone. The notification that arrived later remains.
+    await notificationsPage.expectNotificationCount(1);
+    await notificationsPage.expectUnreadNotEmpty();
   });
 
-  test('bell indicator clears after dismissing all notifications', async ({
+  test('bell indicator clears after dismissing an unread notification', async ({
     page,
     chatPage,
     notificationsPage,
@@ -612,9 +618,9 @@ test.describe('Notification dismissal', () => {
     // User A: Verify bell has indicator
     await notificationsPage.expectBellIndicatorVisible();
 
-    // Dismiss all notification groups.
+    // An explicit row deletion can still remove unread activity.
     await notificationsPage.goto();
-    await notificationsPage.dismissAll();
+    await notificationsPage.dismiss(notificationsPage.getNotificationBySummary('mentioned you.'));
 
     // Navigate back to chat and verify bell indicator is gone
     await chatPage.goto();
@@ -1084,7 +1090,7 @@ test.describe('Page Title Notification Count', () => {
     await expect(page).toHaveTitle(/^\(2\) /, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
 
-  test('page title returns to normal after dismissing all notifications', async ({
+  test('page title returns to normal after dismissing the unread notification', async ({
     page,
     chatPage,
     notificationsPage,
@@ -1102,9 +1108,9 @@ test.describe('Page Title Notification Count', () => {
     // User A: Verify title has count
     await expect(page).toHaveTitle(/^\(1\) /, { timeout: TIMEOUTS.REALTIME_EVENT });
 
-    // Dismiss all notifications.
+    // Dismiss the unread notification explicitly.
     await notificationsPage.goto();
-    await notificationsPage.dismissAll();
+    await notificationsPage.dismiss(notificationsPage.getNotificationBySummary('mentioned you.'));
 
     // Title should no longer have count prefix
     await expect(page).toHaveTitle(/^(?!\(\d+\)).*$/);

@@ -138,7 +138,8 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 	t.Cleanup(cancel)
 
 	c, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
-		SecretKey: "test-core-secret",
+		SecretKey:     "test-core-secret",
+		ServerOrigins: []string{"https://self.example"},
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},

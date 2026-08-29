@@ -21,6 +21,11 @@ func assembleCore(
 	projections *coreProjections,
 	logger *log.Logger,
 ) *ChattoCore {
+	serverOrigins := make(map[string]struct{}, len(cfg.ServerOrigins))
+	for _, origin := range cfg.ServerOrigins {
+		serverOrigins[origin] = struct{}{}
+	}
+	cfg.ServerOrigins = append([]string(nil), cfg.ServerOrigins...)
 	configModel := NewConfigModel(
 		infra.eventPublisher,
 		projections.serverConfig,
@@ -55,6 +60,7 @@ func assembleCore(
 		invitationModel:  newInvitationModel(infra.eventPublisher, projections.invitations, cfg.SecretKey),
 		oauthClientModel: newOAuthClientModel(projections.oauthClients),
 		s3Client:         infra.s3Client,
+		serverOrigins:    serverOrigins,
 		EventPublisher:   infra.eventPublisher,
 		projections:      projections.registrations,
 		bootDone:         make(chan struct{}),

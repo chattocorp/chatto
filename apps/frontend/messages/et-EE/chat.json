@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Märguanded",
       "subtitle": "Siin on, mis on uut",
-      "clear_all": "Tühjenda kõik",
+      "clear_read": "Kustuta loetud",
       "empty_title": "Märguandeid pole",
       "empty_body": "Olete kõik kinni!",
       "time_now": "Just praegu",

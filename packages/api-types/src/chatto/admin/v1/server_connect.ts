@@ -129,7 +129,8 @@ export const AdminServerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Advertises one server origin. This RPC requires server.manage-neighbors.
+     * Advertises one server origin. The origin must not identify this server.
+     * This RPC requires server.manage-neighbors.
      *
      * @generated from rpc chatto.admin.v1.AdminServerService.CreateNeighbor
      */
@@ -140,8 +141,8 @@ export const AdminServerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Changes one advertised server origin. This RPC requires
-     * server.manage-neighbors.
+     * Changes one advertised server origin. The new origin must not identify
+     * this server. This RPC requires server.manage-neighbors.
      *
      * @generated from rpc chatto.admin.v1.AdminServerService.UpdateNeighbor
      */

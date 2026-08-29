@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Oznámení",
       "subtitle": "Zde je novinka",
-      "clear_all": "Vymazat vše",
+      "clear_read": "Odstranit přečtené",
       "empty_title": "Žádná upozornění",
       "empty_body": "Už jste všichni chyceni!",
       "time_now": "Právě teď",

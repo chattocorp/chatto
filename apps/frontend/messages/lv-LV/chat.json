@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Paziņojumi",
       "subtitle": "Lūk, kas jauns",
-      "clear_all": "Notīrīt visu",
+      "clear_read": "Dzēst izlasītos",
       "empty_title": "Nav paziņojumu",
       "empty_body": "Jūs visi esat nokļuvuši!",
       "time_now": "Tikai tagad",

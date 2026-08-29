@@ -99,10 +99,11 @@ type AdminServerServiceClient interface {
 	ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error)
 	// Gets one configured Neighbor. This RPC requires server.manage-neighbors.
 	GetNeighbor(context.Context, *connect.Request[v1.GetNeighborRequest]) (*connect.Response[v1.GetNeighborResponse], error)
-	// Advertises one server origin. This RPC requires server.manage-neighbors.
+	// Advertises one server origin. The origin must not identify this server.
+	// This RPC requires server.manage-neighbors.
 	CreateNeighbor(context.Context, *connect.Request[v1.CreateNeighborRequest]) (*connect.Response[v1.CreateNeighborResponse], error)
-	// Changes one advertised server origin. This RPC requires
-	// server.manage-neighbors.
+	// Changes one advertised server origin. The new origin must not identify
+	// this server. This RPC requires server.manage-neighbors.
 	UpdateNeighbor(context.Context, *connect.Request[v1.UpdateNeighborRequest]) (*connect.Response[v1.UpdateNeighborResponse], error)
 	// Stops advertising one server origin. This RPC requires
 	// server.manage-neighbors.
@@ -308,10 +309,11 @@ type AdminServerServiceHandler interface {
 	ListNeighbors(context.Context, *connect.Request[v1.ListNeighborsRequest]) (*connect.Response[v1.ListNeighborsResponse], error)
 	// Gets one configured Neighbor. This RPC requires server.manage-neighbors.
 	GetNeighbor(context.Context, *connect.Request[v1.GetNeighborRequest]) (*connect.Response[v1.GetNeighborResponse], error)
-	// Advertises one server origin. This RPC requires server.manage-neighbors.
+	// Advertises one server origin. The origin must not identify this server.
+	// This RPC requires server.manage-neighbors.
 	CreateNeighbor(context.Context, *connect.Request[v1.CreateNeighborRequest]) (*connect.Response[v1.CreateNeighborResponse], error)
-	// Changes one advertised server origin. This RPC requires
-	// server.manage-neighbors.
+	// Changes one advertised server origin. The new origin must not identify
+	// this server. This RPC requires server.manage-neighbors.
 	UpdateNeighbor(context.Context, *connect.Request[v1.UpdateNeighborRequest]) (*connect.Response[v1.UpdateNeighborResponse], error)
 	// Stops advertising one server origin. This RPC requires
 	// server.manage-neighbors.
