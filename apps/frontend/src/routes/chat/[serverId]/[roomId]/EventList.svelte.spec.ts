@@ -164,6 +164,7 @@ describe('EventList jump completion', () => {
     });
 
     await expect.element(page.getByTestId('jump-to-present')).toBeVisible();
+    expect(page.getByTestId('jump-to-present').element().classList).toContain('z-40');
     await expect
       .element(page.getByTestId('virtualizer-scroll-alignment'))
       .toHaveTextContent('center');

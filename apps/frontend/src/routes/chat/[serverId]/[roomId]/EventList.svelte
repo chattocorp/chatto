@@ -723,7 +723,7 @@
       transition:fade={{ duration: 150 }}
       onclick={reloadsTimelineOnReturn ? handleJumpToPresentClick : scrollToBottom}
       data-testid="jump-to-present"
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
+      class="absolute bottom-4 left-1/2 z-40 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >
       <div class="flex items-center gap-2 menu-section px-3 py-1">
         {#if firstVisibleDate}
