@@ -38,6 +38,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   } from '$lib/state/userProfiles.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+  import { ScrollFader } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
@@ -415,8 +416,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {#if activeProfileUserId}
     <RoomSidebarProfile userId={activeProfileUserId} />
   {:else if activePanel === 'members'}
-    <nav class="flex flex-1 flex-col overflow-y-auto" aria-label={m('room.sidebar.members')}>
-      <div class="sticky top-0 z-10 bg-background p-2">
+    <div class="flex min-h-0 flex-1 flex-col">
+      <div class="shrink-0 bg-background p-2" data-testid="room-member-search-block">
         <label class="sr-only" for="room-member-search">{m('room.sidebar.search_members')}</label>
         <div class="relative">
           <span
@@ -450,35 +451,45 @@ calls, and similar room-specific panels can plug into the same shell. See the
         </div>
       </div>
 
-      {#if (loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
-        <ul role="list" class="px-2">
-          {#each Array(8) as _, i (i)}
-            <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
-              <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
-              <div class="min-w-0 flex-1 space-y-1">
-                <div class="skeleton h-3.5 w-24 rounded"></div>
-                <div class="skeleton h-3 w-16 rounded"></div>
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {:else if members.length === 0}
-        <div class="px-2 py-8 text-center text-sm text-muted">
-          {m('room.sidebar.no_members')}
-        </div>
-      {:else}
-        {#each memberGroups as group, i (group.id)}
-          <RoomGroupSection
-            label={group.label}
-            items={group.items}
-            item={memberRow}
-            persistKey={group.persistKey}
-            defaultCollapsed={group.defaultCollapsed}
-            testid={group.testid}
-            separated={i > 0}
-          />
-        {/each}
-      {/if}
+      <ScrollFader
+        top
+        bottom
+        class="min-h-0 flex-1"
+        data-testid="room-member-list"
+        aria-label={m('room.sidebar.members')}
+      >
+        <nav aria-label={m('room.sidebar.members')}>
+          {#if (loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
+            <ul role="list" class="px-2">
+              {#each Array(8) as _, i (i)}
+                <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
+                  <div class="min-w-0 flex-1 space-y-1">
+                    <div class="skeleton h-3.5 w-24 rounded"></div>
+                    <div class="skeleton h-3 w-16 rounded"></div>
+                  </div>
+                </li>
+              {/each}
+            </ul>
+          {:else if members.length === 0}
+            <div class="px-2 py-8 text-center text-sm text-muted">
+              {m('room.sidebar.no_members')}
+            </div>
+          {:else}
+            {#each memberGroups as group, i (group.id)}
+              <RoomGroupSection
+                label={group.label}
+                items={group.items}
+                item={memberRow}
+                persistKey={group.persistKey}
+                defaultCollapsed={group.defaultCollapsed}
+                testid={group.testid}
+                separated={i > 0}
+              />
+            {/each}
+          {/if}
+        </nav>
+      </ScrollFader>
 
       {#if popoverMember && popoverAnchorRect}
         <UserContextMenu
@@ -494,7 +505,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           onClose={closePopover}
         />
       {/if}
-    </nav>
+    </div>
   {:else if activePanel === 'search'}
     {#if searchStore}
       <RoomSearchPanel store={searchStore} {roomId} onOpenResult={onOpenSearchResult} />

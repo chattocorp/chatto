@@ -1422,6 +1422,29 @@ describe('RoomSidebar', () => {
     expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the member search fixed above a scroll-faded member list', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(container)).toHaveLength(1);
+    });
+
+    const searchBlock = q(container, '[data-testid="room-member-search-block"]');
+    const memberList = q(container, '[data-testid="room-member-list"]');
+    const scrollFader = memberList?.parentElement;
+
+    expect(searchBlock?.nextElementSibling).toBe(scrollFader);
+    expect(searchBlock?.classList).not.toContain('overflow-y-auto');
+    expect(memberList?.classList).toContain('overflow-y-auto');
+    expect(q(memberList!, 'nav[aria-label="Members"]')).toBeTruthy();
+    expect(scrollFader?.querySelector('.bg-gradient-to-b')).toBeTruthy();
+    expect(scrollFader?.querySelector('.bg-gradient-to-t')).toBeTruthy();
+  });
+
   it('clears the member search with the Chatto-styled clear button without refetching', async () => {
     memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(
       memberPage([member(1), { ...member(2), displayName: 'Boris Member' }])
