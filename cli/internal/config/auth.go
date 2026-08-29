@@ -8,6 +8,9 @@ const (
 	AccountCreationPolicyOpen       = "open"
 	AccountCreationPolicyInviteOnly = "invite_only"
 
+	// DefaultEmailOTPTTL is the fallback lifetime for registration and email-verification codes.
+	DefaultEmailOTPTTL = 30 * time.Minute
+
 	AuthProviderTypeOpenIDConnect = "oidc"
 	AuthProviderTypeGitHub        = "github"
 	AuthProviderTypeGitLab        = "gitlab"
@@ -109,7 +112,7 @@ func (c *EmailOTPConfig) ThrottlingEnabledOrDefault() bool {
 // TTLOrDefault returns the configured email OTP TTL, or 30 minutes if unset.
 func (c *EmailOTPConfig) TTLOrDefault() time.Duration {
 	if c.TTL == 0 {
-		return 30 * time.Minute
+		return DefaultEmailOTPTTL
 	}
 	return c.TTL.Duration()
 }
