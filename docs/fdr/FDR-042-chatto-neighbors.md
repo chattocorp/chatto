@@ -21,7 +21,8 @@ recommendation, not a trust or reciprocal relationship.
 - Any caller can list the advertised origins through the public discovery API.
 - The Server Directory page combines the direct Neighbors from all servers
   registered in the client. It removes duplicate canonical origins but does
-  not rank or sort the results.
+  not rank or sort the results. Each result identifies the registered servers
+  that recommend it.
 - The Server Directory and Neighbor administration page load each advertised
   server's public name, description, logo, and banner. The Server Directory
   omits a server when its public profile does not load. The administration page
@@ -114,6 +115,17 @@ making entries disappear after a user joins them.
 
 **Tradeoff:** The directory includes entries that do not offer a new server to
 join.
+
+### 7. Deduplication preserves recommendation sources
+
+**Decision:** One server appears once in the Server Directory. The result also
+identifies each registered server that advertises it.
+
+**Why:** A user can see where a recommendation comes from without seeing
+duplicate server cards.
+
+**Tradeoff:** The source names depend on the server catalogue on the user's
+device.
 
 ## Non-goals
 

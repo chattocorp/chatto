@@ -108,8 +108,16 @@ describe('Server Directory page', () => {
   it('keeps directory response order and marks registered entries as joined', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
-        { origin: 'https://z.example', profile: profile('Zulu') },
-        { origin: 'https://a.example', profile: profile('Alpha') }
+        {
+          origin: 'https://z.example',
+          profile: profile('Zulu'),
+          sourceOrigins: ['https://source.example']
+        },
+        {
+          origin: 'https://a.example',
+          profile: profile('Alpha'),
+          sourceOrigins: ['https://source.example']
+        }
       ],
       failedSourceCount: 0,
       sourceCount: 2
@@ -135,8 +143,16 @@ describe('Server Directory page', () => {
   it('hides unavailable entries and reports partial source failures', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
-        { origin: 'https://offline.example', profile: null },
-        { origin: 'https://online.example', profile: profile('Online') }
+        {
+          origin: 'https://offline.example',
+          profile: null,
+          sourceOrigins: ['https://source.example']
+        },
+        {
+          origin: 'https://online.example',
+          profile: profile('Online'),
+          sourceOrigins: ['https://source.example']
+        }
       ],
       failedSourceCount: 1,
       sourceCount: 2
@@ -160,7 +176,13 @@ describe('Server Directory page', () => {
   it('starts the OAuth flow for an advertised server', async () => {
     const remoteProfile = profile('Remote');
     mocks.loadServerDirectory.mockResolvedValue({
-      entries: [{ origin: 'https://remote.example', profile: remoteProfile }],
+      entries: [
+        {
+          origin: 'https://remote.example',
+          profile: remoteProfile,
+          sourceOrigins: ['https://source.example']
+        }
+      ],
       failedSourceCount: 0,
       sourceCount: 2
     });
@@ -188,7 +210,13 @@ describe('Server Directory page', () => {
 
   it('opens an advertised server that is already joined', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
-      entries: [{ origin: 'https://a.example', profile: profile('Alpha') }],
+      entries: [
+        {
+          origin: 'https://a.example',
+          profile: profile('Alpha'),
+          sourceOrigins: ['https://source.example']
+        }
+      ],
       failedSourceCount: 0,
       sourceCount: 2
     });
@@ -224,5 +252,53 @@ describe('Server Directory page', () => {
       );
       expect(container.textContent).toContain('Custom description');
     });
+  });
+
+  it('shows compact recommendation provenance with the full accessible source list', async () => {
+    mocks.servers = [
+      { id: 'one', url: 'https://one.example', name: 'One', iconUrl: null, addedAt: 1 },
+      { id: 'two', url: 'https://two.example', name: 'Two', iconUrl: null, addedAt: 2 },
+      { id: 'three', url: 'https://three.example', name: 'Three', iconUrl: null, addedAt: 3 }
+    ];
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://single.example',
+          profile: profile('Single'),
+          sourceOrigins: ['https://one.example']
+        },
+        {
+          origin: 'https://double.example',
+          profile: profile('Double'),
+          sourceOrigins: ['https://one.example', 'https://two.example']
+        },
+        {
+          origin: 'https://triple.example',
+          profile: profile('Triple'),
+          sourceOrigins: [
+            'https://one.example',
+            'https://two.example',
+            'https://three.example'
+          ]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 3
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="server-recommendation-sources"]')).toHaveLength(
+        3
+      );
+    });
+    const attributions = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-testid="server-recommendation-sources"]')
+    );
+    expect(attributions[0]?.textContent).toContain('Recommended by One');
+    expect(attributions[1]?.textContent).toContain('Recommended by One and Two');
+    expect(attributions[2]?.textContent).toContain('Recommended by One, Two, and 1 more');
+    expect(attributions[2]?.getAttribute('aria-label')).toContain('One, Two, and Three');
+    expect(attributions[2]?.title).toContain('One, Two, and Three');
   });
 });

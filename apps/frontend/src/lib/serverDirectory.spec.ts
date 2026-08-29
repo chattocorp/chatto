@@ -76,7 +76,50 @@ describe('loadServerDirectory', () => {
       'https://a.example',
       'https://invalid.example'
     ]);
+    expect(snapshot.entries.map((entry) => entry.sourceOrigins)).toEqual([
+      ['https://one.example'],
+      ['https://one.example', 'https://two.example'],
+      ['https://one.example']
+    ]);
     expect(snapshot.entries.at(-1)?.profile).toBeNull();
+  });
+
+  it('deduplicates repeated recommendations from the same source', async () => {
+    const snapshot = await loadServerDirectory(['https://source.example'], {
+      listNeighbors: vi.fn(async () => [
+        'https://neighbor.example',
+        'HTTPS://NEIGHBOR.EXAMPLE:443/path'
+      ]),
+      getServerInfo: vi.fn(async (origin: string) => profile(origin))
+    });
+
+    expect(snapshot.entries).toEqual([
+      {
+        origin: 'https://neighbor.example',
+        profile: profile('https://neighbor.example'),
+        sourceOrigins: ['https://source.example']
+      }
+    ]);
+  });
+
+  it('canonicalizes and deduplicates registered source origins', async () => {
+    const listNeighbors = vi.fn(async () => ['https://neighbor.example']);
+
+    const snapshot = await loadServerDirectory(
+      ['HTTPS://SOURCE.EXAMPLE:443/path', 'https://source.example', 'not a URL'],
+      {
+        listNeighbors,
+        getServerInfo: vi.fn(async (origin: string) => profile(origin))
+      }
+    );
+
+    expect(listNeighbors).toHaveBeenCalledOnce();
+    expect(listNeighbors).toHaveBeenCalledWith(
+      'https://source.example',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(snapshot.sourceCount).toBe(1);
+    expect(snapshot.entries[0]?.sourceOrigins).toEqual(['https://source.example']);
   });
 
   it('limits each source to the server-side directory maximum', async () => {
@@ -114,5 +157,33 @@ describe('loadServerDirectory', () => {
     });
 
     expect(snapshot).toEqual({ entries: [], failedSourceCount: 0, sourceCount: 1 });
+  });
+
+  it('loads at most six source directories concurrently', async () => {
+    let active = 0;
+    let maximumActive = 0;
+    let releaseRequests!: () => void;
+    const requestGate = new Promise<void>((resolve) => {
+      releaseRequests = resolve;
+    });
+    const listNeighbors = vi.fn(async () => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      await requestGate;
+      active -= 1;
+      return [];
+    });
+
+    const loading = loadServerDirectory(
+      Array.from({ length: 12 }, (_, index) => `https://source-${index}.example`),
+      { listNeighbors, getServerInfo: vi.fn(async (origin: string) => profile(origin)) }
+    );
+
+    await vi.waitFor(() => expect(listNeighbors).toHaveBeenCalledTimes(6));
+    expect(maximumActive).toBe(6);
+    releaseRequests();
+    await loading;
+    expect(listNeighbors).toHaveBeenCalledTimes(12);
+    expect(maximumActive).toBe(6);
   });
 });

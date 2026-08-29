@@ -17,6 +17,8 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "recommended_by": "Anbefalt av {servers}",
+      "more_recommenders_count": { "other": "{count} til" },
       "joined": "Joined",
       "join": "Join",
       "open": "Open",

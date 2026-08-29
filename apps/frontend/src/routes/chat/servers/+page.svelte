@@ -11,6 +11,7 @@
   import { startRemoteReauthentication, startServerOAuthFlow } from '$lib/auth/reauth';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
   import { m } from '$lib/i18n/messages';
+  import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { queryClient } from '$lib/query/client';
   import {
@@ -152,6 +153,35 @@
   function cardDisabled(entry: ServerDirectoryEntry): boolean {
     return !registeredServer(entry.origin) && !entry.profile?.authorizeUrl;
   }
+
+  function sourceName(origin: string): string {
+    const registered = registeredServer(origin);
+    if (registered) return registered.name;
+    try {
+      return new URL(origin).host;
+    } catch {
+      return origin;
+    }
+  }
+
+  function sourceAttribution(entry: ServerDirectoryEntry): { visible: string; full: string } {
+    const names = entry.sourceOrigins.map(sourceName);
+    const formatter = new Intl.ListFormat(getReactiveLocale(), {
+      style: 'long',
+      type: 'conjunction'
+    });
+    const remaining = names.length - 2;
+    const visibleNames =
+      remaining > 0
+        ? [...names.slice(0, 2), m('add_server.directory.more_recommenders_count', { count: remaining })]
+        : names;
+    return {
+      visible: m('add_server.directory.recommended_by', {
+        servers: formatter.format(visibleNames)
+      }),
+      full: m('add_server.directory.recommended_by', { servers: formatter.format(names) })
+    };
+  }
 </script>
 
 <PageTitle title={m('add_server.directory.title')} />
@@ -259,16 +289,27 @@
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each entries as entry (entry.origin)}
               {@const joined = registeredServer(entry.origin)}
+              {@const attribution = sourceAttribution(entry)}
               {#snippet cardActions()}
-                <Button
-                  variant={joined ? 'secondary' : 'action'}
-                  fullWidth
-                  loading={pendingOrigin === entry.origin}
-                  disabled={cardDisabled(entry)}
-                  onclick={() => openOrJoin(entry.origin, entry.profile)}
-                >
-                  {actionLabel(entry.origin, entry.profile)}
-                </Button>
+                <div class="flex flex-col gap-3">
+                  <p
+                    class="line-clamp-2 text-sm text-muted"
+                    aria-label={attribution.full}
+                    title={attribution.full}
+                    data-testid="server-recommendation-sources"
+                  >
+                    <bdi>{attribution.visible}</bdi>
+                  </p>
+                  <Button
+                    variant={joined ? 'secondary' : 'action'}
+                    fullWidth
+                    loading={pendingOrigin === entry.origin}
+                    disabled={cardDisabled(entry)}
+                    onclick={() => openOrJoin(entry.origin, entry.profile)}
+                  >
+                    {actionLabel(entry.origin, entry.profile)}
+                  </Button>
+                </div>
               {/snippet}
               <ServerProfileCard
                 origin={entry.origin}

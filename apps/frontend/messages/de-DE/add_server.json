@@ -17,6 +17,8 @@
       "find": "Server suchen",
       "servers_title": "Server",
       "servers_description": "Von Servern empfohlen, denen du beigetreten bist. Die Ergebnisse haben keine Rangfolge.",
+      "recommended_by": "Empfohlen von {servers}",
+      "more_recommenders_count": { "other": "{count} weitere" },
       "joined": "Beigetreten",
       "join": "Beitreten",
       "open": "Öffnen",

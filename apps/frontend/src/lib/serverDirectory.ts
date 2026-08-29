@@ -6,12 +6,18 @@ import {
 } from '$lib/api-client/server';
 
 const DISCOVERY_TIMEOUT_MS = 10_000;
+const SOURCE_CONCURRENCY = 6;
 const PROFILE_CONCURRENCY = 6;
 const MAX_NEIGHBORS_PER_SOURCE = 100;
 
-export type ServerDirectoryEntry = {
+export type ServerProfileEntry = {
   origin: string;
   profile: PublicServerInfo | null;
+};
+
+export type ServerDirectoryEntry = ServerProfileEntry & {
+  /** Canonical origins of the registered servers that advertised this entry. */
+  sourceOrigins: string[];
 };
 
 export type ServerDirectorySnapshot = {
@@ -53,7 +59,7 @@ export function serverOriginFromInput(value: string): string | null {
 export async function loadServerProfiles(
   origins: readonly string[],
   options: ProfileLoadOptions = {}
-): Promise<ServerDirectoryEntry[]> {
+): Promise<ServerProfileEntry[]> {
   const getServerInfo = options.getServerInfo ?? getPublicServerInfo;
   const profiles = await mapWithConcurrency(origins, PROFILE_CONCURRENCY, (origin) =>
     getServerInfo(origin, { signal: discoverySignal(options.signal) }).catch(() => null)
@@ -74,18 +80,34 @@ export async function loadServerDirectory(
 ): Promise<ServerDirectorySnapshot> {
   const listNeighbors = options.listNeighbors ?? getPublicNeighborOrigins;
   const getServerInfo = options.getServerInfo ?? getPublicServerInfo;
-  const sourceResults = await Promise.allSettled(
-    registeredOrigins.map((origin) =>
-      listNeighbors(origin, { signal: discoverySignal(options.signal) }).catch((error) => {
-        if (error instanceof ConnectError && error.code === Code.Unimplemented) return [];
-        throw error;
+  const sourceOrigins = [
+    ...new Set(
+      registeredOrigins.flatMap((value) => {
+        const origin = canonicalServerOrigin(value);
+        return origin ? [origin] : [];
       })
     )
+  ];
+  const sourceResults = await mapWithConcurrency(
+    sourceOrigins,
+    SOURCE_CONCURRENCY,
+    async (sourceOrigin) => {
+      try {
+        const advertisedOrigins = await listNeighbors(sourceOrigin, {
+          signal: discoverySignal(options.signal)
+        });
+        return { status: 'fulfilled' as const, sourceOrigin, advertisedOrigins };
+      } catch (error) {
+        if (error instanceof ConnectError && error.code === Code.Unimplemented) {
+          return { status: 'fulfilled' as const, sourceOrigin, advertisedOrigins: [] };
+        }
+        return { status: 'rejected' as const, sourceOrigin };
+      }
+    }
   );
   throwIfAborted(options.signal);
 
-  const advertisedOrigins: string[] = [];
-  const seen = new Set<string>();
+  const sourcesByAdvertisedOrigin = new Map<string, string[]>();
   let failedSourceCount = 0;
 
   for (const result of sourceResults) {
@@ -93,23 +115,31 @@ export async function loadServerDirectory(
       failedSourceCount += 1;
       continue;
     }
-    for (const advertised of result.value.slice(0, MAX_NEIGHBORS_PER_SOURCE)) {
+    for (const advertised of result.advertisedOrigins.slice(0, MAX_NEIGHBORS_PER_SOURCE)) {
       const origin = canonicalServerOrigin(advertised);
-      if (!origin || seen.has(origin)) continue;
-      seen.add(origin);
-      advertisedOrigins.push(origin);
+      if (!origin) continue;
+      const sourceOrigins = sourcesByAdvertisedOrigin.get(origin);
+      if (!sourceOrigins) {
+        sourcesByAdvertisedOrigin.set(origin, [result.sourceOrigin]);
+      } else if (!sourceOrigins.includes(result.sourceOrigin)) {
+        sourceOrigins.push(result.sourceOrigin);
+      }
     }
   }
 
-  const entries = await loadServerProfiles(advertisedOrigins, {
+  const profiles = await loadServerProfiles([...sourcesByAdvertisedOrigin.keys()], {
     signal: options.signal,
     getServerInfo
   });
+  const entries = profiles.map((entry) => ({
+    ...entry,
+    sourceOrigins: sourcesByAdvertisedOrigin.get(entry.origin) ?? []
+  }));
 
   return {
     entries,
     failedSourceCount,
-    sourceCount: registeredOrigins.length
+    sourceCount: sourceOrigins.length
   };
 }
 

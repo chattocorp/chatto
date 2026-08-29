@@ -17,6 +17,8 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "recommended_by": "由{servers}推薦",
+      "more_recommenders_count": { "other": "另有{count}個" },
       "joined": "Joined",
       "join": "Join",
       "open": "Open",
