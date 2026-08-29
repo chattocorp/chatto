@@ -305,6 +305,12 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 - Use Save buttons only for multi-field forms submitted together, and disable
   them until the form is dirty.
 - Binary settings in Server Admin save immediately and confirm through a toast.
+- Treat each settings panel as one action scope. Its recommended committing
+  action uses `action`, whether it submits a form or starts an immediate upload.
+  A page can contain one recommended action in each independent panel.
+- Use sentence case for action labels, such as "Save changes" and "Upload logo".
+- Use `danger-secondary` for a quiet destructive action beside a recommended
+  action. Do not apply a local danger text colour to `secondary` or `ghost`.
 
 `Button` is not the universal representation of every clickable control.
 Menus, compact chat hover bars, media overlays, and icon toolbars use their

@@ -115,11 +115,15 @@ describe('Profile settings page', () => {
     ) as HTMLInputElement;
     const usernameInput = q(container, '[data-testid="settings-username"]') as HTMLInputElement;
     const saveButton = q(container, 'button[type="submit"]') as HTMLButtonElement;
+    const uploadButton = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.includes('Upload avatar')
+    );
 
     expect(container.querySelectorAll('.panel-shell')).toHaveLength(2);
     await expect.element(displayNameInput).toHaveValue('Alice');
     await expect.element(usernameInput).toHaveValue('alice');
     await expect.element(saveButton).toBeDisabled();
+    expect(uploadButton).toHaveClass('btn-action');
   });
 
   it('submits a valid display name through the account API', async () => {
@@ -213,7 +217,7 @@ describe('Profile settings page', () => {
 
     const confirmButton = Array.from(
       container.querySelectorAll<HTMLButtonElement>('dialog button')
-    ).find((button) => button.textContent?.includes('Change Username'));
+    ).find((button) => button.textContent?.includes('Change username'));
     expect(confirmButton).toBeDefined();
     confirmButton?.click();
 

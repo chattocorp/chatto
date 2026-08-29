@@ -285,10 +285,10 @@ export class AdminPage {
   // --- Permissions Page ---
 
   /**
-   * Get the Create Role button.
+   * Get the Create role button.
    */
   get createRoleButton(): Locator {
-    return this.page.getByRole('button', { name: 'Create Role' });
+    return this.page.getByRole('button', { name: 'Create role' });
   }
 
   /**
@@ -484,7 +484,7 @@ export class AdminPage {
   }
 
   /**
-   * Assert that the Create Role button is NOT visible.
+   * Assert that the Create role button is NOT visible.
    */
   async expectCreateRoleNotVisible(): Promise<void> {
     await expect(this.createRoleButton).not.toBeVisible();
@@ -566,7 +566,7 @@ export class AdminPage {
 
   /** /general's primary submit button. */
   get saveChangesButton(): Locator {
-    return this.page.getByRole('button', { name: 'Save Changes' });
+    return this.page.getByRole('button', { name: 'Save changes' });
   }
 
   /**
@@ -582,7 +582,7 @@ export class AdminPage {
   /**
    * Fill manage/server settings on /general. serverName, description,
    * motd, and welcomeMessage all live in one ServerSettings form now;
-   * a single "Save Changes" click persists everything via Mutation.updateInstance.
+   * a single "Save changes" click persists everything via Mutation.updateInstance.
    */
   async fillServerSettings(options: {
     serverName?: string;

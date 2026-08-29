@@ -87,7 +87,7 @@ test('room settings reject a description exceeding the maximum length', async ({
 
   const longDescription = 'a'.repeat(501);
   await serverAdminRoomsPage.roomSettingsDescriptionInput.fill(longDescription);
-  await page.getByRole('button', { name: 'Save Changes' }).click();
+  await page.getByRole('button', { name: 'Save changes' }).click();
 
   await chatPage.expectValidationError('room description must be 500 characters or less');
 });

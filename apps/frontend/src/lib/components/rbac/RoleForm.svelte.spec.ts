@@ -66,6 +66,7 @@ describe('RoleForm', () => {
       const { container } = renderRoleForm({ submitLabel: 'Create Role' });
       const button = q(container, 'button[type="submit"]');
       await expect.element(button).toHaveTextContent('Create Role');
+      await expect.element(button).toHaveClass('btn-action');
     });
 
     it('renders cancel button when onCancel is provided', async () => {

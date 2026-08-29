@@ -33,8 +33,8 @@
         "alt": "Your avatar",
         "description": "Upload an avatar. Images will be resized to 256x256 pixels.",
         "uploading": "Uploading...",
-        "upload": "Upload Avatar",
-        "change": "Change Avatar",
+        "upload": "Upload avatar",
+        "change": "Change avatar",
         "removing": "Removing...",
         "remove": "Remove",
         "invalid_type": "Please select an image file",
@@ -58,7 +58,7 @@
         "confirm_title": "Change Username",
         "confirm_prompt": "Are you sure you want to change your username to @{login}?",
         "confirm_cooldown": "You can only change your username once every 30 days.",
-        "confirm_button": "Change Username"
+        "confirm_button": "Change username"
       },
       "status": {
         "title": "Custom Status",
@@ -102,8 +102,8 @@
         "save_failed": "Failed to save status",
         "cleared": "Status cleared",
         "clear_failed": "Failed to clear status",
-        "save_button": "Save Status",
-        "clear_button": "Clear Status"
+        "save_button": "Save status",
+        "clear_button": "Clear status"
       },
       "presence": {
         "button": "Presence: {status}",
@@ -116,7 +116,7 @@
       },
       "saved": "Profile updated successfully",
       "save_failed": "Failed to save profile",
-      "save_button": "Save Changes",
+      "save_button": "Save changes",
       "bio": {
         "label": "Bio",
         "description": "Up to {max} characters, shown on your profile.",
@@ -213,7 +213,7 @@
           "description": "e.g., 14:30"
         }
       },
-      "save_button": "Save Time Settings",
+      "save_button": "Save time settings",
       "saved": "Time settings saved",
       "save_failed": "Failed to save time settings"
     },
@@ -359,7 +359,7 @@
       "display_name": "Display Name",
       "danger_title": "Danger Zone",
       "danger_description": "Deleting your account is permanent and cannot be undone. All your data will be removed.",
-      "delete_button": "Delete Account",
+      "delete_button": "Delete account",
       "delete_failed": "Failed to delete account",
       "delete_request_failed": "Failed to request account deletion",
       "password": {
@@ -368,8 +368,8 @@
         "change_description": "Change the password used for direct sign-in.",
         "current_label": "Current Password",
         "current_required": "Enter your current password.",
-        "add_button": "Add Password",
-        "change_button": "Change Password",
+        "add_button": "Add password",
+        "change_button": "Change password",
         "saving": "Saving password...",
         "saved": "Password added",
         "changed": "Password changed",
@@ -437,7 +437,7 @@
       "empty_title": "No bots yet",
       "empty_body": "Create a bot when an integration needs its own identity and permissions.",
       "create_permission_required": "You can manage existing bots, but you do not have permission to create one.",
-      "create": "Create Bot",
+      "create": "Create bot",
       "create_title": "Create Bot Account",
       "create_failed": "Failed to create bot",
       "created": "Bot created",

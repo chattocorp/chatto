@@ -51,7 +51,7 @@ export class SettingsPage {
 
   /** The save display name button */
   get saveDisplayNameButton(): Locator {
-    return this.page.getByRole('button', { name: 'Save Changes' });
+    return this.page.getByRole('button', { name: 'Save changes' });
   }
 
   /** The form error message */

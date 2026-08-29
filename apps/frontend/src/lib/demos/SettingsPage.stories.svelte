@@ -42,10 +42,6 @@
 
     <PaneContent>
       <div class="flex flex-col gap-6">
-        <Hint tone="info" icon="icon-[uil--info-circle]">
-          Changes here apply immediately to all members of this space.
-        </Hint>
-
         <form onsubmit={handleSubmit}>
           <Panel title="Space details" icon="iconify icon-[uil--edit]">
             <div class="flex max-w-2xl flex-col gap-6">

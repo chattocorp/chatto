@@ -92,11 +92,7 @@
 
     {#if !role.isSystem}
       <div class="flex gap-2">
-        <Button
-          variant="neutral"
-          disabled={!metadataChanged || saving || savingPingable}
-          onclick={saveMetadata}
-        >
+        <Button disabled={!metadataChanged || saving || savingPingable} onclick={saveMetadata}>
           {saving ? m('rbac.role_form.saving') : m('admin.permissions.save_changes')}
         </Button>
       </div>

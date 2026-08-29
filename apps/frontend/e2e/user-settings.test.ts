@@ -212,7 +212,7 @@ test.describe('App and User Preferences', () => {
     await timezoneInput.fill('Europe/Berlin');
 
     // Save button should be enabled
-    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
+    const saveButton = page.getByRole('button', { name: 'Save time settings' });
     await expect(saveButton).toBeEnabled({ timeout: TIMEOUTS.UI_STANDARD });
     await saveButton.click();
 
@@ -247,7 +247,7 @@ test.describe('App and User Preferences', () => {
     await expect(currentTime).not.toContainText(/[AP]M$/);
 
     // Save
-    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
+    const saveButton = page.getByRole('button', { name: 'Save time settings' });
     await expect(saveButton).toBeEnabled({ timeout: TIMEOUTS.UI_STANDARD });
     await saveButton.click();
 
@@ -277,7 +277,7 @@ test.describe('App and User Preferences', () => {
     const timezoneInput = page.getByTestId('timezone-input');
     await timezoneInput.fill('America/New_York');
 
-    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
+    const saveButton = page.getByRole('button', { name: 'Save time settings' });
     await saveButton.click();
     await expect(page.getByText('Time settings saved')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
@@ -321,7 +321,7 @@ test.describe('App and User Preferences', () => {
     });
 
     // Save button should be disabled
-    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
+    const saveButton = page.getByRole('button', { name: 'Save time settings' });
     await expect(saveButton).toBeDisabled();
   });
 
