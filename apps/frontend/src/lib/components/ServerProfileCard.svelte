@@ -40,18 +40,15 @@ card. Callers supply trusted badges and actions through explicit props.
   data-origin={origin}
 >
   {#if profile?.bannerUrl}
-    <SkeletonImg src={profile.bannerUrl} alt="" class="h-28 w-full object-cover" />
+    <SkeletonImg src={profile.bannerUrl} alt="" class="h-32 w-full object-cover" />
   {:else}
-    <div class="h-16 shrink-0 bg-surface-emphasized"></div>
+    <div class="h-32 shrink-0"></div>
   {/if}
 
   <div class="flex flex-1 flex-col gap-4 p-4">
     <div class="flex min-w-0 items-start gap-3">
       <div
-        class={[
-          'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-emphasized',
-          profile?.bannerUrl && '-mt-10'
-        ]}
+        class="-mt-10 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-border bg-surface-emphasized"
       >
         {#if profile?.iconUrl}
           <SkeletonImg src={profile.iconUrl} alt="" class="h-full w-full object-cover" />
