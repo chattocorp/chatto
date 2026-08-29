@@ -45,19 +45,19 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		const baseURL = remoteBaseURL(remoteServer);
 		await createUserOnRemote(baseURL, 'remoteuser', 'password123');
 
-		// 3. Drive the Add-Server dialog: open from the sidebar `+` button,
-		// fill the URL, click Connect to probe, then click the static "Sign in"
-		// button on the preview. The dialog generates the PKCE verifier/challenge
+		// 3. Drive the Server Directory: open it from the sidebar `+` button,
+		// fill the URL, find the server, then click the static "Join" button on
+		// the result card. The page generates the PKCE verifier/challenge
 		// and opens the remote's /oauth/authorize in a popup.
 		const hostPort = remoteHostPort(remoteServer);
 		await page.getByTitle('Add Server').click();
 		await page.getByLabel('Server URL').fill(hostPort);
-		await page.getByRole('button', { name: 'Connect' }).click();
-		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+		await page.getByRole('button', { name: 'Find server' }).click();
+		await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
 		const popupPromise = page.waitForEvent('popup');
-		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+		await page.getByRole('button', { name: 'Join', exact: true }).click();
 		const remoteAuthPage = await popupPromise;
 
 		// 4. The popup should land on the remote instance's OAuth login page.
@@ -118,13 +118,13 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		await page.goto('/chat/-');
 		await page.getByTitle('Add Server').click();
 		await page.getByLabel('Server URL').fill(hostPort);
-		await page.getByRole('button', { name: 'Connect' }).click();
-		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+		await page.getByRole('button', { name: 'Find server' }).click();
+		await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
 		const secondPopupPromise = page.waitForEvent('popup');
 		const secondPopupClosed = secondPopupPromise.then((popup) => popup.waitForEvent('close'));
-		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+		await page.getByRole('button', { name: 'Join', exact: true }).click();
 		await secondPopupClosed;
 		await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
 			timeout: TIMEOUTS.COMPLEX_OPERATION
@@ -178,12 +178,12 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 
 		await page.getByTitle('Add Server').click();
 		await page.getByLabel('Server URL').fill(hostPort);
-		await page.getByRole('button', { name: 'Connect' }).click();
-		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+		await page.getByRole('button', { name: 'Find server' }).click();
+		await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
 		const popupPromise = page.waitForEvent('popup');
-		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+		await page.getByRole('button', { name: 'Join', exact: true }).click();
 		const remoteAuthPage = await popupPromise;
 		await expect(remoteAuthPage.locator('input[autocomplete="username"]')).toBeVisible({
 			timeout: TIMEOUTS.REALTIME_EVENT
@@ -269,12 +269,12 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		await page.goto('/chat/-');
 		await page.getByTitle('Add Server').click();
 		await page.getByLabel('Server URL').fill(hostPort);
-		await page.getByRole('button', { name: 'Connect' }).click();
-		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+		await page.getByRole('button', { name: 'Find server' }).click();
+		await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
 		const blockedPopupPromise = page.waitForEvent('popup');
-		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+		await page.getByRole('button', { name: 'Join', exact: true }).click();
 		const blockedPopup = await blockedPopupPromise;
 		await expect(blockedPopup.locator('body')).toContainText('invalid_client', {
 			timeout: TIMEOUTS.REALTIME_EVENT

@@ -228,7 +228,7 @@ test.describe('Origin Auto-Registration', () => {
   });
 });
 
-test.describe('Add Server Dialog', () => {
+test.describe('Server Directory', () => {
   test('shows URL input for connecting to remote servers', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -236,7 +236,7 @@ test.describe('Add Server Dialog', () => {
 
     // URL input should be visible
     await expect(page.getByLabel('Server URL')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Find server' })).toBeVisible();
   });
 
   test('shows error for invalid server URL', async ({ page, chatPage }) => {
@@ -246,7 +246,7 @@ test.describe('Add Server Dialog', () => {
 
     // Enter an unreachable URL
     await page.getByLabel('Server URL').fill('https://nonexistent.invalid');
-    await page.getByRole('button', { name: 'Connect' }).click();
+    await page.getByRole('button', { name: 'Find server' }).click();
 
     // Should show a connection error
     await expect(page.getByText('Could not connect')).toBeVisible({
@@ -273,19 +273,19 @@ test.describe('Add Server - Remote Auth Flow', () => {
   }
 
   /**
-   * Drive the dialog up to (but not through) the OAuth popup: open it
-   * from the sidebar `+` button, fill the URL, click Connect to probe, and
-   * click the static "Sign in" button on the preview.
+   * Drive the directory up to (but not through) the OAuth popup: open it
+   * from the sidebar `+` button, fill the URL, find the server, and click the
+   * static "Join" button on the result card.
    */
   async function driveAddServerToOAuth(page: Page, hostname: string): Promise<Page> {
-    await page.getByRole('button', { name: 'Add Server', exact: true }).click();
+    await page.getByRole('link', { name: 'Add Server', exact: true }).click();
     await page.getByLabel('Server URL').fill(hostname);
-    await page.getByRole('button', { name: 'Connect' }).click();
-    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+    await page.getByRole('button', { name: 'Find server' }).click();
+    await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     const popupPromise = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('button', { name: 'Join', exact: true }).click();
     return popupPromise;
   }
 

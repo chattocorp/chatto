@@ -65,12 +65,12 @@ test.describe('supported release baseline', () => {
       const remoteHost = new URL(remoteServer.baseURL).host;
       await page.getByTitle('Add Server').click();
       await page.getByLabel('Server URL').fill(remoteHost);
-      await page.getByRole('button', { name: 'Connect' }).click();
-      await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+      await page.getByRole('button', { name: 'Find server' }).click();
+      await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       const popupPromise = page.waitForEvent('popup');
-      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await page.getByRole('button', { name: 'Join', exact: true }).click();
       const remoteLoginPage = await popupPromise;
 
       await expect(remoteLoginPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {
@@ -188,12 +188,12 @@ test.describe('unsupported release boundary', () => {
 
       await page.getByTitle('Add Server').click();
       await page.getByLabel('Server URL').fill(remoteHost);
-      await page.getByRole('button', { name: 'Connect' }).click();
-      await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+      await page.getByRole('button', { name: 'Find server' }).click();
+      await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       const popupPromise = page.waitForEvent('popup');
-      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await page.getByRole('button', { name: 'Join', exact: true }).click();
       const remoteLoginPage = await popupPromise;
 
       await expect(remoteLoginPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {

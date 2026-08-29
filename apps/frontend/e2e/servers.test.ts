@@ -12,13 +12,13 @@ import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-test.describe('Add Server (sidebar entry point)', () => {
-	test('sidebar "+" opens the Add Server dialog', async ({ page, chatPage }) => {
+test.describe('Server Directory (sidebar entry point)', () => {
+	test('sidebar "+" opens the Server Directory', async ({ page, chatPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
 		await page.getByTitle('Add Server').click();
-		await expect(page.getByRole('heading', { name: 'Add Server' })).toBeVisible({
+		await expect(page.getByRole('heading', { name: 'Server Directory' })).toBeVisible({
 			timeout: TIMEOUTS.UI_FAST
 		});
 		await expect(page.getByLabel('Server URL')).toBeVisible();

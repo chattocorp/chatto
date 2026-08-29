@@ -451,7 +451,7 @@ export async function setMotdOnRemote(
 }
 
 /**
- * Drives the real Add-Server dialog → OAuth popup → /servers/callback
+ * Drives the real Server Directory → OAuth popup → /servers/callback
  * flow to add `remoteServer` as a connected instance, while bypassing the
  * human OAuth login form. The remote's `/oauth/authorize` request is
  * intercepted via Playwright's browser-context routing; we POST the PKCE params to the
@@ -507,7 +507,7 @@ export async function connectRemoteInstance(
     });
   });
 
-  // Drive the real UI: open dialog from sidebar → URL → preview → popup
+  // Drive the real UI: open the directory from the sidebar → URL → card → popup
   // /oauth/authorize (intercepted) → /servers/callback → token exchange →
   // addServer. Attach the close listener as soon as Playwright observes the
   // popup so the fast intercepted callback cannot race the test.
@@ -516,10 +516,12 @@ export async function connectRemoteInstance(
   }
   await page.getByTitle('Add Server').click();
   await page.getByLabel('Server URL').fill(hostname);
-  await page.getByRole('button', { name: 'Connect' }).click();
+  await page.getByRole('button', { name: 'Find server' }).click();
+  const joinButton = page.getByRole('button', { name: /^(Join|Sign in)$/ });
+  await expect(joinButton).toBeVisible({ timeout: 30_000 });
   const popupPromise = page.waitForEvent('popup');
   const popupClosedPromise = popupPromise.then((popup) => popup.waitForEvent('close'));
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await joinButton.click();
   await popupClosedPromise;
 
   // The main client redirects into the newly-added remote server's chat tree

@@ -84,7 +84,7 @@ test.describe('Multi-Instance Identity', () => {
     });
   });
 
-  test('recreates scoped resources when the active remote server reconnects', async ({
+  test('recreates scoped resources when a signed-out remote server reconnects', async ({
     page,
     chatPage
   }) => {
@@ -100,8 +100,13 @@ test.describe('Multi-Instance Identity', () => {
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
     await gotoRemoteRoom(page, roomId);
 
-    // Reconnecting replaces the same server ID's token, connection, and store.
-    // The active route subtree must remount even though its server ID is unchanged.
+    // Sign out of only the remote server. Reauthentication replaces the same
+    // server ID's token, connection, and store, so the route subtree must use
+    // the replacement resources even though the server ID is unchanged.
+    await page.getByTitle('Sign out').click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await page.getByRole('button', { name: 'Current Server' }).click();
+    await expect(page).toHaveURL(/\/chat\/-/);
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
     // Stay inside the running SPA so a document reload cannot mask a missing
