@@ -238,17 +238,7 @@
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each neighbors as neighbor (neighbor.id)}
               {#snippet details()}
-                {#if editTarget?.neighbor.id === neighbor.id}
-                  <TextArea
-                    id={`neighbor-testimonial-${neighbor.id}`}
-                    label={m('admin.neighbors.testimonial')}
-                    description={m('admin.neighbors.testimonial_help')}
-                    bind:value={editTestimonial}
-                    maxlength={500}
-                    rows={4}
-                    disabled={updateMutationState.isPending}
-                  />
-                {:else if neighbor.testimonial}
+                {#if editTarget?.neighbor.id !== neighbor.id && neighbor.testimonial}
                   <figure class="surface-box p-3" data-testid="neighbor-testimonial">
                     <blockquote class="text-sm leading-relaxed text-text">
                       <bdi dir="auto">{neighbor.testimonial}</bdi>
@@ -267,6 +257,15 @@
                       label={m('admin.neighbors.origin')}
                       labelHidden
                       bind:value={editOrigin}
+                      disabled={updateMutationState.isPending}
+                    />
+                    <TextArea
+                      id={`neighbor-testimonial-${neighbor.id}`}
+                      label={m('admin.neighbors.testimonial')}
+                      description={m('admin.neighbors.testimonial_help')}
+                      bind:value={editTestimonial}
+                      maxlength={500}
+                      rows={4}
                       disabled={updateMutationState.isPending}
                     />
                   {/if}
