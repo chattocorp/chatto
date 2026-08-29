@@ -84,7 +84,7 @@ func TestChattoCore_UpdateUserSettings_SetTimezone(t *testing.T) {
 	}
 }
 
-func TestChattoCore_UpdateUserSettings_PublishesProfileOnlyForTimezoneChanges(t *testing.T) {
+func TestChattoCore_UpdateUserSettings_PublishesOnlyPublicTimezoneChanges(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "timezone-live", "Timezone Live", "password123")
@@ -105,6 +105,14 @@ func TestChattoCore_UpdateUserSettings_PublishesProfileOnlyForTimezoneChanges(t 
 	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &tz}); err != nil {
 		t.Fatalf("UpdateUserSettings timezone: %v", err)
 	}
+	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
+		t.Fatalf("unexpected profile update for private timezone: %s", msg.Subject)
+	}
+
+	share := true
+	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{ShareTimezone: &share}); err != nil {
+		t.Fatalf("UpdateUserSettings share timezone: %v", err)
+	}
 	msg, err := sub.NextMsg(2 * time.Second)
 	if err != nil {
 		t.Fatalf("waiting for profile update: %v", err)
@@ -117,11 +125,48 @@ func TestChattoCore_UpdateUserSettings_PublishesProfileOnlyForTimezoneChanges(t 
 		t.Fatalf("profile timezone = %q, want %q", got, tz)
 	}
 
+	newTZ := "Asia/Tokyo"
+	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &newTZ}); err != nil {
+		t.Fatalf("UpdateUserSettings shared timezone: %v", err)
+	}
+	msg, err = sub.NextMsg(2 * time.Second)
+	if err != nil {
+		t.Fatalf("waiting for shared timezone profile update: %v", err)
+	}
+	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+		t.Fatalf("unmarshal shared timezone profile update: %v", err)
+	}
+	if got := live.GetUserProfileUpdated().GetTimezone(); got != newTZ {
+		t.Fatalf("profile timezone = %q, want %q", got, newTZ)
+	}
+
+	share = false
+	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{ShareTimezone: &share}); err != nil {
+		t.Fatalf("UpdateUserSettings hide timezone: %v", err)
+	}
+	msg, err = sub.NextMsg(2 * time.Second)
+	if err != nil {
+		t.Fatalf("waiting for hidden timezone profile update: %v", err)
+	}
+	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+		t.Fatalf("unmarshal hidden timezone profile update: %v", err)
+	}
+	if got := live.GetUserProfileUpdated().GetTimezone(); got != "" {
+		t.Fatalf("hidden profile timezone = %q, want empty", got)
+	}
+	settings, err := core.GetUserSettings(ctx, user.GetId())
+	if err != nil {
+		t.Fatalf("GetUserSettings: %v", err)
+	}
+	if settings.GetTimezone() != newTZ {
+		t.Fatalf("stored timezone = %q, want %q", settings.GetTimezone(), newTZ)
+	}
+
 	format := evtv1.TimeFormat_TIME_FORMAT_24H
 	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{TimeFormat: &format}); err != nil {
 		t.Fatalf("UpdateUserSettings time format: %v", err)
 	}
-	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &tz}); err != nil {
+	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &newTZ}); err != nil {
 		t.Fatalf("UpdateUserSettings timezone no-op: %v", err)
 	}
 	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
@@ -239,6 +284,42 @@ func TestChattoCore_UpdateUserSettings_ClearTimezone(t *testing.T) {
 	}
 }
 
+func TestChattoCore_UpdateUserSettings_SharingDefaultsPrivateAndSupportsCombinedPatch(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	tz := "Europe/Berlin"
+	shareDisabled := false
+	share := true
+	format := evtv1.TimeFormat_TIME_FORMAT_24H
+
+	if _, err := core.UpdateUserSettings(ctx, "test-user-sharing-noop", UserSettingsInput{ShareTimezone: &shareDisabled}); err != nil {
+		t.Fatalf("UpdateUserSettings explicit private default: %v", err)
+	}
+	if stored, err := core.GetUserSettings(ctx, "test-user-sharing-noop"); err != nil || stored != nil {
+		t.Fatalf("explicit private default stored settings = %+v, err = %v; want nil no-op", stored, err)
+	}
+
+	settings, err := core.UpdateUserSettings(ctx, "test-user-sharing", UserSettingsInput{
+		Timezone:      &tz,
+		TimeFormat:    &format,
+		ShareTimezone: &share,
+	})
+	if err != nil {
+		t.Fatalf("UpdateUserSettings: %v", err)
+	}
+	if settings.GetTimezone() != tz || settings.GetTimeFormat() != format || !settings.GetShareTimezone() {
+		t.Fatalf("settings = %+v, want timezone, format, and sharing enabled", settings)
+	}
+
+	private, err := core.UpdateUserSettings(ctx, "test-user-private-default", UserSettingsInput{Timezone: &tz})
+	if err != nil {
+		t.Fatalf("UpdateUserSettings private default: %v", err)
+	}
+	if private.GetShareTimezone() {
+		t.Fatal("ShareTimezone = true, want historical and new settings private by default")
+	}
+}
+
 func TestChattoCore_UpdateUserSettings_InvalidTimezone(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -265,8 +346,10 @@ func TestChattoCore_DeleteUser_CleansUpSettings(t *testing.T) {
 	}
 
 	tz := "Europe/London"
+	share := true
 	_, err = core.UpdateUserSettings(ctx, user.Id, UserSettingsInput{
-		Timezone: &tz,
+		Timezone:      &tz,
+		ShareTimezone: &share,
 	})
 	if err != nil {
 		t.Fatalf("UpdateUserSettings failed: %v", err)

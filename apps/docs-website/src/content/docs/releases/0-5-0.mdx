@@ -40,9 +40,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
   <ReleaseFeatureCard title="More useful user profiles">
     Open a user's profile from their user card, add a Markdown bio to your own profile, and see
-    the local time that a user chooses to share. Bios can contain up to 1,000 characters. Local
-    times use your preferred 12-hour or 24-hour format. Bots use the same self-profile API when
-    authenticated with their API key.
+    the local time that a user chooses to share. Stored time zones are private by default. You
+    can use your time zone for date formatting without publishing it on your profile. Bios can
+    contain up to 1,000 characters. Local times use your preferred 12-hour or 24-hour format.
+    Bots use the same self-profile API when authenticated with their API key.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Notifications that stay useful after you read them">
@@ -142,6 +143,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 </ReleaseFeatureGrid>
 
 ## Upgrade Notes
+
+- Upgrade every Chatto replica before you rely on private time zones. An older replica does not
+  understand the sharing setting and can expose a stored time zone. A rollback to an older
+  replica has the same risk.
 
 - Remove `current_password` from `chatto.admin.v1.DeleteUserRequest` in custom
   clients before you update generated code. A 0.5 server ignores protobuf

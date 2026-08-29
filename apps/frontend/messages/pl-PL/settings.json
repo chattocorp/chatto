@@ -192,6 +192,12 @@
         "more_results": "{count} więcej - wpisz, aby zawęzić wyniki",
         "current_time": "Aktualny czas tam: {time}"
       },
+      "timezone_sharing": {
+        "title": "Udostępnianie strefy czasowej",
+        "label": "Pokazuj moją strefę czasową w profilu",
+        "description": "Inni członkowie mogą zobaczyć Twoją strefę czasową i bieżący czas lokalny.",
+        "unsupported": "Ta wersja serwera udostępnia każdą zapisaną strefę czasową. Wyczyść swoją strefę czasową lub poproś właściciela serwera o aktualizację."
+      },
       "time_format": {
         "title": "Format czasu",
         "browser_default": {

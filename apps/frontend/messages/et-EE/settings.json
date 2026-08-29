@@ -192,6 +192,12 @@
         "more_results": "{count} veel – tulemuste kitsendamiseks tippige",
         "current_time": "Praegune aeg seal: {time}"
       },
+      "timezone_sharing": {
+        "title": "Ajavööndi jagamine",
+        "label": "Kuva minu ajavöönd minu profiilil",
+        "description": "Teised liikmed näevad sinu ajavööndit ja praegust kohalikku aega.",
+        "unsupported": "See serveriversioon jagab kõiki salvestatud ajavööndeid. Kustuta oma ajavöönd või palu serveri omanikul serverit uuendada."
+      },
       "time_format": {
         "title": "Aja vorming",
         "browser_default": {

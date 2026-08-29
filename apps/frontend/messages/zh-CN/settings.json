@@ -192,6 +192,12 @@
         "more_results": "另有 {count} 项，请输入内容缩小范围",
         "current_time": "当地当前时间：{time}"
       },
+      "timezone_sharing": {
+        "title": "共享时区",
+        "label": "在个人资料中显示我的时区",
+        "description": "其他成员可以看到你的时区和当前当地时间。",
+        "unsupported": "此服务器版本会共享所有已保存的时区。请清除你的时区，或请服务器所有者升级。"
+      },
       "time_format": {
         "title": "时间格式",
         "browser_default": {

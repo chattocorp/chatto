@@ -71,6 +71,12 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if settings := user.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
 		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
 	}
+	if user.GetSettings().ShareTimezone == nil || user.GetSettings().GetShareTimezone() {
+		t.Fatalf("share_timezone = %v, want explicit false capability", user.GetSettings().ShareTimezone)
+	}
+	if profile.GetTimezone() != "" {
+		t.Fatalf("private profile timezone = %q, want empty", profile.GetTimezone())
+	}
 	if caps := resp.Msg.GetCapabilities(); !apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAssignRoles) || apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAdminManageUsers) {
 		t.Fatalf("viewer capabilities = %+v, want role.assign true and account management false", caps.GetGrants())
 	}
@@ -142,15 +148,31 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
-	if settings := settingsResp.Msg.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
+	if settings := settingsResp.Msg.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR || settings.GetShareTimezone() {
 		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
 	}
 	usersResp, err := env.users.BatchGetUsers(ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{env.viewer.Id}}))
 	if err != nil {
 		t.Fatalf("BatchGetUsers: %v", err)
 	}
-	if users := usersResp.Msg.GetUsers(); len(users) != 1 || users[0].GetUser().GetBio() != "Connect profile bio" || users[0].GetUser().GetTimezone() != tz {
-		t.Fatalf("public user = %+v, want bio and timezone", users)
+	if users := usersResp.Msg.GetUsers(); len(users) != 1 || users[0].GetUser().GetBio() != "Connect profile bio" || users[0].GetUser().GetTimezone() != "" {
+		t.Fatalf("public user = %+v, want bio and private timezone", users)
+	}
+
+	share := true
+	sharedResp, err := env.account.UpdateSettings(ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{ShareTimezone: &share}))
+	if err != nil {
+		t.Fatalf("UpdateSettings share timezone: %v", err)
+	}
+	if !sharedResp.Msg.GetSettings().GetShareTimezone() {
+		t.Fatal("share_timezone = false, want true")
+	}
+	usersResp, err = env.users.BatchGetUsers(ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{env.viewer.Id}}))
+	if err != nil {
+		t.Fatalf("BatchGetUsers shared timezone: %v", err)
+	}
+	if got := usersResp.Msg.GetUsers()[0].GetUser().GetTimezone(); got != tz {
+		t.Fatalf("public timezone = %q, want %q", got, tz)
 	}
 
 	clear := ""

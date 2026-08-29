@@ -27,6 +27,8 @@ type UserSettingsInput struct {
 	Timezone *string
 	// TimeFormat preference. nil = no change.
 	TimeFormat *evtv1.TimeFormat
+	// ShareTimezone controls whether the stored time zone is public. nil = no change.
+	ShareTimezone *bool
 }
 
 // GetUserSettings retrieves a user's settings from the config projection.
@@ -47,7 +49,7 @@ func (cm *ConfigModel) userSettings(userID string) (*evtv1.ServerUserPreferences
 	cm.config.Projection().RLock()
 	defer cm.config.Projection().RUnlock()
 	u := cm.config.Projection().users[userID]
-	if u == nil || (u.timezone == nil && u.timeFormat == nil) {
+	if u == nil || (u.timezone == nil && u.timeFormat == nil && !u.shareTimezone) {
 		return nil, false
 	}
 	prefs := &evtv1.ServerUserPreferences{}
@@ -58,6 +60,7 @@ func (cm *ConfigModel) userSettings(userID string) (*evtv1.ServerUserPreferences
 	if u.timeFormat != nil {
 		prefs.TimeFormat = *u.timeFormat
 	}
+	prefs.ShareTimezone = u.shareTimezone
 	return prefs, true
 }
 
@@ -81,9 +84,11 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 
 	changed := false
 	timezoneChanged := false
+	sharingChanged := false
 	if err := c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		changed = false
 		timezoneChanged = false
+		sharingChanged = false
 		current, _ := c.configModel.userSettings(userID)
 		var evs []*evtv1.Event
 		if input.Timezone != nil {
@@ -107,6 +112,19 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 				UserTimeFormatChanged: &evtv1.UserTimeFormatChangedEvent{UserId: userID, TimeFormat: *input.TimeFormat},
 			}}))
 		}
+		currentShareTimezone := false
+		if current != nil {
+			currentShareTimezone = current.GetShareTimezone()
+		}
+		if input.ShareTimezone != nil && currentShareTimezone != *input.ShareTimezone {
+			evs = append(evs, newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserTimezoneSharingChanged{
+				UserTimezoneSharingChanged: &evtv1.UserTimezoneSharingChangedEvent{
+					UserId:        userID,
+					ShareTimezone: *input.ShareTimezone,
+				},
+			}}))
+			sharingChanged = true
+		}
 		changed = len(evs) > 0
 		return evs, nil
 	}); err != nil {
@@ -126,7 +144,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 
 	c.logger.Info("Updated user settings", "user_id", userID)
 	c.publishServerUserPreferencesSync(ctx, userID, settings)
-	if timezoneChanged {
+	if sharingChanged || (timezoneChanged && settings.GetShareTimezone()) {
 		c.publishUserProfileUpdate(ctx, userID)
 	}
 
@@ -144,8 +162,9 @@ func (c *ChattoCore) publishServerUserPreferencesSync(ctx context.Context, userI
 	event := newLiveEvent(userID, &livev1.LiveEvent{
 		Event: &livev1.LiveEvent_ServerUserPreferencesUpdated{
 			ServerUserPreferencesUpdated: &livev1.ServerUserPreferencesSyncEvent{
-				Timezone:   tz,
-				TimeFormat: livev1.TimeFormat(settings.TimeFormat),
+				Timezone:      tz,
+				TimeFormat:    livev1.TimeFormat(settings.TimeFormat),
+				ShareTimezone: settings.GetShareTimezone(),
 			},
 		},
 	})
@@ -173,6 +192,11 @@ func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) erro
 			newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserTimeFormatCleared{
 				UserTimeFormatCleared: &evtv1.UserTimeFormatClearedEvent{UserId: userID},
 			}}),
+		}
+		if current.GetShareTimezone() {
+			evs = append(evs, newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserTimezoneSharingChanged{
+				UserTimezoneSharingChanged: &evtv1.UserTimezoneSharingChangedEvent{UserId: userID},
+			}}))
 		}
 		return evs, nil
 	})

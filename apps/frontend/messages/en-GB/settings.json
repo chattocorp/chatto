@@ -192,6 +192,12 @@
         "more_results": "{count} more - type to narrow results",
         "current_time": "Current time there: {time}"
       },
+      "timezone_sharing": {
+        "title": "Time-zone sharing",
+        "label": "Show my time zone on my profile",
+        "description": "Other members can see your time zone and current local time.",
+        "unsupported": "This server version shares every stored time zone. Clear your time zone or ask the server owner to upgrade."
+      },
       "time_format": {
         "title": "Time Format",
         "browser_default": {

@@ -127,7 +127,7 @@ Public user fields.
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 | `is_bot` | `bool` | True when this identity represents an automated bot. |
 | `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
-| `timezone` | `optional string` | IANA time zone the user shares on their profile (for example "Europe/Berlin"), when set. Absent means the user has not chosen a shareable time zone. |
+| `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
@@ -196,6 +196,7 @@ Server-level display settings for the authenticated user.
 | --- | --- | --- |
 | `timezone` | `optional string` | Optional IANA timezone override. Absent means the client should use the browser's local timezone. |
 | `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
+| `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. New servers always set this field. Its absence means the server does not support private time zones and may publish any stored time zone. |
 
 <a id="chatto-api-v1-ViewerCapabilities"></a>
 

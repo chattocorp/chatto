@@ -117,6 +117,34 @@ func TestConfigProjection_UnknownEventTypesIgnored(t *testing.T) {
 	require.Nil(t, model.GetServerConfig())
 }
 
+func TestConfigProjection_TimezoneSharingDefaultsPrivateForHistoricalPreferences(t *testing.T) {
+	p, model := newConfigProjectionUnderModel()
+	timezone := "Europe/Berlin"
+
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserServerPreferencesChanged{
+		UserServerPreferencesChanged: &evtv1.UserServerPreferencesChangedEvent{
+			UserId:      "user-1",
+			Preferences: &evtv1.ServerUserPreferences{Timezone: &timezone},
+		},
+	}}, 1))
+
+	preferences, ok := model.userSettings("user-1")
+	require.True(t, ok)
+	require.Equal(t, timezone, preferences.GetTimezone())
+	require.False(t, preferences.GetShareTimezone())
+
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserTimezoneSharingChanged{
+		UserTimezoneSharingChanged: &evtv1.UserTimezoneSharingChangedEvent{
+			UserId:        "user-1",
+			ShareTimezone: true,
+		},
+	}}, 2))
+
+	preferences, ok = model.userSettings("user-1")
+	require.True(t, ok)
+	require.True(t, preferences.GetShareTimezone())
+}
+
 func TestConfigProjection_GroupNotificationPolicyAccountCleanupAndEstimate(t *testing.T) {
 	p := NewConfigProjection()
 	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserRoomGroupNotificationPolicyChanged{

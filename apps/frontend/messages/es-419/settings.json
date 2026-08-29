@@ -192,6 +192,12 @@
         "more_results": "{count} más - escriba para limitar los resultados",
         "current_time": "Hora actual allí: {time}"
       },
+      "timezone_sharing": {
+        "title": "Compartir zona horaria",
+        "label": "Mostrar mi zona horaria en mi perfil",
+        "description": "Otros miembros pueden ver tu zona horaria y tu hora local actual.",
+        "unsupported": "Esta versión del servidor comparte todas las zonas horarias guardadas. Borra tu zona horaria o pide a la persona propietaria del servidor que lo actualice."
+      },
       "time_format": {
         "title": "Formato de hora",
         "browser_default": {

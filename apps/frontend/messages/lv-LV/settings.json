@@ -192,6 +192,12 @@
         "more_results": "{count} vairāk — ierakstiet, lai sašaurinātu rezultātus",
         "current_time": "Pašreizējais laiks: {time}"
       },
+      "timezone_sharing": {
+        "title": "Laika joslas kopīgošana",
+        "label": "Rādīt manu laika joslu manā profilā",
+        "description": "Citi dalībnieki var redzēt tavu laika joslu un pašreizējo vietējo laiku.",
+        "unsupported": "Šī servera versija kopīgo katru saglabāto laika joslu. Notīri savu laika joslu vai lūdz servera īpašniekam veikt jaunināšanu."
+      },
       "time_format": {
         "title": "Laika formāts",
         "browser_default": {

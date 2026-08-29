@@ -86,7 +86,11 @@ type UserSettings struct {
 	// browser's local timezone.
 	Timezone *string `protobuf:"bytes,1,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
 	// Preferred time format.
-	TimeFormat    TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat" json:"time_format,omitempty"`
+	TimeFormat TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat" json:"time_format,omitempty"`
+	// Whether the stored time zone may appear on the user's public profile.
+	// New servers always set this field. Its absence means the server does not
+	// support private time zones and may publish any stored time zone.
+	ShareTimezone *bool `protobuf:"varint,3,opt,name=share_timezone,json=shareTimezone,proto3,oneof" json:"share_timezone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -133,6 +137,13 @@ func (x *UserSettings) GetTimeFormat() TimeFormat {
 		return x.TimeFormat
 	}
 	return TimeFormat_TIME_FORMAT_UNSPECIFIED
+}
+
+func (x *UserSettings) GetShareTimezone() bool {
+	if x != nil && x.ShareTimezone != nil {
+		return *x.ShareTimezone
+	}
+	return false
 }
 
 // Current authenticated user's public profile plus self-only settings.
@@ -487,12 +498,14 @@ var File_chatto_api_v1_viewer_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
+	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x01\n" +
 	"\fUserSettings\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
-	"timeFormatB\v\n" +
-	"\t_timezone\"\x93\x03\n" +
+	"timeFormat\x12*\n" +
+	"\x0eshare_timezone\x18\x03 \x01(\bH\x01R\rshareTimezone\x88\x01\x01B\v\n" +
+	"\t_timezoneB\x11\n" +
+	"\x0f_share_timezone\"\x93\x03\n" +
 	"\n" +
 	"ViewerUser\x12,\n" +
 	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x127\n" +

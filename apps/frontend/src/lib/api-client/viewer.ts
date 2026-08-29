@@ -18,6 +18,8 @@ export type CurrentUser = {
   displayName: string;
   avatarUrl?: string | null;
   bio?: string | null;
+  /** Time zone currently exposed on this user's public profile. */
+  publicTimezone?: string | null;
   customStatus?: {
     emoji: string;
     text: string;
@@ -31,6 +33,8 @@ export type CurrentUser = {
   settings?: {
     timezone?: string | null;
     timeFormat: TimeFormat;
+    /** Present when the server supports private time-zone preferences. */
+    shareTimezone?: boolean;
   } | null;
 };
 
@@ -101,6 +105,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       displayName: user.displayName,
       avatarUrl: user.avatarUrl ?? null,
       bio: user.bio ?? null,
+      publicTimezone: user.timezone ?? null,
       customStatus: user.customStatus
         ? {
             emoji: user.customStatus.emoji,
@@ -116,7 +121,8 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       settings: response.user.settings
         ? {
             timezone: response.user.settings.timezone ?? null,
-            timeFormat: timeFormatOrAuto(response.user.settings.timeFormat)
+            timeFormat: timeFormatOrAuto(response.user.settings.timeFormat),
+            shareTimezone: response.user.settings.shareTimezone
           }
         : null
     },

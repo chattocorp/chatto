@@ -192,6 +192,12 @@
         "more_results": "{count} altro: digita per restringere i risultati",
         "current_time": "Ora attuale lì: {time}"
       },
+      "timezone_sharing": {
+        "title": "Condivisione del fuso orario",
+        "label": "Mostra il mio fuso orario nel profilo",
+        "description": "Gli altri membri possono vedere il tuo fuso orario e la tua ora locale attuale.",
+        "unsupported": "Questa versione del server condivide ogni fuso orario memorizzato. Cancella il tuo fuso orario o chiedi al proprietario del server di eseguire l'aggiornamento."
+      },
       "time_format": {
         "title": "Formato ora",
         "browser_default": {

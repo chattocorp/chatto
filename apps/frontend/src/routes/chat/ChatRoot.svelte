@@ -130,7 +130,7 @@
               viewer.user.avatarUrl ?? null,
               viewer.user.login,
               viewer.user.customStatus ?? null,
-              { bio: viewer.user.bio ?? null, timezone: viewer.user.settings?.timezone ?? null }
+              { bio: viewer.user.bio ?? null, timezone: viewer.user.publicTimezone ?? null }
             );
           } else if (operation.operation.case === 'userRemove') {
             rootProfileCache.remove(operation.operation.value.userId);
@@ -209,6 +209,7 @@
       const store = serverRegistry.tryGetStore(server.id);
       const user = store?.currentUser.user;
       if (!store || !user || !store.isAuthenticated) continue;
+      if (user.settings?.shareTimezone === undefined) continue;
       const key = `${server.id}:${user.id}`;
       if (!timezoneReports.begin(key)) continue;
       if (user.settings?.timezone) {

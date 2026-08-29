@@ -233,6 +233,7 @@ message UserConfigSnapshot {
   chatto.core.evt.v1.NotificationDeliveryModes server_notification_modes = 4;
   repeated RoomNotificationModesSnapshot room_notification_modes = 5;
   repeated RoomGroupNotificationModesSnapshot room_group_notification_modes = 6;
+  bool share_timezone = 7;
 }
 
 message RoomNotificationModesSnapshot {

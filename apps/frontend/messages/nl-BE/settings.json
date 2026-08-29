@@ -192,6 +192,12 @@
         "more_results": "{count} meer - typ om de resultaten te beperken",
         "current_time": "Huidige tijd daar: {time}"
       },
+      "timezone_sharing": {
+        "title": "Tijdzone delen",
+        "label": "Mijn tijdzone op mijn profiel tonen",
+        "description": "Andere leden kunnen je tijdzone en je huidige lokale tijd zien.",
+        "unsupported": "Deze serverversie deelt elke opgeslagen tijdzone. Wis je tijdzone of vraag de servereigenaar om een upgrade uit te voeren."
+      },
       "time_format": {
         "title": "Tijdnotatie",
         "browser_default": {

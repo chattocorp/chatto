@@ -83,6 +83,8 @@ message UpdateSettingsRequest {
   optional string timezone = 1;
   // Preferred time format.
   optional TimeFormat time_format = 2;
+  // Whether the stored time zone may appear on the user's public profile.
+  optional bool share_timezone = 3;
 }
 
 // Result of updating display preferences.

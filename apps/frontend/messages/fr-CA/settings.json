@@ -192,6 +192,12 @@
         "more_results": "{count} plus - tapez pour raffiner les résultats",
         "current_time": "Heure actuelle là-bas : {time}"
       },
+      "timezone_sharing": {
+        "title": "Partage du fuseau horaire",
+        "label": "Afficher mon fuseau horaire dans mon profil",
+        "description": "Les autres membres peuvent voir votre fuseau horaire et votre heure locale actuelle.",
+        "unsupported": "Cette version du serveur partage tous les fuseaux horaires enregistrés. Effacez votre fuseau horaire ou demandez au propriétaire du serveur de le mettre à niveau."
+      },
       "time_format": {
         "title": "Format de l'heure",
         "browser_default": {

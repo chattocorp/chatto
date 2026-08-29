@@ -236,7 +236,11 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 }
 
 func coreUserSettingsToAPI(settings *evtv1.ServerUserPreferences) *apiv1.UserSettings {
-	response := &apiv1.UserSettings{TimeFormat: apiv1.TimeFormat_TIME_FORMAT_AUTO}
+	shareTimezone := false
+	response := &apiv1.UserSettings{
+		TimeFormat:    apiv1.TimeFormat_TIME_FORMAT_AUTO,
+		ShareTimezone: &shareTimezone,
+	}
 	if settings == nil {
 		return response
 	}
@@ -244,6 +248,8 @@ func coreUserSettingsToAPI(settings *evtv1.ServerUserPreferences) *apiv1.UserSet
 		response.Timezone = settings.Timezone
 	}
 	response.TimeFormat = coreTimeFormatToAPI(settings.GetTimeFormat())
+	shareTimezone = settings.GetShareTimezone()
+	response.ShareTimezone = &shareTimezone
 	return response
 }
 

@@ -2,11 +2,11 @@
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createAccountAPI } from '$lib/api-client/account';
+  import { createAccountAPI, type UpdateSettingsInput } from '$lib/api-client/account';
   import Panel from '$lib/ui/Panel.svelte';
   import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-  import { ChoiceRow, FormSection, PaneContent, PaneHeader } from '$lib/ui';
-  import { Button, Combobox, FormError } from '$lib/ui/form';
+  import { ChoiceRow, FormSection, Hint, PaneContent, PaneHeader } from '$lib/ui';
+  import { Button, Checkbox, Combobox, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatMessageTime, hour12ForTimeFormat } from '$lib/utils/formatTime';
 
@@ -28,6 +28,7 @@
   let timezoneSearch = $state('');
   let selectedTimezone = $state('');
   let selectedTimeFormat = $state<TimeFormat>(TimeFormat.TIME_FORMAT_AUTO);
+  let shareTimezone = $state(false);
   let isSaving = $state(false);
   let error = $state('');
 
@@ -38,6 +39,7 @@
     timezoneSearch = timezone;
     selectedTimezone = timezone;
     selectedTimeFormat = savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO;
+    shareTimezone = savedSettings?.shareTimezone ?? false;
     settingsInitialized = true;
   });
 
@@ -55,8 +57,11 @@
   const isModified = $derived(
     settingsInitialized &&
       ((selectedTimezone || null) !== (savedSettings?.timezone ?? null) ||
-        selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO))
+        selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO) ||
+        (savedSettings?.shareTimezone !== undefined &&
+          shareTimezone !== savedSettings.shareTimezone))
   );
+  const supportsTimezoneSharing = $derived(savedSettings?.shareTimezone !== undefined);
 
   // Timezone validation
   const timezoneError = $derived.by(() => {
@@ -93,10 +98,17 @@
     error = '';
 
     try {
-      const settings = await accountAPI().updateSettings({
-        timezone: selectedTimezone || null,
-        timeFormat: selectedTimeFormat
-      });
+      const input: UpdateSettingsInput = {};
+      if ((selectedTimezone || null) !== (savedSettings?.timezone ?? null)) {
+        input.timezone = selectedTimezone || null;
+      }
+      if (selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO)) {
+        input.timeFormat = selectedTimeFormat;
+      }
+      if (supportsTimezoneSharing && shareTimezone !== savedSettings?.shareTimezone) {
+        input.shareTimezone = shareTimezone;
+      }
+      const settings = await accountAPI().updateSettings(input);
       if (!serverScope.isCurrent()) return;
       if (currentUser.user) {
         currentUser.user = {
@@ -172,6 +184,30 @@
               time: selectedTimezoneTime
             })}
           </p>
+        {/if}
+      </FormSection>
+
+      <FormSection title={m('settings.preferences.timezone_sharing.title')} bordered>
+        {#if !settingsInitialized}
+          <Checkbox
+            id="share-timezone"
+            label={m('settings.preferences.timezone_sharing.label')}
+            description={m('settings.preferences.timezone_sharing.description')}
+            disabled
+            bind:checked={shareTimezone}
+          />
+        {:else if supportsTimezoneSharing}
+          <Checkbox
+            id="share-timezone"
+            label={m('settings.preferences.timezone_sharing.label')}
+            description={m('settings.preferences.timezone_sharing.description')}
+            disabled={!settingsInitialized}
+            bind:checked={shareTimezone}
+          />
+        {:else}
+          <Hint tone="warning">
+            {m('settings.preferences.timezone_sharing.unsupported')}
+          </Hint>
         {/if}
       </FormSection>
 

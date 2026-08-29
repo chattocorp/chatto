@@ -24,6 +24,7 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 	for _, userID := range sortedMapKeys(p.users) {
 		user := p.users[userID]
 		row := &projectionv1.UserConfigSnapshot{UserId: userID}
+		row.ShareTimezone = user.shareTimezone
 		if user.timezone != nil {
 			value := *user.timezone
 			row.Timezone = &value
@@ -82,6 +83,7 @@ func (p *ConfigProjection) Restore(data []byte) error {
 			value := row.GetTimeFormat()
 			user.timeFormat = &value
 		}
+		user.shareTimezone = row.GetShareTimezone()
 		user.serverModes = cloneNotificationDeliveryModes(row.GetServerNotificationModes())
 		for _, group := range row.GetRoomGroupNotificationModes() {
 			if group.GetRoomGroupId() == "" {

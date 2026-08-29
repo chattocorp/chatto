@@ -845,7 +845,9 @@ type ServerUserPreferencesSyncEvent struct {
 	// IANA time zone name. An empty value selects the browser default.
 	Timezone string `protobuf:"bytes,1,opt,name=timezone,proto3" json:"timezone,omitempty"`
 	// Preferred time display format.
-	TimeFormat    TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.live.v1.TimeFormat" json:"time_format,omitempty"`
+	TimeFormat TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.live.v1.TimeFormat" json:"time_format,omitempty"`
+	// Whether the stored time zone may appear on the user's public profile.
+	ShareTimezone bool `protobuf:"varint,3,opt,name=share_timezone,json=shareTimezone,proto3" json:"share_timezone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -892,6 +894,13 @@ func (x *ServerUserPreferencesSyncEvent) GetTimeFormat() TimeFormat {
 		return x.TimeFormat
 	}
 	return TimeFormat_TIME_FORMAT_UNSPECIFIED
+}
+
+func (x *ServerUserPreferencesSyncEvent) GetShareTimezone() bool {
+	if x != nil {
+		return x.ShareTimezone
+	}
+	return false
 }
 
 type ServerUpdatedEvent struct {
@@ -1496,11 +1505,12 @@ const file_chatto_core_live_v1_live_events_proto_rawDesc = "" +
 	"avatar_url\x18\x03 \x01(\tR\tavatarUrl\x12\x14\n" +
 	"\x05login\x18\x04 \x01(\tR\x05login\x12\x10\n" +
 	"\x03bio\x18\x05 \x01(\tR\x03bio\x12\x1a\n" +
-	"\btimezone\x18\x06 \x01(\tR\btimezone\"~\n" +
+	"\btimezone\x18\x06 \x01(\tR\btimezone\"\xa5\x01\n" +
 	"\x1eServerUserPreferencesSyncEvent\x12\x1a\n" +
 	"\btimezone\x18\x01 \x01(\tR\btimezone\x12@\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x1f.chatto.core.live.v1.TimeFormatR\n" +
-	"timeFormat\"\xa1\x01\n" +
+	"timeFormat\x12%\n" +
+	"\x0eshare_timezone\x18\x03 \x01(\bR\rshareTimezone\"\xa1\x01\n" +
 	"\x12ServerUpdatedEvent\x12\x1b\n" +
 	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +

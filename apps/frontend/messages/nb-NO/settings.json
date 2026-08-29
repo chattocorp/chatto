@@ -192,6 +192,12 @@
         "more_results": "{count} mer – skriv for å begrense resultatene",
         "current_time": "Gjeldende tid der: {time}"
       },
+      "timezone_sharing": {
+        "title": "Deling av tidssone",
+        "label": "Vis tidssonen min på profilen",
+        "description": "Andre medlemmer kan se tidssonen din og den lokale tiden din nå.",
+        "unsupported": "Denne serverversjonen deler alle lagrede tidssoner. Fjern tidssonen din, eller be servereieren om å oppgradere."
+      },
       "time_format": {
         "title": "Tidsformat",
         "browser_default": {

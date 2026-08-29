@@ -192,6 +192,12 @@
         "more_results": "{count} mais - digite para restringir os resultados",
         "current_time": "Hora atual lá: {time}"
       },
+      "timezone_sharing": {
+        "title": "Compartilhamento de fuso horário",
+        "label": "Mostrar meu fuso horário no meu perfil",
+        "description": "Outros membros podem ver seu fuso horário e sua hora local atual.",
+        "unsupported": "Esta versão do servidor compartilha todos os fusos horários armazenados. Limpe seu fuso horário ou peça ao proprietário do servidor para atualizar."
+      },
       "time_format": {
         "title": "Formato de hora",
         "browser_default": {

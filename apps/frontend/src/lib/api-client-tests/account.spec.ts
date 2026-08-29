@@ -133,7 +133,8 @@ describe('createAccountAPI', () => {
     mocks.updateSettings.mockResolvedValue({
       settings: {
         timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+        shareTimezone: true
       }
     });
 
@@ -145,17 +146,20 @@ describe('createAccountAPI', () => {
     await expect(
       api.updateSettings({
         timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+        shareTimezone: true
       })
     ).resolves.toEqual({
       timezone: 'Europe/Berlin',
-      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+      shareTimezone: true
     });
 
     expect(mocks.updateSettings).toHaveBeenCalledWith(
       {
         timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+        shareTimezone: true
       },
       { headers: undefined }
     );
@@ -193,13 +197,15 @@ describe('createAccountAPI', () => {
 
     await expect(api.updateSettings({ timezone: null })).resolves.toEqual({
       timezone: null,
-      timeFormat: TimeFormat.TIME_FORMAT_AUTO
+      timeFormat: TimeFormat.TIME_FORMAT_AUTO,
+      shareTimezone: undefined
     });
 
     expect(mocks.updateSettings).toHaveBeenCalledWith(
       {
         timezone: '',
-        timeFormat: undefined
+        timeFormat: undefined,
+        shareTimezone: undefined
       },
       { headers: undefined }
     );

@@ -42,9 +42,9 @@ type User struct {
 	IsBot bool `protobuf:"varint,8,opt,name=is_bot,json=isBot,proto3" json:"is_bot,omitempty"`
 	// Short self-authored biography shown on the user's profile, when set.
 	Bio *string `protobuf:"bytes,9,opt,name=bio,proto3,oneof" json:"bio,omitempty"`
-	// IANA time zone the user shares on their profile (for example
-	// "Europe/Berlin"), when set. Absent means the user has not chosen a
-	// shareable time zone.
+	// IANA time zone the user chose to share on their profile (for example
+	// "Europe/Berlin"). Absent means the user has not enabled time-zone
+	// sharing or has no stored time zone.
 	Timezone      *string `protobuf:"bytes,10,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

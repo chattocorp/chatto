@@ -162,6 +162,8 @@ message ServerUserPreferencesSyncEvent {
   string timezone = 1;
   // Preferred time display format.
   TimeFormat time_format = 2;
+  // Whether the stored time zone may appear on the user's public profile.
+  bool share_timezone = 3;
 }
 
 // ============================================================================

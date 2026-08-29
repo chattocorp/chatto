@@ -192,6 +192,12 @@
         "more_results": "{count} více – zadejte pro zúžení výsledků",
         "current_time": "Aktuální čas: {time}"
       },
+      "timezone_sharing": {
+        "title": "Sdílení časového pásma",
+        "label": "Zobrazit moje časové pásmo v profilu",
+        "description": "Ostatní členové uvidí vaše časové pásmo a aktuální místní čas.",
+        "unsupported": "Tato verze serveru sdílí každé uložené časové pásmo. Vymažte své časové pásmo nebo požádejte vlastníka serveru o aktualizaci."
+      },
       "time_format": {
         "title": "Formát času",
         "browser_default": {

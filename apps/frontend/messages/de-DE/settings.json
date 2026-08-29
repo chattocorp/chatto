@@ -192,6 +192,12 @@
         "more_results": "{count} weitere - tippen, um die Ergebnisse einzugrenzen",
         "current_time": "Aktuelle Uhrzeit dort: {time}"
       },
+      "timezone_sharing": {
+        "title": "Zeitzone teilen",
+        "label": "Meine Zeitzone in meinem Profil anzeigen",
+        "description": "Andere Mitglieder können deine Zeitzone und deine aktuelle Ortszeit sehen.",
+        "unsupported": "Diese Serverversion teilt jede gespeicherte Zeitzone. Lösche deine Zeitzone oder bitte den Serverinhaber um ein Upgrade."
+      },
       "time_format": {
         "title": "Zeitformat",
         "browser_default": {

@@ -192,6 +192,12 @@
         "more_results": "{count} daha - sonuçları daraltmak için yazın",
         "current_time": "Orada şu anki saat: {time}"
       },
+      "timezone_sharing": {
+        "title": "Saat dilimi paylaşımı",
+        "label": "Saat dilimimi profilimde göster",
+        "description": "Diğer üyeler saat diliminizi ve geçerli yerel saatinizi görebilir.",
+        "unsupported": "Bu sunucu sürümü kaydedilen tüm saat dilimlerini paylaşır. Saat diliminizi temizleyin veya sunucu sahibinden yükseltme yapmasını isteyin."
+      },
       "time_format": {
         "title": "Saat Formatı",
         "browser_default": {

@@ -192,6 +192,12 @@
         "more_results": "另有 {count} 個結果，請輸入文字縮小範圍",
         "current_time": "當地目前時間：{time}"
       },
+      "timezone_sharing": {
+        "title": "分享時區",
+        "label": "在個人資料中顯示我的時區",
+        "description": "其他成員可以看到你的時區和目前當地時間。",
+        "unsupported": "此伺服器版本會分享所有已儲存的時區。請清除你的時區，或請伺服器擁有者升級。"
+      },
       "time_format": {
         "title": "時間格式",
         "browser_default": {

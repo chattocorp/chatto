@@ -46,7 +46,7 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 	// Include the user's shareable time zone so clients can render local time
 	// without an extra read. Absent settings mean no public zone.
 	timezone := ""
-	if settings, err := c.GetUserSettings(ctx, userID); err == nil && settings != nil {
+	if settings, err := c.GetUserSettings(ctx, userID); err == nil && settings != nil && settings.GetShareTimezone() {
 		timezone = settings.GetTimezone()
 	}
 

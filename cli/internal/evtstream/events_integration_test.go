@@ -2685,6 +2685,18 @@ func TestEventTypeOf_AssetAttached(t *testing.T) {
 	}
 }
 
+func TestEventTypeOf_UserTimezoneSharingChanged(t *testing.T) {
+	event := &evtv1.Event{Event: &evtv1.Event_UserTimezoneSharingChanged{
+		UserTimezoneSharingChanged: &evtv1.UserTimezoneSharingChangedEvent{UserId: "U1", ShareTimezone: true},
+	}}
+	if got := EventTypeOf(event); got != EventUserTimezoneSharingChanged {
+		t.Fatalf("EventTypeOf = %q, want %q", got, EventUserTimezoneSharingChanged)
+	}
+	if got := ConfigSubjectAggregate("U1").SubjectFor(event); got != "evt.config.U1.user_timezone_sharing_changed" {
+		t.Fatalf("SubjectFor = %q, want timezone sharing subject", got)
+	}
+}
+
 func TestAuthAggregate_Subject(t *testing.T) {
 	got := AuthAggregate().Subject(EventRegistrationVerificationCodeIssued)
 	want := "evt.auth.server.registration_verification_code_issued"
