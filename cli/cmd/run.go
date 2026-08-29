@@ -175,6 +175,7 @@ func runServer(configPath string) {
 	cfg.Core.Limits = cfg.Limits
 	cfg.Core.Owners = cfg.Owners
 	cfg.Core.Version = Version
+	cfg.Core.ServerOrigins = cfg.Webserver.ServerOrigins()
 	chattoCore, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
 		log.Error("Failed to create Chatto core", "error", err)

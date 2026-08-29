@@ -145,6 +145,7 @@ type CoreConfig struct {
 	Limits                      LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
 	Owners                      OwnersConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 	Version                     string         `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
+	ServerOrigins               []string       `toml:"-" env:"-"` // Canonical origins derived from WebserverConfig.ServerOrigins().
 }
 
 // ProjectionSnapshotRetentionOrDefault returns the configured retention, or

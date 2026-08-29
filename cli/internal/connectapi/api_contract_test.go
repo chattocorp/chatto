@@ -477,6 +477,7 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"room archived", core.ErrRoomArchived, connect.CodeFailedPrecondition},
 		{"edit window expired", core.ErrEditWindowExpired, connect.CodeFailedPrecondition},
 		{"asset not attachable", core.ErrAssetNotAttachable, connect.CodeFailedPrecondition},
+		{"Neighbor matches server origin", core.ErrNeighborMatchesServerOrigin, connect.CodeFailedPrecondition},
 		{"unknown", errors.New("boom"), connect.CodeInternal},
 	}
 

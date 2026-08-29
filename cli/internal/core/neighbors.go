@@ -30,6 +30,9 @@ var (
 	ErrNeighborNotFound = errors.New("Neighbor not found")
 	// ErrNeighborAlreadyExists means that the canonical origin is advertised.
 	ErrNeighborAlreadyExists = errors.New("Neighbor origin already exists")
+	// ErrNeighborMatchesServerOrigin means that the configured origin identifies
+	// this server and cannot be advertised as a Neighbor.
+	ErrNeighborMatchesServerOrigin = errors.New("Neighbor origin identifies this server")
 	// ErrNeighborRevisionChanged prevents a stale update or delete.
 	ErrNeighborRevisionChanged = errors.New("Neighbor was changed by another request")
 	// ErrNeighborLimitReached means that the directory is full.
@@ -102,6 +105,9 @@ func (c *ChattoCore) CreateNeighbor(ctx context.Context, actorID, rawOrigin stri
 			return Neighbor{}, err
 		}
 		neighbors := c.ConfigModel().ListNeighbors()
+		if c.isServerOrigin(origin) {
+			return Neighbor{}, ErrNeighborMatchesServerOrigin
+		}
 		if len(neighbors) >= MaxNeighbors {
 			return Neighbor{}, ErrNeighborLimitReached
 		}
@@ -141,6 +147,9 @@ func (c *ChattoCore) UpdateNeighbor(ctx context.Context, actorID, neighborID, ra
 		if current.Revision != revision {
 			return Neighbor{}, ErrNeighborRevisionChanged
 		}
+		if c.isServerOrigin(origin) {
+			return Neighbor{}, ErrNeighborMatchesServerOrigin
+		}
 		if neighborOriginExists(c.ConfigModel().ListNeighbors(), origin, neighborID) {
 			return Neighbor{}, ErrNeighborAlreadyExists
 		}
@@ -157,6 +166,11 @@ func (c *ChattoCore) UpdateNeighbor(ctx context.Context, actorID, neighborID, ra
 		}
 	}
 	return Neighbor{}, fmt.Errorf("update Neighbor retry exhausted: %w", events.ErrConflict)
+}
+
+func (c *ChattoCore) isServerOrigin(origin string) bool {
+	_, exists := c.serverOrigins[origin]
+	return exists
 }
 
 // DeleteNeighbor removes one Neighbor if its revision is current.

@@ -18,7 +18,8 @@ includes this authority.
 
 The administration page extracts the HTTP or HTTPS origin from the value. It
 removes paths, queries, and fragments before storage. A server can advertise at
-most 100 Neighbors.
+most 100 Neighbors. Chatto rejects its own `webserver.url` origin and each exact
+`webserver.allowed_origins` alias.
 
 ## Edit or delete a Neighbor
 
@@ -78,7 +79,8 @@ advertised origins without a session.
 
 Administrative API callers must send a canonical HTTP or HTTPS origin without
 a path, query, fragment, or credentials. The hostname and deep-link input
-normalization is a bundled-client feature.
+normalization is a bundled-client feature. Create and update operations return
+`FailedPrecondition` when the origin identifies the current server.
 
 An older server can return `Unimplemented` for the public method. Treat that
 result as no available Neighbor directory.

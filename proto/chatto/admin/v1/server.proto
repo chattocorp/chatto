@@ -225,10 +225,11 @@ service AdminServerService {
   rpc ListNeighbors(ListNeighborsRequest) returns (ListNeighborsResponse);
   // Gets one configured Neighbor. This RPC requires server.manage-neighbors.
   rpc GetNeighbor(GetNeighborRequest) returns (GetNeighborResponse);
-  // Advertises one server origin. This RPC requires server.manage-neighbors.
+  // Advertises one server origin. The origin must not identify this server.
+  // This RPC requires server.manage-neighbors.
   rpc CreateNeighbor(CreateNeighborRequest) returns (CreateNeighborResponse);
-  // Changes one advertised server origin. This RPC requires
-  // server.manage-neighbors.
+  // Changes one advertised server origin. The new origin must not identify
+  // this server. This RPC requires server.manage-neighbors.
   rpc UpdateNeighbor(UpdateNeighborRequest) returns (UpdateNeighborResponse);
   // Stops advertising one server origin. This RPC requires
   // server.manage-neighbors.

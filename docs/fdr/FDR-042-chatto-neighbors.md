@@ -17,6 +17,8 @@ recommendation, not a trust or reciprocal relationship.
   only the canonical HTTP or HTTPS origin for storage.
 - Each Neighbor contains one canonical HTTP or HTTPS server origin. A server
   can advertise at most 100 Neighbors.
+- A Neighbor origin cannot match the server's canonical `webserver.url` origin
+  or an exact `webserver.allowed_origins` alias.
 - The directory has no ordering contract.
 - Any caller can list the advertised origins through the public discovery API.
 - The Server Directory page combines the direct Neighbors from all servers
@@ -126,6 +128,19 @@ duplicate server cards.
 
 **Tradeoff:** The source names depend on the server catalogue on the user's
 device.
+
+### 8. A server cannot advertise itself
+
+**Decision:** Create and update operations reject an origin that identifies
+the server. This set includes the canonical `webserver.url` origin and each
+exact non-wildcard `webserver.allowed_origins` entry.
+
+**Why:** A self-reference does not recommend another server. Reverse-proxy
+aliases must not make the same server appear as a separate Neighbor.
+
+**Tradeoff:** A configuration change can make an existing Neighbor identify
+the server. Chatto keeps that historical Neighbor so an administrator can
+remove it or change it to an external origin.
 
 ## Non-goals
 

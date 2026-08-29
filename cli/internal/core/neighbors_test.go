@@ -143,6 +143,41 @@ func TestNeighborCRUDAndPermission(t *testing.T) {
 	require.ErrorIs(t, err, ErrNeighborNotFound)
 }
 
+func TestNeighborRejectsServerOrigins(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor, err := chatto.CreateUser(ctx, SystemActorID, "self-neighbor-manager", "Self Neighbor Manager", "password123")
+	require.NoError(t, err)
+	require.NoError(t, chatto.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermServerManageNeighbors))
+
+	chatto.serverOrigins = nil
+	historical, err := chatto.CreateNeighbor(ctx, actor.GetId(), "https://self.example")
+	require.NoError(t, err)
+	external, err := chatto.CreateNeighbor(ctx, actor.GetId(), "https://external.example")
+	require.NoError(t, err)
+
+	chatto.serverOrigins = map[string]struct{}{
+		"https://self.example":  {},
+		"https://alias.example": {},
+	}
+
+	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), " HTTPS://SELF.EXAMPLE:443/ ")
+	require.ErrorIs(t, err, ErrNeighborMatchesServerOrigin)
+	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), "https://alias.example")
+	require.ErrorIs(t, err, ErrNeighborMatchesServerOrigin)
+
+	_, err = chatto.UpdateNeighbor(ctx, actor.GetId(), external.ID, "https://alias.example", external.Revision)
+	require.ErrorIs(t, err, ErrNeighborMatchesServerOrigin)
+	unchanged, err := chatto.GetManagedNeighbor(ctx, actor.GetId(), external.ID)
+	require.NoError(t, err)
+	require.Equal(t, external, unchanged)
+
+	corrected, err := chatto.UpdateNeighbor(ctx, actor.GetId(), historical.ID, "https://corrected.example", historical.Revision)
+	require.NoError(t, err)
+	require.Equal(t, "https://corrected.example", corrected.Origin)
+	require.Len(t, chatto.ConfigModel().ListNeighbors(), 2)
+}
+
 func TestServerManageIncludesNeighborManagement(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
