@@ -715,7 +715,7 @@
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
-          threadId && canReadMessages ? 'opacity-30 @min-[768px]:opacity-100' : '',
+          threadId && canReadMessages && !splitThreadLayout ? 'opacity-30' : '',
           hasMobileRoomSidebar ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"

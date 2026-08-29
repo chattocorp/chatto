@@ -965,6 +965,9 @@ test.describe('Message Threading', () => {
     await expect
       .poll(() => roomMainPane.evaluate((element) => element.closest('[inert]') !== null))
       .toBe(true);
+    await expect
+      .poll(() => roomMainPane.evaluate((element) => getComputedStyle(element).opacity))
+      .toBe('0.3');
 
     // The thread slideover should show the back button
     await roomPage.expectThreadBackButtonVisible();

@@ -1039,6 +1039,7 @@ describe('Room local message echo', () => {
     const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
     await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
     expect(roomMainPane.hasAttribute('inert')).toBe(true);
+    expect(roomMainPane.className).toContain('opacity-30');
 
     roomRegion.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
 
