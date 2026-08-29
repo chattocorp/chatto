@@ -182,12 +182,14 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   omit the follow created by a direct root mention. Complete the rollout before
   you depend on later followed-thread activations.
 - Remove `webserver.oauth_redirect_origins` or its environment-variable
-  equivalent. Keep `webserver.allowed_origins` only when an exact additional
-  browser origin must use cookie authentication through a reverse proxy. This
-  setting no longer controls cross-origin API access or OAuth redirects, and
-  `*` never authorizes browser cookies. The 0.5 OAuth flow requires a CIMD or
-  built-in `client_id`, so upgrade clients and servers together. Pre-0.5 clients
-  cannot use the new remote-server authorization flow.
+  equivalent. Add an exact `webserver.allowed_origins` entry when a reverse
+  proxy serves the bundled frontend from an additional origin. The entry lets
+  that origin use cookie authentication and publishes its matching frontend
+  OAuth identity. It does not control cross-origin API access or authorize
+  foreign clients. `*` permits neither browser cookies nor frontend OAuth
+  metadata. The 0.5 OAuth flow requires a CIMD or built-in `client_id`, so
+  upgrade clients and servers together. Pre-0.5 clients cannot use the new
+  remote-server authorization flow.
 - Notifications 2.0 replaces the previous notification service and stored records. Existing
   pending notifications and notification-level preferences are not migrated, so every account
   starts with an empty notification list and the new per-signal-class defaults. Integrations must

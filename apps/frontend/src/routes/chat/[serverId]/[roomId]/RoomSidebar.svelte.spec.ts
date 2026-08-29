@@ -1618,6 +1618,27 @@ describe('RoomSidebar', () => {
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
     expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
     expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
+      2
+    );
+  });
+
+  it('separates an offline-only member group from member search', async () => {
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(
+      memberPage([{ ...member(1), presenceStatus: PresenceStatus.OFFLINE }])
+    );
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
+    });
+
+    expect(buttonByText(container, 'Online (1)')).toBeFalsy();
+    expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
       1
     );
   });

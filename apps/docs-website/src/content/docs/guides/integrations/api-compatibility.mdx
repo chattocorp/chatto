@@ -55,6 +55,14 @@ Chatto OAuth. Upgrade serving replicas and bundled clients together; mixed repli
 or rollback after new credentials have been issued can incorrectly extend
 fixed-expiry access records.
 
+Chatto 0.5.0-alpha.1 publishes the canonical `webserver.url` identity from the
+bundled frontend CIMD route, even when a browser uses an exact
+`webserver.allowed_origins` alias. A frontend on that alias cannot connect to a
+remote Chatto server because the client ID does not match its metadata
+document. Later 0.5 servers publish a matching frontend identity for each
+exact alias. Upgrade all replicas that serve an alias before you use that alias
+for remote-server connections.
+
 The new fields on
 `chatto.auth.v1.CreateExternalIdentityAccountResponse` are additive at the
 protobuf wire level. Programmatic clients can use the complete renewable pair.

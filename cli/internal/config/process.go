@@ -48,7 +48,7 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 
 type WebserverConfig struct {
 	URL                    string        `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
-	AllowedOrigins         []string      `toml:"allowed_origins,commented" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional exact browser origins that can use cookie authentication through a reverse proxy. Wildcards apply only to CORS and never authorize browser sessions."`
+	AllowedOrigins         []string      `toml:"allowed_origins,commented" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional exact browser origins that can use cookie authentication and publish the bundled frontend OAuth identity through a reverse proxy. Do not include paths or configure both HTTP and HTTPS for the same request host. Wildcards apply only to CORS and authorize neither behavior."`
 	Port                   int           `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
 	TrustedProxies         []string      `toml:"trusted_proxies,commented" env:"CHATTO_WEBSERVER_TRUSTED_PROXIES" comment:"IP addresses or CIDR ranges of reverse proxies allowed to supply forwarded host and client-IP headers. Default: none."`
 	APICompression         *bool         `toml:"api_compression" env:"CHATTO_WEBSERVER_API_COMPRESSION" comment:"Compress eligible ConnectRPC API responses with gzip. Disable to reduce compressor memory and CPU at the cost of higher network usage. Default: true."`
@@ -268,6 +268,45 @@ func validateAbsoluteHTTPURL(name, raw string) error {
 		}
 	}
 	return nil
+}
+
+func validateHTTPOrigin(name, raw string) error {
+	if err := validateAbsoluteHTTPURL(name, raw); err != nil {
+		return err
+	}
+	u, _ := url.Parse(raw)
+	if u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		return fmt.Errorf("%s must not include a path, query, or fragment", name)
+	}
+	return nil
+}
+
+func canonicalHTTPOriginAndRequestHost(raw string) (string, string, bool) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", "", false
+	}
+	hostname, err := idna.Lookup.ToASCII(strings.ToLower(u.Hostname()))
+	if err != nil {
+		return "", "", false
+	}
+	if address, err := netip.ParseAddr(hostname); err == nil {
+		hostname = address.String()
+	}
+	port := u.Port()
+	if numericPort, err := strconv.ParseUint(port, 10, 16); err == nil {
+		port = strconv.FormatUint(numericPort, 10)
+		if (u.Scheme == "http" && port == "80") || (u.Scheme == "https" && port == "443") {
+			port = ""
+		}
+	}
+	host := hostname
+	if port != "" {
+		host = net.JoinHostPort(hostname, port)
+	} else if strings.Contains(hostname, ":") {
+		host = "[" + hostname + "]"
+	}
+	return u.Scheme + "://" + host, host, true
 }
 
 func validateAbsoluteHTTPSURL(name, raw string) error {

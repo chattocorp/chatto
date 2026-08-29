@@ -476,7 +476,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
               {m('room.sidebar.no_members')}
             </div>
           {:else}
-            {#each memberGroups as group, i (group.id)}
+            {#each memberGroups as group (group.id)}
               <RoomGroupSection
                 label={group.label}
                 items={group.items}
@@ -484,7 +484,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
                 persistKey={group.persistKey}
                 defaultCollapsed={group.defaultCollapsed}
                 testid={group.testid}
-                separated={i > 0}
+                separated
               />
             {/each}
           {/if}
