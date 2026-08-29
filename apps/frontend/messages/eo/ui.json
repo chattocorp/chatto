@@ -43,7 +43,9 @@
       "laser_cooldown": "Lasero {number}, potenco {power}: restas {seconds} sekundoj da malvarmiĝo",
       "upgrade_power": "Altigu laseron {number} al potenca nivelo {level} kontraŭ {cost} poentoj",
       "buy_laser": "Aĉetu laserkanonon {number} kontraŭ {cost} poentoj",
-      "maximum_lasers": "Maksimumo de {count} laserkanonoj atingita"
+      "maximum_lasers": "Maksimumo de {count} laserkanonoj atingita",
+      "maximum_power": "Lasero {number} atingis maksimuman potencon {power}",
+      "complete": "Chatto rekonstruiĝis. Fina poentaro: {count} poentoj"
     },
     "pane_header": {
       "back": "Reen"

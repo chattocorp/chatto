@@ -43,7 +43,9 @@
       "laser_cooldown": "Лазер {number}, потужність {power}: залишилося {seconds} с перезарядки",
       "upgrade_power": "Підвищити лазер {number} до рівня потужності {level} за {cost} очок",
       "buy_laser": "Придбати лазерну гармату {number} за {cost} очок",
-      "maximum_lasers": "Досягнуто максимуму з {count} лазерних гармат"
+      "maximum_lasers": "Досягнуто максимуму з {count} лазерних гармат",
+      "maximum_power": "Лазер {number} досяг максимальної потужності {power}",
+      "complete": "Chatto відновлено. Підсумковий рахунок: {count} очок"
     },
     "pane_header": {
       "back": "Назад"

@@ -43,7 +43,9 @@
       "laser_cooldown": "Laser {number}, potenza {power}: {seconds} secondi di ricarica rimanenti",
       "upgrade_power": "Aggiorna il laser {number} al livello di potenza {level} per {cost} punti",
       "buy_laser": "Acquista pistola laser {number} per {cost} punti",
-      "maximum_lasers": "È stato raggiunto il numero massimo di {count} pistole laser"
+      "maximum_lasers": "È stato raggiunto il numero massimo di {count} pistole laser",
+      "maximum_power": "Il laser {number} ha raggiunto la potenza massima {power}",
+      "complete": "Chatto è stato ricostruito. Punteggio finale: {count} punti"
     },
     "pane_header": {
       "back": "Indietro"

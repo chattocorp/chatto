@@ -43,7 +43,9 @@
       "laser_cooldown": "Lāzers {number}, jauda {power}: atlikušas {seconds} sekundes no dzesēšanas",
       "upgrade_power": "Jauniniet lāzeru {number} uz jaudas līmeni {level}, lai iegūtu {cost} punktus",
       "buy_laser": "Pērciet lāzera pistoli {number} par {cost} punktiem",
-      "maximum_lasers": "Sasniegts maksimālais {count} lāzera pistoles skaits"
+      "maximum_lasers": "Sasniegts maksimālais {count} lāzera pistoles skaits",
+      "maximum_power": "Lāzers {number} sasniedza maksimālo jaudu {power}",
+      "complete": "Chatto tika atjaunots. Gala rezultāts: {count} punkti"
     },
     "pane_header": {
       "back": "Atpakaļ"

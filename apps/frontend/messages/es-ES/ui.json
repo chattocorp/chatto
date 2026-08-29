@@ -43,7 +43,9 @@
       "laser_cooldown": "Láser {number}, potencia {power}: quedan {seconds} segundos de recarga",
       "upgrade_power": "Mejorar el láser {number} al nivel de potencia {level} por {cost} puntos",
       "buy_laser": "Comprar el cañón láser {number} por {cost} puntos",
-      "maximum_lasers": "Se alcanzó el máximo de {count} cañones láser"
+      "maximum_lasers": "Se alcanzó el máximo de {count} cañones láser",
+      "maximum_power": "El láser {number} ha alcanzado la potencia máxima {power}",
+      "complete": "Chatto se ha reconstruido. Puntuación final: {count} puntos"
     },
     "pane_header": {
       "back": "Volver"

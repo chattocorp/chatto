@@ -43,7 +43,9 @@
       "laser_cooldown": "Lazer {number}, güç {power}: {seconds} saniyelik bekleme süresi kaldı",
       "upgrade_power": "{number} lazerini {cost} puan için {level} güç seviyesine yükseltin",
       "buy_laser": "{cost} puan karşılığında {number} lazer tabancası satın alın",
-      "maximum_lasers": "Maksimum {count} lazer silahı sayısına ulaşıldı"
+      "maximum_lasers": "Maksimum {count} lazer silahı sayısına ulaşıldı",
+      "maximum_power": "{number} lazeri maksimum güç {power} seviyesine ulaştı",
+      "complete": "Chatto yeniden oluşturuldu. Son puan: {count}"
     },
     "pane_header": {
       "back": "Geri"

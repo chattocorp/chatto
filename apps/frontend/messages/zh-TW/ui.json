@@ -43,7 +43,9 @@
       "laser_cooldown": "雷射 {number}，威力 {power}：冷卻剩餘 {seconds} 秒",
       "upgrade_power": "花費 {cost} 點將雷射 {number} 升級至威力等級 {level}",
       "buy_laser": "花費 {cost} 點購買雷射槍 {number}",
-      "maximum_lasers": "已達雷射槍數量上限 {count} 把"
+      "maximum_lasers": "已達雷射槍數量上限 {count} 把",
+      "maximum_power": "雷射 {number} 已達到最大威力 {power}",
+      "complete": "Chatto 已重建。最終得分：{count} 分"
     },
     "pane_header": {
       "back": "返回"

@@ -43,7 +43,9 @@
       "laser_cooldown": "Лазер {number}, мощность {power}: осталось {seconds} секунд восстановления",
       "upgrade_power": "Улучшите лазер {number} до уровня мощности {level} за {cost} баллов.",
       "buy_laser": "Купить лазерную пушку {number} за {cost} баллов",
-      "maximum_lasers": "Достигнуто максимум {count} лазерных пушек."
+      "maximum_lasers": "Достигнуто максимум {count} лазерных пушек.",
+      "maximum_power": "Лазер {number} достиг максимальной мощности {power}",
+      "complete": "Chatto восстановлен. Итоговый счёт: {count} очков"
     },
     "pane_header": {
       "back": "Назад"

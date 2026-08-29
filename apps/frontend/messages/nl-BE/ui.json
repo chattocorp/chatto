@@ -43,7 +43,9 @@
       "laser_cooldown": "Laser {number}, kracht {power}: nog {seconds} seconden afkoeltijd",
       "upgrade_power": "Verhoog laser {number} naar krachtniveau {level} voor {cost} punten",
       "buy_laser": "Koop laserkanon {number} voor {cost} punten",
-      "maximum_lasers": "Maximum van {count} laserkanonnen bereikt"
+      "maximum_lasers": "Maximum van {count} laserkanonnen bereikt",
+      "maximum_power": "Laser {number} heeft de maximale kracht {power} bereikt",
+      "complete": "Chatto is herbouwd. Eindscore: {count} punten"
     },
     "pane_header": {
       "back": "Terug"

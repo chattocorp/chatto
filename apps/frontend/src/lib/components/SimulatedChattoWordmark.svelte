@@ -5,6 +5,7 @@
     ballisticDisplacement,
     BoundedLruCache,
     canvasPixelRatio,
+    claimParticleHits,
     CONSTRUCTION_DURATION,
     constructionFrame,
     constructionLaserFrame,
@@ -18,6 +19,7 @@
     exponentialSample,
     explosionFrame,
     explosionParticleOpacity,
+    explosionParticleUnavailableDuration,
     GAME_UI_REVEAL_SHOTS,
     glyphFloatOffset,
     IMPACT_LASER_DURATION,
@@ -31,6 +33,7 @@
     laserPowerSmokeScale,
     laserPowerUpgradeCost,
     MAX_LASER_GUNS,
+    MAX_LASER_POWER,
     nextCooldownHudTime,
     nextReadyLaserIndex,
     projectParticleWithRotation,
@@ -45,6 +48,7 @@
     type ProjectionRotation,
     type WordmarkParticle
   } from './simulatedChattoWordmark';
+  import Deadline from '$lib/lifecycle/Deadline.svelte';
 
   type BurstVector = {
     x: number;
@@ -52,6 +56,7 @@
     force: number;
     rotation: number;
     gravity: number;
+    unavailableDuration: number;
   };
   type ActiveBurst = {
     triggeredAt: number;
@@ -62,6 +67,9 @@
     lasers: LaserBeam[];
     smoke: SmokeParticle[];
     smokeIntensity: number;
+    impactResolved: boolean;
+    awardSpendablePoints: boolean;
+    ignoreParticleAvailability: boolean;
   };
   type LaserGunState = {
     id: number;
@@ -102,9 +110,11 @@
 
   const ACTIVE_FRAME_RATE = 60;
   const IDLE_FRAME_RATE = 30;
-  const MAX_ACTIVE_BURSTS = 8;
+  // Keep two complete volleys because a burst lasts twice as long as a laser cooldown.
+  const MAX_ACTIVE_BURSTS = MAX_LASER_GUNS * 2;
   const MAX_EMOJI_SPRITES = 768;
   const FOREGROUND_STAR_DEPTH = 0.66;
+  const FINAL_VOLLEY_COMPLETION_DELAY = IMPACT_LASER_DURATION + EXPLOSION_DURATION;
   type StarFieldLayer = 'background' | 'foreground';
 
   type Props = {
@@ -120,7 +130,7 @@
     initialLaserPowers
       .filter((power) => Number.isFinite(power))
       .slice(0, MAX_LASER_GUNS)
-      .map((power) => Math.max(1, Math.floor(power)))
+      .map((power) => Math.min(MAX_LASER_POWER, Math.max(1, Math.floor(power))))
   );
 
   const particles = createWordmarkParticles();
@@ -147,11 +157,13 @@
   let currentRotateY = 0;
   let constructionStartedAt = Number.NEGATIVE_INFINITY;
   let activeBursts: ActiveBurst[] = [];
+  const particleAvailableAt = new Float64Array(particles.length);
   let reducedMotion = false;
   let hoverCursor: { x: number; y: number } | null = null;
   let points = $state(
     untrack(() => (Number.isFinite(initialPoints) ? Math.max(0, Math.floor(initialPoints)) : 0))
   );
+  let score = $state(0);
   let firstLaserShots = $state(0);
   let laserGuns = $state.raw<LaserGunState[]>(
     (startingLaserPowers.length > 0 ? startingLaserPowers : [1]).map((power, index) => ({
@@ -161,6 +173,9 @@
     }))
   );
   let hudNow = $state(0);
+  let gameCompleted = $state(false);
+  let victoryVisible = $state(false);
+  let completionDeadline = $state<number | null>(null);
 
   const nextLaserCost = $derived(laserGunCost(laserGuns.length));
   const gameUiVisible = $derived(firstLaserShots >= GAME_UI_REVEAL_SHOTS);
@@ -519,6 +534,7 @@
     animationFrame = undefined;
     const context = canvasContext;
     if (!context || canvasWidth <= 0 || canvasHeight <= 0) return;
+    resolveBurstImpacts(now);
     activeBursts = activeBursts.filter(
       (activeBurst) => now - activeBurst.startedAt < EXPLOSION_DURATION
     );
@@ -728,8 +744,113 @@
     requestDraw();
   }
 
+  function createBurstSmoke(originX: number, originY: number, smokeScale: number): SmokeParticle[] {
+    const smokeCount = Math.round(5 + smokeScale * 9);
+    return Array.from({ length: smokeCount }, (_, index) => {
+      const angleDirection = Math.random() < 0.5 ? -1 : 1;
+      return {
+        angle:
+          (index / smokeCount) * Math.PI * 2 +
+          (originX + originY) * 0.001 +
+          angleDirection * Math.min(0.5, exponentialSample(Math.random()) * 0.12),
+        distance:
+          (28 + (index % 4) * 8) * (1 + Math.min(0.65, exponentialSample(Math.random()) * 0.18)),
+        delay: Math.min(180, exponentialSample(Math.random()) * 52),
+        size:
+          (2.2 + (index % 3) * 0.4) *
+          smokeScale *
+          (1 + Math.min(0.9, exponentialSample(Math.random()) * 0.22))
+      };
+    });
+  }
+
+  function createBurstVectors(
+    originX: number,
+    originY: number,
+    projectionFrame: CanvasProjectionFrame,
+    influenceRadius: number,
+    fullStrength = false
+  ): BurstVector[] {
+    return particles.map((particle) => {
+      const position = projectForCanvas(particle, projectionFrame);
+      let vectorX = position.x - originX;
+      let vectorY = position.y - originY;
+      let distance = Math.hypot(vectorX, vectorY);
+
+      if (distance < 1) {
+        vectorX = Math.cos(particle.fallbackAngle);
+        vectorY = Math.sin(particle.fallbackAngle);
+        distance = 1;
+      }
+
+      const radialStrength = radialForce(distance, influenceRadius);
+      const rawForce = Math.min(1, radialStrength / 0.04);
+      const localForce = rawForce >= EXPLOSION_PARTICLE_FORCE_THRESHOLD ? rawForce : 0;
+      const force = fullStrength ? 1 : localForce;
+      const angularDirection = Math.random() < 0.5 ? -1 : 1;
+      const angularSpread = Math.min(0.8, exponentialSample(Math.random()) * 0.2);
+      const trajectoryAngle = Math.atan2(vectorY, vectorX) + angularDirection * angularSpread;
+      const directionX = Math.cos(trajectoryAngle);
+      const directionY = Math.sin(trajectoryAngle);
+      const exitDistance = rayExitDistance(
+        position.x,
+        position.y,
+        directionX,
+        directionY,
+        canvasWidth,
+        canvasHeight
+      );
+      const travelDistance =
+        Math.max(particle.burstDistance, exitDistance + 96 + particle.burstDistance * 0.35) *
+        force *
+        (1 + Math.min(0.75, exponentialSample(Math.random()) * 0.18));
+      const gravity = force * (220 + Math.min(600, exponentialSample(Math.random()) * 180));
+      const bottomToTop = Math.max(
+        0,
+        Math.min(1, (originY + influenceRadius - position.y) / (influenceRadius * 2))
+      );
+      const leftToRight = Math.max(
+        0,
+        Math.min(1, (position.x - originX + influenceRadius) / (influenceRadius * 2))
+      );
+      return {
+        x: directionX * travelDistance,
+        y: directionY * travelDistance - 0.5 * gravity,
+        force,
+        rotation: particle.burstRotation * force,
+        gravity,
+        unavailableDuration: explosionParticleUnavailableDuration(bottomToTop, leftToRight)
+      };
+    });
+  }
+
+  function resolveBurstImpacts(now: number) {
+    for (const activeBurst of activeBursts) {
+      if (activeBurst.impactResolved || now < activeBurst.startedAt) continue;
+
+      const acceptedHits = claimParticleHits(
+        activeBurst.vectors.map((vector) => vector.force),
+        particleAvailableAt,
+        activeBurst.startedAt,
+        activeBurst.vectors.map((vector) => vector.unavailableDuration),
+        activeBurst.ignoreParticleAvailability
+      );
+      let hitCount = 0;
+      activeBurst.vectors = activeBurst.vectors.map((vector, index) => {
+        if (acceptedHits[index]) {
+          hitCount += 1;
+          return vector;
+        }
+        return { x: 0, y: 0, force: 0, rotation: 0, gravity: 0, unavailableDuration: 0 };
+      });
+      activeBurst.impactResolved = true;
+      score += hitCount;
+      if (activeBurst.awardSpendablePoints) points += hitCount;
+    }
+  }
+
   function triggerBurst(event: MouseEvent) {
-    if (canvasWidth <= 0 || canvasHeight <= 0) return;
+    if (gameCompleted || canvasWidth <= 0 || canvasHeight <= 0) return;
 
     const wordmark = event.currentTarget as HTMLButtonElement;
     const bounds = canvasElement?.getBoundingClientRect() ?? wordmark.getBoundingClientRect();
@@ -759,91 +880,33 @@
     const influenceRadius = projectionFrame.wordmark.width * laserPowerRadiusScale(shotPower);
     const lasers = [laserBeamOrigin(laserIndex, canvasWidth, canvasHeight)];
     const smokeScale = laserPowerSmokeScale(shotPower);
-    const smokeCount = Math.round(5 + smokeScale * 9);
-    const smoke: SmokeParticle[] = Array.from({ length: smokeCount }, (_, index) => {
-      const angleDirection = Math.random() < 0.5 ? -1 : 1;
-      return {
-        angle:
-          (index / smokeCount) * Math.PI * 2 +
-          (originX + originY) * 0.001 +
-          angleDirection * Math.min(0.5, exponentialSample(Math.random()) * 0.12),
-        distance:
-          (28 + (index % 4) * 8) * (1 + Math.min(0.65, exponentialSample(Math.random()) * 0.18)),
-        delay: Math.min(180, exponentialSample(Math.random()) * 52),
-        size:
-          (2.2 + (index % 3) * 0.4) *
-          smokeScale *
-          (1 + Math.min(0.9, exponentialSample(Math.random()) * 0.22))
-      };
-    });
-    const vectors = particles.map((particle) => {
-      const position = projectForCanvas(particle, projectionFrame);
-      let vectorX = position.x - originX;
-      let vectorY = position.y - originY;
-      let distance = Math.hypot(vectorX, vectorY);
+    const smoke = createBurstSmoke(originX, originY, smokeScale);
+    const vectors = createBurstVectors(originX, originY, projectionFrame, influenceRadius);
 
-      if (distance < 1) {
-        vectorX = Math.cos(particle.fallbackAngle);
-        vectorY = Math.sin(particle.fallbackAngle);
-        distance = 1;
-      }
-
-      const radialStrength = radialForce(distance, influenceRadius);
-      const rawForce = Math.min(1, radialStrength / 0.04);
-      const force = rawForce >= EXPLOSION_PARTICLE_FORCE_THRESHOLD ? rawForce : 0;
-      const angularDirection = Math.random() < 0.5 ? -1 : 1;
-      const angularSpread = Math.min(0.8, exponentialSample(Math.random()) * 0.2);
-      const trajectoryAngle = Math.atan2(vectorY, vectorX) + angularDirection * angularSpread;
-      const directionX = Math.cos(trajectoryAngle);
-      const directionY = Math.sin(trajectoryAngle);
-      const exitDistance = rayExitDistance(
-        position.x,
-        position.y,
-        directionX,
-        directionY,
-        canvasWidth,
-        canvasHeight
-      );
-      const travelDistance =
-        Math.max(particle.burstDistance, exitDistance + 96 + particle.burstDistance * 0.35) *
-        force *
-        (1 + Math.min(0.75, exponentialSample(Math.random()) * 0.18));
-      const gravity = force * (220 + Math.min(600, exponentialSample(Math.random()) * 180));
-      return {
-        x: directionX * travelDistance,
-        y: directionY * travelDistance - 0.5 * gravity,
-        force,
-        rotation: particle.burstRotation * force,
-        gravity
-      };
-    });
-
-    points += vectors.filter((vector) => vector.force >= EXPLOSION_PARTICLE_FORCE_THRESHOLD).length;
-
-    if (reducedMotion) {
-      requestDraw();
-      return;
-    }
-
+    const impactDelay = reducedMotion ? 0 : IMPACT_LASER_DURATION;
     activeBursts = [
       ...activeBursts.slice(-(MAX_ACTIVE_BURSTS - 1)),
       {
         triggeredAt,
-        startedAt: triggeredAt + IMPACT_LASER_DURATION,
+        startedAt: triggeredAt + impactDelay,
         origin: { x: originX, y: originY },
         influenceRadius,
         vectors,
         lasers,
         smoke,
-        smokeIntensity: Math.min(1, 0.35 + smokeScale * 0.5)
+        smokeIntensity: Math.min(1, 0.35 + smokeScale * 0.5),
+        impactResolved: false,
+        awardSpendablePoints: true,
+        ignoreParticleAvailability: false
       }
     ];
+    if (reducedMotion) resolveBurstImpacts(triggeredAt);
     requestDraw();
   }
 
   function upgradeLaserPower(laserIndex: number) {
     const laser = laserGuns[laserIndex];
-    if (!laser) return;
+    if (!laser || laser.power >= MAX_LASER_POWER) return;
     const upgradeCost = laserPowerUpgradeCost(laser.power);
     if (points < upgradeCost) return;
     points -= upgradeCost;
@@ -852,16 +915,77 @@
     );
   }
 
+  function finishFinalVolley() {
+    completionDeadline = null;
+    victoryVisible = true;
+  }
+
+  function triggerFinalVolley(triggeredAt: number) {
+    gameCompleted = true;
+    laserGuns = laserGuns.map((laser) => ({
+      ...laser,
+      readyAt: triggeredAt + LASER_COOLDOWN
+    }));
+    hudNow = triggeredAt;
+
+    if (canvasWidth <= 0 || canvasHeight <= 0) {
+      score += particles.length;
+      finishFinalVolley();
+      requestDraw();
+      return;
+    }
+
+    const originX = canvasWidth / 2;
+    const originY = canvasHeight / 2;
+    const projectionFrame = createCanvasProjectionFrame(triggeredAt);
+    const influenceRadius = projectionFrame.wordmark.width;
+    const smokeScale = laserPowerSmokeScale(MAX_LASER_POWER);
+    const impactDelay = reducedMotion ? 0 : IMPACT_LASER_DURATION;
+    activeBursts = [
+      {
+        triggeredAt,
+        startedAt: triggeredAt + impactDelay,
+        origin: { x: originX, y: originY },
+        influenceRadius,
+        vectors: createBurstVectors(originX, originY, projectionFrame, influenceRadius, true),
+        lasers: laserGuns.map((_, index) =>
+          laserBeamOrigin(index, canvasWidth, canvasHeight, laserGuns.length)
+        ),
+        smoke: createBurstSmoke(originX, originY, smokeScale),
+        smokeIntensity: 1,
+        impactResolved: false,
+        awardSpendablePoints: false,
+        ignoreParticleAvailability: true
+      }
+    ];
+    if (reducedMotion) {
+      resolveBurstImpacts(triggeredAt);
+      finishFinalVolley();
+      requestDraw();
+      return;
+    }
+    completionDeadline = Date.now() + FINAL_VOLLEY_COMPLETION_DELAY;
+    requestDraw();
+  }
+
   function buyLaserGun() {
     if (laserGuns.length >= MAX_LASER_GUNS || points < nextLaserCost) return;
     points -= nextLaserCost;
     const newLaserIndex = laserGuns.length;
     laserGuns = [...laserGuns, { id: newLaserIndex + 1, power: 1, readyAt: 0 }];
+    if (laserGuns.length === MAX_LASER_GUNS) {
+      triggerFinalVolley(performance.now());
+      return;
+    }
     requestDraw();
   }
 </script>
 
 <svelte:window onpointermove={handlePointerMove} />
+
+{#if completionDeadline !== null}
+  <Deadline at={completionDeadline} onreached={finishFinalVolley} />
+{/if}
 
 <div
   class={[
@@ -872,7 +996,10 @@
   <button
     type="button"
     class="absolute inset-0 cursor-crosshair border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
-    aria-label={m('ui.easter_egg.fire')}
+    disabled={gameCompleted}
+    aria-label={gameCompleted
+      ? m('ui.easter_egg.complete', { count: score })
+      : m('ui.easter_egg.fire')}
     onclick={triggerBurst}
   >
     <canvas
@@ -893,83 +1020,104 @@
       gameUiVisible ? 'visible opacity-100' : 'invisible opacity-0'
     ]}
     data-game-ui-visible={gameUiVisible}
+    data-game-completed={gameCompleted}
     aria-hidden={!gameUiVisible}
   >
-    <div
-      class="pointer-events-auto absolute top-2 left-2 flex max-w-[72%] flex-wrap items-start gap-1 text-white"
-      role="list"
-      aria-label={m('ui.easter_egg.laser_guns_count', { count: laserGuns.length })}
-    >
-      {#each laserGuns as laser, index (laser.id)}
-        {@const cooldownProgress = laserCooldownProgress(hudNow, laser.readyAt)}
-        {@const cooldownSeconds = Math.max(0, (laser.readyAt - hudNow) / 1000).toFixed(1)}
-        {@const upgradeCost = laserPowerUpgradeCost(laser.power)}
-        <div
-          class="flex w-11 flex-col gap-0.5"
-          role="listitem"
-          data-ready={cooldownProgress >= 1}
-          aria-label={cooldownProgress >= 1
-            ? m('ui.easter_egg.laser_ready', {
-                number: index + 1,
-                power: laser.power
-              })
-            : m('ui.easter_egg.laser_cooldown', {
-                number: index + 1,
-                power: laser.power,
-                seconds: cooldownSeconds
-              })}
+    {#if victoryVisible}
+      <div class="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
+        <p
+          class="rounded border border-white/20 bg-black/75 px-4 py-2 text-center text-sm font-semibold text-white"
+          role="status"
         >
-          <div
-            class="flex min-h-10 w-full flex-col items-center justify-center gap-0.5 rounded border border-white/15 bg-black/65 text-xs text-white tabular-nums"
-          >
-            <span class={cooldownProgress < 1 ? 'opacity-35' : ''} aria-hidden="true"
-              >🔫{laser.power}</span
-            >
-            <span class="h-1 w-7 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
-              <span
-                class="block h-full rounded-full bg-cyan-300"
-                style:width={`${cooldownProgress * 100}%`}
-              ></span>
-            </span>
-          </div>
-          <button
-            type="button"
-            class="min-h-8 w-full cursor-pointer rounded border border-white/20 bg-black/75 px-1 text-[10px] text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={points < upgradeCost}
-            aria-label={m('ui.easter_egg.upgrade_power', {
-              number: index + 1,
-              level: laser.power + 1,
-              cost: upgradeCost
-            })}
-            onclick={() => upgradeLaserPower(index)}>⚡ {upgradeCost}</button
-          >
-        </div>
-      {/each}
-    </div>
+          ✨ {m('ui.easter_egg.complete', { count: score })} ✨
+        </p>
+      </div>
+    {/if}
 
-    <output
-      class="pointer-events-none absolute top-2 right-2 rounded bg-black/65 px-2 py-1 font-mono text-sm text-white tabular-nums"
-      aria-label={m('ui.easter_egg.points', { count: points })}>✨ {points}</output
-    >
-
-    <div
-      class="pointer-events-auto absolute right-2 bottom-2 left-2 flex items-center justify-center gap-2"
-    >
-      <button
-        type="button"
-        class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
-        disabled={laserGuns.length >= MAX_LASER_GUNS || points < nextLaserCost}
-        aria-label={laserGuns.length >= MAX_LASER_GUNS
-          ? m('ui.easter_egg.maximum_lasers', { count: MAX_LASER_GUNS })
-          : m('ui.easter_egg.buy_laser', {
-              number: laserGuns.length + 1,
-              cost: nextLaserCost
-            })}
-        onclick={buyLaserGun}
-        >🔫 {laserGuns.length}/{MAX_LASER_GUNS} · {laserGuns.length >= MAX_LASER_GUNS
-          ? '⛔'
-          : `✨ ${nextLaserCost}`}</button
+    {#if !victoryVisible}
+      <div
+        class="pointer-events-auto absolute top-2 left-2 flex max-w-[72%] flex-wrap items-start gap-1 text-white"
+        role="list"
+        aria-label={m('ui.easter_egg.laser_guns_count', { count: laserGuns.length })}
       >
-    </div>
+        {#each laserGuns as laser, index (laser.id)}
+          {@const cooldownProgress = laserCooldownProgress(hudNow, laser.readyAt)}
+          {@const cooldownSeconds = Math.max(0, (laser.readyAt - hudNow) / 1000).toFixed(1)}
+          {@const upgradeCost = laserPowerUpgradeCost(laser.power)}
+          {@const maximumPower = laser.power >= MAX_LASER_POWER}
+          <div
+            class="flex w-11 flex-col gap-0.5"
+            role="listitem"
+            data-ready={cooldownProgress >= 1}
+            aria-label={cooldownProgress >= 1
+              ? m('ui.easter_egg.laser_ready', {
+                  number: index + 1,
+                  power: laser.power
+                })
+              : m('ui.easter_egg.laser_cooldown', {
+                  number: index + 1,
+                  power: laser.power,
+                  seconds: cooldownSeconds
+                })}
+          >
+            <div
+              class="flex min-h-10 w-full flex-col items-center justify-center gap-0.5 rounded border border-white/15 bg-black/65 text-xs text-white tabular-nums"
+            >
+              <span class={cooldownProgress < 1 ? 'opacity-35' : ''} aria-hidden="true"
+                >🔫{laser.power}</span
+              >
+              <span class="h-1 w-7 overflow-hidden rounded-full bg-white/20" aria-hidden="true">
+                <span
+                  class="block h-full rounded-full bg-cyan-300"
+                  style:width={`${cooldownProgress * 100}%`}
+                ></span>
+              </span>
+            </div>
+            <button
+              type="button"
+              class="min-h-8 w-full cursor-pointer rounded border border-white/20 bg-black/75 px-1 text-[10px] text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
+              disabled={maximumPower || points < upgradeCost}
+              aria-label={maximumPower
+                ? m('ui.easter_egg.maximum_power', {
+                    number: index + 1,
+                    power: MAX_LASER_POWER
+                  })
+                : m('ui.easter_egg.upgrade_power', {
+                    number: index + 1,
+                    level: laser.power + 1,
+                    cost: upgradeCost
+                  })}
+              onclick={() => upgradeLaserPower(index)}
+              >⚡ {maximumPower ? `${MAX_LASER_POWER}/${MAX_LASER_POWER}` : upgradeCost}</button
+            >
+          </div>
+        {/each}
+      </div>
+
+      <output
+        class="pointer-events-none absolute top-2 right-2 rounded bg-black/65 px-2 py-1 font-mono text-sm text-white tabular-nums"
+        aria-label={m('ui.easter_egg.points', { count: points })}>✨ {points}</output
+      >
+
+      <div
+        class="pointer-events-auto absolute right-2 bottom-2 left-2 flex items-center justify-center gap-2"
+      >
+        <button
+          type="button"
+          class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
+          disabled={laserGuns.length >= MAX_LASER_GUNS || points < nextLaserCost}
+          aria-label={laserGuns.length >= MAX_LASER_GUNS
+            ? m('ui.easter_egg.maximum_lasers', { count: MAX_LASER_GUNS })
+            : m('ui.easter_egg.buy_laser', {
+                number: laserGuns.length + 1,
+                cost: nextLaserCost
+              })}
+          onclick={buyLaserGun}
+          >🔫 {laserGuns.length}/{MAX_LASER_GUNS} · {laserGuns.length >= MAX_LASER_GUNS
+            ? '⛔'
+            : `✨ ${nextLaserCost}`}</button
+        >
+      </div>
+    {/if}
   </div>
 </div>

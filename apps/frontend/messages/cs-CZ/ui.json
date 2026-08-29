@@ -43,7 +43,9 @@
       "laser_cooldown": "Laser {number}, výkon {power}: zbývá {seconds} sekund cooldown",
       "upgrade_power": "Upgradujte laser {number} na úroveň výkonu {level} za {cost} bodů",
       "buy_laser": "Kupte si laserovou pistoli {number} za {cost} bodů",
-      "maximum_lasers": "Bylo dosaženo maximálního počtu {count} laserových děl"
+      "maximum_lasers": "Bylo dosaženo maximálního počtu {count} laserových děl",
+      "maximum_power": "Laser {number} dosáhl maximálního výkonu {power}",
+      "complete": "Chatto bylo obnoveno. Konečné skóre: {count} bodů"
     },
     "pane_header": {
       "back": "Zpět"

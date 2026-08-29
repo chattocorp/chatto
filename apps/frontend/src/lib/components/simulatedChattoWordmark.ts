@@ -162,6 +162,8 @@ export const CONSTRUCTION_DURATION = 1650;
 export const CANVAS_PIXEL_RATIO_LIMIT = 1.5;
 export const LASER_COOLDOWN = 1500;
 export const MAX_LASER_GUNS = 10;
+/** Highest laser power that increases the blast radius. */
+export const MAX_LASER_POWER = 17;
 export const GAME_UI_REVEAL_SHOTS = 4;
 
 const CONSTRUCTION_FIRST_ROW_DELAY = 80;
@@ -170,13 +172,43 @@ const CONSTRUCTION_SWEEP_DURATION = 460;
 const CONSTRUCTION_LASER_FADE_DURATION = 140;
 const CONSTRUCTION_PARTICLE_SETTLE_DURATION = 160;
 
+/**
+ * Claim candidate particle hits at one laser-impact time.
+ *
+ * A particle can belong to only one active explosion. The caller owns the
+ * availability timestamps and uses the returned mask to remove rejected
+ * particles from the later burst animation.
+ */
+export function claimParticleHits(
+  candidateForces: readonly number[],
+  particleAvailableAt: Float64Array,
+  impactAt: number,
+  unavailableDurations: number | readonly number[],
+  ignoreAvailability = false
+): boolean[] {
+  return candidateForces.map((force, index) => {
+    if (force < EXPLOSION_PARTICLE_FORCE_THRESHOLD) return false;
+    if (!ignoreAvailability && particleAvailableAt[index] > impactAt) return false;
+
+    const unavailableDuration =
+      typeof unavailableDurations === 'number'
+        ? unavailableDurations
+        : (unavailableDurations[index] ?? 0);
+    particleAvailableAt[index] = Math.max(
+      particleAvailableAt[index] ?? 0,
+      impactAt + Math.max(0, unavailableDuration)
+    );
+    return true;
+  });
+}
+
 /** Cost of the next gun, with each additional gun becoming substantially dearer. */
 export function laserGunCost(currentGunCount: number): number {
   const owned = Math.max(1, Math.min(MAX_LASER_GUNS, Math.floor(currentGunCount)));
   return Math.round(48 * Math.pow(1.9, owned - 1));
 }
 
-/** Cost of increasing the shared power level for every owned laser gun. */
+/** Cost of increasing one laser gun's power level. */
 export function laserPowerUpgradeCost(currentPower: number): number {
   const power = Math.max(1, Math.floor(currentPower));
   return Math.round(16 * Math.pow(1.55, power - 1));
@@ -555,6 +587,14 @@ export function rebuildParticleFrame(
     scale: lerp(0.18, 1, eased),
     glow: 1 - localProgress
   };
+}
+
+/** Time from impact until an exploded particle starts to reappear. */
+export function explosionParticleUnavailableDuration(
+  bottomToTop: number,
+  leftToRight: number
+): number {
+  return (rebuildParticleArrival(bottomToTop, leftToRight) + 0.025) * EXPLOSION_DURATION;
 }
 
 function rebuildParticleArrival(bottomToTop: number, leftToRight: number): number {
