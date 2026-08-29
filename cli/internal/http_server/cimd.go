@@ -2,6 +2,7 @@ package http_server
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
@@ -46,22 +47,66 @@ func (s *HTTPServer) setupCIMDRoutes() {
 		})
 	}
 
-	frontendRedirects := []string{baseURL + popupCallbackPath}
-	s.publishCIMD(frontendCIMDPath, cimdDocument{
-		ClientID:                baseURL + frontendCIMDPath,
-		ClientName:              "Chatto Web",
-		ClientURI:               baseURL,
-		ApplicationType:         "web",
-		RedirectURIs:            frontendRedirects,
-		TokenEndpointAuthMethod: "none",
-		GrantTypes:              []string{"authorization_code", "refresh_token"},
-		ResponseTypes:           []string{"code"},
+	s.router.GET(frontendCIMDPath, func(c *gin.Context) {
+		origin, ok := s.frontendCIMDOrigin(c.Request.Host)
+		if !ok {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		s.writeCIMD(c, cimdDocument{
+			ClientID:                origin + frontendCIMDPath,
+			ClientName:              "Chatto Web",
+			ClientURI:               origin,
+			ApplicationType:         "web",
+			RedirectURIs:            []string{origin + popupCallbackPath},
+			TokenEndpointAuthMethod: "none",
+			GrantTypes:              []string{"authorization_code", "refresh_token"},
+			ResponseTypes:           []string{"code"},
+		})
 	})
 }
 
 func (s *HTTPServer) publishCIMD(path string, document cimdDocument) {
 	s.router.GET(path, func(c *gin.Context) {
-		c.Header("Cache-Control", "public, max-age=300")
-		c.JSON(http.StatusOK, document)
+		s.writeCIMD(c, document)
 	})
+}
+
+func (s *HTTPServer) writeCIMD(c *gin.Context, document cimdDocument) {
+	c.Header("Cache-Control", "public, max-age=300")
+	c.JSON(http.StatusOK, document)
+}
+
+// frontendCIMDOrigin returns the configured public origin whose canonical host
+// matches the request target. Exact allowed origins can therefore publish a
+// self-consistent frontend identity without trusting arbitrary Host values.
+func (s *HTTPServer) frontendCIMDOrigin(requestHost string) (string, bool) {
+	hostURL, err := url.Parse("//" + requestHost)
+	if err != nil || hostURL.Host == "" || hostURL.User != nil || hostURL.Path != "" || hostURL.RawQuery != "" || hostURL.Fragment != "" {
+		return "", false
+	}
+	hostURL.Scheme = "https"
+	canonicalRequestURL, err := url.Parse(canonicalOrigin(hostURL))
+	if err != nil {
+		return "", false
+	}
+
+	origins := make([]string, 0, len(s.config.Webserver.AllowedOrigins)+1)
+	origins = append(origins, s.config.Webserver.URL)
+	origins = append(origins, s.config.Webserver.AllowedOrigins...)
+	for _, raw := range origins {
+		if raw == "" || raw == "*" {
+			continue
+		}
+		originURL, err := url.Parse(raw)
+		if err != nil || originURL.Scheme == "" || originURL.Host == "" || originURL.User != nil {
+			continue
+		}
+		origin := canonicalOrigin(originURL)
+		canonicalOriginURL, err := url.Parse(origin)
+		if err == nil && canonicalOriginURL.Host == canonicalRequestURL.Host {
+			return origin, true
+		}
+	}
+	return "", false
 }

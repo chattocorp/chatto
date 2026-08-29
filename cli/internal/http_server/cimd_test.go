@@ -58,7 +58,7 @@ func TestFrontendCIMDDocumentUsesSeparateClientIdentity(t *testing.T) {
 	server.setupCIMDRoutes()
 
 	response := httptest.NewRecorder()
-	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, frontendCIMDPath, nil))
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, baseURL+frontendCIMDPath, nil))
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
@@ -80,7 +80,7 @@ func TestFrontendCIMDDocumentCanonicalizesPublicOrigin(t *testing.T) {
 	server.setupCIMDRoutes()
 
 	response := httptest.NewRecorder()
-	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, frontendCIMDPath, nil))
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "https://CHAT.example:0443"+frontendCIMDPath, nil))
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
@@ -106,7 +106,7 @@ func TestFrontendCIMDDocumentIsPublishedWithoutAuthling(t *testing.T) {
 	server.setupCIMDRoutes()
 
 	response := httptest.NewRecorder()
-	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, frontendCIMDPath, nil))
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, baseURL+frontendCIMDPath, nil))
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
@@ -116,6 +116,58 @@ func TestFrontendCIMDDocumentIsPublishedWithoutAuthling(t *testing.T) {
 	}
 	if len(document.RedirectURIs) != 1 || document.RedirectURIs[0] != baseURL+popupCallbackPath {
 		t.Fatalf("redirect_uris = %#v", document.RedirectURIs)
+	}
+}
+
+func TestFrontendCIMDDocumentUsesExactAllowedOriginAlias(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{
+			URL:            "https://primary.example",
+			AllowedOrigins: []string{"https://custom.example:443"},
+		}},
+		router: gin.New(),
+	}
+	server.setupCIMDRoutes()
+
+	response := httptest.NewRecorder()
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "https://CUSTOM.example"+frontendCIMDPath, nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var document cimdDocument
+	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := document.ClientID, "https://custom.example"+frontendCIMDPath; got != want {
+		t.Fatalf("client_id = %q, want %q", got, want)
+	}
+	if got, want := document.ClientURI, "https://custom.example"; got != want {
+		t.Fatalf("client_uri = %q, want %q", got, want)
+	}
+	if got, want := document.RedirectURIs[0], "https://custom.example"+popupCallbackPath; got != want {
+		t.Fatalf("redirect_uris[0] = %q, want %q", got, want)
+	}
+}
+
+func TestFrontendCIMDDocumentRejectsUnconfiguredRequestHost(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{
+			URL:            "https://primary.example",
+			AllowedOrigins: []string{"*"},
+		}},
+		router: gin.New(),
+	}
+	server.setupCIMDRoutes()
+
+	response := httptest.NewRecorder()
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "https://attacker.example"+frontendCIMDPath, nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusNotFound, response.Body.String())
+	}
+	if got := response.Header().Get("Cache-Control"); got != "" {
+		t.Fatalf("Cache-Control = %q, want empty", got)
 	}
 }
 
