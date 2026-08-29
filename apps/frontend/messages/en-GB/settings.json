@@ -143,6 +143,17 @@
           "description": "Use the dark interface on this browser"
         }
       },
+      "thread_pane": {
+        "title": "Thread pane",
+        "overlay": {
+          "label": "Overlay",
+          "description": "Show the thread over the room timeline"
+        },
+        "split": {
+          "label": "Side by side",
+          "description": "Show the thread beside the room timeline when space allows"
+        }
+      },
       "editor": {
         "title": "Message editor",
         "visual": {

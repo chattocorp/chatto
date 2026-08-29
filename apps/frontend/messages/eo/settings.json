@@ -143,6 +143,17 @@
           "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
         }
       },
+      "thread_pane": {
+        "title": "Fadena panelo",
+        "overlay": {
+          "label": "Surmeto",
+          "description": "Montri la fadenon super la ĉambra templinio"
+        },
+        "split": {
+          "label": "Flank-al-flanke",
+          "description": "Montri la fadenon apud la ĉambra templinio kiam estas sufiĉe da spaco"
+        }
+      },
       "editor": {
         "title": "Mesaĝredaktilo",
         "visual": {

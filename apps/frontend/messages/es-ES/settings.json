@@ -143,6 +143,17 @@
           "description": "Usa la interfaz oscura en este navegador"
         }
       },
+      "thread_pane": {
+        "title": "Panel del hilo",
+        "overlay": {
+          "label": "Superpuesto",
+          "description": "Mostrar el hilo sobre la cronología de la sala"
+        },
+        "split": {
+          "label": "Lado a lado",
+          "description": "Mostrar el hilo junto a la cronología de la sala cuando haya espacio"
+        }
+      },
       "editor": {
         "title": "Editor de mensajes",
         "visual": {

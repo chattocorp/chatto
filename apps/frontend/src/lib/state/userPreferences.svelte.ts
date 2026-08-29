@@ -17,6 +17,7 @@ import { Codecs, globalSlot } from '$lib/storage/slot';
 export type DisplayTheme = 'system' | 'light' | 'dark';
 export type ComposerEditorKind = 'visual' | 'markdown';
 export type ComposerSendMode = 'enter' | 'modifier-enter';
+export type ThreadPanePresentation = 'overlay' | 'split';
 type EffectiveTheme = 'light' | 'dark';
 
 interface AppPreferences {
@@ -24,6 +25,7 @@ interface AppPreferences {
   composerEditor: ComposerEditorKind;
   composerSendMode: ComposerSendMode;
   composerFormattingToolbarVisible: boolean;
+  threadPanePresentation: ThreadPanePresentation;
 }
 
 export interface LegacyNotificationSoundPreferences {
@@ -37,7 +39,8 @@ const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
   composerEditor: 'markdown',
   composerSendMode: 'enter',
-  composerFormattingToolbarVisible: false
+  composerFormattingToolbarVisible: false,
+  threadPanePresentation: 'overlay'
 };
 
 const defaultStoredPreferences: StoredPreferences = {
@@ -68,6 +71,10 @@ function isComposerEditorKind(value: unknown): value is ComposerEditorKind {
 
 function isComposerSendMode(value: unknown): value is ComposerSendMode {
   return value === 'enter' || value === 'modifier-enter';
+}
+
+function isThreadPanePresentation(value: unknown): value is ThreadPanePresentation {
+  return value === 'overlay' || value === 'split';
 }
 
 function getLegacyDisplayTheme(): DisplayTheme | null {
@@ -140,7 +147,10 @@ function loadAppPreferences(): AppPreferences {
     composerFormattingToolbarVisible:
       typeof stored.composerFormattingToolbarVisible === 'boolean'
         ? stored.composerFormattingToolbarVisible
-        : defaultAppPreferences.composerFormattingToolbarVisible
+        : defaultAppPreferences.composerFormattingToolbarVisible,
+    threadPanePresentation: isThreadPanePresentation(stored.threadPanePresentation)
+      ? stored.threadPanePresentation
+      : defaultAppPreferences.threadPanePresentation
   };
 }
 
@@ -208,6 +218,18 @@ export class UserPreferencesState {
   set composerFormattingToolbarVisible(value: boolean) {
     this.#preferences.composerFormattingToolbarVisible =
       typeof value === 'boolean' ? value : defaultAppPreferences.composerFormattingToolbarVisible;
+    this.#persist();
+  }
+
+  /** How an open thread uses the available room area. */
+  get threadPanePresentation(): ThreadPanePresentation {
+    return this.#preferences.threadPanePresentation;
+  }
+
+  set threadPanePresentation(value: ThreadPanePresentation) {
+    this.#preferences.threadPanePresentation = isThreadPanePresentation(value)
+      ? value
+      : defaultAppPreferences.threadPanePresentation;
     this.#persist();
   }
 

@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-29
 
 ## Overview
 
@@ -34,7 +34,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - Before a user posts another root within five minutes of their latest root in the room, the client checks whether that previous root now has a thread. If it does, the client asks whether to continue in that thread or post the prepared root as-is. This also covers a thread another user established after the root was posted. Cancelling preserves the draft. The prompt is omitted when the user cannot post in that thread or when the current room policy forbids thread replies.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
-- When the room area is wide enough, its timeline and the open thread appear side by side and both remain interactive. In narrower room areas, the thread overlays the dimmed, inactive room timeline. The wide thread pane is resizable, and the device remembers the preferred width.
+- An open thread overlays the dimmed, inactive room timeline by default. A user can instead select a side-by-side layout in App Preferences. The side-by-side layout keeps both panes interactive when the room area is wide enough and uses the overlay when the area becomes too narrow. The side-by-side thread pane is resizable, and the app remembers its width on the device.
 - Within the room's Threading Mode, a user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread. Location permissions still gate the allowed operations independently.
 
 ## Design Decisions
@@ -83,11 +83,11 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 
 **Compatibility:** `CreateMessageRequest.create_thread` and the room Threading Mode fields are part of the 0.5 client/server contract. The bundled client does not preserve compatibility with pre-0.5 servers. Historical channel events and snapshots that do not contain a mode normalize to Enabled without a backfill; unknown future channel values fail closed to Disabled on an older binary while remaining raw in projection snapshots, and DMs normalize to Unspecified.
 
-### 8. Thread presentation follows the room's available space
+### 8. Thread presentation is an App Preference
 
-**Decision:** An open thread shares the room area when both panes remain useful; otherwise it overlays the room. The decision follows the room area's width after surrounding sidebars, not the browser viewport. Split panes are independently usable, and the thread width is a device-local preference.
-**Why:** A wide browser can still leave a narrow conversation area when either resizable sidebar is open. Responding to the actual room area uses spare space without squeezing both conversations into unusable panes.
-**Tradeoff:** Resizing surrounding panes can change an open thread between split and overlay presentation. The thread remains open and keeps the same URL, but the room becomes inactive whenever the overlay presentation takes effect.
+**Decision:** The overlay is the default thread presentation. A user can select a side-by-side presentation as an App Preference. The selected mode applies to all registered servers on that device. Side-by-side presentation still uses the overlay when the room area is too narrow. The width check follows the room area after surrounding sidebars, not the browser viewport. The app remembers the side-by-side thread width separately.
+**Why:** The overlay keeps attention on one conversation and does not reduce the room timeline width. Users who prefer more context can opt into two interactive panes. The responsive fallback prevents surrounding sidebars from squeezing both conversations into unusable panes.
+**Tradeoff:** The overlay makes the room timeline inactive while a thread is open. In side-by-side mode, resizing surrounding panes can temporarily change an open thread to an overlay. The thread remains open and keeps the same URL.
 
 ### 9. Threading Mode is enforced at the room aggregate boundary
 

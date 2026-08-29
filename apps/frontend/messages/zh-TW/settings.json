@@ -143,6 +143,17 @@
           "description": "在此瀏覽器使用深色介面"
         }
       },
+      "thread_pane": {
+        "title": "討論串窗格",
+        "overlay": {
+          "label": "覆疊",
+          "description": "在聊天室時間軸上方顯示討論串"
+        },
+        "split": {
+          "label": "並排",
+          "description": "空間足夠時，在聊天室時間軸旁顯示討論串"
+        }
+      },
       "editor": {
         "title": "訊息編輯器",
         "visual": {

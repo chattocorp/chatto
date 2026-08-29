@@ -143,6 +143,17 @@
           "description": "Die dunkle Oberfläche in diesem Browser verwenden"
         }
       },
+      "thread_pane": {
+        "title": "Thread-Bereich",
+        "overlay": {
+          "label": "Überlagern",
+          "description": "Zeige den Thread über dem Raumverlauf"
+        },
+        "split": {
+          "label": "Nebeneinander",
+          "description": "Zeige den Thread neben dem Raumverlauf, wenn genug Platz ist"
+        }
+      },
       "editor": {
         "title": "Nachrichteneditor",
         "visual": {

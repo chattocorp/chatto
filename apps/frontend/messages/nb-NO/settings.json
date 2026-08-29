@@ -143,6 +143,17 @@
           "description": "Bruk det mørke grensesnittet på denne nettleseren"
         }
       },
+      "thread_pane": {
+        "title": "Trådpanel",
+        "overlay": {
+          "label": "Overlegg",
+          "description": "Vis tråden over rommets tidslinje"
+        },
+        "split": {
+          "label": "Side ved side",
+          "description": "Vis tråden ved siden av rommets tidslinje når det er nok plass"
+        }
+      },
       "editor": {
         "title": "Meldingsredigering",
         "visual": {

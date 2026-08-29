@@ -143,6 +143,17 @@
           "description": "Kasutage selles brauseris tumedat liidest"
         }
       },
+      "thread_pane": {
+        "title": "Lõimepaan",
+        "overlay": {
+          "label": "Ülekate",
+          "description": "Kuva lõim ruumi ajajoone peal"
+        },
+        "split": {
+          "label": "Kõrvuti",
+          "description": "Kuva lõim ruumi ajajoone kõrval, kui ruumi on piisavalt"
+        }
+      },
       "editor": {
         "title": "Sõnumiredaktor",
         "visual": {

@@ -143,6 +143,17 @@
           "description": "Använd det mörka gränssnittet i den här webbläsaren"
         }
       },
+      "thread_pane": {
+        "title": "Trådpanel",
+        "overlay": {
+          "label": "Överlagring",
+          "description": "Visa tråden ovanpå rummets tidslinje"
+        },
+        "split": {
+          "label": "Sida vid sida",
+          "description": "Visa tråden bredvid rummets tidslinje när det finns tillräckligt med utrymme"
+        }
+      },
       "editor": {
         "title": "Meddelanderedigerare",
         "visual": {

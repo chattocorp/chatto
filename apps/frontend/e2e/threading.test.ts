@@ -1,9 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import {
-  createAndLoginTestUser,
-  loginAsAdmin,
-  openServer
-} from './fixtures/testUser';
+import { createAndLoginTestUser, loginAsAdmin, openServer } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import {
@@ -950,6 +946,7 @@ test.describe('Message Threading', () => {
     chatPage,
     roomPage
   }) => {
+    await page.setViewportSize({ width: 1250, height: 900 });
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -961,6 +958,13 @@ test.describe('Message Threading', () => {
     // Open thread
     await message.openThread();
     await roomPage.expectThreadPaneVisible();
+
+    const roomRegion = page.getByTestId('room-view-region');
+    const roomMainPane = page.getByTestId('room-main-pane');
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    await expect
+      .poll(() => roomMainPane.evaluate((element) => element.closest('[inert]') !== null))
+      .toBe(true);
 
     // The thread slideover should show the back button
     await roomPage.expectThreadBackButtonVisible();
@@ -984,6 +988,12 @@ test.describe('Message Threading', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
+    await page.evaluate(() => {
+      const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
+      stored.threadPanePresentation = 'split';
+      localStorage.setItem('chatto:preferences', JSON.stringify(stored));
+    });
+    await page.reload();
 
     const rootMessage = `Split thread layout ${Date.now()}`;
     const message = await roomPage.sendMessage(rootMessage);

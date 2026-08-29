@@ -143,6 +143,17 @@
           "description": "Gebruik de donkere interface in deze browser"
         }
       },
+      "thread_pane": {
+        "title": "Threadpaneel",
+        "overlay": {
+          "label": "Overlay",
+          "description": "Toon de thread over de tijdlijn van de ruimte"
+        },
+        "split": {
+          "label": "Naast elkaar",
+          "description": "Toon de thread naast de tijdlijn van de ruimte wanneer er genoeg plaats is"
+        }
+      },
       "editor": {
         "title": "Berichteneditor",
         "visual": {

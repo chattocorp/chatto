@@ -143,6 +143,17 @@
           "description": "Utilizza l'interfaccia oscura su questo browser"
         }
       },
+      "thread_pane": {
+        "title": "Pannello della discussione",
+        "overlay": {
+          "label": "Sovrapposto",
+          "description": "Mostra la discussione sopra la cronologia della stanza"
+        },
+        "split": {
+          "label": "Affiancato",
+          "description": "Mostra la discussione accanto alla cronologia della stanza quando lo spazio lo consente"
+        }
+      },
       "editor": {
         "title": "Editor dei messaggi",
         "visual": {

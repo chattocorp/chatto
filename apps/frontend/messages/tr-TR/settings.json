@@ -143,6 +143,17 @@
           "description": "Bu tarayıcıdaki karanlık arayüzü kullanın"
         }
       },
+      "thread_pane": {
+        "title": "Konu paneli",
+        "overlay": {
+          "label": "Kaplama",
+          "description": "Konuyu oda zaman çizelgesinin üzerinde göster"
+        },
+        "split": {
+          "label": "Yan yana",
+          "description": "Yeterli alan olduğunda konuyu oda zaman çizelgesinin yanında göster"
+        }
+      },
       "editor": {
         "title": "Mesaj düzenleyici",
         "visual": {

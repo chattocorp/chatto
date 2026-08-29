@@ -143,6 +143,17 @@
           "description": "Użyj ciemnego interfejsu w tej przeglądarce"
         }
       },
+      "thread_pane": {
+        "title": "Panel wątku",
+        "overlay": {
+          "label": "Nakładka",
+          "description": "Pokaż wątek nad osią czasu pokoju"
+        },
+        "split": {
+          "label": "Obok siebie",
+          "description": "Pokaż wątek obok osi czasu pokoju, gdy jest wystarczająco dużo miejsca"
+        }
+      },
       "editor": {
         "title": "Edytor wiadomości",
         "visual": {

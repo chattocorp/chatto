@@ -143,6 +143,17 @@
           "description": "Utilize a interface escura neste browser"
         }
       },
+      "thread_pane": {
+        "title": "Painel da conversa",
+        "overlay": {
+          "label": "Sobreposto",
+          "description": "Mostrar a conversa sobre a cronologia da sala"
+        },
+        "split": {
+          "label": "Lado a lado",
+          "description": "Mostrar a conversa ao lado da cronologia da sala quando houver espaço"
+        }
+      },
       "editor": {
         "title": "Editor de mensagens",
         "visual": {

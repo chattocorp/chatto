@@ -143,6 +143,17 @@
           "description": "Izmantojiet tumšo interfeisu šajā pārlūkprogrammā"
         }
       },
+      "thread_pane": {
+        "title": "Pavediena rūts",
+        "overlay": {
+          "label": "Pārklājums",
+          "description": "Rādīt pavedienu virs telpas laika joslas"
+        },
+        "split": {
+          "label": "Blakus",
+          "description": "Rādīt pavedienu blakus telpas laika joslai, ja ir pietiekami daudz vietas"
+        }
+      },
       "editor": {
         "title": "Ziņojumu redaktors",
         "visual": {

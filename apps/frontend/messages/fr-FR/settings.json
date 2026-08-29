@@ -143,6 +143,17 @@
           "description": "Utiliser l'interface sombre sur ce navigateur"
         }
       },
+      "thread_pane": {
+        "title": "Volet du fil",
+        "overlay": {
+          "label": "Superposition",
+          "description": "Afficher le fil par-dessus la chronologie du salon"
+        },
+        "split": {
+          "label": "Côte à côte",
+          "description": "Afficher le fil à côté de la chronologie du salon lorsque l’espace le permet"
+        }
+      },
       "editor": {
         "title": "Éditeur de messages",
         "visual": {
