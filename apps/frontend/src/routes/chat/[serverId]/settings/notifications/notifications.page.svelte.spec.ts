@@ -258,7 +258,13 @@ describe('Notification settings page', () => {
     const { container } = render(NotificationsPage);
     await settle();
 
+    const pushSettings = q(container, '[data-testid="push-notification-settings"]')!;
+    const orderedSections = [
+      ...container.querySelectorAll('[data-testid="push-notification-settings"], .panel-shell')
+    ];
     expect(container.textContent).toContain('Push Notifications');
+    expect(orderedSections[0]).toBe(pushSettings);
+    expect(pushSettings.querySelector('button')?.textContent?.trim()).toBe('Enable');
     await expect.element(buttonWithText(container, 'Enable')).toBeVisible();
     expect(container.textContent).not.toContain('Disable');
   });
