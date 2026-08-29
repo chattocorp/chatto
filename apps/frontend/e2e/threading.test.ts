@@ -972,6 +972,20 @@ test.describe('Message Threading', () => {
     // The thread input should be visible
     await expect(page.getByTestId('thread-reply-input')).toBeVisible();
 
+    // The app uses its mobile layout below 1024px. The overlay must use the
+    // full room width at the same breakpoint instead of leaving a narrow strip.
+    await page.setViewportSize({ width: 800, height: 900 });
+    await expect
+      .poll(async () => {
+        const [roomBox, threadBox] = await Promise.all([
+          roomRegion.boundingBox(),
+          page.getByTestId('thread-pane').boundingBox()
+        ]);
+        if (!roomBox || !threadBox) return Number.POSITIVE_INFINITY;
+        return Math.abs(roomBox.width - threadBox.width);
+      })
+      .toBeLessThanOrEqual(1);
+
     // The room input is still in the DOM (dimmed underneath), but the room is inert
     // so clicking it should not be possible — we verify this via the close overlay instead
     await expect(page.getByTestId('message-input')).toBeVisible();

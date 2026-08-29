@@ -843,7 +843,7 @@
               'flex min-h-0 min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted',
               splitThreadLayout
                 ? 'relative w-[var(--thread-pane-width)] shrink-0'
-                : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow sm:w-[90%]'
+                : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
             ]}
             data-testid="thread-pane"
             aria-busy="true"
@@ -882,7 +882,7 @@
               'flex min-h-0 min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-s border-border bg-background p-4 text-center',
               splitThreadLayout
                 ? 'relative w-[var(--thread-pane-width)] shrink-0'
-                : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow sm:w-[90%]'
+                : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
             ]}
             data-testid="thread-pane"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}

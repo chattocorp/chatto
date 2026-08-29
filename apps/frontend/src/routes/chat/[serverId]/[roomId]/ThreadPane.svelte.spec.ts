@@ -247,6 +247,8 @@ describe('ThreadPane', () => {
     const pane = q(container, '[data-testid="thread-pane"]') as HTMLElement;
     expect(pane.className).toContain('absolute');
     expect(pane.className).toContain('inline-end-overlay-shadow');
+    expect(pane.className).toContain('lg:w-[90%]');
+    expect(pane.className).not.toContain('sm:w-[90%]');
     expect(container.querySelector('[role="slider"]')).toBeNull();
   });
 
