@@ -882,8 +882,9 @@ test.describe('Message Threading', () => {
     await message.openThread();
     await roomPage.expectThreadPaneVisible();
 
-    // The thread reply input should be focused
+    // The visual thread reply input should be focused with a visible text caret.
     await roomPage.expectThreadInputFocused();
+    await expect(roomPage.threadReplyInput).toHaveCSS('user-select', 'text');
   });
 
   test('on small screens, thread slideover has back button and covers room', async ({
