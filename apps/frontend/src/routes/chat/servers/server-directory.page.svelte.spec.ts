@@ -363,8 +363,15 @@ describe('Server Directory page', () => {
       section.querySelector<HTMLImageElement>('[data-testid="server-testimonial-source-icon"] img')
         ?.src
     ).toBe('https://cdn.example/one.webp');
-    expect(section.textContent).toContain('Recommended by One');
-    expect(section.textContent).toContain('Recommended by Two');
+    expect(section.textContent).toContain('One');
+    expect(section.textContent).toContain('Two');
+    expect(section.textContent).not.toContain('Recommended by');
+    const firstReview = section.querySelector<HTMLElement>('[data-testid="server-testimonial"]')!;
+    expect(Array.from(firstReview.children, (child) => child.tagName)).toEqual([
+      'FIGCAPTION',
+      'BLOCKQUOTE'
+    ]);
+    expect(firstReview.querySelector('blockquote')).toHaveClass('bg-surface-emphasized');
     const profileCard = container.querySelector('[data-testid="server-directory-entry"]')!;
     expect(profileCard.contains(section)).toBe(false);
     expect(profileCard.nextElementSibling).toBe(section);
