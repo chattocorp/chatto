@@ -194,6 +194,44 @@ func TestFrontendCIMDDocumentRejectsUnconfiguredRequestHost(t *testing.T) {
 	}
 }
 
+func TestFrontendCIMDDocumentRejectsInvalidConfiguredAliases(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name          string
+		requestURL    string
+		allowedOrigin string
+	}{
+		{
+			name:          "ambiguous request scheme",
+			requestURL:    "https://shared.example",
+			allowedOrigin: "http://shared.example",
+		},
+		{
+			name:          "path-bearing alias",
+			requestURL:    "https://alias.example",
+			allowedOrigin: "https://alias.example/chatto",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := &HTTPServer{
+				config: config.ChattoConfig{Webserver: config.WebserverConfig{
+					URL:            "https://shared.example",
+					AllowedOrigins: []string{test.allowedOrigin},
+				}},
+				router: gin.New(),
+			}
+			server.setupCIMDRoutes()
+
+			response := httptest.NewRecorder()
+			server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.requestURL+frontendCIMDPath, nil))
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusNotFound, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestCIMDRoutesDoNotPublishRetiredFrontendBootstrap(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	server := &HTTPServer{

@@ -79,7 +79,8 @@ first-party sessions and connections from other clients remain active.
 - When a reverse proxy serves the bundled frontend from an additional origin,
   add that exact origin to `webserver.allowed_origins`. Chatto then publishes
   the frontend client ID and callback for that request origin. An unknown host
-  receives no frontend metadata document.
+  receives no frontend metadata document. Do not add a path, query, or fragment.
+  Do not configure HTTP and HTTPS origins that produce the same request host.
 
 Remove the old `webserver.oauth_redirect_origins` setting during upgrade. The
 CIMD flow does not use a server-side redirect-origin list.

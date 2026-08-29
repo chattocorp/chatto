@@ -36,7 +36,10 @@ The bundled frontend publishes its CIMD document for the canonical
 `webserver.url` origin and each exact `webserver.allowed_origins` entry. The
 request host must match one of these configured origins. The document uses the
 matched origin for its client ID, client URI, and callback. A wildcard or an
-unknown request host does not publish a frontend client identity.
+unknown request host does not publish a frontend client identity. Alias entries
+must be origins without paths, queries, or fragments. Two configured origins
+must not use different schemes with the same request host because a
+TLS-terminating proxy does not provide a trusted request scheme.
 
 The authorization server retrieves a CIMD document itself and validates that:
 

@@ -1001,6 +1001,35 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 			},
 			wantError: "webserver.url host must be a valid IDNA hostname",
 		},
+		{
+			name: "allowed origin rejects a path",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.AllowedOrigins = []string{"https://alias.example/chatto"}
+			},
+			wantError: "webserver.allowed_origins must not include a path, query, or fragment",
+		},
+		{
+			name: "allowed origin rejects a query",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.AllowedOrigins = []string{"https://alias.example?mode=frontend"}
+			},
+			wantError: "webserver.allowed_origins must not include a path, query, or fragment",
+		},
+		{
+			name: "allowed origin rejects a fragment",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.AllowedOrigins = []string{"https://alias.example#frontend"}
+			},
+			wantError: "webserver.allowed_origins must not include a path, query, or fragment",
+		},
+		{
+			name: "allowed origin rejects an ambiguous request scheme",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://shared.example"
+				c.Webserver.AllowedOrigins = []string{"http://shared.example"}
+			},
+			wantError: "webserver.allowed_origins must not use both HTTP and HTTPS for request host \"shared.example\"",
+		},
 	}
 
 	for _, tt := range tests {

@@ -87,22 +87,25 @@ func (s *HTTPServer) frontendCIMDOrigin(requestHost string) (string, bool) {
 	}
 
 	origins := make([]string, 0, len(s.config.Webserver.AllowedOrigins)+1)
-	origins = append(origins, s.config.Webserver.URL)
-	origins = append(origins, s.config.Webserver.AllowedOrigins...)
-	for _, raw := range origins {
-		if raw == "" || raw == "*" {
-			continue
+	if origin := configuredWebserverOrigin(s.config.Webserver.URL); origin != "" {
+		origins = append(origins, origin)
+	}
+	for _, raw := range s.config.Webserver.AllowedOrigins {
+		if originURL, ok := parseBrowserOrigin(raw); ok {
+			origins = append(origins, canonicalOrigin(originURL))
 		}
-		originURL, err := url.Parse(raw)
-		if err != nil || originURL.Scheme == "" || originURL.Host == "" || originURL.User != nil {
-			continue
-		}
-		origin := canonicalOrigin(originURL)
+	}
+	matchedOrigin := ""
+	for _, origin := range origins {
+		originURL, _ := url.Parse(origin)
 		requestOriginURL := *hostURL
 		requestOriginURL.Scheme = originURL.Scheme
 		if canonicalOrigin(&requestOriginURL) == origin {
-			return origin, true
+			if matchedOrigin != "" && matchedOrigin != origin {
+				return "", false
+			}
+			matchedOrigin = origin
 		}
 	}
-	return "", false
+	return matchedOrigin, matchedOrigin != ""
 }
