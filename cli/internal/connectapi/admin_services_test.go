@@ -1695,3 +1695,60 @@ func TestAdminRoomLayoutServiceCreateSidebarLinkRequiresRoomManage(t *testing.T)
 		t.Fatalf("partial sidebar link = %+v, want preserved label and updated URL", got)
 	}
 }
+
+func TestAdminRoomLayoutServiceRelativePlacements(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	firstGroupID := env.defaultRoomGroupID(t)
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserPermission room.manage: %v", err)
+	}
+	ctx := withCaller(env.ctx, env.viewer)
+	groupResp, err := env.adminLayout.CreateRoomGroup(ctx, connect.NewRequest(&adminv1.CreateRoomGroupRequest{Name: "Projects"}))
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	secondGroupID := groupResp.Msg.GetGroup().GetId()
+	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, secondGroupID, "project-room", "Project Room")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	linkResp, err := env.adminLayout.CreateSidebarLink(ctx, connect.NewRequest(&adminv1.CreateSidebarLinkRequest{
+		GroupId: firstGroupID,
+		Label:   "Docs",
+		Url:     "/docs",
+	}))
+	if err != nil {
+		t.Fatalf("CreateSidebarLink: %v", err)
+	}
+
+	moveResp, err := env.adminLayout.MoveSidebarItem(ctx, connect.NewRequest(&adminv1.MoveSidebarItemRequest{
+		Item: &adminv1.AdminRoomLayoutItemInput{
+			Kind: adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK,
+			Id:   linkResp.Msg.GetSidebarLink().GetId(),
+		},
+		GroupId: secondGroupID,
+		Before: &adminv1.AdminRoomLayoutItemInput{
+			Kind: adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM,
+			Id:   room.GetId(),
+		},
+	}))
+	if err != nil {
+		t.Fatalf("MoveSidebarItem: %v", err)
+	}
+	items := moveResp.Msg.GetGroup().GetItems()
+	if len(items) != 2 || items[0].GetSidebarLink().GetId() != linkResp.Msg.GetSidebarLink().GetId() || items[1].GetRoom().GetId() != room.GetId() {
+		t.Fatalf("moved sidebar items = %+v, want link before room", items)
+	}
+
+	groupMoveResp, err := env.adminLayout.MoveRoomGroup(ctx, connect.NewRequest(&adminv1.MoveRoomGroupRequest{
+		GroupId:       secondGroupID,
+		BeforeGroupId: &firstGroupID,
+	}))
+	if err != nil {
+		t.Fatalf("MoveRoomGroup: %v", err)
+	}
+	groups := groupMoveResp.Msg.GetGroups()
+	if len(groups) < 2 || groups[0].GetId() != secondGroupID || groups[1].GetId() != firstGroupID {
+		t.Fatalf("moved room groups = %+v, want second group before first", groups)
+	}
+}

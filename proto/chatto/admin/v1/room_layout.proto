@@ -165,6 +165,21 @@ message ReorderRoomGroupsResponse {
   repeated AdminRoomLayoutGroup groups = 1;
 }
 
+// Request to place one room group immediately before another group. When
+// before_group_id is absent, the group moves to the end of the sidebar.
+message MoveRoomGroupRequest {
+  // Required room group to move.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Group that follows the moved group. Omit to place the group last.
+  optional string before_group_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of moving one room group.
+message MoveRoomGroupResponse {
+  // Room groups in their authoritative order after the move.
+  repeated AdminRoomLayoutGroup groups = 1;
+}
+
 // Request to move a channel room to another room group.
 message MoveRoomToGroupRequest {
   // Required channel room ID.
@@ -190,6 +205,24 @@ message ReorderSidebarItemsInGroupRequest {
 // Result of replacing the mixed sidebar item order.
 message ReorderSidebarItemsInGroupResponse {
   // Updated room group.
+  AdminRoomLayoutGroup group = 1;
+}
+
+// Request to move one room or sidebar link to an exact sidebar position.
+// The server resolves the complete current layout, including entries that the
+// caller's ordinary room directory does not show.
+message MoveSidebarItemRequest {
+  // Required room or sidebar link to move.
+  AdminRoomLayoutItemInput item = 1 [(buf.validate.field).required = true];
+  // Required destination room group.
+  string group_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Item that follows the moved item. Omit to place the item last.
+  AdminRoomLayoutItemInput before = 3;
+}
+
+// Result of moving one sidebar item.
+message MoveSidebarItemResponse {
+  // Destination room group after the move.
   AdminRoomLayoutGroup group = 1;
 }
 
@@ -282,12 +315,18 @@ service AdminRoomLayoutService {
   rpc DeleteRoomGroup(DeleteRoomGroupRequest) returns (DeleteRoomGroupResponse);
   // Replaces the global room group order. Requires server-scope room.manage.
   rpc ReorderRoomGroups(ReorderRoomGroupsRequest) returns (ReorderRoomGroupsResponse);
+  // Moves one room group before another group, or to the end. Requires
+  // server-scope room.manage.
+  rpc MoveRoomGroup(MoveRoomGroupRequest) returns (MoveRoomGroupResponse);
   // Moves a channel room to another room group. Requires room.manage in both
   // source and destination groups.
   rpc MoveRoomToGroup(MoveRoomToGroupRequest) returns (MoveRoomToGroupResponse);
   // Replaces the mixed room/link sidebar order in one group. Requires
   // room.manage in that group.
   rpc ReorderSidebarItemsInGroup(ReorderSidebarItemsInGroupRequest) returns (ReorderSidebarItemsInGroupResponse);
+  // Moves one room or sidebar link to a position in a room group. Requires
+  // room.manage in the source and destination groups.
+  rpc MoveSidebarItem(MoveSidebarItemRequest) returns (MoveSidebarItemResponse);
   // Creates a sidebar link. Requires room.manage in the destination group.
   rpc CreateSidebarLink(CreateSidebarLinkRequest) returns (CreateSidebarLinkResponse);
   // Updates a sidebar link. Requires room.manage in the link's current group.

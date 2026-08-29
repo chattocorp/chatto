@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
+import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, MoveRoomGroupRequest, MoveRoomGroupResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarItemRequest, MoveSidebarItemResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -95,6 +95,18 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Moves one room group before another group, or to the end. Requires
+     * server-scope room.manage.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.MoveRoomGroup
+     */
+    moveRoomGroup: {
+      name: "MoveRoomGroup",
+      I: MoveRoomGroupRequest,
+      O: MoveRoomGroupResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * Moves a channel room to another room group. Requires room.manage in both
      * source and destination groups.
      *
@@ -116,6 +128,18 @@ export const AdminRoomLayoutService = {
       name: "ReorderSidebarItemsInGroup",
       I: ReorderSidebarItemsInGroupRequest,
       O: ReorderSidebarItemsInGroupResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Moves one room or sidebar link to a position in a room group. Requires
+     * room.manage in the source and destination groups.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.MoveSidebarItem
+     */
+    moveSidebarItem: {
+      name: "MoveSidebarItem",
+      I: MoveSidebarItemRequest,
+      O: MoveSidebarItemResponse,
       kind: MethodKind.Unary,
     },
     /**

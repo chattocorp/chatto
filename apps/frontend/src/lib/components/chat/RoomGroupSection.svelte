@@ -33,10 +33,14 @@ navigation, member presence groups, and attachment date groups.
     label: string;
     items: T[];
     item: Snippet<[T]>;
+    /** Optional controls aligned to the end of the section heading. */
+    headerActions?: Snippet;
     /** Whether to draw the full-width divider preceding this section. */
     separated?: boolean;
     /** Optional right-click/long-press behavior for the group header. */
     contextMenuTrigger?: Attachment<HTMLElement>;
+    /** Optional behavior attached to the rendered item collection. */
+    itemsAttachment?: Attachment<HTMLDivElement>;
     /** Unique localStorage key for persisting collapsed state. */
     persistKey: string;
     /** Collapsed state when no preference is stored. */
@@ -50,8 +54,10 @@ navigation, member presence groups, and attachment date groups.
     label,
     items,
     item,
+    headerActions,
     separated = false,
     contextMenuTrigger,
+    itemsAttachment,
     persistKey,
     defaultCollapsed = false,
     keepVisibleWhenCollapsed,
@@ -68,33 +74,43 @@ navigation, member presence groups, and attachment date groups.
   }
 </script>
 
-<section
-  class={separated ? 'border-t border-border' : undefined}
-  data-testid="room-group-section"
->
+<section class={separated ? 'border-t border-border' : undefined} data-testid="room-group-section">
   <div class="px-2 py-1.5">
-    <button
-      type="button"
-      onclick={toggle}
-      aria-expanded={!collapsed}
-      data-testid={testid}
-      class="flex min-h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-start text-xs font-semibold tracking-wider text-muted uppercase transition-colors hover:text-text"
+    <div
+      class="group/section-header flex min-h-8 w-full min-w-0 items-center rounded-md transition-colors hover:text-text"
       {@attach contextMenuTrigger}
     >
-      <span class="sidebar-icon">
-        <span
-          class={[
-            'iconify transition-transform icon-[uil--angle-right-b]',
-            collapsed ? 'rtl:-scale-x-100' : 'rotate-90'
-          ]}
-          aria-hidden="true"
-        ></span>
-      </span>
-      <span class="min-w-0 flex-1 truncate">{label}</span>
-    </button>
+      <button
+        type="button"
+        onclick={toggle}
+        aria-expanded={!collapsed}
+        data-testid={testid}
+        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-start text-xs font-semibold tracking-wider text-muted uppercase focus-visible:outline-2 focus-visible:outline-action"
+      >
+        <span class="sidebar-icon">
+          <span
+            class={[
+              'iconify icon-[uil--angle-right-b] transition-transform',
+              collapsed ? 'rtl:-scale-x-100' : 'rotate-90'
+            ]}
+            aria-hidden="true"
+          ></span>
+        </span>
+        <span class="min-w-0 flex-1 truncate">{label}</span>
+      </button>
+      {#if headerActions}
+        <div class="flex shrink-0 items-center gap-0.5">
+          {@render headerActions()}
+        </div>
+      {/if}
+    </div>
 
     {#if visibleItems.length > 0}
-      <div class="flex flex-col gap-0.5">
+      <div
+        class="flex flex-col gap-0.5"
+        data-testid={itemsAttachment ? 'room-group-items-dropzone' : undefined}
+        {@attach itemsAttachment}
+      >
         {#each visibleItems as entry (entry.id)}
           <div transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}>
             {@render item(entry)}

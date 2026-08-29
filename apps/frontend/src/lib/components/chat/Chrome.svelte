@@ -17,6 +17,7 @@
   import ServerPresenceSync from './ServerPresenceSync.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
+  import CreateRoomGroupControl from './CreateRoomGroupControl.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { getAdminNavItems } from './adminNav';
@@ -43,9 +44,7 @@
 
   // Server preferences and permission-gated server administration share one
   // settings shell, regardless of which route family owns the content page.
-  const settingsPrefix = $derived(
-    resolve(SERVER_SETTINGS_ROOT_ROUTE, { serverId: serverSegment })
-  );
+  const settingsPrefix = $derived(resolve(SERVER_SETTINGS_ROOT_ROUTE, { serverId: serverSegment }));
   const isSettingsMode = $derived(page.url.pathname.startsWith(settingsPrefix));
   const isServerSettingsMode = $derived(isSettingsMode || isManageMode);
 
@@ -295,8 +294,11 @@
       <hr class="border-border" />
 
       <!-- Room List - always visible to server members (shows rooms user has joined) -->
-      <RoomList />
+      <RoomList canReorderGroups={serverData.canManageRooms} />
     </ScrollFader>
+    {#if serverData.canManageRooms}
+      <CreateRoomGroupControl />
+    {/if}
   {/if}
 </ServerSidebar>
 

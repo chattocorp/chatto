@@ -180,6 +180,21 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       }
     },
 
+    async moveRoomGroup(input: {
+      groupId: string;
+      beforeGroupId?: string;
+    }): Promise<AdminRoomGroup[]> {
+      try {
+        const response = await layout.moveRoomGroup(
+          { groupId: input.groupId, beforeGroupId: input.beforeGroupId },
+          { headers: headers() }
+        );
+        return response.groups.map(mapAdminRoomLayoutGroup);
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
     async moveRoomToGroup(input: { roomId: string; groupId: string }): Promise<void> {
       try {
         await layout.moveRoomToGroup(input, { headers: headers() });
@@ -203,6 +218,26 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
                   ? AdminRoomLayoutItemKind.ROOM
                   : AdminRoomLayoutItemKind.SIDEBAR_LINK
             }))
+          },
+          { headers: headers() }
+        );
+        return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
+    async moveSidebarItem(input: {
+      item: AdminRoomLayoutItemMutationInput;
+      groupId: string;
+      before?: AdminRoomLayoutItemMutationInput;
+    }): Promise<AdminRoomGroup | null> {
+      try {
+        const response = await layout.moveSidebarItem(
+          {
+            item: adminRoomLayoutItemInput(input.item),
+            groupId: input.groupId,
+            before: input.before ? adminRoomLayoutItemInput(input.before) : undefined
           },
           { headers: headers() }
         );
@@ -272,6 +307,13 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
     canCreateRoom: group.canCreateRoom ?? false,
     rooms: roomsFromSidebarItems(items),
     items
+  };
+}
+
+function adminRoomLayoutItemInput(item: AdminRoomLayoutItemMutationInput) {
+  return {
+    id: item.id,
+    kind: item.kind === 'room' ? AdminRoomLayoutItemKind.ROOM : AdminRoomLayoutItemKind.SIDEBAR_LINK
   };
 }
 

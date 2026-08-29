@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-08-29
 
 ## Overview
 
@@ -26,6 +26,9 @@ Chatto's pre-1.0 API remains experimental.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
 - Third-party clients own and test their own minimum supported server release.
+- The bundled client shows relative sidebar drag handles only when the server
+  version supports relative room-group and sidebar-item moves. Other sidebar
+  management actions continue to use the older management API when available.
 - The `chatto.realtime.v1` protobuf namespace implements only behavioural
   protocol version 2 in 0.5. Servers reject version 0, version 1, and unknown
   handshakes.
@@ -77,4 +80,4 @@ breaks without prematurely freezing the API.
 ## Related
 
 - **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-051 (server-scoped resumable client projection), ADR-067 (Electron desktop packaging)
-- **FDRs:** FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-034 (Chatto Desktop)
+- **FDRs:** FDR-017 (Room Groups & Sidebar Layout), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-034 (Chatto Desktop)

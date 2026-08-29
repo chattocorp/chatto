@@ -16,8 +16,10 @@ const mocks = vi.hoisted(() => ({
   updateRoomGroup: vi.fn(),
   deleteRoomGroup: vi.fn(),
   reorderRoomGroups: vi.fn(),
+  moveRoomGroup: vi.fn(),
   moveRoomToGroup: vi.fn(),
   reorderSidebarItemsInGroup: vi.fn(),
+  moveSidebarItem: vi.fn(),
   createSidebarLink: vi.fn(),
   updateSidebarLink: vi.fn(),
   deleteSidebarLink: vi.fn(),
@@ -49,8 +51,10 @@ describe('createAdminRoomLayoutAPI', () => {
       updateRoomGroup: mocks.updateRoomGroup,
       deleteRoomGroup: mocks.deleteRoomGroup,
       reorderRoomGroups: mocks.reorderRoomGroups,
+      moveRoomGroup: mocks.moveRoomGroup,
       moveRoomToGroup: mocks.moveRoomToGroup,
       reorderSidebarItemsInGroup: mocks.reorderSidebarItemsInGroup,
+      moveSidebarItem: mocks.moveSidebarItem,
       createSidebarLink: mocks.createSidebarLink,
       updateSidebarLink: mocks.updateSidebarLink,
       deleteSidebarLink: mocks.deleteSidebarLink,
@@ -97,8 +101,10 @@ describe('createAdminRoomLayoutAPI', () => {
     mocks.updateRoomGroup.mockResolvedValue({ group: { id: 'g2', name: 'Renamed', items: [] } });
     mocks.deleteRoomGroup.mockResolvedValue({ deleted: true });
     mocks.reorderRoomGroups.mockResolvedValue({ groups: [] });
+    mocks.moveRoomGroup.mockResolvedValue({ groups: [] });
     mocks.moveRoomToGroup.mockResolvedValue({});
     mocks.reorderSidebarItemsInGroup.mockResolvedValue({ group: undefined });
+    mocks.moveSidebarItem.mockResolvedValue({ group: undefined });
     mocks.createSidebarLink.mockResolvedValue({
       sidebarLink: { id: 'docs', label: 'Docs', url: '/docs' }
     });
@@ -170,6 +176,7 @@ describe('createAdminRoomLayoutAPI', () => {
     await api.updateRoomGroup({ groupId: 'g2', name: 'Renamed' });
     await api.deleteRoomGroup('g2');
     await api.reorderRoomGroups(['g2', 'g1']);
+    await api.moveRoomGroup({ groupId: 'g2', beforeGroupId: 'g1' });
     await api.moveRoomToGroup({ roomId: 'room-1', groupId: 'g2' });
     await api.reorderSidebarItemsInGroup({
       groupId: 'g2',
@@ -177,6 +184,11 @@ describe('createAdminRoomLayoutAPI', () => {
         { kind: 'room', id: 'room-1' },
         { kind: 'link', id: 'docs' }
       ]
+    });
+    await api.moveSidebarItem({
+      item: { kind: 'room', id: 'room-1' },
+      groupId: 'g2',
+      before: { kind: 'link', id: 'docs' }
     });
     await api.createSidebarLink({ groupId: 'g2', label: 'Docs', url: '/docs' });
     await api.updateSidebarLink({ linkId: 'docs', label: 'Docs', url: '/help' });
@@ -200,6 +212,10 @@ describe('createAdminRoomLayoutAPI', () => {
       { orderedGroupIds: ['g2', 'g1'] },
       callOptions
     );
+    expect(mocks.moveRoomGroup).toHaveBeenCalledWith(
+      { groupId: 'g2', beforeGroupId: 'g1' },
+      callOptions
+    );
     expect(mocks.moveRoomToGroup).toHaveBeenCalledWith(
       { roomId: 'room-1', groupId: 'g2' },
       callOptions
@@ -211,6 +227,14 @@ describe('createAdminRoomLayoutAPI', () => {
           { id: 'room-1', kind: AdminRoomLayoutItemKind.ROOM },
           { id: 'docs', kind: AdminRoomLayoutItemKind.SIDEBAR_LINK }
         ]
+      },
+      callOptions
+    );
+    expect(mocks.moveSidebarItem).toHaveBeenCalledWith(
+      {
+        item: { id: 'room-1', kind: AdminRoomLayoutItemKind.ROOM },
+        groupId: 'g2',
+        before: { id: 'docs', kind: AdminRoomLayoutItemKind.SIDEBAR_LINK }
       },
       callOptions
     );

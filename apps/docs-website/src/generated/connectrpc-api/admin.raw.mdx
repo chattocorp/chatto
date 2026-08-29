@@ -1451,6 +1451,41 @@ Result of replacing the global room group order.
 | `groups` | repeated [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Room groups in their new order. |
 
 
+<a id="chatto-admin-v1-AdminRoomLayoutService-MoveRoomGroup"></a>
+
+### MoveRoomGroup
+
+Moves one room group before another group, or to the end. Requires
+server-scope room.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveRoomGroup
+```
+
+<a id="chatto-admin-v1-MoveRoomGroupRequest"></a>
+
+#### Input: MoveRoomGroupRequest
+
+Request to place one room group immediately before another group. When
+before_group_id is absent, the group moves to the end of the sidebar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required room group to move. |
+| `before_group_id` | `optional string` | Group that follows the moved group. Omit to place the group last. |
+
+
+<a id="chatto-admin-v1-MoveRoomGroupResponse"></a>
+
+#### Result: MoveRoomGroupResponse
+
+Result of moving one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Room groups in their authoritative order after the move. |
+
+
 <a id="chatto-admin-v1-AdminRoomLayoutService-MoveRoomToGroup"></a>
 
 ### MoveRoomToGroup
@@ -1517,6 +1552,43 @@ Result of replacing the mixed sidebar item order.
 | Field | Type | Description |
 | --- | --- | --- |
 | `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Updated room group. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-MoveSidebarItem"></a>
+
+### MoveSidebarItem
+
+Moves one room or sidebar link to a position in a room group. Requires
+room.manage in the source and destination groups.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveSidebarItem
+```
+
+<a id="chatto-admin-v1-MoveSidebarItemRequest"></a>
+
+#### Input: MoveSidebarItemRequest
+
+Request to move one room or sidebar link to an exact sidebar position.
+The server resolves the complete current layout, including entries that the
+caller's ordinary room directory does not show.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `item` | [`AdminRoomLayoutItemInput`](#chatto-admin-v1-AdminRoomLayoutItemInput) | Required room or sidebar link to move. |
+| `group_id` | `string` | Required destination room group. |
+| `before` | [`AdminRoomLayoutItemInput`](#chatto-admin-v1-AdminRoomLayoutItemInput) | Item that follows the moved item. Omit to place the item last. |
+
+
+<a id="chatto-admin-v1-MoveSidebarItemResponse"></a>
+
+#### Result: MoveSidebarItemResponse
+
+Result of moving one sidebar item.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group` | [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Destination room group after the move. |
 
 
 <a id="chatto-admin-v1-AdminRoomLayoutService-CreateSidebarLink"></a>

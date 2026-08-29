@@ -80,6 +80,8 @@ describe('server compatibility evaluation', () => {
     expect(supportsServerFeature('0.5.0', 'botIncomingWebhooks')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'roomManagement')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'serverInvitations')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.3', 'sidebarRoomManagement')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.2', 'sidebarRoomManagement')).toBe(false);
     expect(supportsServerFeature('0.4.19', 'messageSearch')).toBe(false);
     expect(supportsServerFeature('custom-build', 'adminApi')).toBe(false);
   });

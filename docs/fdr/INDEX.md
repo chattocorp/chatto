@@ -26,9 +26,9 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
 | [FDR-015](FDR-015-quick-switcher.md) | Quick Switcher (Cmd-K) | Active | 2026-08-27 |
 | [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-08-20 |
-| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-08-22 |
+| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-08-29 |
 | [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-08-28 |
-| [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-08-27 |
+| [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-08-29 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-08-27 |
 | [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-08-27 |
 | [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-08-29 |
@@ -40,7 +40,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-028](FDR-028-operator-api-and-cli.md) | Operator API & CLI | Active | 2026-06-29 |
 | [FDR-029](FDR-029-chatto-shields.md) | Chatto Shields | Active | 2026-08-23 |
 | [FDR-030](FDR-030-inline-message-timestamps.md) | Inline Message Timestamps | Active | 2026-07-12 |
-| [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-08-21 |
+| [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-08-29 |
 | [FDR-032](FDR-032-message-formatting.md) | Message Formatting | Active | 2026-08-29 |
 | [FDR-033](FDR-033-message-search.md) | Message Search | Experimental | 2026-08-25 |
 | [FDR-034](FDR-034-chatto-desktop.md) | Chatto Desktop | Experimental | 2026-08-20 |

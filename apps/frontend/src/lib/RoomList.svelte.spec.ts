@@ -17,6 +17,20 @@ const { mocks } = vi.hoisted(() => ({
     markNavigationRoomAsRead: vi.fn().mockResolvedValue(true),
     pushState: vi.fn(),
     goto: vi.fn(),
+    layoutAPI: {
+      createRoomGroup: vi.fn().mockResolvedValue(null),
+      updateRoomGroup: vi.fn().mockResolvedValue(null),
+      deleteRoomGroup: vi.fn().mockResolvedValue(true),
+      createSidebarLink: vi.fn().mockResolvedValue(null),
+      updateSidebarLink: vi.fn().mockResolvedValue(null),
+      deleteSidebarLink: vi.fn().mockResolvedValue(true),
+      moveRoomGroup: vi.fn().mockResolvedValue([]),
+      moveSidebarItem: vi.fn().mockResolvedValue(null)
+    },
+    roomCommandAPI: {
+      createRoom: vi.fn().mockResolvedValue(null),
+      archiveRoom: vi.fn().mockResolvedValue(null)
+    },
     appUi: {
       disableRoomCallWideFor: vi.fn(),
       requestRoomSidebarPanel: vi.fn()
@@ -60,7 +74,8 @@ const { mocks } = vi.hoisted(() => ({
         handleCallEndedEvent: vi.fn()
       },
       serverInfo: {
-        livekitUrl: null
+        livekitUrl: null,
+        supportsFeature: vi.fn().mockReturnValue(true)
       },
       navigation: {
         rooms: [],
@@ -112,6 +127,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
     store: mocks.store,
+    connection: {
+      getAPI: vi.fn((factory: { name?: string }) =>
+        factory.name === 'createAdminRoomLayoutAPI' ? mocks.layoutAPI : mocks.roomCommandAPI
+      )
+    },
     isCurrent: () => true
   })
 }));
@@ -137,8 +157,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
@@ -268,6 +288,7 @@ beforeEach(() => {
   mocks.store.navigation.roomGroups = [];
   mocks.store.navigation.isInitialLoading = false;
   mocks.store.navigation.currentUserId = 'me';
+  mocks.store.serverInfo.supportsFeature.mockReturnValue(true);
   setRooms();
   vi.clearAllMocks();
   Object.defineProperty(navigator, 'clipboard', {
@@ -628,6 +649,29 @@ describe('RoomList', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/channel-1');
   });
 
+  it('archives a managed room through the lazily loaded sidebar confirmation', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Archive Room'));
+
+    const archiveMenuItem = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Archive Room'
+    );
+    archiveMenuItem!.click();
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain('Are you sure you want to archive #general?');
+    });
+    const archiveButtons = Array.from(document.querySelectorAll('button')).filter(
+      (button) => button.textContent?.trim() === 'Archive Room'
+    );
+    archiveButtons.at(-1)!.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.roomCommandAPI.archiveRoom).toHaveBeenCalledWith('channel-1');
+    });
+  });
+
   it('hides room settings without room.manage', async () => {
     const rooms = mocks.store.navigation.rooms as Array<{
       id: string;
@@ -665,7 +709,6 @@ describe('RoomList', () => {
     const dmRow = q(container, '[href="/chat/-/dm-with-participants"]');
     const icon = dmRow?.querySelector('[data-testid="room-call-icon"]');
     const pulseIcon = icon?.querySelector('[data-testid="active-call-pulse-icon"]');
-    const children = Array.from(dmRow?.children ?? []);
     expect(icon).not.toBeNull();
     expect(icon?.classList.contains('text-action')).toBe(true);
     expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
@@ -674,10 +717,10 @@ describe('RoomList', () => {
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
     expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
     expect(dmRow?.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
-    expect(children.indexOf(dmRow!.querySelector('[data-testid="room-call-participants"]')!)).toBe(
-      children.indexOf(icon!) - 1
+    expect(dmRow!.querySelector('[data-testid="room-call-participants"]')?.nextElementSibling).toBe(
+      icon
     );
-    expect(children[0]?.querySelector('[data-testid="room-call-icon"]')).toBeNull();
+    expect(dmRow?.firstElementChild?.querySelector('[data-testid="room-call-icon"]')).toBeNull();
   });
 
   it('renders the active-call phone icon when participants are not loaded', async () => {
@@ -712,7 +755,6 @@ describe('RoomList', () => {
     const icon = channelRow?.querySelector('[data-testid="room-call-icon"]');
     const pulseIcon = icon?.querySelector('[data-testid="active-call-pulse-icon"]');
     const leadingIcon = channelRow?.querySelector('.sidebar-icon');
-    const children = Array.from(channelRow?.children ?? []);
     expect(icon).not.toBeNull();
     expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
@@ -724,8 +766,8 @@ describe('RoomList', () => {
       channelRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')
     ).toHaveLength(1);
     expect(
-      children.indexOf(channelRow!.querySelector('[data-testid="room-call-participants"]')!)
-    ).toBe(children.indexOf(icon!) - 1);
+      channelRow!.querySelector('[data-testid="room-call-participants"]')?.nextElementSibling
+    ).toBe(icon);
   });
 
   it('renders a compact overflow count for larger active calls', async () => {
@@ -979,6 +1021,142 @@ describe('RoomList', () => {
 
     settings!.click();
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/private-group');
+  });
+
+  it('shows permission-gated group, room, and link controls in the sidebar action rails', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        viewerCanCreateRoom: true,
+        roomIds: ['channel-1'],
+        items: [
+          { id: 'room:channel-1', type: 'room', roomId: 'channel-1' },
+          {
+            id: 'link:docs',
+            type: 'link',
+            link: { id: 'docs', label: 'Docs', url: '/docs' }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+
+    await expect.element(q(container, '[data-testid="create-room-button"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-group-drag-handle"]'))
+      .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-group-actions-button"]'))
+      .toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="room-drag-handle"]')).toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="room-actions-button"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="sidebar-link-drag-handle"]'))
+      .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="sidebar-link-actions-button"]'))
+      .toBeInTheDocument();
+  });
+
+  it('keeps context actions but hides drag handles for a server without relative moves', () => {
+    mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        viewerCanCreateRoom: true,
+        roomIds: ['channel-1']
+      }
+    ];
+
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+
+    expect(container.querySelector('[data-testid="room-group-drag-handle"]')).toBeNull();
+    expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
+    expect(container.querySelector('[data-testid="room-group-actions-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="room-actions-button"]')).not.toBeNull();
+  });
+
+  it('persists a relative sidebar-item placement after a handled drop', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    const roomItem = { id: 'room:channel-1', type: 'room' as const, roomId: 'channel-1' };
+    const linkItem = {
+      id: 'link:docs',
+      type: 'link' as const,
+      link: { id: 'docs', label: 'Docs', url: '/docs' }
+    };
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        roomIds: ['channel-1'],
+        items: [roomItem, linkItem]
+      }
+    ];
+    const { container } = render(RoomList);
+    const dropzone = q(container, '[data-testid="room-group-items-dropzone"]') as HTMLElement;
+
+    dropzone.dispatchEvent(
+      new CustomEvent('finalize', {
+        detail: { items: [linkItem, roomItem], info: { id: linkItem.id } }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.layoutAPI.moveSidebarItem).toHaveBeenCalledWith({
+        item: { kind: 'link', id: 'docs' },
+        groupId: 'projects',
+        before: { kind: 'room', id: 'channel-1' }
+      });
+    });
+  });
+
+  it('persists a relative room-group placement after a handled drop', async () => {
+    mocks.store.navigation.rooms = [];
+    const first = {
+      id: 'first',
+      name: 'First',
+      viewerCanManageGroup: true,
+      roomIds: [],
+      items: []
+    };
+    const second = {
+      id: 'second',
+      name: 'Second',
+      viewerCanManageGroup: true,
+      roomIds: [],
+      items: []
+    };
+    mocks.store.navigation.roomGroups = [first, second];
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const dropzone = q(container, '[data-testid="room-groups-dropzone"]') as HTMLElement;
+    const movedSection = { id: 'group:second', group: second };
+    const nextSection = { id: 'group:first', group: first };
+
+    dropzone.dispatchEvent(
+      new CustomEvent('finalize', {
+        detail: { items: [movedSection, nextSection], info: { id: movedSection.id } }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.layoutAPI.moveRoomGroup).toHaveBeenCalledWith({
+        groupId: 'second',
+        beforeGroupId: 'first'
+      });
+    });
   });
 
   it('renders active-server host sidebar links as same-tab anchors', async () => {

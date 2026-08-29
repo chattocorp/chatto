@@ -173,6 +173,10 @@ func (m *RoomModel) sidebarLinkMoveSnapshot(linkID, targetGroupID string) Sideba
 	return m.groupLayout.Projection().Groups.SidebarLinkMoveSnapshot(linkID, targetGroupID)
 }
 
+func (m *RoomModel) sidebarItemPlacementSnapshot(item *evtv1.SidebarGroupEntry, targetGroupID string) SidebarItemPlacementSnapshot {
+	return m.groupLayout.Projection().Groups.PlacementSnapshot(item, targetGroupID)
+}
+
 func (m *RoomModel) roomLayoutOrder() []string {
 	return m.groupLayout.Projection().Layout.Order()
 }

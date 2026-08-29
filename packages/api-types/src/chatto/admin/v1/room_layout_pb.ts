@@ -847,6 +847,97 @@ export class ReorderRoomGroupsResponse extends Message<ReorderRoomGroupsResponse
 }
 
 /**
+ * Request to place one room group immediately before another group. When
+ * before_group_id is absent, the group moves to the end of the sidebar.
+ *
+ * @generated from message chatto.admin.v1.MoveRoomGroupRequest
+ */
+export class MoveRoomGroupRequest extends Message<MoveRoomGroupRequest> {
+  /**
+   * Required room group to move.
+   *
+   * @generated from field: string group_id = 1;
+   */
+  groupId = "";
+
+  /**
+   * Group that follows the moved group. Omit to place the group last.
+   *
+   * @generated from field: optional string before_group_id = 2;
+   */
+  beforeGroupId?: string;
+
+  constructor(data?: PartialMessage<MoveRoomGroupRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.MoveRoomGroupRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "before_group_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MoveRoomGroupRequest {
+    return new MoveRoomGroupRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MoveRoomGroupRequest {
+    return new MoveRoomGroupRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MoveRoomGroupRequest {
+    return new MoveRoomGroupRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MoveRoomGroupRequest | PlainMessage<MoveRoomGroupRequest> | undefined, b: MoveRoomGroupRequest | PlainMessage<MoveRoomGroupRequest> | undefined): boolean {
+    return proto3.util.equals(MoveRoomGroupRequest, a, b);
+  }
+}
+
+/**
+ * Result of moving one room group.
+ *
+ * @generated from message chatto.admin.v1.MoveRoomGroupResponse
+ */
+export class MoveRoomGroupResponse extends Message<MoveRoomGroupResponse> {
+  /**
+   * Room groups in their authoritative order after the move.
+   *
+   * @generated from field: repeated chatto.admin.v1.AdminRoomLayoutGroup groups = 1;
+   */
+  groups: AdminRoomLayoutGroup[] = [];
+
+  constructor(data?: PartialMessage<MoveRoomGroupResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.MoveRoomGroupResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "groups", kind: "message", T: AdminRoomLayoutGroup, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MoveRoomGroupResponse {
+    return new MoveRoomGroupResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MoveRoomGroupResponse {
+    return new MoveRoomGroupResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MoveRoomGroupResponse {
+    return new MoveRoomGroupResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MoveRoomGroupResponse | PlainMessage<MoveRoomGroupResponse> | undefined, b: MoveRoomGroupResponse | PlainMessage<MoveRoomGroupResponse> | undefined): boolean {
+    return proto3.util.equals(MoveRoomGroupResponse, a, b);
+  }
+}
+
+/**
  * Request to move a channel room to another room group.
  *
  * @generated from message chatto.admin.v1.MoveRoomToGroupRequest
@@ -1023,6 +1114,106 @@ export class ReorderSidebarItemsInGroupResponse extends Message<ReorderSidebarIt
 
   static equals(a: ReorderSidebarItemsInGroupResponse | PlainMessage<ReorderSidebarItemsInGroupResponse> | undefined, b: ReorderSidebarItemsInGroupResponse | PlainMessage<ReorderSidebarItemsInGroupResponse> | undefined): boolean {
     return proto3.util.equals(ReorderSidebarItemsInGroupResponse, a, b);
+  }
+}
+
+/**
+ * Request to move one room or sidebar link to an exact sidebar position.
+ * The server resolves the complete current layout, including entries that the
+ * caller's ordinary room directory does not show.
+ *
+ * @generated from message chatto.admin.v1.MoveSidebarItemRequest
+ */
+export class MoveSidebarItemRequest extends Message<MoveSidebarItemRequest> {
+  /**
+   * Required room or sidebar link to move.
+   *
+   * @generated from field: chatto.admin.v1.AdminRoomLayoutItemInput item = 1;
+   */
+  item?: AdminRoomLayoutItemInput;
+
+  /**
+   * Required destination room group.
+   *
+   * @generated from field: string group_id = 2;
+   */
+  groupId = "";
+
+  /**
+   * Item that follows the moved item. Omit to place the item last.
+   *
+   * @generated from field: chatto.admin.v1.AdminRoomLayoutItemInput before = 3;
+   */
+  before?: AdminRoomLayoutItemInput;
+
+  constructor(data?: PartialMessage<MoveSidebarItemRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.MoveSidebarItemRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "item", kind: "message", T: AdminRoomLayoutItemInput },
+    { no: 2, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "before", kind: "message", T: AdminRoomLayoutItemInput },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MoveSidebarItemRequest {
+    return new MoveSidebarItemRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MoveSidebarItemRequest {
+    return new MoveSidebarItemRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MoveSidebarItemRequest {
+    return new MoveSidebarItemRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MoveSidebarItemRequest | PlainMessage<MoveSidebarItemRequest> | undefined, b: MoveSidebarItemRequest | PlainMessage<MoveSidebarItemRequest> | undefined): boolean {
+    return proto3.util.equals(MoveSidebarItemRequest, a, b);
+  }
+}
+
+/**
+ * Result of moving one sidebar item.
+ *
+ * @generated from message chatto.admin.v1.MoveSidebarItemResponse
+ */
+export class MoveSidebarItemResponse extends Message<MoveSidebarItemResponse> {
+  /**
+   * Destination room group after the move.
+   *
+   * @generated from field: chatto.admin.v1.AdminRoomLayoutGroup group = 1;
+   */
+  group?: AdminRoomLayoutGroup;
+
+  constructor(data?: PartialMessage<MoveSidebarItemResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.MoveSidebarItemResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group", kind: "message", T: AdminRoomLayoutGroup },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MoveSidebarItemResponse {
+    return new MoveSidebarItemResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MoveSidebarItemResponse {
+    return new MoveSidebarItemResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MoveSidebarItemResponse {
+    return new MoveSidebarItemResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MoveSidebarItemResponse | PlainMessage<MoveSidebarItemResponse> | undefined, b: MoveSidebarItemResponse | PlainMessage<MoveSidebarItemResponse> | undefined): boolean {
+    return proto3.util.equals(MoveSidebarItemResponse, a, b);
   }
 }
 

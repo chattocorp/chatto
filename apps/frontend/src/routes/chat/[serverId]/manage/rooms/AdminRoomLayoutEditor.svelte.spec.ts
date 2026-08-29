@@ -113,6 +113,8 @@ function makeLayout(): AdminRoomLayoutStore {
     updateRoomGroup: vi.fn().mockResolvedValue(null),
     deleteRoomGroup: vi.fn().mockResolvedValue(true),
     reorderRoomGroups: vi.fn().mockResolvedValue([]),
+    moveRoomGroup: vi.fn().mockResolvedValue([]),
+    moveSidebarItem: vi.fn().mockResolvedValue(null),
     moveRoomToGroup: vi.fn().mockResolvedValue(undefined),
     reorderSidebarItemsInGroup: vi.fn().mockResolvedValue(null),
     createSidebarLink: vi.fn().mockResolvedValue(null),

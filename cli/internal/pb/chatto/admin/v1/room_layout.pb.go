@@ -1000,6 +1000,108 @@ func (x *ReorderRoomGroupsResponse) GetGroups() []*AdminRoomLayoutGroup {
 	return nil
 }
 
+// Request to place one room group immediately before another group. When
+// before_group_id is absent, the group moves to the end of the sidebar.
+type MoveRoomGroupRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required room group to move.
+	GroupId string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	// Group that follows the moved group. Omit to place the group last.
+	BeforeGroupId *string `protobuf:"bytes,2,opt,name=before_group_id,json=beforeGroupId,proto3,oneof" json:"before_group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveRoomGroupRequest) Reset() {
+	*x = MoveRoomGroupRequest{}
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveRoomGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveRoomGroupRequest) ProtoMessage() {}
+
+func (x *MoveRoomGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveRoomGroupRequest.ProtoReflect.Descriptor instead.
+func (*MoveRoomGroupRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *MoveRoomGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *MoveRoomGroupRequest) GetBeforeGroupId() string {
+	if x != nil && x.BeforeGroupId != nil {
+		return *x.BeforeGroupId
+	}
+	return ""
+}
+
+// Result of moving one room group.
+type MoveRoomGroupResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room groups in their authoritative order after the move.
+	Groups        []*AdminRoomLayoutGroup `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveRoomGroupResponse) Reset() {
+	*x = MoveRoomGroupResponse{}
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveRoomGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveRoomGroupResponse) ProtoMessage() {}
+
+func (x *MoveRoomGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveRoomGroupResponse.ProtoReflect.Descriptor instead.
+func (*MoveRoomGroupResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *MoveRoomGroupResponse) GetGroups() []*AdminRoomLayoutGroup {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
 // Request to move a channel room to another room group.
 type MoveRoomToGroupRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1013,7 +1115,7 @@ type MoveRoomToGroupRequest struct {
 
 func (x *MoveRoomToGroupRequest) Reset() {
 	*x = MoveRoomToGroupRequest{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[17]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1025,7 +1127,7 @@ func (x *MoveRoomToGroupRequest) String() string {
 func (*MoveRoomToGroupRequest) ProtoMessage() {}
 
 func (x *MoveRoomToGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[17]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1038,7 +1140,7 @@ func (x *MoveRoomToGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveRoomToGroupRequest.ProtoReflect.Descriptor instead.
 func (*MoveRoomToGroupRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{17}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *MoveRoomToGroupRequest) GetRoomId() string {
@@ -1066,7 +1168,7 @@ type MoveRoomToGroupResponse struct {
 
 func (x *MoveRoomToGroupResponse) Reset() {
 	*x = MoveRoomToGroupResponse{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[18]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1078,7 +1180,7 @@ func (x *MoveRoomToGroupResponse) String() string {
 func (*MoveRoomToGroupResponse) ProtoMessage() {}
 
 func (x *MoveRoomToGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[18]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1091,7 +1193,7 @@ func (x *MoveRoomToGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveRoomToGroupResponse.ProtoReflect.Descriptor instead.
 func (*MoveRoomToGroupResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{18}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *MoveRoomToGroupResponse) GetRoom() *v1.Room {
@@ -1114,7 +1216,7 @@ type ReorderSidebarItemsInGroupRequest struct {
 
 func (x *ReorderSidebarItemsInGroupRequest) Reset() {
 	*x = ReorderSidebarItemsInGroupRequest{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[19]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1126,7 +1228,7 @@ func (x *ReorderSidebarItemsInGroupRequest) String() string {
 func (*ReorderSidebarItemsInGroupRequest) ProtoMessage() {}
 
 func (x *ReorderSidebarItemsInGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[19]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1139,7 +1241,7 @@ func (x *ReorderSidebarItemsInGroupRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ReorderSidebarItemsInGroupRequest.ProtoReflect.Descriptor instead.
 func (*ReorderSidebarItemsInGroupRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{19}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ReorderSidebarItemsInGroupRequest) GetGroupId() string {
@@ -1167,7 +1269,7 @@ type ReorderSidebarItemsInGroupResponse struct {
 
 func (x *ReorderSidebarItemsInGroupResponse) Reset() {
 	*x = ReorderSidebarItemsInGroupResponse{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[20]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1179,7 +1281,7 @@ func (x *ReorderSidebarItemsInGroupResponse) String() string {
 func (*ReorderSidebarItemsInGroupResponse) ProtoMessage() {}
 
 func (x *ReorderSidebarItemsInGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[20]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1192,10 +1294,122 @@ func (x *ReorderSidebarItemsInGroupResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ReorderSidebarItemsInGroupResponse.ProtoReflect.Descriptor instead.
 func (*ReorderSidebarItemsInGroupResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{20}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ReorderSidebarItemsInGroupResponse) GetGroup() *AdminRoomLayoutGroup {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+// Request to move one room or sidebar link to an exact sidebar position.
+// The server resolves the complete current layout, including entries that the
+// caller's ordinary room directory does not show.
+type MoveSidebarItemRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required room or sidebar link to move.
+	Item *AdminRoomLayoutItemInput `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	// Required destination room group.
+	GroupId string `protobuf:"bytes,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	// Item that follows the moved item. Omit to place the item last.
+	Before        *AdminRoomLayoutItemInput `protobuf:"bytes,3,opt,name=before,proto3" json:"before,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveSidebarItemRequest) Reset() {
+	*x = MoveSidebarItemRequest{}
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveSidebarItemRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveSidebarItemRequest) ProtoMessage() {}
+
+func (x *MoveSidebarItemRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveSidebarItemRequest.ProtoReflect.Descriptor instead.
+func (*MoveSidebarItemRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *MoveSidebarItemRequest) GetItem() *AdminRoomLayoutItemInput {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *MoveSidebarItemRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *MoveSidebarItemRequest) GetBefore() *AdminRoomLayoutItemInput {
+	if x != nil {
+		return x.Before
+	}
+	return nil
+}
+
+// Result of moving one sidebar item.
+type MoveSidebarItemResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Destination room group after the move.
+	Group         *AdminRoomLayoutGroup `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveSidebarItemResponse) Reset() {
+	*x = MoveSidebarItemResponse{}
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveSidebarItemResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveSidebarItemResponse) ProtoMessage() {}
+
+func (x *MoveSidebarItemResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveSidebarItemResponse.ProtoReflect.Descriptor instead.
+func (*MoveSidebarItemResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *MoveSidebarItemResponse) GetGroup() *AdminRoomLayoutGroup {
 	if x != nil {
 		return x.Group
 	}
@@ -1217,7 +1431,7 @@ type CreateSidebarLinkRequest struct {
 
 func (x *CreateSidebarLinkRequest) Reset() {
 	*x = CreateSidebarLinkRequest{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[21]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1229,7 +1443,7 @@ func (x *CreateSidebarLinkRequest) String() string {
 func (*CreateSidebarLinkRequest) ProtoMessage() {}
 
 func (x *CreateSidebarLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[21]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1242,7 +1456,7 @@ func (x *CreateSidebarLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSidebarLinkRequest.ProtoReflect.Descriptor instead.
 func (*CreateSidebarLinkRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{21}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CreateSidebarLinkRequest) GetGroupId() string {
@@ -1277,7 +1491,7 @@ type CreateSidebarLinkResponse struct {
 
 func (x *CreateSidebarLinkResponse) Reset() {
 	*x = CreateSidebarLinkResponse{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[22]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +1503,7 @@ func (x *CreateSidebarLinkResponse) String() string {
 func (*CreateSidebarLinkResponse) ProtoMessage() {}
 
 func (x *CreateSidebarLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[22]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +1516,7 @@ func (x *CreateSidebarLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSidebarLinkResponse.ProtoReflect.Descriptor instead.
 func (*CreateSidebarLinkResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{22}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *CreateSidebarLinkResponse) GetSidebarLink() *v1.SidebarLink {
@@ -1327,7 +1541,7 @@ type UpdateSidebarLinkRequest struct {
 
 func (x *UpdateSidebarLinkRequest) Reset() {
 	*x = UpdateSidebarLinkRequest{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[23]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1339,7 +1553,7 @@ func (x *UpdateSidebarLinkRequest) String() string {
 func (*UpdateSidebarLinkRequest) ProtoMessage() {}
 
 func (x *UpdateSidebarLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[23]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1352,7 +1566,7 @@ func (x *UpdateSidebarLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSidebarLinkRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSidebarLinkRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{23}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *UpdateSidebarLinkRequest) GetLinkId() string {
@@ -1387,7 +1601,7 @@ type UpdateSidebarLinkResponse struct {
 
 func (x *UpdateSidebarLinkResponse) Reset() {
 	*x = UpdateSidebarLinkResponse{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[24]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1399,7 +1613,7 @@ func (x *UpdateSidebarLinkResponse) String() string {
 func (*UpdateSidebarLinkResponse) ProtoMessage() {}
 
 func (x *UpdateSidebarLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[24]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1412,7 +1626,7 @@ func (x *UpdateSidebarLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSidebarLinkResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSidebarLinkResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{24}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *UpdateSidebarLinkResponse) GetSidebarLink() *v1.SidebarLink {
@@ -1433,7 +1647,7 @@ type DeleteSidebarLinkRequest struct {
 
 func (x *DeleteSidebarLinkRequest) Reset() {
 	*x = DeleteSidebarLinkRequest{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[25]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1445,7 +1659,7 @@ func (x *DeleteSidebarLinkRequest) String() string {
 func (*DeleteSidebarLinkRequest) ProtoMessage() {}
 
 func (x *DeleteSidebarLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[25]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1458,7 +1672,7 @@ func (x *DeleteSidebarLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSidebarLinkRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSidebarLinkRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{25}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *DeleteSidebarLinkRequest) GetLinkId() string {
@@ -1479,7 +1693,7 @@ type DeleteSidebarLinkResponse struct {
 
 func (x *DeleteSidebarLinkResponse) Reset() {
 	*x = DeleteSidebarLinkResponse{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[26]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1491,7 +1705,7 @@ func (x *DeleteSidebarLinkResponse) String() string {
 func (*DeleteSidebarLinkResponse) ProtoMessage() {}
 
 func (x *DeleteSidebarLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[26]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1504,7 +1718,7 @@ func (x *DeleteSidebarLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSidebarLinkResponse.ProtoReflect.Descriptor instead.
 func (*DeleteSidebarLinkResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{26}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DeleteSidebarLinkResponse) GetDeleted() bool {
@@ -1527,7 +1741,7 @@ type MoveSidebarLinkToGroupRequest struct {
 
 func (x *MoveSidebarLinkToGroupRequest) Reset() {
 	*x = MoveSidebarLinkToGroupRequest{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[27]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1539,7 +1753,7 @@ func (x *MoveSidebarLinkToGroupRequest) String() string {
 func (*MoveSidebarLinkToGroupRequest) ProtoMessage() {}
 
 func (x *MoveSidebarLinkToGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[27]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1552,7 +1766,7 @@ func (x *MoveSidebarLinkToGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveSidebarLinkToGroupRequest.ProtoReflect.Descriptor instead.
 func (*MoveSidebarLinkToGroupRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{27}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *MoveSidebarLinkToGroupRequest) GetLinkId() string {
@@ -1580,7 +1794,7 @@ type MoveSidebarLinkToGroupResponse struct {
 
 func (x *MoveSidebarLinkToGroupResponse) Reset() {
 	*x = MoveSidebarLinkToGroupResponse{}
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[28]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1592,7 +1806,7 @@ func (x *MoveSidebarLinkToGroupResponse) String() string {
 func (*MoveSidebarLinkToGroupResponse) ProtoMessage() {}
 
 func (x *MoveSidebarLinkToGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[28]
+	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1605,7 +1819,7 @@ func (x *MoveSidebarLinkToGroupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveSidebarLinkToGroupResponse.ProtoReflect.Descriptor instead.
 func (*MoveSidebarLinkToGroupResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{28}
+	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *MoveSidebarLinkToGroupResponse) GetSidebarLink() *v1.SidebarLink {
@@ -1669,6 +1883,12 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x18ReorderRoomGroupsRequest\x12=\n" +
 	"\x11ordered_group_ids\x18\x01 \x03(\tB\x11\xbaH\x0e\x92\x01\v\b\x01\x10\xe8\a\"\x04r\x02\x10\x01R\x0forderedGroupIds\"Z\n" +
 	"\x19ReorderRoomGroupsResponse\x12=\n" +
+	"\x06groups\x18\x01 \x03(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x06groups\"\x84\x01\n" +
+	"\x14MoveRoomGroupRequest\x12\"\n" +
+	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x124\n" +
+	"\x0fbefore_group_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\rbeforeGroupId\x88\x01\x01B\x12\n" +
+	"\x10_before_group_id\"V\n" +
+	"\x15MoveRoomGroupResponse\x12=\n" +
 	"\x06groups\x18\x01 \x03(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x06groups\"^\n" +
 	"\x16MoveRoomToGroupRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
@@ -1679,6 +1899,12 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12J\n" +
 	"\x05items\x18\x02 \x03(\v2).chatto.admin.v1.AdminRoomLayoutItemInputB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x05items\"a\n" +
 	"\"ReorderSidebarItemsInGroupResponse\x12;\n" +
+	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"\xc6\x01\n" +
+	"\x16MoveSidebarItemRequest\x12E\n" +
+	"\x04item\x18\x01 \x01(\v2).chatto.admin.v1.AdminRoomLayoutItemInputB\x06\xbaH\x03\xc8\x01\x01R\x04item\x12\"\n" +
+	"\bgroup_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12A\n" +
+	"\x06before\x18\x03 \x01(\v2).chatto.admin.v1.AdminRoomLayoutItemInputR\x06before\"V\n" +
+	"\x17MoveSidebarItemResponse\x12;\n" +
 	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"}\n" +
 	"\x18CreateSidebarLinkRequest\x12\"\n" +
 	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12\x1f\n" +
@@ -1708,8 +1934,7 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x17AdminRoomLayoutItemKind\x12+\n" +
 	"'ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED\x10\x00\x12$\n" +
 	" ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM\x10\x01\x12,\n" +
-	"(ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK\x10\x022\xf1\n" +
-	"\n" +
+	"(ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK\x10\x022\xb7\f\n" +
 	"\x16AdminRoomLayoutService\x12L\n" +
 	"\aGetRoom\x12\x1f.chatto.admin.v1.GetRoomRequest\x1a .chatto.admin.v1.GetRoomResponse\x12[\n" +
 	"\fGetRoomGroup\x12$.chatto.admin.v1.GetRoomGroupRequest\x1a%.chatto.admin.v1.GetRoomGroupResponse\x12a\n" +
@@ -1717,9 +1942,11 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x0fCreateRoomGroup\x12'.chatto.admin.v1.CreateRoomGroupRequest\x1a(.chatto.admin.v1.CreateRoomGroupResponse\x12d\n" +
 	"\x0fUpdateRoomGroup\x12'.chatto.admin.v1.UpdateRoomGroupRequest\x1a(.chatto.admin.v1.UpdateRoomGroupResponse\x12d\n" +
 	"\x0fDeleteRoomGroup\x12'.chatto.admin.v1.DeleteRoomGroupRequest\x1a(.chatto.admin.v1.DeleteRoomGroupResponse\x12j\n" +
-	"\x11ReorderRoomGroups\x12).chatto.admin.v1.ReorderRoomGroupsRequest\x1a*.chatto.admin.v1.ReorderRoomGroupsResponse\x12d\n" +
+	"\x11ReorderRoomGroups\x12).chatto.admin.v1.ReorderRoomGroupsRequest\x1a*.chatto.admin.v1.ReorderRoomGroupsResponse\x12^\n" +
+	"\rMoveRoomGroup\x12%.chatto.admin.v1.MoveRoomGroupRequest\x1a&.chatto.admin.v1.MoveRoomGroupResponse\x12d\n" +
 	"\x0fMoveRoomToGroup\x12'.chatto.admin.v1.MoveRoomToGroupRequest\x1a(.chatto.admin.v1.MoveRoomToGroupResponse\x12\x85\x01\n" +
-	"\x1aReorderSidebarItemsInGroup\x122.chatto.admin.v1.ReorderSidebarItemsInGroupRequest\x1a3.chatto.admin.v1.ReorderSidebarItemsInGroupResponse\x12j\n" +
+	"\x1aReorderSidebarItemsInGroup\x122.chatto.admin.v1.ReorderSidebarItemsInGroupRequest\x1a3.chatto.admin.v1.ReorderSidebarItemsInGroupResponse\x12d\n" +
+	"\x0fMoveSidebarItem\x12'.chatto.admin.v1.MoveSidebarItemRequest\x1a(.chatto.admin.v1.MoveSidebarItemResponse\x12j\n" +
 	"\x11CreateSidebarLink\x12).chatto.admin.v1.CreateSidebarLinkRequest\x1a*.chatto.admin.v1.CreateSidebarLinkResponse\x12j\n" +
 	"\x11UpdateSidebarLink\x12).chatto.admin.v1.UpdateSidebarLinkRequest\x1a*.chatto.admin.v1.UpdateSidebarLinkResponse\x12j\n" +
 	"\x11DeleteSidebarLink\x12).chatto.admin.v1.DeleteSidebarLinkRequest\x1a*.chatto.admin.v1.DeleteSidebarLinkResponse\x12y\n" +
@@ -1739,7 +1966,7 @@ func file_chatto_admin_v1_room_layout_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_admin_v1_room_layout_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_admin_v1_room_layout_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_chatto_admin_v1_room_layout_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_chatto_admin_v1_room_layout_proto_goTypes = []any{
 	(AdminRoomLayoutItemKind)(0),               // 0: chatto.admin.v1.AdminRoomLayoutItemKind
 	(*AdminRoomLayoutItem)(nil),                // 1: chatto.admin.v1.AdminRoomLayoutItem
@@ -1759,69 +1986,81 @@ var file_chatto_admin_v1_room_layout_proto_goTypes = []any{
 	(*DeleteRoomGroupResponse)(nil),            // 15: chatto.admin.v1.DeleteRoomGroupResponse
 	(*ReorderRoomGroupsRequest)(nil),           // 16: chatto.admin.v1.ReorderRoomGroupsRequest
 	(*ReorderRoomGroupsResponse)(nil),          // 17: chatto.admin.v1.ReorderRoomGroupsResponse
-	(*MoveRoomToGroupRequest)(nil),             // 18: chatto.admin.v1.MoveRoomToGroupRequest
-	(*MoveRoomToGroupResponse)(nil),            // 19: chatto.admin.v1.MoveRoomToGroupResponse
-	(*ReorderSidebarItemsInGroupRequest)(nil),  // 20: chatto.admin.v1.ReorderSidebarItemsInGroupRequest
-	(*ReorderSidebarItemsInGroupResponse)(nil), // 21: chatto.admin.v1.ReorderSidebarItemsInGroupResponse
-	(*CreateSidebarLinkRequest)(nil),           // 22: chatto.admin.v1.CreateSidebarLinkRequest
-	(*CreateSidebarLinkResponse)(nil),          // 23: chatto.admin.v1.CreateSidebarLinkResponse
-	(*UpdateSidebarLinkRequest)(nil),           // 24: chatto.admin.v1.UpdateSidebarLinkRequest
-	(*UpdateSidebarLinkResponse)(nil),          // 25: chatto.admin.v1.UpdateSidebarLinkResponse
-	(*DeleteSidebarLinkRequest)(nil),           // 26: chatto.admin.v1.DeleteSidebarLinkRequest
-	(*DeleteSidebarLinkResponse)(nil),          // 27: chatto.admin.v1.DeleteSidebarLinkResponse
-	(*MoveSidebarLinkToGroupRequest)(nil),      // 28: chatto.admin.v1.MoveSidebarLinkToGroupRequest
-	(*MoveSidebarLinkToGroupResponse)(nil),     // 29: chatto.admin.v1.MoveSidebarLinkToGroupResponse
-	(*v1.Room)(nil),                            // 30: chatto.api.v1.Room
-	(*v1.SidebarLink)(nil),                     // 31: chatto.api.v1.SidebarLink
+	(*MoveRoomGroupRequest)(nil),               // 18: chatto.admin.v1.MoveRoomGroupRequest
+	(*MoveRoomGroupResponse)(nil),              // 19: chatto.admin.v1.MoveRoomGroupResponse
+	(*MoveRoomToGroupRequest)(nil),             // 20: chatto.admin.v1.MoveRoomToGroupRequest
+	(*MoveRoomToGroupResponse)(nil),            // 21: chatto.admin.v1.MoveRoomToGroupResponse
+	(*ReorderSidebarItemsInGroupRequest)(nil),  // 22: chatto.admin.v1.ReorderSidebarItemsInGroupRequest
+	(*ReorderSidebarItemsInGroupResponse)(nil), // 23: chatto.admin.v1.ReorderSidebarItemsInGroupResponse
+	(*MoveSidebarItemRequest)(nil),             // 24: chatto.admin.v1.MoveSidebarItemRequest
+	(*MoveSidebarItemResponse)(nil),            // 25: chatto.admin.v1.MoveSidebarItemResponse
+	(*CreateSidebarLinkRequest)(nil),           // 26: chatto.admin.v1.CreateSidebarLinkRequest
+	(*CreateSidebarLinkResponse)(nil),          // 27: chatto.admin.v1.CreateSidebarLinkResponse
+	(*UpdateSidebarLinkRequest)(nil),           // 28: chatto.admin.v1.UpdateSidebarLinkRequest
+	(*UpdateSidebarLinkResponse)(nil),          // 29: chatto.admin.v1.UpdateSidebarLinkResponse
+	(*DeleteSidebarLinkRequest)(nil),           // 30: chatto.admin.v1.DeleteSidebarLinkRequest
+	(*DeleteSidebarLinkResponse)(nil),          // 31: chatto.admin.v1.DeleteSidebarLinkResponse
+	(*MoveSidebarLinkToGroupRequest)(nil),      // 32: chatto.admin.v1.MoveSidebarLinkToGroupRequest
+	(*MoveSidebarLinkToGroupResponse)(nil),     // 33: chatto.admin.v1.MoveSidebarLinkToGroupResponse
+	(*v1.Room)(nil),                            // 34: chatto.api.v1.Room
+	(*v1.SidebarLink)(nil),                     // 35: chatto.api.v1.SidebarLink
 }
 var file_chatto_admin_v1_room_layout_proto_depIdxs = []int32{
-	30, // 0: chatto.admin.v1.AdminRoomLayoutItem.room:type_name -> chatto.api.v1.Room
-	31, // 1: chatto.admin.v1.AdminRoomLayoutItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	34, // 0: chatto.admin.v1.AdminRoomLayoutItem.room:type_name -> chatto.api.v1.Room
+	35, // 1: chatto.admin.v1.AdminRoomLayoutItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
 	1,  // 2: chatto.admin.v1.AdminRoomLayoutGroup.items:type_name -> chatto.admin.v1.AdminRoomLayoutItem
-	30, // 3: chatto.admin.v1.GetRoomResponse.room:type_name -> chatto.api.v1.Room
+	34, // 3: chatto.admin.v1.GetRoomResponse.room:type_name -> chatto.api.v1.Room
 	2,  // 4: chatto.admin.v1.GetRoomGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
 	2,  // 5: chatto.admin.v1.ListRoomGroupsResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
 	0,  // 6: chatto.admin.v1.AdminRoomLayoutItemInput.kind:type_name -> chatto.admin.v1.AdminRoomLayoutItemKind
 	2,  // 7: chatto.admin.v1.CreateRoomGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
 	2,  // 8: chatto.admin.v1.UpdateRoomGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
 	2,  // 9: chatto.admin.v1.ReorderRoomGroupsResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
-	30, // 10: chatto.admin.v1.MoveRoomToGroupResponse.room:type_name -> chatto.api.v1.Room
-	9,  // 11: chatto.admin.v1.ReorderSidebarItemsInGroupRequest.items:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
-	2,  // 12: chatto.admin.v1.ReorderSidebarItemsInGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
-	31, // 13: chatto.admin.v1.CreateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	31, // 14: chatto.admin.v1.UpdateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	31, // 15: chatto.admin.v1.MoveSidebarLinkToGroupResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	3,  // 16: chatto.admin.v1.AdminRoomLayoutService.GetRoom:input_type -> chatto.admin.v1.GetRoomRequest
-	5,  // 17: chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup:input_type -> chatto.admin.v1.GetRoomGroupRequest
-	7,  // 18: chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups:input_type -> chatto.admin.v1.ListRoomGroupsRequest
-	10, // 19: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:input_type -> chatto.admin.v1.CreateRoomGroupRequest
-	12, // 20: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:input_type -> chatto.admin.v1.UpdateRoomGroupRequest
-	14, // 21: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:input_type -> chatto.admin.v1.DeleteRoomGroupRequest
-	16, // 22: chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups:input_type -> chatto.admin.v1.ReorderRoomGroupsRequest
-	18, // 23: chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup:input_type -> chatto.admin.v1.MoveRoomToGroupRequest
-	20, // 24: chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup:input_type -> chatto.admin.v1.ReorderSidebarItemsInGroupRequest
-	22, // 25: chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink:input_type -> chatto.admin.v1.CreateSidebarLinkRequest
-	24, // 26: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:input_type -> chatto.admin.v1.UpdateSidebarLinkRequest
-	26, // 27: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:input_type -> chatto.admin.v1.DeleteSidebarLinkRequest
-	28, // 28: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:input_type -> chatto.admin.v1.MoveSidebarLinkToGroupRequest
-	4,  // 29: chatto.admin.v1.AdminRoomLayoutService.GetRoom:output_type -> chatto.admin.v1.GetRoomResponse
-	6,  // 30: chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup:output_type -> chatto.admin.v1.GetRoomGroupResponse
-	8,  // 31: chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups:output_type -> chatto.admin.v1.ListRoomGroupsResponse
-	11, // 32: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:output_type -> chatto.admin.v1.CreateRoomGroupResponse
-	13, // 33: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:output_type -> chatto.admin.v1.UpdateRoomGroupResponse
-	15, // 34: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:output_type -> chatto.admin.v1.DeleteRoomGroupResponse
-	17, // 35: chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups:output_type -> chatto.admin.v1.ReorderRoomGroupsResponse
-	19, // 36: chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup:output_type -> chatto.admin.v1.MoveRoomToGroupResponse
-	21, // 37: chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup:output_type -> chatto.admin.v1.ReorderSidebarItemsInGroupResponse
-	23, // 38: chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink:output_type -> chatto.admin.v1.CreateSidebarLinkResponse
-	25, // 39: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:output_type -> chatto.admin.v1.UpdateSidebarLinkResponse
-	27, // 40: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:output_type -> chatto.admin.v1.DeleteSidebarLinkResponse
-	29, // 41: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:output_type -> chatto.admin.v1.MoveSidebarLinkToGroupResponse
-	29, // [29:42] is the sub-list for method output_type
-	16, // [16:29] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	2,  // 10: chatto.admin.v1.MoveRoomGroupResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	34, // 11: chatto.admin.v1.MoveRoomToGroupResponse.room:type_name -> chatto.api.v1.Room
+	9,  // 12: chatto.admin.v1.ReorderSidebarItemsInGroupRequest.items:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
+	2,  // 13: chatto.admin.v1.ReorderSidebarItemsInGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	9,  // 14: chatto.admin.v1.MoveSidebarItemRequest.item:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
+	9,  // 15: chatto.admin.v1.MoveSidebarItemRequest.before:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
+	2,  // 16: chatto.admin.v1.MoveSidebarItemResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	35, // 17: chatto.admin.v1.CreateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	35, // 18: chatto.admin.v1.UpdateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	35, // 19: chatto.admin.v1.MoveSidebarLinkToGroupResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	3,  // 20: chatto.admin.v1.AdminRoomLayoutService.GetRoom:input_type -> chatto.admin.v1.GetRoomRequest
+	5,  // 21: chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup:input_type -> chatto.admin.v1.GetRoomGroupRequest
+	7,  // 22: chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups:input_type -> chatto.admin.v1.ListRoomGroupsRequest
+	10, // 23: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:input_type -> chatto.admin.v1.CreateRoomGroupRequest
+	12, // 24: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:input_type -> chatto.admin.v1.UpdateRoomGroupRequest
+	14, // 25: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:input_type -> chatto.admin.v1.DeleteRoomGroupRequest
+	16, // 26: chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups:input_type -> chatto.admin.v1.ReorderRoomGroupsRequest
+	18, // 27: chatto.admin.v1.AdminRoomLayoutService.MoveRoomGroup:input_type -> chatto.admin.v1.MoveRoomGroupRequest
+	20, // 28: chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup:input_type -> chatto.admin.v1.MoveRoomToGroupRequest
+	22, // 29: chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup:input_type -> chatto.admin.v1.ReorderSidebarItemsInGroupRequest
+	24, // 30: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarItem:input_type -> chatto.admin.v1.MoveSidebarItemRequest
+	26, // 31: chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink:input_type -> chatto.admin.v1.CreateSidebarLinkRequest
+	28, // 32: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:input_type -> chatto.admin.v1.UpdateSidebarLinkRequest
+	30, // 33: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:input_type -> chatto.admin.v1.DeleteSidebarLinkRequest
+	32, // 34: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:input_type -> chatto.admin.v1.MoveSidebarLinkToGroupRequest
+	4,  // 35: chatto.admin.v1.AdminRoomLayoutService.GetRoom:output_type -> chatto.admin.v1.GetRoomResponse
+	6,  // 36: chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup:output_type -> chatto.admin.v1.GetRoomGroupResponse
+	8,  // 37: chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups:output_type -> chatto.admin.v1.ListRoomGroupsResponse
+	11, // 38: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:output_type -> chatto.admin.v1.CreateRoomGroupResponse
+	13, // 39: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:output_type -> chatto.admin.v1.UpdateRoomGroupResponse
+	15, // 40: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:output_type -> chatto.admin.v1.DeleteRoomGroupResponse
+	17, // 41: chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups:output_type -> chatto.admin.v1.ReorderRoomGroupsResponse
+	19, // 42: chatto.admin.v1.AdminRoomLayoutService.MoveRoomGroup:output_type -> chatto.admin.v1.MoveRoomGroupResponse
+	21, // 43: chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup:output_type -> chatto.admin.v1.MoveRoomToGroupResponse
+	23, // 44: chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup:output_type -> chatto.admin.v1.ReorderSidebarItemsInGroupResponse
+	25, // 45: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarItem:output_type -> chatto.admin.v1.MoveSidebarItemResponse
+	27, // 46: chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink:output_type -> chatto.admin.v1.CreateSidebarLinkResponse
+	29, // 47: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:output_type -> chatto.admin.v1.UpdateSidebarLinkResponse
+	31, // 48: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:output_type -> chatto.admin.v1.DeleteSidebarLinkResponse
+	33, // 49: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:output_type -> chatto.admin.v1.MoveSidebarLinkToGroupResponse
+	35, // [35:50] is the sub-list for method output_type
+	20, // [20:35] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_room_layout_proto_init() }
@@ -1834,14 +2073,15 @@ func file_chatto_admin_v1_room_layout_proto_init() {
 		(*AdminRoomLayoutItem_SidebarLink)(nil),
 	}
 	file_chatto_admin_v1_room_layout_proto_msgTypes[11].OneofWrappers = []any{}
-	file_chatto_admin_v1_room_layout_proto_msgTypes[23].OneofWrappers = []any{}
+	file_chatto_admin_v1_room_layout_proto_msgTypes[17].OneofWrappers = []any{}
+	file_chatto_admin_v1_room_layout_proto_msgTypes[27].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_room_layout_proto_rawDesc), len(file_chatto_admin_v1_room_layout_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   29,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

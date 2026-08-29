@@ -4,6 +4,7 @@ import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import {
   RoomGroup,
   RoomGroupItem,
+  RoomGroupViewerState,
   RoomViewerState,
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -111,6 +112,9 @@ describe('NavigationStore', () => {
       new RoomGroup({
         id: 'G1',
         name: 'Projects',
+        viewerState: new RoomGroupViewerState({
+          permissions: [new PermissionGrant({ permission: 'room.create', granted: true })]
+        }),
         items: [
           new RoomGroupItem({
             item: { case: 'room', value: projectedRoom('newer').room! }
@@ -122,7 +126,7 @@ describe('NavigationStore', () => {
 
     expect(navigation.rooms.map((room) => room.id)).toEqual(['older', 'newer']);
     expect(navigation.roomGroups).toMatchObject([
-      { id: 'G1', name: 'Projects', roomIds: ['newer'] }
+      { id: 'G1', name: 'Projects', roomIds: ['newer'], viewerCanCreateRoom: true }
     ]);
 
     projection.rooms.delete('older');

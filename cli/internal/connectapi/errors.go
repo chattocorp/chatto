@@ -104,6 +104,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrRoleNotFound) ||
 		errors.Is(err, core.ErrRoomGroupNotFound) ||
 		errors.Is(err, core.ErrSidebarLinkNotFound) ||
+		errors.Is(err, core.ErrSidebarItemNotFound) ||
 		errors.Is(err, core.ErrMessageNotFound) ||
 		errors.Is(err, core.ErrMessageAttachmentNotFound) ||
 		errors.Is(err, core.ErrMessageLinkPreviewNotFound) ||
@@ -141,6 +142,9 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrRoomMoveSourceChanged) ||
 		errors.Is(err, core.ErrAssetNotAttachable) ||
 		errors.Is(err, core.ErrSidebarLinkSourceChanged) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if errors.Is(err, core.ErrSidebarItemPlacement) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	return connectInternalError(err)

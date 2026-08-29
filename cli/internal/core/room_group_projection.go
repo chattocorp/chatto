@@ -50,6 +50,16 @@ type SidebarLinkMoveSnapshot struct {
 	Seq           uint64
 }
 
+// SidebarItemPlacementSnapshot captures the source and destination groups for
+// one relative sidebar-item move from a single projection generation.
+type SidebarItemPlacementSnapshot struct {
+	SourceGroupID string
+	SourceGroup   *evtv1.RoomGroup
+	TargetGroup   *evtv1.RoomGroup
+	Link          *evtv1.SidebarLink
+	Seq           uint64
+}
+
 // NewRoomGroupProjection returns an empty projection.
 func NewRoomGroupProjection() *RoomGroupProjection {
 	return &RoomGroupProjection{
@@ -202,6 +212,36 @@ func (p *RoomGroupProjection) Snapshot(groupID string) RoomGroupSnapshot {
 	if entry, ok := p.groups[groupID]; ok {
 		snapshot.Exists = true
 		snapshot.Group = entryToGroup(groupID, entry)
+	}
+	return snapshot
+}
+
+// PlacementSnapshot returns a consistent source/destination view for a room or
+// sidebar-link placement command. The returned protobuf messages are detached
+// from projection state.
+func (p *RoomGroupProjection) PlacementSnapshot(item *evtv1.SidebarGroupEntry, targetGroupID string) SidebarItemPlacementSnapshot {
+	p.RLock()
+	defer p.RUnlock()
+
+	snapshot := SidebarItemPlacementSnapshot{Seq: p.seq}
+	if target, ok := p.groups[targetGroupID]; ok {
+		snapshot.TargetGroup = entryToGroup(targetGroupID, target)
+	}
+	if item == nil || item.GetId() == "" {
+		return snapshot
+	}
+	for groupID, entry := range p.groups {
+		for _, candidate := range entry.entries {
+			if candidate.GetKind() != item.GetKind() || candidate.GetId() != item.GetId() {
+				continue
+			}
+			snapshot.SourceGroupID = groupID
+			snapshot.SourceGroup = entryToGroup(groupID, entry)
+			if item.GetKind() == evtv1.SidebarGroupEntry_SIDEBAR_LINK {
+				snapshot.Link = cloneSidebarLink(entry.links[item.GetId()])
+			}
+			return snapshot
+		}
 	}
 	return snapshot
 }
