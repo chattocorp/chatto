@@ -69,6 +69,11 @@ message UserTimeFormatClearedEvent {
   string user_id = 1;
 }
 
+message UserTimezoneSharingChangedEvent {
+  string user_id = 1;
+  bool share_timezone = 2;
+}
+
 // Legacy Notifications 1.0 fact retained only so existing EVT histories remain
 // decodable. Current writers emit UserNotificationPolicyChangedEvent.
 message UserServerNotificationLevelSetEvent {

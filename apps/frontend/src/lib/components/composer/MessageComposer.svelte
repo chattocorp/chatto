@@ -27,6 +27,7 @@
   import MentionAutocomplete from './MentionAutocomplete.svelte';
   import ComposerLinkPreview from './ComposerLinkPreview.svelte';
   import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
+  import ComposerFormattingToolbar from './ComposerFormattingToolbar.svelte';
   import ComposerToolbar from './ComposerToolbar.svelte';
   import ComposerModeIndicators from './ComposerModeIndicators.svelte';
   import { MessageComposerState, type MessageComposerProps } from './messageComposerState.svelte';
@@ -97,6 +98,8 @@
   );
   const slowModeBlocked = $derived(slowModeRemainingSeconds > 0);
   const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
+  const composerId = $props.id();
+  const formattingToolbarId = `${composerId}-formatting-toolbar`;
 
   $effect(() => {
     const deadline = slowModeDeadline;
@@ -210,11 +213,21 @@
     />
   {/if}
 
-  <div
-    data-testid="composer-input-surface"
-    class="@container relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
-    class:opacity-50={composer.inputDisabled}
-  >
+  {#if userPreferences.composerFormattingToolbarVisible}
+    <ComposerFormattingToolbar
+      id={formattingToolbarId}
+      formattingState={composer.formattingState}
+      indentState={composer.indentState}
+      editorApi={composer.editorApi}
+      inputDisabled={composer.inputDisabled}
+    />
+  {/if}
+
+	<div
+		data-testid="composer-input-surface"
+		class="composer-surface @container relative flex min-h-12 min-w-0 items-end gap-1 px-2.5 py-1.5"
+		class:opacity-50={composer.inputDisabled}
+	>
     {#if composer.autocomplete.emoji}
       <EmojiAutocomplete
         bind:this={composer.autocomplete.emojiRef}
@@ -235,7 +248,31 @@
       />
     {/if}
 
-    <div class="min-h-9 min-w-0 px-0.5 py-0.5" data-testid="composer-editor-row">
+    <button
+      type="button"
+      onpointerdown={(event) => event.preventDefault()}
+      onclick={() =>
+        (userPreferences.composerFormattingToolbarVisible =
+          !userPreferences.composerFormattingToolbarVisible)}
+      aria-label={m('composer.formatting_options')}
+      aria-controls={formattingToolbarId}
+      aria-expanded={userPreferences.composerFormattingToolbarVisible}
+      aria-pressed={userPreferences.composerFormattingToolbarVisible}
+      title={m('composer.formatting_options')}
+      class={[
+        'mb-1.5 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-sm font-semibold transition-[background-color,color,scale] duration-100 active:scale-[0.96]',
+        userPreferences.composerFormattingToolbarVisible
+          ? 'bg-surface-emphasized text-text'
+          : 'text-muted hover:bg-surface-emphasized hover:text-text'
+      ]}
+    >
+      <span aria-hidden="true">Aa</span>
+    </button>
+
+    <div
+      class="min-h-9 min-w-0 flex-1 px-0.5 py-0.5"
+      data-testid="composer-editor-row"
+    >
       {#await editorModule}
         <div class="min-h-8 min-w-0" aria-hidden="true"></div>
       {:then { default: Editor }}
@@ -256,8 +293,6 @@
     </div>
 
     <ComposerToolbar
-      formattingState={composer.formattingState}
-      indentState={composer.indentState}
       editorApi={composer.editorApi}
       inputDisabled={composer.inputDisabled}
       {canAttach}

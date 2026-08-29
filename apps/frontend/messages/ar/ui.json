@@ -47,7 +47,9 @@
       "laser_cooldown": "ليزر {number}، الطاقة {power}: {seconds} ثانية من فترة التهدئة المتبقية",
       "upgrade_power": "ترقية الليزر {number} إلى مستوى الطاقة {level} لنقاط {cost}",
       "buy_laser": "قم بشراء مسدس الليزر {number} مقابل نقاط {cost}",
-      "maximum_lasers": "تم الوصول إلى الحد الأقصى لمدافع الليزر {count}"
+      "maximum_lasers": "تم الوصول إلى الحد الأقصى لمدافع الليزر {count}",
+      "maximum_power": "وصل الليزر {number} إلى الطاقة القصوى {power}",
+      "complete": "تمت إعادة بناء Chatto. النتيجة النهائية: {count} نقطة"
     },
     "pane_header": {
       "back": "العودة"

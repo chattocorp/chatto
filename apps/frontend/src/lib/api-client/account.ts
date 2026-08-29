@@ -24,6 +24,8 @@ export type AccountUser = {
 export type AccountUserSettings = {
   timezone?: string | null;
   timeFormat: TimeFormat;
+  /** Present when the server supports private time-zone preferences. */
+  shareTimezone?: boolean;
 };
 
 export type UpdateProfileInput = {
@@ -35,6 +37,7 @@ export type UpdateProfileInput = {
 export type UpdateSettingsInput = {
   timezone?: string | null;
   timeFormat?: TimeFormat;
+  shareTimezone?: boolean;
 };
 
 export type UpdatePasswordInput = {
@@ -85,7 +88,8 @@ export function createAccountAPI(config: AccountAPIConfig) {
         {
           timezone: input.timezone === null ? '' : input.timezone,
           timeFormat:
-            input.timeFormat === undefined ? undefined : timeFormatOrAuto(input.timeFormat)
+            input.timeFormat === undefined ? undefined : timeFormatOrAuto(input.timeFormat),
+          shareTimezone: input.shareTimezone
         },
         { headers: headers() }
       );
@@ -127,6 +131,7 @@ function accountUser(user: APIUser | undefined): AccountUser {
 function userSettings(settings: APIUserSettings | undefined): AccountUserSettings {
   return {
     timezone: settings?.timezone ?? null,
-    timeFormat: timeFormatOrAuto(settings?.timeFormat)
+    timeFormat: timeFormatOrAuto(settings?.timeFormat),
+    shareTimezone: settings?.shareTimezone
   };
 }

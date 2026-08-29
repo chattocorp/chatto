@@ -143,6 +143,17 @@
           "description": "Use the dark interface on this browser"
         }
       },
+      "thread_pane": {
+        "title": "Thread pane",
+        "overlay": {
+          "label": "Overlay",
+          "description": "Show the thread over the room timeline"
+        },
+        "split": {
+          "label": "Side by side",
+          "description": "Show the thread beside the room timeline when space allows"
+        }
+      },
       "editor": {
         "title": "Message editor",
         "visual": {
@@ -180,6 +191,12 @@
         "invalid": "Please select a valid timezone from the list",
         "more_results": "{count} more - type to narrow results",
         "current_time": "Current time there: {time}"
+      },
+      "timezone_sharing": {
+        "title": "Time-zone sharing",
+        "label": "Show my time zone on my profile",
+        "description": "Other members can see your time zone and current local time.",
+        "unsupported": "This server version shares every stored time zone. Clear your time zone or ask the server owner to upgrade."
       },
       "time_format": {
         "title": "Time Format",

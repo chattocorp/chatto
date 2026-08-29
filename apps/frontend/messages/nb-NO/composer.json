@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Legg ved fil",
+    "formatting_options": "Formateringsalternativer",
     "send": "Send melding",
     "send_label": "Send",
     "also_send_to_channel": "Send også til kanalen",

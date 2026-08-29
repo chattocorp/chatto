@@ -43,7 +43,9 @@
       "laser_cooldown": "Laser {number}, power {power}: {seconds} seconds of cooldown remaining",
       "upgrade_power": "Upgrade laser {number} to power level {level} for {cost} points",
       "buy_laser": "Buy laser gun {number} for {cost} points",
-      "maximum_lasers": "Maximum of {count} laser guns reached"
+      "maximum_lasers": "Maximum of {count} laser guns reached",
+      "maximum_power": "Laser {number} has reached maximum power {power}",
+      "complete": "Chatto rebuilt. Final score: {count} points"
     },
     "pane_header": {
       "back": "Back"

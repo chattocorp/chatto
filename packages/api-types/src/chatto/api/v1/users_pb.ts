@@ -78,9 +78,9 @@ export class User extends Message<User> {
   bio?: string;
 
   /**
-   * IANA time zone the user shares on their profile (for example
-   * "Europe/Berlin"), when set. Absent means the user has not chosen a
-   * shareable time zone.
+   * IANA time zone the user chose to share on their profile (for example
+   * "Europe/Berlin"). Absent means the user has not enabled time-zone
+   * sharing or has no stored time zone.
    *
    * @generated from field: optional string timezone = 10;
    */

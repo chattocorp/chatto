@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "添加文件",
+    "formatting_options": "格式选项",
     "send": "发送消息",
     "send_label": "发送",
     "also_send_to_channel": "同时发送到频道",

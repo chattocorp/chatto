@@ -43,7 +43,9 @@
       "laser_cooldown": "レーザー{number}、出力{power}：クールダウン残り{seconds}秒",
       "upgrade_power": "{cost}ポイントでレーザー{number}を出力レベル{level}に強化",
       "buy_laser": "{cost}ポイントでレーザー砲{number}を購入",
-      "maximum_lasers": "レーザー砲の上限{count}基に到達"
+      "maximum_lasers": "レーザー砲の上限{count}基に到達",
+      "maximum_power": "レーザー{number}は最大出力{power}に達しました",
+      "complete": "Chattoが再構築されました。最終スコア：{count}ポイント"
     },
     "pane_header": {
       "back": "戻る"

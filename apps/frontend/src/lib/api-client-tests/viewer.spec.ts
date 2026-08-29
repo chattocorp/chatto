@@ -41,6 +41,7 @@ describe('getCurrentUserViaConnect', () => {
           login: 'alice',
           displayName: 'Alice',
           avatarUrl: 'https://cdn/avatar.webp',
+          timezone: 'Europe/Berlin',
           customStatus: {
             emoji: ':wave:',
             text: 'here',
@@ -54,7 +55,8 @@ describe('getCurrentUserViaConnect', () => {
         lastLoginChange: Timestamp.fromDate(new Date('2026-05-20T09:30:00Z')),
         settings: {
           timezone: 'Europe/Berlin',
-          timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+          timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+          shareTimezone: true
         }
       }
     });
@@ -78,6 +80,7 @@ describe('getCurrentUserViaConnect', () => {
       displayName: 'Alice',
       avatarUrl: 'https://cdn/avatar.webp',
       bio: null,
+      publicTimezone: 'Europe/Berlin',
       customStatus: {
         emoji: ':wave:',
         text: 'here',
@@ -90,7 +93,8 @@ describe('getCurrentUserViaConnect', () => {
       lastLoginChange: '2026-05-20T09:30:00.000Z',
       settings: {
         timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+        shareTimezone: true
       }
     });
   });
@@ -117,6 +121,7 @@ describe('getCurrentUserViaConnect', () => {
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
     expect(user.presenceStatus).toBe(PresenceStatus.OFFLINE);
     expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
+    expect(user.publicTimezone).toBeNull();
     expect(user.customStatus).toBeNull();
     expect(user.hasPassword).toBe(false);
     expect(user.viewerCanDeleteAccount).toBe(false);

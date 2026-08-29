@@ -421,7 +421,9 @@ type UpdateSettingsRequest struct {
 	// IANA timezone override. Empty clears the override.
 	Timezone *string `protobuf:"bytes,1,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
 	// Preferred time format.
-	TimeFormat    *TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat,oneof" json:"time_format,omitempty"`
+	TimeFormat *TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat,oneof" json:"time_format,omitempty"`
+	// Whether the stored time zone may appear on the user's public profile.
+	ShareTimezone *bool `protobuf:"varint,3,opt,name=share_timezone,json=shareTimezone,proto3,oneof" json:"share_timezone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -468,6 +470,13 @@ func (x *UpdateSettingsRequest) GetTimeFormat() TimeFormat {
 		return *x.TimeFormat
 	}
 	return TimeFormat_TIME_FORMAT_UNSPECIFIED
+}
+
+func (x *UpdateSettingsRequest) GetShareTimezone() bool {
+	if x != nil && x.ShareTimezone != nil {
+		return *x.ShareTimezone
+	}
+	return false
 }
 
 // Result of updating display preferences.
@@ -718,13 +727,15 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\b\x18\x80\x01R\bpassword\x123\n" +
 	"\x10current_password\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0fcurrentPassword\"A\n" +
 	"\x16UpdatePasswordResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"\x96\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"\xd5\x01\n" +
 	"\x15UpdateSettingsRequest\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12?\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatH\x01R\n" +
-	"timeFormat\x88\x01\x01B\v\n" +
+	"timeFormat\x88\x01\x01\x12*\n" +
+	"\x0eshare_timezone\x18\x03 \x01(\bH\x02R\rshareTimezone\x88\x01\x01B\v\n" +
 	"\t_timezoneB\x0e\n" +
-	"\f_time_format\"Q\n" +
+	"\f_time_formatB\x11\n" +
+	"\x0f_share_timezone\"Q\n" +
 	"\x16UpdateSettingsResponse\x127\n" +
 	"\bsettings\x18\x01 \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\"\x1f\n" +
 	"\x1dRequestAccountDeletionRequest\"O\n" +

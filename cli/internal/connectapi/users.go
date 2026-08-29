@@ -42,7 +42,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *evtv1.User, av
 		summary.Bio = &bio
 	}
 	timezone := ""
-	if settings, err := api.core.GetUserSettings(ctx, user.GetId()); err == nil && settings != nil {
+	if settings, err := api.core.GetUserSettings(ctx, user.GetId()); err == nil && settings != nil && settings.GetShareTimezone() {
 		timezone = settings.GetTimezone()
 	}
 	if timezone != "" {

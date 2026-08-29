@@ -43,7 +43,9 @@
       "laser_cooldown": "激光器 {number}，功率 {power}：剩余冷却时间 {seconds} 秒",
       "upgrade_power": "花费 {cost} 点数将激光器 {number} 升至功率等级 {level}",
       "buy_laser": "花费 {cost} 点数购买激光枪 {number}",
-      "maximum_lasers": "已达到 {count} 把激光枪的上限"
+      "maximum_lasers": "已达到 {count} 把激光枪的上限",
+      "maximum_power": "激光器 {number} 已达到最大功率 {power}",
+      "complete": "Chatto 已重建。最终得分：{count} 分"
     },
     "pane_header": {
       "back": "返回"

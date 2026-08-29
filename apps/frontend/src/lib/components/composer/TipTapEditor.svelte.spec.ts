@@ -26,6 +26,20 @@ describe('TipTapEditor accessibility', () => {
 
     await expect.element(page.getByRole('textbox', { name: 'Edit your message' })).toBeVisible();
   });
+
+  it('shows a text caret when focused inside the non-selectable app shell', async () => {
+    const { container } = render(TipTapEditor, {
+      props: { placeholder: 'Write a message', autofocus: true }
+    });
+    const editor = page.getByRole('textbox', { name: 'Write a message' }).element();
+
+    await vi.waitFor(() => expect(document.activeElement).toBe(editor));
+
+    const style = getComputedStyle(editor);
+    expect(style.userSelect).toBe('text');
+    expect(style.caretColor).toBe(style.color);
+    expect(container.querySelector('.tiptap-editor')?.classList).toContain('select-text');
+  });
 });
 
 describe('TipTapEditor wrapping', () => {

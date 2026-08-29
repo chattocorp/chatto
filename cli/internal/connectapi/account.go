@@ -147,6 +147,10 @@ func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Reques
 		timeFormat := apiTimeFormatToCore(req.Msg.GetTimeFormat())
 		input.TimeFormat = &timeFormat
 	}
+	if req.Msg.ShareTimezone != nil {
+		shareTimezone := req.Msg.GetShareTimezone()
+		input.ShareTimezone = &shareTimezone
+	}
 	settings, err := s.api.core.UpdateUserSettings(ctx, caller.UserID, input)
 	if err != nil {
 		return nil, connectError(err)

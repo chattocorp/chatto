@@ -39,6 +39,10 @@ message ServerUserPreferences {
   // Preferred time display format.
   // TIME_FORMAT_UNSPECIFIED means the frontend uses the browser's locale default.
   TimeFormat time_format = 2;
+
+  // Whether the stored time zone may appear on the user's public profile.
+  // Historical preferences without this field remain private.
+  bool share_timezone = 3;
 }
 
 // UserPreferences stores per-user preferences scoped to the server.

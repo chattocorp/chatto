@@ -4,6 +4,7 @@ import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
+import * as routes from './routes';
 
 test.describe('User context menu', () => {
   test.describe('from message avatar', () => {
@@ -47,6 +48,67 @@ test.describe('User context menu', () => {
           await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
           await expect(profileDialog.getByText(userB.displayName)).toBeVisible();
           await expect(profileDialog.getByText(`@${userB.login}`)).toBeVisible();
+        }
+      );
+    });
+
+    test('timezone sharing is private by default and updates receivers in real time', async ({
+      page,
+      chatPage,
+      roomPage,
+      browser,
+      serverURL
+    }) => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.enterRoom('general');
+
+      await withServerUser(
+        browser!,
+        serverURL,
+        async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
+          await roomPage2.sendMessage('Private timezone profile test');
+          await roomPage.expectMessageVisible('Private timezone profile test', {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
+
+          await page2.goto(routes.settingsTime);
+          const timezoneInput = page2.getByTestId('timezone-input');
+          await timezoneInput.fill('America/New_York');
+          const save = page2.getByRole('button', { name: 'Save Time Settings' });
+          await save.click();
+          await expect(page2.getByText('Time settings saved')).toBeVisible({
+            timeout: TIMEOUTS.UI_STANDARD
+          });
+
+          const messageArticle = page.locator('[role="article"]', {
+            hasText: 'Private timezone profile test'
+          });
+          await messageArticle.locator('button').first().click({ button: 'right' });
+          const profileDialog = page.getByRole('dialog', { name: 'User profile' });
+          await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+          await expect(profileDialog.getByText('America/New_York', { exact: false })).toHaveCount(0);
+
+          const shareTimezone = page2.getByRole('checkbox', {
+            name: 'Show my time zone on my profile'
+          });
+          const shareTimezoneLabel = page2.locator('label[for="share-timezone"]');
+          await shareTimezoneLabel.click();
+          await expect(shareTimezone).toBeChecked();
+          await save.click();
+          await expect(profileDialog.getByText('America/New_York', { exact: false })).toBeVisible({
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
+
+          await shareTimezoneLabel.click();
+          await expect(shareTimezone).not.toBeChecked();
+          await save.click();
+          await expect(profileDialog.getByText('America/New_York', { exact: false })).toHaveCount(0, {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          });
+          await expect(timezoneInput).toHaveValue('America/New_York');
         }
       );
     });

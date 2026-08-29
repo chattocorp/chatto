@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "附加檔案",
+    "formatting_options": "格式選項",
     "send": "傳送訊息",
     "send_label": "傳送",
     "also_send_to_channel": "同時傳送至頻道",

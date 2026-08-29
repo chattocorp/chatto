@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Bestand bijvoegen",
+    "formatting_options": "Opmaakopties",
     "send": "Bericht verzenden",
     "send_label": "Verzenden",
     "also_send_to_channel": "Stuur ook naar kanaal",

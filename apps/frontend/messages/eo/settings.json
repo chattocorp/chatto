@@ -143,6 +143,17 @@
           "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
         }
       },
+      "thread_pane": {
+        "title": "Fadena panelo",
+        "overlay": {
+          "label": "Surmeto",
+          "description": "Montri la fadenon super la ĉambra templinio"
+        },
+        "split": {
+          "label": "Flank-al-flanke",
+          "description": "Montri la fadenon apud la ĉambra templinio kiam estas sufiĉe da spaco"
+        }
+      },
       "editor": {
         "title": "Mesaĝredaktilo",
         "visual": {
@@ -180,6 +191,12 @@
         "invalid": "Bonvolu elekti validan horzonon el la listo",
         "more_results": "{count} pli - tajpu por malvastigi rezultojn",
         "current_time": "Nuna horo tie: {time}"
+      },
+      "timezone_sharing": {
+        "title": "Kunhavigo de horzono",
+        "label": "Montri mian horzonon en mia profilo",
+        "description": "Aliaj membroj povas vidi vian horzonon kaj nunan lokan horon.",
+        "unsupported": "Ĉi tiu servila versio kunhavigas ĉiun konservitan horzonon. Forigu vian horzonon aŭ petu la posedanton de la servilo ĝisdatigi ĝin."
       },
       "time_format": {
         "title": "Tempo Formato",

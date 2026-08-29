@@ -49,7 +49,7 @@ test.describe('Up arrow to edit last message', () => {
 
     const editedMessage = `Simple up edit saved ${Date.now()}`;
     await roomPage.messageInput.fill(editedMessage);
-    await expect(page.getByTestId('composer-toolbar')).not.toContainText(/to send/i);
+    await expect(page.getByTestId('composer-action-toolbar')).not.toContainText(/to send/i);
 
     await roomPage.messageInput.press('Control+Enter');
     await roomPage.expectEditModeInactive();

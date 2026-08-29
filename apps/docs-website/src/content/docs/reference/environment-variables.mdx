@@ -56,7 +56,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
-  Comma-separated exact additional HTTPS origins that can use browser cookie authentication through a reverse proxy. Do not use `*` for browser authentication; it is ignored for that purpose. Upgrade all serving replicas before you add an alias, because older replicas do not use this setting.
+  Comma-separated exact additional HTTPS origins for reverse-proxy aliases. Each origin can use browser cookie authentication and publishes a matching bundled frontend OAuth identity. Do not include a path, query, or fragment. Do not configure HTTP and HTTPS origins that produce the same request host. Do not use `*`; it permits neither behavior. Upgrade all serving replicas before you add an alias, because older replicas do not use this setting.
 </EnvVar>
 
 ### TLS

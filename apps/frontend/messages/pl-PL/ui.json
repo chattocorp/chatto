@@ -43,7 +43,9 @@
       "laser_cooldown": "Laser {number}, moc {power}: pozostało {seconds} s odnowienia",
       "upgrade_power": "Ulepsz laser {number} do poziomu mocy {level} za {cost} punktów",
       "buy_laser": "Kup działo laserowe {number} za {cost} punktów",
-      "maximum_lasers": "Osiągnięto limit {count} dział laserowych"
+      "maximum_lasers": "Osiągnięto limit {count} dział laserowych",
+      "maximum_power": "Laser {number} osiągnął maksymalną moc {power}",
+      "complete": "Chatto zostało odbudowane. Wynik końcowy: {count} punktów"
     },
     "pane_header": {
       "back": "Wróć"

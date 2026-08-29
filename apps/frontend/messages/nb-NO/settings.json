@@ -143,6 +143,17 @@
           "description": "Bruk det mørke grensesnittet på denne nettleseren"
         }
       },
+      "thread_pane": {
+        "title": "Trådpanel",
+        "overlay": {
+          "label": "Overlegg",
+          "description": "Vis tråden over rommets tidslinje"
+        },
+        "split": {
+          "label": "Side ved side",
+          "description": "Vis tråden ved siden av rommets tidslinje når det er nok plass"
+        }
+      },
       "editor": {
         "title": "Meldingsredigering",
         "visual": {
@@ -180,6 +191,12 @@
         "invalid": "Velg en gyldig tidssone fra listen",
         "more_results": "{count} mer – skriv for å begrense resultatene",
         "current_time": "Gjeldende tid der: {time}"
+      },
+      "timezone_sharing": {
+        "title": "Deling av tidssone",
+        "label": "Vis tidssonen min på profilen",
+        "description": "Andre medlemmer kan se tidssonen din og den lokale tiden din nå.",
+        "unsupported": "Denne serverversjonen deler alle lagrede tidssoner. Fjern tidssonen din, eller be servereieren om å oppgradere."
       },
       "time_format": {
         "title": "Tidsformat",

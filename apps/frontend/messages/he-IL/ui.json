@@ -44,7 +44,9 @@
       "laser_cooldown": "לייזר {number}, כוח {power}: {seconds} שנותרו שניות של קירור",
       "upgrade_power": "שדרוג לייזר {number} לרמת הספק {level} עבור נקודות {cost}",
       "buy_laser": "קנה אקדח לייזר {number} עבור נקודות {cost}",
-      "maximum_lasers": "הגעת למקסימום של רובי לייזר {count}"
+      "maximum_lasers": "הגעת למקסימום של רובי לייזר {count}",
+      "maximum_power": "לייזר {number} הגיע לעוצמה המרבית {power}",
+      "complete": "Chatto נבנה מחדש. ניקוד סופי: {count} נקודות"
     },
     "pane_header": {
       "back": "חזרה"

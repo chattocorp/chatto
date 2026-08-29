@@ -54,7 +54,11 @@ const mocks = vi.hoisted(() => {
     hardRedirectAfterSignOut: vi.fn(),
     presenceCacheUpdate: vi.fn(),
     deviceTimezone: vi.fn<() => string | null>(() => null),
-    updateSettings: vi.fn(async () => ({ timezone: 'Europe/Berlin', timeFormat: undefined }))
+    updateSettings: vi.fn(async () => ({
+      timezone: 'Europe/Berlin',
+      timeFormat: undefined,
+      shareTimezone: false
+    }))
   };
 });
 
@@ -243,7 +247,8 @@ describe('ChatRoot', () => {
     };
     mocks.updateSettings.mockResolvedValue({
       timezone: 'Europe/Berlin',
-      timeFormat: undefined
+      timeFormat: undefined,
+      shareTimezone: false
     });
     mocks.lifecycle.length = 0;
     vi.clearAllMocks();
@@ -370,12 +375,17 @@ describe('ChatRoot', () => {
     vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');
     mocks.updateSettings.mockResolvedValue({
       timezone: 'Europe/Berlin',
-      timeFormat: undefined
+      timeFormat: undefined,
+      shareTimezone: false
     });
     const remoteUser: CurrentUser = {
       ...originUser,
       id: 'remote-user',
-      settings: { timezone: null, timeFormat: TimeFormat.TIME_FORMAT_AUTO }
+      settings: {
+        timezone: null,
+        timeFormat: TimeFormat.TIME_FORMAT_AUTO,
+        shareTimezone: false
+      }
     };
     mocks.remoteCurrentUser.user = remoteUser;
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
@@ -399,7 +409,11 @@ describe('ChatRoot', () => {
     mocks.remoteCurrentUser.user = {
       ...originUser,
       id: 'remote-user',
-      settings: { timezone: 'America/New_York', timeFormat: TimeFormat.TIME_FORMAT_AUTO }
+      settings: {
+        timezone: 'America/New_York',
+        timeFormat: TimeFormat.TIME_FORMAT_AUTO,
+        shareTimezone: false
+      }
     };
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
     const profileCache = {
@@ -423,7 +437,11 @@ describe('ChatRoot', () => {
     mocks.remoteCurrentUser.user = {
       ...originUser,
       id: 'remote-user',
-      settings: { timezone: null, timeFormat: TimeFormat.TIME_FORMAT_AUTO }
+      settings: {
+        timezone: null,
+        timeFormat: TimeFormat.TIME_FORMAT_AUTO,
+        shareTimezone: false
+      }
     };
     const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
     const profileCache = {
@@ -441,5 +459,28 @@ describe('ChatRoot', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(mocks.updateSettings).toHaveBeenCalledOnce();
+  });
+
+  it('does not report the device time zone when the server lacks privacy support', async () => {
+    vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');
+    mocks.remoteCurrentUser.user = {
+      ...originUser,
+      id: 'remote-user',
+      settings: { timezone: null, timeFormat: TimeFormat.TIME_FORMAT_AUTO }
+    };
+    const presenceCache = { update: mocks.presenceCacheUpdate } as unknown as PresenceCache;
+    const profileCache = {
+      update: vi.fn(),
+      updateStatus: vi.fn(),
+      remove: vi.fn(),
+      clear: vi.fn()
+    };
+
+    render(ChatRoot, {
+      props: { user: null, profileCache, presenceCache, children }
+    });
+
+    await Promise.resolve();
+    expect(mocks.updateSettings).not.toHaveBeenCalled();
   });
 });

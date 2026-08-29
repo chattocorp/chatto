@@ -5,14 +5,35 @@ inputs:
     description: Directory whose Playwright dependency selects the browser build
     required: false
     default: apps/frontend
+  save-cache:
+    description: Save the shared browser cache when the job completes
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
-    - name: Cache Playwright browsers
+    - name: Resolve Playwright version
+      id: playwright-version
+      shell: bash
+      run: |
+        version="$(pnpm --dir "${{ inputs.working-directory }}" exec playwright --version)"
+        echo "version=${version// /-}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore Playwright browsers
+      if: inputs.save-cache != 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}
+        restore-keys: |
+          playwright-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Restore and save Playwright browsers
+      if: inputs.save-cache == 'true'
       uses: actions/cache@v5
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'authling/pnpm-lock.yaml') }}
+        key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}
         restore-keys: |
           playwright-${{ runner.os }}-${{ runner.arch }}-
 

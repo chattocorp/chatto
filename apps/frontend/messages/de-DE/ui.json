@@ -43,7 +43,9 @@
       "laser_cooldown": "Laser {number}, Stärke {power}: noch {seconds} Sekunden Abklingzeit",
       "upgrade_power": "Stärke von Laser {number} für {cost} Punkte auf Stufe {level} erhöhen",
       "buy_laser": "Laserkanone {number} für {cost} Punkte kaufen",
-      "maximum_lasers": "Maximum von {count} Laserkanonen erreicht"
+      "maximum_lasers": "Maximum von {count} Laserkanonen erreicht",
+      "maximum_power": "Laser {number} hat die maximale Stärke {power} erreicht",
+      "complete": "Chatto wurde wieder aufgebaut. Endpunktzahl: {count} Punkte"
     },
     "pane_header": {
       "back": "Zurück"

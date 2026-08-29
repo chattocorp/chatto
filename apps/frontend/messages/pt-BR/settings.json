@@ -143,6 +143,17 @@
           "description": "Use a interface escura neste navegador"
         }
       },
+      "thread_pane": {
+        "title": "Painel da conversa",
+        "overlay": {
+          "label": "Sobreposto",
+          "description": "Mostrar a conversa sobre a linha do tempo da sala"
+        },
+        "split": {
+          "label": "Lado a lado",
+          "description": "Mostrar a conversa ao lado da linha do tempo da sala quando houver espaço"
+        }
+      },
       "editor": {
         "title": "Editor de mensagens",
         "visual": {
@@ -180,6 +191,12 @@
         "invalid": "Selecione um fuso horário válido na lista",
         "more_results": "{count} mais - digite para restringir os resultados",
         "current_time": "Hora atual lá: {time}"
+      },
+      "timezone_sharing": {
+        "title": "Compartilhamento de fuso horário",
+        "label": "Mostrar meu fuso horário no meu perfil",
+        "description": "Outros membros podem ver seu fuso horário e sua hora local atual.",
+        "unsupported": "Esta versão do servidor compartilha todos os fusos horários armazenados. Limpe seu fuso horário ou peça ao proprietário do servidor para atualizar."
       },
       "time_format": {
         "title": "Formato de hora",

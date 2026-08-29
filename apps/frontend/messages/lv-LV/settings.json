@@ -143,6 +143,17 @@
           "description": "Izmantojiet tumšo interfeisu šajā pārlūkprogrammā"
         }
       },
+      "thread_pane": {
+        "title": "Pavediena rūts",
+        "overlay": {
+          "label": "Pārklājums",
+          "description": "Rādīt pavedienu virs telpas laika joslas"
+        },
+        "split": {
+          "label": "Blakus",
+          "description": "Rādīt pavedienu blakus telpas laika joslai, ja ir pietiekami daudz vietas"
+        }
+      },
       "editor": {
         "title": "Ziņojumu redaktors",
         "visual": {
@@ -180,6 +191,12 @@
         "invalid": "Lūdzu, sarakstā atlasiet derīgu laika joslu",
         "more_results": "{count} vairāk — ierakstiet, lai sašaurinātu rezultātus",
         "current_time": "Pašreizējais laiks: {time}"
+      },
+      "timezone_sharing": {
+        "title": "Laika joslas kopīgošana",
+        "label": "Rādīt manu laika joslu manā profilā",
+        "description": "Citi dalībnieki var redzēt tavu laika joslu un pašreizējo vietējo laiku.",
+        "unsupported": "Šī servera versija kopīgo katru saglabāto laika joslu. Notīri savu laika joslu vai lūdz servera īpašniekam veikt jaunināšanu."
       },
       "time_format": {
         "title": "Laika formāts",

@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Alektu dosieron",
+    "formatting_options": "Formataj opcioj",
     "send": "Sendu mesaĝon",
     "send_label": "Sendu",
     "also_send_to_channel": "Ankaŭ sendu al kanalo",

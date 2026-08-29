@@ -13,6 +13,10 @@ inputs:
     description: "Install frontend dependencies"
     required: false
     default: "true"
+  save-go-build-cache:
+    description: "Save the shared Go build cache when the job completes"
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -25,14 +29,26 @@ runs:
         restore-keys: |
           go-mod-${{ runner.os }}-${{ runner.arch }}-
 
-    - name: Cache Go build artifacts
-      if: inputs.install-cli-deps == 'true'
+    - name: Restore Go build artifacts
+      if: inputs.install-cli-deps == 'true' && inputs.save-go-build-cache != 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: ~/.cache/go-build
+        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-${{ github.sha }}
+        restore-keys: |
+          go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-
+          go-build-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Restore and save Go build artifacts
+      if: inputs.install-cli-deps == 'true' && inputs.save-go-build-cache == 'true'
       uses: actions/cache@v5
       with:
         path: ~/.cache/go-build
-        key: go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'authling/go.sum', 'authling/pnpm-lock.yaml', 'authling/mise.toml', 'authling/web/**', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum', 'cli/**/*.go', 'authling/**/*.go', 'pkg/appconfig/**/*.go', 'pkg/datacrypto/**/*.go', 'pkg/events/**/*.go', 'pkg/natsruntime/**/*.go', 'proto/**/*.go', 'proto/**/*.proto', 'package.json', 'pnpm-lock.yaml', 'apps/frontend/package.json', 'apps/frontend/src/**', 'apps/frontend/static/**', 'apps/frontend/svelte.config.js', 'apps/frontend/tsconfig.json', 'apps/frontend/vite.config.ts', 'mise.toml') }}
+        # Go's build cache is content-addressed. Restore the newest compatible
+        # cache, then save this commit's compiled source state for the next run.
+        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-${{ github.sha }}
         restore-keys: |
-          go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-
+          go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}-
           go-build-${{ runner.os }}-${{ runner.arch }}-
 
     # mise-action installs mise and the tools defined in mise.toml (Go, Node)

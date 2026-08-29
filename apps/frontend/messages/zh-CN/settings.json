@@ -143,6 +143,17 @@
           "description": "在此浏览器中使用深色界面"
         }
       },
+      "thread_pane": {
+        "title": "话题窗格",
+        "overlay": {
+          "label": "叠加",
+          "description": "在房间时间线上方显示话题"
+        },
+        "split": {
+          "label": "并排",
+          "description": "空间允许时，在房间时间线旁边显示话题"
+        }
+      },
       "editor": {
         "title": "消息编辑器",
         "visual": {
@@ -180,6 +191,12 @@
         "invalid": "请从列表中选择有效时区",
         "more_results": "另有 {count} 项，请输入内容缩小范围",
         "current_time": "当地当前时间：{time}"
+      },
+      "timezone_sharing": {
+        "title": "共享时区",
+        "label": "在个人资料中显示我的时区",
+        "description": "其他成员可以看到你的时区和当前当地时间。",
+        "unsupported": "此服务器版本会共享所有已保存的时区。请清除你的时区，或请服务器所有者升级。"
       },
       "time_format": {
         "title": "时间格式",

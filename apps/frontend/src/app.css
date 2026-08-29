@@ -106,9 +106,8 @@
   --color-on-success: var(--color-white);
   --color-warning: oklch(50% 0.13 60);
   --color-on-warning: var(--color-white);
-  /* Attention is brighter than warning so unread and pending states stay
-     noticeable without competing with a committed action. */
-  --color-attention: oklch(68% 0.15 80);
+  /* Notification attention stays bright and consistent across both themes. */
+  --color-attention: var(--color-amber-500);
   --color-on-attention: var(--color-neutral-950);
   --color-danger: oklch(49% 0.17 12);
   --color-on-danger: var(--color-white);
@@ -570,7 +569,7 @@
   /* A current route declares itself semantically. The shared item then gives
    * every sidebar navigation surface the same quiet action-coloured treatment. */
   &[aria-current='page'] {
-    @apply bg-action/10 font-medium text-text-top hover:bg-action/15 hover:text-text-top active:bg-action/20;
+    @apply bg-action/10 text-text-top hover:bg-action/15 hover:text-text-top active:bg-action/20;
     @apply focus-visible:bg-action/10;
   }
 
@@ -730,6 +729,11 @@
   .image-modal[open] {
     animation: none;
   }
+}
+
+/* Composer input and formatting surfaces share the app shell's compact radius. */
+@utility composer-surface {
+  @apply rounded-xl bg-surface;
 }
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */

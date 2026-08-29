@@ -1,9 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import {
-  createAndLoginTestUser,
-  loginAsAdmin,
-  openServer
-} from './fixtures/testUser';
+import { createAndLoginTestUser, loginAsAdmin, openServer } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import {
@@ -103,13 +99,12 @@ test.describe('Message Threading', () => {
     await roomPage.messageInput.fill(rootMessage);
     await roomPage.messageInput.press('Control+Enter');
 
-    await expect(roomPage.threadPane).toBeHidden();
-    await roomPage.expectThreadRouteClosed();
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.expectThreadRouteActive();
     const root = roomPage.getMessage(rootMessage);
     await expect(root.locator.getByRole('link', { name: 'Thread' })).toBeVisible();
     await root.expectFollowingThread();
 
-    await root.openThread();
     await roomPage.expectTextInThreadPane(rootMessage);
     await roomPage.expectThreadPaneFollowing();
   });
@@ -126,7 +121,12 @@ test.describe('Message Threading', () => {
     const rootMessage = `Recent thread ${Date.now()}`;
     await roomPage.waitForInputEditable();
     await page.getByRole('button', { name: 'Post as thread' }).click();
-    await roomPage.sendMessage(rootMessage);
+    await roomPage.messageInput.fill(rootMessage);
+    await roomPage.messageInput.press('Control+Enter');
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.expectTextInThreadPane(rootMessage);
+    await roomPage.closeThread();
+    await roomPage.expectThreadRouteClosed();
 
     const followup = `Recent follow-up ${Date.now()}`;
     await roomPage.messageInput.fill(followup);
@@ -882,8 +882,9 @@ test.describe('Message Threading', () => {
     await message.openThread();
     await roomPage.expectThreadPaneVisible();
 
-    // The thread reply input should be focused
+    // The visual thread reply input should be focused with a visible text caret.
     await roomPage.expectThreadInputFocused();
+    await expect(roomPage.threadReplyInput).toHaveCSS('user-select', 'text');
   });
 
   test('on small screens, thread slideover has back button and covers room', async ({
@@ -950,6 +951,7 @@ test.describe('Message Threading', () => {
     chatPage,
     roomPage
   }) => {
+    await page.setViewportSize({ width: 1250, height: 900 });
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -962,11 +964,35 @@ test.describe('Message Threading', () => {
     await message.openThread();
     await roomPage.expectThreadPaneVisible();
 
+    const roomRegion = page.getByTestId('room-view-region');
+    const roomMainPane = page.getByTestId('room-main-pane');
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    await expect
+      .poll(() => roomMainPane.evaluate((element) => element.closest('[inert]') !== null))
+      .toBe(true);
+    await expect
+      .poll(() => roomMainPane.evaluate((element) => getComputedStyle(element).opacity))
+      .toBe('0.3');
+
     // The thread slideover should show the back button
     await roomPage.expectThreadBackButtonVisible();
 
     // The thread input should be visible
     await expect(page.getByTestId('thread-reply-input')).toBeVisible();
+
+    // The app uses its mobile layout below 1024px. The overlay must use the
+    // full room width at the same breakpoint instead of leaving a narrow strip.
+    await page.setViewportSize({ width: 800, height: 900 });
+    await expect
+      .poll(async () => {
+        const [roomBox, threadBox] = await Promise.all([
+          roomRegion.boundingBox(),
+          page.getByTestId('thread-pane').boundingBox()
+        ]);
+        if (!roomBox || !threadBox) return Number.POSITIVE_INFINITY;
+        return Math.abs(roomBox.width - threadBox.width);
+      })
+      .toBeLessThanOrEqual(1);
 
     // The room input is still in the DOM (dimmed underneath), but the room is inert
     // so clicking it should not be possible — we verify this via the close overlay instead
@@ -984,6 +1010,12 @@ test.describe('Message Threading', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
+    await page.evaluate(() => {
+      const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
+      stored.threadPanePresentation = 'split';
+      localStorage.setItem('chatto:preferences', JSON.stringify(stored));
+    });
+    await page.reload();
 
     const rootMessage = `Split thread layout ${Date.now()}`;
     const message = await roomPage.sendMessage(rootMessage);

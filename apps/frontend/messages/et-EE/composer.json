@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Manusta fail",
+    "formatting_options": "Vormindusvalikud",
     "send": "Saada sõnum",
     "send_label": "Saada",
     "also_send_to_channel": "Saada ka kanalile",

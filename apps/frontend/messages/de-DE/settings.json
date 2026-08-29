@@ -143,6 +143,17 @@
           "description": "Die dunkle Oberfläche in diesem Browser verwenden"
         }
       },
+      "thread_pane": {
+        "title": "Thread-Bereich",
+        "overlay": {
+          "label": "Überlagern",
+          "description": "Zeige den Thread über dem Raumverlauf"
+        },
+        "split": {
+          "label": "Nebeneinander",
+          "description": "Zeige den Thread neben dem Raumverlauf, wenn genug Platz ist"
+        }
+      },
       "editor": {
         "title": "Nachrichteneditor",
         "visual": {
@@ -180,6 +191,12 @@
         "invalid": "Bitte wähle eine gültige Zeitzone aus der Liste aus",
         "more_results": "{count} weitere - tippen, um die Ergebnisse einzugrenzen",
         "current_time": "Aktuelle Uhrzeit dort: {time}"
+      },
+      "timezone_sharing": {
+        "title": "Zeitzone teilen",
+        "label": "Meine Zeitzone in meinem Profil anzeigen",
+        "description": "Andere Mitglieder können deine Zeitzone und deine aktuelle Ortszeit sehen.",
+        "unsupported": "Diese Serverversion teilt jede gespeicherte Zeitzone. Lösche deine Zeitzone oder bitte den Serverinhaber um ein Upgrade."
       },
       "time_format": {
         "title": "Zeitformat",

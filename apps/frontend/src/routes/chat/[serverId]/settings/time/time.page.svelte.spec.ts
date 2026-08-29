@@ -7,7 +7,8 @@ import { CurrentUserState, type CurrentUser } from '$lib/auth/currentUser.svelte
 import { q } from '$lib/test-utils';
 
 const mocks = vi.hoisted(() => ({
-  currentUser: null as unknown as CurrentUserState
+  currentUser: null as unknown as CurrentUserState,
+  updateSettings: vi.fn()
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -15,7 +16,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'remote',
     store: { currentUser: mocks.currentUser },
     connection: {
-      getAPI: vi.fn()
+      getAPI: () => ({ updateSettings: mocks.updateSettings })
     },
     isCurrent: () => true
   })
@@ -56,6 +57,7 @@ function buttonWithText(container: Element, text: string): HTMLButtonElement {
 describe('Time and region settings page', () => {
   beforeEach(() => {
     mocks.currentUser = new CurrentUserState();
+    mocks.updateSettings.mockReset();
   });
 
   it('hydrates untouched edit buffers when remote viewer settings finish loading', async () => {
@@ -72,7 +74,8 @@ describe('Time and region settings page', () => {
 
     mocks.currentUser.user = currentUser({
       timezone: 'Pacific/Honolulu',
-      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+      shareTimezone: false
     });
     mocks.currentUser.loading = false;
     await settle();
@@ -83,5 +86,43 @@ describe('Time and region settings page', () => {
       .element(buttonWithText(container, '24-hour'))
       .toHaveAttribute('aria-checked', 'true');
     await expect.element(saveButton).toBeDisabled();
+  });
+
+  it('saves a timezone-sharing change as a sparse patch', async () => {
+    mocks.currentUser.user = currentUser({
+      timezone: 'Europe/Berlin',
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+      shareTimezone: false
+    });
+    mocks.currentUser.loading = false;
+    mocks.updateSettings.mockResolvedValue({
+      timezone: 'Europe/Berlin',
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
+      shareTimezone: true
+    });
+
+    const { container } = render(PreferencesPage);
+    await settle();
+    const sharing = q(container, '#share-timezone') as HTMLInputElement;
+    sharing.click();
+    await settle();
+    buttonWithText(container, 'Save').click();
+    await vi.waitFor(() => expect(mocks.updateSettings).toHaveBeenCalledOnce());
+
+    expect(mocks.updateSettings).toHaveBeenCalledWith({ shareTimezone: true });
+  });
+
+  it('warns when an older server cannot keep a stored timezone private', async () => {
+    mocks.currentUser.user = currentUser({
+      timezone: 'Europe/Berlin',
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+    });
+    mocks.currentUser.loading = false;
+
+    const { container } = render(PreferencesPage);
+    await settle();
+
+    expect(container.querySelector('#share-timezone')).toBeNull();
+    expect(container.textContent).toContain('This server version shares every stored time zone');
   });
 });

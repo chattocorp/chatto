@@ -10,6 +10,7 @@
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
   import { appState } from '$lib/state/globals.svelte';
+  import type { ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { THREAD_PANE_MAX_WIDTH, THREAD_PANE_MIN_WIDTH } from '$lib/storage/threadPaneWidth';
   import {
@@ -44,6 +45,7 @@
     highlightEventId = null,
     pendingQuote = null,
     pendingReply = null,
+    presentation = 'overlay',
     threadingMode = RoomThreadingMode.ENABLED,
     onOpenProfile,
     onHighlightComplete,
@@ -63,6 +65,8 @@
     highlightEventId?: string | null;
     pendingQuote?: QuoteInsertionRequest | null;
     pendingReply?: PendingThreadReplyRequest | null;
+    /** Resolved layout after the preferred mode and available width are applied. */
+    presentation?: ThreadPanePresentation;
     threadingMode?: RoomThreadingMode;
     onOpenProfile?: (userId: string) => void;
     onHighlightComplete?: () => void;
@@ -265,13 +269,18 @@
 </script>
 
 <div
-  class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
+  class={[
+    'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background',
+    presentation === 'split'
+      ? 'relative w-[var(--thread-pane-width)] shrink-0'
+      : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
+  ]}
   data-testid="thread-pane"
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
   transition:fly|global={{ x: fromInlineEndOffset(300), ...expoOutTransition() }}
   {@attach threadDropZone}
 >
-  <div class="hidden @min-[768px]:block">
+  {#if presentation === 'split'}
     <ResizeHandle
       width={threadPaneWidth.value}
       min={THREAD_PANE_MIN_WIDTH}
@@ -281,7 +290,7 @@
       edge="start"
       label={`${m('ui.resize_handle.resize')}: ${m('room.thread.title', { room: roomName })}`}
     />
-  </div>
+  {/if}
   <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
     title={m('room.thread.title', { room: roomName })}

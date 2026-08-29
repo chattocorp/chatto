@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Bifoga fil",
+    "formatting_options": "Formateringsalternativ",
     "send": "Skicka meddelande",
     "send_label": "Skicka",
     "also_send_to_channel": "Skicka även till kanal",

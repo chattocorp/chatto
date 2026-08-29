@@ -43,7 +43,9 @@
       "laser_cooldown": "Laser {number}, styrke {power}: {seconds} sekunder nedkjøling gjenstår",
       "upgrade_power": "Oppgrader laser {number} til styrkenivå {level} for {cost} poeng",
       "buy_laser": "Kjøp laserkanon {number} for {cost} poeng",
-      "maximum_lasers": "Maksgrensen på {count} laserkanoner er nådd"
+      "maximum_lasers": "Maksgrensen på {count} laserkanoner er nådd",
+      "maximum_power": "Laser {number} har nådd maksimal styrke {power}",
+      "complete": "Chatto ble bygd opp igjen. Sluttpoengsum: {count} poeng"
     },
     "pane_header": {
       "back": "Tilbake"

@@ -143,6 +143,17 @@
           "description": "Använd det mörka gränssnittet i den här webbläsaren"
         }
       },
+      "thread_pane": {
+        "title": "Trådpanel",
+        "overlay": {
+          "label": "Överlagring",
+          "description": "Visa tråden ovanpå rummets tidslinje"
+        },
+        "split": {
+          "label": "Sida vid sida",
+          "description": "Visa tråden bredvid rummets tidslinje när det finns tillräckligt med utrymme"
+        }
+      },
       "editor": {
         "title": "Meddelanderedigerare",
         "visual": {
@@ -180,6 +191,12 @@
         "invalid": "Välj en giltig tidszon från listan",
         "more_results": "{count} mer - skriv för att begränsa resultaten",
         "current_time": "Aktuell tid där: {time}"
+      },
+      "timezone_sharing": {
+        "title": "Delning av tidszon",
+        "label": "Visa min tidszon i min profil",
+        "description": "Andra medlemmar kan se din tidszon och din aktuella lokala tid.",
+        "unsupported": "Den här serverversionen delar alla sparade tidszoner. Rensa din tidszon eller be serverägaren att uppgradera."
       },
       "time_format": {
         "title": "Tidsformat",

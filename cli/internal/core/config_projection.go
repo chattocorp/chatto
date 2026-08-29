@@ -40,6 +40,7 @@ type Neighbor struct {
 type userConfigState struct {
 	timezone              *string
 	timeFormat            *evtv1.TimeFormat
+	shareTimezone         bool
 	serverModes           *evtv1.NotificationDeliveryModes
 	roomGroupModesByGroup map[string]*evtv1.NotificationDeliveryModes
 	roomModesByRoom       map[string]*evtv1.NotificationDeliveryModes
@@ -112,6 +113,8 @@ func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 		u.timezone = &tz
 	case *evtv1.Event_UserTimezoneCleared:
 		p.ensureUserLocked(e.UserTimezoneCleared.GetUserId()).timezone = nil
+	case *evtv1.Event_UserTimezoneSharingChanged:
+		p.ensureUserLocked(e.UserTimezoneSharingChanged.GetUserId()).shareTimezone = e.UserTimezoneSharingChanged.GetShareTimezone()
 	case *evtv1.Event_UserTimeFormatChanged:
 		u := p.ensureUserLocked(e.UserTimeFormatChanged.GetUserId())
 		tf := e.UserTimeFormatChanged.GetTimeFormat()
@@ -177,6 +180,7 @@ func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *evtv1.UserServerP
 	if prefs == nil {
 		u.timezone = nil
 		u.timeFormat = nil
+		u.shareTimezone = false
 		return
 	}
 	if prefs.GetTimezone() != "" {
@@ -187,4 +191,5 @@ func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *evtv1.UserServerP
 	}
 	tf := prefs.GetTimeFormat()
 	u.timeFormat = &tf
+	u.shareTimezone = prefs.GetShareTimezone()
 }

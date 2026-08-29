@@ -145,9 +145,10 @@ message Event {
     UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517 [deprecated = true];
     UserNotificationPolicyChangedEvent user_notification_policy_changed = 518;
     UserRoomGroupNotificationPolicyChangedEvent user_room_group_notification_policy_changed = 519;
-    ServerNeighborCreatedEvent server_neighbor_created = 520;
-    ServerNeighborOriginChangedEvent server_neighbor_origin_changed = 521;
-    ServerNeighborDeletedEvent server_neighbor_deleted = 522;
+    UserTimezoneSharingChangedEvent user_timezone_sharing_changed = 520;
+    ServerNeighborCreatedEvent server_neighbor_created = 521;
+    ServerNeighborOriginChangedEvent server_neighbor_origin_changed = 522;
+    ServerNeighborDeletedEvent server_neighbor_deleted = 523;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.

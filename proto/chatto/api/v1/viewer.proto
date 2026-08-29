@@ -25,6 +25,10 @@ message UserSettings {
   optional string timezone = 1;
   // Preferred time format.
   TimeFormat time_format = 2;
+  // Whether the stored time zone may appear on the user's public profile.
+  // New servers always set this field. Its absence means the server does not
+  // support private time zones and may publish any stored time zone.
+  optional bool share_timezone = 3;
 }
 
 // Current authenticated user's public profile plus self-only settings.

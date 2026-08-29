@@ -1,6 +1,7 @@
 {
   "composer": {
     "attach_file": "Dosya ekle",
+    "formatting_options": "Biçimlendirme seçenekleri",
     "send": "Mesaj gönder",
     "send_label": "Gönder",
     "also_send_to_channel": "Ayrıca kanala gönder",

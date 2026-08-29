@@ -234,7 +234,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			p.server.serverName = "Chatto"
 			p.server.blockedUsernames = &blocked
 			p.users["U1"] = &userConfigState{
-				timezone: &timezone, timeFormat: &format,
+				timezone: &timezone, timeFormat: &format, shareTimezone: true,
 				serverModes: &evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
 				roomModesByRoom: map[string]*evtv1.NotificationDeliveryModes{
 					"R1": {DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},

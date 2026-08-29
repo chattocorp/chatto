@@ -614,7 +614,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     bind:this={editorElement}
     onscroll={() => editor && updateActiveControls(editor)}
     class={[
-      'composer-code-palette tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
+      'composer-code-palette tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 select-text overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
       !editable && 'cursor-not-allowed'
     ]}
   ></div>

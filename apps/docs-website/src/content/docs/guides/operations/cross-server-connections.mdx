@@ -76,11 +76,17 @@ first-party sessions and connections from other clients remain active.
   development servers.
 - Make the exact callback URL available in the metadata document. The bundled
   frontend publishes its document automatically.
+- When a reverse proxy serves the bundled frontend from an additional origin,
+  add that exact origin to `webserver.allowed_origins`. Chatto then publishes
+  the frontend client ID and callback for that request origin. An unknown host
+  receives no frontend metadata document. Do not add a path, query, or fragment.
+  Do not configure HTTP and HTTPS origins that produce the same request host.
 
 Remove the old `webserver.oauth_redirect_origins` setting during upgrade. The
 CIMD flow does not use a server-side redirect-origin list.
 
-`webserver.allowed_origins` remains available for a separate purpose. Configure
-an exact origin only when a browser must use its Chatto session cookie through
-a reverse-proxy alias. It does not authorize a foreign Chatto client or select
-an OAuth redirect. The value `*` never authorizes browser cookies.
+`webserver.allowed_origins` configures exact reverse-proxy aliases for the
+bundled frontend. Each entry permits browser cookie authentication and
+publishes a matching frontend OAuth identity. It does not authorize a foreign
+Chatto client. The value `*` permits neither browser cookies nor frontend OAuth
+metadata.

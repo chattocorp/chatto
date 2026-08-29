@@ -10,6 +10,7 @@ import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore } from '$lib/state/room';
 import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 const { mocks } = vi.hoisted(() => {
   const queryData = {
@@ -441,6 +442,7 @@ async function waitForElement<T extends Element>(
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  userPreferences.threadPanePresentation = 'overlay';
   sessionStorage.clear();
   mocks.timeline.getRoomEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getRoomEventsAround.mockResolvedValue(emptyTimelinePage());
@@ -1029,17 +1031,23 @@ describe('Room local message echo', () => {
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });
+    container.style.width = '768px';
     await tick();
     mocks.goto.mockClear();
 
-    q(container, '[data-testid="room-view-region"]')!.dispatchEvent(
-      new PointerEvent('pointerdown', { bubbles: true, button: 0 })
-    );
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
+    await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    expect(roomMainPane.hasAttribute('inert')).toBe(true);
+    expect(roomMainPane.className).toContain('opacity-30');
+
+    roomRegion.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
 
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
   });
 
   it('keeps both panes interactive at the split-layout cutoff', async () => {
+    userPreferences.threadPanePresentation = 'split';
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });
@@ -1056,6 +1064,7 @@ describe('Room local message echo', () => {
   });
 
   it('returns to the inert dismissible overlay when the room container narrows', async () => {
+    userPreferences.threadPanePresentation = 'split';
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });

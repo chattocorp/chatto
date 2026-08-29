@@ -346,10 +346,22 @@ function selectFirstAttachment(input: HTMLInputElement, file = imageFile()) {
   return file;
 }
 
+async function openFormattingShelf(container: HTMLElement) {
+  const toggle = q(
+    container,
+    'button[aria-label="Formatting options"]'
+  ) as HTMLButtonElement;
+  if (toggle.getAttribute('aria-expanded') !== 'true') await userEvent.click(toggle);
+  await vi.waitFor(() =>
+    expect(q(container, '[data-testid="composer-formatting-shelf"]')).toBeTruthy()
+  );
+}
+
 describe('MessageComposer', () => {
   beforeEach(() => {
     userPreferences.composerEditor = 'visual';
     userPreferences.composerSendMode = 'modifier-enter';
+    userPreferences.composerFormattingToolbarVisible = false;
     window.getSelection()?.removeAllRanges();
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
     mockInstanceStores.serverInfo.maxUploadSize = 25 * 1024 * 1024;
@@ -437,18 +449,49 @@ describe('MessageComposer', () => {
         .toBeInTheDocument();
     });
 
-    it('keeps editor input above the compact action toolbar', async () => {
+    it('keeps the editor and message actions in one compact input row', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       const editor = await findEditor(container);
+      const surface = q(container, '[data-testid="composer-input-surface"]');
       const editorRow = q(container, '[data-testid="composer-editor-row"]');
-      const toolbar = q(container, '[data-testid="composer-toolbar"]');
+      const actions = q(container, '[data-testid="composer-action-toolbar"]');
 
       expect(editorRow?.contains(editor)).toBe(true);
-      expect(toolbar?.contains(q(container, 'button[title="Attach file"]'))).toBe(true);
-      expect(toolbar?.contains(q(container, 'button[aria-label="Bold"]'))).toBe(true);
-      expect(toolbar?.contains(q(container, 'button[aria-label="Insert timestamp"]'))).toBe(true);
-      expect(toolbar?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
+      expect(surface?.contains(editorRow)).toBe(true);
+      expect(actions?.contains(q(container, 'button[title="Attach file"]'))).toBe(true);
+      expect(actions?.contains(q(container, 'button[aria-label="Insert timestamp"]'))).toBe(true);
+      expect(actions?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
+      expect(surface).toHaveClass('composer-surface');
+      expect(q(container, '[data-testid="composer-formatting-shelf"]')).toBeNull();
+    });
+
+    it('toggles, persists, and restores the formatting shelf without losing editor focus', async () => {
+      const first = renderMessageComposer({ roomId: 'formatting-shelf-first' });
+      const editor = await findEditor(first.container);
+      await userEvent.click(editor);
+      const toggle = q(
+        first.container,
+        'button[aria-label="Formatting options"]'
+      ) as HTMLButtonElement;
+
+      await userEvent.click(toggle);
+
+      await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
+      expect(toggle.getAttribute('aria-controls')).toBe(
+        q(first.container, '[data-testid="composer-formatting-shelf"]')?.id
+      );
+      expect(document.activeElement).toBe(editor);
+      expect(userPreferences.composerFormattingToolbarVisible).toBe(true);
+      expect(q(first.container, '[data-testid="composer-formatting-shelf"]')).toHaveClass(
+        'composer-surface'
+      );
+
+      first.unmount();
+      const second = renderMessageComposer({ roomId: 'formatting-shelf-second' });
+      await findEditor(second.container);
+      expect(q(second.container, '[data-testid="composer-formatting-shelf"]')).toBeTruthy();
     });
 
     it('preserves an editor selection when a mouse drag ends over composer padding', async () => {
@@ -474,6 +517,7 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await findEditor(container);
+      await openFormattingShelf(container);
 
       expect(q(container, '[data-testid="composer-input-surface"]')).toHaveClass('@container');
       expect(q(container, '[data-testid="composer-formatting-toolbar"]')).toHaveClass(
@@ -529,6 +573,7 @@ describe('MessageComposer', () => {
     it('formats and submits Markdown source with Ctrl+Enter', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'markdown-send' });
       const editor = await findEditor(container);
+      await openFormattingShelf(container);
       await typeEditorKeys(editor, 'first');
       await userEvent.click(q(container, 'button[aria-label="Bullet list"]')!);
 
@@ -545,6 +590,7 @@ describe('MessageComposer', () => {
     it('uses CodeMirror line indentation with the toolbar and Tab', async () => {
       const { container } = renderMessageComposer({ roomId: 'markdown-list-indent' });
       const editor = await findEditor(container);
+      await openFormattingShelf(container);
       const indent = q(container, 'button[aria-label="Indent"]') as HTMLButtonElement;
       const outdent = q(container, 'button[aria-label="Outdent"]') as HTMLButtonElement;
 
@@ -593,7 +639,7 @@ describe('MessageComposer', () => {
       await userEvent.click(editor);
       await userEvent.keyboard('{Escape}{Tab}');
 
-      expect(document.activeElement).toBe(q(container, 'button[aria-label="Bold"]'));
+      expect(document.activeElement).toBe(q(container, 'button[aria-label="Attach file"]'));
     });
 
     it('completes mentions before Enter can submit Markdown', async () => {
@@ -1192,7 +1238,7 @@ describe('MessageComposer', () => {
     it('does not show a send shortcut hint', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       await findEditor(container);
-      const toolbar = q(container, '[data-testid="composer-toolbar"]');
+      const toolbar = q(container, '[data-testid="composer-action-toolbar"]');
       expect(toolbar?.textContent).not.toMatch(/to send/i);
       expect(toolbar?.querySelector('[title*="to send"]')).toBeNull();
     });
@@ -2179,6 +2225,7 @@ describe('MessageComposer', () => {
     it('posts markdown after composer formatting buttons are applied', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
+      await openFormattingShelf(container);
       const boldButton = q(container, 'button[aria-label="Bold"]') as HTMLButtonElement;
 
       await userEvent.click(boldButton);
@@ -2804,6 +2851,7 @@ describe('MessageComposer', () => {
     it('indents visual list items with both the toolbar and Tab', async () => {
       const { container } = renderMessageComposer({ roomId: 'visual-list-indent' });
       const editor = await findEditor(container);
+      await openFormattingShelf(container);
       const indent = q(container, 'button[aria-label="Indent"]') as HTMLButtonElement;
       const outdent = q(container, 'button[aria-label="Outdent"]') as HTMLButtonElement;
 
@@ -3014,7 +3062,7 @@ describe('MessageComposer', () => {
         container,
         'button[aria-label="Also send to channel"]'
       ) as HTMLButtonElement;
-      expect(echoToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      expect(echoToggle.closest('[data-testid="composer-action-toolbar"]')).toBeTruthy();
       expect(echoToggle).toHaveTextContent('Echo');
       expect(echoToggle.querySelector('.iconify')).toHaveClass('icon-[uil--megaphone]');
       expect(echoToggle.querySelector('span:not(.iconify)')).toHaveClass(
@@ -3064,7 +3112,7 @@ describe('MessageComposer', () => {
       const threadToggle = q(container, 'button[aria-label="Post as thread"]') as HTMLButtonElement;
 
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
-      expect(threadToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      expect(threadToggle.closest('[data-testid="composer-action-toolbar"]')).toBeTruthy();
       expect(threadToggle).toHaveTextContent('Thread');
       expect(threadToggle.querySelector('span:not(.iconify)')).toHaveClass(
         'hidden',

@@ -43,7 +43,9 @@
       "laser_cooldown": "Laser {number}, võimsus {power}: {seconds} sekundit jahtumist on jäänud",
       "upgrade_power": "Uuendage laser {number} võimsustasemele {level} {cost} punkti saamiseks",
       "buy_laser": "Ostke laserpüstol {number} {cost} punkti eest",
-      "maximum_lasers": "Saavutatud on maksimaalselt {count} laserrelvi"
+      "maximum_lasers": "Saavutatud on maksimaalselt {count} laserrelvi",
+      "maximum_power": "Laser {number} saavutas suurima võimsuse {power}",
+      "complete": "Chatto ehitati uuesti üles. Lõppskoor: {count} punkti"
     },
     "pane_header": {
       "back": "Tagasi"

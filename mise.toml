@@ -1,5 +1,6 @@
 [tools]
-actionlint = "latest"
+actionlint = "1.7.12"
+"aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"
 buf = "latest"
 go = "1.26.7"
@@ -105,6 +106,10 @@ depends = ["deps-frontend"]
 [tasks.license-check]
 description = "Check SPDX/REUSE license metadata"
 run = "uvx --with charset-normalizer 'reuse==6.2.0' lint"
+
+[tasks.lint-actions]
+description = "Check GitHub Actions workflows and repository shell scripts"
+run = ["actionlint", "shellcheck --severity=warning tools/*.sh"]
 
 # =============================================================================
 # Code Generation
@@ -693,13 +698,7 @@ run = "pnpm check"
 
 [tasks.test-desktop-macos-capture]
 description = "Test the native macOS game-capture helper"
-dir = "apps/desktop/native/macos-capture-probe"
-run = '''
-if [ -z "${DEVELOPER_DIR:-}" ] && [ "$(xcode-select -p)" = "/Library/Developer/CommandLineTools" ] && [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
-  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
-fi
-xcrun swift test
-'''
+run = "tools/test-desktop-macos-capture.sh"
 
 [tasks.test-e2e]
 description = "Run E2E tests"

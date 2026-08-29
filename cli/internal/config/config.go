@@ -212,17 +212,33 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	// URL format
+	configuredOriginByRequestHost := make(map[string]string)
+	registerOrigin := func(name, raw string) {
+		origin, requestHost, ok := canonicalHTTPOriginAndRequestHost(raw)
+		if !ok {
+			return
+		}
+		if previous, exists := configuredOriginByRequestHost[requestHost]; exists && previous != origin {
+			errs = append(errs, fmt.Sprintf("%s must not use both HTTP and HTTPS for request host %q", name, requestHost))
+			return
+		}
+		configuredOriginByRequestHost[requestHost] = origin
+	}
 	if c.Webserver.URL != "" {
 		if err := validateAbsoluteHTTPURL("webserver.url", c.Webserver.URL); err != nil {
 			errs = append(errs, err.Error())
+		} else {
+			registerOrigin("webserver.url", c.Webserver.URL)
 		}
 	}
 	for _, origin := range c.Webserver.AllowedOrigins {
 		if origin == "*" {
 			continue
 		}
-		if err := validateAbsoluteHTTPURL("webserver.allowed_origins", origin); err != nil {
+		if err := validateHTTPOrigin("webserver.allowed_origins", origin); err != nil {
 			errs = append(errs, err.Error())
+		} else {
+			registerOrigin("webserver.allowed_origins", origin)
 		}
 	}
 	if c.NATS.Client.URL != "" {

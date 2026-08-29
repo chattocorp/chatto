@@ -379,6 +379,13 @@ export class UpdateSettingsRequest extends Message<UpdateSettingsRequest> {
    */
   timeFormat?: TimeFormat;
 
+  /**
+   * Whether the stored time zone may appear on the user's public profile.
+   *
+   * @generated from field: optional bool share_timezone = 3;
+   */
+  shareTimezone?: boolean;
+
   constructor(data?: PartialMessage<UpdateSettingsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -389,6 +396,7 @@ export class UpdateSettingsRequest extends Message<UpdateSettingsRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(TimeFormat), opt: true },
+    { no: 3, name: "share_timezone", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateSettingsRequest {

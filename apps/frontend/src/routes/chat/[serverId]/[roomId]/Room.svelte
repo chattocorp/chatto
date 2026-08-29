@@ -33,6 +33,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
+  import { userPreferences, type ThreadPanePresentation } from '$lib/state/userPreferences.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -88,11 +89,26 @@
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
   const THREAD_PANE_SPLIT_MIN_WIDTH = 768;
-  let splitThreadLayout = $state(false);
+  let roomViewWidth = $state(0);
+  let splitThreadLayout = $derived(
+    userPreferences.threadPanePresentation === 'split' &&
+      roomViewWidth >= THREAD_PANE_SPLIT_MIN_WIDTH
+  );
+  let threadPanePresentation: ThreadPanePresentation = $derived(
+    splitThreadLayout ? 'split' : 'overlay'
+  );
 
   const observeThreadLayout: Attachment<HTMLElement> = (element) => {
+    // Overlay presentation does not depend on the room width. The preference
+    // page remounts the room, so an opted-in split layout starts a fresh
+    // observer when the user returns.
+    if (userPreferences.threadPanePresentation !== 'split') {
+      roomViewWidth = 0;
+      return;
+    }
+
     const update = (width: number) => {
-      splitThreadLayout = width >= THREAD_PANE_SPLIT_MIN_WIDTH;
+      roomViewWidth = width;
     };
     update(element.getBoundingClientRect().width);
 
@@ -699,7 +715,7 @@
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
-          threadId && canReadMessages ? 'opacity-30 @min-[768px]:opacity-100' : '',
+          threadId && canReadMessages && !splitThreadLayout ? 'opacity-30' : '',
           hasMobileRoomSidebar ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"
@@ -823,7 +839,12 @@
       {#if threadId && room.roomData && canReadMessages}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
-            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
+            class={[
+              'flex min-h-0 min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted',
+              splitThreadLayout
+                ? 'relative w-[var(--thread-pane-width)] shrink-0'
+                : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
+            ]}
             data-testid="thread-pane"
             aria-busy="true"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
@@ -848,6 +869,7 @@
             highlightEventId={navigation.pendingThreadHighlight}
             pendingQuote={navigation.pendingThreadQuote}
             pendingReply={navigation.pendingThreadReply}
+            presentation={threadPanePresentation}
             {threadingMode}
             onOpenProfile={openUserDirectMessageProfile}
             onHighlightComplete={() => navigation.clearThreadHighlight()}
@@ -856,7 +878,12 @@
           />
         {:catch}
           <div
-            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-s border-border bg-background p-4 text-center inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
+            class={[
+              'flex min-h-0 min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-s border-border bg-background p-4 text-center',
+              splitThreadLayout
+                ? 'relative w-[var(--thread-pane-width)] shrink-0'
+                : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
+            ]}
             data-testid="thread-pane"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >

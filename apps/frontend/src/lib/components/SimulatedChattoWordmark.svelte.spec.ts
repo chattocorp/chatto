@@ -6,6 +6,7 @@ import {
   ballisticDisplacement,
   BoundedLruCache,
   canvasPixelRatio,
+  claimParticleHits,
   CONSTRUCTION_DURATION,
   constructionFrame,
   constructionLaserFrame,
@@ -17,6 +18,7 @@ import {
   EXPLOSION_PARTICLE_FORCE_THRESHOLD,
   exponentialSample,
   explosionFrame,
+  explosionParticleUnavailableDuration,
   explosionParticleOpacity,
   GAME_UI_REVEAL_SHOTS,
   glyphFloatOffset,
@@ -31,6 +33,7 @@ import {
   laserPowerSmokeScale,
   laserPowerUpgradeCost,
   MAX_LASER_GUNS,
+  MAX_LASER_POWER,
   nextCooldownHudTime,
   nextReadyLaserIndex,
   projectParticle,
@@ -65,7 +68,9 @@ describe('SimulatedChattoWordmark', () => {
     ]);
     expect(container.querySelectorAll('.emoji-point')).toHaveLength(0);
     expect(container.querySelector('[data-game-ui-visible="false"]')).not.toBeNull();
-    expect(container.querySelector('[role="list"]')?.getAttribute('aria-label')).toBe('1 laser gun');
+    expect(container.querySelector('[role="list"]')?.getAttribute('aria-label')).toBe(
+      '1 laser gun'
+    );
     expect(container.querySelectorAll('[role="listitem"]')).toHaveLength(1);
     expect(container.querySelector('[role="listitem"]')?.getAttribute('aria-label')).toBe(
       'Laser 1, power 1, ready'
@@ -90,7 +95,6 @@ describe('SimulatedChattoWordmark', () => {
     expect(container.querySelector('[data-game-ui-visible="false"]')).not.toBeNull();
     let now = performance.now();
     const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => now);
-    const pointsAfterShots: number[] = [];
     for (let shot = 1; shot <= GAME_UI_REVEAL_SHOTS; shot += 1) {
       wordmark.click();
       await expect
@@ -103,13 +107,9 @@ describe('SimulatedChattoWordmark', () => {
           pointsAfterFirstShot
         );
       }
-      pointsAfterShots.push(
-        Number.parseInt(container.querySelector('output')?.textContent?.replace(/\D/g, '') ?? '0')
-      );
       now += LASER_COOLDOWN + 1;
     }
     performanceNow.mockRestore();
-    expect(pointsAfterShots[0]! - 100).toBeGreaterThan(20);
     expect(
       container.querySelector('[role="listitem"][aria-label^="Laser 1, power 7"]')
     ).not.toBeNull();
@@ -125,6 +125,8 @@ describe('SimulatedChattoWordmark', () => {
     await new Promise((resolve) => requestAnimationFrame(resolve));
     wordmark.click();
 
+    expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('0 points');
+
     await expect
       .poll(() => container.querySelector('output')?.getAttribute('aria-label'))
       .toMatch(/^[1-9]\d* points$/);
@@ -133,6 +135,58 @@ describe('SimulatedChattoWordmark', () => {
 
     wordmark.click();
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe(scoreAfterFirstShot);
+  });
+
+  it('does not score particles twice while their first explosion is active', async () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      media: '(prefers-reduced-motion: reduce)',
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    });
+    let now = performance.now();
+    const performanceNow = vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+    try {
+      const { container } = render(SimulatedChattoWordmark, {
+        props: { initialLaserPowers: [7, 7, 7] }
+      });
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const wordmark = q(
+        container,
+        'button[aria-label="Fire a ready laser at Chatto"]'
+      ) as HTMLButtonElement;
+
+      for (let shot = 0; shot < GAME_UI_REVEAL_SHOTS; shot += 1) {
+        wordmark.click();
+        now += LASER_COOLDOWN + 1;
+      }
+      await expect
+        .poll(() => container.querySelector('[data-game-ui-visible="true"]'))
+        .not.toBeNull();
+      now += EXPLOSION_DURATION + 1;
+
+      const scoreBeforeHit = container.querySelector('output')?.getAttribute('aria-label');
+      wordmark.click();
+      await expect
+        .poll(() => container.querySelector('output')?.getAttribute('aria-label'))
+        .not.toBe(scoreBeforeHit);
+      const scoreAfterFirstHit = container.querySelector('output')?.getAttribute('aria-label');
+      expect(scoreAfterFirstHit).not.toBe(scoreBeforeHit);
+
+      wordmark.click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      expect(container.querySelector('output')?.getAttribute('aria-label')).toBe(
+        scoreAfterFirstHit
+      );
+    } finally {
+      performanceNow.mockRestore();
+      matchMedia.mockRestore();
+    }
   });
 
   it('fires the final allowed laser without interrupting canvas rendering', async () => {
@@ -155,9 +209,9 @@ describe('SimulatedChattoWordmark', () => {
 
     await expect
       .poll(() =>
-        container.querySelector(`[aria-label^="Laser ${MAX_LASER_GUNS}, power 1"]`)?.getAttribute(
-          'data-ready'
-        )
+        container
+          .querySelector(`[aria-label^="Laser ${MAX_LASER_GUNS}, power 1"]`)
+          ?.getAttribute('data-ready')
       )
       .toBe('false');
     await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -213,6 +267,110 @@ describe('SimulatedChattoWordmark', () => {
     expect(container.querySelector('output')?.getAttribute('aria-label')).toBe('62 points');
   });
 
+  it('caps each laser at the highest effective power', async () => {
+    const { container } = render(SimulatedChattoWordmark, {
+      props: { initialPoints: 100_000, initialLaserPowers: [MAX_LASER_POWER + 10] }
+    });
+
+    await expect
+      .poll(() =>
+        container.querySelector(
+          `button[aria-label="Laser 1 has reached maximum power ${MAX_LASER_POWER}"]`
+        )
+      )
+      .not.toBeNull();
+    const upgrade = q(
+      container,
+      `button[aria-label="Laser 1 has reached maximum power ${MAX_LASER_POWER}"]`
+    ) as HTMLButtonElement;
+
+    expect(upgrade.disabled).toBe(true);
+    expect(upgrade.textContent).toContain(`${MAX_LASER_POWER}/${MAX_LASER_POWER}`);
+    expect(container.querySelector('[role="listitem"]')?.getAttribute('aria-label')).toBe(
+      `Laser 1, power ${MAX_LASER_POWER}, ready`
+    );
+  });
+
+  it('fires every laser and completes the game when the tenth gun is bought', async () => {
+    const finalLaserCost = laserGunCost(MAX_LASER_GUNS - 1);
+    const { container } = render(SimulatedChattoWordmark, {
+      props: {
+        initialPoints: finalLaserCost,
+        initialLaserPowers: Array.from({ length: MAX_LASER_GUNS - 1 }, () => 1)
+      }
+    });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const wordmark = q(
+      container,
+      'button[aria-label="Fire a ready laser at Chatto"]'
+    ) as HTMLButtonElement;
+    wordmark.click();
+    await expect
+      .poll(() => container.querySelector('output')?.getAttribute('aria-label'))
+      .not.toBe(`${finalLaserCost} points`);
+    const availablePoints = Number.parseInt(
+      container.querySelector('output')?.getAttribute('aria-label') ?? '0'
+    );
+    const earnedScore = availablePoints - finalLaserCost;
+    const finalScore = earnedScore + createWordmarkParticles().length;
+    const buyFinalLaser = q(
+      container,
+      `button[aria-label="Buy laser gun ${MAX_LASER_GUNS} for ${finalLaserCost} points"]`
+    ) as HTMLButtonElement;
+    buyFinalLaser.click();
+
+    await expect.poll(() => container.querySelector('[data-game-completed="true"]')).not.toBeNull();
+    expect(container.querySelectorAll('[role="listitem"]')).toHaveLength(MAX_LASER_GUNS);
+    expect(
+      Array.from(container.querySelectorAll('[role="listitem"]')).every(
+        (laser) => laser.getAttribute('data-ready') === 'false'
+      )
+    ).toBe(true);
+    await expect
+      .poll(() =>
+        container
+          .querySelector('button[disabled][aria-label^="Chatto rebuilt. Final score:"]')
+          ?.getAttribute('aria-label')
+      )
+      .toBe(`Chatto rebuilt. Final score: ${finalScore} points`);
+  });
+
+  it('shows the final score immediately when reduced motion is active', async () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      media: '(prefers-reduced-motion: reduce)',
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    });
+    const finalLaserCost = laserGunCost(MAX_LASER_GUNS - 1);
+
+    try {
+      const { container } = render(SimulatedChattoWordmark, {
+        props: {
+          initialPoints: finalLaserCost,
+          initialLaserPowers: Array.from({ length: MAX_LASER_GUNS - 1 }, () => 1)
+        }
+      });
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const buyFinalLaser = q(
+        container,
+        `button[aria-label="Buy laser gun ${MAX_LASER_GUNS} for ${finalLaserCost} points"]`
+      ) as HTMLButtonElement;
+      buyFinalLaser.click();
+
+      await expect
+        .poll(() => container.querySelector('[role="status"]')?.textContent)
+        .toContain('Chatto rebuilt. Final score: 600 points');
+    } finally {
+      matchMedia.mockRestore();
+    }
+  });
+
   it('ignores previously saved game state', async () => {
     localStorage.setItem(
       'chatto.simulated-wordmark-game.v1',
@@ -230,6 +388,7 @@ describe('SimulatedChattoWordmark', () => {
   it('prices laser progression and tracks independent cooldowns', () => {
     expect(LASER_COOLDOWN).toBe(1500);
     expect(MAX_LASER_GUNS).toBe(10);
+    expect(MAX_LASER_POWER).toBe(17);
     expect(laserGunCost(1)).toBe(48);
     expect(laserGunCost(2)).toBeGreaterThan(laserGunCost(1));
     expect(laserGunCost(10)).toBeGreaterThan(laserGunCost(9));
@@ -253,6 +412,34 @@ describe('SimulatedChattoWordmark', () => {
     expect(origins).toHaveLength(MAX_LASER_GUNS);
     expect(new Set(origins.map(({ x, y }) => `${x},${y}`)).size).toBe(MAX_LASER_GUNS);
     expect(origins.every(({ x, y }) => x === 0 || x === 800 || y === 0 || y === 400)).toBe(true);
+  });
+
+  it('claims only particles that are present when a laser hits', () => {
+    const particleAvailableAt = new Float64Array(4);
+    const forces = [1, 0.5, 0, EXPLOSION_PARTICLE_FORCE_THRESHOLD];
+    const unavailableDurations = [1000, 1500, 2000, 2500];
+
+    expect(claimParticleHits(forces, particleAvailableAt, 100, unavailableDurations)).toEqual([
+      true,
+      true,
+      false,
+      true
+    ]);
+    expect(claimParticleHits(forces, particleAvailableAt, 101, unavailableDurations)).toEqual([
+      false,
+      false,
+      false,
+      false
+    ]);
+    expect(claimParticleHits([0, 0, 1, 0], particleAvailableAt, 101, unavailableDurations)).toEqual(
+      [false, false, true, false]
+    );
+    expect(
+      claimParticleHits(forces, particleAvailableAt, 100 + 2500, unavailableDurations)
+    ).toEqual([true, true, false, true]);
+    expect(explosionParticleUnavailableDuration(0, 0)).toBeLessThan(
+      explosionParticleUnavailableDuration(1, 1)
+    );
   });
 
   it('builds four depth layers for the rounded glyphs', () => {
