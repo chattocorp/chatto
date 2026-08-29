@@ -79,10 +79,12 @@ jobs:
               ;;
           esac
 
-          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-          echo "docs_tag=${docs_tag}" >> "$GITHUB_OUTPUT"
-          echo "docs_version=${docs_version}" >> "$GITHUB_OUTPUT"
-          echo "site_url=${site_url}" >> "$GITHUB_OUTPUT"
+          {
+            echo "sha=${sha}"
+            echo "docs_tag=${docs_tag}"
+            echo "docs_version=${docs_version}"
+            echo "site_url=${site_url}"
+          } >> "$GITHUB_OUTPUT"
 
           {
             echo "### Docs image"

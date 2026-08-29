@@ -30,9 +30,11 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.cache/go-build
-        key: go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'authling/go.sum', 'authling/pnpm-lock.yaml', 'authling/mise.toml', 'authling/web/**', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum', 'cli/**/*.go', 'authling/**/*.go', 'pkg/appconfig/**/*.go', 'pkg/datacrypto/**/*.go', 'pkg/events/**/*.go', 'pkg/natsruntime/**/*.go', 'proto/**/*.go', 'proto/**/*.proto', 'package.json', 'pnpm-lock.yaml', 'apps/frontend/package.json', 'apps/frontend/src/**', 'apps/frontend/static/**', 'apps/frontend/svelte.config.js', 'apps/frontend/tsconfig.json', 'apps/frontend/vite.config.ts', 'mise.toml') }}
+        # Go's build cache is content-addressed. Share compiled dependencies
+        # across jobs and invalidate them only when the toolchain or module
+        # graph changes. Source changes are handled by Go's cache keys.
+        key: go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'authling/mise.toml', 'cli/go.sum', 'authling/go.sum', 'pkg/appconfig/go.sum', 'pkg/datacrypto/go.sum', 'pkg/events/go.sum', 'pkg/natsruntime/go.sum', 'go.work.sum') }}
         restore-keys: |
-          go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-
           go-build-${{ runner.os }}-${{ runner.arch }}-
 
     # mise-action installs mise and the tools defined in mise.toml (Go, Node)

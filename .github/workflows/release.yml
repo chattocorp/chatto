@@ -251,9 +251,11 @@ jobs:
           fi
 
           frontend_version="${version}+${sha:0:12}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-          echo "frontend_version=${frontend_version}" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=${version}"
+            echo "sha=${sha}"
+            echo "frontend_version=${frontend_version}"
+          } >> "$GITHUB_OUTPUT"
 
           {
             echo "### Chatto Desktop"
@@ -705,13 +707,16 @@ jobs:
       - name: Build frontend Docker tags
         id: frontend_tags
         shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PUSH_LATEST: ${{ steps.release_meta.outputs.push_latest }}
         run: |
           {
             echo "tags<<EOF"
-            echo "ghcr.io/chattocorp/chatto-client:${{ steps.version.outputs.version }}"
-            if [[ "${{ steps.version.outputs.version }}" == *-* ]]; then
+            echo "ghcr.io/chattocorp/chatto-client:${VERSION}"
+            if [[ "$VERSION" == *-* ]]; then
               echo "ghcr.io/chattocorp/chatto-client:next"
-            elif [[ "${{ steps.release_meta.outputs.push_latest }}" == "true" ]]; then
+            elif [[ "$PUSH_LATEST" == "true" ]]; then
               echo "ghcr.io/chattocorp/chatto-client:latest"
             fi
             echo "EOF"

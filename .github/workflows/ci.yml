@@ -27,6 +27,7 @@ jobs:
   build-main-image-contexts:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       image-version: ${{ steps.image-version.outputs.version }}
     steps:
@@ -100,6 +101,7 @@ jobs:
   license-check:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -111,6 +113,21 @@ jobs:
 
       - name: Check license metadata
         run: mise license-check
+
+  workflow-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          experimental: true
+
+      - name: Check workflows and shell scripts
+        run: mise lint-actions
 
   desktop:
     name: desktop (${{ matrix.platform }})
@@ -140,10 +157,6 @@ jobs:
 
       - name: Check and test desktop shell
         run: mise test-desktop
-
-      - name: Test macOS game-capture helper
-        if: runner.os == 'macOS'
-        run: mise test-desktop-macos-capture
 
       - name: Build desktop bundle
         run: mise desktop-build
@@ -175,9 +188,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  desktop-macos-capture:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Test macOS game-capture helper
+        run: tools/test-desktop-macos-capture.sh
+
   codegen-proto-drift:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -247,9 +271,33 @@ jobs:
             exit 1
           fi
 
-  test-workspace:
+  check-workspace:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+
+      - name: Run workspace typechecks
+        run: pnpm run check
+
+      - name: Run workspace linters
+        run: pnpm run lint
+
+      - name: Build Storybook design-system catalog
+        run: pnpm run build:storybook
+
+  test-workspace:
+    # Keep this job name stable because it can be a required branch check.
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -263,21 +311,13 @@ jobs:
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Run workspace typechecks
-        run: pnpm run check
-
-      - name: Run workspace linters
-        run: pnpm run lint
-
       - name: Run workspace unit tests
         run: pnpm test
-
-      - name: Build Storybook design-system catalog
-        run: pnpm run build:storybook
 
   test-cli:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -309,6 +349,7 @@ jobs:
 
   test-authling-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -345,6 +386,7 @@ jobs:
   test-e2e:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     name: test-e2e (${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
@@ -378,6 +420,7 @@ jobs:
   test-e2e-media:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -525,12 +568,15 @@ jobs:
     needs:
       - build-main-image-contexts
       - license-check
+      - workflow-lint
       - codegen-proto-drift
+      - check-workspace
       - test-workspace
       - test-cli
       - test-e2e
       - test-e2e-media
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
