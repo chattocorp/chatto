@@ -42,7 +42,9 @@ card. Callers supply trusted badges and actions through explicit props.
   {#if profile?.bannerUrl}
     <SkeletonImg src={profile.bannerUrl} alt="" class="h-32 w-full object-cover" />
   {:else}
-    <div class="h-32 shrink-0"></div>
+    <div
+      class="h-32 shrink-0 bg-gradient-to-br from-surface-emphasized/80 via-surface-emphasized/45 to-surface"
+    ></div>
   {/if}
 
   <div class="flex flex-1 flex-col gap-4 p-4">
