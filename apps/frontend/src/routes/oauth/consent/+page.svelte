@@ -14,6 +14,8 @@
     clientId: string;
     clientName: string;
     clientUri: string;
+    resource: string;
+    scopes: string[];
   };
 
   let request = $state<ConsentRequest | null>(null);
@@ -46,7 +48,9 @@
         redirectOrigin: result.redirectOrigin,
         clientId: result.clientId,
         clientName: result.clientName,
-        clientUri: result.clientUri
+        clientUri: result.clientUri,
+        resource: result.resource || '',
+        scopes: Array.isArray(result.scopes) ? result.scopes : []
       };
       const verifiedHost = verifiedClientHost(pendingRequest);
       if (!verifiedHost) {
@@ -150,14 +154,21 @@
         <div class="surface-box p-4">
           <div class="mb-3 text-sm font-medium">{m('auth.oauth.allow_intro')}</div>
           <ul class="flex flex-col gap-2 text-sm text-muted">
-            <li class="flex gap-2">
-              <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
-              <span>{m('auth.oauth.allow_profile')}</span>
-            </li>
-            <li class="flex gap-2">
-              <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
-              <span>{m('auth.oauth.allow_messages')}</span>
-            </li>
+            {#if request.scopes.includes('chatto:rooms:read')}
+              <li class="flex gap-2">
+                <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                <span>{m('auth.oauth.allow_rooms_read')}</span>
+              </li>
+            {:else}
+              <li class="flex gap-2">
+                <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                <span>{m('auth.oauth.allow_profile')}</span>
+              </li>
+              <li class="flex gap-2">
+                <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                <span>{m('auth.oauth.allow_messages')}</span>
+              </li>
+            {/if}
             <li class="flex gap-2">
               <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
               <span>{m('auth.oauth.allow_remember')}</span>

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -50,20 +51,22 @@ const (
 // transport. The name is kept for compatibility with the existing auth-token
 // service API.
 type AuthTokenData struct {
-	UserID             string                       `json:"user_id"`
-	ClientID           string                       `json:"client_id,omitempty"`
-	Kind               AuthTokenKind                `json:"kind,omitempty"`
-	Presentation       AuthTokenPresentation        `json:"presentation,omitempty"`
-	Source             string                       `json:"source,omitempty"`
+	UserID             string                      `json:"user_id"`
+	ClientID           string                      `json:"client_id,omitempty"`
+	Resource           string                      `json:"resource,omitempty"`
+	Scopes             []string                    `json:"scopes,omitempty"`
+	Kind               AuthTokenKind               `json:"kind,omitempty"`
+	Presentation       AuthTokenPresentation       `json:"presentation,omitempty"`
+	Source             string                      `json:"source,omitempty"`
 	Request            *evtv1.AuditRequestMetadata `json:"request,omitempty"`
-	CreatedAt          time.Time                    `json:"created_at"`
-	ExpiresAt          time.Time                    `json:"expires_at,omitempty"`
-	AuthGeneration     uint64                       `json:"auth_generation,omitempty"`
-	RenewableSessionID string                       `json:"renewable_session_id,omitempty"`
-	AccessGeneration   uint64                       `json:"access_generation,omitempty"`
-	FreshAuthAt        time.Time                    `json:"fresh_auth_at,omitempty"`
-	FreshAuthMethod    string                       `json:"fresh_auth_method,omitempty"`
-	FreshAuthSource    string                       `json:"fresh_auth_source,omitempty"`
+	CreatedAt          time.Time                   `json:"created_at"`
+	ExpiresAt          time.Time                   `json:"expires_at,omitempty"`
+	AuthGeneration     uint64                      `json:"auth_generation,omitempty"`
+	RenewableSessionID string                      `json:"renewable_session_id,omitempty"`
+	AccessGeneration   uint64                      `json:"access_generation,omitempty"`
+	FreshAuthAt        time.Time                   `json:"fresh_auth_at,omitempty"`
+	FreshAuthMethod    string                      `json:"fresh_auth_method,omitempty"`
+	FreshAuthSource    string                      `json:"fresh_auth_source,omitempty"`
 }
 
 // ValidatedRuntimeCredential is the normalized result of validating an opaque
@@ -72,6 +75,8 @@ type ValidatedRuntimeCredential struct {
 	Handle             string
 	UserID             string
 	ClientID           string
+	Resource           string
+	Scopes             []string
 	Kind               AuthTokenKind
 	Presentation       AuthTokenPresentation
 	Source             string
@@ -112,6 +117,8 @@ func validatedRuntimeCredentialFromAuthToken(handle string, data AuthTokenData) 
 		Handle:             handle,
 		UserID:             data.UserID,
 		ClientID:           data.ClientID,
+		Resource:           data.Resource,
+		Scopes:             append([]string(nil), data.Scopes...),
 		Kind:               data.kindOrDefault(),
 		Presentation:       data.presentationOrDefault(),
 		Source:             data.Source,
@@ -196,7 +203,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 			}
 			return ValidatedRuntimeCredential{}, err
 		}
-		if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
+		if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Resource != tokenData.Resource || !slices.Equal(session.Scopes, tokenData.Scopes) || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
 			_ = c.storage.runtimeStateKV.Delete(ctx, key)
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 		}
@@ -238,6 +245,21 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 	}
 
 	return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
+}
+
+// ValidatePublicBearerCredential validates a bearer credential for Chatto's
+// general public API and realtime transports. A resource-bound credential is
+// valid only at its resource server and must not become general account
+// authority through these transports.
+func (c *ChattoCore) ValidatePublicBearerCredential(ctx context.Context, handle string) (ValidatedRuntimeCredential, error) {
+	credential, err := c.ValidatePresentedRuntimeCredential(ctx, handle, AuthTokenPresentationBearer)
+	if err != nil {
+		return ValidatedRuntimeCredential{}, err
+	}
+	if credential.Resource != "" || len(credential.Scopes) != 0 {
+		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
+	return credential, nil
 }
 
 // CreateAuthToken creates a new opaque bearer token for the given user.
@@ -282,7 +304,7 @@ func (c *ChattoCore) CreateOAuthAccessTokenForClient(ctx context.Context, userID
 // Returns ErrAuthTokenNotFound if the token doesn't exist, has reached its
 // fixed expiry, or its renewable session is no longer valid.
 func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (string, error) {
-	credential, err := c.ValidatePresentedRuntimeCredential(ctx, token, AuthTokenPresentationBearer)
+	credential, err := c.ValidatePublicBearerCredential(ctx, token)
 	if err != nil {
 		return "", err
 	}

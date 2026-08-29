@@ -68,6 +68,7 @@ func (p *UserAuthProjection) Subjects() []string {
 		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked),
 		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityUnlinked),
 		evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
+		evtstream.UserEventTypeFilter(evtstream.EventOAuthScopedConsentGranted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
@@ -123,6 +124,8 @@ func (p *UserAuthProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyExternalIdentityUnlinked(e.UserExternalIdentityUnlinked, seq)
 	case *evtv1.Event_OauthConsentGranted:
 		p.applyOAuthConsentGranted(e.OauthConsentGranted)
+	case *evtv1.Event_OauthScopedConsentGranted:
+		p.applyOAuthScopedConsentGranted(e.OauthScopedConsentGranted)
 	case *evtv1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted, seq)
 	case *evtv1.Event_UserKeyShreddingRequested:
@@ -243,6 +246,21 @@ func (p *UserAuthProjection) applyOAuthConsentGranted(e *evtv1.OAuthConsentGrant
 		return
 	}
 	key := OAuthConsentKey(e.GetClientId(), e.GetRedirectOrigin())
+	if key == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
+	u.oauthConsent[key] = struct{}{}
+}
+
+func (p *UserAuthProjection) applyOAuthScopedConsentGranted(e *evtv1.OAuthScopedConsentGrantedEvent) {
+	if e == nil || e.GetUserId() == "" {
+		return
+	}
+	key := OAuthScopedConsentKey(e.GetClientId(), e.GetRedirectOrigin(), e.GetResource(), e.GetScopes())
 	if key == "" {
 		return
 	}

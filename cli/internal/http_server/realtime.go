@@ -841,7 +841,7 @@ func (s *HTTPServer) revalidateRealtimeCredential(ctx context.Context) error {
 			return core.ErrNotAuthenticated
 		}
 	case authctx.RuntimeCredentialKindBearerToken:
-		validated, err := s.core.ValidatePresentedRuntimeCredential(ctx, credential.Handle, core.AuthTokenPresentationBearer)
+		validated, err := s.core.ValidatePublicBearerCredential(ctx, credential.Handle)
 		if err != nil {
 			if errors.Is(err, core.ErrAuthTokenNotFound) {
 				return core.ErrNotAuthenticated

@@ -54,6 +54,8 @@ func (c *ChattoCore) authCodeKey(code string) string {
 type AuthCodeData struct {
 	UserID              string    `json:"user_id"`
 	ClientID            string    `json:"client_id,omitempty"`
+	Resource            string    `json:"resource,omitempty"`
+	Scopes              []string  `json:"scopes,omitempty"`
 	RedirectURI         string    `json:"redirect_uri"`
 	CodeChallenge       string    `json:"code_challenge"`
 	CodeChallengeMethod string    `json:"code_challenge_method"`
@@ -86,6 +88,12 @@ func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, re
 // CreateAuthCodeForClientGeneration creates an OAuth authorization code bound
 // to the validated public client and authenticated account generation.
 func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, userID, clientID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+	return c.CreateAuthCodeForClientGrantGeneration(ctx, userID, clientID, "", nil, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
+}
+
+// CreateAuthCodeForClientGrantGeneration creates an authorization code bound
+// to the validated client, resource, scopes, and account generation.
+func (c *ChattoCore) CreateAuthCodeForClientGrantGeneration(ctx context.Context, userID, clientID, resource string, scopes []string, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
 	if userID == "" {
 		return "", ErrAuthCodeNotFound
 	}
@@ -109,6 +117,8 @@ func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, user
 	data, err := json.Marshal(AuthCodeData{
 		UserID:              userID,
 		ClientID:            clientID,
+		Resource:            resource,
+		Scopes:              append([]string(nil), scopes...),
 		RedirectURI:         redirectURI,
 		CodeChallenge:       codeChallenge,
 		CodeChallengeMethod: codeChallengeMethod,
@@ -157,6 +167,12 @@ func (c *ChattoCore) ExchangeAuthCodeForClient(ctx context.Context, code, codeVe
 // for a renewable bearer session and requires its exact redirect URI, client
 // identifier, and PKCE proof to match.
 func (c *ChattoCore) ExchangeAuthCodeForClientSession(ctx context.Context, code, codeVerifier, redirectURI, clientID string) (BearerSessionCredentials, string, error) {
+	return c.ExchangeAuthCodeForClientResourceSession(ctx, code, codeVerifier, redirectURI, clientID, "")
+}
+
+// ExchangeAuthCodeForClientResourceSession exchanges a code and requires its
+// exact OAuth resource identifier to match the token request.
+func (c *ChattoCore) ExchangeAuthCodeForClientResourceSession(ctx context.Context, code, codeVerifier, redirectURI, clientID, resource string) (BearerSessionCredentials, string, error) {
 	key := c.authCodeKey(code)
 
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
@@ -197,6 +213,12 @@ func (c *ChattoCore) ExchangeAuthCodeForClientSession(ctx context.Context, code,
 		}
 		return BearerSessionCredentials{}, "", ErrAuthCodeClientMismatch
 	}
+	if codeData.Resource != resource {
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "resource_mismatch"); err != nil {
+			return BearerSessionCredentials{}, "", err
+		}
+		return BearerSessionCredentials{}, "", ErrAuthCodeClientMismatch
+	}
 
 	// Validate PKCE
 	if !verifyCodeChallenge(codeData.CodeChallengeMethod, codeVerifier, codeData.CodeChallenge) {
@@ -223,7 +245,7 @@ func (c *ChattoCore) ExchangeAuthCodeForClientSession(ctx context.Context, code,
 	codeData.AuthGeneration = validation.AuthGeneration
 
 	// Issue a renewable bearer session.
-	credentials, err := c.CreateOAuthBearerSessionForClient(ctx, validation.UserID, codeData.ClientID, validation.AuthGeneration)
+	credentials, err := c.CreateOAuthBearerSessionForClientGrant(ctx, validation.UserID, codeData.ClientID, codeData.Resource, codeData.Scopes, validation.AuthGeneration)
 	if err != nil {
 		return BearerSessionCredentials{}, "", fmt.Errorf("failed to create bearer session: %w", err)
 	}

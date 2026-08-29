@@ -100,3 +100,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Accepted | 2026-08-25 |
 | [ADR-083](ADR-083-action-limited-bot-incoming-webhooks.md) | Use Action-Limited Credentials for Bot Incoming Webhooks | Accepted | 2026-08-27 |
 | [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Accepted | 2026-08-28 |
+| [ADR-085](ADR-085-agent-integration-through-mcp.md) | Provide User-Scoped Agent Integration through MCP | Accepted | 2026-08-29 |

@@ -220,6 +220,8 @@ const (
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
 	EventOAuthClientAuthorizationRecorded   = "authorization_recorded"
 	EventOAuthClientPolicyChanged           = "policy_changed"
+	EventOAuthScopedConsentGranted          = "oauth_scoped_consent_granted"
+	EventOAuthScopedConsentDenied           = "oauth_scoped_consent_denied"
 
 	// Invite links
 	EventInvitationCreated  = "created"
@@ -493,6 +495,10 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventOAuthClientAuthorizationRecorded
 	case *evtv1.Event_OauthClientPolicyChanged:
 		return EventOAuthClientPolicyChanged
+	case *evtv1.Event_OauthScopedConsentGranted:
+		return EventOAuthScopedConsentGranted
+	case *evtv1.Event_OauthScopedConsentDenied:
+		return EventOAuthScopedConsentDenied
 	case *evtv1.Event_InvitationCreated:
 		return EventInvitationCreated
 	case *evtv1.Event_InvitationRedeemed:

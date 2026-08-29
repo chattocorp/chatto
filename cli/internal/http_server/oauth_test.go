@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -16,10 +18,13 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/mcpserver"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -27,6 +32,23 @@ import (
 )
 
 const testOAuthClientID = "https://client.example/oauth/client-metadata.json"
+
+type oauthMCPRoundTripper struct {
+	oauth http.Handler
+	mcp   http.Handler
+}
+
+func (t oauthMCPRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	clone := request.Clone(request.Context())
+	clone.Host = clone.URL.Host
+	recorder := httptest.NewRecorder()
+	if clone.URL.Path == "/mcp" || clone.URL.Path == "/.well-known/oauth-protected-resource/mcp" {
+		t.mcp.ServeHTTP(recorder, clone)
+	} else {
+		t.oauth.ServeHTTP(recorder, clone)
+	}
+	return recorder.Result(), nil
+}
 
 // setupOAuthServer creates a minimal HTTPServer with session middleware and OAuth endpoints.
 func setupOAuthServer(t *testing.T) *HTTPServer {
@@ -748,6 +770,28 @@ func TestOAuthAuthorize_AuthenticatedTrustedRedirectRequiresConsent(t *testing.T
 	}
 }
 
+func TestOAuthAuthorize_IgnoresLegacyScopeWithoutResource(t *testing.T) {
+	s := setupOAuthServer(t)
+	cookies, _ := loginOAuthTestUser(t, s, "oauth-legacy-scope")
+
+	params := url.Values{
+		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
+		"redirect_uri":          {"https://client.example/servers/callback"},
+		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
+		"code_challenge_method": {"S256"},
+		"scope":                 {"openid profile"},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+params.Encode(), nil)
+	addCookies(req, cookies)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("legacy scope status/location = %d/%q: %s", w.Code, w.Header().Get("Location"), w.Body.String())
+	}
+}
+
 func TestOAuthAuthorize_FreshRequestOverwritesPendingConsent(t *testing.T) {
 	s := setupOAuthServer(t)
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-consent-overwrite")
@@ -998,6 +1042,231 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	}
 	if location := secondW.Header().Get("Location"); !strings.HasPrefix(location, "https://client.example/servers/callback?") || !strings.Contains(location, "code=") {
 		t.Fatalf("second authorize did not mint code directly, Location=%q", location)
+	}
+}
+
+func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.MCP = config.MCPConfig{Enabled: true, URL: "https://agent.chatto.example/mcp"}
+	cookies, _ := loginOAuthTestUser(t, s, "oauth-mcp-grant")
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	params := url.Values{
+		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
+		"redirect_uri":          {"https://client.example/servers/callback"},
+		"code_challenge":        {core.GenerateCodeChallenge(verifier)},
+		"code_challenge_method": {"S256"},
+		"state":                 {"mcp-state"},
+		"resource":              {s.config.MCP.URL},
+		"scope":                 {config.MCPRoomsReadScope},
+	}
+	authorizeReq := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+params.Encode(), nil)
+	addCookies(authorizeReq, cookies)
+	authorizeW := httptest.NewRecorder()
+	s.router.ServeHTTP(authorizeW, authorizeReq)
+	if authorizeW.Code != http.StatusTemporaryRedirect || authorizeW.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("authorize status/location = %d/%q: %s", authorizeW.Code, authorizeW.Header().Get("Location"), authorizeW.Body.String())
+	}
+	cookies = mergeCookies(cookies, authorizeW.Result().Cookies())
+
+	consentReq := httptest.NewRequest(http.MethodGet, "/oauth/consent/request", nil)
+	addCookies(consentReq, cookies)
+	consentW := httptest.NewRecorder()
+	s.router.ServeHTTP(consentW, consentReq)
+	if consentW.Code != http.StatusOK {
+		t.Fatalf("consent status = %d: %s", consentW.Code, consentW.Body.String())
+	}
+	var consent struct {
+		Resource string   `json:"resource"`
+		Scopes   []string `json:"scopes"`
+	}
+	if err := json.Unmarshal(consentW.Body.Bytes(), &consent); err != nil {
+		t.Fatalf("decode consent request: %v", err)
+	}
+	if consent.Resource != s.config.MCP.URL || len(consent.Scopes) != 1 || consent.Scopes[0] != config.MCPRoomsReadScope {
+		t.Fatalf("consent grant = resource %q, scopes %v", consent.Resource, consent.Scopes)
+	}
+
+	approveReq := httptest.NewRequest(http.MethodPost, "/oauth/consent/approve", nil)
+	addCookies(approveReq, cookies)
+	approveW := httptest.NewRecorder()
+	s.router.ServeHTTP(approveW, approveReq)
+	if approveW.Code != http.StatusOK {
+		t.Fatalf("approve status = %d: %s", approveW.Code, approveW.Body.String())
+	}
+	var approval struct {
+		RedirectURL string `json:"redirectUrl"`
+	}
+	if err := json.Unmarshal(approveW.Body.Bytes(), &approval); err != nil {
+		t.Fatalf("decode approval: %v", err)
+	}
+	callback, err := url.Parse(approval.RedirectURL)
+	if err != nil {
+		t.Fatalf("parse callback: %v", err)
+	}
+	if callback.Query().Get("iss") != "https://chatto.example" || callback.Query().Get("state") != "mcp-state" {
+		t.Fatalf("callback query = %v", callback.Query())
+	}
+	code := callback.Query().Get("code")
+	if code == "" {
+		t.Fatal("callback did not contain an authorization code")
+	}
+
+	tokenBody, err := json.Marshal(map[string]string{
+		"grant_type": "authorization_code", "code": code, "code_verifier": verifier,
+		"redirect_uri": params.Get("redirect_uri"), "client_id": testOAuthClientID, "resource": s.config.MCP.URL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenReq := httptest.NewRequest(http.MethodPost, "/oauth/token", bytes.NewReader(tokenBody))
+	tokenReq.Header.Set("Content-Type", "application/json")
+	tokenW := httptest.NewRecorder()
+	s.router.ServeHTTP(tokenW, tokenReq)
+	if tokenW.Code != http.StatusOK {
+		t.Fatalf("token status = %d: %s", tokenW.Code, tokenW.Body.String())
+	}
+	var tokenResponse struct {
+		AccessToken  string          `json:"access_token"`
+		RefreshToken string          `json:"refresh_token"`
+		User         json.RawMessage `json:"user"`
+	}
+	if err := json.Unmarshal(tokenW.Body.Bytes(), &tokenResponse); err != nil {
+		t.Fatalf("decode token response: %v", err)
+	}
+	credential, err := s.core.ValidatePresentedRuntimeCredential(context.Background(), tokenResponse.AccessToken, core.AuthTokenPresentationBearer)
+	if err != nil {
+		t.Fatalf("validate access token: %v", err)
+	}
+	if credential.Resource != s.config.MCP.URL || len(credential.Scopes) != 1 || credential.Scopes[0] != config.MCPRoomsReadScope {
+		t.Fatalf("access token grant = resource %q, scopes %v", credential.Resource, credential.Scopes)
+	}
+	if _, ok, err := s.bearerPresentedCredential(context.Background(), tokenResponse.AccessToken); err != nil || ok {
+		t.Fatalf("resource-bound token authenticated on public HTTP path: ok=%v err=%v", ok, err)
+	}
+	realtimeContext := authctx.WithCredential(context.Background(), authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindBearerToken, UserID: credential.UserID, Handle: tokenResponse.AccessToken,
+	})
+	if err := s.revalidateRealtimeCredential(realtimeContext); !errors.Is(err, core.ErrNotAuthenticated) {
+		t.Fatalf("resource-bound token authenticated on realtime path: %v", err)
+	}
+	if len(tokenResponse.User) != 0 {
+		t.Fatalf("room-only token response disclosed user profile: %s", tokenResponse.User)
+	}
+
+	refresh := func() *httptest.ResponseRecorder {
+		t.Helper()
+		body, err := json.Marshal(map[string]string{
+			"grant_type": "refresh_token", "refresh_token": tokenResponse.RefreshToken, "client_id": testOAuthClientID,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodPost, "/oauth/token", bytes.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		s.router.ServeHTTP(response, request)
+		return response
+	}
+	refreshW := refresh()
+	if refreshW.Code != http.StatusOK {
+		t.Fatalf("standard refresh status = %d: %s", refreshW.Code, refreshW.Body.String())
+	}
+	var refreshed struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(refreshW.Body.Bytes(), &refreshed); err != nil {
+		t.Fatalf("decode refresh response: %v", err)
+	}
+	refreshedCredential, err := s.core.ValidatePresentedRuntimeCredential(context.Background(), refreshed.AccessToken, core.AuthTokenPresentationBearer)
+	if err != nil {
+		t.Fatalf("validate refreshed access token: %v", err)
+	}
+	if refreshedCredential.Resource != s.config.MCP.URL || len(refreshedCredential.Scopes) != 1 || refreshedCredential.Scopes[0] != config.MCPRoomsReadScope {
+		t.Fatalf("refreshed grant = resource %q, scopes %v", refreshedCredential.Resource, refreshedCredential.Scopes)
+	}
+	if retryW := refresh(); retryW.Code != http.StatusBadRequest {
+		t.Fatalf("standard refresh retry status = %d, want 400: %s", retryW.Code, retryW.Body.String())
+	}
+}
+
+func TestOfficialMCPClientCompletesChattoOAuthAndDiscoversTools(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.MCP = config.MCPConfig{Enabled: true, URL: "https://chatto.example/mcp"}
+	s.setupOAuthMetadataRoutes()
+	browserCookies, _ := loginOAuthTestUser(t, s, "official-mcp-oauth")
+
+	mcpHandler, err := mcpserver.NewHandler(s.core, s.config, "test")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	httpClient := &http.Client{Transport: oauthMCPRoundTripper{oauth: s.router, mcp: mcpHandler}}
+	oauthHandler, err := mcpauth.NewAuthorizationCodeHandler(&mcpauth.AuthorizationCodeHandlerConfig{
+		ClientIDMetadataDocumentConfig: &mcpauth.ClientIDMetadataDocumentConfig{URL: testOAuthClientID},
+		RedirectURL:                    "https://client.example/servers/callback",
+		Client:                         httpClient,
+		AuthorizationCodeFetcher: func(ctx context.Context, args *mcpauth.AuthorizationArgs) (*mcpauth.AuthorizationResult, error) {
+			authorizeReq := httptest.NewRequest(http.MethodGet, args.URL, nil).WithContext(ctx)
+			addCookies(authorizeReq, browserCookies)
+			authorizeW := httptest.NewRecorder()
+			s.router.ServeHTTP(authorizeW, authorizeReq)
+			if authorizeW.Code != http.StatusTemporaryRedirect {
+				return nil, fmt.Errorf("authorize status/location = %d/%q", authorizeW.Code, authorizeW.Header().Get("Location"))
+			}
+			if authorizeW.Header().Get("Location") != "/oauth/consent" {
+				callback, err := url.Parse(authorizeW.Header().Get("Location"))
+				if err != nil {
+					return nil, err
+				}
+				return &mcpauth.AuthorizationResult{Code: callback.Query().Get("code"), State: callback.Query().Get("state"), Iss: callback.Query().Get("iss")}, nil
+			}
+			browserCookies = mergeCookies(browserCookies, authorizeW.Result().Cookies())
+
+			approveReq := httptest.NewRequest(http.MethodPost, "/oauth/consent/approve", nil).WithContext(ctx)
+			addCookies(approveReq, browserCookies)
+			approveW := httptest.NewRecorder()
+			s.router.ServeHTTP(approveW, approveReq)
+			if approveW.Code != http.StatusOK {
+				return nil, fmt.Errorf("approve status = %d: %s", approveW.Code, approveW.Body.String())
+			}
+			var approval struct {
+				RedirectURL string `json:"redirectUrl"`
+			}
+			if err := json.Unmarshal(approveW.Body.Bytes(), &approval); err != nil {
+				return nil, err
+			}
+			callback, err := url.Parse(approval.RedirectURL)
+			if err != nil {
+				return nil, err
+			}
+			return &mcpauth.AuthorizationResult{Code: callback.Query().Get("code"), State: callback.Query().Get("state"), Iss: callback.Query().Get("iss")}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewAuthorizationCodeHandler: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	client := mcp.NewClient(&mcp.Implementation{Name: "chatto-oauth-test", Version: "test"}, nil)
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint: "https://chatto.example/mcp", HTTPClient: httpClient,
+		DisableStandaloneSSE: true, OAuthHandler: oauthHandler,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Connect with Chatto OAuth: %v", err)
+	}
+	defer session.Close()
+	tools, err := session.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	if len(tools.Tools) != 1 || tools.Tools[0].Name != "list_rooms" {
+		t.Fatalf("tools = %#v, want list_rooms", tools.Tools)
+	}
+	if _, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_rooms"}); err != nil {
+		t.Fatalf("CallTool list_rooms: %v", err)
 	}
 }
 

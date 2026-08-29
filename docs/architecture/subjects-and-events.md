@@ -335,6 +335,8 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.bearer_token_revoked`                    | `BearerTokenRevokedEvent`                           |
 | `evt.user.{userId}.oauth_consent_granted`                   | `OAuthConsentGrantedEvent`                          |
 | `evt.user.{userId}.oauth_consent_denied`                    | `OAuthConsentDeniedEvent`                           |
+| `evt.user.{userId}.oauth_scoped_consent_granted`            | `OAuthScopedConsentGrantedEvent`; exact resource and scope grant that older projectors ignore |
+| `evt.user.{userId}.oauth_scoped_consent_denied`             | `OAuthScopedConsentDeniedEvent`                     |
 | `evt.rbac.{server\|scopeId}.role_created`                   | `RbacRoleCreatedEvent`                             |
 | `evt.rbac.{server\|scopeId}.role_display_name_changed`      | `RbacRoleDisplayNameChangedEvent`                  |
 | `evt.rbac.{server\|scopeId}.role_description_changed`       | `RbacRoleDescriptionChangedEvent`                  |

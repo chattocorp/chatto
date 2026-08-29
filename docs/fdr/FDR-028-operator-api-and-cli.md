@@ -1,7 +1,7 @@
 # FDR-028: Operator API & CLI
 
 **Status:** Active
-**Last reviewed:** 2026-06-29
+**Last reviewed:** 2026-08-29
 
 ## Overview
 
@@ -71,5 +71,5 @@ Sharing the socket with another container or host path is advanced usage and sho
 
 ## Related
 
-- **ADRs:** ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions)
-- **FDRs:** FDR-018 (Account Lifecycle), FDR-021 (Admin Dashboard & System Monitoring), FDR-023 (Authentication & Sessions)
+- **ADRs:** ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-085 (user-scoped MCP integration)
+- **FDRs:** FDR-018 (Account Lifecycle), FDR-021 (Admin Dashboard & System Monitoring), FDR-023 (Authentication & Sessions), FDR-043 (Model Context Protocol Integration)

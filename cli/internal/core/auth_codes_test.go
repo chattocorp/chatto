@@ -187,6 +187,49 @@ func TestChattoCore_ExchangeAuthCodeBindsClientID(t *testing.T) {
 	}
 }
 
+func TestChattoCore_ExchangeAuthCodeCarriesResourceAndScopesIntoRefreshSession(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, "", "resource-bound-code", "Resource Bound Code", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	generation, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const clientID = "https://agent.example/client.json"
+	const redirectURI = "https://agent.example/callback"
+	const resource = "https://chat.example/mcp"
+	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	scopes := []string{"chatto:rooms:read"}
+	code, err := core.CreateAuthCodeForClientGrantGeneration(ctx, user.Id, clientID, resource, scopes, redirectURI, GenerateCodeChallenge(verifier), "S256", generation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	credentials, _, err := core.ExchangeAuthCodeForClientResourceSession(ctx, code, verifier, redirectURI, clientID, resource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validated, err := core.ValidatePresentedRuntimeCredential(ctx, credentials.AccessToken, AuthTokenPresentationBearer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validated.Resource != resource || len(validated.Scopes) != 1 || validated.Scopes[0] != scopes[0] {
+		t.Fatalf("validated grant = resource %q scopes %v", validated.Resource, validated.Scopes)
+	}
+	if _, err := core.ValidateAuthToken(ctx, credentials.AccessToken); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("resource-bound token used as public API authority: %v", err)
+	}
+	session, _, err := core.loadRenewableSession(ctx, validated.RenewableSessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.Resource != resource || len(session.Scopes) != 1 || session.Scopes[0] != scopes[0] {
+		t.Fatalf("renewable grant = resource %q scopes %v", session.Resource, session.Scopes)
+	}
+}
+
 func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

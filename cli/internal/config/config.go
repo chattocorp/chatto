@@ -20,6 +20,7 @@ type ChattoConfig struct {
 	Webserver       WebserverConfig       `toml:"webserver"`
 	Metrics         MetricsConfig         `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter        ExporterConfig        `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
+	MCP             MCPConfig             `toml:"mcp,commented" comment:"Experimental network MCP runtime unit. Disabled by default."`
 	Search          SearchConfig          `toml:"search,commented" comment:"Consumer-facing message search configuration."`
 	SearchProvider  SearchProviderConfig  `toml:"search_provider,commented" comment:"Bundled Bleve message search provider."`
 	Diagnostics     DiagnosticsConfig     `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
@@ -155,6 +156,19 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.Exporter.S3Timeout.Duration() < 0 {
 			errs = append(errs, "exporter.s3_timeout must not be negative")
+		}
+	}
+	if c.MCP.Enabled || c.MCP.URL != "" || c.MCP.Port != 0 || c.MCP.BindAddress != "" {
+		if c.MCP.Port < 0 || c.MCP.Port > 65535 {
+			errs = append(errs, "mcp.port must be between 0 and 65535")
+		}
+		if strings.TrimSpace(c.MCP.URL) == "" {
+			errs = append(errs, "mcp.url is required when MCP is configured")
+		} else if err := validateMCPURL(c.MCP.URL); err != nil {
+			errs = append(errs, err.Error())
+		}
+		if strings.TrimSpace(c.Webserver.URL) == "" {
+			errs = append(errs, "webserver.url is required when MCP is configured")
 		}
 	}
 	if c.SearchProvider.Enabled || strings.TrimSpace(c.SearchProvider.Directory) != "" || c.SearchProvider.Languages != nil {

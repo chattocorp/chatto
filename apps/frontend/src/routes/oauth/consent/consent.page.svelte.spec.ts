@@ -8,13 +8,15 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('$lib/auth/csrf', () => ({ csrfFetch: mocks.csrfFetch }));
 
-function consentResponse(overrides: Record<string, string> = {}) {
+function consentResponse(overrides: Record<string, unknown> = {}) {
 	return {
 		redirectUri: 'https://callback.example/oauth/callback',
 		redirectOrigin: 'https://callback.example',
 		clientId: 'https://client.example/oauth/metadata.json',
 		clientName: 'Example Client',
 		clientUri: 'https://client.example',
+		resource: '',
+		scopes: [],
 		...overrides
 	};
 }
@@ -22,6 +24,28 @@ function consentResponse(overrides: Record<string, string> = {}) {
 describe('OAuth consent client identity', () => {
 	beforeEach(() => {
 		mocks.csrfFetch.mockReset();
+	});
+
+	it('shows the exact MCP room scope instead of broad message access', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () =>
+				new Response(
+					JSON.stringify(
+						consentResponse({
+							resource: 'https://chat.example/mcp',
+							scopes: ['chatto:rooms:read']
+						})
+					),
+					{ status: 200 }
+				)
+			)
+		);
+
+		const { getByText } = render(ConsentPage);
+
+		await expect.element(getByText('It can list the rooms that are available to you.')).toBeVisible();
+		await expect.element(getByText('It can read and send messages as you.')).not.toBeInTheDocument();
 	});
 
 	afterEach(() => {

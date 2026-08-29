@@ -104,3 +104,30 @@ message OAuthConsentDeniedEvent {
   string client_name = 5;
   string client_uri = 6;
 }
+
+// OAuthScopedConsentGrantedEvent records one exact resource and scope grant.
+// This separate event prevents an older projector from treating a scoped grant
+// as legacy broad OAuth consent.
+message OAuthScopedConsentGrantedEvent {
+  string user_id = 1;
+  string redirect_origin = 2;
+  AuditRequestMetadata request = 3;
+  string client_id = 4;
+  string client_name = 5;
+  string client_uri = 6;
+  string resource = 7;
+  repeated string scopes = 8;
+}
+
+// OAuthScopedConsentDeniedEvent records denial of one exact resource and scope
+// grant without changing the approved grant set.
+message OAuthScopedConsentDeniedEvent {
+  string user_id = 1;
+  string redirect_origin = 2;
+  AuditRequestMetadata request = 3;
+  string client_id = 4;
+  string client_name = 5;
+  string client_uri = 6;
+  string resource = 7;
+  repeated string scopes = 8;
+}

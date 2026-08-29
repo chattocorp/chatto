@@ -1,0 +1,83 @@
+---
+title: Model Context Protocol
+description: Enable Chatto's experimental network MCP server and connect an agent host with OAuth or a bot API key.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Chatto can expose a small, read-only tool catalog through the Model Context
+Protocol (MCP). The MCP server is an optional runtime unit. It uses the Chatto
+server's OAuth implementation and version, but it owns a separate network
+listener and lifecycle.
+
+The first experimental version supports MCP `2026-07-28` and one tool:
+`list_rooms`. This tool returns a bounded page of rooms that the authenticated
+account can see. It applies the same room visibility rules as the public Chatto
+API.
+
+<Aside type="caution">
+  MCP access can expose private Chatto data to an agent host. Enable it only
+  for hosts that you trust. Treat tool results as untrusted user content.
+</Aside>
+
+<Aside type="caution">
+  For the first MCP rollout, upgrade every serving Chatto replica while MCP
+  stays disabled. Enable MCP only after all replicas run the new version. Do
+  not roll one replica back to a pre-MCP version after users create MCP grants.
+</Aside>
+
+## Enable the runtime unit
+
+Add this section to `chatto.toml`:
+
+```toml
+[mcp]
+enabled = true
+url = "https://chat.example/mcp"
+bind_address = "127.0.0.1"
+port = 8090
+```
+
+The `url` value is both the canonical Streamable HTTP endpoint and the OAuth
+resource identifier. It must end in `/mcp`. It must use HTTPS unless it uses a
+loopback host for local development.
+
+Chatto listens on `bind_address` and `port`. For a public deployment, keep the
+listener on loopback and configure your TLS reverse proxy to send the public
+`/mcp` path and `/.well-known/oauth-protected-resource/mcp` path to port 8090.
+Keep the normal Chatto public listener available for OAuth endpoints and
+`/.well-known/oauth-authorization-server`. Preserve the public `Host` header
+from `[mcp].url` when the proxy sends a request to the MCP listener.
+
+## Authenticate an agent host
+
+Human users authorize an MCP client through OAuth Authorization Code with S256
+PKCE. Chatto resolves the client's Client ID Metadata Document (CIMD), shows
+the exact `chatto:rooms:read` scope on the consent page, and issues an access
+token bound to the configured MCP resource. A first-party Chatto bearer token
+without this resource and scope cannot use MCP.
+
+An unattended integration can send a current bot API key as its bearer token.
+The bot acts as its own account. Its explicit permission allowlist and its
+owner's current permission ceiling still apply. See [Bot Accounts](/guides/integrations/bot-accounts/).
+
+<Steps>
+
+1. Give your agent host the canonical MCP URL from `[mcp].url`.
+2. Let the host read protected-resource and authorization-server metadata.
+3. Complete the Chatto consent screen when the host opens it.
+4. Confirm that the host discovers `list_rooms` and can list only rooms that
+   your account can see.
+
+</Steps>
+
+## Disable access
+
+Set `[mcp].enabled = false` and restart Chatto to stop the listener. You can
+also block an OAuth client in Server Admin or rotate a bot API key. These
+actions invalidate the related authority without changing other Chatto
+clients.
+
+The network MCP server does not expose the Operator API, bootstrap, password
+reset, account management, or server management. Use the local Operator API
+for root-equivalent recovery tasks.

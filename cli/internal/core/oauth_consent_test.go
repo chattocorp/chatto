@@ -132,6 +132,46 @@ func TestChattoCore_OAuthConsentUsesClientIdentifier(t *testing.T) {
 	}
 }
 
+func TestChattoCore_OAuthConsentBindsExactResourceAndScopes(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "scoped-consent-user", "Scoped Consent User", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const clientID = "https://agent.example/client.json"
+	const origin = "https://agent.example"
+	const resource = "https://chat.example/mcp"
+	scopes := []string{"chatto:rooms:read"}
+	if err := core.GrantOAuthClientScopedConsent(ctx, user.Id, clientID, "Agent", origin, origin, resource, scopes); err != nil {
+		t.Fatal(err)
+	}
+	if consented, err := core.HasOAuthClientScopedConsent(ctx, user.Id, clientID, origin, resource, scopes); err != nil || !consented {
+		t.Fatalf("exact scoped consent = %v, err = %v", consented, err)
+	}
+	if consented, err := core.HasOAuthClientConsent(ctx, user.Id, clientID, origin); err != nil || consented {
+		t.Fatalf("unscoped consent = %v, err = %v", consented, err)
+	}
+	if consented, err := core.HasOAuthClientScopedConsent(ctx, user.Id, clientID, origin, resource, []string{"chatto:other"}); err != nil || consented {
+		t.Fatalf("different scope consent = %v, err = %v", consented, err)
+	}
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventOAuthScopedConsentGranted))
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := published[0].GetOauthScopedConsentGranted()
+	if payload.GetResource() != resource || len(payload.GetScopes()) != 1 || payload.GetScopes()[0] != scopes[0] {
+		t.Fatalf("scoped consent event = %#v", payload)
+	}
+	legacy, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventOAuthConsentGranted))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(legacy) != 0 {
+		t.Fatalf("scoped grant emitted %d legacy broad consent events", len(legacy))
+	}
+}
+
 func TestChattoCore_OAuthConsentEventsStripClientURIPrivateData(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

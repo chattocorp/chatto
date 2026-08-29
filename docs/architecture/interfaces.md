@@ -14,8 +14,9 @@ method documentation.
 Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 [ADR-045](../adr/ADR-045-public-api-stability-tiers.md),
 [ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
-[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md), and
-[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
+[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md), and
+[ADR-085](../adr/ADR-085-agent-integration-through-mcp.md).
 
 ## Transport boundaries
 
@@ -29,6 +30,8 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | Server OIDC client metadata | `GET /oauth/client-metadata.json` | CIMD public-client identity and exact callbacks for Chatto server login | Public; mounted only when an OIDC provider uses this deployment's metadata URL as its client ID |
 | Frontend OAuth client metadata | `GET /oauth/frontend-client-metadata.json` | CIMD public-client identity and exact popup callback for connecting the bundled frontend to Chatto servers | Public; always mounted, but publishes metadata only when the request host matches `webserver.url` or an exact non-wildcard `webserver.allowed_origins` entry |
 | Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE plus rotating refresh grant for a client application connecting to a Chatto server; browser clients use a CIMD URL `client_id`, Desktop uses its built-in identity, and an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token/refresh exchange; the validated client identity and exact callback are bound through code exchange, refresh remains client-bound, and provider hints cannot supply an issuer or endpoint |
+| OAuth authorization-server metadata | `GET /.well-known/oauth-authorization-server` on the public listener | RFC 8414 discovery for Chatto OAuth, including PKCE, CIMD, the authorization-response issuer, refresh, and enabled MCP scopes | Public metadata with wildcard read-only CORS |
+| Network MCP | Configured canonical `/mcp` resource on the separate MCP listener; `GET /.well-known/oauth-protected-resource/mcp` publishes RFC 9728 metadata | MCP `2026-07-28` stateless Streamable HTTP with the bounded `list_rooms` tool | Resource-bound OAuth bearer with `chatto:rooms:read`, or a current bot API key; every tool call also uses the normal operation authorization model |
 | Protected attachments | `GET /assets/files/{assetId}` and image transform variants | Per-user URLs use hourly issuance buckets with 23–24 hours of remaining validity; Chatto streams full responses, while passive S3-backed video, audio, and large files can redirect to short-lived presigned URLs | Signed `access` ticket, authenticated cookie, or bearer token; every request rechecks room membership before resolving storage or exposing binary bytes |
 | Protected HLS video | `GET /assets/hls/{assetId}/master.m3u8`, rendition playlists, and segments | Master and media playlists are generated from the durable manifest; segments are complete bounded responses from NATS or S3 | Domain-separated source-video `access` ticket; every request rechecks room membership and every segment ID/role against the durable HLS manifest |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |

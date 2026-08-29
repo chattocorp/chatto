@@ -104,6 +104,7 @@ export default defineConfig({
           label: "Integrations",
           items: [
             "guides/integrations/chatto-api",
+            "guides/integrations/mcp",
             "guides/integrations/bot-accounts",
             "guides/integrations/api-compatibility",
             "guides/integrations/external-login-providers",

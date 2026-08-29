@@ -87,11 +87,17 @@ func (c *ChattoCore) WatchOAuthClientAccessDenied(clientID string) (<-chan struc
 // committed, the undisclosed code is removed so callers cannot complete an
 // authorization that is absent from the administrator inventory.
 func (c *ChattoCore) CreateOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
-	return c.createOAuthClientAuthorizationCode(ctx, authorization, redirectURI, codeChallenge, codeChallengeMethod, authGeneration, c.oauthClientModel.projection.Projector().WaitFor)
+	return c.CreateOAuthClientAuthorizationCodeForGrant(ctx, authorization, "", nil, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
 }
 
-func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64, waitFor func(context.Context, events.StreamPosition) error) (string, error) {
-	code, err := c.CreateAuthCodeForClientGeneration(ctx, authorization.UserID, authorization.ClientID, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
+// CreateOAuthClientAuthorizationCodeForGrant creates a code bound to one
+// delegated resource and normalized scope set before it records authorization.
+func (c *ChattoCore) CreateOAuthClientAuthorizationCodeForGrant(ctx context.Context, authorization OAuthClientAuthorization, resource string, scopes []string, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+	return c.createOAuthClientAuthorizationCode(ctx, authorization, resource, scopes, redirectURI, codeChallenge, codeChallengeMethod, authGeneration, c.oauthClientModel.projection.Projector().WaitFor)
+}
+
+func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, resource string, scopes []string, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64, waitFor func(context.Context, events.StreamPosition) error) (string, error) {
+	code, err := c.CreateAuthCodeForClientGrantGeneration(ctx, authorization.UserID, authorization.ClientID, resource, scopes, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
 	if err != nil {
 		return "", err
 	}

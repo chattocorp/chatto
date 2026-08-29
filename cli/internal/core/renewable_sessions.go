@@ -56,15 +56,17 @@ type BearerSessionCredentials struct {
 // one human bearer login. CurrentGeneration and the KV revision jointly fence
 // refresh-token rotation across replicas.
 type RenewableSession struct {
-	UserID            string                       `json:"user_id"`
-	ClientID          string                       `json:"client_id,omitempty"`
-	Kind              AuthTokenKind                `json:"kind"`
-	Source            string                       `json:"source,omitempty"`
+	UserID            string                      `json:"user_id"`
+	ClientID          string                      `json:"client_id,omitempty"`
+	Resource          string                      `json:"resource,omitempty"`
+	Scopes            []string                    `json:"scopes,omitempty"`
+	Kind              AuthTokenKind               `json:"kind"`
+	Source            string                      `json:"source,omitempty"`
 	Request           *evtv1.AuditRequestMetadata `json:"request,omitempty"`
-	CreatedAt         time.Time                    `json:"created_at"`
-	ExpiresAt         time.Time                    `json:"expires_at"`
-	AuthGeneration    uint64                       `json:"auth_generation"`
-	CurrentGeneration uint64                       `json:"current_generation"`
+	CreatedAt         time.Time                   `json:"created_at"`
+	ExpiresAt         time.Time                   `json:"expires_at"`
+	AuthGeneration    uint64                      `json:"auth_generation"`
+	CurrentGeneration uint64                      `json:"current_generation"`
 	// LastRefreshRequestVerifier is a purpose-separated HMAC of the show-once
 	// recovery nonce. The raw nonce must not enter runtime state or backups.
 	LastRefreshRequestVerifier string    `json:"last_refresh_request_verifier,omitempty"`
@@ -169,10 +171,16 @@ func (c *ChattoCore) CreateBearerSessionWithSourceGeneration(ctx context.Context
 // CreateOAuthBearerSessionForClient creates a renewable delegated bearer
 // session bound to the public OAuth client that completed authorization.
 func (c *ChattoCore) CreateOAuthBearerSessionForClient(ctx context.Context, userID, clientID string, authGeneration uint64) (BearerSessionCredentials, error) {
+	return c.CreateOAuthBearerSessionForClientGrant(ctx, userID, clientID, "", nil, authGeneration)
+}
+
+// CreateOAuthBearerSessionForClientGrant creates a delegated bearer session
+// bound to one OAuth resource and its normalized scope set.
+func (c *ChattoCore) CreateOAuthBearerSessionForClientGrant(ctx context.Context, userID, clientID, resource string, scopes []string, authGeneration uint64) (BearerSessionCredentials, error) {
 	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
 		return BearerSessionCredentials{}, err
 	}
-	credentials, err := c.createBearerSession(ctx, userID, clientID, "oauth_code_exchange", authGeneration)
+	credentials, err := c.createBearerSessionForGrant(ctx, userID, clientID, resource, scopes, "oauth_code_exchange", authGeneration)
 	if err != nil {
 		return BearerSessionCredentials{}, err
 	}
@@ -184,6 +192,10 @@ func (c *ChattoCore) CreateOAuthBearerSessionForClient(ctx context.Context, user
 }
 
 func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, source string, authGeneration uint64) (BearerSessionCredentials, error) {
+	return c.createBearerSessionForGrant(ctx, userID, clientID, "", nil, source, authGeneration)
+}
+
+func (c *ChattoCore) createBearerSessionForGrant(ctx context.Context, userID, clientID, resource string, scopes []string, source string, authGeneration uint64) (BearerSessionCredentials, error) {
 	if userID == "" {
 		return BearerSessionCredentials{}, ErrAuthTokenNotFound
 	}
@@ -205,6 +217,8 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 	session := RenewableSession{
 		UserID:            userID,
 		ClientID:          clientID,
+		Resource:          resource,
+		Scopes:            append([]string(nil), scopes...),
 		Kind:              authTokenKindForSource(source),
 		Source:            source,
 		Request:           auditRequestMetadata(ctx),
@@ -266,6 +280,8 @@ func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID stri
 	data := AuthTokenData{
 		UserID:             session.UserID,
 		ClientID:           session.ClientID,
+		Resource:           session.Resource,
+		Scopes:             append([]string(nil), session.Scopes...),
 		Kind:               session.Kind,
 		Presentation:       AuthTokenPresentationBearer,
 		Source:             session.Source,

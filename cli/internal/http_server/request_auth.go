@@ -139,7 +139,7 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 			},
 		}, true, nil
 	}
-	credential, err := s.core.ValidatePresentedRuntimeCredential(ctx, token, core.AuthTokenPresentationBearer)
+	credential, err := s.core.ValidatePublicBearerCredential(ctx, token)
 	if err != nil {
 		if errors.Is(err, core.ErrAuthTokenNotFound) {
 			return presentedRuntimeCredential{}, false, nil

@@ -64,6 +64,10 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Client application** — Browser, desktop, mobile app, or integration that a user authorizes to access a Chatto server; its stable identity comes from CIMD or a built-in registration. A client appears in server administration after completing at least one user-approved authorization. Administrators may label it trusted or block it, but trust never replaces user consent. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
+**MCP server** — Optional Chatto runtime unit that lets an agent host discover and call bounded user-scoped tools through the Model Context Protocol. It has no Operator API authority. See [FDR-043](fdr/FDR-043-model-context-protocol-integration.md) and [ADR-085](adr/ADR-085-agent-integration-through-mcp.md).
+
+**MCP scope** — OAuth grant ceiling for one class of MCP tools, such as `chatto:rooms:read`. It limits delegated agent authority in addition to normal Chatto permissions and resource visibility. It is not an RBAC permission.
+
 **Bot account** — Passwordless user identity for an integration, explicitly owned by a human and marked as a bot. It receives only directly configured permissions, capped by the owner's current authority. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
 **Bot API key** — A bot account's sole non-expiring bearer credential, shown only at creation or rotation. Chatto stores its verifier as a durable EVT fact, never the raw key. See [FDR-038](fdr/FDR-038-bot-accounts.md).

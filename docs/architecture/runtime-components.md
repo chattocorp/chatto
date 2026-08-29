@@ -16,14 +16,17 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
-`chatto run` composes optional runtime units from a validated catalogue. Each
-registration supplies the same `runtimeunit.Unit` used by its standalone
-command plus a config predicate controlling whether it starts in the main
-process. The exporter, bundled search provider, and asset-processing worker are
-registered units. An embedded unit failure is logged and degrades that optional
-capability without stopping the core server. The catalogue supervisor restarts
-it with exponential backoff capped at 30 seconds, while the same failure still
-exits a standalone unit for its process supervisor.
+`chatto run` composes optional runtime units from a validated catalogue. A
+registration supplies a `runtimeunit.Unit` plus a config predicate that
+controls whether it starts in the main process. Standalone-capable units also
+use the same implementation in a standalone command. The exporter, bundled
+search provider, asset-processing worker, and MCP server are registered units.
+The MCP server is a main-app auxiliary unit. It runs only in `chatto run`
+because its tools use operation models from the main `ChattoCore`. An
+embedded unit failure is logged and degrades that optional capability without
+stopping the core server. The catalogue supervisor restarts it with
+exponential backoff capped at 30 seconds. A standalone-capable unit failure
+still exits for its process supervisor.
 Independently deployable providers use this catalogue rather than adding
 custom startup blocks.
 
@@ -82,6 +85,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | Embedded NATS runtime           | [`nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`server.go`](../../pkg/natsruntime/server.go), [`restore.go`](../../cli/cmd/restore.go) | `chatto run` maps Chatto-owned listener, authentication, monitoring, logging, and storage policy into the shared server lifecycle; restore uses the same lifecycle with a temporary in-process-only server |
 | Runtime-unit catalogue          | [`run.go`](../../cli/cmd/run.go), [`runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go)                                                              | Validated composition and capped-backoff supervision of optional units under `chatto run` using the same unit implementations as standalone commands |
 | `exporter.Unit`                 | [`unit.go`](../../cli/internal/exporter/unit.go)                                                                                                                 | Optional export runtime started by `[exporter].enabled` under `chatto run` or directly by its standalone command                               |
+| `mcpserver.Unit`                | [`unit.go`](../../cli/internal/mcpserver/unit.go)                                                                                                                | Experimental network MCP server started by `[mcp].enabled`; owns a separate HTTP listener and lifecycle, validates resource-bound OAuth access tokens or bot API keys, and adapts tools to main-app operation models |
 | `bleve.Unit`                    | [`unit.go`](../../cli/internal/search/bleve/unit.go), [`search_provider.go`](../../cli/cmd/search_provider.go)                                                    | Bundled message-search provider with the runtime diagnostic identity `search.BleveProvider`, started by `[search_provider].enabled` under `chatto run` or as `chatto search-provider`; opens existing EVT and encryption resources without starting `ChattoCore`, exposes status during startup replay, and joins the shared query queue only after replay is current |
 | `video.Unit`                    | [`unit.go`](../../cli/internal/video/unit.go), [`asset_processing.go`](../../cli/cmd/asset_processing.go), [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go) | Durable asset-processing worker started by `[asset_processing].enabled` under `chatto run` or explicitly as `chatto asset-processing`; `[asset_processing]` also owns its ffmpeg paths, temporary directory, and per-process concurrency; runs a private AssetProjection without starting `ChattoCore` or main-app boot mutations |
 | `MyEventsModel`                  | [`my_events_model.go`](../../cli/internal/core/my_events_model.go), [`realtime_replay.go`](../../cli/internal/core/realtime_replay.go)                           | Eagerly wired `myEvents` live delivery, bounded EVT-gap planning, projection readiness, heartbeats, per-user room and thread authorization, and process-local stream counters |

@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-29
 
 ## Overview
 
@@ -360,12 +360,13 @@ they do not write it.
   runtime credentials), ADR-051 (resumable client projection), ADR-052
   (subject-specific RBAC), ADR-076 (deterministic notification occurrences),
   ADR-077 (persistent notification list), ADR-080 (explicit message-read
-  permissions), ADR-083 (action-limited bot incoming webhooks)
+  permissions), ADR-083 (action-limited bot incoming webhooks), ADR-085
+  (user-scoped MCP integration)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
   (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018
   (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &
   Sessions), FDR-025 (User Search & Member Directory), FDR-039 (Message Access
-  & Interactions)
+  & Interactions), FDR-043 (Model Context Protocol Integration)
 
 ## Open Questions
 
