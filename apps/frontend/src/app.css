@@ -569,7 +569,7 @@
   /* A current route declares itself semantically. The shared item then gives
    * every sidebar navigation surface the same quiet action-coloured treatment. */
   &[aria-current='page'] {
-    @apply bg-action/10 font-medium text-text-top hover:bg-action/15 hover:text-text-top active:bg-action/20;
+    @apply bg-action/10 text-text-top hover:bg-action/15 hover:text-text-top active:bg-action/20;
     @apply focus-visible:bg-action/10;
   }
 
