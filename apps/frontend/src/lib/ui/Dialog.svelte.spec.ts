@@ -234,8 +234,8 @@ describe('Dialog', () => {
       // browser-driven implicit form-submission path — dispatches a click
       // with clientX/clientY=0 and detail=0. That click bubbles to the
       // <dialog>, and the coordinate-based backdrop check would otherwise
-      // misread (0,0) as a backdrop click and close the dialog. Regression
-      // for the bug that closed AddServerDialog after probe.
+      // misread (0,0) as a backdrop click and close the dialog. Keep this
+      // regression coverage for asynchronous form-dialog submissions.
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<button type="button" data-testid="inside">Inside</button>')

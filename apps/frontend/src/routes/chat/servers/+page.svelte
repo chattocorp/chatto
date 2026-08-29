@@ -1,0 +1,260 @@
+<script lang="ts">
+  import { ConnectError } from '@connectrpc/connect';
+  import { createQuery } from '@tanstack/svelte-query';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
+  import {
+    getPublicServerInfo,
+    InvalidPublicServerError,
+    type PublicServerInfo
+  } from '$lib/api-client/server';
+  import { startRemoteReauthentication, startServerOAuthFlow } from '$lib/auth/reauth';
+  import { m } from '$lib/i18n/messages';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { queryClient } from '$lib/query/client';
+  import {
+    canonicalServerOrigin,
+    loadServerDirectory,
+    type ServerDirectoryEntry
+  } from '$lib/serverDirectory';
+  import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
+  import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
+  import { Button, Form, TextInput } from '$lib/ui/form';
+  import ServerDirectoryCard from './ServerDirectoryCard.svelte';
+
+  let customInput = $state('');
+  let customOrigin = $state('');
+  let customProfile = $state<PublicServerInfo | null>(null);
+  let customError = $state('');
+  let probing = $state(false);
+  let pendingOrigin = $state<string | null>(null);
+  let actionError = $state('');
+
+  const registeredOrigins = $derived.by(() => [
+    ...new Set(
+      serverRegistry.servers.flatMap((server) => {
+        const origin = canonicalServerOrigin(server.url);
+        return origin ? [origin] : [];
+      })
+    )
+  ]);
+  const directoryQuery = createQuery(
+    () => ({
+      queryKey: ['public', 'server-directory', registeredOrigins],
+      queryFn: ({ signal }) => loadServerDirectory(registeredOrigins, { signal }),
+      staleTime: 0,
+      refetchOnMount: 'always'
+    }),
+    () => queryClient
+  );
+  const entries = $derived(directoryQuery.data?.entries ?? []);
+  const allSourcesFailed = $derived(
+    !!directoryQuery.data &&
+      directoryQuery.data.sourceCount > 0 &&
+      directoryQuery.data.failedSourceCount === directoryQuery.data.sourceCount
+  );
+  const someSourcesFailed = $derived(
+    !!directoryQuery.data && directoryQuery.data.failedSourceCount > 0 && !allSourcesFailed
+  );
+
+  function normalizeCustomInput(value: string): string {
+    const trimmed = value.trim();
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  }
+
+  function hasScheme(value: string): boolean {
+    return /^https?:\/\//i.test(value.trim());
+  }
+
+  async function probeCustomServer() {
+    customError = '';
+    customProfile = null;
+    customOrigin = '';
+    const initialOrigin = canonicalServerOrigin(normalizeCustomInput(customInput));
+    if (!initialOrigin) {
+      customError = m('add_server.invalid_url');
+      return;
+    }
+
+    probing = true;
+    try {
+      let origin = initialOrigin;
+      let profile: PublicServerInfo;
+      try {
+        profile = await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
+      } catch (error) {
+        if (hasScheme(customInput) || !origin.startsWith('https://')) throw error;
+        origin = `http://${origin.slice('https://'.length)}`;
+        profile = await getPublicServerInfo(origin, { signal: AbortSignal.timeout(10_000) });
+      }
+      customOrigin = origin;
+      customProfile = profile;
+    } catch (error) {
+      customError = discoveryError(error);
+    } finally {
+      probing = false;
+    }
+  }
+
+  function registeredServer(origin: string): RegisteredServer | undefined {
+    return serverRegistry.servers.find(
+      (server) => canonicalServerOrigin(server.url) === canonicalServerOrigin(origin)
+    );
+  }
+
+  function actionLabel(origin: string, profile: PublicServerInfo | null): string {
+    const joined = registeredServer(origin);
+    if (joined) {
+      return serverRegistry.isAuthenticated(joined.id)
+        ? m('add_server.directory.open')
+        : m('add_server.sign_in');
+    }
+    if (!profile?.authorizeUrl) return m('add_server.directory.sign_in_unavailable');
+    return m('add_server.directory.join');
+  }
+
+  async function openOrJoin(origin: string, profile: PublicServerInfo | null) {
+    actionError = '';
+    const joined = registeredServer(origin);
+    if (!joined && (!profile || !profile.authorizeUrl)) return;
+    pendingOrigin = origin;
+    try {
+      if (joined && serverRegistry.isAuthenticated(joined.id)) {
+        await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(joined.id) }));
+      } else if (joined) {
+        await startRemoteReauthentication(joined);
+      } else if (profile) {
+        await startServerOAuthFlow(origin, profile);
+      }
+    } catch {
+      actionError = m('add_server.start_failed');
+    } finally {
+      pendingOrigin = null;
+    }
+  }
+
+  function discoveryError(error: unknown): string {
+    if (
+      error instanceof DOMException &&
+      (error.name === 'AbortError' || error.name === 'TimeoutError')
+    ) {
+      return m('add_server.connection_timed_out');
+    }
+    if (error instanceof InvalidPublicServerError) return m('add_server.not_chatto_server');
+    if (error instanceof TypeError || error instanceof ConnectError) {
+      return m('add_server.connection_failed');
+    }
+    return error instanceof Error ? error.message : m('add_server.connect_failed');
+  }
+
+  function cardDisabled(entry: ServerDirectoryEntry): boolean {
+    return !registeredServer(entry.origin) && !entry.profile?.authorizeUrl;
+  }
+</script>
+
+<PageTitle title={m('add_server.directory.title')} />
+
+<div class="pane-page">
+  <PaneHeader
+    title={m('add_server.directory.title')}
+    subtitle={m('add_server.directory.subtitle')}
+    showMobileNav
+  />
+
+  <PaneContent>
+    <div class="flex flex-col gap-6">
+      <Panel title={m('add_server.directory.custom_title')}>
+        <Form onsubmit={probeCustomServer} error={customError} maxWidth="max-w-2xl">
+          <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end">
+            <div class="min-w-0 flex-1">
+              <TextInput
+                id="add-server-url"
+                label={m('add_server.url_label')}
+                bind:value={customInput}
+                placeholder={m('add_server.url_placeholder')}
+                leadingIcon="icon-[uil--globe]"
+                disabled={probing}
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              loading={probing}
+              loadingText={m('add_server.connecting')}
+              disabled={!customInput.trim()}
+            >
+              {m('add_server.directory.find')}
+            </Button>
+          </div>
+        </Form>
+
+        {#if customProfile && customOrigin}
+          {@const joined = registeredServer(customOrigin)}
+          <div class="mt-5 max-w-md">
+            <ServerDirectoryCard
+              origin={customOrigin}
+              profile={customProfile}
+              joined={!!joined}
+              actionLabel={actionLabel(customOrigin, customProfile)}
+              actionLoading={pendingOrigin === customOrigin}
+              actionDisabled={!joined && !customProfile.authorizeUrl}
+              onaction={() => openOrJoin(customOrigin, customProfile)}
+            />
+          </div>
+        {/if}
+      </Panel>
+
+      <Panel
+        title={m('add_server.directory.servers_title')}
+        subtitle={m('add_server.directory.servers_description')}
+        count={entries.length || undefined}
+      >
+        {#if actionError}
+          <div class="mb-4"><Hint tone="danger">{actionError}</Hint></div>
+        {/if}
+        {#if someSourcesFailed}
+          <div class="mb-4"><Hint tone="warning">{m('add_server.directory.partial')}</Hint></div>
+        {/if}
+
+        {#if directoryQuery.isPending}
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+            {#each Array(3) as _, index (index)}
+              <div class="h-64 rounded-xl bg-surface skeleton"></div>
+            {/each}
+          </div>
+        {:else if directoryQuery.isError || allSourcesFailed}
+          <EmptyState
+            icon="icon-[uil--exclamation-triangle]"
+            title={m('add_server.directory.unavailable_title')}
+          >
+            <div class="flex flex-col items-center gap-3">
+              <span>{m('add_server.directory.unavailable_body')}</span>
+              <Button variant="secondary" onclick={() => directoryQuery.refetch()}>
+                {m('common.retry')}
+              </Button>
+            </div>
+          </EmptyState>
+        {:else if entries.length === 0}
+          <EmptyState icon="icon-[uil--compass]" title={m('add_server.directory.empty_title')}>
+            {m('add_server.directory.empty_body')}
+          </EmptyState>
+        {:else}
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {#each entries as entry (entry.origin)}
+              {@const joined = registeredServer(entry.origin)}
+              <ServerDirectoryCard
+                origin={entry.origin}
+                profile={entry.profile}
+                joined={!!joined}
+                actionLabel={actionLabel(entry.origin, entry.profile)}
+                actionLoading={pendingOrigin === entry.origin}
+                actionDisabled={cardDisabled(entry)}
+                onaction={() => openOrJoin(entry.origin, entry.profile)}
+              />
+            {/each}
+          </div>
+        {/if}
+      </Panel>
+    </div>
+  </PaneContent>
+</div>

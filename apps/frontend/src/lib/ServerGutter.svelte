@@ -6,6 +6,8 @@ is connected to, plus the add-server button pinned to the bottom. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script lang="ts">
+  import { resolve } from '$app/paths';
+  import { page } from '$app/state';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { ServerPermissions } from '$lib/state/server/permissions';
   import { m } from '$lib/i18n/messages';
@@ -27,14 +29,8 @@ is connected to, plus the add-server button pinned to the bottom. See the
 
   void anyServerHasPermission;
 
-  let addServerDialogVisible = $state(false);
-  let addServerDialogModule: Promise<typeof import('./components/AddServerDialog.svelte')> | null =
-    null;
-
-  function loadAddServerDialog() {
-    addServerDialogModule ??= import('./components/AddServerDialog.svelte');
-    return addServerDialogModule;
-  }
+  const directoryHref = resolve('/chat/servers');
+  const directoryActive = $derived(page.route.id === '/chat/servers');
 </script>
 
 <div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border">
@@ -55,25 +51,17 @@ is connected to, plus the add-server button pinned to the bottom. See the
 
   <!-- Add Server - pinned to the bottom -->
   <div class="flex shrink-0 flex-col items-center gap-2 p-2 max-md:ps-3">
-    <button
-      type="button"
-      onclick={() => (addServerDialogVisible = true)}
+    <a
+      href={directoryHref}
       title={m('chat.server_gutter.add_server')}
+      aria-label={m('chat.server_gutter.add_server')}
+      aria-current={directoryActive ? 'page' : undefined}
       class={[
         'server-gutter-item cursor-pointer',
-        addServerDialogVisible && 'server-gutter-item-active'
+        directoryActive && 'server-gutter-item-active'
       ]}
     >
       <span class="iconify icon-[uil--plus]"></span>
-    </button>
+    </a>
   </div>
 </div>
-
-{#if addServerDialogVisible}
-  {#await loadAddServerDialog() then { default: AddServerDialog }}
-    <AddServerDialog
-      bind:visible={addServerDialogVisible}
-      onclose={() => (addServerDialogVisible = false)}
-    />
-  {/await}
-{/if}

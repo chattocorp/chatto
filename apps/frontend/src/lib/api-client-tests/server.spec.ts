@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPublicServerInfo } from '$lib/api-client/server';
+import {
+  getPublicNeighborOrigins,
+  getPublicServerInfo,
+  InvalidPublicServerError
+} from '$lib/api-client/server';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  getServer: vi.fn()
+  getServer: vi.fn(),
+  listNeighbors: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -19,13 +24,29 @@ vi.mock('@connectrpc/connect-web', () => ({
   createConnectTransport: mocks.createConnectTransport
 }));
 
-describe('getPublicServerInfo', () => {
+describe('public server discovery', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.getServer.mockReset();
+    mocks.listNeighbors.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({ getServer: mocks.getServer });
+    mocks.createClient.mockReturnValue({
+      getServer: mocks.getServer,
+      listNeighbors: mocks.listNeighbors
+    });
+  });
+
+  it('loads public Neighbor origins without authentication', async () => {
+    const signal = AbortSignal.timeout(1000);
+    mocks.listNeighbors.mockResolvedValue({
+      origins: ['https://one.example', 'https://two.example']
+    });
+
+    await expect(
+      getPublicNeighborOrigins('https://chat.example.test', { signal })
+    ).resolves.toEqual(['https://one.example', 'https://two.example']);
+    expect(mocks.listNeighbors).toHaveBeenCalledWith({}, { signal });
   });
 
   it('loads public server metadata and maps the shared profile', async () => {
@@ -103,5 +124,13 @@ describe('getPublicServerInfo', () => {
       iconUrl: null,
       bannerUrl: null
     });
+  });
+
+  it('rejects a response without a public server profile', async () => {
+    mocks.getServer.mockResolvedValue({});
+
+    await expect(getPublicServerInfo('https://invalid.example')).rejects.toBeInstanceOf(
+      InvalidPublicServerError
+    );
   });
 });

@@ -21,16 +21,7 @@
   let isLoading = $state(false);
   let selectedProviderId = $state<string | null>(null);
   let pageErrorDismissed = $state(false);
-  let addServerDialogVisible = $state(false);
-  let addServerDialogModule: Promise<
-    typeof import('$lib/components/AddServerDialog.svelte')
-  > | null = null;
   let connectingServerId = $state<string | null>(null);
-
-  function loadAddServerDialog() {
-    addServerDialogModule ??= import('$lib/components/AddServerDialog.svelte');
-    return addServerDialogModule;
-  }
 
   const canSubmit = $derived(identifier.trim() && password);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
@@ -173,7 +164,7 @@
           variant="action"
           size="lg"
           fullWidth
-          onclick={() => (addServerDialogVisible = true)}
+          href={resolve('/chat/servers')}
         >
           <span class="iconify icon-[mdi--plus] text-lg"></span>
           {m('auth.login.add_server')}
@@ -309,13 +300,4 @@
       </Button>
     {/if}
   </AuthLayout>
-{/if}
-
-{#if addServerDialogVisible}
-  {#await loadAddServerDialog() then { default: AddServerDialog }}
-    <AddServerDialog
-      bind:visible={addServerDialogVisible}
-      onclose={() => (addServerDialogVisible = false)}
-    />
-  {/await}
 {/if}

@@ -1,22 +1,32 @@
 {
   "add_server": {
-    "title": "Server hinzufügen",
     "sign_in": "Anmelden",
-    "connect": "Verbinden",
-    "redirecting": "Warten auf Anmeldung...",
     "connecting": "Verbindung wird hergestellt...",
     "start_failed": "Anmeldung konnte nicht gestartet werden.",
     "invalid_url": "Bitte gib eine gültige URL ein.",
-    "already_connected": "Dieser Server ist bereits verbunden.",
-    "not_chatto_server": "Das scheint kein Chatto-Server zu sein.",
-    "oauth_unsupported": "Dieser Server unterstützt keine OAuth-Authentifizierung. Möglicherweise muss er aktualisiert werden.",
     "connection_timed_out": "Zeitüberschreitung beim Verbindungsaufbau. Prüfe die URL und versuche es erneut.",
     "connection_failed": "Verbindung fehlgeschlagen. Prüfe die URL und versuche es erneut.",
     "connect_failed": "Verbindung fehlgeschlagen.",
-    "edit_url": "Falscher Server? URL bearbeiten",
-    "description_url": "Chatto ist verteilt - dein Client verbindet sich direkt mit jedem Server. Gib eine URL ein, um einen weiteren hinzuzufügen.",
-    "description_preview": "Ein separates Fenster wird geöffnet, damit du dich direkt auf diesem Server anmelden kannst.",
     "url_label": "Server-URL",
-    "url_placeholder": "chat.example.com"
+    "url_placeholder": "chat.example.com",
+    "not_chatto_server": "Das scheint kein Chatto-Server zu sein.",
+    "directory": {
+      "title": "Serververzeichnis",
+      "subtitle": "Andere Chatto-Server entdecken",
+      "custom_title": "Direkt verbinden",
+      "find": "Server suchen",
+      "servers_title": "Server",
+      "servers_description": "Von Servern empfohlen, denen du beigetreten bist. Die Ergebnisse haben keine Rangfolge.",
+      "joined": "Beigetreten",
+      "join": "Beitreten",
+      "open": "Öffnen",
+      "sign_in_unavailable": "Anmeldung nicht verfügbar",
+      "profile_unavailable": "Das öffentliche Profil dieses Servers konnte nicht geladen werden.",
+      "partial": "Einige deiner Server konnten keine Empfehlungen liefern.",
+      "unavailable_title": "Verzeichnis nicht verfügbar",
+      "unavailable_body": "Deine Server konnten keine Empfehlungen liefern. Du kannst dich weiterhin direkt verbinden.",
+      "empty_title": "Noch keine empfohlenen Server",
+      "empty_body": "Du kannst dich weiterhin direkt über eine Serveradresse verbinden."
+    }
   }
 }

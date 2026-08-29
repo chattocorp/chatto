@@ -59,6 +59,13 @@ describe('standalone server selection', () => {
     );
   });
 
+  it('opens the full Server Directory instead of a modal', async () => {
+    const { getByRole } = render(LoginPage, { props: { data: standaloneData } });
+
+    const link = getByRole('link', { name: 'Connect to a server' });
+    await expect.element(link).toHaveAttribute('href', '/chat/servers');
+  });
+
   it('shows provider errors without password controls when password login is disabled', async () => {
     const { getByRole, getByLabelText, getByText } = render(LoginPage, {
       props: {

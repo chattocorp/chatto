@@ -17,6 +17,16 @@ recommendation, not a trust or reciprocal relationship.
   can advertise at most 100 Neighbors.
 - The directory has no ordering contract.
 - Any caller can list the advertised origins through the public discovery API.
+- The Server Directory page combines the direct Neighbors from all servers
+  registered in the client. It removes duplicate canonical origins but does
+  not rank or sort the results.
+- The client loads each advertised server's public name, description, logo,
+  and banner. A failed source or profile request does not hide results from
+  other servers.
+- An advertised server that is already registered remains visible and is
+  marked as joined.
+- A user can enter a server address directly when the wanted server is not in
+  the directory.
 - The advertising server does not contact a Neighbor. It does not test
   reachability, compatibility, ownership, or consent.
 - `server.manage-neighbors` controls administrative access. The permission is
@@ -51,16 +61,19 @@ server-to-server communication, queues, or a request lifecycle.
 **Tradeoff:** An advertised server has not confirmed the relationship.
 Administrators and clients must not present a Neighbor as trusted or mutual.
 
-### 3. The server stores origins but does not fetch them
+### 3. The server stays passive and the client loads public profiles
 
 **Decision:** The server validates and stores canonical origins. It does not
-request discovery data, images, or health information from a Neighbor.
+request discovery data, images, or health information from a Neighbor. The
+client requests public discovery data directly from advertised origins when it
+builds the Server Directory.
 
 **Why:** Passive storage keeps writes deterministic and avoids remote effects
 inside the configuration operation.
 
-**Tradeoff:** The directory can contain an offline server or a server that is
-not Chatto. A client can discover this when a user later chooses that server.
+**Tradeoff:** Opening the Server Directory sends browser requests to advertised
+servers. An offline or invalid server appears without a public profile, while
+the rest of the directory remains available.
 
 ### 4. Permission inclusion is explicit
 
@@ -85,11 +98,24 @@ capability flags would duplicate that policy.
 **Tradeoff:** A client that supports several server releases must handle the
 missing method explicitly.
 
+### 6. Joined servers remain visible
+
+**Decision:** The Server Directory does not remove an advertised origin when
+that server is already in the device-local server catalogue. It marks the
+server as joined and offers the applicable open or sign-in action.
+
+**Why:** The complete directory shows the recommendation network without
+making entries disappear after a user joins them.
+
+**Tradeoff:** The directory includes entries that do not offer a new server to
+join.
+
 ## Non-goals
 
 - Reciprocal requests, approval, rejection, or revocation
 - Server-to-server authentication or trust
 - Recursive Neighbor discovery
+- Directory ranking or sorting
 - Remote-server moderation or blocking
 - Server-side reachability or compatibility checks
 

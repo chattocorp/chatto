@@ -28,6 +28,22 @@ Neighbor first. Reload the list, review the current origin, and try again.
 The directory has no ordering contract. Clients must not use its response order
 as a rank or preference.
 
+## Use the Server Directory
+
+Select **Add Server** in the Server Gutter to open the Server Directory. The
+client combines the direct Neighbors advertised by every server that is
+registered on the device. It removes duplicate origins, but it does not sort or
+rank the results.
+
+The client requests each advertised server's public profile. A result can show
+the server name, description, logo, and banner. If a server is offline or does
+not return a valid public profile, its origin remains visible. A failed server
+does not prevent the client from showing other results.
+
+Servers that are already registered remain in the directory and have a
+**Joined** label. Use the direct server-address field when the wanted server is
+not listed.
+
 ## Understand the trust boundary
 
 The Chatto server stores and publishes the origin. It does not contact the
@@ -40,6 +56,10 @@ Neighbor. It does not verify that:
 
 Reciprocal confirmation is future work. Describe current Neighbors as
 advertised or recommended servers, not as verified partners.
+
+Opening the Server Directory makes the client contact advertised origins and
+load their public images. The server-side Neighbor configuration remains
+passive.
 
 ## Use the API
 

@@ -14,7 +14,16 @@ type StoreMock = {
 
 const mocks = vi.hoisted(() => ({
   servers: [] as ServerMock[],
-  stores: new Map<string, StoreMock>()
+  stores: new Map<string, StoreMock>(),
+  routeId: '/chat/-/overview'
+}));
+
+vi.mock('$app/state', () => ({
+  page: {
+    get route() {
+      return { id: mocks.routeId };
+    }
+  }
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -39,6 +48,7 @@ import ServerGutter from './ServerGutter.svelte';
 beforeEach(() => {
   mocks.servers = [];
   mocks.stores = new SvelteMap();
+  mocks.routeId = '/chat/-/overview';
 });
 
 describe('ServerGutter', () => {
@@ -79,5 +89,15 @@ describe('ServerGutter', () => {
     await vi.waitFor(() => {
       expect(container.querySelector('[data-testid="server-entry"]')).not.toBe(originalEntry);
     });
+  });
+
+  it('links the add action to the full Server Directory page', () => {
+    mocks.routeId = '/chat/servers';
+
+    const { container } = render(ServerGutter);
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/servers"]');
+
+    expect(link?.getAttribute('aria-current')).toBe('page');
+    expect(link?.className).toContain('server-gutter-item-active');
   });
 });

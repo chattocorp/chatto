@@ -1,22 +1,32 @@
 {
   "add_server": {
-    "title": "Aldonu Servilon",
     "sign_in": "Ensalutu",
-    "connect": "Konekti",
-    "redirecting": "Atendante ensaluton...",
     "connecting": "Konektante...",
     "start_failed": "Malsukcesis komenci ensaluti.",
     "invalid_url": "Bonvolu enigi validan URL.",
-    "already_connected": "Ĉi tiu servilo jam estas konektita.",
-    "not_chatto_server": "Ĉi tio ne ŝajnas esti Chatto-servilo.",
-    "oauth_unsupported": "Ĉi tiu servilo ne subtenas OAuth-aŭtentikigon. Ĝi eble devas esti ĝisdatigita.",
     "connection_timed_out": "Konekto elĉerpita. Kontrolu la URL kaj provu denove.",
     "connection_failed": "Ne eblis konekti. Kontrolu la URL kaj provu denove.",
     "connect_failed": "Malsukcesis konekti.",
-    "edit_url": "Ĉu malĝusta servilo? Redaktu URL",
-    "description_url": "Chatto estas distribuita - via kliento konektas rekte al ĉiu servilo. Enigu URL por aldoni alian.",
-    "description_preview": "Aparta fenestro malfermiĝos, por ke vi povu ensaluti rekte en ĉi tiu servilo.",
     "url_label": "Servilo URL",
-    "url_placeholder": "babilejo.ekzemplo.com"
+    "url_placeholder": "babilejo.ekzemplo.com",
+    "not_chatto_server": "Ĉi tio ne ŝajnas esti Chatto-servilo.",
+    "directory": {
+      "title": "Server Directory",
+      "subtitle": "Discover other Chatto servers",
+      "custom_title": "Connect directly",
+      "find": "Find server",
+      "servers_title": "Servers",
+      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "joined": "Joined",
+      "join": "Join",
+      "open": "Open",
+      "sign_in_unavailable": "Sign-in unavailable",
+      "profile_unavailable": "This server's public profile could not be loaded.",
+      "partial": "Some joined servers could not provide their recommendations.",
+      "unavailable_title": "Directory unavailable",
+      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
+      "empty_title": "No recommended servers yet",
+      "empty_body": "You can still connect directly with a server address."
+    }
   }
 }

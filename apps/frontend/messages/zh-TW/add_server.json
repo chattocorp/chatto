@@ -1,22 +1,32 @@
 {
   "add_server": {
-    "title": "新增伺服器",
     "sign_in": "登入",
-    "connect": "連線",
-    "redirecting": "正在等待登入...",
     "connecting": "正在連線...",
     "start_failed": "無法開始登入。",
     "invalid_url": "請輸入有效的 URL。",
-    "already_connected": "已連線至此伺服器。",
-    "not_chatto_server": "這似乎不是 Chatto 伺服器。",
-    "oauth_unsupported": "此伺服器不支援 OAuth 驗證，可能需要更新。",
     "connection_timed_out": "連線逾時。請檢查 URL 後再試一次。",
     "connection_failed": "無法連線。請檢查 URL，然後再試一次。",
     "connect_failed": "連線失敗。",
-    "edit_url": "伺服器不對？編輯 URL",
-    "description_url": "Chatto 採分散式架構，用戶端會直接連線至各個伺服器。輸入 URL 即可新增另一個伺服器。",
-    "description_preview": "系統將開啟另一個視窗，讓你直接登入此伺服器。",
     "url_label": "伺服器 URL",
-    "url_placeholder": "chat.example.com"
+    "url_placeholder": "chat.example.com",
+    "not_chatto_server": "這似乎不是 Chatto 伺服器。",
+    "directory": {
+      "title": "Server Directory",
+      "subtitle": "Discover other Chatto servers",
+      "custom_title": "Connect directly",
+      "find": "Find server",
+      "servers_title": "Servers",
+      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "joined": "Joined",
+      "join": "Join",
+      "open": "Open",
+      "sign_in_unavailable": "Sign-in unavailable",
+      "profile_unavailable": "This server's public profile could not be loaded.",
+      "partial": "Some joined servers could not provide their recommendations.",
+      "unavailable_title": "Directory unavailable",
+      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
+      "empty_title": "No recommended servers yet",
+      "empty_body": "You can still connect directly with a server address."
+    }
   }
 }

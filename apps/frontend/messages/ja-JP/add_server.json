@@ -1,22 +1,32 @@
 {
   "add_server": {
-    "title": "サーバーを追加",
     "sign_in": "サインイン",
-    "connect": "接続する",
-    "redirecting": "サインインを待っています...",
     "connecting": "接続中...",
     "start_failed": "サインインの開始に失敗しました。",
     "invalid_url": "有効な URL を入力してください。",
-    "already_connected": "このサーバーはすでに接続されています。",
-    "not_chatto_server": "これは Chatto サーバーではないようです。",
-    "oauth_unsupported": "このサーバーは OAuth 認証をサポートしていません。更新する必要がある場合があります。",
     "connection_timed_out": "接続がタイムアウトしました。 URL を確認して、再試行してください。",
     "connection_failed": "接続できませんでした。URL を確認して、もう一度お試しください。",
     "connect_failed": "接続に失敗しました。",
-    "edit_url": "サーバーが間違っていますか? URLを編集",
-    "description_url": "Chatto が配布されています - クライアントは各サーバーに直接接続します。別のものを追加するには、「URL」と入力します。",
-    "description_preview": "別のウィンドウが開き、このサーバーに直接サインインできます。",
     "url_label": "サーバー URL",
-    "url_placeholder": "chat.example.com"
+    "url_placeholder": "chat.example.com",
+    "not_chatto_server": "これは Chatto サーバーではないようです。",
+    "directory": {
+      "title": "Server Directory",
+      "subtitle": "Discover other Chatto servers",
+      "custom_title": "Connect directly",
+      "find": "Find server",
+      "servers_title": "Servers",
+      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "joined": "Joined",
+      "join": "Join",
+      "open": "Open",
+      "sign_in_unavailable": "Sign-in unavailable",
+      "profile_unavailable": "This server's public profile could not be loaded.",
+      "partial": "Some joined servers could not provide their recommendations.",
+      "unavailable_title": "Directory unavailable",
+      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
+      "empty_title": "No recommended servers yet",
+      "empty_body": "You can still connect directly with a server address."
+    }
   }
 }

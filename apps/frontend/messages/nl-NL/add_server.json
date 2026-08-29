@@ -1,22 +1,32 @@
 {
   "add_server": {
-    "title": "Server toevoegen",
     "sign_in": "Inloggen",
-    "connect": "Verbinding maken",
-    "redirecting": "Wachten op aanmelden...",
     "connecting": "Verbinden...",
     "start_failed": "Kan inloggen niet starten.",
     "invalid_url": "Voer een geldige URL in.",
-    "already_connected": "Deze server is al verbonden.",
-    "not_chatto_server": "Dit lijkt geen Chatto-server te zijn.",
-    "oauth_unsupported": "Deze server ondersteunt geen OAuth-authenticatie. Mogelijk moet het worden bijgewerkt.",
     "connection_timed_out": "Er is een time-out opgetreden voor de verbinding. Controleer de URL en probeer het opnieuw.",
     "connection_failed": "Kan geen verbinding maken. Controleer de URL en probeer het opnieuw.",
     "connect_failed": "Kan geen verbinding maken.",
-    "edit_url": "Verkeerde server? Bewerk URL",
-    "description_url": "Chatto wordt gedistribueerd - uw client maakt rechtstreeks verbinding met elke server. Voer een URL in om nog een toe te voegen.",
-    "description_preview": "Er wordt een apart venster geopend, zodat je je rechtstreeks bij deze server kunt aanmelden.",
     "url_label": "Server URL",
-    "url_placeholder": "chat.example.com"
+    "url_placeholder": "chat.example.com",
+    "not_chatto_server": "Dit lijkt geen Chatto-server te zijn.",
+    "directory": {
+      "title": "Server Directory",
+      "subtitle": "Discover other Chatto servers",
+      "custom_title": "Connect directly",
+      "find": "Find server",
+      "servers_title": "Servers",
+      "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "joined": "Joined",
+      "join": "Join",
+      "open": "Open",
+      "sign_in_unavailable": "Sign-in unavailable",
+      "profile_unavailable": "This server's public profile could not be loaded.",
+      "partial": "Some joined servers could not provide their recommendations.",
+      "unavailable_title": "Directory unavailable",
+      "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
+      "empty_title": "No recommended servers yet",
+      "empty_body": "You can still connect directly with a server address."
+    }
   }
 }
