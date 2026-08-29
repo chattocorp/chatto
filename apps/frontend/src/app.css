@@ -106,9 +106,8 @@
   --color-on-success: var(--color-white);
   --color-warning: oklch(50% 0.13 60);
   --color-on-warning: var(--color-white);
-  /* Attention is brighter than warning so unread and pending states stay
-     noticeable without competing with a committed action. */
-  --color-attention: oklch(68% 0.15 80);
+  /* Notification attention stays bright and consistent across both themes. */
+  --color-attention: var(--color-amber-500);
   --color-on-attention: var(--color-neutral-950);
   --color-danger: oklch(49% 0.17 12);
   --color-on-danger: var(--color-white);
