@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // StreamRoomEventsLive creates a continuous stream of live events for a specific room.
@@ -21,7 +21,7 @@ import (
 // Reliability: Transient JetStream errors (heartbeat missed, leadership change) trigger automatic
 // retry with backoff. Terminal errors (connection closed, consumer deleted) close the channel.
 // Clients should handle channel closure by resubscribing if they want to continue receiving events.
-func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind RoomKind, room_id string) (<-chan *corev1.Event, error) {
+func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind RoomKind, room_id string) (<-chan *evtv1.Event, error) {
 	// Post-#597 cutover: room events live on the EVT stream under
 	// evt.room.{R}.>. We consume from there with DeliverNewPolicy so
 	// only events arriving after subscription are surfaced; the
@@ -37,7 +37,7 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind RoomKind, ro
 		return nil, fmt.Errorf("failed to create ordered consumer: %w", err)
 	}
 
-	eventChan := make(chan *corev1.Event)
+	eventChan := make(chan *evtv1.Event)
 
 	// Track current iterator for cleanup
 	var currentIter jetstream.MessagesContext
@@ -108,7 +108,7 @@ func (c *ChattoCore) StreamRoomEventsLive(ctx context.Context, kind RoomKind, ro
 				// Success - reset retry count
 				retryCount = 0
 
-				var event corev1.Event
+				var event evtv1.Event
 				if err := proto.Unmarshal(msg.Data(), &event); err != nil {
 					c.logger.Warn("Failed to unmarshal live event", "error", err)
 					continue

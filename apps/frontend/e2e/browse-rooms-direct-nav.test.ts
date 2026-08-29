@@ -23,7 +23,7 @@ test.describe('Browse Rooms direct navigation', () => {
 
     // Navigate directly to the Browse Rooms page by URL
     // This is the key test - direct navigation should work
-    await page.goto(routes.browseRooms);
+    await page.goto(routes.serverOverview);
 
     // Should show the Browse Rooms heading, NOT "Access Denied"
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();

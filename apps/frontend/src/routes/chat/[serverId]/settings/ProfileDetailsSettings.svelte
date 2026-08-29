@@ -1,10 +1,10 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { AccountAPI } from '$lib/api-client/account';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
   import { Dialog, Hint } from '$lib/ui';
-  import { Button, Form, TextInput } from '$lib/ui/form';
+  import { Button, Form, TextArea, TextInput } from '$lib/ui/form';
   import {
     formatCooldownRemaining,
     getLoginChangeCooldownRemaining,
@@ -19,8 +19,12 @@
 
   let { getAccountAPI }: { getAccountAPI: () => AccountAPI } = $props();
 
+  // Keep in sync with the server-side bio length cap.
+  const MAX_BIO_LENGTH = 1000;
+
   let displayName = $state(currentUser.user?.displayName ?? '');
   let login = $state(currentUser.user?.login ?? '');
+  let bio = $state(currentUser.user?.bio ?? '');
   let isSaving = $state(false);
   let error = $state('');
   let successMessage = $state('');
@@ -28,6 +32,7 @@
   let showLoginConfirm = $state(false);
   let pendingDisplayName = $state<string | undefined>(undefined);
   let pendingLogin = $state<string | undefined>(undefined);
+  let pendingBio = $state<string | undefined>(undefined);
 
   const viewerLastLoginChange = $derived(
     currentUser.user?.lastLoginChange ? new Date(currentUser.user.lastLoginChange) : null
@@ -35,7 +40,8 @@
   const lastLoginChange = $derived(localLastLoginChange ?? viewerLastLoginChange);
   const displayNameModified = $derived(displayName !== currentUser.user?.displayName);
   const loginModified = $derived(login !== currentUser.user?.login);
-  const isModified = $derived(displayNameModified || loginModified);
+  const bioModified = $derived((bio || '') !== (currentUser.user?.bio ?? ''));
+  const isModified = $derived(displayNameModified || loginModified || bioModified);
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const canChangeLogin = $derived(cooldownRemaining === 0);
 
@@ -73,28 +79,40 @@
       normalizedLogin = validation.normalized;
     }
 
-    if (!normalizedDisplayName && !normalizedLogin) return;
+    let normalizedBio: string | undefined;
+    if (bioModified) {
+      const trimmed = bio.trim();
+      if ([...trimmed].length > MAX_BIO_LENGTH) {
+        error = m('settings.profile.bio.too_long', { max: MAX_BIO_LENGTH });
+        return;
+      }
+      normalizedBio = trimmed;
+    }
+
+    if (!normalizedDisplayName && !normalizedLogin && normalizedBio === undefined) return;
 
     if (normalizedLogin) {
       pendingDisplayName = normalizedDisplayName;
       pendingLogin = normalizedLogin;
+      pendingBio = normalizedBio;
       showLoginConfirm = true;
       return;
     }
 
-    await saveProfile(normalizedDisplayName, undefined);
+    await saveProfile(normalizedDisplayName, undefined, normalizedBio);
   }
 
   async function confirmLoginChange() {
     showLoginConfirm = false;
-    await saveProfile(pendingDisplayName, pendingLogin);
+    await saveProfile(pendingDisplayName, pendingLogin, pendingBio);
     pendingDisplayName = undefined;
     pendingLogin = undefined;
   }
 
   async function saveProfile(
     normalizedDisplayName: string | undefined,
-    normalizedLogin: string | undefined
+    normalizedLogin: string | undefined,
+    normalizedBio?: string
   ) {
     isSaving = true;
     error = '';
@@ -103,7 +121,8 @@
     try {
       const updated = await getAccountAPI().updateProfile({
         displayName: normalizedDisplayName,
-        login: normalizedLogin
+        login: normalizedLogin,
+        bio: normalizedBio
       });
 
       if (currentUser.user) {
@@ -114,12 +133,14 @@
           ...currentUser.user,
           displayName: updated.displayName,
           login: updated.login,
+          bio: updated.bio ?? '',
           lastLoginChange
         };
       }
 
       displayName = updated.displayName;
       login = updated.login;
+      bio = updated.bio ?? '';
 
       if (normalizedLogin) {
         localLastLoginChange = new Date();
@@ -150,6 +171,19 @@
       placeholder={m('settings.profile.username.placeholder')}
       disabled={isSaving || !canChangeLogin}
       testid="settings-username"
+      oninput={clearMessages}
+    />
+
+    <TextArea
+      id="settings-bio"
+      label={m('settings.profile.bio.label')}
+      description={m('settings.profile.bio.description', { max: MAX_BIO_LENGTH })}
+      bind:value={bio}
+      placeholder={m('settings.profile.bio.placeholder')}
+      rows={4}
+      maxlength={MAX_BIO_LENGTH}
+      disabled={isSaving}
+      testid="settings-bio"
       oninput={clearMessages}
     />
 

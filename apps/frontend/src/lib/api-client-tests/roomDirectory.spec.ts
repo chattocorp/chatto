@@ -16,7 +16,7 @@ const Permission = {
   ManageRoom: 'room.manage',
   PostInThread: 'message.post-in-thread',
   PostMessage: 'message.post',
-  ReadInteractions: 'message.read.interactions',
+  ReadInteractions: 'message.read-interactions',
   ReadMessages: 'message.read',
   React: 'message.react'
 } as const;

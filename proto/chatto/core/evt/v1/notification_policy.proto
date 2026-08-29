@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package chatto.core.evt.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+
+// NotificationDeliveryMode controls whether qualifying activity is omitted,
+// represented by neutral unread attention, recorded as an in-app notification,
+// or also eligible for push delivery.
+enum NotificationDeliveryMode {
+  option allow_alias = true;
+
+  NOTIFICATION_DELIVERY_MODE_UNSPECIFIED = 0;
+  // Matching activity does not create user attention.
+  NOTIFICATION_DELIVERY_MODE_OFF = 1;
+  NOTIFICATION_DELIVERY_MODE_SILENT = 2 [deprecated = true];
+  NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION = 2;
+  NOTIFICATION_DELIVERY_MODE_ALERT = 3 [deprecated = true];
+  NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION = 3;
+  // Matching activity adds neutral unread attention without an occurrence,
+  // sound, or push delivery.
+  NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE = 4;
+}
+
+// NotificationDeliveryModes stores explicit delivery modes for Chatto's
+// finite built-in notification signal classes. Absent fields inherit from the
+// broader policy scope.
+message NotificationDeliveryModes {
+  optional NotificationDeliveryMode direct_messages = 1;
+  optional NotificationDeliveryMode direct_mentions = 2;
+  optional NotificationDeliveryMode replies = 3;
+  optional NotificationDeliveryMode role_mentions = 4;
+  optional NotificationDeliveryMode here_mentions = 5;
+  optional NotificationDeliveryMode all_mentions = 6;
+  optional NotificationDeliveryMode followed_threads = 7;
+  // Deprecated compatibility slot. Current code does not derive this cause.
+  optional NotificationDeliveryMode followed_rooms = 8 [deprecated = true];
+  optional NotificationDeliveryMode reactions = 9;
+  // Root messages posted directly to joined channel rooms. Thread messages
+  // and direct messages use their own signal classes.
+  optional NotificationDeliveryMode room_messages = 10;
+}

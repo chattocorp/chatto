@@ -1,5 +1,9 @@
 import { expect, type Page } from '@playwright/test';
-import { connectPost } from './fixtures/connectHelpers';
+import {
+  connectPost,
+  createRoomViaConnect,
+  getDefaultRoomGroupIdViaConnect
+} from './fixtures/connectHelpers';
 import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import * as routes from './routes';
 import { test } from './setup';
@@ -31,6 +35,10 @@ interface CreatedUserResponse {
 
 const BOT_KEY_PATTERN = /^cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const BOT_KEY_IN_TEXT_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
+const WEBHOOK_CREDENTIAL_PATTERN =
+  /^cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const WEBHOOK_CREDENTIAL_IN_TEXT_PATTERN =
+  /cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
 
 // This test handles show-once bearer credentials in the DOM. Keep them out of
 // Playwright artifacts even when the test fails or retries. Playwright 1.62's
@@ -40,7 +48,9 @@ process.env.PLAYWRIGHT_NO_COPY_PROMPT = '1';
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 
 function redactBotKeys(value: string): string {
-  return value.replace(BOT_KEY_IN_TEXT_PATTERN, '[REDACTED]');
+  return value
+    .replace(BOT_KEY_IN_TEXT_PATTERN, '[REDACTED]')
+    .replace(WEBHOOK_CREDENTIAL_IN_TEXT_PATTERN, '[REDACTED]');
 }
 
 async function captureShowOnceBotKey(page: Page): Promise<string> {
@@ -63,6 +73,42 @@ async function captureShowOnceBotKey(page: Page): Promise<string> {
     throw new Error('The show-once bot API key had an unexpected format');
   }
   return apiKey;
+}
+
+async function captureShowOnceWebhookURL(page: Page): Promise<string> {
+  const dialog = page.getByRole('dialog', { name: 'Save This Webhook URL' });
+  const urlElement = dialog.locator('code');
+  await urlElement.waitFor({ state: 'visible' });
+  const webhookURL = await urlElement.evaluate((element) => {
+    const value = element.textContent?.trim() ?? '';
+    element.textContent = '[REDACTED]';
+    return value;
+  });
+
+  await dialog.getByRole('button', { name: 'Got it', exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  let credential = '';
+  try {
+    credential = new URL(webhookURL).pathname.split('/').at(-1) ?? '';
+  } catch {
+    throw new Error('The show-once incoming webhook had an invalid URL');
+  }
+  if (!WEBHOOK_CREDENTIAL_PATTERN.test(credential)) {
+    throw new Error('The show-once incoming webhook had an unexpected credential format');
+  }
+  return webhookURL;
+}
+
+async function postIncomingWebhook(webhookURL: string, roomId: string, text: string) {
+  const target = new URL(webhookURL);
+  target.searchParams.set('room_id', roomId);
+  const response = await fetch(target, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  return { status: response.status, body: await response.text() };
 }
 
 async function callAsBot(
@@ -125,7 +171,7 @@ async function createHumanOwner(
 test.describe('Bot account lifecycle', () => {
   // setup.ts gives every test its own server and removes that server's data
   // directory during fixture teardown, including after an early failure.
-  test('create, authorise, rotate, and delete through Server Admin', async ({
+  test('create, authorise, manage credentials, and delete through Server Admin', async ({
     page,
     serverURL
   }) => {
@@ -142,6 +188,12 @@ test.describe('Bot account lifecycle', () => {
     );
     const roomId = directory.rooms?.[0]?.room?.id;
     if (!roomId) throw new Error('The bootstrap server did not expose a room for the bot test');
+    const roomGroupId = await getDefaultRoomGroupIdViaConnect(page);
+    const webhookRoomId = await createRoomViaConnect(
+      page,
+      `bot-lifecycle-${Date.now()}`,
+      roomGroupId
+    );
 
     await page.goto(routes.serverAdminBots);
     await expect(page.getByRole('heading', { name: 'Bots', exact: true })).toBeVisible();
@@ -169,6 +221,10 @@ test.describe('Bot account lifecycle', () => {
     );
     const botId = listedBots.bots?.find((bot) => bot.user?.login === botLogin)?.user?.id;
     if (!botId) throw new Error('The new bot was not present in the bot directory');
+    await connectPost(page, 'chatto.api.v1.RoomService/AddMember', {
+      roomId: webhookRoomId,
+      userId: botId
+    });
     const viewer = await connectPost<ViewerResponse>(page, 'chatto.api.v1.ViewerService/GetViewer');
     const adminId = viewer.user?.profile?.id;
     if (!adminId) throw new Error('The viewer response did not contain the admin user ID');
@@ -209,6 +265,67 @@ test.describe('Bot account lifecycle', () => {
         exact: true
       })
     ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
+    const createWebhookDialog = page.getByRole('dialog', { name: 'Create Webhook' });
+    await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Production');
+    await createWebhookDialog
+      .getByRole('button', { name: 'Create Webhook', exact: true })
+      .click();
+    const originalWebhookURL = await captureShowOnceWebhookURL(page);
+
+    await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
+    await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Backup');
+    await createWebhookDialog
+      .getByRole('button', { name: 'Create Webhook', exact: true })
+      .click();
+    const backupWebhookURL = await captureShowOnceWebhookURL(page);
+    await expect(
+      postIncomingWebhook(originalWebhookURL, webhookRoomId, 'First incoming webhook message')
+    ).resolves.toEqual({ status: 200, body: 'ok' });
+    await page.reload();
+    const webhookList = page.getByTestId('bot-incoming-webhooks');
+    const productionWebhook = webhookList.locator('.selectable-list-item').filter({
+      hasText: 'Production'
+    });
+    const backupWebhook = webhookList.locator('.selectable-list-item').filter({ hasText: 'Backup' });
+    await expect(productionWebhook).toContainText('Last used');
+    await expect(productionWebhook).not.toContainText('No use recorded');
+    await expect(backupWebhook).toContainText('No use recorded');
+
+    await expect(
+      webhookList.getByRole('button', { name: 'Rotate Webhook', exact: true })
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
+    await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Replacement');
+    await createWebhookDialog
+      .getByRole('button', { name: 'Create Webhook', exact: true })
+      .click();
+    const replacementWebhookURL = await captureShowOnceWebhookURL(page);
+    await expect(
+      postIncomingWebhook(
+        replacementWebhookURL,
+        webhookRoomId,
+        'Replacement incoming webhook message'
+      )
+    ).resolves.toEqual({ status: 200, body: 'ok' });
+    await expect(
+      postIncomingWebhook(backupWebhookURL, webhookRoomId, 'Independent backup webhook message')
+    ).resolves.toEqual({ status: 200, body: 'ok' });
+
+    await productionWebhook.getByRole('button', { name: 'Revoke Webhook', exact: true }).click();
+    const revokeWebhookDialog = page.getByRole('dialog', { name: 'Revoke Webhook' });
+    await revokeWebhookDialog.getByRole('button', { name: 'Revoke Webhook', exact: true }).click();
+    await expect(revokeWebhookDialog).toBeHidden();
+    await expect(
+      postIncomingWebhook(originalWebhookURL, webhookRoomId, 'Rejected revoked webhook message')
+    ).resolves.toEqual({ status: 401, body: 'invalid_token' });
+    await expect(
+      postIncomingWebhook(replacementWebhookURL, webhookRoomId, 'Replacement after revocation')
+    ).resolves.toEqual({ status: 200, body: 'ok' });
+    await expect(
+      postIncomingWebhook(backupWebhookURL, webhookRoomId, 'Backup webhook after revocation')
+    ).resolves.toEqual({ status: 200, body: 'ok' });
 
     const startedDM = await connectPost<StartDMResponse>(
       page,

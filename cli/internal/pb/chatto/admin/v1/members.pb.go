@@ -1075,12 +1075,9 @@ func (x *ClearUsernameCooldownResponse) GetCleared() bool {
 type DeleteUserRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
-	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Current password proof for accounts with a password when the active
-	// runtime credential is no longer fresh.
-	CurrentPassword string `protobuf:"bytes,2,opt,name=current_password,json=currentPassword,proto3" json:"current_password,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeleteUserRequest) Reset() {
@@ -1116,13 +1113,6 @@ func (*DeleteUserRequest) Descriptor() ([]byte, []int) {
 func (x *DeleteUserRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
-	}
-	return ""
-}
-
-func (x *DeleteUserRequest) GetCurrentPassword() string {
-	if x != nil {
-		return x.CurrentPassword
 	}
 	return ""
 }
@@ -1244,10 +1234,9 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x1cClearUsernameCooldownRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"9\n" +
 	"\x1dClearUsernameCooldownResponse\x12\x18\n" +
-	"\acleared\x18\x01 \x01(\bR\acleared\"`\n" +
+	"\acleared\x18\x01 \x01(\bR\acleared\"M\n" +
 	"\x11DeleteUserRequest\x12 \n" +
-	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12)\n" +
-	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\".\n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userIdJ\x04\b\x02\x10\x03R\x10current_password\".\n" +
 	"\x12DeleteUserResponse\x12\x18\n" +
 	"\adeleted\x18\x01 \x01(\bR\adeleted2\xe9\x06\n" +
 	"\x10AdminUserService\x12X\n" +

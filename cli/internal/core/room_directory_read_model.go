@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // RoomDirectoryReads returns the operation-level model for public room
@@ -34,7 +34,7 @@ type RoomDirectoryGroupOptions struct {
 }
 
 type DirectoryRoom struct {
-	Room        *corev1.Room
+	Room        *evtv1.Room
 	ViewerState DirectoryRoomViewerState
 }
 
@@ -57,7 +57,7 @@ type DirectoryRoomViewerState struct {
 }
 
 type DirectoryRoomGroup struct {
-	Group       *corev1.RoomGroup
+	Group       *evtv1.RoomGroup
 	ViewerState DirectoryRoomGroupViewerState
 	Rooms       []*DirectoryRoom
 	Items       []DirectoryRoomGroupItem
@@ -70,7 +70,7 @@ type DirectoryRoomGroupViewerState struct {
 
 type DirectoryRoomGroupItem struct {
 	Room        *DirectoryRoom
-	SidebarLink *corev1.SidebarLink
+	SidebarLink *evtv1.SidebarLink
 }
 
 func (s *RoomDirectoryReadModel) ListRooms(ctx context.Context, actorID string, opts RoomDirectoryListOptions) ([]*DirectoryRoom, error) {
@@ -318,12 +318,12 @@ func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID str
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, actorID string, includeArchived bool) (map[string]*corev1.Room, error) {
+func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, actorID string, includeArchived bool) (map[string]*evtv1.Room, error) {
 	rooms, err := s.core.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[string]*corev1.Room, len(rooms))
+	result := make(map[string]*evtv1.Room, len(rooms))
 	for _, room := range rooms {
 		if room.GetArchived() && !includeArchived {
 			continue
@@ -339,7 +339,7 @@ func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, acto
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID string, group *corev1.RoomGroup, visibleRooms map[string]*corev1.Room) (*DirectoryRoomGroup, error) {
+func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID string, group *evtv1.RoomGroup, visibleRooms map[string]*evtv1.Room) (*DirectoryRoomGroup, error) {
 	state, err := s.roomGroupViewerState(ctx, actorID, group.GetId())
 	if err != nil {
 		return nil, err
@@ -357,13 +357,13 @@ func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID str
 		dirGroup.Rooms = append(dirGroup.Rooms, dirRoom)
 	}
 
-	sidebarLinks := make(map[string]*corev1.SidebarLink, len(group.GetSidebarLinks()))
+	sidebarLinks := make(map[string]*evtv1.SidebarLink, len(group.GetSidebarLinks()))
 	for _, link := range group.GetSidebarLinks() {
 		sidebarLinks[link.GetId()] = link
 	}
 	for _, entry := range group.GetEntries() {
 		switch entry.GetKind() {
-		case corev1.SidebarGroupEntry_ROOM:
+		case evtv1.SidebarGroupEntry_ROOM:
 			room := visibleRooms[entry.GetId()]
 			if room == nil {
 				continue
@@ -373,7 +373,7 @@ func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID str
 				return nil, err
 			}
 			dirGroup.Items = append(dirGroup.Items, DirectoryRoomGroupItem{Room: dirRoom})
-		case corev1.SidebarGroupEntry_SIDEBAR_LINK:
+		case evtv1.SidebarGroupEntry_SIDEBAR_LINK:
 			link := sidebarLinks[entry.GetId()]
 			if link == nil {
 				continue
@@ -399,7 +399,7 @@ func (s *RoomDirectoryReadModel) roomGroupViewerState(ctx context.Context, actor
 	}, nil
 }
 
-func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID string, room *corev1.Room) (*DirectoryRoom, error) {
+func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID string, room *evtv1.Room) (*DirectoryRoom, error) {
 	state, err := s.roomViewerState(ctx, actorID, room)
 	if err != nil {
 		return nil, err
@@ -407,7 +407,7 @@ func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID stri
 	return &DirectoryRoom{Room: room, ViewerState: state}, nil
 }
 
-func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID string, room *corev1.Room) (DirectoryRoomViewerState, error) {
+func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID string, room *evtv1.Room) (DirectoryRoomViewerState, error) {
 	kind := KindOfRoom(room)
 	isMember, err := s.core.RoomMembershipExists(ctx, kind, actorID, room.Id)
 	if err != nil {

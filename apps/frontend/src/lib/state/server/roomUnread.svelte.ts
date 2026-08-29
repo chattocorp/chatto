@@ -10,11 +10,12 @@ export type OptimisticRoomReadHandle = {
 type ProjectedUnreadSource = Pick<ServerProjectionStore, 'rooms' | 'viewer'>;
 
 /**
- * Optimistic overlays for projection-owned room unread state.
+ * Optimistic overlays for projection-owned room Badge attention.
  *
- * Authoritative unread answers are read directly from `ServerProjectionStore`.
- * Local posting/reading actions can temporarily override one room until the
- * next room viewer-state operation acknowledges that command.
+ * Authoritative Badge answers are read directly from `ServerProjectionStore`.
+ * Local posting and reading actions can temporarily override one room until
+ * the next room viewer-state operation acknowledges that command. The message
+ * read cursor is separate and continues to place the "New messages" divider.
  */
 export class RoomUnreadStore {
   private roomOverrides = new SvelteMap<string, boolean>();

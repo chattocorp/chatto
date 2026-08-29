@@ -185,6 +185,10 @@ describe('RoomDirectory', () => {
     expect(shell.className).toContain('shrink-0');
     expect(header.className).toContain('px-6');
     expect(inset).not.toBeNull();
+
+    // Selectable lists own their standard compact inset inside `Panel noPadding`.
+    const list = shell.querySelector('ul') as HTMLElement;
+    expect(list.className).toBe('selectable-list');
   });
 
   // -- "Join all" group action -----------------------------------------------

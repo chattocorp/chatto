@@ -40,6 +40,9 @@
     "user_menu": {
       "profile": "Профіль користувача",
       "send_message": "Надіслати повідомлення",
+      "view_profile": "Переглянути профіль",
+      "profile_requires_direct_message": "Щоб переглянути цей профіль, потрібне пряме повідомлення.",
+      "view_in_admin": "Відкрити в адмініструванні сервера",
       "copy_user_id": "Копіювати ID користувача"
     },
     "server_gutter": {
@@ -66,6 +69,13 @@
       "message_missing": "Повідомлення більше не доступне",
       "in_room": "в",
       "in_room_capitalized": "В"
+    },
+    "profile": {
+      "title": "Профіль",
+      "fallback_title": "Профіль",
+      "not_found": "Користувача не знайдено",
+      "bot": "Бот",
+      "local_time": "{time} місцевий час ({zone})"
     }
   }
 }

@@ -7,28 +7,23 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
 func (s *AssetModel) configureCleanup(ctx context.Context, stream jetstream.Stream) error {
-	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            assetCleanupConsumerName,
-		Durable:         assetCleanupConsumerName,
-		Description:     "Shared durable queue for Chatto asset deletion",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         assetCleanupAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted),
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   assetCleanupMaxPending,
-		MaxRequestBatch: assetCleanupMaxPending,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, stream, evtstream.EffectConsumerConfig{
+		Name:           assetCleanupConsumerName,
+		Description:    "Shared durable queue for Chatto asset deletion",
+		FilterSubjects: []string{evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted)},
+		AckWait:        assetCleanupAckWait,
+		MaxAckPending:  assetCleanupMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return fmt.Errorf("create asset cleanup consumer: %w", err)
 	}
-	worker, err := events.NewDurableWorker(consumer, s.processCleanupDelivery, events.DurableWorkerOptions{
+	worker, err := evtstream.NewEffectWorker(consumer, s.processCleanupDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent:     assetCleanupMaxPending,
 		RetryDelay:        assetCleanupRetryDelay,
 		AckTimeout:        assetCleanupAckTimeout,
@@ -125,7 +120,7 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *evts
 // without tombstoning the HLS children. The durable cleanup consumer can still
 // recover those child IDs from the source aggregate after an upgrade and append
 // their deletion facts before removing the source bytes.
-func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, sourceEvent *corev1.Event, sourceAssetID string) error {
+func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, sourceEvent *evtv1.Event, sourceAssetID string) error {
 	processedEvents, _, err := s.EventPublisher.SubjectEvents(
 		ctx,
 		evtstream.AssetAggregate(sourceAssetID).Subject(evtstream.EventAssetProcessingSucceeded),
@@ -147,7 +142,7 @@ func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, so
 
 	type derivativeRef struct {
 		assetID string
-		role    corev1.AssetDerivativeRole
+		role    evtv1.AssetDerivativeRole
 	}
 	var refs []derivativeRef
 	for _, rendition := range hls.GetRenditions() {
@@ -160,7 +155,7 @@ func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, so
 			}
 			refs = append(refs, derivativeRef{
 				assetID: segment.GetAssetId(),
-				role:    corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT,
+				role:    evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT,
 			})
 		}
 	}
@@ -188,7 +183,7 @@ func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, so
 	return nil
 }
 
-func (s *AssetModel) validateCleanupStorage(assetID string, asset *corev1.AssetRecord) error {
+func (s *AssetModel) validateCleanupStorage(assetID string, asset *evtv1.AssetRecord) error {
 	switch {
 	case asset.GetNats() != nil:
 		if asset.GetNats().GetKey() != assetID {

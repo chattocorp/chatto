@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Beheer",
+      "bot": "Bots",
+      "message": "Berichten",
+      "role": "Rollen",
+      "room": "Kamers",
+      "server": "Server",
+      "user": "Gebruikers",
+      "other": "Overig"
+    },
     "permission_descriptions": {
       "server_manage": "Serverinstellingen bijwerken (naam, beschrijving, logo)",
       "room_create": "Maak nieuwe kamers",
@@ -119,7 +129,9 @@
       "user_delete_self": "Verwijder je eigen account",
       "user_invite": "Uitnodigingslinks maken en beheren",
       "user_manage_accounts": "Gebruikers aanmaken, accountidentiteit bewerken, wachtwoorden opnieuw instellen, geverifieerde e-mails bijvoegen en cooldowns voor inloggen wissen",
-      "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker"
+      "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker",
+      "bot_create": "Botaccounts maken waarvan je eigenaar bent",
+      "bot_manage": "Alle botaccounts bekijken en beheren"
     }
   }
 }

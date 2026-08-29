@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "管理",
+      "bot": "機器人",
+      "message": "訊息",
+      "role": "角色",
+      "room": "聊天室",
+      "server": "伺服器",
+      "user": "使用者",
+      "other": "其他"
+    },
     "permission_descriptions": {
       "server_manage": "更新伺服器設定（名稱、說明、標誌）",
       "room_create": "建立新聊天室",
@@ -119,7 +129,9 @@
       "user_delete_self": "刪除自己的帳號",
       "user_invite": "建立和管理邀請連結",
       "user_manage_accounts": "建立使用者、編輯帳號身分、重設密碼、附加已驗證的電子郵件地址，以及清除登入冷卻時間",
-      "user_manage_permissions": "編輯個別使用者的權限覆寫"
+      "user_manage_permissions": "編輯個別使用者的權限覆寫",
+      "bot_create": "建立您擁有的機器人帳號",
+      "bot_manage": "檢視及管理所有機器人帳號"
     }
   }
 }

@@ -3,6 +3,7 @@ package http_server
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"net/http"
 	"strings"
 	"time"
@@ -13,7 +14,7 @@ import (
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -202,9 +203,9 @@ func (s *HTTPServer) writeBrowserSessionCookie(c *gin.Context, name, token strin
 }
 
 type presentedRuntimeCredential struct {
-	user              *corev1.User
+	user              *evtv1.User
 	auth              authctx.RuntimeCredential
-	cookieRecord      *corev1.CookieSession
+	cookieRecord      *runtimestatev1.CookieSession
 	presentedSessions []presentedCookieSession
 }
 
@@ -226,7 +227,7 @@ func (s *HTTPServer) browserSessionID(c *gin.Context) (string, bool) {
 	return "", false
 }
 
-func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *corev1.CookieSession, bool) {
+func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *runtimestatev1.CookieSession, bool) {
 	credential, ok, _ := s.cookiePresentedCredential(c)
 	if !ok {
 		return "", "", nil, false
@@ -260,7 +261,7 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 	}
 
 	var selected browserSessionCookie
-	var record *corev1.CookieSession
+	var record *runtimestatev1.CookieSession
 	presentedSessions := make([]presentedCookieSession, 0, len(cookies))
 	seenTokens := make(map[string]struct{}, len(cookies))
 	for _, cookie := range cookies {
@@ -312,7 +313,7 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 	}, true, nil
 }
 
-func cookieSessionIsNewer(candidate *corev1.CookieSession, candidateCookie browserSessionCookie, current *corev1.CookieSession, currentCookie browserSessionCookie) bool {
+func cookieSessionIsNewer(candidate *runtimestatev1.CookieSession, candidateCookie browserSessionCookie, current *runtimestatev1.CookieSession, currentCookie browserSessionCookie) bool {
 	candidateCreatedAt := candidate.GetCreatedAt().AsTime()
 	currentCreatedAt := current.GetCreatedAt().AsTime()
 	if !candidateCreatedAt.Equal(currentCreatedAt) {

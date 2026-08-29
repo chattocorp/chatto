@@ -86,7 +86,7 @@ const RoomPermission = {
   JoinRoom: 'room.join',
   ManageMessage: 'message.manage',
   ManageRoom: 'room.manage',
-  ReadInteractions: 'message.read.interactions',
+  ReadInteractions: 'message.read-interactions',
   ReadMessages: 'message.read',
   PostInThread: 'message.post-in-thread',
   PostMessage: 'message.post',

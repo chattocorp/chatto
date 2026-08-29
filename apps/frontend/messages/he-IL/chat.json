@@ -40,6 +40,9 @@
     "user_menu": {
       "profile": "פרופיל משתמש",
       "send_message": "שלח הודעה",
+      "view_profile": "הצגת פרופיל",
+      "profile_requires_direct_message": "נדרשת הודעה ישירה כדי להציג את הפרופיל הזה.",
+      "view_in_admin": "הצגה בניהול השרת",
       "copy_user_id": "העתקת מזהה המשתמש"
     },
     "server_gutter": {
@@ -66,6 +69,13 @@
       "message_missing": "ההודעה אינה זמינה עוד",
       "in_room": "in",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "פרופיל",
+      "fallback_title": "פרופיל",
+      "not_found": "המשתמש לא נמצא",
+      "bot": "בוט",
+      "local_time": "{time} שעון מקומי ({zone})"
     }
   }
 }

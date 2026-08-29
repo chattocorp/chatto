@@ -3,24 +3,31 @@
 Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go),
 [`cli/internal/core/read_state_index.go`](../../cli/internal/core/read_state_index.go),
 [`cli/internal/core/notification_boundary_index.go`](../../cli/internal/core/notification_boundary_index.go),
+[`cli/internal/core/notification_unread_marker.go`](../../cli/internal/core/notification_unread_marker.go),
 [`cli/internal/core/notification_materializer.go`](../../cli/internal/core/notification_materializer.go),
 [`cli/internal/core/notification_occurrence_model.go`](../../cli/internal/core/notification_occurrence_model.go),
 [`cli/internal/core/runtime_token_keys.go`](../../cli/internal/core/runtime_token_keys.go),
 [`cli/internal/core/renewable_sessions.go`](../../cli/internal/core/renewable_sessions.go),
 [`cli/internal/http_server/browser_session_store.go`](../../cli/internal/http_server/browser_session_store.go),
 [`cli/internal/core/external_identities.go`](../../cli/internal/core/external_identities.go),
-[`cli/internal/core/asset_uploads.go`](../../cli/internal/core/asset_uploads.go), and
-[`cli/internal/kms/builtin.go`](../../cli/internal/kms/builtin.go)
+[`cli/internal/core/asset_uploads.go`](../../cli/internal/core/asset_uploads.go),
+[`cli/internal/core/credential_usage.go`](../../cli/internal/core/credential_usage.go), and
+[`cli/internal/kms/builtin.go`](../../cli/internal/kms/builtin.go). Protobuf
+records live in
+[`runtime_state/v1`](../../proto/chatto/core/runtime_state/v1),
+[`key_material/v1`](../../proto/chatto/core/key_material/v1), and
+[`cache_state/v1`](../../proto/chatto/core/cache_state/v1).
 
 Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md) and
-[ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md).
+[ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) and
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 ## KV buckets
 
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
-| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including notification visibility boundaries, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |
+| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including notification visibility boundaries, credential-usage telemetry, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |
 | `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats |
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 
@@ -66,7 +73,8 @@ survives restart but is not content/domain history. See
 | `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event. Membership and DM initialization create the key only when absent. |
 | `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. |
 | `notification_read_boundary.{userId}.{roomId}[.{threadRootEventId}]` | Two big-endian EVT stream sequences: the latest room/thread timeline target read and the reaction projection horizon observed by that read action. One process-wide filtered watcher indexes these keys and local writes wait for their exact revision. Every replica performs one startup repair, then reconciles only unread occurrences in the room/thread scope whose boundary changed, completing an interrupted KV-to-`NOTIFICATIONS` handshake idempotently without a periodic global scan. The two coordinates keep reactions that arrive after a read new until the next read. The key expires 90 days after its latest update and account deletion removes it. |
-| `notification_visibility_boundary.{userId}.{roomId}` | Big-endian EVT stream sequence of the latest explicit or derived room visibility loss relevant to notification materialization. The same notification-boundary watcher makes fanout eligibility an indexed lookup. Leave/removal request paths record the boundary immediately after commit; the ordered worker records it for those facts and for universal-room, room-group placement, ban, or `room.join` RBAC/role changes that remove effective membership. Delayed source facts at or before the boundary cannot reappear after a rejoin. The key expires after 90 days, matching the maximum lifetime of source facts it can suppress, and account deletion removes it. |
+| `notification_visibility_boundary.{userId}.{roomId}` | Big-endian EVT stream sequence of the latest explicit or derived room visibility loss relevant to notification materialization. The same notification-boundary watcher makes fanout eligibility an indexed lookup. Leave/removal request paths record the boundary immediately after commit. The ordered worker records it for those facts and for universal-room, room-group placement, ban, or `room.join`, `message.read`, and `message.read-interactions` RBAC/role changes that remove all applicable access. A partial change removes only output whose exact message target is no longer visible. Delayed source facts at or before a complete-loss boundary cannot reappear after access returns. The key expires after 90 days, matching the maximum lifetime of source facts it can suppress, and account deletion removes it. |
+| `notification_unread_marker.{userId}.{roomId}[.{threadRootEventId}]` | Protobuf `NotificationUnreadMarker` for the latest source-time Badge decision in one room or thread scope. It stores the source event, actor, rich signal, and EVT source sequence needed to apply target, reaction, visibility, and read boundaries. A higher source sequence replaces an older value with KV OCC; delayed retries cannot regress it. Thread markers roll up into room Badge attention. The public `has_unread` fields come only from these markers, not from Message Read Cursor lag. The key expires 90 days after its latest source, and account deletion removes it. It is final user-visible output, not prepared notification work. |
 | `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device and service-worker registration. The client host identifies the Chatto server that supplied the installed app; the sending server combines it with its own hostname to reconstruct the click route. The endpoint hash keeps multiple devices and per-server scoped subscriptions per user while deduplicating the same browser subscription. A record is deliverable only while its revision matches the endpoint's active owner claim. The browser Push API auth secret and a random per-save cleanup token form a capability for that exact save generation, allowing cancelled work to be removed safely after the account session changes without deleting a later save that reused the browser subscription. |
 | `push_endpoint_owner.{sha256(endpoint)}` | JSON Web Push endpoint owner claim containing the active user ID and exact `push_subscription` KV revision. Saves transfer the claim with KV OCC; revision-matched deletes prevent stale logout, expiry cleanup, and subscription rotation races from releasing a newer claim. The renewable push-cleanup lease leader reconciles at startup and every 15 seconds, removing owner claims whose subscription record is missing or no longer matches. Subscription records without a claim remain inert until the browser re-registers. |
 | `push_test_notification_throttle.{userId}` | One-byte per-account admission marker owned by [`core/push.go`](../../cli/internal/core/push.go). Atomic creation with a 10-second per-key TTL rate-limits test push attempts across replicas; the marker contains no endpoint or delivery result. |
@@ -74,6 +82,7 @@ survives restart but is not content/domain history. See
 | `linked_image_import.{sha256(actorId)}.{sha256(roomId + NUL + sourceUrl)}` | Hashed per-actor, room, and source-URL reservation for a server-fetched direct image. Provisional records use a two-minute TTL before download; committed records contain the pending attachment protobuf and use the normal 24-hour pending-asset TTL. At most 10 committed or provisional imports are outstanding per actor. Posting the attachment removes its record. |
 | `linked_image_import_lock.{sha256(actorId)}` | One-minute per-actor KV lock used to serialize linked-image quota and idempotency updates across replicas. Release uses the exact creation revision. |
 | `projection_snapshot_pointer.{opaqueLocator}` | Encrypted current/previous generation IDs for one projection and snapshot contract. The opaque locator is derived from both, so different contracts cannot read or overwrite each other. Uses KV revision OCC so stale writers cannot regress newer history within one contract. |
+| `credential_usage.bot.{botId}` | Protobuf `CredentialUsageState` with the latest observed use time for each `incoming_webhook:{webhookId}` entry. Successful authentication creates an in-memory observation before request validation or message posting. Each process writes the first observation promptly, coalesces later writes for the same credential to at most one each minute, and uses KV OCC with the maximum timestamp so concurrent writers cannot regress the record. Reads merge a newer local observation. A missing record or entry means that no use was recorded; it does not prove that no use occurred. A read or decode failure produces an explicit unavailable state. Bot response assembly reads telemetry only for resources selected after filtering and pagination. Show-once credential responses skip this read and keep unhydrated fields unspecified. Read or write failure does not affect authentication or message posting. Recording rechecks the projected credential under the same process-local lock that orders revocation cleanup. Each replica also checks projected lifecycle state before and after a write. A periodic sweep removes local and stored telemetry when another replica revoked the credential. A flush that finishes after revocation attempts another delete. The process does not retain revocation tombstones. Bot deletion removes the complete record. The record has no TTL and is included in backups. |
 | `email_otp.{hmac(subject)}.{hmac(code)}` | Shared registration and email-verification OTP code JSON. Registration values carry normalized email and, when applicable, the validated invitation ID; authenticated email-verification values carry user ID and email. The subject hash scopes registration by email and authenticated verification by user/email, the code hash verifies the submitted six-digit code, and the raw code is never stored. Uses per-key 15-minute TTL. |
 | `email_otp.{hmac(subject)}.challenge` | Shared OTP challenge JSON with failed-attempt and issued-code counters. Wrong-code attempts update this record revision-safely, five wrong guesses exhaust the challenge until TTL, and at most ten codes can be issued for one challenge window. Uses per-key 15-minute TTL. |
 | `registration_completion.{hmac}` | Registration completion token JSON created after code verification, carrying the invitation ID from an invite-only registration when applicable. Uses per-key 15-minute TTL. |
@@ -91,10 +100,12 @@ survives restart but is not content/domain history. See
 | `link_preview_token.{hmac}` | Short-lived composer link-preview token JSON referencing a cached preview URL. Uses per-key 30-minute TTL; raw tokens are only returned to the client. |
 | `dek.{id}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). The complete object key is the content-key ref; it has no TTL and is shredded on account deletion. |
 
-Bot API keys do not create `RUNTIME_STATE` records. Their current HMAC
-verifier is a durable user-aggregate fact in `EVT`, projected by
-`UserAuthProjection`; this makes key creation and rotation part of the bot's
-replayable account history while keeping the raw key show-once.
+Bot API keys do not create `RUNTIME_STATE` records. Their current HMAC verifier
+is a durable user-aggregate fact in `EVT`, projected by `UserAuthProjection`;
+this makes key creation and rotation part of the bot's replayable account
+history while keeping the raw key show-once. Incoming webhook lifecycle facts
+also remain in `EVT`. Only their optional, approximate last-use telemetry is in
+`RUNTIME_STATE`.
 
 `ReadStateModel` mirrors both `read.*` key families through one filtered KV
 watcher per Chatto process. The initial latest-value watch delivery is a startup

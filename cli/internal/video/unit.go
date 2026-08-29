@@ -12,7 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/pkg/events"
 )
@@ -80,14 +80,13 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	workerDone := make(chan error, 1)
-	worker, err := events.NewDurableWorker(
+	worker, err := evtstream.NewEffectWorker(
 		consumer,
 		func(ctx context.Context, delivery events.DurableDelivery) error {
 			return processDelivery(ctx, delivery, runtime, processor, env.Logger)
 		},
-		events.DurableWorkerOptions{
+		evtstream.EffectWorkerOptions{
 			MaxConcurrent:     env.Config.AssetProcessing.MaxConcurrentJobsOrDefault(),
-			FetchMaxWait:      time.Second,
 			RetryDelay:        retryDelay,
 			AckTimeout:        acknowledgeTimeout,
 			HeartbeatInterval: deliveryHeartbeat,
@@ -135,21 +134,16 @@ func createConsumer(ctx context.Context, js jetstream.JetStream) (jetstream.Cons
 	if err != nil {
 		return nil, fmt.Errorf("open EVT stream: %w", err)
 	}
-	consumer, err := evt.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:          consumerName,
-		Durable:       consumerName,
-		Description:   "Shared durable queue for Chatto asset-processing workers",
-		DeliverPolicy: jetstream.DeliverAllPolicy,
-		AckPolicy:     jetstream.AckExplicitPolicy,
-		AckWait:       consumerAckWait,
-		MaxDeliver:    -1,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, evt, evtstream.EffectConsumerConfig{
+		Name:        consumerName,
+		Description: "Shared durable queue for Chatto asset-processing workers",
 		FilterSubjects: []string{
 			evtstream.AssetEventTypeFilter(evtstream.EventAssetProcessingStarted),
 			evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted),
 		},
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   consumerMaxPending,
-		MaxRequestBatch: consumerMaxPending,
+		AckWait:       consumerAckWait,
+		MaxAckPending: consumerMaxPending,
+		DeliverPolicy: jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create asset-processing consumer: %w", err)
@@ -164,7 +158,7 @@ func processDelivery(
 	processor assetProcessor,
 	logger *log.Logger,
 ) error {
-	var event corev1.Event
+	var event evtv1.Event
 	if err := proto.Unmarshal(delivery.Data, &event); err != nil {
 		logger.Error("Terminating malformed asset-processing delivery", "error", err)
 		return events.TerminateDelivery("invalid Chatto event envelope", err)

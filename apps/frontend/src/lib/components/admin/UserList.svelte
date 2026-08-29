@@ -1,9 +1,16 @@
+<!--
+@component
+
+Renders the standard user record table. The caller owns the surrounding panel
+and supplies an optional row-navigation callback.
+-->
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { Panel, DataTable, CopyId } from '$lib/components/admin';
+  import { CopyId } from '$lib/ui';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import { m } from '$lib/i18n/messages';
 
   type User = {
@@ -46,39 +53,37 @@
 </script>
 
 {#if loading}
-  <div class="text-muted">{m('admin.users.loading')}</div>
+  <div class="p-5 text-muted">{m('admin.users.loading')}</div>
 {:else}
-  <Panel noPadding>
-    <DataTable
-      items={users}
-      columns={4}
-      {emptyMessage}
-      onRowClick={clickable ? handleRowClick : undefined}
-    >
-      {#snippet header()}
-        <th class="table-header-cell">{m('admin.users.login')}</th>
-        <th class="table-header-cell">{m('admin.users.display_name')}</th>
-        <th class="table-header-cell">{m('admin.users.email')}</th>
-        <th class="table-header-cell">{m('admin.users.id')}</th>
-      {/snippet}
-      {#snippet row(user: User)}
-        <td class="px-4 py-3 font-medium">{user.login}</td>
-        <td class="px-4 py-3">{user.displayName}</td>
-        <td class="px-4 py-3 text-muted">
-          {#if user.verifiedEmails && user.verifiedEmails.length > 0}
-            <span class="flex items-center gap-1">
-              <span class="iconify icon-[uil--check-circle] text-success"></span>
-              {user.verifiedEmails[0]}
-              {#if user.verifiedEmails.length > 1}
-                <span class="text-xs">+{user.verifiedEmails.length - 1}</span>
-              {/if}
-            </span>
-          {/if}
-        </td>
-        <td class="px-4 py-3 text-muted"><CopyId value={user.id} /></td>
-      {/snippet}
-    </DataTable>
-  </Panel>
+  <DataTable
+    items={users}
+    columns={4}
+    {emptyMessage}
+    onRowClick={clickable ? handleRowClick : undefined}
+  >
+    {#snippet header()}
+      <th class="table-header-cell">{m('admin.users.login')}</th>
+      <th class="table-header-cell">{m('admin.users.display_name')}</th>
+      <th class="table-header-cell">{m('admin.users.email')}</th>
+      <th class="table-header-cell">{m('admin.users.id')}</th>
+    {/snippet}
+    {#snippet row(user: User)}
+      <td class="px-4 py-3 font-medium">{user.login}</td>
+      <td class="px-4 py-3">{user.displayName}</td>
+      <td class="px-4 py-3 text-muted">
+        {#if user.verifiedEmails && user.verifiedEmails.length > 0}
+          <span class="flex items-center gap-1">
+            <span class="iconify icon-[uil--check-circle] text-success"></span>
+            {user.verifiedEmails[0]}
+            {#if user.verifiedEmails.length > 1}
+              <span class="text-xs">+{user.verifiedEmails.length - 1}</span>
+            {/if}
+          </span>
+        {/if}
+      </td>
+      <td class="px-4 py-3 text-muted"><CopyId value={user.id} /></td>
+    {/snippet}
+  </DataTable>
 
-  <div class="text-sm text-muted">{m('admin.users.total', { count: users.length })}</div>
+  <div class="px-5 py-3 text-sm text-muted">{m('admin.users.total', { count: users.length })}</div>
 {/if}

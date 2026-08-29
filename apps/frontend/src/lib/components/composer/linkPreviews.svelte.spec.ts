@@ -39,6 +39,8 @@ describe('LinkPreviewState', () => {
       '\\`https://example.com\\`',
       '```\nhttps://example.com\n```',
       '> https://example.com',
+      '<https://example.com>',
+      '<https://example.com',
       'mail user@example.com',
       'ftp://example.com/file'
     ]) {
@@ -71,11 +73,15 @@ describe('LinkPreviewState', () => {
     });
     const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
 
-    const cleanup = state.scheduleDetection(`Look ${url}`, false);
+    const cleanup = state.scheduleDetection(
+      `<https://suppressed.example/story> Look ${url}`,
+      false
+    );
     await vi.advanceTimersByTimeAsync(500);
     await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledOnce());
     cleanup();
 
+    expect(fetchLinkPreview).toHaveBeenCalledWith(url, undefined);
     expect(state.buildToken()).toBe('cht_LPpreviewtoken');
   });
 

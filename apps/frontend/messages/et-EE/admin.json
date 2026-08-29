@@ -104,7 +104,25 @@
       "edit": "Muuda",
       "assigned_role": "Määratud {role} roll",
       "removed_role": "Eemaldatud roll {role}",
-      "role_update_failed": "Rolli määramise värskendamine ebaõnnestus"
+      "role_update_failed": "Rolli määramise värskendamine ebaõnnestus",
+      "danger_zone": "Ohtlik tsoon",
+      "open_delete_account": "Kustuta konto",
+      "delete_account_entry_description": "Kustutab selle liikme konto jäädavalt. Tema sõnumid muutuvad loetamatuks. Seda ei saa tagasi võtta."
+    },
+    "member_delete": {
+      "title": "Kustuta liige",
+      "warning": "See kustutab kasutaja {name} konto jäädavalt. Seda ei saa tagasi võtta.",
+      "consequences_intro": "Mis juhtub:",
+      "consequence_rooms": "Liige eemaldatakse kõikidest tubadest.",
+      "consequence_messages": "Kõik kirjutatud sõnumid muutuvad jäädavalt loetamatuks.",
+      "consequence_profile": "Profiil, avatar ja kasutajanimi kustutatakse. Kasutajanimi muutub hiljem taas vabaks.",
+      "consequence_sessions": "Isik logitakse kõikjal välja.",
+      "confirm_label": "Kinnitamiseks kirjuta {login}",
+      "submit": "Kustuta konto jäädavalt",
+      "deleting": "Kustutamine...",
+      "failed": "Konto kustutamine ebaõnnestus.",
+      "success": "Konto kustutati.",
+      "not_allowed": "Sa ei saa seda kontot kustutada."
     },
     "member_detail": {
       "no_self_rename": "Enese ümbernimetamist ei salvestatud.",

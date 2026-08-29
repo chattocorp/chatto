@@ -6,7 +6,10 @@ import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
-import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
+import {
+  refreshRegisteredAdminQueries,
+  removeRegisteredAdminUserQueries
+} from '$lib/query/cacheRegistry';
 
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionMatrix: vi.fn(),
@@ -102,6 +105,40 @@ beforeEach(() => {
 afterEach(() => queryClient.clear());
 
 describe('subject permission loaders', () => {
+  it('keeps the same matrix elements mounted while refreshed data replaces their cells', async () => {
+    let resolveRefresh: ((value: ReturnType<typeof matrix>) => void) | undefined;
+    const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
+    await settle();
+    const originalTable = rendered.container.querySelector('table');
+    const originalCell = rendered.container.querySelector(
+      'td[data-scope="server"][data-permission="message.post"]'
+    );
+    permissionMocks.getRolePermissionMatrix.mockImplementationOnce(
+      () => new Promise((resolve) => (resolveRefresh = resolve))
+    );
+
+    refreshRegisteredAdminQueries('origin');
+    await settle();
+
+    expect(rendered.container.querySelector('table')).toBe(originalTable);
+    expect(
+      rendered.container.querySelector('td[data-scope="server"][data-permission="message.post"]')
+    ).toBe(originalCell);
+
+    const refreshed = matrix({ roleName: 'role-a' });
+    refreshed.cells[0].override = 'ALLOW';
+    resolveRefresh?.(refreshed);
+    await vi.waitFor(() => {
+      expect(cellButton(rendered.container, 'message.post').getAttribute('aria-label')).toContain(
+        'Override allow'
+      );
+    });
+    expect(rendered.container.querySelector('table')).toBe(originalTable);
+    expect(
+      rendered.container.querySelector('td[data-scope="server"][data-permission="message.post"]')
+    ).toBe(originalCell);
+  });
+
   it('isolates pending role mutation state after route reuse', async () => {
     const mutations: Array<{
       resolve: (value: object) => void;
@@ -316,10 +353,10 @@ describe('subject permission loaders', () => {
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
   });
 
-  it('shows a bot child permission as enabled when message.read includes it', async () => {
+  it('shows a bot narrow permission as enabled when message.read includes it', async () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue({
       userId: 'bot-read',
-      applicablePermissions: ['message.read', 'message.read.interactions'],
+      applicablePermissions: ['message.read', 'message.read-interactions'],
       scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
       cells: [
         {
@@ -330,7 +367,7 @@ describe('subject permission loaders', () => {
           allowPermitted: true
         },
         {
-          permission: 'message.read.interactions',
+          permission: 'message.read-interactions',
           scopeId: 'server',
           override: 'NONE',
           effective: 'ALLOW',
@@ -343,7 +380,7 @@ describe('subject permission loaders', () => {
     });
     await settle();
 
-    const child = scopedCellButton(rendered.container, 'server', 'message.read.interactions');
+    const child = scopedCellButton(rendered.container, 'server', 'message.read-interactions');
     expect(child.title).toContain('Included by message.read');
     expect(child.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
     expect(child.disabled).toBe(true);

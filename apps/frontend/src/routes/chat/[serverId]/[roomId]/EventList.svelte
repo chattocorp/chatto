@@ -23,12 +23,7 @@
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
   import { convergeAtBottom } from './bottomScrollConvergence';
-  import {
-    scheduleNextTombstoneExpiry,
-    shouldHideTombstone,
-    visibleTombstoneEvents,
-    visibleUnreadMarkerEventId
-  } from './tombstoneVisibility';
+  import { visibleTombstoneEvents, visibleUnreadMarkerEventId } from './tombstoneVisibility';
   import { TimelineViewportController } from './TimelineViewportController.svelte';
   import { RoomThreadingMode } from '$lib/roomThreading';
 
@@ -51,6 +46,7 @@
     // Threading - only root messages can open threads
     onOpenThread,
     onOpenCall,
+    onOpenProfile,
     // Filtering - whether to filter out thread replies (false for thread pane)
     filterThreadReplies = true,
     // Up-arrow-to-edit
@@ -94,6 +90,7 @@
     // Threading
     onOpenThread?: OpenThreadHandler;
     onOpenCall?: () => void;
+    onOpenProfile?: (userId: string) => void;
     // Filtering
     filterThreadReplies?: boolean;
     // Up-arrow-to-edit
@@ -120,11 +117,6 @@
     pendingHighlightId?: string | null;
     threadingMode?: RoomThreadingMode;
   } = $props();
-
-  type RefreshAnchor = {
-    eventId: string;
-    top: number;
-  };
 
   const viewport = new TimelineViewportController();
   const expandedSystemEventIds = new SvelteSet<string>();
@@ -159,8 +151,8 @@
   );
   const reloadsTimelineOnReturn = $derived(isJumpedMode && !!onJumpToPresent);
 
-  // First apply structural timeline filtering. Tombstone expiry is a separate
-  // stage so row removal cannot be mistaken for a newly arrived message.
+  // First apply structural timeline filtering. Context-free tombstones are a
+  // separate stage so row removal cannot be mistaken for a newly arrived message.
   let timelineEvents = $derived(
     events.filter((e) => {
       if (!isMessagePostedEvent(e.event)) return true;
@@ -174,12 +166,7 @@
       return true;
     })
   );
-  let tombstoneClockVersion = $state(0);
-  let filteredEvents = $derived.by(() => {
-    void tombstoneClockVersion;
-    const nowMs = Date.now();
-    return visibleTombstoneEvents(timelineEvents, nowMs);
-  });
+  let filteredEvents = $derived(visibleTombstoneEvents(timelineEvents));
   let messageEventCount = $derived(
     filteredEvents.filter((event) => isMessagePostedEvent(event.event)).length
   );
@@ -187,7 +174,7 @@
   // Apply message grouping and day separators
   let eventsWithMeta = $derived(computeEventMetadata(filteredEvents, userSettings, activeLocale));
 
-  // If the marker points at an expired tombstone, move it to the next visible
+  // If the marker points at a hidden tombstone, move it to the next visible
   // event instead of silently dropping the unread boundary.
   let effectiveUnreadAfterEventId = $derived.by(() => {
     return visibleUnreadMarkerEventId(timelineEvents, filteredEvents, unreadAfterEventId ?? null);
@@ -197,43 +184,6 @@
   let virtualItems = $derived(
     buildVirtualItems(eventsWithMeta, effectiveUnreadAfterEventId, hasReachedStart, showStartMarker)
   );
-
-  async function expireTombstones(atMs: number) {
-    const bottomDistance = distanceFromBottom();
-    const wasAtBottom =
-      alwaysScrollToBottom ||
-      (bottomDistance === null ? viewport.shouldScrollToBottom : bottomDistance < 50);
-    const anchor = wasAtBottom ? null : captureRefreshAnchor(atMs);
-
-    tombstoneClockVersion += 1;
-    await tick();
-
-    if (wasAtBottom && scrollContainer) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      scrollFader?.refresh();
-      return;
-    }
-    if (!anchor || !scrollContainer) return;
-
-    // Virtua can measure and correct the keyed list over several frames. Keep
-    // restoring the same event anchor while those measurements settle.
-    for (let frame = 0; frame < 4; frame++) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      const target = scrollContainer.querySelector<HTMLElement>(eventSelector(anchor.eventId));
-      if (!target) return;
-      scrollContainer.scrollTop += target.getBoundingClientRect().top - anchor.top;
-    }
-    scrollFader?.refresh();
-  }
-
-  $effect(() => {
-    void tombstoneClockVersion;
-    const nowMs = Date.now();
-    return scheduleNextTombstoneExpiry(timelineEvents, nowMs, (expiresAt) => {
-      void expireTombstones(expiresAt);
-    });
-  });
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
@@ -482,52 +432,8 @@
     );
   }
 
-  function eventIdForVirtualItem(item: VirtualItem): string | null {
-    if (item.type === 'event') return item.event.id;
-    if (item.type === 'system-group') return item.events[0]?.id ?? null;
-    return null;
-  }
-
   function eventSelector(eventId: string): string {
     return `[data-event-id="${CSS.escape(eventId)}"]`;
-  }
-
-  function captureRefreshAnchor(visibleAtMs?: number): RefreshAnchor | null {
-    if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return null;
-
-    const viewportTop = scrollContainer.getBoundingClientRect().top;
-    let partiallyVisibleAnchor: RefreshAnchor | null = null;
-    const startIdx = Math.max(
-      0,
-      virtualizerHandle.findItemIndex(virtualizerHandle.getScrollOffset())
-    );
-    for (let i = startIdx; i < virtualItems.length; i++) {
-      const item = virtualItems[i];
-      if (
-        visibleAtMs !== undefined &&
-        item.type === 'event' &&
-        shouldHideTombstone(item.event, visibleAtMs)
-      ) {
-        continue;
-      }
-      const eventId = eventIdForVirtualItem(item);
-      if (!eventId) continue;
-
-      const el = scrollContainer.querySelector<HTMLElement>(eventSelector(eventId));
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      if (rect.bottom <= viewportTop) continue;
-      const candidate = {
-        eventId,
-        top: rect.top
-      };
-      if (rect.top >= viewportTop) return candidate;
-      partiallyVisibleAnchor ??= candidate;
-    }
-
-    if (partiallyVisibleAnchor) return partiallyVisibleAnchor;
-    console.debug('[room-refresh] no visible anchor found', { roomId });
-    return null;
   }
 
   // Re-evaluate "are we at the bottom?" when the tab regains visibility — the
@@ -535,7 +441,6 @@
   // while hidden, leaving shouldScrollToBottom=true even though the scroll has
   // drifted off the bottom (which would suppress the Jump to Present button).
   useTabResumeCallback(() => {
-    tombstoneClockVersion += 1;
     if (!virtualizerHandle) return;
     const dist =
       virtualizerHandle.getScrollSize() -
@@ -594,7 +499,7 @@
 
     underfilledBackfillInFlight = true;
     try {
-      // A fetched page can consist entirely of expired tombstones. There is no
+      // A fetched page can consist entirely of context-free tombstones. There is no
       // Virtualizer in that state, but pagination still needs to walk backward
       // until it finds visible history or reaches the beginning.
       if (timelineEvents.length > 0 && filteredEvents.length === 0) {
@@ -800,6 +705,7 @@
                   onOpenThread={getOpenThreadHandler(eventData)}
                   activeCallId={stores.activeCallRooms.getCallId(roomId)}
                   {onOpenCall}
+                  {onOpenProfile}
                   {threadingMode}
                 />
               {/if}

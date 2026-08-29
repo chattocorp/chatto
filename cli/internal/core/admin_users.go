@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // AdminUserView is the core representation returned by operator user
 // administration workflows.
 type AdminUserView struct {
-	User           *corev1.User
+	User           *evtv1.User
 	RoleNames      []string
 	VerifiedEmails []VerifiedEmail
 }
@@ -187,7 +187,7 @@ func (c *ChattoCore) AdminUpdateOperatorUser(ctx context.Context, req AdminUpdat
 	if req.Login == nil && req.DisplayName == nil {
 		return nil, ErrInvalidArgument
 	}
-	user, err := c.AdminUpdateUserProfile(ctx, req.UserID, req.Login, req.DisplayName)
+	user, err := c.AdminUpdateUserProfile(ctx, req.UserID, req.Login, req.DisplayName, nil)
 	if err != nil {
 		return nil, err
 	}

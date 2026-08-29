@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"sync"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestPushSubscriptionKey(t *testing.T) {
@@ -645,7 +644,7 @@ func TestGetUserPushSubscriptionsSkipsUnclaimedLegacyRecord(t *testing.T) {
 	ctx := context.Background()
 	userID := "push-legacy-user"
 	endpoint := "https://push.example.com/legacy-unclaimed"
-	data, err := proto.Marshal(&corev1.PushSubscription{Endpoint: endpoint, P256Dh: "key", Auth: "auth"})
+	data, err := proto.Marshal(&runtimestatev1.PushSubscription{Endpoint: endpoint, P256Dh: "key", Auth: "auth"})
 	if err != nil {
 		t.Fatalf("marshal legacy subscription: %v", err)
 	}

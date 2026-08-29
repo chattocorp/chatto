@@ -60,6 +60,7 @@
     permalinkThreadRootEventId = null,
     messageStore = null,
     onOpenThread,
+    onOpenProfile,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
@@ -68,6 +69,7 @@
     permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
+    onOpenProfile?: (userId: string) => void;
     threadingMode?: RoomThreadingMode;
   } = $props();
 
@@ -358,9 +360,8 @@
   );
 
   // Message is "deleted" if it has no body AND no attachments.
-  // Deleted messages always render as a tombstone — hiding them entirely opened up
-  // moderation-evading and inconsistency vectors (e.g. event numbering gaps, lost
-  // reply-attribution context, deleted-then-reacted-to messages disappearing).
+  // Deleted rows that reach this component have visible context and render as
+  // tombstones. EventList omits context-free tombstones before rendering.
   const isDeleted = $derived(msg ? isDeletedMessage(msg) : true);
 
   const replyTarget = $derived.by(() => {
@@ -393,6 +394,9 @@
   // Check if this thread has pending reply notifications
   const hasThreadNotification = $derived(
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
+  );
+  const hasThreadUnread = $derived(
+    hasReplies && event && messageEvent?.viewerHasUnreadThread === true
   );
   const hasMessageFooter = $derived(
     (isEcho && !!onOpenThread) ||
@@ -689,6 +693,7 @@
           threadExists={messageEvent?.threadExists}
           threadParticipants={messageEvent?.threadParticipants}
           {hasThreadNotification}
+          {hasThreadUnread}
           isFollowingThread={threadFollow.following}
           isThreadFollowPending={threadFollow.pending}
           onToggleThreadFollow={hasThread ? toggleThreadFollow : undefined}
@@ -722,6 +727,7 @@
     currentUserId={currentUser.user?.id}
     {canStartDMs}
     canBanRoomMembers={roomPermissions.canBanRoomMembers}
+    {onOpenProfile}
   />
 
   {#if !isDeleted}

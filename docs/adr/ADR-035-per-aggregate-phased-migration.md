@@ -2,6 +2,8 @@
 
 **Date:** 2026-05-24
 
+**Status:** Completed
+
 **Status update:** The 0.1.x event-sourcing rollout has completed across the
 existing Chatto servers, and the pre-0.1 boot importers plus ES boot verifier
 were removed on 2026-06-12.
@@ -57,11 +59,14 @@ Original rationale for deferring cleanup:
 
 Cleanup unblocked once: (a) every aggregate had reached event-only writes, (b) the new system had burned in across the existing servers, and (c) the projection and mutator APIs were stable enough for the 0.1.x lane.
 
-### Why migrations run at boot, not as a CLI subcommand
+### Why migrations ran at boot, not as a CLI subcommand
 
 An earlier draft of this ADR (and a now-deleted `chatto evt migrate` CLI) had each aggregate's migration as a one-shot operator command. That can't work in the typical embedded-NATS deployment: with no TCP listener on the embedded NATS server, a second process can only connect by taking a temporary file lock on the data directory — which requires stopping `chatto run` first. That isn't an acceptable footgun for an alpha product where operators run a single binary.
 
-Running the migrations at boot inside `NewChattoCore` avoids the multi-process problem entirely. The cost is one extra step at startup; the steady-state cost (after first boot) is a KV key scan and per-subject OCC check, both O(aggregates).
+Running the migrations at boot inside `NewChattoCore` avoided the multi-process
+problem during the rollout. It added one startup step and, after the first
+boot, a KV scan plus per-subject OCC checks. The completed cleanup removed that
+startup work.
 
 Manual re-runs were never exposed, and the boot importers have since been removed. Any future repair or backfill would need a new explicit tool rather than relying on this rollout path.
 

@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administration",
+      "bot": "Botar",
+      "message": "Meddelanden",
+      "role": "Roller",
+      "room": "Rum",
+      "server": "Server",
+      "user": "Användare",
+      "other": "Övrigt"
+    },
     "permission_descriptions": {
       "server_manage": "Uppdatera serverinställningar (namn, beskrivning, logotyp)",
       "room_create": "Skapa nya rum",
@@ -119,7 +129,9 @@
       "user_delete_self": "Radera ditt eget konto",
       "user_invite": "Skapa och hantera inbjudningslänkar",
       "user_manage_accounts": "Skapa användare, redigera kontoidentitet, återställ lösenord, bifoga verifierade e-postmeddelanden och rensa nedkylningar för inloggning",
-      "user_manage_permissions": "Redigera direkta åsidosättningar av behörigheter per användare"
+      "user_manage_permissions": "Redigera direkta åsidosättningar av behörigheter per användare",
+      "bot_create": "Skapa botkonton som du äger",
+      "bot_manage": "Visa och hantera alla botkonton"
     }
   }
 }

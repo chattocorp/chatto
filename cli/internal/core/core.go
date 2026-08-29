@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sync/atomic"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ============================================================================
@@ -66,6 +66,7 @@ type ChattoCore struct {
 	linkPreviewCache          *linkpreview.Cache   // Cache for link preview metadata
 	linkPreviewFetcher        *linkpreview.Fetcher // Fetcher for link preview metadata
 	projectionSnapshotWorker  *projectionSnapshotWorker
+	credentialUsage           *credentialUsageRecorder
 	natsRecoveryState         atomic.Int32
 	natsRecoveryStartedAt     atomic.Int64
 	natsRecoveredReconnects   atomic.Uint64
@@ -80,7 +81,7 @@ type ChattoCore struct {
 	// independently; the main process does not hand work to a local callback.
 	VideoUploadsEnabled bool
 
-	notificationAlertHandler func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error
+	notificationAlertHandler func(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) error
 
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
 	OnPushTestRequested func(ctx context.Context, userID string) error
@@ -205,6 +206,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	g.Go(func() error { return c.keyShredding.Run(gctx) })
+	g.Go(func() error { return c.credentialUsage.Run(gctx) })
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
 			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)

@@ -5,30 +5,6 @@ import (
 	"testing"
 )
 
-// Helper to construct expected allow key from permission
-func expectedAllowKey(subject string, perm Permission, objectId string) string {
-	parts := perm.KeyParts()
-	return AllowKey(subject, parts.Verb, parts.ObjectType, objectId)
-}
-
-// Helper to construct expected deny key from permission
-func expectedDenyKey(subject string, perm Permission, objectId string) string {
-	parts := perm.KeyParts()
-	return DenyKey(subject, parts.Verb, parts.ObjectType, objectId)
-}
-
-// Helper to construct expected room-override allow key from permission
-func expectedRoomAllowKey(roomID, subject string, perm Permission) string {
-	parts := perm.KeyParts()
-	return RoomAllowKey(roomID, subject, parts.Verb, parts.ObjectType)
-}
-
-// Helper to construct expected room-override deny key from permission
-func expectedRoomDenyKey(roomID, subject string, perm Permission) string {
-	parts := perm.KeyParts()
-	return RoomDenyKey(roomID, subject, parts.Verb, parts.ObjectType)
-}
-
 // ============================================================================
 // Instance-Level Role Operations Tests
 // ============================================================================

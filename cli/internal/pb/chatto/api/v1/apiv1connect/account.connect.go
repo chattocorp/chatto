@@ -76,7 +76,7 @@ const (
 
 // MyAccountServiceClient is a client for the chatto.api.v1.MyAccountService service.
 type MyAccountServiceClient interface {
-	// Updates the authenticated user's login and/or display name.
+	// Updates the authenticated user's login, display name, and/or bio.
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Uploads and sets the authenticated user's avatar.
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
@@ -105,9 +105,11 @@ type MyAccountServiceClient interface {
 	// Deletes the current user's custom status. The call is idempotent and returns
 	// the resulting empty status state.
 	DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error)
-	// Issues a short-lived token used to confirm self-deletion.
+	// Issues a short-lived token used to confirm self-deletion. Requires
+	// user.delete-self.
 	RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error)
 	// Permanently deletes the authenticated account after token validation.
+	// Requires user.delete-self.
 	DeleteMyAccount(context.Context, *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error)
 }
 
@@ -289,7 +291,7 @@ func (c *myAccountServiceClient) DeleteMyAccount(ctx context.Context, req *conne
 
 // MyAccountServiceHandler is an implementation of the chatto.api.v1.MyAccountService service.
 type MyAccountServiceHandler interface {
-	// Updates the authenticated user's login and/or display name.
+	// Updates the authenticated user's login, display name, and/or bio.
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Uploads and sets the authenticated user's avatar.
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
@@ -318,9 +320,11 @@ type MyAccountServiceHandler interface {
 	// Deletes the current user's custom status. The call is idempotent and returns
 	// the resulting empty status state.
 	DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error)
-	// Issues a short-lived token used to confirm self-deletion.
+	// Issues a short-lived token used to confirm self-deletion. Requires
+	// user.delete-self.
 	RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error)
 	// Permanently deletes the authenticated account after token validation.
+	// Requires user.delete-self.
 	DeleteMyAccount(context.Context, *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error)
 }
 

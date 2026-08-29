@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"testing"
 	"time"
@@ -15,7 +17,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
@@ -118,15 +120,15 @@ func corruptMessageBody(t *testing.T, ctx context.Context, env *connectAPITestEn
 	t.Helper()
 
 	bodyEventID := core.NewEventID()
-	bodyEvent := &corev1.Event{
+	bodyEvent := &evtv1.Event{
 		Id:        bodyEventID,
 		ActorId:   authorID,
 		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_MessageBody{
-			MessageBody: &corev1.MessageBodyEvent{
+		Event: &evtv1.Event_MessageBody{
+			MessageBody: &evtv1.MessageBodyEvent{
 				RoomId:  roomID,
 				EventId: eventID,
-				Body: &corev1.MessageBody{
+				Body: &evtv1.MessageBody{
 					CreatedAt:         timestamppb.Now(),
 					AuthorId:          authorID,
 					EncryptedBody:     []byte("not a valid ciphertext"),
@@ -347,11 +349,11 @@ func TestTimelineAndAssetServicesHydrateProcessedVideoAttachments(t *testing.T) 
 	if err != nil {
 		t.Fatalf("UploadAttachment original: %v", err)
 	}
-	thumbnail, err := env.core.UploadDerivativeAttachment(env.ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "clip.thumbnail", "application/octet-stream", bytes.NewReader([]byte("thumbnail")))
+	thumbnail, err := env.core.UploadDerivativeAttachment(env.ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "clip.thumbnail", "application/octet-stream", bytes.NewReader([]byte("thumbnail")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment thumbnail: %v", err)
 	}
-	variant, err := env.core.UploadDerivativeAttachment(env.ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "clip-720p.mp4", "video/mp4", bytes.NewReader([]byte("variant video")))
+	variant, err := env.core.UploadDerivativeAttachment(env.ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, room.Id, "clip-720p.mp4", "video/mp4", bytes.NewReader([]byte("variant video")))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment variant: %v", err)
 	}
@@ -359,7 +361,7 @@ func TestTimelineAndAssetServicesHydrateProcessedVideoAttachments(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
-	if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
+	if err := env.core.RecordAssetProcessedWithHLS(env.ctx, core.SystemActorID, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*runtimestatev1.VideoVariant{
 		{
 			AttachmentId: variant.Id,
 			Quality:      "720p",
@@ -368,7 +370,7 @@ func TestTimelineAndAssetServicesHydrateProcessedVideoAttachments(t *testing.T) 
 			Size:         variant.Size,
 			Attachment:   variant,
 		},
-	}, &corev1.AssetProcessedHLS{Renditions: []*corev1.AssetHLSRendition{{Width: 1280, Height: 720, Bandwidth: 1_000_000, Segments: []*corev1.AssetHLSSegment{{AssetId: "A-segment", DurationMs: 1234}}}}}); err != nil {
+	}, &evtv1.AssetProcessedHLS{Renditions: []*evtv1.AssetHLSRendition{{Width: 1280, Height: 720, Bandwidth: 1_000_000, Segments: []*evtv1.AssetHLSSegment{{AssetId: "A-segment", DurationMs: 1234}}}}}); err != nil {
 		t.Fatalf("RecordAssetProcessedWithHLS: %v", err)
 	}
 
@@ -446,11 +448,11 @@ func TestRoomTimelineHydratorRejectsUnsupportedEvents(t *testing.T) {
 		userIDs:  make(map[string]struct{}),
 	}
 
-	_, err := h.event(env.ctx, &core.RoomEvent{Event: &corev1.Event{
+	_, err := h.event(env.ctx, &core.RoomEvent{Event: &evtv1.Event{
 		Id:      "Eunsupported",
 		ActorId: env.viewer.Id,
-		Event: &corev1.Event_RoomUniversalChanged{
-			RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{RoomId: "Runsupported"},
+		Event: &evtv1.Event_RoomUniversalChanged{
+			RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: "Runsupported"},
 		},
 	}})
 	if err == nil || !strings.Contains(err.Error(), "unsupported room timeline event") {
@@ -473,7 +475,7 @@ func TestRoomTimelineHydratorSupportsVisibleCoreEvents(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		event *corev1.Event
+		event *evtv1.Event
 	}{
 		{
 			name:  "message posted",
@@ -481,103 +483,103 @@ func TestRoomTimelineHydratorSupportsVisibleCoreEvents(t *testing.T) {
 		},
 		{
 			name: "room created",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Eroom-created",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_RoomCreated{
-					RoomCreated: &corev1.RoomCreatedEvent{RoomId: room.Id},
+				Event: &evtv1.Event_RoomCreated{
+					RoomCreated: &evtv1.RoomCreatedEvent{RoomId: room.Id},
 				},
 			},
 		},
 		{
 			name: "room updated",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Eroom-updated",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_RoomUpdated{
-					RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: room.Id},
+				Event: &evtv1.Event_RoomUpdated{
+					RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: room.Id},
 				},
 			},
 		},
 		{
 			name: "room deleted",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Eroom-deleted",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_RoomDeleted{
-					RoomDeleted: &corev1.RoomDeletedEvent{RoomId: room.Id},
+				Event: &evtv1.Event_RoomDeleted{
+					RoomDeleted: &evtv1.RoomDeletedEvent{RoomId: room.Id},
 				},
 			},
 		},
 		{
 			name: "room archived",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Eroom-archived",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_RoomArchived{
-					RoomArchived: &corev1.RoomArchivedEvent{RoomId: room.Id},
+				Event: &evtv1.Event_RoomArchived{
+					RoomArchived: &evtv1.RoomArchivedEvent{RoomId: room.Id},
 				},
 			},
 		},
 		{
 			name: "room unarchived",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Eroom-unarchived",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_RoomUnarchived{
-					RoomUnarchived: &corev1.RoomUnarchivedEvent{RoomId: room.Id},
+				Event: &evtv1.Event_RoomUnarchived{
+					RoomUnarchived: &evtv1.RoomUnarchivedEvent{RoomId: room.Id},
 				},
 			},
 		},
 		{
 			name: "room threading mode changed",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Eroom-threading-mode-changed",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_RoomThreadingModeChanged{
-					RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
-						RoomId: room.Id, ThreadingMode: corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED,
+				Event: &evtv1.Event_RoomThreadingModeChanged{
+					RoomThreadingModeChanged: &evtv1.RoomThreadingModeChangedEvent{
+						RoomId: room.Id, ThreadingMode: evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED,
 					},
 				},
 			},
 		},
 		{
 			name: "user joined room",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Euser-joined",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_UserJoinedRoom{
-					UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: room.Id},
+				Event: &evtv1.Event_UserJoinedRoom{
+					UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: room.Id},
 				},
 			},
 		},
 		{
 			name: "user left room",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Euser-left",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_UserLeftRoom{
-					UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: room.Id},
+				Event: &evtv1.Event_UserLeftRoom{
+					UserLeftRoom: &evtv1.UserLeftRoomEvent{RoomId: room.Id},
 				},
 			},
 		},
 		{
 			name: "call started",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Ecall-started",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_VoiceCallStarted{
-					VoiceCallStarted: &corev1.CallStartedEvent{RoomId: room.Id, CallId: "call-1"},
+				Event: &evtv1.Event_VoiceCallStarted{
+					VoiceCallStarted: &evtv1.CallStartedEvent{RoomId: room.Id, CallId: "call-1"},
 				},
 			},
 		},
 		{
 			name: "call ended",
-			event: &corev1.Event{
+			event: &evtv1.Event{
 				Id:      "Ecall-ended",
 				ActorId: env.viewer.Id,
-				Event: &corev1.Event_VoiceCallEnded{
-					VoiceCallEnded: &corev1.CallEndedEvent{RoomId: room.Id, CallId: "call-1"},
+				Event: &evtv1.Event_VoiceCallEnded{
+					VoiceCallEnded: &evtv1.CallEndedEvent{RoomId: room.Id, CallId: "call-1"},
 				},
 			},
 		},
@@ -861,7 +863,7 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 	}
 }
 
-func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID, actorID, roomID string, event *corev1.Event, threadRootID string, reason notificationTestSignalKind) *corev1.NotificationOccurrence {
+func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID, actorID, roomID string, event *evtv1.Event, threadRootID string, reason notificationTestSignalKind) *notificationv1.NotificationOccurrence {
 	t.Helper()
 	sequence, err := env.core.GetEventSequence(env.ctx, core.KindChannel, roomID, event.GetId())
 	if err != nil {
@@ -878,8 +880,8 @@ func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID,
 		SourceStreamSequence: sequence,
 		ActorID:              actorID,
 		Signal:               testNotificationSignalWithMessage(reason, target),
-		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		InitiallyRead:        false,
 		SkipReadLookup:       true,
 	})

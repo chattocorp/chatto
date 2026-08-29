@@ -38,6 +38,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     menu. Attachment sends now show per-file progress and preserve failed uploads for retry.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="More useful user profiles">
+    Open a user's profile from their user card, add a Markdown bio to your own profile, and see
+    the local time that a user chooses to share. Bios can contain up to 1,000 characters. Local
+    times use your preferred 12-hour or 24-hour format. Bots use the same self-profile API when
+    authenticated with their API key.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="Notifications that stay useful after you read them">
     Notifications now stay in one chronological list after you read them. Delete an item whenever
     you no longer want to retain it; per-signal-class controls distinguish mentions,
@@ -70,6 +77,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     role assignment is bounded by the manager's own authority.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="Delete accounts from member administration" size="small">
+    Admins with `user.delete-any` can permanently delete another human member from the
+    member detail page. They confirm the exact login before deletion; this action does not
+    request the admin's password.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="Version-aware compatibility">
     Public server discovery reports the running server version. The multi-server client owns
     its minimum expected server release and uses explicit release boundaries to show useful
@@ -100,9 +113,16 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     The `everyone` role now acts as a scoped default that named roles and direct-user
     decisions can override at the same or a narrower scope. Fresh announcement rooms also
     give admins an explicit room-level posting grant. The new `message.read` and
-    `message.read.interactions` permissions separate broad and relationship-scoped
+    `message.read-interactions` permissions separate broad and relationship-scoped
     channel-room message access from membership. Broad read access includes the narrower
     interaction permission.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Bots activate through normal notifications" size="large">
+    Bot integrations can use the same ConnectRPC API and realtime subscription as human
+    clients. Direct messages, direct mentions, replies, and followed-thread activity arrive
+    as exact notification occurrences. A direct mention in a root or reply follows that
+    thread for later activity when notification policy permits it.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Visible cleanup health" size="small">
@@ -123,6 +143,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+- Remove `current_password` from `chatto.admin.v1.DeleteUserRequest` in custom
+  clients before you update generated code. A 0.5 server ignores protobuf
+  binary tag `2`, but `current_password` is not part of the 0.5 ProtoJSON
+  schema. A 0.5 client does not send the field. An older server can return
+  `failed_precondition` when the current session is not fresh.
 - The bundled frontend automatically moves a valid 0.4 typed browser session to
   the SCS-backed `chatto_auth_*` path. The migration keeps the existing opaque
   server-side session and does not ask the user to sign in again. An expired,
@@ -138,7 +163,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   across a lost-response retry.
 - Before or during the upgrade, grant `message.read` to every existing role or
   account that must keep broad channel-room message access. Grant
-  `message.read.interactions` where an account or bot must read only related
+  `message.read-interactions` where an account or bot must read only related
   threads. A server-level `everyone` grant for `message.read` preserves broad
   access and includes the narrow mode. Chatto never migrates, backfills, or
   reconciles existing RBAC state. Fresh servers receive only the broad grant
@@ -150,10 +175,19 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   start the DM before the bot can read or post in it. Upgrade every replica
   before you depend on this boundary because an older replica can still accept
   the call.
-- Remove `webserver.allowed_origins` and `webserver.oauth_redirect_origins` (or their
-  environment-variable equivalents) from server configuration; those settings no longer
-  exist. The 0.5 OAuth flow requires a CIMD or built-in `client_id`, so upgrade clients and
-  servers together. Pre-0.5 clients cannot use the new remote-server authorization flow.
+- Bot integrations can use `notification_occurrences_replace` on the normal
+  realtime subscription as their activation source. Save stable occurrence
+  IDs and deduplicate by the referenced message event ID when one message must
+  cause only one action. During a mixed-replica rollout, an older replica can
+  omit the follow created by a direct root mention. Complete the rollout before
+  you depend on later followed-thread activations.
+- Remove `webserver.oauth_redirect_origins` or its environment-variable
+  equivalent. Keep `webserver.allowed_origins` only when an exact additional
+  browser origin must use cookie authentication through a reverse proxy. This
+  setting no longer controls cross-origin API access or OAuth redirects, and
+  `*` never authorizes browser cookies. The 0.5 OAuth flow requires a CIMD or
+  built-in `client_id`, so upgrade clients and servers together. Pre-0.5 clients
+  cannot use the new remote-server authorization flow.
 - Notifications 2.0 replaces the previous notification service and stored records. Existing
   pending notifications and notification-level preferences are not migrated, so every account
   starts with an empty notification list and the new per-signal-class defaults. Integrations must
@@ -165,6 +199,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   protobuf for this forward-compatible fallback. ProtoJSON integrations must ignore unknown
   fields or regenerate before a future signal variant is exposed.
   Upgrade all replicas and bundled clients together.
+- Existing 0.4 Web Push subscription records remain stored, but 0.5 cannot use
+  them until the browser registers them again. The bundled client performs this
+  refresh without another permission prompt when the user opens it and
+  notification permission is still granted. Push delivery can be unavailable
+  until that first visit.
 - Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server no longer accepts protocol 1. Integrations that use `/api/realtime` must
@@ -174,6 +213,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   deleted that message and can temporarily render its body again. Once every replica runs
   0.5, message edits and deletions share one room lifecycle boundary and deletion tombstones
   remain authoritative during replay.
+- Treat the upgrade as forward-only after a 0.5 server accepts traffic. A 0.4
+  binary does not understand new notification facts, asset lifecycle facts,
+  HLS results, or other 0.5-only events. It can start on the same data but cannot
+  provide the complete server state. Deploy a 0.5 fix when possible. For a full
+  rollback, restore a tested pre-upgrade backup and accept the loss of later
+  writes. Include matching encryption keys in the recovery plan, and back up S3
+  assets separately.
 - Server discovery no longer publishes `compatibility.protocol_capabilities`, which appeared
   only in unreleased 0.5 development snapshots. The containing `compatibility` message is
   also gone: clients own their minimum supported server release instead of the server
@@ -201,6 +247,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   plaintext-derived index from backups.
 
 ## Smaller fixes you'll appreciate
+
+### Privacy and presence
+
+- Presence no longer changes to Away because of input inactivity or tab visibility. You
+  control Online, Away, Do Not Disturb, and Look offline directly.
 
 ### Messages, media, and calls
 

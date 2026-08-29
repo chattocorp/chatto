@@ -270,6 +270,17 @@ func validateAbsoluteHTTPURL(name, raw string) error {
 	return nil
 }
 
+func validateAbsoluteHTTPSURL(name, raw string) error {
+	if err := validateAbsoluteHTTPURL(name, raw); err != nil {
+		return err
+	}
+	u, _ := url.Parse(raw)
+	if u.Scheme != "https" {
+		return fmt.Errorf("%s must use https", name)
+	}
+	return nil
+}
+
 // hostnameEndsInNumber detects hostnames that browsers interpret using their
 // legacy IPv4 parser. Requiring modern dotted IPv4 spelling prevents the
 // browser and server from serializing the same configured origin differently.

@@ -22,7 +22,7 @@ import (
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -137,23 +137,18 @@ func NewCallModel(
 }
 
 func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.Stream) error {
-	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            callKeyCleanupConsumerName,
-		Durable:         callKeyCleanupConsumerName,
-		Description:     "Shared durable queue for ended Chatto call-key deletion",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         callKeyCleanupAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   evtstream.RoomEventTypeFilter(evtstream.EventCallEnded),
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   callKeyCleanupMaxPending,
-		MaxRequestBatch: callKeyCleanupMaxPending,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, stream, evtstream.EffectConsumerConfig{
+		Name:           callKeyCleanupConsumerName,
+		Description:    "Shared durable queue for ended Chatto call-key deletion",
+		FilterSubjects: []string{evtstream.RoomEventTypeFilter(evtstream.EventCallEnded)},
+		AckWait:        callKeyCleanupAckWait,
+		MaxAckPending:  callKeyCleanupMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return fmt.Errorf("create call-key cleanup consumer: %w", err)
 	}
-	worker, err := events.NewDurableWorker(consumer, s.processKeyCleanupDelivery, events.DurableWorkerOptions{
+	worker, err := evtstream.NewEffectWorker(consumer, s.processKeyCleanupDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent:     callKeyCleanupMaxPending,
 		RetryDelay:        callKeyCleanupRetryDelay,
 		AckTimeout:        callKeyCleanupAckTimeout,
@@ -432,7 +427,7 @@ func (s *CallModel) cleanupQueuedCallKey(ctx context.Context, keyRef string) err
 	return nil
 }
 
-func (s *CallModel) cleanupEndedCallKey(ctx context.Context, event *corev1.Event) error {
+func (s *CallModel) cleanupEndedCallKey(ctx context.Context, event *evtv1.Event) error {
 	callID := event.GetVoiceCallEnded().GetCallId()
 	if callID == "" {
 		return nil
@@ -463,23 +458,23 @@ func (s *CallModel) processKeyCleanupDelivery(ctx context.Context, delivery even
 	return s.cleanupEndedCallKey(ctx, event)
 }
 
-func (s *CallModel) AppendJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) AppendJoined(ctx context.Context, roomID, userID string, source evtv1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, true, "", source)
 }
 
-func (s *CallModel) AppendLeft(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) AppendLeft(ctx context.Context, roomID, userID string, source evtv1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, false, "", source)
 }
 
-func (s *CallModel) AppendJoinedForCall(ctx context.Context, roomID, userID, expectedCallID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) AppendJoinedForCall(ctx context.Context, roomID, userID, expectedCallID string, source evtv1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, true, expectedCallID, source)
 }
 
-func (s *CallModel) AppendLeftForCall(ctx context.Context, roomID, userID, expectedCallID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) AppendLeftForCall(ctx context.Context, roomID, userID, expectedCallID string, source evtv1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, false, expectedCallID, source)
 }
 
-func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source corev1.CallParticipantEventSource) error {
+func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource) error {
 	aggregate := evtstream.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
@@ -529,7 +524,7 @@ func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, use
 	return fmt.Errorf("append call participant transition after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
 }
 
-func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate evtstream.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) ([]evtstream.BatchEntry, string, string, error) {
+func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate evtstream.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source evtv1.CallParticipantEventSource) ([]evtstream.BatchEntry, string, string, error) {
 	if joined {
 		callID := snapshot.Call.CallID
 		if callID == "" {
@@ -661,13 +656,13 @@ func (s *CallModel) reconciliationConflictResolved(roomID, userID string, joined
 }
 
 func (s *CallModel) appendReconciliationEvent(ctx context.Context, roomID, userID string, joined bool) error {
-	return s.appendParticipantTransition(ctx, roomID, userID, joined, "", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
+	return s.appendParticipantTransition(ctx, roomID, userID, joined, "", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
 }
 
-func newCallStartedEvent(roomID, userID, callID, keyRef string, source corev1.CallParticipantEventSource) *corev1.Event {
-	return newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_VoiceCallStarted{
-			VoiceCallStarted: &corev1.CallStartedEvent{
+func newCallStartedEvent(roomID, userID, callID, keyRef string, source evtv1.CallParticipantEventSource) *evtv1.Event {
+	return newEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_VoiceCallStarted{
+			VoiceCallStarted: &evtv1.CallStartedEvent{
 				RoomId:     roomID,
 				CallId:     callID,
 				E2EeKeyRef: keyRef,
@@ -677,10 +672,10 @@ func newCallStartedEvent(roomID, userID, callID, keyRef string, source corev1.Ca
 	})
 }
 
-func newCallEndedEvent(roomID, userID, callID string, source corev1.CallParticipantEventSource) *corev1.Event {
-	return newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_VoiceCallEnded{
-			VoiceCallEnded: &corev1.CallEndedEvent{
+func newCallEndedEvent(roomID, userID, callID string, source evtv1.CallParticipantEventSource) *evtv1.Event {
+	return newEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_VoiceCallEnded{
+			VoiceCallEnded: &evtv1.CallEndedEvent{
 				RoomId: roomID,
 				CallId: callID,
 				Source: source,
@@ -689,11 +684,11 @@ func newCallEndedEvent(roomID, userID, callID string, source corev1.CallParticip
 	})
 }
 
-func newCallParticipantEvent(roomID, userID, callID string, joined bool, source corev1.CallParticipantEventSource) *corev1.Event {
+func newCallParticipantEvent(roomID, userID, callID string, joined bool, source evtv1.CallParticipantEventSource) *evtv1.Event {
 	if joined {
-		return newEvent(userID, &corev1.Event{
-			Event: &corev1.Event_VoiceCallParticipantJoined{
-				VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+		return newEvent(userID, &evtv1.Event{
+			Event: &evtv1.Event_VoiceCallParticipantJoined{
+				VoiceCallParticipantJoined: &evtv1.CallParticipantJoinedEvent{
 					RoomId: roomID,
 					Source: source,
 					CallId: callID,
@@ -701,9 +696,9 @@ func newCallParticipantEvent(roomID, userID, callID string, joined bool, source 
 			},
 		})
 	}
-	return newEvent(userID, &corev1.Event{
-		Event: &corev1.Event_VoiceCallParticipantLeft{
-			VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{
+	return newEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_VoiceCallParticipantLeft{
+			VoiceCallParticipantLeft: &evtv1.CallParticipantLeftEvent{
 				RoomId: roomID,
 				Source: source,
 				CallId: callID,
@@ -849,7 +844,7 @@ func (s *CallModel) ensureUnmatchedCallEndedFact(ctx context.Context, snapshot l
 			return nil
 		}
 	}
-	ended := newCallEndedEvent(snapshot.RoomID, SystemActorID, snapshot.CallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
+	ended := newCallEndedEvent(snapshot.RoomID, SystemActorID, snapshot.CallID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
 	if _, err := s.publisher.AppendEventually(ctx, subject, ended); err != nil {
 		return fmt.Errorf("record unmatched LiveKit call end: %w", err)
 	}

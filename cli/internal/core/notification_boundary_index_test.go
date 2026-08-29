@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 )
 
 func TestNotificationBoundaryIndexInitialSnapshotAndReplicaChanges(t *testing.T) {
@@ -28,6 +31,19 @@ func TestNotificationBoundaryIndexInitialSnapshotAndReplicaChanges(t *testing.T)
 	initialRead := notificationReadBoundary{targetSequence: 23, observedSequence: 37}
 	if _, err := kv.Put(ctx, readKey, encodeNotificationReadBoundary(initialRead)); err != nil {
 		t.Fatalf("seed read boundary: %v", err)
+	}
+	unreadKey := notificationUnreadMarkerKey(userID, roomID, threadRoot)
+	unreadMarker := &runtimestatev1.NotificationUnreadMarker{
+		SourceEventId: "E-source", ActorId: "U-actor", SourceStreamSequence: 42,
+		Signal: testNotificationSignal(notificationTestSignalFollowedThread, roomID, "E-source"),
+	}
+	unreadMarker.GetSignal().GetFollowedThreadActivity().Message.ThreadRootEventId = proto.String(threadRoot)
+	unreadValue, err := proto.Marshal(unreadMarker)
+	if err != nil {
+		t.Fatalf("marshal unread marker: %v", err)
+	}
+	if _, err := kv.Put(ctx, unreadKey, unreadValue); err != nil {
+		t.Fatalf("seed unread marker: %v", err)
 	}
 
 	index := newNotificationBoundaryIndex(kv, testCoreLogger())
@@ -53,6 +69,9 @@ func TestNotificationBoundaryIndexInitialSnapshotAndReplicaChanges(t *testing.T)
 	}
 	if boundary, exists, err := index.readBoundary(ctx, userID, roomID, threadRoot); err != nil || !exists || boundary != initialRead {
 		t.Fatalf("read boundary = (%+v, %v, %v), want (%+v, true, nil)", boundary, exists, err, initialRead)
+	}
+	if marker, _, exists, err := index.unreadMarker(ctx, notificationReadBoundaryScope{userID: userID, roomID: roomID, threadRootEventID: threadRoot}); err != nil || !exists || !proto.Equal(marker, unreadMarker) {
+		t.Fatalf("unread marker = (%+v, %v, %v), want (%+v, true, nil)", marker, exists, err, unreadMarker)
 	}
 
 	updatedRead := notificationReadBoundary{targetSequence: 50, observedSequence: 60}
@@ -114,12 +133,18 @@ func TestNotificationBoundaryIndexParsesOwnedKeys(t *testing.T) {
 	if scope, ok := parseNotificationReadBoundaryKey("notification_read_boundary.U1.R1.E1"); !ok || scope != (notificationReadBoundaryScope{userID: "U1", roomID: "R1", threadRootEventID: "E1"}) {
 		t.Fatalf("read key = (%+v, %v)", scope, ok)
 	}
+	if scope, ok := parseNotificationUnreadMarkerKey("notification_unread_marker.U1.R1.E1"); !ok || scope != (notificationReadBoundaryScope{userID: "U1", roomID: "R1", threadRootEventID: "E1"}) {
+		t.Fatalf("unread key = (%+v, %v)", scope, ok)
+	}
 	for _, key := range []string{"notification_visibility_boundary.U1", "notification_read_boundary.U1", "other.U1.R1"} {
 		if _, _, ok := parseNotificationVisibilityBoundaryKey(key); ok {
 			t.Fatalf("visibility parser accepted %q", key)
 		}
 		if _, ok := parseNotificationReadBoundaryKey(key); ok {
 			t.Fatalf("read parser accepted %q", key)
+		}
+		if _, ok := parseNotificationUnreadMarkerKey(key); ok {
+			t.Fatalf("unread parser accepted %q", key)
 		}
 	}
 }

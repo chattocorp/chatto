@@ -7,21 +7,21 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-func (p *Projection) decryptBody(ctx context.Context, eventID, roomID string, body *corev1.MessageBody) ([]byte, error) {
+func (p *Projection) decryptBody(ctx context.Context, eventID, roomID string, body *evtv1.MessageBody) ([]byte, error) {
 	return p.decryptBodyWithDEKs(ctx, eventID, roomID, body, p.deks)
 }
 
-func (p *Projection) decryptBodyWithDEKs(ctx context.Context, eventID, roomID string, body *corev1.MessageBody, deks map[string]*corev1.UserDEKGeneratedEvent) ([]byte, error) {
+func (p *Projection) decryptBodyWithDEKs(ctx context.Context, eventID, roomID string, body *evtv1.MessageBody, deks map[string]*evtv1.UserDEKGeneratedEvent) ([]byte, error) {
 	if body.GetEncryptionVersion() >= encryption.EnvelopeVersionV2 || body.GetContentKeyEpoch() > 0 {
 		if body.GetEncryptionVersion() != encryption.EnvelopeVersionV2 || body.GetContentKeyEpoch() <= 0 {
 			return nil, fmt.Errorf("invalid message body encryption envelope")
 		}
-		dek := deks[dekKey(body.GetAuthorId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, body.GetContentKeyEpoch())]
+		dek := deks[dekKey(body.GetAuthorId(), evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, body.GetContentKeyEpoch())]
 		if dek == nil {
-			dek = deks[dekKey(body.GetAuthorId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED, body.GetContentKeyEpoch())]
+			dek = deks[dekKey(body.GetAuthorId(), evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED, body.GetContentKeyEpoch())]
 		}
 		if dek == nil || p.keyWrapper == nil || p.dekStore == nil {
 			return nil, encryption.ErrKeyNotFound

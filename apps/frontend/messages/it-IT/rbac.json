@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Amministrazione",
+      "bot": "Bot",
+      "message": "Messaggi",
+      "role": "Ruoli",
+      "room": "Stanze",
+      "server": "Server",
+      "user": "Utenti",
+      "other": "Altro"
+    },
     "permission_descriptions": {
       "server_manage": "Aggiorna le impostazioni del server (nome, descrizione, logo)",
       "room_create": "Crea nuove stanze",
@@ -119,7 +129,9 @@
       "user_delete_self": "Elimina il tuo account",
       "user_invite": "Crea e gestisci i link di invito",
       "user_manage_accounts": "Crea utenti, modifica l'identità dell'account, reimposta le password, allega e-mail verificate e cancella i tempi di recupero dell'accesso",
-      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente"
+      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente",
+      "bot_create": "Creare account bot di tua proprietà",
+      "bot_manage": "Visualizzare e gestire tutti gli account bot"
     }
   }
 }

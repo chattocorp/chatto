@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"sync"
 	"testing"
@@ -13,7 +15,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/push"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -21,22 +23,22 @@ import (
 type recordingNotificationPushSender struct {
 	mu        sync.Mutex
 	calls     int
-	inputs    [][]*corev1.PushSubscription
+	inputs    [][]*runtimestatev1.PushSubscription
 	payload   []*push.Payload
 	deadlines []time.Time
-	results   func([]*corev1.PushSubscription) []*push.SendResult
+	results   func([]*runtimestatev1.PushSubscription) []*push.SendResult
 }
 
-func (s *recordingNotificationPushSender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSubscription, payload *push.Payload) []*push.SendResult {
-	return s.SendToManyMapped(ctx, subscriptions, func(*corev1.PushSubscription) *push.Payload {
+func (s *recordingNotificationPushSender) SendToMany(ctx context.Context, subscriptions []*runtimestatev1.PushSubscription, payload *push.Payload) []*push.SendResult {
+	return s.SendToManyMapped(ctx, subscriptions, func(*runtimestatev1.PushSubscription) *push.Payload {
 		return payload
 	})
 }
 
 func (s *recordingNotificationPushSender) SendToManyMapped(
 	ctx context.Context,
-	subscriptions []*corev1.PushSubscription,
-	payloadFor func(*corev1.PushSubscription) *push.Payload,
+	subscriptions []*runtimestatev1.PushSubscription,
+	payloadFor func(*runtimestatev1.PushSubscription) *push.Payload,
 ) []*push.SendResult {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -66,7 +68,7 @@ func setupNotificationPushTestCore(t *testing.T) (*core.ChattoCore, context.Cont
 	// Keep alert occurrences pending so these tests can exercise the production
 	// provider handler directly. The durable worker retries ordinary transport
 	// failures without resolving the occurrence.
-	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *notificationv1.NotificationOccurrence) error {
 		return errors.New("hold notification alert for direct handler test")
 	})
 	runCtx, stop := context.WithCancel(context.Background())
@@ -86,7 +88,7 @@ func setupNotificationPushTestCore(t *testing.T) (*core.ChattoCore, context.Cont
 	return chattoCore, ctx
 }
 
-func notificationPushFixture(t *testing.T, messageCount int) (*core.ChattoCore, context.Context, *corev1.User, *corev1.User, *corev1.NotificationOccurrence) {
+func notificationPushFixture(t *testing.T, messageCount int) (*core.ChattoCore, context.Context, *evtv1.User, *evtv1.User, *notificationv1.NotificationOccurrence) {
 	t.Helper()
 	chattoCore, ctx := setupNotificationPushTestCore(t)
 	alice, err := chattoCore.CreateUser(ctx, core.SystemActorID, "push-handler-alice", "Alice", "password")
@@ -101,7 +103,7 @@ func notificationPushFixture(t *testing.T, messageCount int) (*core.ChattoCore, 
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	var latest *corev1.Event
+	var latest *evtv1.Event
 	for index := range messageCount {
 		latest, err = chattoCore.PostMessage(ctx, core.KindDM, room.Id, bob.Id, "push handler message", nil, "", "", nil, false)
 		if err != nil {
@@ -136,7 +138,7 @@ func TestNotificationAlertHandlerCompletesWhenAnyCurrentDeviceAccepts(t *testing
 			t.Fatalf("SavePushSubscription %s: %v", endpoint, err)
 		}
 	}
-	sender := &recordingNotificationPushSender{results: func(subscriptions []*corev1.PushSubscription) []*push.SendResult {
+	sender := &recordingNotificationPushSender{results: func(subscriptions []*runtimestatev1.PushSubscription) []*push.SendResult {
 		results := make([]*push.SendResult, 0, len(subscriptions))
 		for _, subscription := range subscriptions {
 			if subscription.GetEndpoint() == endpoints[0] {
@@ -192,7 +194,7 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 		if err := chattoCore.SetPresence(ctx, alice.Id, core.PresenceStatusDoNotDisturb); err != nil {
 			t.Fatalf("SetPresence: %v", err)
 		}
-		sender := &recordingNotificationPushSender{results: func([]*corev1.PushSubscription) []*push.SendResult {
+		sender := &recordingNotificationPushSender{results: func([]*runtimestatev1.PushSubscription) []*push.SendResult {
 			t.Fatal("DND handler contacted provider")
 			return nil
 		}}
@@ -210,7 +212,7 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 		if _, err := chattoCore.NotificationOccurrences().MarkRead(ctx, alice.Id, occurrence.GetId()); err != nil {
 			t.Fatalf("MarkRead: %v", err)
 		}
-		sender := &recordingNotificationPushSender{results: func([]*corev1.PushSubscription) []*push.SendResult {
+		sender := &recordingNotificationPushSender{results: func([]*runtimestatev1.PushSubscription) []*push.SendResult {
 			t.Fatal("read occurrence contacted provider")
 			return nil
 		}}
@@ -232,12 +234,12 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 			ctx,
 			alice.Id,
 			"",
-			&corev1.NotificationDeliveryModes{DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
+			&evtv1.NotificationDeliveryModes{DirectMessages: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
 			&fieldmaskpb.FieldMask{Paths: []string{"direct_messages"}},
 		); err != nil {
 			t.Fatalf("UpdateNotificationPolicy: %v", err)
 		}
-		sender := &recordingNotificationPushSender{results: func([]*corev1.PushSubscription) []*push.SendResult {
+		sender := &recordingNotificationPushSender{results: func([]*runtimestatev1.PushSubscription) []*push.SendResult {
 			t.Fatal("policy-downgraded occurrence contacted provider")
 			return nil
 		}}
@@ -257,7 +259,7 @@ func TestNotificationAlertHandlerRejectsTransferredEndpoint(t *testing.T) {
 	if _, err := chattoCore.SavePushSubscription(ctx, bob.Id, endpoint, "bob-key", "bob-auth", "browser"); err != nil {
 		t.Fatalf("SavePushSubscription bob: %v", err)
 	}
-	sender := &recordingNotificationPushSender{results: func([]*corev1.PushSubscription) []*push.SendResult {
+	sender := &recordingNotificationPushSender{results: func([]*runtimestatev1.PushSubscription) []*push.SendResult {
 		t.Fatal("transferred endpoint contacted provider")
 		return nil
 	}}

@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestServerMemberUserPage(t *testing.T) {
 	oldest := timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	newest := timestamppb.New(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC))
-	users := []*corev1.User{
+	users := []*evtv1.User{
 		{Id: "nil-z", Login: "Zulu", DisplayName: "Legacy Zulu"},
 		{Id: "new", Login: "bravo", DisplayName: "Second Match", CreatedAt: newest},
 		{Id: "nil-a", Login: "alpha", DisplayName: "Legacy Alpha"},

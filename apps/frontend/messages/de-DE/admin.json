@@ -104,7 +104,25 @@
       "edit": "Bearbeiten",
       "assigned_role": "Rolle {role} zugewiesen",
       "removed_role": "Rolle {role} entfernt",
-      "role_update_failed": "Rollenzuweisung konnte nicht aktualisiert werden"
+      "role_update_failed": "Rollenzuweisung konnte nicht aktualisiert werden",
+      "danger_zone": "Gefahrenzone",
+      "open_delete_account": "Konto löschen",
+      "delete_account_entry_description": "Löscht das Konto dieses Mitglieds endgültig. Seine Nachrichten werden unlesbar. Dies kann nicht rückgängig gemacht werden."
+    },
+    "member_delete": {
+      "title": "Mitglied löschen",
+      "warning": "Damit löschst du das Konto von {name} endgültig. Dies kann nicht rückgängig gemacht werden.",
+      "consequences_intro": "Was passiert:",
+      "consequence_rooms": "Das Mitglied wird aus allen Räumen entfernt.",
+      "consequence_messages": "Alle geschriebenen Nachrichten werden dauerhaft unlesbar.",
+      "consequence_profile": "Profil, Avatar und Benutzername werden gelöscht. Der Benutzername wird danach wieder freigegeben.",
+      "consequence_sessions": "Die Person wird überall abgemeldet.",
+      "confirm_label": "Tippe {login} zur Bestätigung",
+      "submit": "Konto endgültig löschen",
+      "deleting": "Wird gelöscht...",
+      "failed": "Das Konto konnte nicht gelöscht werden.",
+      "success": "Das Konto wurde gelöscht.",
+      "not_allowed": "Du kannst dieses Konto nicht löschen."
     },
     "member_detail": {
       "no_self_rename": "Keine Selbstumbenennung erfasst.",

@@ -330,7 +330,7 @@ func (x *ServerViewerPermissions) GetPermissions() []*PermissionGrant {
 // Non-permission server state for the authenticated user.
 type ServerViewerState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether any joined channel room has unread messages.
+	// Whether any joined channel room has neutral Badge attention.
 	HasUnreadRooms bool `protobuf:"varint,1,opt,name=has_unread_rooms,json=hasUnreadRooms,proto3" json:"has_unread_rooms,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache

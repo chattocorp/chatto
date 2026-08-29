@@ -9,13 +9,19 @@
       "account": "Account",
       "bots": "Bots",
       "user_preferences": "Gebruikersvoorkeuren",
-      "server_configuration": "Serverconfiguratie"
+      "app_preferences": "Appvoorkeuren",
+      "your_account": "Jouw account",
+      "server_configuration": "Server"
     },
     "app_preferences": {
       "title": "Appvoorkeuren",
       "subtitle": "Keuzes van deze app die gelden voor al je geregistreerde servers",
-      "appearance": { "title": "Weergave" },
-      "composer": { "title": "Berichten opstellen" }
+      "appearance": {
+        "title": "Weergave"
+      },
+      "composer": {
+        "title": "Berichten opstellen"
+      }
     },
     "profile": {
       "title": "Profiel",
@@ -102,7 +108,7 @@
       "presence": {
         "button": "Aanwezigheid: {status}",
         "title": "Aanwezigheid",
-        "auto": "Online",
+        "online": "Online",
         "away": "Weg",
         "do_not_disturb": "Niet storen",
         "offline": "Offline",
@@ -110,7 +116,13 @@
       },
       "saved": "Profiel is succesvol bijgewerkt",
       "save_failed": "Kan profiel niet opslaan",
-      "save_button": "Wijzigingen opslaan"
+      "save_button": "Wijzigingen opslaan",
+      "bio": {
+        "label": "Bio",
+        "description": "Tot {max} tekens, zichtbaar in je profiel.",
+        "placeholder": "Vertel anderen kort iets over jezelf",
+        "too_long": "De bio mag maximaal {max} tekens bevatten."
+      }
     },
     "preferences": {
       "title": "Tijd en regio",
@@ -291,10 +303,13 @@
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",
+          "badge": "Markering",
+          "badge_hint": "Voegt alleen een neutraal bolletje voor ongelezen inhoud toe. Maakt geen melding, speelt geen geluid af en verstuurt geen pushmelding.",
           "notification": "Melding",
           "push_notification": "Pushmelding"
         },
         "reason": {
+          "room_message": "Berichten in ruimtes",
           "direct_message": "Directe berichten",
           "direct_mention": "Directe vermeldingen",
           "reply": "Antwoorden op je berichten",
@@ -302,12 +317,12 @@
           "here": "@here-vermeldingen",
           "all": "@all-vermeldingen",
           "followed_thread": "Gevolgde threads",
-          "followed_room": "Gevolgde ruimtes",
           "reaction": "Reacties op je berichten",
           "activity": "Activiteit",
           "room_invitation": "Uitnodigingen voor ruimtes"
         },
         "reason_hint": {
+          "room_message": "Hoofdberichten die andere leden rechtstreeks in kanaalruimtes plaatsen, niet in threads.",
           "direct_message": "Berichten die andere leden in privégesprekken sturen.",
           "direct_mention": "Berichten waarin je gebruikersnaam rechtstreeks wordt vermeld.",
           "reply": "Berichten die op een van je berichten antwoorden.",
@@ -315,7 +330,6 @@
           "here": "Berichten met @here wanneer je aanwezigheidsstatus niet offline is.",
           "all": "Berichten met @all in een ruimte waarvan je lid bent.",
           "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
-          "followed_room": "Berichten buiten threads in ruimtes die je volgt.",
           "reaction": "Reacties die andere leden aan je berichten toevoegen."
         }
       }
@@ -410,11 +424,6 @@
       "create_title": "Bot-account maken",
       "create_failed": "Kan geen bot maken",
       "created": "Bot gemaakt",
-      "edit": "Bewerken",
-      "edit_title": "Bot-account bewerken",
-      "updated": "Bot bijgewerkt",
-      "update_failed": "Kan bot niet updaten",
-      "update_conflict": "Iemand anders heeft deze bot bijgewerkt. Laad de pagina opnieuw en probeer het nog eens.",
       "username": "Gebruikersnaam",
       "username_hint": "Bot-gebruikersnamen moeten eindigen op _bot.",
       "display_name": "Weergavenaam",
@@ -433,6 +442,12 @@
       "rotate_warning": "De huidige sleutel werkt onmiddellijk niet meer. Elke integratie die hiervan gebruik maakt, moet worden bijgewerkt.",
       "key_rotated": "API-sleutel geroteerd",
       "rotate_failed": "Kan de API-sleutel niet roteren",
+      "webhook_title": "Inkomende webhooks",
+      "webhook_description": "Plaats berichten als deze bot vanuit externe tools.",
+      "webhook_created": "Inkomende webhook gemaakt",
+      "webhook_url_title": "Deze webhook-URL opslaan",
+      "webhook_url_warning": "Deze URL wordt slechts één keer getoond en bevat toegangsgegevens. Bewaar de URL op een veilige plaats voordat u dit venster sluit.",
+      "webhook_url_copied": "Webhook-URL gekopieerd",
       "delete_title": "Bot verwijderen",
       "delete_warning": "{name} verwijderen? De API-sleutel werkt onmiddellijk niet meer en het account kan niet worden hersteld.",
       "deleted": "Bot verwijderd",
@@ -440,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Kies wat deze bot mag doen. Je kunt alleen rechten geven die je zelf hebt. Als je een recht verliest, kan de bot het ook niet meer gebruiken.",
         "save_failed": "Kan de botrechten niet bijwerken"
-      }
+      },
+      "webhook_empty_description": "Er zijn nog geen inkomende webhooks gemaakt.",
+      "webhook_create": "Webhook maken",
+      "webhook_name": "Naam",
+      "webhook_created_at": "Gemaakt",
+      "webhook_create_failed": "Inkomende webhook kon niet worden gemaakt",
+      "webhook_revoke": "Webhook intrekken",
+      "webhook_revoke_warning": "De huidige webhook-URL werkt onmiddellijk niet meer.",
+      "webhook_revoked": "Inkomende webhook ingetrokken",
+      "webhook_revoke_failed": "Inkomende webhook kon niet worden ingetrokken",
+      "webhook_last_used": "Laatst gebruikt",
+      "webhook_no_use_recorded": "Geen gebruik geregistreerd",
+      "webhook_last_used_unavailable": "Tijdelijk niet beschikbaar",
+      "webhook_limit_reached": "De limiet van 20 inkomende webhooks is bereikt."
     }
   }
 }

@@ -9,7 +9,7 @@ in the active server store so browser Back can restore the current search.
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import type { UserAvatarUserView } from '$lib/render/users';
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';

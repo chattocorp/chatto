@@ -4,6 +4,7 @@
   import { resolve } from '$app/paths';
   import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
   import { createPresenceAPI } from '$lib/api-client/presence';
+  import { createAccountAPI } from '$lib/api-client/account';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { clearCachedUser, type CurrentUser } from '$lib/auth/loadAuth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
@@ -18,6 +19,7 @@
   import { initPresenceTracking } from '$lib/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
   import { getPushRegistrationTargets } from '$lib/notifications/pushNotifications';
+  import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
   import {
     updateAuthenticatedCurrentUserPresenceEntries,
     type PresenceCache
@@ -116,7 +118,8 @@
               member.displayName,
               member.avatarUrl,
               member.login,
-              member.customStatus
+              member.customStatus,
+              { bio: member.bio ?? null, timezone: member.timezone ?? null }
             );
           } else if (operation.operation.case === 'viewerUpsert') {
             const viewer = viewerResponseToState(operation.operation.value);
@@ -126,7 +129,8 @@
               viewer.user.displayName,
               viewer.user.avatarUrl ?? null,
               viewer.user.login,
-              viewer.user.customStatus ?? null
+              viewer.user.customStatus ?? null,
+              { bio: viewer.user.bio ?? null, timezone: viewer.user.settings?.timezone ?? null }
             );
           } else if (operation.operation.case === 'userRemove') {
             rootProfileCache.remove(operation.operation.value.userId);
@@ -168,7 +172,8 @@
     });
   }
 
-  // Initialize presence tracking (idle detection → AWAY, active → ONLINE).
+  // Initialize presence tracking (reports the user's explicit status choice
+  // and refreshes it so server-side presence TTLs do not expire).
   // This works across all instances, not just origin.
   const stopPresenceTracking = initPresenceTracking(
     () =>
@@ -191,6 +196,45 @@
       currentUserPresenceStores(),
       presencePreference.effectiveStatus
     );
+  });
+
+  // Report this device's time zone once per (server, user) when the viewer has
+  // no explicit override. Explicitly chosen zones are never overwritten, so
+  // reconnects and other devices cannot clobber a deliberate setting.
+  const timezoneReports = createDeviceTimezoneReportTracker();
+  $effect(() => {
+    const zone = deviceTimezone();
+    if (!zone) return;
+    for (const server of serverRegistry.servers) {
+      const store = serverRegistry.tryGetStore(server.id);
+      const user = store?.currentUser.user;
+      if (!store || !user || !store.isAuthenticated) continue;
+      const key = `${server.id}:${user.id}`;
+      if (!timezoneReports.begin(key)) continue;
+      if (user.settings?.timezone) {
+        continue;
+      }
+      const api = serverConnectionManager.getClient(server.id).getAPI(createAccountAPI);
+      void api
+        .updateSettings({ timezone: zone })
+        .then((settings) => {
+          const currentUser = store.currentUser;
+          if (currentUser.user?.id !== user.id) return;
+          if (!currentUser.user.settings) {
+            currentUser.user = { ...currentUser.user, settings };
+          } else if (!currentUser.user.settings.timezone) {
+            currentUser.user = {
+              ...currentUser.user,
+              settings: { ...currentUser.user.settings, timezone: settings.timezone ?? null }
+            };
+          }
+        })
+        .catch(() => {
+          // Reporting is best-effort; the absence simply keeps the profile
+          // zone empty. A later relevant store change can retry the report.
+          timezoneReports.allowRetry(key);
+        });
+    }
   });
 </script>
 

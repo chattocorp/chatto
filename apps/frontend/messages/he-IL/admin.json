@@ -104,7 +104,25 @@
       "edit": "עריכה",
       "assigned_role": "הוקצה לתפקיד {role}",
       "removed_role": "הוסר תפקיד {role}",
-      "role_update_failed": "נכשל בעדכון הקצאת התפקיד"
+      "role_update_failed": "נכשל בעדכון הקצאת התפקיד",
+      "danger_zone": "אזור סיכון",
+      "open_delete_account": "מחיקת החשבון",
+      "delete_account_entry_description": "מוחק לצמיתות את החשבון של חבר זה. ההודעות שלו הופכות לבלתי קריאות. לא ניתן לבטל פעולה זו."
+    },
+    "member_delete": {
+      "title": "מחיקת חבר",
+      "warning": "פעולה זו מוחקת לצמיתות את החשבון של {name}. לא ניתן לבטל אותה.",
+      "consequences_intro": "מה יקרה:",
+      "consequence_rooms": "החבר יוסר מכל החדרים.",
+      "consequence_messages": "כל ההודעות שכתב הופכות לבלתי קריאות לצמיתות.",
+      "consequence_profile": "הפרופיל, האווטאר ושם המשתמש נמחקים. שם המשתמש הופך זמין שוב לאחר מכן.",
+      "consequence_sessions": "האדם מנותק בכל מקום.",
+      "confirm_label": "הקלד {login} לאישור",
+      "submit": "מחיקת החשבון לצמיתות",
+      "deleting": "מוחק...",
+      "failed": "מחיקת החשבון נכשלה.",
+      "success": "החשבון נמחק.",
+      "not_allowed": "אינך יכול למחוק את החשבון הזה."
     },
     "member_detail": {
       "no_self_rename": "לא נרשם שינוי שם עצמי.",

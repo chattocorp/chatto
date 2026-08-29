@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/assets"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestFetchMastodonStatusUsesProviderNeutralSnapshot(t *testing.T) {
@@ -74,10 +74,10 @@ func TestFetchMastodonStatusUsesProviderNeutralSnapshot(t *testing.T) {
 		imageClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 			return response(http.StatusOK, "image/png", pngData.String()), nil
 		})},
-		storeImage: func(_ context.Context, assetID string, _ []byte, _ string) (*corev1.AssetRecord, error) {
-			return &corev1.AssetRecord{
+		storeImage: func(_ context.Context, assetID string, _ []byte, _ string) (*evtv1.AssetRecord, error) {
+			return &evtv1.AssetRecord{
 				Id:      assetID,
-				Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+				Storage: &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: assetID}},
 			}, nil
 		},
 	}

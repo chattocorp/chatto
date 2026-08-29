@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+import "chatto/core/notification/v1/notification.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// NotificationUnreadMarker is one latest-value neutral-attention decision in
+// RUNTIME_STATE. The key owns recipient, room, and optional thread scope. The
+// value retains the source coordinates needed to compare it with visibility
+// and read boundaries after delayed materialization or process restart.
+message NotificationUnreadMarker {
+  string source_event_id = 1;
+  string actor_id = 2;
+  chatto.core.notification.v1.NotificationSignal signal = 3;
+  uint64 source_stream_sequence = 4;
+}

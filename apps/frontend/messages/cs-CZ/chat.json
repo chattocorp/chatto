@@ -40,6 +40,9 @@
     "user_menu": {
       "profile": "Uživatelský profil",
       "send_message": "Odeslat zprávu",
+      "view_profile": "Zobrazit profil",
+      "profile_requires_direct_message": "K zobrazení tohoto profilu je nutná přímá zpráva.",
+      "view_in_admin": "Zobrazit ve správě serveru",
       "copy_user_id": "Zkopírovat ID uživatele"
     },
     "server_gutter": {
@@ -66,6 +69,13 @@
       "message_missing": "Zpráva již není dostupná",
       "in_room": "v",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Uživatel nenalezen",
+      "bot": "Bot",
+      "local_time": "{time} místního času ({zone})"
     }
   }
 }

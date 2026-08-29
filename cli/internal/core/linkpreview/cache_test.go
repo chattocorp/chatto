@@ -3,6 +3,7 @@ package linkpreview
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -20,7 +21,7 @@ func TestCacheStoresSuccessfulPreviewInRuntimeStateWithTTL(t *testing.T) {
 	cache := NewCache(kv)
 	url := "https://example.com/article"
 
-	err := cache.Set(ctx, url, &corev1.LinkPreview{
+	err := cache.Set(ctx, url, &evtv1.LinkPreview{
 		Url:   url,
 		Title: "Example",
 	})
@@ -51,9 +52,9 @@ func TestCacheReplacesExistingPreviewInRuntimeStateWithTTL(t *testing.T) {
 	cache := NewCache(kv)
 	url := "https://example.com/change"
 
-	err := cache.Set(ctx, url, &corev1.LinkPreview{Url: url, Title: "old"})
+	err := cache.Set(ctx, url, &evtv1.LinkPreview{Url: url, Title: "old"})
 	require.NoError(t, err)
-	err = cache.Set(ctx, url, &corev1.LinkPreview{Url: url, Title: "new"})
+	err = cache.Set(ctx, url, &evtv1.LinkPreview{Url: url, Title: "new"})
 	require.NoError(t, err)
 
 	got, err := cache.Get(ctx, url)
@@ -67,12 +68,12 @@ func TestCacheKeepsCurrentBlueskySnapshots(t *testing.T) {
 	cache := NewCache(kv)
 	url := "https://bsky.app/profile/example.test/post/example"
 
-	require.NoError(t, cache.Set(ctx, url, &corev1.LinkPreview{
+	require.NoError(t, cache.Set(ctx, url, &evtv1.LinkPreview{
 		Url: url,
-		SocialPost: &corev1.SocialPostPreview{
+		SocialPost: &evtv1.SocialPostPreview{
 			Provider: "bluesky",
 			Url:      url,
-			Author:   &corev1.SocialPostAuthor{Handle: "example.test"},
+			Author:   &evtv1.SocialPostAuthor{Handle: "example.test"},
 		},
 	}))
 
@@ -86,9 +87,9 @@ func TestCacheRefreshesLegacyGenericMastodonPreview(t *testing.T) {
 	cache := NewCache(kv)
 	url := "https://mastodon.social/@alice@remote.example/123"
 
-	putLegacyCachedPreview(t, ctx, kv, url, &corev1.CachedLinkPreview{
+	putLegacyCachedPreview(t, ctx, kv, url, &runtimestatev1.CachedLinkPreview{
 		Url:           url,
-		Preview:       &corev1.LinkPreview{Url: url, Title: "Mastodon"},
+		Preview:       &evtv1.LinkPreview{Url: url, Title: "Mastodon"},
 		FetchedAtUnix: time.Now().Unix(),
 	})
 
@@ -102,7 +103,7 @@ func TestCacheRefreshesLegacyNegativePreview(t *testing.T) {
 	cache := NewCache(kv)
 	url := "https://docs.example.com/"
 
-	putLegacyCachedPreview(t, ctx, kv, url, &corev1.CachedLinkPreview{
+	putLegacyCachedPreview(t, ctx, kv, url, &runtimestatev1.CachedLinkPreview{
 		Url:           url,
 		FetchFailed:   true,
 		ErrorReason:   "no preview",
@@ -119,7 +120,7 @@ func TestCacheKeepsCurrentGenericMastodonFallback(t *testing.T) {
 	cache := NewCache(kv)
 	url := "https://social.example/@alice/123"
 
-	require.NoError(t, cache.Set(ctx, url, &corev1.LinkPreview{Url: url, Title: "Fallback"}))
+	require.NoError(t, cache.Set(ctx, url, &evtv1.LinkPreview{Url: url, Title: "Fallback"}))
 
 	got, err := cache.Get(ctx, url)
 	require.NoError(t, err)
@@ -132,7 +133,7 @@ func TestCacheKeyUsesRuntimeStatePrefix(t *testing.T) {
 	require.NotContains(t, key, "example.com")
 }
 
-func putLegacyCachedPreview(t *testing.T, ctx context.Context, kv jetstream.KeyValue, url string, cached *corev1.CachedLinkPreview) {
+func putLegacyCachedPreview(t *testing.T, ctx context.Context, kv jetstream.KeyValue, url string, cached *runtimestatev1.CachedLinkPreview) {
 	t.Helper()
 	data, err := proto.Marshal(cached)
 	require.NoError(t, err)

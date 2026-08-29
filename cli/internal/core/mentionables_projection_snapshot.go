@@ -2,14 +2,15 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var mentionablesSnapshotContractID = snapshotContractID("v2", &corev1.MentionablesProjectionSnapshot{})
+var mentionablesSnapshotContractID = snapshotContractID("v2", &projectionv1.MentionablesProjectionSnapshot{})
 
 func (*MentionablesProjection) SnapshotContractID() string {
 	return mentionablesSnapshotContractID
@@ -18,9 +19,9 @@ func (*MentionablesProjection) SnapshotContractID() string {
 func (p *MentionablesProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.MentionablesProjectionSnapshot{}
+	snapshot := &projectionv1.MentionablesProjectionSnapshot{}
 	for _, userID := range sortedMapKeys(p.userLoginSources) {
-		snapshot.UserLoginSources = append(snapshot.UserLoginSources, proto.Clone(p.userLoginSources[userID]).(*corev1.Event))
+		snapshot.UserLoginSources = append(snapshot.UserLoginSources, proto.Clone(p.userLoginSources[userID]).(*evtv1.Event))
 	}
 	for _, userID := range sortedMapKeys(p.dekEvents) {
 		purposes := make([]int, 0, len(p.dekEvents[userID]))
@@ -29,14 +30,14 @@ func (p *MentionablesProjection) Snapshot() ([]byte, error) {
 		}
 		sort.Ints(purposes)
 		for _, rawPurpose := range purposes {
-			purpose := corev1.UserDEKPurpose(rawPurpose)
+			purpose := evtv1.UserDEKPurpose(rawPurpose)
 			epochs := make([]int, 0, len(p.dekEvents[userID][purpose]))
 			for epoch := range p.dekEvents[userID][purpose] {
 				epochs = append(epochs, int(epoch))
 			}
 			sort.Ints(epochs)
 			for _, epoch := range epochs {
-				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.dekEvents[userID][purpose][int32(epoch)]).(*corev1.UserDEKGeneratedEvent))
+				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.dekEvents[userID][purpose][int32(epoch)]).(*evtv1.UserDEKGeneratedEvent))
 			}
 		}
 	}
@@ -53,7 +54,7 @@ func (p *MentionablesProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *MentionablesProjection) Restore(data []byte) error {
-	snapshot := &corev1.MentionablesProjectionSnapshot{}
+	snapshot := &projectionv1.MentionablesProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal mentionables snapshot: %w", err)
@@ -75,10 +76,10 @@ func (p *MentionablesProjection) Restore(data []byte) error {
 		}
 		var userID string
 		switch value := event.GetEvent().(type) {
-		case *corev1.Event_UserAccountCreated:
+		case *evtv1.Event_UserAccountCreated:
 			userID = value.UserAccountCreated.GetUserId()
 			restored.applyUserAccountCreated(event.GetId(), value.UserAccountCreated)
-		case *corev1.Event_UserLoginChanged:
+		case *evtv1.Event_UserLoginChanged:
 			userID = value.UserLoginChanged.GetUserId()
 			restored.applyUserLoginChanged(event.GetId(), value.UserLoginChanged)
 		default:
@@ -90,7 +91,7 @@ func (p *MentionablesProjection) Restore(data []byte) error {
 		if _, duplicate := restored.userLoginSources[userID]; duplicate {
 			return fmt.Errorf("mentionables snapshot repeats user %q", userID)
 		}
-		restored.userLoginSources[userID] = proto.Clone(event).(*corev1.Event)
+		restored.userLoginSources[userID] = proto.Clone(event).(*evtv1.Event)
 	}
 	seenRoles := make(map[string]struct{}, len(snapshot.GetRoleNames()))
 	for _, roleName := range snapshot.GetRoleNames() {

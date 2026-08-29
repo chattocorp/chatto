@@ -34,8 +34,8 @@ test.describe('Direct Messages (room-shaped)', () => {
     await withServerUser(browser, serverURL, async ({ page: pageB, user: userB }) => {
       const roomB = await new DMPage(pageB).startConversation(userA.login);
 
-      await page.goto(routes.browseRooms);
-      await page.waitForURL(routes.browseRooms);
+      await page.goto(routes.serverOverview);
+      await page.waitForURL(routes.serverOverview);
       const conversation = new DMPage(page).getConversation(userB.displayName);
       await expect(conversation).not.toBeVisible();
 
@@ -148,8 +148,8 @@ test.describe('Direct Messages (room-shaped)', () => {
         const aToB = await dmA.startConversation(userB.login);
         await aToB.sendMessage('seed B');
 
-        await page.goto(routes.browseRooms);
-        await page.waitForURL(routes.browseRooms);
+        await page.goto(routes.serverOverview);
+        await page.waitForURL(routes.serverOverview);
         await expect(page.getByRole('button', { name: /direct messages/i })).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
@@ -212,8 +212,8 @@ test.describe('Direct Messages (room-shaped)', () => {
         await aToC.sendMessage('seed C');
         // C is now most-recent.
 
-        await page.goto(routes.browseRooms);
-        await page.waitForURL(routes.browseRooms);
+        await page.goto(routes.serverOverview);
+        await page.waitForURL(routes.serverOverview);
         const dmRows = () =>
           page.locator('nav a.sidebar-item').filter({
             has: page.getByText(new RegExp(`^(${userB.displayName}|${userC.displayName})$`))
@@ -250,8 +250,8 @@ test.describe('Direct Messages (room-shaped)', () => {
 
     await withServerUser(browser, serverURL, async ({ page: pageB }) => {
       // User A on Overview with no DMs yet — server icon has no indicator.
-      await page.goto(routes.browseRooms);
-      await page.waitForURL(routes.browseRooms);
+      await page.goto(routes.serverOverview);
+      await page.waitForURL(routes.serverOverview);
       // Scope to the Server Gutter so we don't collide with notification
       // buttons rendered inside the Server Sidebar.
       const serverIconWrapper = page
@@ -297,8 +297,8 @@ test.describe('Direct Messages (room-shaped)', () => {
         const aToC = await dmA.startConversation(userC.login);
         await aToC.sendMessage('seed C');
 
-        await page.goto(routes.browseRooms);
-        await page.waitForURL(routes.browseRooms);
+        await page.goto(routes.serverOverview);
+        await page.waitForURL(routes.serverOverview);
 
         const groupHeader = page.getByRole('button', { name: /direct messages/i });
         const dmRow = (displayName: string) =>
@@ -357,7 +357,8 @@ test.describe('Direct Messages (room-shaped)', () => {
       await postMessageViaConnect(page, dmRoomId, 'seed');
 
       // Deny both permissions before the regular user navigates. message.post
-      // must stop sending, while message.read is inapplicable to DM reads.
+      // must stop creating DMs and sending messages, while message.read is
+      // inapplicable to DM reads.
       const denyPostRole = await denyUserPermission(page, regularUser.id!, 'message.post');
       const denyReadRole = await denyUserPermission(page, regularUser.id!, 'message.read');
       try {
@@ -368,7 +369,12 @@ test.describe('Direct Messages (room-shaped)', () => {
             data: { participantIds: [adminUser.id!] }
           }
         );
-        expect(deniedStartResp.status()).toBe(403);
+        // Reusing the seeded DM remains allowed. This lets a participant open
+        // its profile information, while attempts to create a new DM still
+        // return permission denied (covered by the RoomService integration
+        // test).
+        expect(deniedStartResp.status()).toBe(200);
+        expect((await deniedStartResp.json()).room.id).toBe(dmRoomId);
 
         await regularPage.goto(routes.chat);
         await regularPage.waitForURL(routes.chat);

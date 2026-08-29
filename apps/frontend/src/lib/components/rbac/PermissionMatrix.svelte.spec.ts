@@ -101,7 +101,7 @@ async function settle() {
 }
 
 describe('PermissionMatrix', () => {
-  it('renders one alphabetically ordered permission matrix without category dividers', async () => {
+  it('renders one compact permission matrix with category dividers', async () => {
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
 
@@ -109,17 +109,19 @@ describe('PermissionMatrix', () => {
     expect(tables).toHaveLength(1);
     // The permission and role columns, followed by the flexible spacer.
     expect(container.querySelectorAll('thead th')).toHaveLength(5);
-    expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
-    expect(container.querySelectorAll('[data-testid="permission-section-divider"]')).toHaveLength(
-      0
-    );
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
+    expect(
+      [...container.querySelectorAll('[data-testid="permission-section-divider"]')].map((heading) =>
+        heading.textContent?.trim()
+      )
+    ).toEqual(['Messages', 'Rooms']);
     expect(container.querySelector('table')?.className).toContain('w-full');
     expect(container.querySelectorAll('[data-testid="permission-matrix-spacer"]')).toHaveLength(2);
     expect(container.querySelector('thead th:last-child')?.className).toContain('bg-background');
-    expect(container.querySelectorAll('tbody h3')).toHaveLength(0);
+    expect(container.querySelector('tbody th[scope="row"]')?.className).toContain('py-0.5');
   });
 
-  it('orders permission names alphabetically', async () => {
+  it('orders permissions by their internal IDs', async () => {
     nextTierRoles = {
       ...HAPPY_TIER_ROLES,
       applicablePermissions: ['user.delete-self', 'room.manage', 'server.manage', 'user.delete-any']
@@ -132,11 +134,15 @@ describe('PermissionMatrix', () => {
         (permission) => permission.textContent
       )
     ).toEqual(['room.manage', 'server.manage', 'user.delete-any', 'user.delete-self']);
+    expect(
+      container.querySelector('[data-testid="permission-name"]')?.getAttribute('title')
+    ).toBe("Edit a room's settings and permissions, and delete rooms");
+    expect(container.querySelector('button[aria-label^="About "]')).toBeNull();
   });
 
   it('shows that message.read includes the nested interaction permission', async () => {
     nextTierRoles = {
-      applicablePermissions: ['message.read', 'message.read.interactions'],
+      applicablePermissions: ['message.read', 'message.read-interactions'],
       roles: [
         {
           roleName: 'reader',
@@ -146,7 +152,7 @@ describe('PermissionMatrix', () => {
           position: 1,
           override: {
             permissions: ['message.read'],
-            permissionDenials: ['message.read.interactions']
+            permissionDenials: ['message.read-interactions']
           },
           inheritedAllows: [],
           inheritedDenials: []
@@ -158,12 +164,45 @@ describe('PermissionMatrix', () => {
 
     const rowName = [
       ...container.querySelectorAll<HTMLElement>('[data-testid="permission-name"]')
-    ].find((permission) => permission.textContent === 'message.read.interactions');
+    ].find((permission) => permission.textContent === 'message.read-interactions');
     const cell = container.querySelector<HTMLButtonElement>(
-      'td[data-role="reader"][data-permission="message.read.interactions"] button'
+      'td[data-role="reader"][data-permission="message.read-interactions"] button'
     );
-    expect(rowName?.parentElement?.className).toContain('ml-4');
+    expect(rowName?.className).not.toContain('ml-4');
     expect(cell?.title).toContain('Effective Allow (included by message.read)');
+  });
+
+  it('does not derive inclusion from identifier punctuation', async () => {
+    nextTierRoles = {
+      applicablePermissions: [
+        'server.manage',
+        'server.manage.neighbors',
+        'server.manage.neighbors.publish'
+      ],
+      roles: [
+        {
+          roleName: 'publisher',
+          displayName: 'Publisher',
+          description: '',
+          isSystem: false,
+          position: 1,
+          override: {
+            permissions: ['server.manage'],
+            permissionDenials: ['server.manage.neighbors', 'server.manage.neighbors.publish']
+          },
+          inheritedAllows: [],
+          inheritedDenials: []
+        }
+      ]
+    };
+    const { container } = render(PermissionMatrix);
+    await settle();
+
+    const cell = container.querySelector<HTMLButtonElement>(
+      'td[data-role="publisher"][data-permission="server.manage.neighbors.publish"] button'
+    );
+    expect(cell?.title).not.toContain('Effective Allow');
+    expect(cell?.title).toContain('Deny');
   });
 
   it('filters permission names as the query changes', async () => {
@@ -171,7 +210,7 @@ describe('PermissionMatrix', () => {
     await settle();
 
     const filter = container.querySelector<HTMLInputElement>('[data-testid="permission-filter"]')!;
-    filter.value = 'room';
+    filter.value = 'root messages';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
@@ -179,7 +218,7 @@ describe('PermissionMatrix', () => {
       [...container.querySelectorAll('[data-testid="permission-name"]')].map(
         (row) => row.textContent
       )
-    ).toEqual(['room.create']);
+    ).toEqual(['message.post']);
 
     filter.value = 'missing';
     filter.dispatchEvent(new Event('input', { bubbles: true }));
@@ -242,7 +281,7 @@ describe('PermissionMatrix', () => {
     expect(newRoleColumn?.getAttribute('href')).toBe('/chat/server/manage/server/permissions/new');
     expect(newRoleColumn?.textContent).toContain('+ New Role');
     expect(container.querySelectorAll('thead th')).toHaveLength(6);
-    expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(4);
   });
 
   it('contrasts the panel inset and sticky cells with the surface table header', async () => {

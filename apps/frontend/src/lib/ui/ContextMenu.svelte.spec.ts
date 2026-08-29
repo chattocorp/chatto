@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import { q, testSnippet } from '$lib/test-utils';
 import ContextMenu from './ContextMenu.svelte';
+import ContextMenuRouteTeardownHarness from './ContextMenuRouteTeardownHarness.svelte';
 
 const inputCapabilities = vi.hoisted(() => ({
   prefersTouchActions: vi.fn(() => false),
@@ -61,6 +63,16 @@ beforeEach(() => {
 });
 
 describe('ContextMenu', () => {
+  it('does not keep an old route visible while its replacement mounts', async () => {
+    const { container } = render(ContextMenuRouteTeardownHarness);
+
+    q(container, 'button')?.click();
+    await tick();
+
+    expect(q(container, '[data-testid="profile-route"]')).not.toBeNull();
+    expect(q(container, '[data-testid="room-route"]')).toBeNull();
+  });
+
   it('dismisses on outside scroll by default', async () => {
     const onclose = vi.fn();
     renderMenu({ onclose });

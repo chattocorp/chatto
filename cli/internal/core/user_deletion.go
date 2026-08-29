@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // ============================================================================
@@ -35,9 +35,19 @@ type AccountDeletionToken struct {
 
 // CreateAccountDeletionToken generates a confirmation token for account deletion.
 // The token is stored in RUNTIME_STATE and must be provided to DeleteUser within the TTL.
+// Issuance enforces the human-account check and the caller's user.delete-self
+// permission, so revoking that permission disables self-service deletion: no
+// valid confirmation token can be issued or redeemed without it.
 func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID string) (string, error) {
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return "", err
+	}
+	canDeleteSelf, err := c.CanDeleteUser(ctx, userID, userID)
+	if err != nil {
+		return "", err
+	}
+	if !canDeleteSelf {
+		return "", ErrPermissionDenied
 	}
 	token := NewAccountDeletionToken()
 	createdAt := time.Now()
@@ -152,11 +162,14 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.deleteAsset(ctx, assetStorageFromAsset(avatar), "avatar", userID)
 	}
 
-	deletedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
-		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
+	deletedEvent := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{
+		UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: userID},
 	}})
 	for {
-		_, err := c.appendUserEvent(ctx, userID, deletedEvent, evtstream.EventSubjectFilter(), func() error {
+		// Owned-bot checks depend on all user aggregates, but not on unrelated
+		// EVT facts. The authorization fence still serializes this deletion
+		// against bot-owner reassignment and other authorization changes.
+		_, err := c.appendUserEvent(ctx, userID, deletedEvent, evtstream.UserSubjectFilter(), func() error {
 			if !user.GetIsBot() && len(c.userModel.botIDsOwnedBy(userID)) > 0 {
 				return errOwnedBotsRemain
 			}
@@ -184,6 +197,9 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}
 	if err := c.deleteUserSettings(ctx, userID); err != nil {
 		c.logger.Warn("Failed to delete user settings during deletion", "user_id", userID, "error", err)
+	}
+	if user.GetIsBot() {
+		c.credentialUsage.ForgetAll(ctx, userID)
 	}
 
 	// Clean per-kind user artifacts AFTER the user projection marks the

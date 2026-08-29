@@ -3,15 +3,7 @@
 Key files: [`cli/internal/connectapi/api.go`](../../cli/internal/connectapi/api.go),
 [`cli/internal/http_server/connect.go`](../../cli/internal/http_server/connect.go),
 [`cli/internal/http_server/auth.go`](../../cli/internal/http_server/auth.go),
-[`cli/internal/http_server/browser_session_store.go`](../../cli/internal/http_server/browser_session_store.go),
-[`cli/internal/http_server/cimd.go`](../../cli/internal/http_server/cimd.go),
-[`cli/internal/http_server/oauth.go`](../../cli/internal/http_server/oauth.go),
-[`cli/internal/http_server/oidc.go`](../../cli/internal/http_server/oidc.go),
-[`cli/internal/http_server/assets.go`](../../cli/internal/http_server/assets.go),
 [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go),
-[`cli/internal/search/service.go`](../../cli/internal/search/service.go),
-[`cli/internal/search/client.go`](../../cli/internal/search/client.go),
-[`cli/internal/connectapi/message_search.go`](../../cli/internal/connectapi/message_search.go),
 [`proto/chatto/`](../../proto/chatto/)
 
 This inventory records mounted transport and service boundaries. The generated
@@ -21,8 +13,9 @@ method documentation.
 
 Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 [ADR-045](../adr/ADR-045-public-api-stability-tiers.md),
-[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md), and
-[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md).
+[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
+[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md), and
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 ## Transport boundaries
 
@@ -32,6 +25,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | Browser authentication | `GET /auth/browser/csrf`, `POST /auth/browser/login`, `POST /auth/browser/register/complete`, `POST /auth/browser/logout`, `POST /auth/browser/session/migrate`, `POST /auth/browser/session/renew`, `POST /auth/browser/revoke-bearer-session` | Bound CSRF-proof repair, cookie-only password/registration authentication, one-time 0.4 typed-cookie migration, logout, stable-handle session renewal, and removal of stored origin bearer authority | Every mutation requires JSON and an exact same-origin request. A browser-auth mode header, if present, must select cookies. Browser routes treat an absent header as cookie mode. Renewal and logout also require signed double-submit CSRF proof while a valid cookie authority exists. Migration uses the independent browser-route proof because it runs before a current cookie session exists. Logout can clear invalid session cookies with the same proof. The safe CSRF route requires a valid cookie session. These routes do not return bearer credentials. |
 | Programmatic authentication | `POST /auth/login`, `POST /auth/register/complete`, `POST /auth/logout`, `POST /oauth/token` | First-party bearer issuance, stable bearer-session revocation, and OAuth code/refresh exchange | JSON is required for direct login and registration. These routes do not create, read, or clear ambient browser authentication cookies. OAuth token exchange also accepts the documented form encoding. |
 | Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer access token in the hello frame or same-origin cookie; exact human credentials are revalidated before subscription and once per minute; bearer expiry and cookie renewal thresholds request reconnects, while OAuth-client blocks terminate matching established sessions |
+| Bot incoming webhook | `POST /webhooks/incoming/{credential}` with optional `room_id` query parameter | Slack-compatible plain-text JSON subset with Chatto aliases and optional thread creation | Action-limited bot webhook credential; the handler posts through the normal message operation and does not accept the bot API key |
 | Server OIDC client metadata | `GET /oauth/client-metadata.json` | CIMD public-client identity and exact callbacks for Chatto server login | Public; mounted only when an OIDC provider uses this deployment's metadata URL as its client ID |
 | Frontend OAuth client metadata | `GET /oauth/frontend-client-metadata.json` | CIMD public-client identity and exact popup callback for connecting the bundled frontend to Chatto servers | Public; always mounted |
 | Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE plus rotating refresh grant for a client application connecting to a Chatto server; browser clients use a CIMD URL `client_id`, Desktop uses its built-in identity, and an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token/refresh exchange; the validated client identity and exact callback are bound through code exchange, refresh remains client-bound, and provider hints cannot supply an issuer or endpoint |
@@ -39,7 +33,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | Protected HLS video | `GET /assets/hls/{assetId}/master.m3u8`, rendition playlists, and segments | Master and media playlists are generated from the durable manifest; segments are complete bounded responses from NATS or S3 | Domain-separated source-video `access` ticket; every request rechecks room membership and every segment ID/role against the durable HLS manifest |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |
 | Trusted NATS services | `svc.chatto.>` and `svc.chatto_ext.>` | Versioned protobuf request/reply through NATS micro services | NATS account permissions; extension providers receive only their configured service and upstream Core subjects |
-| Reflection | `/api/connect/grpc.reflection.v1*` and `v1alpha*` | Public service descriptors | Public; restricted resolver excludes internal `chatto.core.v1` persistence types |
+| Reflection | `/api/connect/grpc.reflection.v1*` and `v1alpha*` | Public service descriptors | Public; restricted resolver excludes internal `chatto.core.*` types |
 
 The public HTTP edge mounts every handler returned by `connectapi.API.Handlers`.
 Authenticated services are wrapped with `connectrpc.com/authn` before protobuf
@@ -65,18 +59,28 @@ copy it again; raw bearer tokens are not stored in `EVT`. Opening
 ID in the signed browser session, and immediately redirects to registration.
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
-and show-once API-key rotation. Bot
+show-once API-key rotation, and create and revoke operations for as many as 20
+named incoming webhooks for each bot. Bot
 permission reads and writes use `AdminPermissionService`'s canonical user
 permission operations with the bot's user ID as the target. Human owners can
-manage their own bots; `bot.manage` allows global management. Matrix room
-metadata is limited to rooms visible to both the bot owner and the managing
-caller; group metadata follows the room directory's complete group layout so
-empty groups remain configurable. Bot API keys authenticate the normal public
-and realtime surfaces, but cannot call bot-management or human account-security
-operations. Reassignment requires `bot.manage`, preserves the active key and
-configured allowlist, and immediately changes the owner permission ceiling.
+manage their own bots; `bot.manage` allows global management.
+
+Matrix room metadata is limited to rooms visible to both the bot owner and the
+managing caller; group metadata follows the room directory's complete group
+layout so empty groups remain configurable. Bot API keys authenticate the
+normal public and realtime surfaces, but cannot call bot-management or human
+account-security operations. Reassignment requires `bot.manage`, preserves the
+active key and configured allowlist, and immediately changes the owner
+permission ceiling.
+
 Rotation closes established realtime connections authenticated by the
 superseded verifier generation.
+Incoming webhook creation returns the complete URL once. A manager replaces a
+webhook when the manager creates a new credential, moves the caller, and
+revokes the old credential. Each webhook can be revoked without a change to
+other webhooks. Safe metadata includes the creation time and best-effort
+last-use telemetry. The separate credentials cannot authenticate ConnectRPC or
+realtime requests.
 
 `NotificationPolicyService` provides explicit server, room-group, and room
 policy scopes. Its batch read accepts at most 100 scopes, removes duplicates in

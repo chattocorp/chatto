@@ -2,14 +2,15 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"slices"
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var roomGroupLayoutSnapshotContractID = snapshotContractID("v1", &corev1.RoomGroupLayoutProjectionSnapshot{})
+var roomGroupLayoutSnapshotContractID = snapshotContractID("v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{})
 
 func (*RoomGroupLayoutProjection) SnapshotContractID() string {
 	return roomGroupLayoutSnapshotContractID
@@ -20,10 +21,10 @@ func (p *RoomGroupLayoutProjection) Snapshot() ([]byte, error) {
 	p.Layout.RLock()
 	defer p.Groups.RUnlock()
 	defer p.Layout.RUnlock()
-	snapshot := &corev1.RoomGroupLayoutProjectionSnapshot{GroupIds: slices.Clone(p.Layout.groupIDs), Sequence: p.Groups.seq}
+	snapshot := &projectionv1.RoomGroupLayoutProjectionSnapshot{GroupIds: slices.Clone(p.Layout.groupIDs), Sequence: p.Groups.seq}
 	for _, groupID := range sortedMapKeys(p.Groups.groups) {
 		entry := p.Groups.groups[groupID]
-		snapshot.Groups = append(snapshot.Groups, &corev1.RoomGroupStateSnapshot{
+		snapshot.Groups = append(snapshot.Groups, &projectionv1.RoomGroupStateSnapshot{
 			Group: entryToGroup(groupID, entry),
 		})
 	}
@@ -31,7 +32,7 @@ func (p *RoomGroupLayoutProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *RoomGroupLayoutProjection) Restore(data []byte) error {
-	snapshot := &corev1.RoomGroupLayoutProjectionSnapshot{}
+	snapshot := &projectionv1.RoomGroupLayoutProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal room group layout snapshot: %w", err)
@@ -46,7 +47,7 @@ func (p *RoomGroupLayoutProjection) Restore(data []byte) error {
 		if _, duplicate := groups[group.GetId()]; duplicate {
 			return fmt.Errorf("room group layout snapshot repeats group %q", group.GetId())
 		}
-		entry := &roomGroupEntry{name: group.GetName(), description: group.GetDescription(), roomIDs: slices.Clone(group.GetRoomIds()), entries: cloneSidebarEntries(group.GetEntries()), links: make(map[string]*corev1.SidebarLink)}
+		entry := &roomGroupEntry{name: group.GetName(), description: group.GetDescription(), roomIDs: slices.Clone(group.GetRoomIds()), entries: cloneSidebarEntries(group.GetEntries()), links: make(map[string]*evtv1.SidebarLink)}
 		links := group.GetSidebarLinks()
 		for _, link := range links {
 			if link.GetId() == "" {

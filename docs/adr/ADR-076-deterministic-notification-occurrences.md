@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-10
 
-**Updated:** 2026-08-26
+**Updated:** 2026-08-27
 
 ## Context
 
@@ -59,12 +59,14 @@ coordinates, source-time delivery and attention decisions, and a rich
 `NotificationSignal` oneof. The
 projection constructs `NotificationOccurrence` current-state resources from
 that fact and later lifecycle facts; the event never embeds its projection.
-Current variants are direct message, direct mention, reply, role mention,
-`@here`, `@all`, followed-thread activity, followed-room activity, and reaction
-received. Each variant owns the typed data needed to authorize, render, and
-navigate that signal; reaction signals carry their emoji, and a consolidated
-role-mention signal carries the sorted source-time role handles that selected
-the recipient. The record
+Current producers use direct message, root channel-room message, direct
+mention, reply, role mention, `@here`, `@all`, followed-thread activity, and
+reaction received. The wire contract also retains a deprecated followed-room
+compatibility branch that current code does not derive. Each supported variant
+owns the typed data needed to authorize, render, and navigate that signal;
+reaction signals carry their
+emoji, and a consolidated role-mention signal carries the sorted source-time
+role handles that selected the recipient. The record
 references source resources but does not copy message bodies, room names,
 avatars, or display names.
 
@@ -86,16 +88,20 @@ as one fact. Concurrent updates to different fields therefore compose instead
 of replacing one another, and older clients leave future fields untouched.
 
 One source fact may generate several notification signals for the same user.
-For example, one message may independently be a reply and a direct mention.
+For example, one root room message may independently be room activity, an
+`@all` mention, and a direct mention.
 Each exact occurrence ID is derived from recipient ID, source event ID, and
 signal kind. Retries are idempotent while distinct causes retain independent
 identity and triage.
 
-The source-time delivery mode is `Off`, `Notification`, or `Push notification`.
-`Off` creates no signal. Both other modes create the same durable list item and
-can request the configured local sound. Only `Push notification` is eligible
-for push delivery. Visual attention is independent: reactions are currently
-Ambient and other current signals are Important.
+The source-time delivery mode is `Off`, `Badge`, `Notification`, or
+`Push notification`. `Off` creates no output. `Badge` updates one neutral
+unread marker for the applicable room or thread. It does not create a list
+item, request local sound, or permit push delivery. Both notification modes
+create the same durable list item and can request the configured local sound.
+Only `Push notification` is eligible for push delivery. Visual attention is
+independent: reactions are currently Ambient and other current signals are
+Important.
 
 ### Source derivation remains outside EVT
 
@@ -105,12 +111,22 @@ This is durable message semantics: it preserves otherwise transient `@here`,
 role, and `@all` expansion without recording a notification plan. A conflicting
 retry therefore cannot retain stale mention recipients.
 
+The same existing `MessagePostedEvent` is the source for ordinary root-message
+attention. At that exact event sequence, the materializer selects current room
+members who have `message.read` and resolves each member's Room messages policy.
+Thread messages and direct messages use their existing separate causes.
+Joined-room activity does not produce followed-room activity. That branch is a
+deprecated compatibility slot; Room messages at room scope provide the
+supported control. No notification-specific source event or marker is added to
+`EVT`.
+
 For compatibility, `MessagePostedEvent.mentioned_user_ids` remains a flattened
 view of recipients selected by direct, role, `@here`, and `@all` handles. It
 cannot recover which cause selected a user. During a mixed-version rollout, a
 source event without rich `mentions` therefore omits only the ambiguous mention
 signal instead of applying the wrong policy or persisting a false cause; DM,
-reply, and follow signal kinds that remain independently knowable are still derived.
+root-room, reply, and follow signal kinds that remain independently knowable
+are still derived.
 Current writers populate `mentions` with every rich cause.
 
 The EVT-backed Notification Decisions projection consumes the compact state
@@ -128,15 +144,18 @@ specific to the decision projection: the occurrence projection independently
 snapshots its own `NOTIFICATIONS` position and incarnation.
 
 The shared `chatto-notification-materializer-v1` durable consumer reads only
-existing domain-changing `EVT` facts. It derives deterministic occurrences at
-the delivered sequence, appends `NotificationSignalled` facts to
-`NOTIFICATIONS`, and acknowledges the EVT delivery only after those writes
-succeed. A crash before the confirmed acknowledgement redelivers the source;
-deterministic occurrence IDs make partial or repeated output idempotent.
+existing domain-changing `EVT` facts. It derives deterministic delivery output
+at the delivered sequence. Notification modes append `NotificationSignalled`
+facts to `NOTIFICATIONS`. Badge updates a monotonic latest-value room or thread
+marker in `RUNTIME_STATE`. The consumer acknowledges the EVT delivery only
+after all output writes succeed. A crash before the confirmed acknowledgement
+redelivers the source; deterministic occurrence IDs and source-sequence Badge
+markers make partial or repeated output idempotent.
 Retraction, reaction removal, visibility loss, room deletion, and account
 deletion use their existing EVT facts to append notification dismissals. No
-notification-only event is added to `EVT`, and there is no notification work
-record in `RUNTIME_STATE`.
+notification-only event is added to `EVT`, and there is no prepared
+notification work record in `RUNTIME_STATE`. A Badge marker is final
+user-visible output, not queued work.
 
 The materializer uses `DeliverNew` for the Notifications 2.0 rollout boundary.
 It processes facts committed after its durable consumer was first established;
@@ -167,16 +186,35 @@ acknowledgements are not counted as a second successful deletion. The private
 secure-delete coordinate remains projected through the broker's physical
 cleanup grace even after the tombstone stops affecting application state.
 
-Room/thread read reconciliation and visibility-loss boundaries remain bounded
-latest-value records in `RUNTIME_STATE`. They are cross-stream coordination
-state, not notification history. One process-wide filtered KV watcher indexes
-both boundary families; successful local writes wait for their exact KV
-revision to enter that index before dependent work continues. Because the read
-boundary is recorded before matching `NotificationRead` facts, every replica
-performs one startup repair and thereafter reconciles only the room/thread
-scope whose watched boundary changed. Large occurrence fanouts likewise read
-visibility boundaries from the index and publish their coalesced realtime
-invalidations with one flush rather than one broker round trip per recipient.
+Room/thread read reconciliation, visibility-loss boundaries, and Badge output
+remain bounded latest-value records in `RUNTIME_STATE`. The boundary records
+are cross-stream coordination state, not notification history. A Badge record
+stores only the latest source needed to compute neutral unread attention. One
+process-wide filtered KV watcher indexes all three families; successful local
+writes wait for their exact KV
+revision to enter that index before dependent work continues. Badge marker
+keys use bounded concurrent OCC writes and one collective applied-revision
+barrier. Because the read boundary is recorded before matching
+`NotificationRead` facts, every replica performs one startup repair and
+thereafter reconciles only the room/thread scope whose watched boundary
+changed. Large occurrence fanouts likewise read visibility boundaries from the
+index and publish their coalesced realtime invalidations with one flush rather
+than one broker round trip per recipient.
+
+Badge uses the same room/thread read coordinates and visibility rules as
+occurrences. A thread marker contributes to the parent room. A source sequence
+can only replace an older marker in the same scope, so delayed delivery cannot
+regress attention. The public room `has_unread` value reports this Badge
+attention only. The independent Message Read Cursor continues to place the New
+messages separator and cannot create a room dot by itself. The marker expires
+90 days after its latest source and account deletion removes it. A content-free
+transient invalidation rebuilds the affected room state and followed-thread
+viewer state.
+
+Posting a room message records a covered-read boundary through the poster's new
+root event, in addition to advancing the Message Read Cursor. This operation
+makes older Badge attention inactive and uses the same repair handshake as an
+explicit room read.
 
 Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
 They can carry one opaque sound-candidate notification ID but never expose
@@ -249,8 +287,29 @@ unknown operation instead of accepting an empty replacement and advancing.
 The public and persisted delivery-mode enums keep wire values 2 and 3. The
 names `IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are aliases for those
 values. The previous `SILENT` and `ALERT` names remain as deprecated aliases.
-The new scoped policy service is additive and leaves the legacy server/room
-methods unchanged.
+Badge adds wire value 4. Older binaries preserve that value and fail closed by
+producing neither a notification occurrence nor push delivery. The new scoped
+policy service is additive and leaves the legacy server/room methods unchanged.
+
+Room messages adds policy field 10 and signal branch 10. Sparse field masks let
+older clients update known policy fields without changing the additive field.
+If they receive a Room-message occurrence, they show the existing generic
+dismissible row and do not infer navigation. The default Badge mode uses the
+existing public `has_unread` field, which older clients already understand.
+
+An older server does not derive new Room messages decisions. Thus, the default
+Badge output and future occurrences are temporarily inactive during rollback
+instead of being interpreted as another cause. If an upgraded server already
+persisted a Room-message occurrence for Notification or Push notification, the
+older server's notification occurrence RPCs return `Unimplemented` until a
+supporting binary serves the occurrence again. The older server does not
+reinterpret or discard the unsupported signal.
+
+The public and persisted field 8 followed-room policy and signal contracts are
+deprecated compatibility slots. Current code accepts and preserves the policy
+field but does not derive the signal. Existing stored values remain inert.
+Keeping the field and branch prevents older data or clients from being
+reinterpreted as another notification cause.
 
 Room-group policy changes use the separate persisted
 `UserRoomGroupNotificationPolicyChangedEvent` variant. An older binary ignores
@@ -265,8 +324,10 @@ overrides.
 - Notification history and lifecycle are ordered, replayable, bounded, and
   backed up without becoming permanent domain history.
 - Fixed subjects avoid the RAM cost of indexing one subject per notification.
-- The same stream powers projections and durable push delivery; there is no
-  second queue, prepared-work KV, or occurrence KV to reconcile.
+- The same stream powers notification projections and durable push delivery;
+  there is no second queue, prepared-work KV, or occurrence KV to reconcile.
+  Badge uses one bounded latest-value runtime marker per active room or thread
+  scope.
 - Exact per-signal-class identities let clients group presentation without losing
   jump targets, unread counts, or triage semantics.
 - Dismissal physically removes rich content while a minimal retained fact keeps

@@ -15,7 +15,7 @@ Chatto runs on Kubernetes with the same building blocks as any other horizontall
 - A shared external NATS cluster with JetStream enabled
 - Stable shared secrets across all Chatto replicas
 - A public HTTP/WebSocket ingress for Chatto
-- Optional LiveKit, SMTP, Web Push, and S3-compatible object storage services
+- Optional LiveKit, SMTP or JMAP, Web Push, and S3-compatible object storage services
 
 Use `/readyz` for readiness and startup probes, and `/healthz` for liveness
 probes. A recoverable NATS outage removes the replica from service without

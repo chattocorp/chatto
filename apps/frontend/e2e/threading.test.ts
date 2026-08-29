@@ -341,15 +341,15 @@ test.describe('Message Threading', () => {
 
         // User A deletes the reply.
         const replyForA = roomPage.getThreadMessage(replyText);
+        const replyEventId = await replyForA.getEventId();
+        expect(replyEventId).not.toBeNull();
         await replyForA.delete();
 
-        // User B should see the reply replaced by the tombstone — without refresh.
+        // User B should see the context-free reply disappear without a refresh.
         await expect(roomPage2.threadPane.getByText(replyText)).not.toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
-        await expect(
-          roomPage2.threadPane.getByText('This message has been deleted').first()
-        ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(roomPage2.getMessageByEventId(replyEventId!).locator).toHaveCount(0);
       }
     );
   });

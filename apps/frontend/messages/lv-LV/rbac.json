@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administrēšana",
+      "bot": "Boti",
+      "message": "Ziņojumi",
+      "role": "Lomas",
+      "room": "Telpas",
+      "server": "Serveris",
+      "user": "Lietotāji",
+      "other": "Citi"
+    },
     "permission_descriptions": {
       "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
       "room_create": "Izveidojiet jaunas telpas",
@@ -119,7 +129,9 @@
       "user_delete_self": "Izdzēsiet savu kontu",
       "user_invite": "Izveidojiet un pārvaldiet uzaicinājumu saites",
       "user_manage_accounts": "Izveidojiet lietotājus, rediģējiet konta identitāti, atiestatiet paroles, pievienojiet pārbaudītus e-pastus un notīriet pieteikšanās atdzišanu",
-      "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu"
+      "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu",
+      "bot_create": "Izveidot sev piederošus botu kontus",
+      "bot_manage": "Skatīt un pārvaldīt visus botu kontus"
     }
   }
 }

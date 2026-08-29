@@ -628,6 +628,36 @@ depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
 run = ["pnpm check", "pnpm lint"]
 
+[tasks.lint-cli]
+description = "Vet the Chatto CLI module"
+depends = ["setup-cli", "build-frontend"]
+dir = "cli"
+run = "go vet ./..."
+
+[tasks.lint-appconfig]
+description = "Vet application configuration standalone and in the workspace"
+depends = ["setup-appconfig"]
+dir = "pkg/appconfig"
+run = ["GOWORK=off go vet ./...", "go vet ./..."]
+
+[tasks.lint-datacrypto]
+description = "Vet data cryptography standalone and in the workspace"
+depends = ["setup-datacrypto"]
+dir = "pkg/datacrypto"
+run = ["GOWORK=off go vet ./...", "go vet ./..."]
+
+[tasks.lint-events]
+description = "Vet the event framework standalone and in the workspace"
+depends = ["setup-events"]
+dir = "pkg/events"
+run = ["GOWORK=off go vet ./...", "go vet ./..."]
+
+[tasks.lint-natsruntime]
+description = "Vet the embedded NATS runtime standalone and in the workspace"
+depends = ["setup-natsruntime"]
+dir = "pkg/natsruntime"
+run = ["GOWORK=off go vet ./...", "go vet ./..."]
+
 [tasks.lint-lingua]
 description = "Type-check the JSON internationalisation runtime package"
 depends = ["setup-frontend"]

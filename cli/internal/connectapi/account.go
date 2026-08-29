@@ -7,7 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type accountService struct {
@@ -19,11 +19,11 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, err
 	}
-	if req.Msg.DisplayName == nil && req.Msg.Login == nil {
-		return nil, invalidArgument("at least one of display_name or login must be provided")
+	if req.Msg.DisplayName == nil && req.Msg.Login == nil && req.Msg.Bio == nil {
+		return nil, invalidArgument("at least one of display_name, login, or bio must be provided")
 	}
 
-	var updated *corev1.User
+	var updated *evtv1.User
 	if req.Msg.DisplayName != nil {
 		updated, err = s.api.core.UpdateUserDisplayName(ctx, caller.UserID, req.Msg.GetDisplayName())
 		if err != nil {
@@ -32,6 +32,12 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 	}
 	if req.Msg.Login != nil {
 		updated, err = s.api.core.UpdateUserLogin(ctx, caller.UserID, req.Msg.GetLogin())
+		if err != nil {
+			return nil, connectError(err)
+		}
+	}
+	if req.Msg.Bio != nil {
+		updated, err = s.api.core.UpdateUserBio(ctx, caller.UserID, req.Msg.GetBio())
 		if err != nil {
 			return nil, connectError(err)
 		}
@@ -173,6 +179,16 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 	if req.Msg.GetConfirmationToken() == "" {
 		return nil, invalidArgument("confirmation_token is required")
 	}
+	// Enforce user.delete-self at redemption so revoking the permission also
+	// blocks tokens issued before revocation (see FDR-018). The same gate runs
+	// at token issuance in core.
+	canDeleteSelf, err := s.api.core.CanDeleteUser(ctx, caller.UserID, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if !canDeleteSelf {
+		return nil, connectError(core.ErrPermissionDenied)
+	}
 
 	if err := s.api.core.ValidateAccountDeletionToken(ctx, req.Msg.GetConfirmationToken(), caller.UserID); err != nil {
 		return nil, connectError(err)
@@ -183,13 +199,13 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{Deleted: true}), nil
 }
 
-func apiTimeFormatToCore(format apiv1.TimeFormat) corev1.TimeFormat {
+func apiTimeFormatToCore(format apiv1.TimeFormat) evtv1.TimeFormat {
 	switch format {
 	case apiv1.TimeFormat_TIME_FORMAT_12_HOUR:
-		return corev1.TimeFormat_TIME_FORMAT_12H
+		return evtv1.TimeFormat_TIME_FORMAT_12H
 	case apiv1.TimeFormat_TIME_FORMAT_24_HOUR:
-		return corev1.TimeFormat_TIME_FORMAT_24H
+		return evtv1.TimeFormat_TIME_FORMAT_24H
 	default:
-		return corev1.TimeFormat_TIME_FORMAT_UNSPECIFIED
+		return evtv1.TimeFormat_TIME_FORMAT_UNSPECIFIED
 	}
 }

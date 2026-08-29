@@ -9,13 +9,19 @@
       "account": "חשבון",
       "bots": "בוטים",
       "user_preferences": "העדפות משתמש",
-      "server_configuration": "תצורת שרת"
+      "app_preferences": "העדפות האפליקציה",
+      "your_account": "החשבון שלך",
+      "server_configuration": "שרת"
     },
     "app_preferences": {
       "title": "העדפות האפליקציה",
       "subtitle": "בחירות באפליקציה הזו שחלות על כל השרתים הרשומים שלך",
-      "appearance": { "title": "מראה" },
-      "composer": { "title": "כתיבת הודעות" }
+      "appearance": {
+        "title": "מראה"
+      },
+      "composer": {
+        "title": "כתיבת הודעות"
+      }
     },
     "profile": {
       "title": "פרופיל",
@@ -102,7 +108,7 @@
       "presence": {
         "button": "נוכחות: {status}",
         "title": "נוכחות",
-        "auto": "באינטרנט",
+        "online": "באינטרנט",
         "away": "לא נמצא/ת",
         "do_not_disturb": "נא לא להפריע",
         "offline": "במצב לא מקוון",
@@ -110,7 +116,13 @@
       },
       "saved": "הפרופיל עודכן בהצלחה",
       "save_failed": "שמירת הפרופיל נכשלה",
-      "save_button": "שמור שינויים"
+      "save_button": "שמור שינויים",
+      "bio": {
+        "label": "ביו",
+        "description": "עד {max} תווים, מוצג בפרופיל שלך.",
+        "placeholder": "ספרו לאחרים קצת על עצמכם",
+        "too_long": "התיאור יכול להכיל {max} תווים לכל היותר."
+      }
     },
     "preferences": {
       "title": "זמן ואזור",
@@ -291,10 +303,13 @@
         "delivery_mode": {
           "inherit": "ירושה",
           "off": "כבוי",
+          "badge": "תג",
+          "badge_hint": "מוסיף רק נקודה ניטרלית לתוכן שלא נקרא. לא יוצר התראה, משמיע צליל או שולח התראת דחיפה.",
           "notification": "התראה",
           "push_notification": "התראת דחיפה"
         },
         "reason": {
+          "room_message": "הודעות בחדרים",
           "direct_message": "הודעות ישירות",
           "direct_mention": "אזכורים ישירים",
           "reply": "תגובות להודעות שלך",
@@ -302,12 +317,12 @@
           "here": "אזכורי @here",
           "all": "אזכורי @all",
           "followed_thread": "שרשורים במעקב",
-          "followed_room": "חדרים במעקב",
           "reaction": "תגובות להודעות שלך",
           "activity": "פעילות",
           "room_invitation": "הזמנות לחדרים"
         },
         "reason_hint": {
+          "room_message": "הודעות שורש שחברים אחרים מפרסמים ישירות בחדרי ערוצים, ולא בתוך שרשורים.",
           "direct_message": "הודעות שחברים אחרים שולחים בשיחות ישירות.",
           "direct_mention": "הודעות שמזכירות ישירות את שם המשתמש שלך.",
           "reply": "הודעות שמשיבות לאחת מההודעות שלך.",
@@ -315,7 +330,6 @@
           "here": "הודעות שמשתמשות ב-@here כשמצב הנוכחות שלך אינו לא מקוון.",
           "all": "הודעות שמשתמשות ב-@all בחדר שאתה חבר בו.",
           "followed_thread": "תגובות חדשות בשרשורים שאתה עוקב אחריהם.",
-          "followed_room": "הודעות ברמה העליונה בחדרים שאתה עוקב אחריהם.",
           "reaction": "תגובות שחברים אחרים מוסיפים להודעות שלך."
         }
       }
@@ -410,11 +424,6 @@
       "create_title": "צור חשבון בוט",
       "create_failed": "יצירת הבוט נכשלה",
       "created": "בוט נוצר",
-      "edit": "ערוך",
-      "edit_title": "ערוך חשבון בוט",
-      "updated": "בוט עודכן",
-      "update_failed": "עדכון הבוט נכשל",
-      "update_conflict": "מישהו אחר עדכן את הבוט הזה. יש לטעון מחדש את הדף ולנסות שוב.",
       "username": "שם משתמש",
       "username_hint": "שמות משתמש בוטים חייבים להסתיים ב-_bot.",
       "display_name": "שם תצוגה",
@@ -433,6 +442,12 @@
       "rotate_warning": "המפתח הנוכחי יפסיק לפעול באופן מיידי. כל שילוב המשתמש בו חייב להיות מעודכן.",
       "key_rotated": "מפתח API סובב",
       "rotate_failed": "סובב מפתח API נכשל",
+      "webhook_title": "Webהוקים נכנסים",
+      "webhook_description": "פרסום הודעות כבוט הזה מכלים חיצוניים.",
+      "webhook_created": "Webהוק נכנס נוצר",
+      "webhook_url_title": "שמירת כתובת ה-Webhook הזו",
+      "webhook_url_warning": "כתובת זו מוצגת פעם אחת בלבד ומכילה פרטי גישה. יש לשמור אותה במקום מאובטח לפני סגירת החלון.",
+      "webhook_url_copied": "כתובת ה-Webhook הועתקה",
       "delete_title": "מחק בוט",
       "delete_warning": "למחוק את {name}? מפתח ה-API שלו יפסיק לפעול באופן מיידי ולא ניתן לשחזר את החשבון.",
       "deleted": "הבוט נמחק",
@@ -440,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "בחרו מה הבוט הזה יכול לעשות. אפשר להעניק לו רק הרשאות שיש לכם. אם תאבדו הרשאה, גם הבוט לא יוכל עוד להשתמש בה.",
         "save_failed": "נכשל בעדכון הרשאת הבוט"
-      }
+      },
+      "webhook_empty_description": "עדיין לא נוצרו Webהוקים נכנסים.",
+      "webhook_create": "יצירת Webהוק",
+      "webhook_name": "שם",
+      "webhook_created_at": "נוצר",
+      "webhook_create_failed": "יצירת ה-Webהוק הנכנס נכשלה",
+      "webhook_revoke": "ביטול Webהוק",
+      "webhook_revoke_warning": "כתובת ה-Webהוק הנוכחית תפסיק לפעול מיד.",
+      "webhook_revoked": "ה-Webהוק הנכנס בוטל",
+      "webhook_revoke_failed": "ביטול ה-Webהוק הנכנס נכשל",
+      "webhook_last_used": "שימוש אחרון",
+      "webhook_no_use_recorded": "לא תועד שימוש",
+      "webhook_last_used_unavailable": "לא זמין זמנית",
+      "webhook_limit_reached": "הגעת למגבלה של 20 Webהוקים נכנסים."
     }
   }
 }

@@ -128,6 +128,8 @@ vi.mock('$app/navigation', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+    getLiveBio: () => null,
+    getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback
@@ -158,7 +160,7 @@ describe('CurrentUserBar', () => {
       hasVerifiedEmail: true,
       settings: null
     };
-    presencePreference.mode = 'auto';
+    presencePreference.mode = 'online';
     presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
@@ -272,7 +274,7 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[data-testid="current-user-edit-status"]')).toBeFalsy();
   });
 
-  it('renders the away presence menu dot in yellow', async () => {
+  it('renders the away presence menu dot in the semantic warm-gold tone', async () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
@@ -282,14 +284,14 @@ describe('CurrentUserBar', () => {
         (item) => item.textContent?.includes('Away')
       )!;
       const awayDot = awayOption.querySelector('.rounded-full')!;
-      const yellow500 = window
+      const presenceAway = window
         .getComputedStyle(document.documentElement)
-        .getPropertyValue('--color-yellow-500')
+        .getPropertyValue('--color-presence-away')
         .trim();
 
       expect(awayDot.className).toContain('bg-presence-away');
       expect(window.getComputedStyle(awayDot).backgroundColor).toBe(
-        computedBackgroundColor(yellow500)
+        computedBackgroundColor(presenceAway)
       );
     });
   });

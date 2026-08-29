@@ -104,7 +104,25 @@
       "edit": "Editar",
       "assigned_role": "Rol {role} asignado",
       "removed_role": "Se eliminó el rol {role}",
-      "role_update_failed": "No se pudo actualizar la asignación de roles"
+      "role_update_failed": "No se pudo actualizar la asignación de roles",
+      "danger_zone": "Zona de peligro",
+      "open_delete_account": "Eliminar cuenta",
+      "delete_account_entry_description": "Elimina definitivamente la cuenta de este miembro. Sus mensajes quedan ilegibles. Esto no se puede deshacer."
+    },
+    "member_delete": {
+      "title": "Eliminar miembro",
+      "warning": "Esto elimina definitivamente la cuenta de {name}. No se puede deshacer.",
+      "consequences_intro": "Lo que va a pasar:",
+      "consequence_rooms": "El miembro se elimina de todas las salas.",
+      "consequence_messages": "Todos los mensajes que escribió quedan ilegibles para siempre.",
+      "consequence_profile": "Su perfil, avatar y nombre de usuario se eliminan. El nombre de usuario vuelve a estar disponible.",
+      "consequence_sessions": "Se cierra su sesión en todos los dispositivos.",
+      "confirm_label": "Escribe {login} para confirmar",
+      "submit": "Eliminar la cuenta definitivamente",
+      "deleting": "Eliminando...",
+      "failed": "No se pudo eliminar la cuenta.",
+      "success": "La cuenta fue eliminada.",
+      "not_allowed": "No puedes eliminar esta cuenta."
     },
     "member_detail": {
       "no_self_rename": "No se registró ningún cambio de nombre propio.",

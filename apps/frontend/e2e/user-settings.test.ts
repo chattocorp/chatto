@@ -10,17 +10,16 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('App and User Preferences', () => {
-  test('opens App Preferences with the shared sidebar from the Application Header', async ({
-    page
-  }) => {
+  test('opens unified Appearance settings from the Application Header', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.space());
+    await page.goto(routes.chat);
     await page.getByRole('link', { name: 'App Preferences' }).click();
-    await page.waitForURL(routes.appPreferences);
+    await page.waitForURL(routes.settingsAppearance);
     await expect(page.getByTestId('server-sidebar')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(page.getByRole('heading', { name: 'App Preferences' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByText('App preferences', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Language' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Composer' })).toBeVisible();
@@ -29,7 +28,7 @@ test.describe('App and User Preferences', () => {
   test('can choose a local display theme', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await createAndLoginTestUser(page);
-    await page.goto(routes.appPreferences);
+    await page.goto(routes.settingsAppearance);
     await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -67,7 +66,7 @@ test.describe('App and User Preferences', () => {
 
   test('can choose and persist browser-wide composer preferences', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.appPreferencesComposer);
+    await page.goto(routes.settingsComposer);
     await expect(page.getByRole('heading', { name: 'Composer' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -93,7 +92,7 @@ test.describe('App and User Preferences', () => {
     page
   }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.appPreferencesComposer);
+    await page.goto(routes.settingsComposer);
     await expect(page.getByRole('heading', { name: 'Composer' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -117,7 +116,7 @@ test.describe('App and User Preferences', () => {
     const remoteServer = await startSecondServer(testInfo);
     try {
       await createAndLoginTestUser(page);
-      await page.goto(routes.appPreferencesComposer);
+      await page.goto(routes.settingsComposer);
       await page.getByRole('radio', { name: /^Markdown/ }).click();
       await page.getByRole('radio', { name: /^Return/ }).click();
       await chatPage.goto();
@@ -131,9 +130,9 @@ test.describe('App and User Preferences', () => {
       await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
 
       await page.getByRole('link', { name: 'App Preferences' }).click();
-      await page.waitForURL(routes.appPreferences);
+      await page.waitForURL(/\/chat\/[^/]+\/settings\/appearance$/);
       await page.getByRole('link', { name: 'Composer' }).click();
-      await page.waitForURL(routes.appPreferencesComposer);
+      await page.waitForURL(/\/chat\/[^/]+\/settings\/composer$/);
       await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
         'aria-checked',
         'true'
@@ -149,7 +148,7 @@ test.describe('App and User Preferences', () => {
 
   test('can choose and persist a regional locale', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.appPreferencesLanguage);
+    await page.goto(routes.settingsLanguage);
     await expect(page.getByRole('heading', { name: 'Language', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -163,7 +162,7 @@ test.describe('App and User Preferences', () => {
     });
 
     await page.getByRole('radio', { name: 'German (Germany)' }).click();
-    await expect(page.getByRole('heading', { name: 'App-Einstellungen' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Einstellungen' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.getByRole('heading', { name: 'Sprache', level: 1 })).toBeVisible();
@@ -179,7 +178,7 @@ test.describe('App and User Preferences', () => {
       .toBe(pageMarker);
 
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'App-Einstellungen' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Einstellungen' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.getByRole('radio', { name: 'Deutsch (Deutschland)' })).toHaveAttribute(
@@ -188,7 +187,7 @@ test.describe('App and User Preferences', () => {
     );
 
     await page.getByRole('radio', { name: 'Englisch (Vereinigte Staaten)' }).click();
-    await expect(page.getByRole('heading', { name: 'App Preferences' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.getByRole('heading', { name: 'Language', level: 1 })).toBeVisible();
@@ -203,7 +202,7 @@ test.describe('App and User Preferences', () => {
 
   test('can set timezone and save', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.settingsTime);
     await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -231,7 +230,7 @@ test.describe('App and User Preferences', () => {
 
   test('can set time format to 24-hour and save', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.settingsTime);
     await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -269,7 +268,7 @@ test.describe('App and User Preferences', () => {
 
   test('can clear timezone back to browser default', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.settingsTime);
     await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -307,7 +306,7 @@ test.describe('App and User Preferences', () => {
 
   test('shows validation error for invalid timezone', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.settingsTime);
     await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -326,14 +325,23 @@ test.describe('App and User Preferences', () => {
     await expect(saveButton).toBeDisabled();
   });
 
-  test('unified Settings sidebar exposes both collapsible server groups', async ({ page }) => {
+  test('unified Settings sidebar exposes the three ordered scope groups', async ({ page }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settings);
+    await page.goto(routes.settingsProfile);
 
-    await expect(page.getByText('User Preferences', { exact: true })).toBeVisible({
+    const groups = page.getByTestId('room-group-section');
+    await expect(groups).toHaveCount(3);
+    await expect(groups.nth(0)).toContainText('App preferences');
+    await expect(groups.nth(1)).toContainText('Your account');
+    await expect(groups.nth(2)).toContainText('Server');
+    await expect(page.getByText('Your account', { exact: true })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(page.getByText('Server Configuration', { exact: true })).toBeVisible();
+    await expect(page.getByText('Server', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Appearance' })).toHaveAttribute(
+      'href',
+      routes.settingsAppearance
+    );
     await expect(page.getByRole('link', { name: 'Time & region' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
   });

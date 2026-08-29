@@ -40,6 +40,9 @@
     "user_menu": {
       "profile": "Gebruikersprofiel",
       "send_message": "Bericht verzenden",
+      "view_profile": "Profiel bekijken",
+      "profile_requires_direct_message": "Een rechtstreeks bericht is nodig om dit profiel te bekijken.",
+      "view_in_admin": "Bekijken in serverbeheer",
       "copy_user_id": "Gebruikers-ID kopiëren"
     },
     "server_gutter": {
@@ -66,6 +69,13 @@
       "message_missing": "Bericht niet langer beschikbaar",
       "in_room": "binnen",
       "in_room_capitalized": "Binnen"
+    },
+    "profile": {
+      "title": "Profiel",
+      "fallback_title": "Profiel",
+      "not_found": "Gebruiker niet gevonden",
+      "bot": "Bot",
+      "local_time": "{time} lokale tijd ({zone})"
     }
   }
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // RoomCommands returns the operation-level model for public room lifecycle,
@@ -28,7 +28,7 @@ type RoomCreateInput struct {
 	Name          string
 	Description   string
 	Universal     bool
-	ThreadingMode corev1.RoomThreadingMode
+	ThreadingMode evtv1.RoomThreadingMode
 }
 
 type RoomUpdateInput struct {
@@ -38,7 +38,7 @@ type RoomUpdateInput struct {
 	Description     *string
 	Universal       *bool
 	SlowModeSeconds *uint32
-	ThreadingMode   *corev1.RoomThreadingMode
+	ThreadingMode   *evtv1.RoomThreadingMode
 }
 
 type RoomIDInput struct {
@@ -77,7 +77,7 @@ type RoomBanListInput struct {
 	RoomID  *string
 }
 
-func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput) (*corev1.Room, error) {
+func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput) (*evtv1.Room, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
@@ -91,14 +91,14 @@ func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput
 	if !can {
 		return nil, ErrPermissionDenied
 	}
-	if input.ThreadingMode != corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED && !IsValidRoomThreadingMode(input.ThreadingMode) {
+	if input.ThreadingMode != evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED && !IsValidRoomThreadingMode(input.ThreadingMode) {
 		return nil, invalidArgument("invalid room threading mode")
 	}
 	return s.core.CreateRoom(ctx, input.ActorID, KindChannel, input.GroupID, input.Name, input.Description,
 		WithUniversalRoom(input.Universal), WithRoomThreadingMode(input.ThreadingMode))
 }
 
-func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput) (*corev1.Room, error) {
+func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput) (*evtv1.Room, error) {
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 	return room, nil
 }
 
-func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (*corev1.Room, error) {
+func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (
 	return s.core.ArchiveRoom(ctx, input.ActorID, kind, input.RoomID)
 }
 
-func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput) (*corev1.Room, error) {
+func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -186,7 +186,7 @@ func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput)
 	return s.core.UnarchiveRoom(ctx, input.ActorID, kind, input.RoomID)
 }
 
-func (s *RoomCommandModel) JoinRoom(ctx context.Context, input RoomIDInput) (*corev1.Room, error) {
+func (s *RoomCommandModel) JoinRoom(ctx context.Context, input RoomIDInput) (*evtv1.Room, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (s *RoomCommandModel) LeaveRoom(ctx context.Context, input RoomIDInput) err
 	return s.core.LeaveRoom(ctx, input.ActorID, kind, input.ActorID, input.RoomID)
 }
 
-func (s *RoomCommandModel) AddMember(ctx context.Context, input RoomUserInput) (*corev1.RoomMembership, error) {
+func (s *RoomCommandModel) AddMember(ctx context.Context, input RoomUserInput) (*evtv1.RoomMembership, error) {
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -237,12 +237,28 @@ func (s *RoomCommandModel) RemoveMember(ctx context.Context, input RoomUserInput
 	return s.core.RemoveMember(ctx, input.ActorID, kind, input.RoomID, input.UserID)
 }
 
-func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) (*corev1.Room, bool, error) {
+func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) (*evtv1.Room, bool, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, false, err
 	}
 	if len(input.ParticipantIDs) > MaxDMParticipants-1 {
 		return nil, false, invalidArgument("DM conversations are limited to 10 participants")
+	}
+	isBot, _, accountExists := s.core.userModel.isBotAndOwner(input.ActorID)
+	if !accountExists {
+		return nil, false, ErrNotFound
+	}
+	// Bots cannot use StartDM as a lookup operation. This prevents an existing
+	// membership from becoming a bot-discoverable DM directory.
+	if isBot {
+		return nil, false, ErrPermissionDenied
+	}
+	room, found, err := s.core.FindDM(ctx, input.ActorID, input.ParticipantIDs)
+	if err != nil {
+		return nil, false, err
+	}
+	if found {
+		return room, false, nil
 	}
 	can, err := s.core.CanStartDM(ctx, input.ActorID)
 	if err != nil {

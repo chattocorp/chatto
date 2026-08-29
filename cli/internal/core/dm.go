@@ -11,7 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -33,19 +33,19 @@ const (
 
 // ProtoKindForRoomKind maps the Go-side RoomKind string to the proto
 // enum stored on Room.kind.
-func ProtoKindForRoomKind(kind RoomKind) corev1.RoomKind {
+func ProtoKindForRoomKind(kind RoomKind) evtv1.RoomKind {
 	if kind == KindDM {
-		return corev1.RoomKind_ROOM_KIND_DM
+		return evtv1.RoomKind_ROOM_KIND_DM
 	}
-	return corev1.RoomKind_ROOM_KIND_CHANNEL
+	return evtv1.RoomKind_ROOM_KIND_CHANNEL
 }
 
 // KindOfRoom returns the canonical RoomKind for a Room. Reads
 // Room.kind directly; legacy `space_id`-based fallback was removed
 // when the field was retired from the proto.
-func KindOfRoom(room *corev1.Room) RoomKind {
+func KindOfRoom(room *evtv1.Room) RoomKind {
 	switch room.Kind {
-	case corev1.RoomKind_ROOM_KIND_DM:
+	case evtv1.RoomKind_ROOM_KIND_DM:
 		return KindDM
 	default:
 		return KindChannel
@@ -81,13 +81,10 @@ func DMRoomID(participantIDs []string) string {
 // DM Room Management
 // ============================================================================
 
-// FindOrCreateDM finds an existing DM conversation or creates a new one.
-// The caller (creatorID) is automatically included in the participant list.
-// Returns the room and a boolean indicating whether it was newly created.
-//
-// For existing DMs, the caller must already be a participant.
-// For new DMs, all participants are automatically joined to the room.
-func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*corev1.Room, bool, error) {
+// FindDM returns the existing DM for the caller and participant set.
+// The caller is automatically included in the participant set. A missing DM
+// returns (nil, false, nil). The caller must be a member of a found DM.
+func (c *ChattoCore) FindDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
 	// Ensure creator is in participants
 	allParticipants := ensureInList(participantIDs, creatorID)
 
@@ -114,11 +111,31 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 		if !isMember {
 			return nil, false, fmt.Errorf("access denied: not a participant in this DM")
 		}
-		return room, false, nil
+		return room, true, nil
 	}
 	if !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return nil, false, fmt.Errorf("failed to check existing DM: %w", err)
 	}
+	return nil, false, nil
+}
+
+// FindOrCreateDM finds an existing DM conversation or creates a new one.
+// The caller (creatorID) is automatically included in the participant list.
+// Returns the room and a boolean indicating whether it was newly created.
+//
+// For existing DMs, the caller must already be a participant.
+// For new DMs, all participants are automatically joined to the room.
+func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*evtv1.Room, bool, error) {
+	room, found, err := c.FindDM(ctx, creatorID, participantIDs)
+	if err != nil {
+		return nil, false, err
+	}
+	if found {
+		return room, false, nil
+	}
+
+	allParticipants := ensureInList(participantIDs, creatorID)
+	roomID := DMRoomID(allParticipants)
 
 	// Create new DM room
 	room, err = c.createDMRoom(ctx, roomID, allParticipants)
@@ -154,10 +171,10 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 //
 // Post-batch side effects (per-participant read markers) happen after the
 // batch acks, since they're outside the durable event log.
-func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*corev1.Room, error) {
-	room := &corev1.Room{
+func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*evtv1.Room, error) {
+	room := &evtv1.Room{
 		Id:   roomID,
-		Kind: corev1.RoomKind_ROOM_KIND_DM,
+		Kind: evtv1.RoomKind_ROOM_KIND_DM,
 		Name: "", // DMs don't have names - derived from participants in UI
 	}
 
@@ -166,13 +183,13 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// "system" actor reflects that the conversation is created by
 	// the platform on the first participant's behalf — DMs have no
 	// operator-driven creation flow.
-	createdEvent := newEvent("system", &corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{
+	createdEvent := newEvent("system", &evtv1.Event{
+		Event: &evtv1.Event_RoomCreated{
+			RoomCreated: &evtv1.RoomCreatedEvent{
 				RoomId:      roomID,
 				Name:        "",
 				Description: "",
-				Kind:        corev1.RoomKind_ROOM_KIND_DM,
+				Kind:        evtv1.RoomKind_ROOM_KIND_DM,
 			},
 		},
 	})
@@ -191,9 +208,9 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		},
 	}
 	for _, pid := range participantIDs {
-		joinEvent := newEvent(pid, &corev1.Event{
-			Event: &corev1.Event_UserJoinedRoom{
-				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
+		joinEvent := newEvent(pid, &evtv1.Event{
+			Event: &evtv1.Event_UserJoinedRoom{
+				UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID},
 			},
 		})
 		entries = append(entries, evtstream.BatchEntry{

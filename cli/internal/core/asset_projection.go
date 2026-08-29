@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -17,7 +17,7 @@ import (
 type AssetProjection struct {
 	events.MemoryProjection
 	replayGuard             projectionReplayGuard
-	assetCreations          map[string]*corev1.AssetCreatedEvent
+	assetCreations          map[string]*evtv1.AssetCreatedEvent
 	assetChildren           map[string][]string
 	videoManifests          map[string]*VideoAttachmentManifest
 	deletedAssets           map[string]struct{}
@@ -31,7 +31,7 @@ type AssetProjection struct {
 // generation and room or processing state from another.
 type AssetState struct {
 	// Creation is the current declaration, or nil after deletion.
-	Creation *corev1.AssetCreatedEvent
+	Creation *evtv1.AssetCreatedEvent
 	// RoomID remains available for a projected tombstone.
 	RoomID string
 	// VideoManifest is the current processing state, if processing started.
@@ -45,7 +45,7 @@ type AssetState struct {
 func NewAssetProjection() *AssetProjection {
 	return &AssetProjection{
 		replayGuard:             newProjectionReplayGuard(),
-		assetCreations:          make(map[string]*corev1.AssetCreatedEvent),
+		assetCreations:          make(map[string]*evtv1.AssetCreatedEvent),
 		assetChildren:           make(map[string][]string),
 		videoManifests:          make(map[string]*VideoAttachmentManifest),
 		deletedAssets:           make(map[string]struct{}),
@@ -74,7 +74,7 @@ func (p *AssetProjection) ReplaySubjects() []string {
 	return []string{evtstream.EventSubjectFilter()}
 }
 
-func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *AssetProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if event == nil || (event.GetMessageBody() == nil && !isAssetLifecycleEvent(event)) {
 		return nil
 	}
@@ -95,17 +95,17 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	switch ev := event.GetEvent().(type) {
-	case *corev1.Event_AssetCreated:
+	case *evtv1.Event_AssetCreated:
 		assetID := ev.AssetCreated.GetAsset().GetId()
 		if assetID != "" {
-			p.assetCreations[assetID] = proto.Clone(ev.AssetCreated).(*corev1.AssetCreatedEvent)
+			p.assetCreations[assetID] = proto.Clone(ev.AssetCreated).(*evtv1.AssetCreatedEvent)
 			delete(p.deletedAssets, assetID)
 			delete(p.deletedAssetRoom, assetID)
 			if parentID := ev.AssetCreated.GetParentAssetId(); parentID != "" {
 				p.assetChildren[parentID] = appendIfMissing(p.assetChildren[parentID], assetID)
 			}
 		}
-	case *corev1.Event_AssetAttached:
+	case *evtv1.Event_AssetAttached:
 		attached := ev.AssetAttached
 		assetID := attached.GetAssetId()
 		if assetID != "" {
@@ -117,7 +117,7 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 				}
 			}
 		}
-	case *corev1.Event_AssetProcessingStarted:
+	case *evtv1.Event_AssetProcessingStarted:
 		assetID := ev.AssetProcessingStarted.GetAssetId()
 		if assetID != "" {
 			if _, deleted := p.deletedAssets[assetID]; deleted {
@@ -127,10 +127,10 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 				return nil
 			}
 			p.videoManifests[assetID] = &VideoAttachmentManifest{
-				Started: proto.Clone(ev.AssetProcessingStarted).(*corev1.AssetProcessingStartedEvent),
+				Started: proto.Clone(ev.AssetProcessingStarted).(*evtv1.AssetProcessingStartedEvent),
 			}
 		}
-	case *corev1.Event_AssetProcessingSucceeded:
+	case *evtv1.Event_AssetProcessingSucceeded:
 		assetID := ev.AssetProcessingSucceeded.GetAssetId()
 		if assetID != "" {
 			if _, deleted := p.deletedAssets[assetID]; deleted {
@@ -143,11 +143,11 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 			if manifest.Succeeded != nil || manifest.Failed != nil {
 				return nil
 			}
-			manifest.Succeeded = proto.Clone(ev.AssetProcessingSucceeded).(*corev1.AssetProcessingSucceededEvent)
+			manifest.Succeeded = proto.Clone(ev.AssetProcessingSucceeded).(*evtv1.AssetProcessingSucceededEvent)
 			manifest.Failed = nil
 			p.videoManifests[assetID] = manifest
 		}
-	case *corev1.Event_AssetProcessingFailed:
+	case *evtv1.Event_AssetProcessingFailed:
 		assetID := ev.AssetProcessingFailed.GetAssetId()
 		if assetID != "" {
 			if _, deleted := p.deletedAssets[assetID]; deleted {
@@ -160,11 +160,11 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 			if manifest.Succeeded != nil || manifest.Failed != nil {
 				return nil
 			}
-			manifest.Failed = proto.Clone(ev.AssetProcessingFailed).(*corev1.AssetProcessingFailedEvent)
+			manifest.Failed = proto.Clone(ev.AssetProcessingFailed).(*evtv1.AssetProcessingFailedEvent)
 			manifest.Succeeded = nil
 			p.videoManifests[assetID] = manifest
 		}
-	case *corev1.Event_AssetDeleted:
+	case *evtv1.Event_AssetDeleted:
 		assetID := ev.AssetDeleted.GetAssetId()
 		if assetID != "" {
 			p.deletedAssets[assetID] = struct{}{}
@@ -184,7 +184,7 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	return nil
 }
 
-func (p *AssetProjection) rememberMessageBodyAssetsLocked(roomID, messageEventID string, body *corev1.MessageBody, actorID string) {
+func (p *AssetProjection) rememberMessageBodyAssetsLocked(roomID, messageEventID string, body *evtv1.MessageBody, actorID string) {
 	if roomID == "" || messageEventID == "" || body == nil {
 		return
 	}
@@ -231,7 +231,7 @@ func (p *AssetProjection) CompleteStartupReplay() {
 	p.replayGuard.completeReplay()
 }
 
-func (p *AssetProjection) AssetCreation(assetID string) (*corev1.AssetCreatedEvent, bool) {
+func (p *AssetProjection) AssetCreation(assetID string) (*evtv1.AssetCreatedEvent, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	if assetID == "" {
@@ -241,7 +241,7 @@ func (p *AssetProjection) AssetCreation(assetID string) (*corev1.AssetCreatedEve
 	if !ok || declared == nil {
 		return nil, false
 	}
-	return proto.Clone(declared).(*corev1.AssetCreatedEvent), true
+	return proto.Clone(declared).(*evtv1.AssetCreatedEvent), true
 }
 
 func (p *AssetProjection) AssetState(assetID string) AssetState {
@@ -253,7 +253,7 @@ func (p *AssetProjection) AssetState(assetID string) AssetState {
 
 	state := AssetState{RoomID: p.assetRoomIDLocked(assetID)}
 	if declared := p.assetCreations[assetID]; declared != nil {
-		state.Creation = proto.Clone(declared).(*corev1.AssetCreatedEvent)
+		state.Creation = proto.Clone(declared).(*evtv1.AssetCreatedEvent)
 	}
 	if manifest := p.videoManifests[assetID]; manifest != nil {
 		state.VideoManifest = cloneVideoAttachmentManifest(manifest)
@@ -292,13 +292,13 @@ func cloneVideoAttachmentManifest(manifest *VideoAttachmentManifest) *VideoAttac
 	}
 	out := &VideoAttachmentManifest{}
 	if manifest.Started != nil {
-		out.Started = proto.Clone(manifest.Started).(*corev1.AssetProcessingStartedEvent)
+		out.Started = proto.Clone(manifest.Started).(*evtv1.AssetProcessingStartedEvent)
 	}
 	if manifest.Succeeded != nil {
-		out.Succeeded = proto.Clone(manifest.Succeeded).(*corev1.AssetProcessingSucceededEvent)
+		out.Succeeded = proto.Clone(manifest.Succeeded).(*evtv1.AssetProcessingSucceededEvent)
 	}
 	if manifest.Failed != nil {
-		out.Failed = proto.Clone(manifest.Failed).(*corev1.AssetProcessingFailedEvent)
+		out.Failed = proto.Clone(manifest.Failed).(*evtv1.AssetProcessingFailedEvent)
 	}
 	return out
 }
@@ -378,10 +378,10 @@ func (p *AssetProjection) IsPublicLinkPreviewAsset(assetID string) bool {
 	return ok
 }
 
-func (p *AssetProjection) PendingExpiredAssets(now time.Time) []*corev1.AssetCreatedEvent {
+func (p *AssetProjection) PendingExpiredAssets(now time.Time) []*evtv1.AssetCreatedEvent {
 	p.RLock()
 	defer p.RUnlock()
-	var out []*corev1.AssetCreatedEvent
+	var out []*evtv1.AssetCreatedEvent
 	for _, declared := range p.assetCreations {
 		if declared == nil || declared.GetPendingExpiresAt() == nil {
 			continue
@@ -389,7 +389,7 @@ func (p *AssetProjection) PendingExpiredAssets(now time.Time) []*corev1.AssetCre
 		if declared.GetPendingExpiresAt().AsTime().After(now) {
 			continue
 		}
-		out = append(out, proto.Clone(declared).(*corev1.AssetCreatedEvent))
+		out = append(out, proto.Clone(declared).(*evtv1.AssetCreatedEvent))
 	}
 	return out
 }
@@ -430,7 +430,7 @@ func (p *AssetProjection) assetRoomIDLocked(assetID string) string {
 	return p.roomIDOfAssetCreatedLocked(declared)
 }
 
-func (p *AssetProjection) roomIDOfAssetCreatedLocked(event *corev1.AssetCreatedEvent) string {
+func (p *AssetProjection) roomIDOfAssetCreatedLocked(event *evtv1.AssetCreatedEvent) string {
 	seen := map[string]struct{}{}
 	for event != nil {
 		if roomID := event.GetRoomId(); roomID != "" {

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
@@ -146,8 +146,8 @@ func TestRoomMemberReferenceReadsOmitDeletedUsers(t *testing.T) {
 
 	// Publish only the user tombstone to reproduce the convergence window before
 	// account-deletion cleanup publishes the room membership leave event.
-	deletedEvent := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
-		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: deleted.Id},
+	deletedEvent := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{
+		UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: deleted.Id},
 	}})
 	if _, err := core.appendUserEvent(ctx, deleted.Id, deletedEvent, "", nil); err != nil {
 		t.Fatalf("append delete event: %v", err)
@@ -158,15 +158,15 @@ func TestRoomMemberReferenceReadsOmitDeletedUsers(t *testing.T) {
 
 	reads := []struct {
 		name string
-		read func() ([]*corev1.User, error)
+		read func() ([]*evtv1.User, error)
 	}{
-		{"member", func() ([]*corev1.User, error) {
+		{"member", func() ([]*evtv1.User, error) {
 			return core.ListRoomMemberReferences(ctx, viewer.Id, room.Id)
 		}},
-		{"list", func() ([]*corev1.User, error) {
+		{"list", func() ([]*evtv1.User, error) {
 			return core.ListRoomMemberReferencesForList(ctx, viewer.Id, room.Id)
 		}},
-		{"lookup", func() ([]*corev1.User, error) {
+		{"lookup", func() ([]*evtv1.User, error) {
 			return core.ListRoomMemberReferencesForLookup(ctx, viewer.Id, room.Id)
 		}},
 	}
@@ -181,7 +181,7 @@ func TestRoomMemberReferenceReadsOmitDeletedUsers(t *testing.T) {
 	}
 }
 
-func userRefsContain(users []*corev1.User, userID string) bool {
+func userRefsContain(users []*evtv1.User, userID string) bool {
 	for _, user := range users {
 		if user.GetId() == userID {
 			return true

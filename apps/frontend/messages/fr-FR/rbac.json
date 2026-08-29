@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administration",
+      "bot": "Bots",
+      "message": "Messages",
+      "role": "Rôles",
+      "room": "Salles",
+      "server": "Serveur",
+      "user": "Utilisateurs",
+      "other": "Autres"
+    },
     "permission_descriptions": {
       "server_manage": "Mettre à jour les paramètres du serveur (nom, description, logo)",
       "room_create": "Créer de nouvelles salles",
@@ -119,7 +129,9 @@
       "user_delete_self": "Supprimez votre propre compte",
       "user_invite": "Créez et gérez les liens d’invitation",
       "user_manage_accounts": "Créez des utilisateurs, modifiez l'identité du compte, réinitialisez les mots de passe, joignez des e-mails vérifiés et effacez les délais de connexion.",
-      "user_manage_permissions": "Modifier les remplacements d'autorisations directes par utilisateur"
+      "user_manage_permissions": "Modifier les remplacements d'autorisations directes par utilisateur",
+      "bot_create": "Créer des comptes de bot dont vous êtes propriétaire",
+      "bot_manage": "Voir et gérer tous les comptes de bot"
     }
   }
 }

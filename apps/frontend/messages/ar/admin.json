@@ -104,7 +104,25 @@
       "edit": "تعديل",
       "assigned_role": "تم تعيين دور {role}",
       "removed_role": "تمت إزالة دور {role}",
-      "role_update_failed": "فشل تحديث تعيين الدور"
+      "role_update_failed": "فشل تحديث تعيين الدور",
+      "danger_zone": "منطقة الخطر",
+      "open_delete_account": "حذف الحساب",
+      "delete_account_entry_description": "يحذف حساب هذا العضو نهائيًا. تصبح رسائله غير قابلة للقراءة. لا يمكن التراجع عن هذا الإجراء."
+    },
+    "member_delete": {
+      "title": "حذف عضو",
+      "warning": "سيؤدي هذا إلى حذف حساب {name} نهائيًا. لا يمكن التراجع عن ذلك.",
+      "consequences_intro": "ما سيحدث:",
+      "consequence_rooms": "تتم إزالة العضو من جميع الغرف.",
+      "consequence_messages": "تصبح جميع الرسائل التي كتبها غير قابلة للقراءة نهائيًا.",
+      "consequence_profile": "يُحذف ملفه الشخصي وصورته الرمزية واسم المستخدم. ويصبح اسم المستخدم متاحًا مجددًا لاحقًا.",
+      "consequence_sessions": "يتم تسجيل خروج الشخص من كل الأجهزة.",
+      "confirm_label": "اكتب {login} للتأكيد",
+      "submit": "حذف الحساب نهائيًا",
+      "deleting": "جارٍ الحذف...",
+      "failed": "فشل حذف الحساب.",
+      "success": "تم حذف الحساب.",
+      "not_allowed": "لا يمكنك حذف هذا الحساب."
     },
     "member_detail": {
       "no_self_rename": "لم يتم تسجيل أي إعادة تسمية ذاتية.",

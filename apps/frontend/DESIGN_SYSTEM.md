@@ -36,8 +36,23 @@ message search results:
 - Rows rest transparently on the owning `background` work plane. Hover and
   keyboard focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
-- Each row owns its rounded shape. The collection owns only the 1px inset and
-  gap, so selections never merge into a single slab.
+- Each row owns its rounded shape. The collection owns only the standard
+  `p-1` inset and `gap-1`, so selections never merge into a single slab.
+
+## Sidebar Navigation
+
+Sidebar links use `sidebar-item`. Set `aria-current="page"` on the current
+route. The shared primitive then uses a quiet action-coloured fill and an
+action-coloured icon. Apply `sidebar-item-attention` only to unread content
+that is not the current route. Unread dots remain neutral. Notification badges
+keep their semantic priority colour.
+
+When one route path contains another navigation path, set `aria-current` only
+on the most-specific matching item.
+
+The server gutter has a distinct rule. The current server uses a neutral text
+ring and a `surface-selected` fill. This preserves the server identity colour
+inside the icon. Do not add a side stripe or a shadow for navigation selection.
 
 ## Choosing A Primitive
 
@@ -84,7 +99,7 @@ behaviour, content width, spacing, and panel hierarchy.
       </Panel>
 
       <Panel title={resultsTitle} noPadding>
-        <!-- edge-to-edge list, table, or result state -->
+        <!-- child-owned collection, table, or result state -->
       </Panel>
     </div>
   </PaneContent>
@@ -107,8 +122,9 @@ Follow these defaults:
   single form field's visible label, keep the field label available to
   assistive technology with the field component's `labelHidden` option.
 - Use the default padded `Panel` for forms, prose, summaries, and grouped
-  controls. Use `noPadding` for tables, lists, search results, and other
-  edge-to-edge collections; the child owns its row padding and dividers.
+  controls. Use `noPadding` when the child owns its work-plane treatment.
+  `DataTable` rows are flush and use dividers. A `selectable-list` keeps its
+  standard `p-1` inset and `gap-1` so separately rounded rows have clear boundaries.
 - Render loading, error, and empty states inside the panel whose content they
   replace. A single full-page availability state may use one untitled panel
   because there are no peer sections to distinguish.
@@ -168,26 +184,21 @@ glow. Invalid fields follow the same treatment with the error-coloured border.
 
 Compact filled controls pair each tone with its `on-*` foreground token.
 Prominent action, success, warning, and danger buttons use dedicated fills with
-contrast-safe labels. The action colour is the single blue accent in each theme:
-primary buttons, links, focus borders, selection indicators, and compact status
-UI all derive from that same token rather than maintaining a separate button blue.
-Each theme's action token must retain WCAG AA contrast both as text on its
-surrounding work surfaces and with its paired `on-action` button label.
-Buttons frame their fills with a tight inset related to `SegmentedControl`.
-Prominent semantic buttons tint the outer border to match their fill; quieter
-secondary and ghost buttons retain the input-coloured border. The tight inset
-keeps a standalone button from looking double-framed. The frame is part of the
-standard button geometry: do not remove it from individual variants or reproduce
-it with feature-local wrappers.
+contrast-safe labels. The action colour is the single blue accent in each
+theme: primary buttons, links, focus borders, selection indicators, and compact
+status UI all derive from that same token rather than maintaining a separate
+button colour. Each theme's action token must retain WCAG AA contrast both as
+text on its surrounding work surfaces and with its paired `on-action` button
+label.
 
-A one-pixel black outer ring keeps framed controls legible on mid-tone surfaces.
-Buttons, form inputs, and `SegmentedControl` share the `control-frame` utility,
-which owns their radius, one-pixel border, and non-layout outer ring. Individual
-controls only add semantic border colours and their appropriate inset treatment.
+Buttons are flat colour controls, not framed form controls. Their fills have a
+matched tonal border. Secondary buttons use a quiet `surface-emphasized` fill and
+an input-coloured border, so they stay visible inside a `surface` card. Do not add
+local frames, shadows, gradients, or bevel effects.
 
-Button frames and `SegmentedControl` use one pixel for both the outer border and
-the inset gap. Keep these dimensions aligned so adjacent controls share the same
-optical height and edge rhythm.
+Form inputs and `SegmentedControl` share the `control-frame` utility. It owns
+their radius, one-pixel border, and non-layout black outer ring, which keeps
+framed controls legible on mid-tone surfaces. Buttons do not use `control-frame`.
 
 Surfaces form a small semantic ladder:
 
@@ -239,6 +250,12 @@ add feature-local radius overrides for this composition. Dense matrices may keep
 an intrinsic content width inside the viewport; ordinary record tables fill it.
 Standard record-table headings use `table-header-cell`; matrix headings remain
 bespoke because their vertical labels have different spatial needs.
+
+`noPadding` does not require every child to be flush. `DataTable` uses a
+continuous grid, so its header and rows meet the work-plane edge. A
+`selectable-list` uses independent rounded rows, so it keeps the shared `p-1`
+inset and `gap-1` inside that same work plane. Do not add local padding utilities to
+either primitive to make it resemble the other.
 
 Panel title bands use `px-6 py-3`. The horizontal inset aligns titles with
 `p-5` panel content after accounting for the frame, while keeping the band

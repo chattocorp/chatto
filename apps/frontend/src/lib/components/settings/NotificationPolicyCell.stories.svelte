@@ -4,7 +4,7 @@
 
   const componentDescription = `
   Notification-policy adapter for the shared matrix cell control. It maps the
-  three delivery modes to the shared icon and colour language, displays
+  four delivery modes to the shared icon and colour language, displays
   effective inherited values, and owns the scope-specific state cycle. Server
   defaults are concrete starting values and do not display as inherited. The
   cell keeps its detailed state and next action in its accessible label without
@@ -32,7 +32,7 @@
     docs: {
       description: {
         story:
-          'Grey means no notification occurrence. Orange means an in-app notification. The phone icon adds push delivery.'
+          'The crossed bell is Off. The grey filled bell adds only an unread Badge. Orange creates an in-app notification, and the phone icon also adds push delivery.'
       }
     }
   }}
@@ -56,6 +56,18 @@
         causeLabel="Direct mentions"
         scope={{ kind: 'server' }}
         scopeLabel="Example server"
+        override={NotificationDeliveryMode.UNREAD_BADGE}
+        effective={NotificationDeliveryMode.UNREAD_BADGE}
+        onChange={() => undefined}
+      />
+      <div>Badge</div>
+    </div>
+    <div>
+      <NotificationPolicyCell
+        field="replies"
+        causeLabel="Replies"
+        scope={{ kind: 'server' }}
+        scopeLabel="Example server"
         override={NotificationDeliveryMode.IN_APP_NOTIFICATION}
         effective={NotificationDeliveryMode.IN_APP_NOTIFICATION}
         onChange={() => undefined}
@@ -64,8 +76,8 @@
     </div>
     <div>
       <NotificationPolicyCell
-        field="replies"
-        causeLabel="Replies"
+        field="reactions"
+        causeLabel="Reactions"
         scope={{ kind: 'server' }}
         scopeLabel="Example server"
         override={NotificationDeliveryMode.PUSH_NOTIFICATION}

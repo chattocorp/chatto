@@ -49,6 +49,7 @@ function policy(scope: NotificationPolicyScope): ScopedNotificationPolicy {
     scope,
     overrides: {
       directMessages: null,
+      roomMessages: null,
       directMentions: null,
       replies: null,
       roleMentions: null,
@@ -60,6 +61,7 @@ function policy(scope: NotificationPolicyScope): ScopedNotificationPolicy {
     },
     effective: {
       directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
+      roomMessages: NotificationDeliveryMode.UNREAD_BADGE,
       directMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
       replies: NotificationDeliveryMode.PUSH_NOTIFICATION,
       roleMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
@@ -96,8 +98,10 @@ describe('NotificationPolicySettings', () => {
       )
     ).toEqual(['server', 'roomGroup:group-1', 'room:room-1', 'room:dm-1']);
     expect(container.querySelector('th[data-notification-scope="room:room-2"]')).toBeNull();
+    expect(container.querySelector('[data-notification-field="followedRooms"]')).toBeNull();
     expect(container.querySelectorAll('[data-matrix-row]')).toHaveLength(9 * 4);
     expect(container.textContent).not.toContain('Room invitations');
+    expect(container.textContent).not.toContain('Followed rooms');
     expect(container.textContent).not.toContain('Reset to defaults');
   });
 
@@ -145,6 +149,30 @@ describe('NotificationPolicySettings', () => {
     }
     expect(serverCell.querySelector('button')).not.toBeNull();
     expect(dmCell.querySelector('button')).not.toBeNull();
+  });
+
+  it('marks room messages as not applicable to direct-message rooms', () => {
+    const { container } = render(NotificationPolicySettings);
+    const serverCell = container.querySelector(
+      'td[data-notification-scope="server"][data-notification-field="roomMessages"]'
+    )!;
+    const groupCell = container.querySelector(
+      'td[data-notification-scope="roomGroup:group-1"][data-notification-field="roomMessages"]'
+    )!;
+    const channelCell = container.querySelector(
+      'td[data-notification-scope="room:room-1"][data-notification-field="roomMessages"]'
+    )!;
+    const dmCell = container.querySelector(
+      'td[data-notification-scope="room:dm-1"][data-notification-field="roomMessages"]'
+    )!;
+
+    expect(serverCell.querySelector('button')).not.toBeNull();
+    expect(groupCell.querySelector('button')).not.toBeNull();
+    expect(channelCell.querySelector('button')).not.toBeNull();
+    expect(dmCell.querySelector('button')).toBeNull();
+    expect(dmCell.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe(
+      'Room messages, Taylor. Not applicable.'
+    );
   });
 
   it('highlights the active column heading together with its cells', () => {
@@ -195,16 +223,19 @@ describe('NotificationPolicySettings', () => {
     expect(button.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
   });
 
-  it('explains the three delivery modes in the legend', () => {
+  it('explains the four delivery modes in the legend', () => {
     const { container } = render(NotificationPolicySettings);
 
     const legend = container.querySelector('[aria-label="Notification delivery modes"]');
     expect(legend?.textContent).toContain('Off');
+    expect(legend?.textContent).toContain('Badge');
     expect(legend?.textContent).toContain('Notification');
     expect(legend?.textContent).toContain('Push notification');
     expect(legend?.querySelector('[class~="icon-[ph--bell-slash-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[ph--bell-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[ph--phone-fill]"]')).not.toBeNull();
+    expect(legend?.querySelector('button[aria-label="More information: Badge"]')).not.toBeNull();
+    expect(legend?.querySelector('[title*="neutral unread dot"]')).toBeNull();
     expect(legend?.textContent).not.toContain('Inherit');
     expect(legend?.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
   });
@@ -227,12 +258,12 @@ describe('NotificationPolicySettings', () => {
 
     const { container } = render(NotificationPolicySettings);
 
-    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(9 * 4 - 2);
+    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(9 * 4 - 3);
     expect(container.querySelectorAll('td[data-notification-field] button')).toHaveLength(0);
     const placeholders = container.querySelectorAll(
       'td[data-notification-field] > span[role="status"]'
     );
-    expect(placeholders).toHaveLength(9 * 4 - 2);
+    expect(placeholders).toHaveLength(9 * 4 - 3);
     expect([...placeholders].every((item) => item.textContent?.trim() === 'Loading...')).toBe(true);
   });
 
@@ -286,6 +317,6 @@ describe('NotificationPolicySettings', () => {
     );
     expect(
       saveFailure.container.querySelectorAll('td[data-notification-field] button')
-    ).toHaveLength(9 * 4 - 2);
+    ).toHaveLength(9 * 4 - 3);
   });
 });

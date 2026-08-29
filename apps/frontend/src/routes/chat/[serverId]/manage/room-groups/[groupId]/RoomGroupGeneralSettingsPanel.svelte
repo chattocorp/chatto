@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { AdminRoomGroup } from '$lib/api-client/adminRoomLayout';
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
   import { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import { m } from '$lib/i18n/messages';

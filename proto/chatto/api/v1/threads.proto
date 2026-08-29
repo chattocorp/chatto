@@ -91,24 +91,24 @@ message ListFollowedThreadsResponse {
 service ThreadService {
   // Returns followed threads in rooms where the current user is a member.
   // Channel-room threads also require message.read or an active relationship
-  // with message.read.interactions. Historical DM threads use DM membership.
+  // with message.read-interactions. Historical DM threads use DM membership.
   // The result includes enough root-message data for clients to render the
   // list without extra per-field fetches.
   rpc ListFollowedThreads(ListFollowedThreadsRequest) returns (ListFollowedThreadsResponse);
   // Follows a thread for the current user. Room membership plus message.read or
-  // an active relationship with message.read.interactions are required. DMs do
+  // an active relationship with message.read-interactions are required. DMs do
   // not support current thread actions.
   // Followed threads can be surfaced in clients and can participate in thread
   // notification behavior.
   rpc FollowThread(FollowThreadRequest) returns (FollowThreadResponse);
   // Stops following a thread for the current user. Room membership plus
-  // message.read or an active relationship with message.read.interactions are
+  // message.read or an active relationship with message.read-interactions are
   // required. DMs do not support current thread actions. The response reports
   // the resulting follow state so clients can update local UI immediately.
   rpc UnfollowThread(UnfollowThreadRequest) returns (UnfollowThreadResponse);
   // Returns one page of events in a message thread. Room membership is
   // required. Channel-room reads also require message.read or an active
-  // relationship with message.read.interactions. Historical DM threads use DM
+  // relationship with message.read-interactions. Historical DM threads use DM
   // membership. Initial pages include the thread root message; cursor pages
   // return replies in the requested direction.
   rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);
@@ -121,7 +121,7 @@ service ThreadService {
   rpc GetThreadEventsAround(GetThreadEventsAroundRequest) returns (GetThreadEventsAroundResponse);
   // Marks a thread timeline as read through the supplied event without changing
   // the room-level read marker. Room membership plus message.read or an active
-  // relationship with message.read.interactions are required. DMs do not
+  // relationship with message.read-interactions are required. DMs do not
   // support current thread actions.
   rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
 }

@@ -4,6 +4,7 @@ import { serverConnectionManager } from './serverConnection.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot, serverSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
+import type { PublicServerInfo } from '$lib/api-client/server';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import {
@@ -340,6 +341,7 @@ class ServerRegistry {
 	readonly sessions: ServerSessions;
 	#stores = new SvelteMap<string, ServerStateStore>();
 	#renewalPromises = new Map<string, Promise<string | null>>();
+	#originProbe: Promise<void> | null = null;
 
 	constructor() {
 		const persisted = restorePersistedServerState();
@@ -411,7 +413,11 @@ class ServerRegistry {
 	 *
 	 * No-ops if the origin is already registered (e.g., from localStorage).
 	 */
-	probeOrigin(knownServer = false, location?: Pick<Location, 'origin' | 'protocol'> | URL): void {
+	async probeOrigin(
+		knownServer = false,
+		location?: Pick<Location, 'origin' | 'protocol'> | URL,
+		discoveredServerInfo?: PublicServerInfo
+	): Promise<void> {
 		if (typeof window === 'undefined') return;
 		const currentLocation = location ?? window.location;
 		if (!isBackendCapableOrigin(currentLocation)) {
@@ -439,8 +445,31 @@ class ServerRegistry {
 			return;
 		}
 
+		// Root layout load already retrieves this data for the public shell. Reuse
+		// that result so route bootstrap does not issue a second discovery request.
+		if (discoveredServerInfo !== undefined) {
+			const id = generateServerId(
+				origin,
+				this.servers.map((s) => s.id)
+			);
+			this.#registerOrigin(
+				id,
+				origin,
+				discoveredServerInfo.name || 'Chatto',
+				discoveredServerInfo.iconUrl ?? null
+			);
+			this.settleOriginUnauthenticated();
+			this.originProbed = true;
+			return;
+		}
+
+		if (this.#originProbe) {
+			await this.#originProbe;
+			return;
+		}
+
 		// Async probe — detect if the origin is a Chatto server
-		getPublicServerInfo(origin)
+		const probe = getPublicServerInfo(origin)
 			.then((info) => {
 				if (this.originServer) return; // Registered while we were fetching
 
@@ -456,7 +485,10 @@ class ServerRegistry {
 			})
 			.finally(() => {
 				this.originProbed = true;
+				if (this.#originProbe === probe) this.#originProbe = null;
 			});
+		this.#originProbe = probe;
+		await probe;
 	}
 
 	#registerOrigin(

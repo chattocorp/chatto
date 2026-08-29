@@ -2,13 +2,13 @@ package core
 
 import (
 	"context"
+	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -324,7 +324,7 @@ func TestPresenceModelSubscribeAndUnsubscribe(t *testing.T) {
 	}
 	service.Unsubscribe(sub)
 
-	data, err := proto.Marshal(&corev1.UserPresence{Status: corev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE})
+	data, err := proto.Marshal(&cachestatev1.UserPresence{Status: cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE})
 	if err != nil {
 		t.Fatalf("Marshal returned error: %v", err)
 	}

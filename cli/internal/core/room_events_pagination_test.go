@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_GetRoomEventsAroundReturnsChronologicalWindow(t *testing.T) {
@@ -139,7 +139,7 @@ func TestChattoCore_RoomEventQueriesClampLimits(t *testing.T) {
 }
 
 func TestChattoCore_GetRoomEventsUsesDerivedVisibleTimelineWithNoise(t *testing.T) {
-	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
 		editedEvent("EDIT-M1", "M1", "R1", "U1", "1 edited", 3),
@@ -173,7 +173,7 @@ func TestChattoCore_GetRoomEventsUsesDerivedVisibleTimelineWithNoise(t *testing.
 }
 
 func TestChattoCore_GetRoomEventByEventIDExposesOnlyVisibleAndMessagePostLookups(t *testing.T) {
-	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		roomCreatedTimelineEvent("CREATE", "R1", "general", 1),
 		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "U1", body: "root", at: 2}),
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 3),
@@ -214,7 +214,7 @@ func TestChattoCore_GetRoomEventByEventIDExposesOnlyVisibleAndMessagePostLookups
 }
 
 func TestChattoCore_GetRoomEventsAfterUsesDerivedVisibleTimelineWithNoise(t *testing.T) {
-	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
 		editedEvent("EDIT-M1", "M1", "R1", "U1", "1 edited", 3),
@@ -248,7 +248,7 @@ func TestChattoCore_GetRoomEventsAfterUsesDerivedVisibleTimelineWithNoise(t *tes
 }
 
 func TestChattoCore_GetRoomEventsAroundUsesDerivedVisibleTimelineWithHiddenEcho(t *testing.T) {
-	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", body: "1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "REPLY-M1", roomID: "R1", actorID: "U2", body: "reply", inThread: "M1", at: 2}),
 		postedEvent(postedOpts{envelopeID: "ECHO-M1", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "REPLY-M1", echoFromThreadRootEventID: "M1", at: 3}),
@@ -277,7 +277,7 @@ func TestChattoCore_GetRoomEventsAroundUsesDerivedVisibleTimelineWithHiddenEcho(
 }
 
 func TestChattoCore_GetDMRoomEventsUsesDerivedVisibleTimeline(t *testing.T) {
-	core := testCoreWithRoomTimelineEvents(t, []*corev1.Event{
+	core := testCoreWithRoomTimelineEvents(t, []*evtv1.Event{
 		postedEvent(postedOpts{envelopeID: "DM-M1", roomID: "DM1", actorID: "U1", body: "1", at: 1}),
 		postedEvent(postedOpts{envelopeID: "DM-REPLY-M1", roomID: "DM1", actorID: "U2", body: "reply", inThread: "DM-M1", at: 2}),
 		editedEvent("DM-EDIT-M1", "DM-M1", "DM1", "U1", "1 edited", 3),
@@ -334,19 +334,19 @@ func testCoreWithRoomTimeline(t *testing.T, roomID string, count int) *ChattoCor
 	return &ChattoCore{roomModel: newTestRoomModel(t, nil, nil, nil, nil, projection, nil, nil, nil, nil, nil)}
 }
 
-func testCoreWithRoomTimelineEvents(t *testing.T, events []*corev1.Event) *ChattoCore {
+func testCoreWithRoomTimelineEvents(t *testing.T, events []*evtv1.Event) *ChattoCore {
 	t.Helper()
 	projection := NewRoomTimelineProjection()
 	applyAll(t, projection, events)
 	return &ChattoCore{roomModel: newTestRoomModel(t, nil, nil, nil, nil, projection, nil, nil, nil, nil, nil)}
 }
 
-func reactionAddedEvent(envID, roomID, messageID, actorID, emoji string) *corev1.Event {
-	return &corev1.Event{
+func reactionAddedEvent(envID, roomID, messageID, actorID, emoji string) *evtv1.Event {
+	return &evtv1.Event{
 		Id:      envID,
 		ActorId: actorID,
-		Event: &corev1.Event_ReactionAdded{
-			ReactionAdded: &corev1.ReactionAddedEvent{
+		Event: &evtv1.Event_ReactionAdded{
+			ReactionAdded: &evtv1.ReactionAddedEvent{
 				RoomId:         roomID,
 				MessageEventId: messageID,
 				Emoji:          emoji,

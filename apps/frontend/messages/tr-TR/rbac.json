@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Yönetim",
+      "bot": "Botlar",
+      "message": "Mesajlar",
+      "role": "Roller",
+      "room": "Odalar",
+      "server": "Sunucu",
+      "user": "Kullanıcılar",
+      "other": "Diğer"
+    },
     "permission_descriptions": {
       "server_manage": "Sunucu ayarlarını güncelleyin (ad, açıklama, logo)",
       "room_create": "Yeni odalar oluştur",
@@ -119,7 +129,9 @@
       "user_delete_self": "Kendi hesabınızı silin",
       "user_invite": "Davet bağlantıları oluşturun ve yönetin",
       "user_manage_accounts": "Kullanıcı oluşturun, hesap kimliğini düzenleyin, şifreleri sıfırlayın, doğrulanmış e-postalar ekleyin ve oturum açma bekleme sürelerini temizleyin",
-      "user_manage_permissions": "Kullanıcı başına doğrudan izin geçersiz kılmalarını düzenleyin"
+      "user_manage_permissions": "Kullanıcı başına doğrudan izin geçersiz kılmalarını düzenleyin",
+      "bot_create": "Sahibi olduğunuz bot hesaplarını oluşturun",
+      "bot_manage": "Tüm bot hesaplarını görüntüleyin ve yönetin"
     }
   }
 }

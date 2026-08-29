@@ -10,7 +10,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -249,9 +249,6 @@ func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connec
 	if !canDelete {
 		return nil, connectError(core.ErrPermissionDenied)
 	}
-	if err := s.api.requireFreshCredential(ctx, caller, req.Msg.GetCurrentPassword()); err != nil {
-		return nil, connectError(err)
-	}
 	if err := s.api.core.AdminDeleteUserAs(ctx, caller.UserID, req.Msg.GetUserId()); err != nil {
 		return nil, connectError(err)
 	}
@@ -286,7 +283,7 @@ func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member
 		Login:          member.Login,
 		DisplayName:    member.DisplayName,
 		Deleted:        member.Deleted,
-		IsBot:    member.IsBot,
+		IsBot:          member.IsBot,
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(member.CustomStatus),
 	}
@@ -300,7 +297,7 @@ func (s *adminUserManagementService) adminMemberAfterMutation(ctx context.Contex
 	return s.adminMemberAfterMutationForUser(ctx, actorID, user)
 }
 
-func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context.Context, actorID string, user *corev1.User) (*adminv1.AdminMember, error) {
+func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context.Context, actorID string, user *evtv1.User) (*adminv1.AdminMember, error) {
 	if user == nil {
 		return nil, connectError(core.ErrNotFound)
 	}

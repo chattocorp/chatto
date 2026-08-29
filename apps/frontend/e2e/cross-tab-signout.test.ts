@@ -67,8 +67,8 @@ test.describe('Cross-Tab Sign-Out', () => {
     const page2 = await context2.newPage();
 
     try {
-      // Navigate page2 to chat/spaces and wait for full hydration
-      await gotoAndWaitForHydration(page2, routes.spaces);
+      // Navigate page2 to the home server and wait for full hydration.
+      await gotoAndWaitForHydration(page2, routes.chat);
 
       // Verify page2 is authenticated and on the chat page
       await expect(page2).toHaveURL(routes.patterns.chatRedirect);
@@ -110,7 +110,7 @@ test.describe('Cross-Tab Sign-Out', () => {
 
     try {
       // Navigate page2 to chat and wait for full hydration
-      await gotoAndWaitForHydration(page2, routes.spaces);
+      await gotoAndWaitForHydration(page2, routes.chat);
       await expect(page2).toHaveURL(routes.patterns.chatRedirect);
 
       // Notify other tabs before the logout request invalidates this page's

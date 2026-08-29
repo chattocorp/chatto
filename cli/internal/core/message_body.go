@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/encryption"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // DecryptedMessageBody is the public view of a message body with
@@ -16,8 +16,8 @@ import (
 type DecryptedMessageBody struct {
 	AuthorId    string
 	Body        string
-	Attachments []*corev1.Attachment
-	LinkPreview *corev1.LinkPreview
+	Attachments []*evtv1.Attachment
+	LinkPreview *evtv1.LinkPreview
 	CreatedAt   time.Time
 	UpdatedAt   *time.Time
 }
@@ -92,7 +92,7 @@ func (c *ChattoCore) GetMessageBody(ctx context.Context, eventID string) (string
 // author's message-body DEK epoch and authenticate the event context as AAD.
 // Bodies carried by MessageBodyEvent additionally bind the body event envelope
 // ID into AAD so payloads cannot be replayed under a different body event.
-func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID string, msg *corev1.MessageBody) ([]byte, error) {
+func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID string, msg *evtv1.MessageBody) ([]byte, error) {
 	if msg.GetEncryptionVersion() >= encryption.EnvelopeVersionV2 || msg.GetContentKeyEpoch() > 0 {
 		version := msg.GetEncryptionVersion()
 		if version != encryption.EnvelopeVersionV2 {
@@ -102,7 +102,7 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 		if epoch <= 0 {
 			return nil, fmt.Errorf("%w: missing content key epoch for v%d message body", ErrMessageBodyCorrupt, version)
 		}
-		contentKeyEvent, ok, err := c.userModel.contentKeyAtEpoch(msg.GetAuthorId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, epoch)
+		contentKeyEvent, ok, err := c.userModel.contentKeyAtEpoch(msg.GetAuthorId(), evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, epoch)
 		if err != nil {
 			return nil, err
 		}

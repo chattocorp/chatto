@@ -19,7 +19,7 @@ import (
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
@@ -281,7 +281,7 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 		t.Fatalf("fallback display name = %q, want login", fallbackUser.GetDisplayName())
 	}
 
-	createdUserRef := &corev1.User{Id: created.Msg.GetUserId()}
+	createdUserRef := &evtv1.User{Id: created.Msg.GetUserId()}
 	createdCtx := withBearerCredential(env.ctx, createdUserRef, createdAuthToken)
 	list, err := env.account.ListExternalIdentities(createdCtx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
 	if err != nil {

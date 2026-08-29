@@ -104,7 +104,25 @@
       "edit": "Upravit",
       "assigned_role": "Přidělena role {role}",
       "removed_role": "Odebrána role {role}",
-      "role_update_failed": "Aktualizace přiřazení role se nezdařila"
+      "role_update_failed": "Aktualizace přiřazení role se nezdařila",
+      "danger_zone": "Nebezpečná zóna",
+      "open_delete_account": "Odstranit účet",
+      "delete_account_entry_description": "Trvale odstraní účet tohoto člena. Jeho zprávy se stanou nečitelnými. Tuto akci nelze vrátit."
+    },
+    "member_delete": {
+      "title": "Odstranit člena",
+      "warning": "Tímto trvale odstraníte účet uživatele {name}. Nelze to vrátit.",
+      "consequences_intro": "Co se stane:",
+      "consequence_rooms": "Člen bude odstraněn ze všech místností.",
+      "consequence_messages": "Všechny napsané zprávy budou trvale nečitelné.",
+      "consequence_profile": "Profil, avatar a uživatelské jméno budou odstraněny. Uživatelské jméno se poté opět uvolní.",
+      "consequence_sessions": "Osoba bude všude odhlášena.",
+      "confirm_label": "Potvrďte zadáním {login}",
+      "submit": "Trvale odstranit účet",
+      "deleting": "Odstraňuje se...",
+      "failed": "Účet se nepodařilo odstranit.",
+      "success": "Účet byl odstraněn.",
+      "not_allowed": "Tento účet nemůžete odstranit."
     },
     "member_detail": {
       "no_self_rename": "Nebylo zaznamenáno žádné vlastní přejmenování.",

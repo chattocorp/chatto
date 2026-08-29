@@ -16,20 +16,20 @@ type MockSender struct {
 
 // NewMockSender creates a new MockSender.
 // If enabled is true, IsEnabled() returns true and Send() captures messages.
-// If enabled is false, IsEnabled() returns false and Send() returns ErrSMTPDisabled.
+// If enabled is false, IsEnabled() returns false and Send() returns ErrEmailDisabled.
 func NewMockSender(enabled bool) *MockSender {
 	return &MockSender{enabled: enabled}
 }
 
-// Send captures the message if enabled, or returns ErrSMTPDisabled.
+// Send captures the message if enabled, or returns ErrEmailDisabled.
 func (m *MockSender) Send(msg Message) error {
 	return m.SendContext(context.Background(), msg)
 }
 
-// SendContext captures the message if enabled, or returns ErrSMTPDisabled.
+// SendContext captures the message if enabled, or returns ErrEmailDisabled.
 func (m *MockSender) SendContext(_ context.Context, msg Message) error {
 	if !m.enabled {
-		return ErrSMTPDisabled
+		return ErrEmailDisabled
 	}
 	if m.SendError != nil {
 		return m.SendError

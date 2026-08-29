@@ -12,6 +12,8 @@ describe('createComposerExtensions', () => {
       'codeBlock',
       'selectedTextInlineCodeShortcut',
       'markdownLinkInputRule',
+      'markdownAutolinkInputRule',
+      'normalizeMarkdownAutolinks',
       'completedMarkdownCodeFence',
       'markdownListMarkerAfterHardBreak',
       'trailingParagraphAfterCodeBlock',

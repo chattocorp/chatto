@@ -23,7 +23,7 @@ import (
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -68,7 +68,7 @@ type projectionBatch struct {
 	index           *blevesearch.Batch
 	messages        map[string]messageDocument
 	deletedMessages map[string]struct{}
-	deks            map[string]*corev1.UserDEKGeneratedEvent
+	deks            map[string]*evtv1.UserDEKGeneratedEvent
 	deksMutable     bool
 	dekChanged      bool
 }
@@ -80,7 +80,7 @@ func (b *projectionBatch) makeDEKsMutable() {
 	if b.deksMutable {
 		return
 	}
-	deks := make(map[string]*corev1.UserDEKGeneratedEvent, len(b.deks))
+	deks := make(map[string]*evtv1.UserDEKGeneratedEvent, len(b.deks))
 	for key, dek := range b.deks {
 		deks[key] = dek
 	}
@@ -98,7 +98,7 @@ type Projection struct {
 	keyWrapper kms.KeyWrapper
 	legacyKeys kms.LegacyKeyProvider
 	dekStore   dekstore.Reader
-	deks       map[string]*corev1.UserDEKGeneratedEvent
+	deks       map[string]*evtv1.UserDEKGeneratedEvent
 	checkpoint checkpointRecord
 	languages  []languageAnalyzer
 	contractID string
@@ -125,7 +125,7 @@ func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyW
 		keyWrapper: keyWrapper,
 		legacyKeys: legacyKeys,
 		dekStore:   dekStore,
-		deks:       make(map[string]*corev1.UserDEKGeneratedEvent),
+		deks:       make(map[string]*evtv1.UserDEKGeneratedEvent),
 		languages:  languages,
 		contractID: languageCheckpointContractID(languages),
 	}
@@ -153,7 +153,7 @@ func (p *Projection) CheckpointContractID() string { return p.contractID }
 // one Bleve transaction. Live events still commit individually through Apply.
 func (*Projection) StartupBatchSize() int { return startupReplayBatchSize }
 
-func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
+func (p *Projection) Apply(event *evtv1.Event, seq uint64) error {
 	return p.applyBatch([]evtstream.SequencedEvent{{Event: event, Sequence: seq}})
 }
 
@@ -242,16 +242,16 @@ func (p *Projection) applyBatch(items []evtstream.SequencedEvent) error {
 	return nil
 }
 
-func (p *Projection) applyEvent(batch *projectionBatch, event *corev1.Event, seq uint64) error {
+func (p *Projection) applyEvent(batch *projectionBatch, event *evtv1.Event, seq uint64) error {
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_UserDekGenerated:
+	case *evtv1.Event_UserDekGenerated:
 		dek := payload.UserDekGenerated
 		if dek != nil {
 			batch.makeDEKsMutable()
-			batch.deks[dekKey(dek.GetUserId(), dek.GetPurpose(), dek.GetEpoch())] = proto.Clone(dek).(*corev1.UserDEKGeneratedEvent)
+			batch.deks[dekKey(dek.GetUserId(), dek.GetPurpose(), dek.GetEpoch())] = proto.Clone(dek).(*evtv1.UserDEKGeneratedEvent)
 			batch.dekChanged = true
 		}
-	case *corev1.Event_MessageBody:
+	case *evtv1.Event_MessageBody:
 		bodyEvent := payload.MessageBody
 		if bodyEvent != nil && bodyEvent.GetBody() != nil {
 			if claimed := bodyEvent.GetBody().GetBodyEventId(); claimed != "" && claimed != event.GetId() {
@@ -285,7 +285,7 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *corev1.Event, seq
 				}
 			}
 		}
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		posted := payload.MessagePosted
 		state, err := batch.loadMessage(event.GetId())
 		if err != nil {
@@ -304,15 +304,15 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *corev1.Event, seq
 				return err
 			}
 		}
-	case *corev1.Event_MessageRetracted:
+	case *evtv1.Event_MessageRetracted:
 		batch.deleteMessage(payload.MessageRetracted.GetEventId())
-	case *corev1.Event_RoomDeleted:
+	case *evtv1.Event_RoomDeleted:
 		if err := batch.deleteMatching("room_id", payload.RoomDeleted.GetRoomId()); err != nil {
 			return err
 		}
-	case *corev1.Event_UserKeyShreddingRequested:
+	case *evtv1.Event_UserKeyShreddingRequested:
 		return applyUserKeyShredded(batch, payload.UserKeyShreddingRequested.GetUserId())
-	case *corev1.Event_UserKeyShredded:
+	case *evtv1.Event_UserKeyShredded:
 		return applyUserKeyShredded(batch, payload.UserKeyShredded.GetUserId())
 	}
 	return nil
@@ -504,7 +504,7 @@ func (b *projectionBatch) deleteMessage(id string) {
 	b.deletedMessages[id] = struct{}{}
 }
 
-func encodeDEKs(deks map[string]*corev1.UserDEKGeneratedEvent) ([]byte, error) {
+func encodeDEKs(deks map[string]*evtv1.UserDEKGeneratedEvent) ([]byte, error) {
 	persisted := make(persistedDEKs, len(deks))
 	for key, event := range deks {
 		data, err := proto.Marshal(event)
@@ -516,8 +516,8 @@ func encodeDEKs(deks map[string]*corev1.UserDEKGeneratedEvent) ([]byte, error) {
 	return json.Marshal(persisted)
 }
 
-func decodeDEKs(data []byte) (map[string]*corev1.UserDEKGeneratedEvent, error) {
-	result := make(map[string]*corev1.UserDEKGeneratedEvent)
+func decodeDEKs(data []byte) (map[string]*evtv1.UserDEKGeneratedEvent, error) {
+	result := make(map[string]*evtv1.UserDEKGeneratedEvent)
 	if len(data) == 0 {
 		return result, nil
 	}
@@ -530,7 +530,7 @@ func decodeDEKs(data []byte) (map[string]*corev1.UserDEKGeneratedEvent, error) {
 		if err != nil {
 			return nil, err
 		}
-		var event corev1.UserDEKGeneratedEvent
+		var event evtv1.UserDEKGeneratedEvent
 		if err := proto.Unmarshal(data, &event); err != nil {
 			return nil, err
 		}
@@ -539,6 +539,6 @@ func decodeDEKs(data []byte) (map[string]*corev1.UserDEKGeneratedEvent, error) {
 	return result, nil
 }
 
-func dekKey(userID string, purpose corev1.UserDEKPurpose, epoch int32) string {
+func dekKey(userID string, purpose evtv1.UserDEKPurpose, epoch int32) string {
 	return fmt.Sprintf("%s/%d/%d", userID, purpose, epoch)
 }

@@ -11,7 +11,7 @@ import (
 
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/config"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // assetURL prepends AssetBaseURL to an asset path.
@@ -243,7 +243,7 @@ func (c *ChattoCore) GetPublicServerAsset(ctx context.Context, location *PublicS
 // ServerAssetRecordFromAnyBackend builds an AssetRecord by probing the
 // server-asset backends. It is primarily for legacy ID-only server-scoped
 // assets that need to be rehydrated into richer metadata.
-func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetID, filename string) (*corev1.AssetRecord, error) {
+func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetID, filename string) (*evtv1.AssetRecord, error) {
 	logicalID, namespaced, natsKeys, ok := serverAssetNATSObjectKeys(assetID)
 	if !ok {
 		return nil, jetstream.ErrObjectNotFound
@@ -263,12 +263,12 @@ func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetI
 		if contentType == "" {
 			contentType = "application/octet-stream"
 		}
-		return &corev1.AssetRecord{
+		return &evtv1.AssetRecord{
 			Id:          logicalID,
 			Filename:    filename,
 			ContentType: contentType,
 			Size:        int64(info.Size),
-			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}},
+			Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: objectKey}},
 		}, nil
 	}
 
@@ -279,12 +279,12 @@ func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetI
 			if contentType == "" {
 				contentType = "application/octet-stream"
 			}
-			return &corev1.AssetRecord{
+			return &evtv1.AssetRecord{
 				Id:          logicalID,
 				Filename:    filename,
 				ContentType: contentType,
 				Size:        s3Info.Size,
-				Storage: &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
+				Storage: &evtv1.AssetRecord_S3{S3: &evtv1.S3Asset{
 					Key:    logicalID,
 					Bucket: proto.String(c.s3Client.Bucket()),
 				}},
@@ -344,7 +344,7 @@ func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID s
 
 // CleanupAsset deletes an asset from the server object store.
 // Used to clean up orphaned assets when subsequent operations fail.
-func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.DeprecatedAsset) {
+func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *evtv1.DeprecatedAsset) {
 	if asset == nil {
 		return
 	}
@@ -370,7 +370,7 @@ func (c *ChattoCore) CleanupAsset(ctx context.Context, asset *corev1.DeprecatedA
 // This is a helper for cleaning up old assets when they are replaced.
 // For S3, the assetID stored in S3Asset.Key is used to construct the full S3 path.
 // The assetType and ownerID are used for logging only.
-func (c *ChattoCore) deleteAsset(ctx context.Context, asset *corev1.DeprecatedAsset, assetType, ownerID string) {
+func (c *ChattoCore) deleteAsset(ctx context.Context, asset *evtv1.DeprecatedAsset, assetType, ownerID string) {
 	if asset == nil {
 		return
 	}

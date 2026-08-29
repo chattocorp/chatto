@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 type AdminMemberListInput struct {
@@ -49,7 +49,7 @@ type AdminMember struct {
 	VerifiedEmails         []string
 	ViewerCanDeleteAccount bool
 	LastLoginChange        *time.Time
-	CustomStatus           *corev1.CustomUserStatus
+	CustomStatus           *evtv1.CustomUserStatus
 }
 
 type AdminMemberList struct {
@@ -280,7 +280,7 @@ func (c *ChattoCore) requireCanAssignAdminRole(ctx context.Context, actorID, tar
 	return nil
 }
 
-func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *corev1.User, roles []string) (*AdminMember, error) {
+func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *evtv1.User, roles []string) (*AdminMember, error) {
 	avatarURL, err := c.GetUserAvatarURL(ctx, user.GetId(), nil, nil, "")
 	if err != nil {
 		return nil, err

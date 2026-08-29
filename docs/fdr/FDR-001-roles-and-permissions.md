@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -12,13 +12,13 @@ Chatto controls who can do what through role-based access control. Every authent
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
-- A permission identifier has two or more non-empty dot-separated components.
-  More components can show a relationship, but do not create an automatic
-  permission hierarchy.
+- A permission identifier is an opaque, stable value. Current identifiers use
+  punctuation to help developers recognize them, but punctuation does not
+  define authority. The permission catalog defines inclusion explicitly.
 - Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads. `message.read` supplies broad
-  read authority and explicitly includes `message.read.interactions`, which
+  read authority and includes `message.read-interactions`, which
   supplies authority for related threads only. DM membership authorizes DM
   reads. `message.post` separately
   gates root-message posting and permits human users to start DMs. Bot accounts
@@ -54,7 +54,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 3. Three permission scopes (server / group / room)
 
-**Decision:** For each subject, room checks use the nearest decision at room, group, or server scope. Server-scope message and room permissions act as broad defaults; room/group decisions are local overrides for that same subject. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo` to `everyone` at server scope. The effective `message.read` allow includes `message.read.interactions`; bootstrap does not store a second grant. Fresh servers do not grant `room.create` to `everyone`. Admins get explicit server-tier administrative and `room.*` defaults plus `message.manage`, while ordinary content participation continues to come from `everyone`. Moderators get server-tier `message.manage` and `room.ban-member`.
+**Decision:** For each subject, room checks use the nearest decision at room, group, or server scope. Server-scope message and room permissions act as broad defaults; room/group decisions are local overrides for that same subject. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo` to `everyone` at server scope. The effective `message.read` allow includes `message.read-interactions`; bootstrap does not store a second grant. Fresh servers do not grant `room.create` to `everyone`. Admins get explicit server-tier administrative and `room.*` defaults plus `message.manage`, while ordinary content participation continues to come from `everyone`. Moderators get server-tier `message.manage` and `room.ban-member`.
 **Why:** Operators want both "system-wide policy" and "this one channel works differently" without modelling separate role systems. See ADR-031 and ADR-052.
 **Tradeoff:** Scope precedence is per subject, not global: one role's room allow does not erase a different named role's deny.
 
@@ -96,20 +96,23 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
 **Tradeoff:** Adding a new code default does not grant it to existing servers or rooms automatically. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 
-### 10. Permission names can show explicit inclusion
+### 10. The permission catalog defines inclusion
 
-**Decision:** Use two or more non-empty dot-separated components for permission
-identifiers. Do not infer authority from a dotted prefix. Define each inclusion
-explicitly. `message.read` includes `message.read.interactions`. The child does
-not include the parent. A child deny cannot restrict an effective parent allow,
-and a parent deny cannot restrict a separate child allow. Inclusion changes
-effective authorization only and does not store an additional grant.
-**Why:** The three-component name shows that interaction reads are a narrower
-part of message reads. Explicit inclusion avoids a repository-wide permission
-hierarchy before more examples exist.
-**Tradeoff:** Code and documentation must list each inclusion. If Chatto adds
-more nested permissions, it can replace the explicit logic with a general
-model in a separate decision.
+**Decision:** Treat permission identifiers as opaque, stable values. Use
+`domain.capability` or `domain.capability-with-qualifier` for current names.
+Define each inclusion directly in the permission catalog. The catalog states
+that `message.read` includes `message.read-interactions`. The narrow permission
+does not include the broad permission. A narrow deny cannot restrict an
+effective broad allow, and a broad deny cannot restrict a separate narrow
+allow. Inclusion changes effective authorization only and does not store an
+additional grant. Catalog validation rejects unknown targets, self-inclusion,
+and relationships with incompatible categories or scopes. Public APIs and EVT
+facts use the stable identifier.
+**Why:** Authorization must not change because a developer chose punctuation
+for a new identifier. Explicit metadata keeps inclusion reviewable while stable
+identifiers preserve persisted facts and integrations.
+**Tradeoff:** The backend and frontend catalogs must keep their explicit
+relationships in sync. Tests cover the current relationship.
 
 ## Permissions
 
@@ -125,7 +128,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
   Existing servers are not backfilled or reconciled, so operators must add any
   wanted grants during upgrade. DM membership authorizes DM reads without this
   permission.
-- `message.read.interactions` — read only channel-room threads that the account
+- `message.read-interactions` — read only channel-room threads that the account
   started or where another account directly mentioned it. A relationship gives
   access to the complete thread. An effective `message.read` allow includes
   this permission. Fresh servers store only the `message.read` grant for
@@ -142,5 +145,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit permission inclusion), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
+- **ADRs:** ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override and explicit catalog inclusion), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
 - **FDRs:** Every FDR that mentions a permission depends on this one; see also FDR-012 (Notifications), FDR-038 (Bot Accounts), and FDR-039 (Message Access & Interactions).

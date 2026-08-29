@@ -55,5 +55,5 @@ timestamp token in that message body.
 
 ## Related
 
-- **ADRs:** ADR-011, ADR-043
+- **ADRs:** ADR-011, ADR-043, ADR-065
 - **FDRs:** FDR-004, FDR-006

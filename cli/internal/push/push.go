@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"io"
 	"net"
 	"net/url"
@@ -22,7 +24,6 @@ import (
 	"golang.org/x/net/idna"
 
 	"hmans.de/chatto/internal/config"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/pushendpoint"
 )
 
@@ -224,7 +225,7 @@ type SendResult struct {
 }
 
 // Send sends a push notification to a single subscription.
-func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload *Payload) *SendResult {
+func (s *Sender) Send(ctx context.Context, sub *runtimestatev1.PushSubscription, payload *Payload) *SendResult {
 	result := &SendResult{
 		Endpoint: sub.GetEndpoint(),
 	}
@@ -347,8 +348,8 @@ func EndpointLogID(endpoint string) string {
 
 // SendToMany sends a push notification to multiple subscriptions.
 // Returns results for each subscription.
-func (s *Sender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSubscription, payload *Payload) []*SendResult {
-	return s.SendToManyMapped(ctx, subscriptions, func(*corev1.PushSubscription) *Payload {
+func (s *Sender) SendToMany(ctx context.Context, subscriptions []*runtimestatev1.PushSubscription, payload *Payload) []*SendResult {
+	return s.SendToManyMapped(ctx, subscriptions, func(*runtimestatev1.PushSubscription) *Payload {
 		return payload
 	})
 }
@@ -357,8 +358,8 @@ func (s *Sender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSub
 // It is used when click routes differ between installed web clients.
 func (s *Sender) SendToManyMapped(
 	ctx context.Context,
-	subscriptions []*corev1.PushSubscription,
-	payloadFor func(*corev1.PushSubscription) *Payload,
+	subscriptions []*runtimestatev1.PushSubscription,
+	payloadFor func(*runtimestatev1.PushSubscription) *Payload,
 ) []*SendResult {
 	if len(subscriptions) > pushendpoint.MaxSubscriptionsPerUser {
 		subscriptions = subscriptions[:pushendpoint.MaxSubscriptionsPerUser]
@@ -420,7 +421,7 @@ func buildNotificationURL(baseURL, roomID, threadRootID, highlightEventID string
 // BuildPayloadFromOccurrence creates a push payload from a notification occurrence.
 // The baseURL is used to build navigation URLs (e.g., "https://chatto.example.com").
 // The optional payloadCtx provides message preview and room name for richer notifications.
-func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actorDisplayName, baseURL string, payloadCtx *PayloadContext) *Payload {
+func BuildPayloadFromOccurrence(occurrence *notificationv1.NotificationOccurrence, actorDisplayName, baseURL string, payloadCtx *PayloadContext) *Payload {
 	return buildPayloadFromOccurrence(
 		occurrence,
 		actorDisplayName,
@@ -433,9 +434,9 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 // BuildPayloadFromOccurrenceForSubscription creates a payload whose click
 // target opens the server in the web client that owns this subscription.
 func BuildPayloadFromOccurrenceForSubscription(
-	occurrence *corev1.NotificationOccurrence,
+	occurrence *notificationv1.NotificationOccurrence,
 	actorDisplayName, serverBaseURL string,
-	subscription *corev1.PushSubscription,
+	subscription *runtimestatev1.PushSubscription,
 	payloadCtx *PayloadContext,
 ) *Payload {
 	return buildPayloadFromOccurrence(
@@ -449,7 +450,7 @@ func BuildPayloadFromOccurrenceForSubscription(
 
 // NavigationBaseURL reconstructs the client route for a subscription. Records
 // without a usable client host fall back to this server's bundled app route.
-func NavigationBaseURL(subscription *corev1.PushSubscription, serverBaseURL string) string {
+func NavigationBaseURL(subscription *runtimestatev1.PushSubscription, serverBaseURL string) string {
 	legacyURL := buildAppURL(serverBaseURL, []string{"chat", "-"}, "", "")
 	if subscription == nil || subscription.ClientHost == "" {
 		return legacyURL
@@ -548,7 +549,7 @@ func isLoopbackHostname(hostname string) bool {
 }
 
 func buildPayloadFromOccurrence(
-	occurrence *corev1.NotificationOccurrence,
+	occurrence *notificationv1.NotificationOccurrence,
 	actorDisplayName, serverBaseURL, navigationBaseURL string,
 	payloadCtx *PayloadContext,
 ) *Payload {
@@ -631,7 +632,7 @@ func buildPayloadFromOccurrence(
 }
 
 // OccurrenceTag returns the stable native-notification tag for an occurrence.
-func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
+func OccurrenceTag(occurrence *notificationv1.NotificationOccurrence) string {
 	target := occurrenceMessageReference(occurrence)
 	if target == nil {
 		return ""
@@ -653,35 +654,37 @@ func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
 	}
 }
 
-func occurrenceMessageReference(occurrence *corev1.NotificationOccurrence) *corev1.NotificationMessageReference {
+func occurrenceMessageReference(occurrence *notificationv1.NotificationOccurrence) *notificationv1.NotificationMessageReference {
 	if occurrence == nil || occurrence.GetSignal() == nil {
 		return nil
 	}
 	switch payload := occurrence.GetSignal().GetKind().(type) {
-	case *corev1.NotificationSignal_DirectMessageReceived:
+	case *notificationv1.NotificationSignal_DirectMessageReceived:
 		return payload.DirectMessageReceived.GetMessage()
-	case *corev1.NotificationSignal_DirectMentionReceived:
+	case *notificationv1.NotificationSignal_DirectMentionReceived:
 		return payload.DirectMentionReceived.GetMessage()
-	case *corev1.NotificationSignal_ReplyReceived:
+	case *notificationv1.NotificationSignal_ReplyReceived:
 		return payload.ReplyReceived.GetMessage()
-	case *corev1.NotificationSignal_RoleMentionReceived:
+	case *notificationv1.NotificationSignal_RoleMentionReceived:
 		return payload.RoleMentionReceived.GetMessage()
-	case *corev1.NotificationSignal_HereMentionReceived:
+	case *notificationv1.NotificationSignal_HereMentionReceived:
 		return payload.HereMentionReceived.GetMessage()
-	case *corev1.NotificationSignal_AllMentionReceived:
+	case *notificationv1.NotificationSignal_AllMentionReceived:
 		return payload.AllMentionReceived.GetMessage()
-	case *corev1.NotificationSignal_FollowedThreadActivity:
+	case *notificationv1.NotificationSignal_FollowedThreadActivity:
 		return payload.FollowedThreadActivity.GetMessage()
-	case *corev1.NotificationSignal_FollowedRoomActivity:
+	case *notificationv1.NotificationSignal_FollowedRoomActivity:
 		return payload.FollowedRoomActivity.GetMessage()
-	case *corev1.NotificationSignal_ReactionReceived:
+	case *notificationv1.NotificationSignal_ReactionReceived:
 		return payload.ReactionReceived.GetMessage()
+	case *notificationv1.NotificationSignal_RoomMessageReceived:
+		return payload.RoomMessageReceived.GetMessage()
 	default:
 		return nil
 	}
 }
 
-func occurrenceHasMentionReason(occurrence *corev1.NotificationOccurrence) bool {
+func occurrenceHasMentionReason(occurrence *notificationv1.NotificationOccurrence) bool {
 	if occurrence == nil || occurrence.GetSignal() == nil {
 		return false
 	}

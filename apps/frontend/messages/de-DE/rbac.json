@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administration",
+      "bot": "Bots",
+      "message": "Nachrichten",
+      "role": "Rollen",
+      "room": "Räume",
+      "server": "Server",
+      "user": "Benutzer",
+      "other": "Sonstige"
+    },
     "permission_descriptions": {
       "server_manage": "Servereinstellungen aktualisieren (Name, Beschreibung, Logo)",
       "room_create": "Neue Räume erstellen",
@@ -119,7 +129,9 @@
       "user_delete_self": "Eigenes Konto löschen",
       "user_invite": "Einladungslinks erstellen und verwalten",
       "user_manage_accounts": "Benutzer erstellen, Kontoidentität bearbeiten, Passwörter zurücksetzen, verifizierte E-Mails hinzufügen und Login-Sperren zurücksetzen",
-      "user_manage_permissions": "Direkte benutzerbezogene Berechtigungsüberschreibungen bearbeiten"
+      "user_manage_permissions": "Direkte benutzerbezogene Berechtigungsüberschreibungen bearbeiten",
+      "bot_create": "Bot-Konten erstellen, die dir gehören",
+      "bot_manage": "Alle Bot-Konten ansehen und verwalten"
     }
   }
 }

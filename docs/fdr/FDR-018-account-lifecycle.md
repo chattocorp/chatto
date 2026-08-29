@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -28,11 +28,22 @@ This FDR covers human accounts from registration through deletion: signup, email
 ### Account deletion
 
 - A human user requests their own deletion via Account Settings.
+- Self-service deletion requires `user.delete-self` when the user requests a
+  confirmation token and when they use it. If an operator revokes the
+  permission, the user cannot use a token that was created before revocation.
+- An administrator with `admin.view-users` and `user.delete-any` can delete
+  another human member from the member detail page in Server Administration.
+  The entry point links to a full-page confirmation that states what deletion
+  does. The administrator must type the member's login. Chatto does not request
+  the administrator's password or require a fresh credential for this action.
+  The admin page does not offer this action for the administrator's own account
+  or for a bot. Self-deletion stays in Account Settings, and bots follow
+  FDR-038.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
 - On deletion, the server: records `UserKeyShreddingRequestedEvent` with the complete opaque key coordinates, immediately tombstones the user's profile, authentication, search, and authored message state, then idempotently shreds app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`. `UserKeyShreddedEvent` records physical completion. Durable workers retry unfinished key shredding and current message-owned asset deletion facts across crashes and replicas.
-- After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear after one hour.
+- After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear immediately.
 - Deleting an account removes its notification list, notification read and
   visibility boundaries, and push subscriptions. Push-credential cleanup
   retries from the durable account-deletion fact across crashes and partial
@@ -64,11 +75,11 @@ This FDR covers human accounts from registration through deletion: signup, email
 **Why:** These values are raw credentials or credential-adjacent workflow state. They need restart and restore survival, but they are not reconstructable account history and should not become event-log or backup secrets. The audit value is captured separately in safe EVT facts.
 **Tradeoff:** Operators must keep `[core].secret_key` stable across restores if pending account workflows should continue working. Changing it intentionally invalidates outstanding registration, email-verification, password-reset, and account-deletion credentials.
 
-### 3. Two-step deletion confirmation
+### 3. Deliberate deletion confirmation
 
-**Decision:** Account deletion requires the user to type a confirmation phrase, not just click a button. The `requestAccountDeletion` mutation sets up the flow; `deleteMyAccount` finalises it.
-**Why:** Deletion is irreversible (the encryption key is destroyed; messages can't be recovered). A single misclick can't be allowed to trigger that. The phrase-typing step also defends against XSS triggering the mutation without the user's awareness — content scripts can't fill the phrase from the actual user.
-**Tradeoff:** Slightly more UI work. Worth it for the irreversibility.
+**Decision:** Self-service deletion requires the user to type a confirmation phrase, not only click a button. Administrator deletion requires the administrator to type the target member's exact login. The `requestAccountDeletion` mutation sets up the self-service flow, and `deleteMyAccount` completes it.
+**Why:** Deletion is irreversible because the encryption key is destroyed and messages cannot be recovered. The typed value reduces accidental deletion and makes the administrator confirm the correct target. It is a user-interface safety measure, not authentication proof or protection against script execution in the trusted origin.
+**Tradeoff:** The additional step makes deletion slower. This is acceptable for an irreversible action.
 
 ### 4. Crypto-shredding instead of message deletion
 

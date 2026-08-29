@@ -13,7 +13,8 @@
     type UpdateRoleInput
   } from '$lib/api-client/roles';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import { Panel, UserList } from '$lib/components/admin';
+  import { UserList } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -284,9 +285,13 @@
         {/if}
 
         <!-- Users with this role -->
-        <Panel title={m('admin.permissions.users_with_role')} icon="iconify icon-[uil--users-alt]">
+        <Panel
+          title={m('admin.permissions.users_with_role')}
+          icon="iconify icon-[uil--users-alt]"
+          noPadding
+        >
           {#if role?.name === 'everyone'}
-            <p class="text-muted">{m('admin.permissions.everyone_implicit')}</p>
+            <p class="p-5 text-muted">{m('admin.permissions.everyone_implicit')}</p>
           {:else}
             <UserList
               users={roleUsers}

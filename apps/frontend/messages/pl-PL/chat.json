@@ -40,6 +40,9 @@
     "user_menu": {
       "profile": "Profil użytkownika",
       "send_message": "Wyślij wiadomość",
+      "view_profile": "Zobacz profil",
+      "profile_requires_direct_message": "Aby zobaczyć ten profil, potrzebujesz bezpośredniej wiadomości.",
+      "view_in_admin": "Wyświetl w administracji serwera",
       "copy_user_id": "Kopiuj identyfikator użytkownika"
     },
     "server_gutter": {
@@ -66,6 +69,13 @@
       "message_missing": "Wiadomość nie jest już dostępna",
       "in_room": "w",
       "in_room_capitalized": "W"
+    },
+    "profile": {
+      "title": "Profil",
+      "fallback_title": "Profil",
+      "not_found": "Nie znaleziono użytkownika",
+      "bot": "Bot",
+      "local_time": "{time} czasu lokalnego ({zone})"
     }
   }
 }

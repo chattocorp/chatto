@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "ניהול",
+      "bot": "בוטים",
+      "message": "הודעות",
+      "role": "תפקידים",
+      "room": "חדרים",
+      "server": "שרת",
+      "user": "משתמשים",
+      "other": "אחר"
+    },
     "permission_descriptions": {
       "server_manage": "עדכון הגדרות שרת (שם, תיאור, לוגו)",
       "room_create": "צור חדרים חדשים",
@@ -119,7 +129,9 @@
       "user_delete_self": "מחק את החשבון שלך",
       "user_invite": "יצירה וניהול של קישורי הזמנה",
       "user_manage_accounts": "צור משתמשים, ערוך את זהות החשבון, אפס סיסמאות, צרף הודעות אימייל מאומתות ונקה צינון התחברות",
-      "user_manage_permissions": "עריכה ישירה של הרשאות לכל משתמש"
+      "user_manage_permissions": "עריכה ישירה של הרשאות לכל משתמש",
+      "bot_create": "יצירת חשבונות בוט בבעלותך",
+      "bot_manage": "הצגה וניהול של כל חשבונות הבוט"
     }
   }
 }

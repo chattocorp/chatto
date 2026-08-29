@@ -350,7 +350,7 @@ describe('ServerProjectionStore', () => {
     expect(store.rooms.get('R1')?.memberUserIds).toEqual([]);
   });
 
-  it('purges room state on authorization loss and clears all state on reset', () => {
+  it('purges room state on authorization loss and retains only the viewer on reset', () => {
     const store = new ServerProjectionStore();
     store.apply(
       event(
@@ -402,6 +402,7 @@ describe('ServerProjectionStore', () => {
 
     store.apply(
       event(
+        operation({ case: 'viewerUpsert', value: new GetViewerResponse() }),
         operation({
           case: 'userUpsert',
           value: new DirectoryMember({ user: new User({ id: 'U1' }) })
@@ -410,9 +411,13 @@ describe('ServerProjectionStore', () => {
       )
     );
     expect(store.users.size).toBe(0);
+    expect(store.viewer).not.toBeNull();
     expect(store.serverState).toBeNull();
     expect(store.rooms.size).toBe(0);
     expect(store.timelines.size).toBe(0);
+
+    store.reset();
+    expect(store.viewer).toBeNull();
   });
 
   it('bounds retained room timelines', () => {

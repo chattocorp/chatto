@@ -4,6 +4,11 @@ import type { SelectedQuoteBlock } from '$lib/state/room';
 
 const markdownLinkPasteRegex = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
 
+/** Return whether text is one complete HTTP(S) Markdown autolink. */
+export function isHttpMarkdownAutolink(text: string): boolean {
+  return /^<https?:\/\/[^\s<>]+>$/i.test(text);
+}
+
 export function isDefaultEmptyDocument(doc: ProseMirrorNode): boolean {
   if (doc.childCount !== 1) return false;
   const firstChild = doc.firstChild;

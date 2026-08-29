@@ -164,6 +164,9 @@ func TestRealtimeProjectionLatestValueViewerStatesConverge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage room: %v", err)
 	}
+	if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+		t.Fatalf("WaitCurrent notifications: %v", err)
+	}
 
 	threadStates, err := env.api.BuildRealtimeProjectionThreadViewerStates(env.ctx, env.viewer.Id)
 	if err != nil {

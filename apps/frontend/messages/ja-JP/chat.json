@@ -40,6 +40,9 @@
     "user_menu": {
       "profile": "ユーザープロフィール",
       "send_message": "メッセージを送信",
+      "view_profile": "プロフィールを見る",
+      "profile_requires_direct_message": "このプロフィールを表示するにはダイレクトメッセージが必要です。",
+      "view_in_admin": "サーバー管理で表示",
       "copy_user_id": "ユーザーIDをコピー"
     },
     "server_gutter": {
@@ -66,6 +69,13 @@
       "message_missing": "メッセージは利用できなくなりました",
       "in_room": "で",
       "in_room_capitalized": "で"
+    },
+    "profile": {
+      "title": "プロフィール",
+      "fallback_title": "プロフィール",
+      "not_found": "ユーザーが見つかりません",
+      "bot": "ボット",
+      "local_time": "現地時間 {time}（{zone}）"
     }
   }
 }

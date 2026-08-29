@@ -4,17 +4,20 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
 	notificationVisibilityBoundaryFilterAll = notificationVisibilityKeyPrefix + ">"
 	notificationReadBoundaryFilterAll       = notificationReadBoundaryKeyPrefix + ">"
+	notificationUnreadMarkerFilterAll       = notificationUnreadMarkerKeyPrefix + ">"
 )
 
 type notificationReadBoundaryScope struct {
@@ -35,38 +38,47 @@ type notificationReadBoundaryEntry struct {
 	deleted  bool
 }
 
-// notificationBoundaryIndex maintains the process-local mirror of the
-// notification visibility and read boundaries stored in RUNTIME_STATE. The KV
-// bucket remains authoritative; one filtered watcher supplies the initial
-// latest-value snapshot and every later update from local or remote replicas.
+type notificationUnreadMarkerEntry struct {
+	marker   *runtimestatev1.NotificationUnreadMarker
+	revision uint64
+	deleted  bool
+}
+
+// notificationBoundaryIndex maintains the process-local mirror of notification
+// visibility boundaries, read boundaries, and Badge markers in RUNTIME_STATE.
+// The KV bucket remains authoritative; one filtered watcher supplies the
+// initial latest-value snapshot and every later update from local or remote
+// replicas.
 type notificationBoundaryIndex struct {
 	kv     jetstream.KeyValue
 	logger *log.Logger
 
-	mu         sync.RWMutex
-	visibility map[string]notificationVisibilityBoundaryEntry
-	read       map[string]notificationReadBoundaryEntry
-	changed    chan struct{}
-	ready      chan struct{}
-	synced     bool
-	readWake   chan struct{}
-	readDirty  map[notificationReadBoundaryScope]struct{}
-	fullRepair bool
+	mu                 sync.RWMutex
+	visibility         map[string]notificationVisibilityBoundaryEntry
+	read               map[string]notificationReadBoundaryEntry
+	unreadMarkerByUser map[string]map[string]map[string]notificationUnreadMarkerEntry
+	changed            chan struct{}
+	ready              chan struct{}
+	synced             bool
+	readWake           chan struct{}
+	readDirty          map[notificationReadBoundaryScope]struct{}
+	fullRepair         bool
 
 	resyncRequests chan chan error
 }
 
 func newNotificationBoundaryIndex(kv jetstream.KeyValue, logger *log.Logger) *notificationBoundaryIndex {
 	return &notificationBoundaryIndex{
-		kv:             kv,
-		logger:         logger,
-		visibility:     make(map[string]notificationVisibilityBoundaryEntry),
-		read:           make(map[string]notificationReadBoundaryEntry),
-		changed:        make(chan struct{}),
-		ready:          make(chan struct{}),
-		readWake:       make(chan struct{}, 1),
-		readDirty:      make(map[notificationReadBoundaryScope]struct{}),
-		resyncRequests: make(chan chan error),
+		kv:                 kv,
+		logger:             logger,
+		visibility:         make(map[string]notificationVisibilityBoundaryEntry),
+		read:               make(map[string]notificationReadBoundaryEntry),
+		unreadMarkerByUser: make(map[string]map[string]map[string]notificationUnreadMarkerEntry),
+		changed:            make(chan struct{}),
+		ready:              make(chan struct{}),
+		readWake:           make(chan struct{}, 1),
+		readDirty:          make(map[notificationReadBoundaryScope]struct{}),
+		resyncRequests:     make(chan chan error),
 	}
 }
 
@@ -82,6 +94,7 @@ func (i *notificationBoundaryIndex) run(ctx context.Context) error {
 		watcher, err := i.kv.WatchFiltered(ctx, []string{
 			notificationVisibilityBoundaryFilterAll,
 			notificationReadBoundaryFilterAll,
+			notificationUnreadMarkerFilterAll,
 		})
 		if err != nil {
 			if pendingResync != nil {
@@ -143,6 +156,7 @@ func (i *notificationBoundaryIndex) resetSnapshot() {
 	defer i.mu.Unlock()
 	i.visibility = make(map[string]notificationVisibilityBoundaryEntry)
 	i.read = make(map[string]notificationReadBoundaryEntry)
+	i.unreadMarkerByUser = make(map[string]map[string]map[string]notificationUnreadMarkerEntry)
 	i.synced = false
 	i.ready = make(chan struct{})
 	close(i.changed)
@@ -167,7 +181,8 @@ func (i *notificationBoundaryIndex) apply(entry jetstream.KeyValueEntry) error {
 	deleted := entry.Operation() == jetstream.KeyValueDelete || entry.Operation() == jetstream.KeyValuePurge
 	visibilityUserID, visibilityRoomID, isVisibility := parseNotificationVisibilityBoundaryKey(key)
 	readScope, isRead := parseNotificationReadBoundaryKey(key)
-	if !isVisibility && !isRead {
+	unreadScope, isUnread := parseNotificationUnreadMarkerKey(key)
+	if !isVisibility && !isRead && !isUnread {
 		return nil
 	}
 
@@ -206,6 +221,24 @@ func (i *notificationBoundaryIndex) apply(entry jetstream.KeyValueEntry) error {
 			i.readDirty[readScope] = struct{}{}
 			i.signalReadChangeLocked()
 		}
+	case isUnread:
+		current := i.unreadMarkerEntryLocked(unreadScope)
+		if entry.Revision() <= current.revision {
+			return nil
+		}
+		next := notificationUnreadMarkerEntry{revision: entry.Revision(), deleted: deleted}
+		if !deleted {
+			var marker runtimestatev1.NotificationUnreadMarker
+			if err := proto.Unmarshal(entry.Value(), &marker); err != nil {
+				return fmt.Errorf("decode %s: %w", key, err)
+			}
+			message := notificationSignalMessage(marker.GetSignal())
+			if marker.GetSourceStreamSequence() == 0 || message == nil || message.GetRoomId() != unreadScope.roomID || message.GetThreadRootEventId() != unreadScope.threadRootEventID {
+				return fmt.Errorf("notification unread marker %s does not match its key scope", key)
+			}
+			next.marker = &marker
+		}
+		i.setUnreadMarkerEntryLocked(unreadScope, next)
 	}
 	close(i.changed)
 	i.changed = make(chan struct{})
@@ -266,6 +299,83 @@ func (i *notificationBoundaryIndex) readBoundary(ctx context.Context, userID, ro
 	return entry.boundary, exists && !entry.deleted, nil
 }
 
+func (i *notificationBoundaryIndex) unreadMarker(ctx context.Context, scope notificationReadBoundaryScope) (*runtimestatev1.NotificationUnreadMarker, uint64, bool, error) {
+	if err := i.waitReady(ctx); err != nil {
+		return nil, 0, false, err
+	}
+	i.mu.RLock()
+	entry := i.unreadMarkerEntryLocked(scope)
+	i.mu.RUnlock()
+	if entry.deleted || entry.marker == nil {
+		return nil, entry.revision, false, nil
+	}
+	return proto.Clone(entry.marker).(*runtimestatev1.NotificationUnreadMarker), entry.revision, true, nil
+}
+
+// unreadMarkers returns detached marker values for one room. An empty thread
+// root includes the room marker and all thread markers so room unread state can
+// aggregate nested Badge attention.
+func (i *notificationBoundaryIndex) unreadMarkers(ctx context.Context, userID, roomID, threadRootEventID string) ([]*runtimestatev1.NotificationUnreadMarker, error) {
+	if err := i.waitReady(ctx); err != nil {
+		return nil, err
+	}
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	byThread := i.unreadMarkerByUser[userID][roomID]
+	if threadRootEventID != "" {
+		entry := byThread[threadRootEventID]
+		if entry.deleted || entry.marker == nil {
+			return nil, nil
+		}
+		return []*runtimestatev1.NotificationUnreadMarker{proto.Clone(entry.marker).(*runtimestatev1.NotificationUnreadMarker)}, nil
+	}
+	result := make([]*runtimestatev1.NotificationUnreadMarker, 0, len(byThread))
+	for _, entry := range byThread {
+		if entry.deleted || entry.marker == nil {
+			continue
+		}
+		result = append(result, proto.Clone(entry.marker).(*runtimestatev1.NotificationUnreadMarker))
+	}
+	return result, nil
+}
+
+func (i *notificationBoundaryIndex) unreadMarkerScopes(userID, roomID string, beforeSequence uint64) []notificationReadBoundaryScope {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	result := make([]notificationReadBoundaryScope, 0)
+	for candidateUserID, byRoom := range i.unreadMarkerByUser {
+		if userID != "" && candidateUserID != userID {
+			continue
+		}
+		for candidateRoomID, byThread := range byRoom {
+			if roomID != "" && candidateRoomID != roomID {
+				continue
+			}
+			for threadRootEventID, entry := range byThread {
+				if entry.deleted || entry.marker == nil || (beforeSequence != 0 && entry.marker.GetSourceStreamSequence() >= beforeSequence) {
+					continue
+				}
+				result = append(result, notificationReadBoundaryScope{userID: candidateUserID, roomID: candidateRoomID, threadRootEventID: threadRootEventID})
+			}
+		}
+	}
+	return result
+}
+
+func (i *notificationBoundaryIndex) unreadMarkerEntryLocked(scope notificationReadBoundaryScope) notificationUnreadMarkerEntry {
+	return i.unreadMarkerByUser[scope.userID][scope.roomID][scope.threadRootEventID]
+}
+
+func (i *notificationBoundaryIndex) setUnreadMarkerEntryLocked(scope notificationReadBoundaryScope, entry notificationUnreadMarkerEntry) {
+	if i.unreadMarkerByUser[scope.userID] == nil {
+		i.unreadMarkerByUser[scope.userID] = make(map[string]map[string]notificationUnreadMarkerEntry)
+	}
+	if i.unreadMarkerByUser[scope.userID][scope.roomID] == nil {
+		i.unreadMarkerByUser[scope.userID][scope.roomID] = make(map[string]notificationUnreadMarkerEntry)
+	}
+	i.unreadMarkerByUser[scope.userID][scope.roomID][scope.threadRootEventID] = entry
+}
+
 func (i *notificationBoundaryIndex) waitForRevision(ctx context.Context, key string, revision uint64) error {
 	if err := i.waitReady(ctx); err != nil {
 		return err
@@ -286,12 +396,35 @@ func (i *notificationBoundaryIndex) waitForRevision(ctx context.Context, key str
 	}
 }
 
+func (i *notificationBoundaryIndex) waitForRevisionAfter(ctx context.Context, key string, revision uint64) error {
+	if err := i.waitReady(ctx); err != nil {
+		return err
+	}
+	for {
+		i.mu.RLock()
+		current := i.revisionForKeyLocked(key)
+		changed := i.changed
+		i.mu.RUnlock()
+		if current > revision {
+			return nil
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (i *notificationBoundaryIndex) revisionForKeyLocked(key string) uint64 {
 	if _, _, ok := parseNotificationVisibilityBoundaryKey(key); ok {
 		return i.visibility[key].revision
 	}
 	if _, ok := parseNotificationReadBoundaryKey(key); ok {
 		return i.read[key].revision
+	}
+	if scope, ok := parseNotificationUnreadMarkerKey(key); ok {
+		return i.unreadMarkerEntryLocked(scope).revision
 	}
 	return 0
 }
@@ -339,6 +472,22 @@ func parseNotificationVisibilityBoundaryKey(key string) (userID, roomID string, 
 func parseNotificationReadBoundaryKey(key string) (notificationReadBoundaryScope, bool) {
 	parts := strings.Split(key, ".")
 	prefix := strings.TrimSuffix(notificationReadBoundaryKeyPrefix, ".")
+	if (len(parts) != 3 && len(parts) != 4) || parts[0] != prefix || parts[1] == "" || parts[2] == "" {
+		return notificationReadBoundaryScope{}, false
+	}
+	scope := notificationReadBoundaryScope{userID: parts[1], roomID: parts[2]}
+	if len(parts) == 4 {
+		if parts[3] == "" {
+			return notificationReadBoundaryScope{}, false
+		}
+		scope.threadRootEventID = parts[3]
+	}
+	return scope, true
+}
+
+func parseNotificationUnreadMarkerKey(key string) (notificationReadBoundaryScope, bool) {
+	parts := strings.Split(key, ".")
+	prefix := strings.TrimSuffix(notificationUnreadMarkerKeyPrefix, ".")
 	if (len(parts) != 3 && len(parts) != 4) || parts[0] != prefix || parts[1] == "" || parts[2] == "" {
 		return notificationReadBoundaryScope{}, false
 	}

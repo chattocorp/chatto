@@ -77,6 +77,10 @@ first-party sessions and connections from other clients remain active.
 - Make the exact callback URL available in the metadata document. The bundled
   frontend publishes its document automatically.
 
-The old `webserver.allowed_origins` and `webserver.oauth_redirect_origins`
-settings were removed in 0.5. Delete them from existing configuration during
-upgrade.
+Remove the old `webserver.oauth_redirect_origins` setting during upgrade. The
+CIMD flow does not use a server-side redirect-origin list.
+
+`webserver.allowed_origins` remains available for a separate purpose. Configure
+an exact origin only when a browser must use its Chatto session cookie through
+a reverse-proxy alias. It does not authorize a foreign Chatto client or select
+an OAuth redirect. The value `*` never authorizes browser cookies.

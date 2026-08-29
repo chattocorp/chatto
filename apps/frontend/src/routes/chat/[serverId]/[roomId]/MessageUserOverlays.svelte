@@ -49,6 +49,7 @@
     currentUserId,
     canStartDMs,
     canBanRoomMembers,
+    onOpenProfile,
     userContextMenuLoader = importUserContextMenu,
     banRoomMemberModalLoader = importBanRoomMemberModal
   }: {
@@ -58,6 +59,7 @@
     currentUserId?: string;
     canStartDMs: boolean;
     canBanRoomMembers: boolean;
+    onOpenProfile?: (userId: string) => void;
     userContextMenuLoader?: () => Promise<UserContextMenuModule>;
     banRoomMemberModalLoader?: () => Promise<BanRoomMemberModalModule>;
   } = $props();
@@ -140,8 +142,10 @@
       canSendMessage={canStartDMs && !interactions.user.deleted}
       canBanFromRoom={canBanPopoverUser}
       banningFromRoom={banningMemberId === interactions.user.id}
+      viewerSettings={serverScope.store.currentUser.user?.settings}
       onSendMessage={() => startDMWith(serverId, interactions.user!.id)}
       onBanFromRoom={() => openBanDialog(interactions.user!)}
+      {onOpenProfile}
       onClose={() => interactions.close()}
     />
   {:catch}

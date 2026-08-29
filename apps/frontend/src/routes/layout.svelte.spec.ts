@@ -95,7 +95,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     servers: [],
     originServer: { id: 'origin' },
     getStore: vi.fn(),
-    tryGetStore: vi.fn(() => null)
+    tryGetStore: vi.fn(() => null),
+    isAuthenticated: vi.fn(() => false),
+    firstAuthenticatedServerId: vi.fn(() => undefined)
   }
 }));
 

@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administracja",
+      "bot": "Boty",
+      "message": "Wiadomości",
+      "role": "Role",
+      "room": "Pokoje",
+      "server": "Serwer",
+      "user": "Użytkownicy",
+      "other": "Inne"
+    },
     "permission_descriptions": {
       "server_manage": "Aktualizuj ustawienia serwera (nazwa, opis, logo)",
       "room_create": "Utwórz nowe pokoje",
@@ -119,7 +129,9 @@
       "user_delete_self": "Usuń własne konto",
       "user_invite": "Twórz linki z zaproszeniem i zarządzaj nimi",
       "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
-      "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników"
+      "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników",
+      "bot_create": "Tworzyć własne konta botów",
+      "bot_manage": "Wyświetlać wszystkie konta botów i zarządzać nimi"
     }
   }
 }

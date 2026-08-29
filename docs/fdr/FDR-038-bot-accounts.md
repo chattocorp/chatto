@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -37,6 +37,27 @@ exercise more authority than its human owner currently possesses.
   visual indicator.
 - A bot has one active API key. The key is returned only when the bot is
   created or the key is rotated; it cannot be retrieved later.
+- The bundled frontend stops in-app navigation while it requests a show-once
+  bot credential and while it shows that credential. It asks for confirmation
+  before the browser unloads the page. Navigation becomes available after the
+  manager acknowledges the credential.
+- A bot can have at most 20 active, named incoming webhooks. Creating one
+  webhook shows its complete URL once. A manager can create a replacement
+  before the manager revokes an old webhook.
+- The bot detail page shows when each incoming webhook was created and
+  approximately when Chatto recorded its last use. Chatto attempts to record a
+  successful credential authentication even if the request subsequently
+  fails. If Chatto has no observation, the page shows "No use recorded." This
+  state does not prove that the credential was not used. If Chatto cannot read
+  this optional telemetry, the page shows that it is temporarily unavailable.
+- An incoming webhook can post plain-text messages as the bot. It accepts
+  Slack-compatible `text` and `channel` fields, Chatto `body` and `room_id`
+  aliases, an optional `room_id` query parameter, and the Chatto
+  `create_thread` extension. All specified destinations and bodies must agree.
+- An incoming webhook uses stable room IDs. It can select any channel room
+  where the bot is a member and has the normal posting permissions. It can
+  select an existing human-started DM that contains the bot. It cannot create
+  or find a DM, and it cannot create a thread in a DM.
 - Newly issued keys use a 128-bit random secret to remain compact enough for
   copy-and-paste workflows. Previously issued 256-bit keys remain valid until
   they are rotated.
@@ -46,11 +67,25 @@ exercise more authority than its human owner currently possesses.
 - A bot API key authenticates normal public API and realtime requests as that
   bot. The bot can otherwise participate like a user wherever its explicit
   permissions allow.
+- A bot uses the normal `subscribe_events` realtime subscription. Chatto sends
+  its visible notification occurrences through
+  `notification_occurrences_replace`; there is no bot-only realtime channel.
+- Direct-message, direct-mention, reply, and followed-thread occurrences are
+  the supported activation causes for bot integrations. The bot uses the
+  message reference in the occurrence to fetch context through the normal API.
+  Other notification causes can be present, so the integration must filter by
+  cause.
+- A delivered direct mention in a channel-room root or reply attempts to
+  follow that thread if the bot has no prior follow state. Later replies can
+  then create followed-thread occurrences for the bot.
+- A direct-mention policy of Off creates no occurrence and no mention-driven
+  follow. It does not remove the interaction relationship created by the
+  durable mention fact.
 - Bots do not inherit the implicit `everyone` role, named-role permissions, or
   any other baseline grants. An absent bot permission is denied.
 - Channel-room membership does not give a bot message content. The bot needs
   an explicit `message.read` grant for broad access or an explicit
-  `message.read.interactions` grant for related threads. The broad grant
+  `message.read-interactions` grant for related threads. The broad grant
   includes the narrow permission. Each grant is bounded by sufficient
   effective authority on its owner. DM membership authorizes the bot to read
   that DM.
@@ -94,8 +129,9 @@ exercise more authority than its human owner currently possesses.
   bot-management permission appears in their stored allowlist.
 - Bots cannot have passwords, verified emails, external identities, browser
   sessions, OAuth access tokens, password-reset flows, or other human sign-in
-  methods. A bot API key cannot change the bot's identity, ownership,
-  permissions, or API key.
+  methods. A bot API key can update its own public profile through
+  `MyAccountService.UpdateProfile`, but cannot change ownership, permissions,
+  or API keys.
 - Bots cannot request their own deletion. Only their owner or a human user with
   `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding
@@ -127,9 +163,8 @@ APIs as people without requiring parallel bot-only resource models. Separating
 authentication keeps an API credential from becoming an interactive login.
 **Tradeoff:** Account-security and credential-enrolment operations must enforce
 the account-kind boundary rather than treating every passwordless account as
-eligible for a password or external identity. Bot profile management also
-needs a deliberately narrower surface than the human self-profile and
-cross-user administration APIs.
+eligible for a password or external identity. Self-profile operations can stay
+shared because they always target the authenticated identity.
 
 ### 3. Explicit allowlist instead of normal role inheritance
 
@@ -226,6 +261,49 @@ incorrect permission grant.
 existing DM. It must use the room state that Chatto sends after a human starts
 the DM.
 
+### 10. Notification occurrences are the bot activation contract
+
+**Decision:** Bots receive the same exact notification occurrences as human
+accounts through `NotificationService` and the normal realtime projection.
+Integrations use direct messages, direct mentions, replies, and
+followed-thread activity as activation causes. A future webhook transport must
+deliver these same occurrences instead of introducing separate bot events.
+
+**Why:** Notification occurrences already own recipient selection, user policy,
+current visibility, stable identity, and bounded recovery. Reusing them keeps
+activation semantics independent of transport and avoids a second event model
+that can disagree with the notification model.
+
+**Tradeoff:** Realtime replacements can repeat occurrences and can contain
+more than one cause for the same message. Integrations must checkpoint
+occurrence IDs and can deduplicate by the referenced message event ID when they
+want one action for each source message. The current realtime replacement
+contains only the newest finite page; longer recovery uses the paginated
+notification API.
+
+### 11. Incoming webhooks use a separate action credential
+
+**Decision:** A bot can have at most 20 active, named incoming webhook
+credentials. Each credential can call only the incoming webhook HTTP endpoint.
+The endpoint posts through the normal message operation as the bot. Each
+credential can select a room through the request URL or JSON payload. Chatto
+shows each raw URL only when it creates the selected credential. A manager
+creates a replacement before the manager moves a caller and revokes the old
+credential. The bot detail page shows creation metadata and an approximate
+last-use time for each credential. The bundled frontend stops in-app
+navigation until it shows the raw credential and the manager acknowledges it.
+
+**Why:** An external system can post a message without receiving the bot's
+complete API authority. Dynamic room selection keeps one automation usable
+across the rooms that the bot can already access.
+
+**Tradeoff:** The credential is in the webhook URL and needs the same secret
+handling as an API key. The first version has no idempotency key. A retry after
+a lost response can create a duplicate message. Last-use telemetry is
+best-effort and can be delayed, unavailable, or missing after a process or
+storage failure. Rich Slack payloads and replies to existing threads are
+deferred.
+
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
@@ -233,11 +311,15 @@ the DM.
   its owner, while preserving the current owner's permission ceiling.
 - `message.read` — give the bot broad message access in configured channel
   rooms, subject to membership and the owner's effective broad-read authority.
-  This grant includes `message.read.interactions`.
-- `message.read.interactions` — give the bot complete access to a
+  This grant includes `message.read-interactions`.
+- `message.read-interactions` — give the bot complete access to a
   channel-room thread that it started or where another account directly
   mentioned it, subject to membership and the owner's effective broad or
   narrow read authority.
+
+Notification delivery modes are user preferences, not permissions. A bot can
+change its own notification policy through the normal notification policy API
+when it has access to the selected scope.
 
 Fresh RBAC bootstrap grants `bot.create` to `everyone` and `bot.manage` to
 `admin`. Effective owners have `bot.manage` through the virtual owner override,
@@ -249,50 +331,48 @@ override, but bots themselves cannot exercise bot-management operations.
 
 ## API Compatibility
 
-- `User.is_bot` and `BotService` are additive
-  public API changes for Chatto 0.5.0.
-- `BotService.ReassignBotOwner` and the persisted bot-owner reassignment fact
-  are additive changes in the unreleased 0.5.0 train. Older clients continue
-  to work, and the bundled client gates the action through its server feature
-  table.
-- The existing `AdminPermissionService` user-permission operations accept bot
-  user IDs. `PermissionMatrixCell.allow_permitted` is additive and reports when
-  a target-specific delegation ceiling prevents an explicit allow.
-- Missing historical `is_bot` values decode as false, so old persisted users
-  remain human accounts. Older clients ignore the additive field and may
-  render bot identities without a bot marker.
-- The bundled client gates bot management on server version `0.5.0-0`. A new
-  client does not call `BotService` on an older server.
-- Older server replicas cannot authenticate the new `cht_BK_…` credential and
-  therefore cannot accidentally grant it ambient human authority. Operators
-  should still complete the normal rolling upgrade before creating bots so
-  management and identity rendering are consistent across replicas.
-- Servers with the initial bot implementation do not recognize newly shortened
-  keys, while updated servers continue to accept the longer initial format.
-  Operators should complete the normal rolling upgrade before creating or
-  rotating bot credentials.
-- Operators must also complete the normal rolling upgrade before reassigning a
-  bot. A binary predating the ownership event cannot project the new owner, so
-  rolling back after ownership writes requires a binary that understands the
-  event.
-- Chatto 0.5 denies `RoomService.StartDM` to bot callers. This behavior is a
-  breaking authorization change for an integration that used this RPC. During
-  a mixed-replica rollout, an older replica can still accept the call. Upgrade
-  all replicas before you depend on this boundary.
+Bot identity, management, reassignment, permission ceilings, and credentials
+are additive in Chatto 0.5. Historical users remain human accounts when bot
+identity is absent. Older clients can still render bot accounts as ordinary
+users, and the bundled client does not call bot-management operations on an
+older server.
+
+Operators must replace all replicas before they create or rotate bot
+credentials, reassign bot ownership, or depend on the rule that bots cannot
+start DMs. An older replica can omit newer bot facts or accept the earlier DM
+behavior. Updated servers continue to accept the first longer bot-key format
+while issuing the current shorter format. Exact field, method, event, and
+version-gate details belong in the public schema and API compatibility guide.
+
+Incoming webhook management methods, metadata, and lifecycle facts are
+additive. The create response shows the URL one time. Older clients ignore the
+metadata and do not call the new methods. Replace all replicas before you
+create or revoke a webhook. An older replica cannot project multiple webhook
+credentials correctly after replay and cannot authenticate the new URL format.
+Current servers read the rotation fact from the unreleased implementation, but
+they do not write it.
 
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
-  runtime credentials), ADR-052 (subject-specific RBAC), ADR-080 (explicit
-  message-read permissions)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-018
+  runtime credentials), ADR-051 (resumable client projection), ADR-052
+  (subject-specific RBAC), ADR-076 (deterministic notification occurrences),
+  ADR-077 (persistent notification list), ADR-080 (explicit message-read
+  permissions), ADR-083 (action-limited bot incoming webhooks)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
+  (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018
   (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &
   Sessions), FDR-025 (User Search & Member Directory), FDR-039 (Message Access
   & Interactions)
 
 ## Open Questions
 
-- Multiple independently rotatable API keys, named keys, and key expiry are
-  deferred until integrations demonstrate a need for them.
+- Multiple named bot API keys, independent revocation, last-use telemetry, and
+  key expiry are deferred. A future design should
+  reuse the incoming-webhook credential lifecycle and usage-recording patterns
+  where they apply. It must also define compatibility for the current
+  two-part bot API key format.
+- Define durable webhook registration, signing, retry, and delivery status for
+  the same bot activation occurrences.

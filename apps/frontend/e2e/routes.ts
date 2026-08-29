@@ -32,29 +32,14 @@ export const loginResetSuccess = '/login?reset=success';
 
 export const chat = `/chat/${HOME}`;
 
-/**
- * The chat root for the home instance. This is the legacy `space()` helper's
- * server landing page.
- */
-export const space = () => `/chat/${HOME}`;
 export const room = (roomId: string) => `/chat/${HOME}/${roomId}`;
 export const thread = (roomId: string, threadId: string) => `/chat/${HOME}/${roomId}/${threadId}`;
 export const messageLink = (roomId: string, messageId: string) =>
   `/chat/${HOME}/${roomId}/m/${messageId}`;
 
-// --- Browse & explore (instance-agnostic) ---
+// --- Server navigation ---
 
-/**
- * Back-compat alias: post-#330 PR(a) the Browse Spaces page is gone, so tests
- * that used to navigate there now land on the chat root. Kept as a name so
- * existing call sites compile.
- */
-export const spaces = `/chat/${HOME}`;
-
-// Browse Rooms was retired; its functionality is folded into the server
-// Overview page at `/chat/{server}/overview`. The export name is kept as
-// an alias so existing tests don't need to be renamed in a single sweep.
-export const browseRooms = `/chat/${HOME}/overview`;
+export const serverOverview = `/chat/${HOME}/overview`;
 export const threads = `/chat/${HOME}/threads`;
 export const preferences = `/chat/${HOME}/preferences`;
 
@@ -75,39 +60,29 @@ export const serverAdminRooms = `/chat/${HOME}/manage/rooms`;
 export const serverAdminPermissions = serverAdmin('permissions');
 export const serverAdminPermissionsNew = serverAdmin('permissions/new');
 export const serverAdminPermission = (roleName: string) => serverAdmin(`permissions/${roleName}`);
-// Back-compat aliases for tests and page objects that still use the older
-// "roles" naming for the role-permission editor.
-export const serverAdminRoles = serverAdminPermissions;
-export const serverAdminRolesNew = serverAdminPermissionsNew;
-export const serverAdminRole = serverAdminPermission;
 export const serverAdminMembers = serverAdmin('members');
 export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
+export const serverAdminMemberDelete = (userId: string) =>
+  serverAdmin(`members/${userId}/delete`);
 export const serverAdminBots = serverAdmin('bots');
 export const serverAdminSecurity = serverAdmin('security');
 export const serverAdminSystem = serverAdmin('system');
 export const serverAdminMemberPermissions = (userId: string) =>
   serverAdmin(`members/${userId}/permissions`);
 
-// Back-compat aliases — the dedicated /admin route tree was removed once
-// instance admin folded into server admin. Existing tests that reference
-// the old names keep working via these forward pointers.
-export const admin = serverAdminGeneral;
-export const adminUsers = serverAdminMembers;
-export const adminUser = serverAdminMember;
-export const adminSpaces = serverAdminMembers;
-export const adminSystem = serverAdminSystem;
-export const adminRoles = serverAdminPermissions;
-export const adminRole = serverAdminPermission;
-// Legacy "instance settings" page motd/welcome/blocked — split across the
-// /general (messages) and /security (blocked usernames) tabs now.
-export const adminServerSettings = serverAdminGeneral;
-
 // --- User settings ---
 
-export const settings = `/chat/${HOME}/settings`;
+export const settingsProfile = `/chat/${HOME}/settings/profile`;
+/** The canonical default page for user-settings test flows. */
+export const settings = settingsProfile;
 export const settingsAccount = `/chat/${HOME}/settings/account`;
 export const settingsNotifications = `/chat/${HOME}/settings/notifications`;
-export const settingsPreferences = `/chat/${HOME}/settings/preferences`;
+export const settingsTime = `/chat/${HOME}/settings/time`;
+export const settingsAppearance = `/chat/${HOME}/settings/appearance`;
+export const settingsLanguage = `/chat/${HOME}/settings/language`;
+export const settingsComposer = `/chat/${HOME}/settings/composer`;
+// Legacy App Preferences routes remain available as authenticated redirects
+// and as the standalone no-server fallback.
 export const appPreferences = '/chat/preferences';
 export const appPreferencesLanguage = '/chat/preferences/language';
 export const appPreferencesComposer = '/chat/preferences/composer';
@@ -137,32 +112,8 @@ export const patterns = {
   chatRootOrRoomWithQuery: /\/chat\/-(?:\/(?!manage(?:\?|$))[a-zA-Z0-9]+)?(?:\?.*)?$/,
   /** Any room with query params (e.g. ?highlight=) */
   anyRoomWithQuery: /\/chat\/-\/(?!manage(?:\/|\?|$))[a-zA-Z0-9]+/,
-  /** Browse rooms — folded into the server overview at /chat/-/overview */
-  browseRooms: /\/chat\/-\/overview$/,
   /** Email verified redirect */
-  emailVerified: /\?email_verified=true/,
-
-  /**
-   * Back-compat aliases. After ADR-027 there's no separate "space" URL —
-   * the chat URL goes straight from instance to room — so these alias the
-   * post-collapse equivalents to keep older tests working without churn.
-   *
-   * `anySpace` matches either the chat root or any room because, after the
-   * auto-join-on-server-entry behaviour was retired, navigating to the
-   * server root lands on `/chat/-` until the user explicitly enters a
-   * room. Older tests that wait on `anySpace` just care that we've
-   * landed *somewhere* on the server, so the relaxed pattern is the
-   * correct meaning today.
-   */
-  get anySpace() {
-    return this.chatRootOrRoom;
-  },
-  get spaceOrRoom() {
-    return this.chatRootOrRoom;
-  },
-  get spaceOrRoomWithQuery() {
-    return this.chatRootOrRoomWithQuery;
-  }
+  emailVerified: /\?email_verified=true/
 };
 
 // --- Remote instance helper ---

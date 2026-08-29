@@ -21,6 +21,38 @@ message Bot {
   google.protobuf.Timestamp api_key_created_at = 4;
   // Most recent API-key rotation time, when it has been rotated.
   optional google.protobuf.Timestamp api_key_rotated_at = 5;
+  // Active incoming webhook credentials, ordered by creation time.
+  repeated BotIncomingWebhook incoming_webhooks = 6;
+}
+
+// Availability of best-effort credential last-use telemetry.
+enum CredentialLastUsedState {
+  // The server did not return a last-use state.
+  CREDENTIAL_LAST_USED_STATE_UNSPECIFIED = 0;
+  // The server has no recorded use for the credential.
+  CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED = 1;
+  // last_used_at contains the most recent recorded authentication time.
+  CREDENTIAL_LAST_USED_STATE_RECORDED = 2;
+  // Last-use telemetry is temporarily unavailable.
+  CREDENTIAL_LAST_USED_STATE_UNAVAILABLE = 3;
+}
+
+// Safe metadata for one active bot incoming webhook. The webhook URL is
+// returned only when the credential is created.
+message BotIncomingWebhook {
+  reserved 4;
+  reserved "rotated_at";
+
+  // Stable webhook credential ID.
+  string id = 1;
+  // Manager-defined name for the credential.
+  string name = 2;
+  // Time the incoming webhook credential was created.
+  google.protobuf.Timestamp created_at = 3;
+  // Availability of best-effort last-use telemetry.
+  CredentialLastUsedState last_used_state = 5;
+  // Most recent recorded successful authentication time.
+  optional google.protobuf.Timestamp last_used_at = 6;
 }
 
 // Request bots visible to the caller. Owners see their own bots; callers with
@@ -84,22 +116,6 @@ message CreateBotResponse {
   string api_key = 2;
 }
 
-// Patch request for a bot's public identity.
-message UpdateBotRequest {
-  // Required bot user ID.
-  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New bot login. Must end in `_bot`.
-  optional string login = 2 [(buf.validate.field).string = {min_len: 2, max_len: 32}];
-  // New public display name.
-  optional string display_name = 3 [(buf.validate.field).string.max_len = 32];
-}
-
-// Result of updating a bot.
-message UpdateBotResponse {
-  // Updated bot.
-  Bot bot = 1;
-}
-
 // Request deletion of a bot account.
 message DeleteBotRequest {
   // Required bot user ID.
@@ -125,6 +141,37 @@ message RotateBotApiKeyResponse {
   Bot bot = 1;
   // Newly issued API key.
   string api_key = 2;
+}
+
+// Request creation of one named incoming webhook for a bot.
+message CreateBotIncomingWebhookRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required manager-defined name. Names do not need to be unique.
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+}
+
+// Result of creating an incoming webhook. webhook_url is shown once and cannot
+// be retrieved later.
+message CreateBotIncomingWebhookResponse {
+  // Updated bot metadata.
+  Bot bot = 1;
+  // Newly issued incoming webhook URL.
+  string webhook_url = 2;
+}
+
+// Request irreversible revocation of one incoming webhook credential.
+message RevokeBotIncomingWebhookRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required webhook credential ID.
+  string webhook_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of revoking an incoming webhook.
+message RevokeBotIncomingWebhookResponse {
+  // Updated bot metadata.
+  Bot bot = 1;
 }
 
 // Request an administrative reassignment of a bot to another human owner.
@@ -154,14 +201,19 @@ service BotService {
   rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
   // Creates a bot owned by the authenticated human caller. Requires bot.create.
   rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
-  // Updates a bot's public identity.
-  rpc UpdateBot(UpdateBotRequest) returns (UpdateBotResponse);
   // Deletes a bot and invalidates its API key.
   rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Rotates the bot's sole API key and immediately invalidates the old key.
   rpc RotateBotApiKey(RotateBotApiKeyRequest) returns (RotateBotApiKeyResponse);
+  // Creates a named incoming webhook. A bot can have at most 20 active
+  // incoming webhooks.
+  rpc CreateBotIncomingWebhook(CreateBotIncomingWebhookRequest) returns (CreateBotIncomingWebhookResponse);
+  // Revokes one incoming webhook without changing other webhooks.
+  rpc RevokeBotIncomingWebhook(RevokeBotIncomingWebhookRequest) returns (RevokeBotIncomingWebhookResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
   // Reassigns a bot to another active human owner. Requires bot.manage. The
   // current API key and configured permission allowlist remain unchanged,
   // while effective permissions immediately use the new owner's ceiling.

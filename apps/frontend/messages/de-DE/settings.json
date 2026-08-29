@@ -9,13 +9,19 @@
       "account": "Konto",
       "bots": "Bots",
       "user_preferences": "Benutzereinstellungen",
-      "server_configuration": "Serverkonfiguration"
+      "app_preferences": "App-Einstellungen",
+      "your_account": "Dein Konto",
+      "server_configuration": "Server"
     },
     "app_preferences": {
       "title": "App-Einstellungen",
       "subtitle": "Einstellungen dieser App, die für alle deine registrierten Server gelten",
-      "appearance": { "title": "Erscheinungsbild" },
-      "composer": { "title": "Nachrichten verfassen" }
+      "appearance": {
+        "title": "Erscheinungsbild"
+      },
+      "composer": {
+        "title": "Nachrichten verfassen"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -102,7 +108,7 @@
       "presence": {
         "button": "Präsenz: {status}",
         "title": "Präsenz",
-        "auto": "Online",
+        "online": "Online",
         "away": "Abwesend",
         "do_not_disturb": "Nicht stören",
         "offline": "Offline",
@@ -110,7 +116,13 @@
       },
       "saved": "Profil erfolgreich aktualisiert",
       "save_failed": "Profil konnte nicht gespeichert werden",
-      "save_button": "Änderungen speichern"
+      "save_button": "Änderungen speichern",
+      "bio": {
+        "label": "Bio",
+        "description": "Bis zu {max} Zeichen, sichtbar in deinem Profil.",
+        "placeholder": "Erzähle anderen kurz etwas über dich",
+        "too_long": "Die Bio darf höchstens {max} Zeichen lang sein."
+      }
     },
     "preferences": {
       "title": "Zeit & Region",
@@ -291,10 +303,13 @@
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
+          "badge": "Markierung",
+          "badge_hint": "Fügt nur einen neutralen Punkt für ungelesene Inhalte hinzu. Erstellt keine Benachrichtigung, spielt keinen Ton ab und sendet keine Push-Benachrichtigung.",
           "notification": "Benachrichtigung",
           "push_notification": "Push-Benachrichtigung"
         },
         "reason": {
+          "room_message": "Raumnachrichten",
           "direct_message": "Direktnachrichten",
           "direct_mention": "Direkte Erwähnungen",
           "reply": "Antworten auf deine Nachrichten",
@@ -302,12 +317,12 @@
           "here": "@here-Erwähnungen",
           "all": "@all-Erwähnungen",
           "followed_thread": "Verfolgte Threads",
-          "followed_room": "Verfolgte Räume",
           "reaction": "Reaktionen auf deine Nachrichten",
           "activity": "Aktivität",
           "room_invitation": "Raumeinladungen"
         },
         "reason_hint": {
+          "room_message": "Nachrichten, die andere Mitglieder direkt in Kanalräume und nicht in Threads schreiben.",
           "direct_message": "Direktnachrichten, die dir andere Mitglieder senden.",
           "direct_mention": "Nachrichten, in denen dein Benutzername direkt erwähnt wird.",
           "reply": "Nachrichten, die auf eine deiner Nachrichten antworten.",
@@ -315,7 +330,6 @@
           "here": "Nachrichten mit @here, wenn dein Anwesenheitsstatus nicht offline ist.",
           "all": "Nachrichten mit @all in einem Raum, dem du angehörst.",
           "followed_thread": "Neue Antworten in Threads, denen du folgst.",
-          "followed_room": "Nachrichten auf oberster Ebene in Räumen, denen du folgst.",
           "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen."
         }
       }
@@ -410,11 +424,6 @@
       "create_title": "Bot-Konto erstellen",
       "create_failed": "Bot konnte nicht erstellt werden",
       "created": "Bot erstellt",
-      "edit": "Bearbeiten",
-      "edit_title": "Bot-Konto bearbeiten",
-      "updated": "Bot aktualisiert",
-      "update_failed": "Bot konnte nicht aktualisiert werden",
-      "update_conflict": "Jemand anderes hat diesen Bot aktualisiert. Lade die Seite neu und versuche es noch einmal.",
       "username": "Benutzername",
       "username_hint": "Bot-Benutzernamen müssen auf _bot enden.",
       "display_name": "Anzeigename",
@@ -433,6 +442,12 @@
       "rotate_warning": "Der aktuelle Schlüssel funktioniert danach sofort nicht mehr. Du musst jede Integration aktualisieren, die ihn verwendet.",
       "key_rotated": "API-Schlüssel erneuert",
       "rotate_failed": "API-Schlüssel konnte nicht erneuert werden",
+      "webhook_title": "Eingehende Webhooks",
+      "webhook_description": "Nachrichten aus externen Tools als dieser Bot senden.",
+      "webhook_created": "Eingehender Webhook erstellt",
+      "webhook_url_title": "Webhook-URL speichern",
+      "webhook_url_warning": "Diese URL wird nur einmal angezeigt und enthält geheime Zugangsdaten. Speichere sie an einem sicheren Ort, bevor du das Fenster schließt.",
+      "webhook_url_copied": "Webhook-URL kopiert",
       "delete_title": "Bot löschen",
       "delete_warning": "{name} löschen? Sein API-Schlüssel funktioniert sofort nicht mehr und das Konto kann nicht wiederhergestellt werden.",
       "deleted": "Bot gelöscht",
@@ -440,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Wähle aus, was dein Bot tun darf. Du kannst ihm nur Berechtigungen geben, die du selbst hast. Wenn du eine Berechtigung verlierst, gilt das auch für deinen Bot.",
         "save_failed": "Bot-Berechtigung konnte nicht aktualisiert werden"
-      }
+      },
+      "webhook_empty_description": "Es wurden noch keine eingehenden Webhooks erstellt.",
+      "webhook_create": "Webhook erstellen",
+      "webhook_name": "Name",
+      "webhook_created_at": "Erstellt",
+      "webhook_create_failed": "Eingehender Webhook konnte nicht erstellt werden",
+      "webhook_revoke": "Webhook widerrufen",
+      "webhook_revoke_warning": "Die aktuelle Webhook-URL funktioniert danach sofort nicht mehr.",
+      "webhook_revoked": "Eingehender Webhook widerrufen",
+      "webhook_revoke_failed": "Eingehender Webhook konnte nicht widerrufen werden",
+      "webhook_last_used": "Zuletzt verwendet",
+      "webhook_no_use_recorded": "Keine Nutzung erfasst",
+      "webhook_last_used_unavailable": "Vorübergehend nicht verfügbar",
+      "webhook_limit_reached": "Du hast die Höchstzahl von 20 eingehenden Webhooks erreicht."
     }
   }
 }

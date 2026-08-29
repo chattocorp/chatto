@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package chatto.core.cache_state.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/cache_state/v1;cachestatev1";
+
+// UserPresenceStatus indicates a user's online presence status. An absent
+// MEMORY_CACHE record means that the user is offline.
+enum UserPresenceStatus {
+  USER_PRESENCE_STATUS_UNSPECIFIED = 0;
+  USER_PRESENCE_STATUS_ONLINE = 1;
+  USER_PRESENCE_STATUS_AWAY = 2;
+  USER_PRESENCE_STATUS_DO_NOT_DISTURB = 3;
+}
+
+// UserPresence is the latest presence value stored under presence.{userId} in
+// MEMORY_CACHE.
+message UserPresence {
+  UserPresenceStatus status = 1;
+  bool manually_set = 2;
+}

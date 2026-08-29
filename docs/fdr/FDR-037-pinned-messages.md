@@ -16,7 +16,7 @@ Direct-message rooms do not support pins.
   also requires read access to the target message because the operation returns
   the hydrated pinned message. Pins do not introduce a separate pin permission.
 - A current channel member with `message.read` may list every pin. A member
-  with `message.read.interactions` may list pins only from related threads.
+  with `message.read-interactions` may list pins only from related threads.
   Losing membership or read authority immediately removes inaccessible
   pinned-message state from the client.
 - Pins appear newest-first in an automatically paginated **Pins** sidebar tab.
@@ -125,7 +125,7 @@ snapshot schema receives a new fingerprinted contract namespace automatically.
 
 - `message.read` — list all room pins and create a pin whose response contains
   the hydrated message.
-- `message.read.interactions` — list pins from related threads and create a pin
+- `message.read-interactions` — list pins from related threads and create a pin
   for a readable related message.
 - `room.manage` — create or delete pin associations.
 

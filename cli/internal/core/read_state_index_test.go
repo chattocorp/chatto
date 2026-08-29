@@ -491,8 +491,13 @@ func (w *initialSyncGatedWatcher) forward() {
 func newReadStateReplica(t *testing.T, source *ChattoCore) *ChattoCore {
 	t.Helper()
 	index := NewReadStateIndex(source.storage.runtimeStateKV, testCoreLogger())
-	replica := *source
-	replica.readStateModel = &ReadStateModel{core: &replica, index: index}
+	replica := &ChattoCore{
+		nc:        source.nc,
+		logger:    source.logger,
+		storage:   source.storage,
+		roomModel: source.roomModel,
+	}
+	replica.readStateModel = &ReadStateModel{core: replica, index: index}
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -512,7 +517,7 @@ func newReadStateReplica(t *testing.T, source *ChattoCore) *ChattoCore {
 			t.Error("replica read state index did not stop within timeout")
 		}
 	})
-	return &replica
+	return replica
 }
 
 func runConcurrentWrites(t *testing.T, writes ...func() error) {

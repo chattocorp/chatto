@@ -1,4 +1,11 @@
-import { Extension, InputRule, mergeAttributes } from '@tiptap/core';
+import {
+  Extension,
+  InputRule,
+  mergeAttributes,
+  type MarkdownParseHelpers,
+  type MarkdownRendererHelpers,
+  type MarkdownToken
+} from '@tiptap/core';
 import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import StarterKit from '@tiptap/starter-kit';
@@ -7,9 +14,10 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from '@tiptap/markdown';
 import Placeholder from '@tiptap/extension-placeholder';
 import { lowlight } from '$lib/codeHighlighting';
-import { isDefaultEmptyDocument } from './markdown';
+import { isDefaultEmptyDocument, isHttpMarkdownAutolink } from './markdown';
 
 const markdownLinkInputRegex = /(^|\s)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)$/;
+const markdownAutolinkInputRegex = /(^|\s)<(https?:\/\/[^\s<>]+)>$/i;
 const codeFenceLineRegex = /^```([\w-]+)?$/;
 const markdownBulletListLineRegex = /^[ \t]{0,3}[-+*]\s(.*)$/;
 const markdownOrderedListLineRegex = /^[ \t]{0,3}(\d{1,9})[.)]\s(.*)$/;
@@ -34,15 +42,57 @@ export const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
   }
 });
 
-export const ComposerLink = Link.extend({ inclusive: false });
+const markdownAutolinkAttribute = 'markdownAutolink';
+const closedMarkdownAutolink = 'closed';
+const unclosedMarkdownAutolink = 'unclosed';
+
+function isMarkdownAutolinkToken(token: MarkdownToken): boolean {
+  const raw = token.raw ?? '';
+  return isHttpMarkdownAutolink(raw) && raw.slice(1, -1) === (token.href ?? '');
+}
+
+export const ComposerLink = Link.extend({
+  inclusive: false,
+
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      [markdownAutolinkAttribute]: {
+        default: false,
+        rendered: false
+      }
+    };
+  },
+
+  parseMarkdown(token: MarkdownToken, helpers: MarkdownParseHelpers) {
+    return helpers.applyMark('link', helpers.parseInline(token.tokens ?? []), {
+      href: token.href,
+      title: token.title || null,
+      [markdownAutolinkAttribute]: isMarkdownAutolinkToken(token) ? closedMarkdownAutolink : false
+    });
+  },
+
+  renderMarkdown(node, helpers: MarkdownRendererHelpers) {
+    const href = node.attrs?.href ?? '';
+    const title = node.attrs?.title ?? '';
+    const text = helpers.renderChildren(node);
+
+    if (node.attrs?.[markdownAutolinkAttribute] === closedMarkdownAutolink && !title) {
+      return `<${text}>`;
+    }
+
+    if (node.attrs?.[markdownAutolinkAttribute] === unclosedMarkdownAutolink && !title) return text;
+
+    return title ? `[${text}](${href} "${title}")` : `[${text}](${href})`;
+  }
+});
 
 const SelectedTextInlineCodeShortcut = Extension.create({
   name: 'selectedTextInlineCodeShortcut',
 
   addKeyboardShortcuts() {
     return {
-      '`': () =>
-        this.editor.state.selection.empty ? false : this.editor.commands.toggleCode()
+      '`': () => (this.editor.state.selection.empty ? false : this.editor.commands.toggleCode())
     };
   }
 });
@@ -177,6 +227,106 @@ export const MarkdownLinkInputRule = Extension.create({
           tr.insertText(label, from);
           tr.addMark(from, from + label.length, linkType.create({ href }));
           tr.removeStoredMark(linkType);
+        }
+      })
+    ];
+  }
+});
+
+export const MarkdownAutolinkInputRule = Extension.create({
+  name: 'markdownAutolinkInputRule',
+
+  addInputRules() {
+    return [
+      new InputRule({
+        find: markdownAutolinkInputRegex,
+        handler: ({ state, range, match }) => {
+          const prefix = match[1] ?? '';
+          const href = match[2];
+          const linkType = state.schema.marks.link;
+          if (!href || !linkType) return null;
+
+          const from = range.from + prefix.length;
+          const tr = state.tr;
+
+          tr.delete(from, range.to);
+          tr.insertText(href, from);
+          tr.addMark(
+            from,
+            from + href.length,
+            linkType.create({ href, [markdownAutolinkAttribute]: closedMarkdownAutolink })
+          );
+          tr.removeStoredMark(linkType);
+        }
+      })
+    ];
+  }
+});
+
+export const NormalizeMarkdownAutolinks = Extension.create({
+  name: 'normalizeMarkdownAutolinks',
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('normalizeMarkdownAutolinks'),
+        appendTransaction: (transactions, _oldState, newState) => {
+          if (!transactions.some((transaction) => transaction.docChanged)) return null;
+
+          const linkType = newState.schema.marks.link;
+          if (!linkType) return null;
+
+          const tr = newState.tr;
+          let changed = false;
+
+          const hasUnescapedOpeningAngleBefore = (position: number) => {
+            const textBefore = newState.doc.textBetween(Math.max(0, position - 64), position);
+            if (!textBefore.endsWith('<')) return false;
+
+            let precedingBackslashes = 0;
+            for (
+              let index = textBefore.length - 2;
+              index >= 0 && textBefore[index] === '\\';
+              index -= 1
+            ) {
+              precedingBackslashes += 1;
+            }
+            return precedingBackslashes % 2 === 0;
+          };
+
+          newState.doc.descendants((node, position) => {
+            if (!node.isText) return;
+
+            const link = node.marks.find((mark) => mark.type === linkType);
+            if (!link) return;
+
+            const currentAutolink = link.attrs[markdownAutolinkAttribute];
+            const isPlainURLLink =
+              node.text === link.attrs.href && node.marks.length === 1 && !link.attrs.title;
+            let nextAutolink:
+              false | typeof closedMarkdownAutolink | typeof unclosedMarkdownAutolink = false;
+
+            if (currentAutolink === closedMarkdownAutolink && isPlainURLLink) {
+              nextAutolink = closedMarkdownAutolink;
+            } else if (isPlainURLLink && hasUnescapedOpeningAngleBefore(position)) {
+              nextAutolink = unclosedMarkdownAutolink;
+            }
+
+            if (currentAutolink === nextAutolink) return;
+
+            tr.removeMark(position, position + node.nodeSize, link);
+            tr.addMark(
+              position,
+              position + node.nodeSize,
+              linkType.create({
+                ...link.attrs,
+                [markdownAutolinkAttribute]: nextAutolink
+              })
+            );
+            changed = true;
+          });
+
+          return changed ? tr : null;
         }
       })
     ];
@@ -357,6 +507,8 @@ export function createComposerExtensions(placeholder: string) {
     ComposerCodeBlockLowlight.configure({ lowlight }),
     SelectedTextInlineCodeShortcut.configure(),
     MarkdownLinkInputRule.configure(),
+    MarkdownAutolinkInputRule.configure(),
+    NormalizeMarkdownAutolinks.configure(),
     CompletedMarkdownCodeFence.configure(),
     MarkdownListMarkerAfterHardBreak.configure(),
     TrailingParagraphAfterCodeBlock.configure(),

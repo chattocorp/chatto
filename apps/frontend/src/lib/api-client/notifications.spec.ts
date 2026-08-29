@@ -35,17 +35,18 @@ function policyResponse() {
     policy: {
       overrides: {
         directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
-        followedRooms: NotificationDeliveryMode.IN_APP_NOTIFICATION
+        followedRooms: NotificationDeliveryMode.UNREAD_BADGE
       },
       effective: {
         directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
+        roomMessages: NotificationDeliveryMode.UNREAD_BADGE,
         directMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
         replies: NotificationDeliveryMode.PUSH_NOTIFICATION,
         roleMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
         hereMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
         allMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
         followedThreads: NotificationDeliveryMode.IN_APP_NOTIFICATION,
-        followedRooms: NotificationDeliveryMode.IN_APP_NOTIFICATION,
+        followedRooms: NotificationDeliveryMode.UNREAD_BADGE,
         reactions: NotificationDeliveryMode.IN_APP_NOTIFICATION
       }
     }
@@ -129,6 +130,15 @@ describe('groupNotificationOccurrences', () => {
     expect(groupNotificationOccurrences(replies)).toHaveLength(2);
   });
 
+  it('keeps room-message and followed-room presentation groups independent', () => {
+    const groups = groupNotificationOccurrences([
+      occurrence('room-message', NotificationSignalKind.ROOM_MESSAGE),
+      occurrence('followed-room', NotificationSignalKind.FOLLOWED_ROOM)
+    ]);
+
+    expect(groups.map(({ id }) => id).sort()).toEqual(['followed-room:room', 'room-message:room']);
+  });
+
   it('consolidates a high-cardinality direct-message conversation without losing IDs', () => {
     const occurrences = Array.from({ length: 125 }, (_, index) =>
       occurrence(`dm-${index}`, NotificationSignalKind.DIRECT_MESSAGE, {
@@ -206,11 +216,13 @@ describe('notification policy API', () => {
     );
     expect(policy.overrides).toMatchObject({
       directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
+      roomMessages: null,
       directMentions: null,
-      followedRooms: NotificationDeliveryMode.IN_APP_NOTIFICATION,
+      followedRooms: NotificationDeliveryMode.UNREAD_BADGE,
       reactions: null
     });
     expect(policy.effective.reactions).toBe(NotificationDeliveryMode.IN_APP_NOTIFICATION);
+    expect(policy.effective.roomMessages).toBe(NotificationDeliveryMode.UNREAD_BADGE);
   });
 
   it('sends exact field-mask paths and omits cleared override values', async () => {
@@ -222,6 +234,7 @@ describe('notification policy API', () => {
     }).updateNotificationPolicy(
       {
         directMessages: NotificationDeliveryMode.OFF,
+        roomMessages: NotificationDeliveryMode.UNREAD_BADGE,
         reactions: null
       },
       'room-1'
@@ -230,8 +243,11 @@ describe('notification policy API', () => {
     expect(updateNotificationPolicy).toHaveBeenCalledWith(
       {
         roomId: 'room-1',
-        overrides: { directMessages: NotificationDeliveryMode.OFF },
-        updateMask: { paths: ['direct_messages', 'reactions'] }
+        overrides: {
+          directMessages: NotificationDeliveryMode.OFF,
+          roomMessages: NotificationDeliveryMode.UNREAD_BADGE
+        },
+        updateMask: { paths: ['direct_messages', 'room_messages', 'reactions'] }
       },
       { headers: expect.any(Headers) }
     );

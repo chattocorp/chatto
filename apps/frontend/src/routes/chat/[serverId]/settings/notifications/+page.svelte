@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Panel } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ChoiceRow, Hint, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, RangeField } from '$lib/ui/form';

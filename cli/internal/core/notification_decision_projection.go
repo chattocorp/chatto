@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -12,11 +14,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
-var notificationDecisionSnapshotContractID = snapshotContractID("v1", &corev1.NotificationDecisionProjectionSnapshot{})
+var notificationDecisionSnapshotContractID = snapshotContractID("v1", &projectionv1.NotificationDecisionProjectionSnapshot{})
 
 // NotificationDecisionProjection keeps the compact event-time state needed
 // to derive notification recipients and policy while enforcing persistent
@@ -48,7 +50,7 @@ type NotificationDecisionProjection struct {
 
 type notificationDecisionDelta struct {
 	sequence uint64
-	event    *corev1.Event
+	event    *evtv1.Event
 }
 
 type notificationThreadFollow struct {
@@ -114,7 +116,7 @@ func notificationDecisionProjectionSubjects() []string {
 	}
 }
 
-func (p *NotificationDecisionProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *NotificationDecisionProjection) Apply(event *evtv1.Event, seq uint64) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.rooms.Apply(event, seq); err != nil {
@@ -154,7 +156,7 @@ func (p *NotificationDecisionProjection) Apply(event *corev1.Event, seq uint64) 
 	}
 	p.deltas = append(p.deltas, notificationDecisionDelta{
 		sequence: seq,
-		event:    proto.Clone(event).(*corev1.Event),
+		event:    proto.Clone(event).(*evtv1.Event),
 	})
 	if notificationDecisionBoundaryEvent(event) {
 		p.boundaries[seq] = struct{}{}
@@ -162,41 +164,45 @@ func (p *NotificationDecisionProjection) Apply(event *corev1.Event, seq uint64) 
 	return nil
 }
 
-func notificationDecisionBoundaryEvent(event *corev1.Event) bool {
+func notificationDecisionBoundaryEvent(event *evtv1.Event) bool {
 	if event == nil {
 		return false
 	}
 	switch event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted, *corev1.Event_ReactionAdded:
+	case *evtv1.Event_MessagePosted, *evtv1.Event_ReactionAdded:
 		return true
 	default:
 		return notificationVisibilityBoundaryEvent(event)
 	}
 }
 
-func notificationVisibilityBoundaryEvent(event *corev1.Event) bool {
+func notificationVisibilityBoundaryEvent(event *evtv1.Event) bool {
 	if event == nil {
 		return false
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_RoomMemberBanned,
-		*corev1.Event_RoomUniversalChanged,
-		*corev1.Event_RoomAddedToGroup,
-		*corev1.Event_RoomRemovedFromGroup,
-		*corev1.Event_RoomGroupDeleted,
-		*corev1.Event_RbacRoleAssigned,
-		*corev1.Event_RbacRoleRevoked,
-		*corev1.Event_RbacRoleDeleted:
+	case *evtv1.Event_RoomMemberBanned,
+		*evtv1.Event_RoomUniversalChanged,
+		*evtv1.Event_RoomAddedToGroup,
+		*evtv1.Event_RoomRemovedFromGroup,
+		*evtv1.Event_RoomGroupDeleted,
+		*evtv1.Event_RbacRoleAssigned,
+		*evtv1.Event_RbacRoleRevoked,
+		*evtv1.Event_RbacRoleDeleted:
 		return true
-	case *corev1.Event_RbacPermissionGranted:
-		return payload.RbacPermissionGranted.GetPermission() == string(PermRoomJoin)
-	case *corev1.Event_RbacPermissionDenied:
-		return payload.RbacPermissionDenied.GetPermission() == string(PermRoomJoin)
-	case *corev1.Event_RbacPermissionCleared:
-		return payload.RbacPermissionCleared.GetPermission() == string(PermRoomJoin)
+	case *evtv1.Event_RbacPermissionGranted:
+		return notificationVisibilityPermission(payload.RbacPermissionGranted.GetPermission())
+	case *evtv1.Event_RbacPermissionDenied:
+		return notificationVisibilityPermission(payload.RbacPermissionDenied.GetPermission())
+	case *evtv1.Event_RbacPermissionCleared:
+		return notificationVisibilityPermission(payload.RbacPermissionCleared.GetPermission())
 	default:
 		return false
 	}
+}
+
+func notificationVisibilityPermission(permission string) bool {
+	return permission == string(PermRoomJoin) || permission == string(PermMessageRead) || permission == string(PermMessageReadInteractions)
 }
 
 func (*NotificationDecisionProjection) SnapshotContractID() string {
@@ -245,34 +251,34 @@ func applyNotificationDecisionState(
 	threadFollows map[string]notificationThreadFollow,
 	followers map[string]map[string]struct{},
 	replyCounts map[string]uint64,
-	event *corev1.Event,
+	event *evtv1.Event,
 	seq uint64,
 ) error {
 	if event == nil {
 		return nil
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_UserNotificationPolicyChanged,
-		*corev1.Event_UserRoomGroupNotificationPolicyChanged:
+	case *evtv1.Event_UserNotificationPolicyChanged,
+		*evtv1.Event_UserRoomGroupNotificationPolicyChanged:
 		if err := config.Apply(event, seq); err != nil {
 			return err
 		}
-	case *corev1.Event_UserAccountCreated:
+	case *evtv1.Event_UserAccountCreated:
 		if userID := payload.UserAccountCreated.GetUserId(); userID != "" {
 			activeUsers[userID] = struct{}{}
 		}
-	case *corev1.Event_UserAccountDeleted:
+	case *evtv1.Event_UserAccountDeleted:
 		if err := config.Apply(event, seq); err != nil {
 			return err
 		}
 		delete(activeUsers, payload.UserAccountDeleted.GetUserId())
-	case *corev1.Event_ThreadFollowed:
+	case *evtv1.Event_ThreadFollowed:
 		follow := payload.ThreadFollowed
 		setNotificationThreadFollow(threadFollows, followers, follow.GetUserId(), follow.GetRoomId(), follow.GetThreadRootEventId(), ThreadFollowStateFollowing)
-	case *corev1.Event_ThreadUnfollowed:
+	case *evtv1.Event_ThreadUnfollowed:
 		follow := payload.ThreadUnfollowed
 		setNotificationThreadFollow(threadFollows, followers, follow.GetUserId(), follow.GetRoomId(), follow.GetThreadRootEventId(), ThreadFollowStateUnfollowed)
-	case *corev1.Event_MessagePosted:
+	case *evtv1.Event_MessagePosted:
 		if threadRootEventID := payload.MessagePosted.GetInThread(); threadRootEventID != "" {
 			replyCounts[threadRootEventID]++
 		}
@@ -332,11 +338,11 @@ func encodeNotificationDecisionState(
 	if err != nil {
 		return nil, fmt.Errorf("snapshot notification policy: %w", err)
 	}
-	snapshot := &corev1.NotificationDecisionProjectionSnapshot{
-		RoomDirectory:   &corev1.RoomDirectoryProjectionSnapshot{},
-		RoomGroupLayout: &corev1.RoomGroupLayoutProjectionSnapshot{},
-		Rbac:            &corev1.RBACProjectionSnapshot{},
-		Config:          &corev1.ConfigProjectionSnapshot{},
+	snapshot := &projectionv1.NotificationDecisionProjectionSnapshot{
+		RoomDirectory:   &projectionv1.RoomDirectoryProjectionSnapshot{},
+		RoomGroupLayout: &projectionv1.RoomGroupLayoutProjectionSnapshot{},
+		Rbac:            &projectionv1.RBACProjectionSnapshot{},
+		Config:          &projectionv1.ConfigProjectionSnapshot{},
 	}
 	if err := proto.Unmarshal(roomData, snapshot.RoomDirectory); err != nil {
 		return nil, fmt.Errorf("decode room visibility snapshot: %w", err)
@@ -356,12 +362,12 @@ func encodeNotificationDecisionState(
 	sort.Strings(snapshot.ActiveUserIds)
 	for _, key := range sortedMapKeys(threadFollows) {
 		follow := threadFollows[key]
-		snapshot.ThreadFollows = append(snapshot.ThreadFollows, &corev1.ThreadFollowSnapshot{
+		snapshot.ThreadFollows = append(snapshot.ThreadFollows, &projectionv1.ThreadFollowSnapshot{
 			UserId: follow.userID, RoomId: follow.roomID, ThreadRootEventId: follow.threadRootEventID, State: string(follow.state),
 		})
 	}
 	for _, threadRootEventID := range sortedMapKeys(replyCounts) {
-		snapshot.Threads = append(snapshot.Threads, &corev1.NotificationThreadStateSnapshot{
+		snapshot.Threads = append(snapshot.Threads, &projectionv1.NotificationThreadStateSnapshot{
 			ThreadRootEventId: threadRootEventID, ReplyCount: replyCounts[threadRootEventID],
 		})
 	}
@@ -369,7 +375,7 @@ func encodeNotificationDecisionState(
 }
 
 func decodeNotificationDecisionState(data []byte) (*RoomDirectoryProjection, *RoomGroupLayoutProjection, *RBACProjection, *ConfigProjection, map[string]struct{}, map[string]notificationThreadFollow, map[string]map[string]struct{}, map[string]uint64, error) {
-	snapshot := &corev1.NotificationDecisionProjectionSnapshot{}
+	snapshot := &projectionv1.NotificationDecisionProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("unmarshal notification decision snapshot: %w", err)
@@ -572,7 +578,7 @@ func notificationPolicyEntryCount(config *ConfigProjection) int64 {
 	return entries
 }
 
-func notificationDeliveryModeFieldCount(modes *corev1.NotificationDeliveryModes) int64 {
+func notificationDeliveryModeFieldCount(modes *evtv1.NotificationDeliveryModes) int64 {
 	if modes == nil {
 		return 0
 	}
@@ -637,7 +643,7 @@ func (s *notificationDecisionSnapshot) roomMemberIDs(roomID string) []string {
 		seen[userID] = struct{}{}
 	}
 	room, exists := s.rooms.Catalog.Get(roomID)
-	if exists && room.GetKind() == corev1.RoomKind_ROOM_KIND_CHANNEL && room.GetUniversal() {
+	if exists && room.GetKind() == evtv1.RoomKind_ROOM_KIND_CHANNEL && room.GetUniversal() {
 		for userID := range s.activeUsers {
 			if s.membershipExists(userID, roomID) {
 				seen[userID] = struct{}{}
@@ -666,19 +672,19 @@ func (s *notificationDecisionSnapshot) threadFollowState(userID, roomID, threadR
 	return s.threadFollows[userID+"\x00"+threadFollowKeyPart(roomID, threadRootEventID)].state
 }
 
-func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, signal *corev1.NotificationSignal) corev1.NotificationDeliveryMode {
+func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {
 	s.config.RLock()
 	defer s.config.RUnlock()
 	if user := s.config.users[userID]; user != nil {
-		if mode := notificationModeForSignal(user.roomModesByRoom[roomID], signal); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+		if mode := notificationModeForSignal(user.roomModesByRoom[roomID], signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			return mode
 		}
 		if groupID := s.groups.Groups.GroupForRoom(roomID); groupID != "" {
-			if mode := notificationModeForSignal(user.roomGroupModesByGroup[groupID], signal); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+			if mode := notificationModeForSignal(user.roomGroupModesByGroup[groupID], signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 				return mode
 			}
 		}
-		if mode := notificationModeForSignal(user.serverModes, signal); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+		if mode := notificationModeForSignal(user.serverModes, signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			return mode
 		}
 	}
@@ -690,7 +696,7 @@ func (s *notificationDecisionSnapshot) membershipExists(userID, roomID string) b
 		return true
 	}
 	room, exists := s.rooms.Catalog.Get(roomID)
-	if !exists || room.GetKind() != corev1.RoomKind_ROOM_KIND_CHANNEL || !room.GetUniversal() {
+	if !exists || room.GetKind() != evtv1.RoomKind_ROOM_KIND_CHANNEL || !room.GetUniversal() {
 		return false
 	}
 	if s.rooms.Bans.IsActive(roomID, userID, s.at) {
@@ -700,18 +706,72 @@ func (s *notificationDecisionSnapshot) membershipExists(userID, roomID string) b
 }
 
 func (s *notificationDecisionSnapshot) roomJoinAllowed(userID, roomID, groupID string) bool {
+	return s.roomPermissionAllowed(userID, roomID, groupID, PermRoomJoin)
+}
+
+// notificationVisibilityExists is the exact event-time content boundary for
+// notification output. DM membership authorizes DM reads; channel members also
+// need message.read at the same source sequence.
+func (s *notificationDecisionSnapshot) notificationVisibilityExists(userID, roomID string) bool {
+	if !s.membershipExists(userID, roomID) {
+		return false
+	}
+	kind, exists := s.roomKind(roomID)
+	if !exists || kind == KindDM {
+		return exists
+	}
+	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageRead)
+}
+
+// notificationVisibilityExistsForSignal also accepts interaction-scoped read
+// access for a direct mention. The source message establishes that interaction
+// relationship, so the recipient can read the target at the same event boundary.
+func (s *notificationDecisionSnapshot) notificationVisibilityExistsForSignal(userID, roomID string, signal *notificationv1.NotificationSignal) bool {
+	if s.notificationVisibilityExists(userID, roomID) {
+		return true
+	}
+	if signal.GetDirectMentionReceived() == nil || !s.membershipExists(userID, roomID) {
+		return false
+	}
+	kind, exists := s.roomKind(roomID)
+	if !exists || kind == KindDM {
+		return exists
+	}
+	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageReadInteractions)
+}
+
+// notificationInteractionVisibilityExists reports whether interaction-scoped
+// message reads can keep an exact notification target visible at this event
+// boundary. The caller must still verify the target's thread relationship.
+func (s *notificationDecisionSnapshot) notificationInteractionVisibilityExists(userID, roomID string) bool {
+	if !s.membershipExists(userID, roomID) {
+		return false
+	}
+	kind, exists := s.roomKind(roomID)
+	if !exists || kind == KindDM {
+		return exists
+	}
+	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageReadInteractions)
+}
+
+func (s *notificationDecisionSnapshot) roomPermissionAllowed(userID, roomID, groupID string, permission Permission) bool {
 	if s.rbac.HasRole(userID, RoleOwner) {
 		return true
 	}
-	scopes := []permissionScopeTarget{{scope: ScopeRoom, level: LevelRoom, id: roomID}}
-	if groupID != "" {
+	scopes := make([]permissionScopeTarget, 0, 3)
+	if PermissionAppliesAtScope(permission, ScopeRoom) {
+		scopes = append(scopes, permissionScopeTarget{scope: ScopeRoom, level: LevelRoom, id: roomID})
+	}
+	if groupID != "" && PermissionAppliesAtScope(permission, ScopeGroup) {
 		scopes = append(scopes, permissionScopeTarget{scope: ScopeGroup, level: LevelGroup, id: groupID})
 	}
-	scopes = append(scopes, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
+	if PermissionAppliesAtScope(permission, ScopeServer) {
+		scopes = append(scopes, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
+	}
 
 	nearest := func(subject string) (TraceEntry, bool) {
 		for _, target := range scopes {
-			decision := s.rbac.GetDecision(target.scope, target.id, subject, PermRoomJoin)
+			decision := s.rbac.GetDecision(target.scope, target.id, subject, permission)
 			if decision != DecisionNone {
 				return TraceEntry{Level: target.level, RoleName: subject, Decision: decision, ObjectID: target.objectID()}, true
 			}

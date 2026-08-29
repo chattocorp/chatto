@@ -522,10 +522,8 @@ export async function connectRemoteInstance(
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await popupClosedPromise;
 
-  // The main client redirects into the newly-added remote instance's chat
-  // tree after the popup reports success — `/chat/<hostname>/...` (there is no
-  // `/chat/spaces` landing). The hostname is whatever segment was passed
-  // in (typically "127.0.0.1").
+  // The main client redirects into the newly-added remote server's chat tree
+  // after the popup reports success. The hostname is the server URL segment.
   const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
   await page.waitForURL(new RegExp(`/chat/${hostnameOnly}(/|$)`));
 

@@ -2,13 +2,16 @@
 
 **Date:** 2026-06-15
 
+**Status:** Partially superseded
+
 > **Amended 2026-08-11:** Configured owner emails now converge on the durable
 > `owner` role instead of acting as a separate permission-time fallback. This
 > keeps live authorization and event-time visibility on one representation.
 >
-> **Amended 2026-08-26:** Permission identifiers can contain more than two
-> dot-separated components. A dotted prefix has no automatic meaning.
-> Permission inclusion must be explicit.
+> **Amended 2026-08-28:** Permission identifiers are opaque, stable values.
+> Current identifiers use `domain.capability` or
+> `domain.capability-with-qualifier`. The permission catalog defines each
+> inclusion directly. Identifier punctuation does not define authority.
 >
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
@@ -65,15 +68,14 @@ Use a permission-only RBAC model for everyone except effective owners.
   `everyone`, so normal rooms work immediately. Room and group decisions are
   local exceptions; the built-in announcements room adds a room-level
   `everyone` deny for `message.post`.
-- Permission identifiers contain two or more non-empty dot-separated
-  components. A component can contain hyphens. The identifier structure makes
-  related capabilities visible, but it does not create a general hierarchy.
-- An effective allow can explicitly include another permission. The catalog
-  currently defines one inclusion: `message.read` includes
-  `message.read.interactions`. An allow for the included permission does not
-  include its parent. A deny for the included permission cannot restrict an
-  effective allow for its parent. A deny for the parent does not restrict a
-  separate allow for the included permission.
+- Permission identifiers are opaque, stable values. Their punctuation has no
+  authorization meaning. The permission catalog defines inclusion explicitly.
+  For example, the catalog states that `message.read` includes
+  `message.read-interactions` directly.
+- An effective `message.read` allow satisfies `message.read-interactions`. An
+  interaction-scoped allow does not grant broad reads. A narrow deny cannot
+  restrict an effective broad allow. A broad deny does not restrict a separate
+  interaction-scoped allow.
 
 This supersedes ADR-005.
 
@@ -96,6 +98,10 @@ This supersedes ADR-005.
   persisted event contract is migrated.
 - Permission inclusion changes effective authorization only. It does not write
   or synthesize an additional RBAC grant.
+- A new permission does not change other permissions by its name alone. An
+  explicit catalog relationship can change authority. Catalog validation
+  rejects unknown targets, self-inclusion, and incompatible categories or
+  scopes.
 - The authorization fence adds an empty operational fact to protected batches.
   During a mixed-version rollout, its full concurrency guarantee starts only
   after all writing replicas understand and advance the fence.

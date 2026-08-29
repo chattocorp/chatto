@@ -63,7 +63,8 @@ Before you use the configuration in production, do these steps:
 
 - Set `webserver.url` to the public URL.
 - Add at least one verified email address to `owners.emails`.
-- Configure SMTP if Chatto must send registration or verification email.
+- Configure SMTP (the default transport) or JMAP if Chatto must send
+  registration or verification email.
 - Select automatic Chatto TLS or TLS in a reverse proxy.
 - Put `nats.embedded.data_dir` on persistent storage.
 - Select the permitted login methods.

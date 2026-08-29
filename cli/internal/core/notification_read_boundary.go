@@ -5,11 +5,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const notificationReadBoundaryKeyPrefix = "notification_read_boundary."
@@ -116,7 +116,7 @@ func (m *NotificationOccurrenceModel) notificationReadBoundary(ctx context.Conte
 	return m.core.notificationBoundaries.readBoundary(ctx, userID, roomID, threadRootEventID)
 }
 
-func (m *NotificationOccurrenceModel) occurrenceCoveredByReadBoundary(ctx context.Context, occurrence *corev1.NotificationOccurrence) (bool, error) {
+func (m *NotificationOccurrenceModel) occurrenceCoveredByReadBoundary(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil {
 		return false, nil
 	}
@@ -131,19 +131,11 @@ func (m *NotificationOccurrenceModel) occurrenceCoveredByReadBoundary(ctx contex
 	return m.occurrenceCoveredByBoundary(occurrence, boundary), nil
 }
 
-func (m *NotificationOccurrenceModel) occurrenceCoveredByBoundary(occurrence *corev1.NotificationOccurrence, boundary notificationReadBoundary) bool {
+func (m *NotificationOccurrenceModel) occurrenceCoveredByBoundary(occurrence *notificationv1.NotificationOccurrence, boundary notificationReadBoundary) bool {
 	if occurrence == nil || occurrence.GetSourceStreamSequence() == 0 {
 		return false
 	}
-	message := notificationSignalMessage(occurrence.GetSignal())
-	if message == nil {
-		return false
-	}
-	if occurrence.GetSignal().GetReactionReceived() != nil {
-		targetEntry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
-		return ok && targetEntry.StreamSeq <= boundary.targetSequence && occurrence.GetSourceStreamSequence() <= boundary.observedSequence
-	}
-	return occurrence.GetSourceStreamSequence() <= boundary.targetSequence
+	return m.notificationSignalCoveredByBoundary(occurrence.GetSignal(), occurrence.GetSourceStreamSequence(), boundary)
 }
 
 func (m *NotificationOccurrenceModel) purgeNotificationReadBoundaries(ctx context.Context, userID string) error {

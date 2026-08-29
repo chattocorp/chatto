@@ -1,7 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  getThreadPaneWidth,
-  setThreadPaneWidth,
+  threadPaneWidthSlot,
   THREAD_PANE_DEFAULT_WIDTH,
   THREAD_PANE_MAX_WIDTH,
   THREAD_PANE_MIN_WIDTH
@@ -22,18 +21,20 @@ vi.stubGlobal('localStorage', {
 describe('thread pane width storage', () => {
   beforeEach(() => localStorage.clear());
 
+  afterAll(() => vi.unstubAllGlobals());
+
   it('uses the default for missing or unsupported stored widths', () => {
-    expect(getThreadPaneWidth()).toBe(THREAD_PANE_DEFAULT_WIDTH);
+    expect(threadPaneWidthSlot.get()).toBe(THREAD_PANE_DEFAULT_WIDTH);
 
     localStorage.setItem('chatto:threadPaneWidth', String(THREAD_PANE_MAX_WIDTH + 1));
-    expect(getThreadPaneWidth()).toBe(THREAD_PANE_DEFAULT_WIDTH);
+    expect(threadPaneWidthSlot.get()).toBe(THREAD_PANE_DEFAULT_WIDTH);
   });
 
   it('clamps persisted widths to the supported range', () => {
-    setThreadPaneWidth(THREAD_PANE_MIN_WIDTH - 100);
-    expect(getThreadPaneWidth()).toBe(THREAD_PANE_MIN_WIDTH);
+    threadPaneWidthSlot.set(THREAD_PANE_MIN_WIDTH - 100);
+    expect(threadPaneWidthSlot.get()).toBe(THREAD_PANE_MIN_WIDTH);
 
-    setThreadPaneWidth(THREAD_PANE_MAX_WIDTH + 100);
-    expect(getThreadPaneWidth()).toBe(THREAD_PANE_MAX_WIDTH);
+    threadPaneWidthSlot.set(THREAD_PANE_MAX_WIDTH + 100);
+    expect(threadPaneWidthSlot.get()).toBe(THREAD_PANE_MAX_WIDTH);
   });
 });

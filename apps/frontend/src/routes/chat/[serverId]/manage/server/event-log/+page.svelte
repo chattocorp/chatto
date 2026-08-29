@@ -11,7 +11,8 @@
     type AdminEventLogEntry,
     type AdminEventLogFilter
   } from '$lib/api-client/adminEventLog';
-  import { Panel, DataTable } from '$lib/components/admin';
+  import Panel from '$lib/ui/Panel.svelte';
+  import DataTable from '$lib/ui/DataTable.svelte';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';

@@ -308,8 +308,7 @@ Result of clearing a user's username-change cooldown.
 ### DeleteUser
 
 Deletes a user account as an admin action. Requires user.delete-any for
-other users, user.delete-self for the caller, and a fresh credential for
-the caller.
+other users or user.delete-self for the caller.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminUserService/DeleteUser
@@ -324,7 +323,6 @@ Request to delete a user account as a server-admin action.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | Target user ID. |
-| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
 
 
 <a id="chatto-admin-v1-DeleteUserResponse"></a>

@@ -202,7 +202,7 @@ export class AuthPage {
    */
   async submitRegistrationComplete(): Promise<void> {
     await this.createAccountButton.click();
-    // New users get redirected to /chat/spaces (browse spaces) since they have no joined spaces
+    // New users land on the home server because they have no joined rooms.
     await this.page.waitForURL(routes.patterns.chatRedirect);
   }
 
@@ -312,7 +312,7 @@ export class AuthPage {
    */
   async submitLogin(): Promise<void> {
     await this.signInButton.click();
-    // Users may be redirected to /chat/spaces, their last chat route, or /chat depending on history.
+    // Users may be redirected to the home server, their last chat route, or /chat depending on history.
     await this.page.waitForURL(routes.patterns.chatRedirect);
   }
 
@@ -339,7 +339,7 @@ export class AuthPage {
    *
    * Going through the UI button triggers the SPA's full sign-out path
    * (serverRegistry.removeAll() + `window.location.href = '/'`), which
-   * forces a hard reload and lands cleanly on the landing page.
+   * forces a hard reload and lands cleanly on the sign-in page.
    */
   async logout(): Promise<void> {
     await this.logoutViaUI();
@@ -363,12 +363,12 @@ export class AuthPage {
 
   /**
    * Logout the current user by clicking the logout button.
-   * Confirms the logout dialog and waits for redirect to home page.
+   * Confirms the logout dialog and waits for redirect to the sign-in page.
    */
   async logoutViaUI(): Promise<void> {
     await this.openLogoutDialog();
     await this.confirmLogoutButton.click();
-    await this.page.waitForURL('/');
+    await this.page.waitForURL('/login');
   }
 
   /**

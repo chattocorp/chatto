@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestChattoCore_CreateRoom(t *testing.T) {
@@ -466,7 +466,7 @@ func TestChattoCore_CreateRoom_ConcurrentDuplicateName(t *testing.T) {
 	start := make(chan struct{})
 	var wg sync.WaitGroup
 	errs := make(chan error, 8)
-	successes := make(chan *corev1.Room, 8)
+	successes := make(chan *evtv1.Room, 8)
 
 	for i := 0; i < 8; i++ {
 		wg.Add(1)

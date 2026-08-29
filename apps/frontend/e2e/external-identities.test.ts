@@ -270,7 +270,7 @@ test.describe('External identity confirmation flows', () => {
     await page.goto(flow.confirmUrl);
     await page.getByRole('button', { name: 'Link Account' }).click();
     await confirmRequestStarted;
-    await page.waitForURL('/');
+    await page.waitForURL(routes.login);
   });
 
   test('cancels a pending provider identity flow', async ({ page, authPage }) => {

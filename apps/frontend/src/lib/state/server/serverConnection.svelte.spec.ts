@@ -49,6 +49,16 @@ function makeConfig(overrides: Partial<ServerConnectionConfig> = {}): ServerConn
   };
 }
 
+const requestLockImmediately = (async (
+  name: string,
+  optionsOrCallback: LockOptions | LockGrantedCallback<unknown>,
+  callback?: LockGrantedCallback<unknown>
+) => {
+  const operation = typeof optionsOrCallback === 'function' ? optionsOrCallback : callback;
+  if (!operation) throw new Error('Missing lock callback');
+  return operation({ name, mode: 'exclusive' });
+}) as LockManager['request'];
+
 describe('httpToWsUrl', () => {
   it('converts http to ws', () => {
     expect(httpToWsUrl('http://localhost:4000/api/realtime')).toBe(
@@ -76,10 +86,14 @@ describe('ServerConnection', () => {
       mockHandleAuthenticationRequired(id);
       return null;
     });
+    // Real Web Locks are shared by parallel browser specs on this test origin.
+    // Keep this unit spec deterministic while still exercising the lock path.
+    vi.spyOn(navigator.locks, 'request').mockImplementation(requestLockImmediately);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('derives origin Connect and realtime endpoints', () => {

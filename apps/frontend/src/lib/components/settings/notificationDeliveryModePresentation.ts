@@ -1,5 +1,5 @@
 import { NotificationDeliveryMode } from '$lib/api-client/notifications';
-import type { MatrixCellTone } from '$lib/components/matrix';
+import type { MatrixCellTone } from '$lib/ui/matrix';
 import { m } from '$lib/i18n/messages';
 
 export type NotificationDeliveryModePresentation = {
@@ -15,6 +15,13 @@ export function notificationDeliveryModePresentation(
   if (mode === NotificationDeliveryMode.OFF) {
     return {
       icon: 'icon-[ph--bell-slash-fill]',
+      tone: 'neutral',
+      legendClass: 'text-text'
+    };
+  }
+  if (mode === NotificationDeliveryMode.UNREAD_BADGE) {
+    return {
+      icon: 'icon-[ph--bell-fill]',
       tone: 'neutral',
       legendClass: 'text-text'
     };
@@ -43,6 +50,9 @@ export function notificationDeliveryModeLabel(mode: NotificationDeliveryMode | n
   }
   if (mode === NotificationDeliveryMode.OFF) {
     return m('settings.notifications.policy.delivery_mode.off');
+  }
+  if (mode === NotificationDeliveryMode.UNREAD_BADGE) {
+    return m('settings.notifications.policy.delivery_mode.badge');
   }
   if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
     return m('settings.notifications.policy.delivery_mode.notification');

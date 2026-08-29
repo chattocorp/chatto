@@ -87,7 +87,7 @@ sidebar. Shows the avatar with presence and the live display name.
   const compactCallActiveButtonClass = 'btn-success btn-compact';
   const compactCallDangerButtonClass = 'btn-danger btn-compact';
   const useSheetDialog = prefersTouchActions() && !supportsHoverActions();
-  const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
+  const presenceModes: PresenceMode[] = ['online', 'away', 'doNotDisturb', 'invisible'];
   const currentPresence = $derived.by(() => {
     if (!activeServerUser) return PresenceStatus.OFFLINE;
     return presenceCache.get(
@@ -117,7 +117,7 @@ sidebar. Shows the avatar with presence and the live display name.
       case 'invisible':
         return m('settings.profile.presence.invisible');
       default:
-        return m('settings.profile.presence.auto');
+        return m('settings.profile.presence.online');
     }
   }
 
@@ -130,7 +130,7 @@ sidebar. Shows the avatar with presence and the live display name.
       case PresenceStatus.OFFLINE:
         return m('settings.profile.presence.offline');
       default:
-        return m('settings.profile.presence.auto');
+        return m('settings.profile.presence.online');
     }
   }
 

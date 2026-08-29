@@ -10,13 +10,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const maxAuditUserAgentBytes = 256
 
-func (s *HTTPServer) auditRequestMetadata(c *gin.Context) *corev1.AuditRequestMetadata {
-	metadata := &corev1.AuditRequestMetadata{}
+func (s *HTTPServer) auditRequestMetadata(c *gin.Context) *evtv1.AuditRequestMetadata {
+	metadata := &evtv1.AuditRequestMetadata{}
 	if c == nil || c.Request == nil {
 		return metadata
 	}

@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Haldus",
+      "bot": "Botid",
+      "message": "Sõnumid",
+      "role": "Rollid",
+      "room": "Ruumid",
+      "server": "Server",
+      "user": "Kasutajad",
+      "other": "Muud"
+    },
     "permission_descriptions": {
       "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
       "room_create": "Looge uusi ruume",
@@ -119,7 +129,9 @@
       "user_delete_self": "Kustutage oma konto",
       "user_invite": "Looge ja hallake kutselinke",
       "user_manage_accounts": "Looge kasutajaid, muutke konto identiteeti, lähtestage paroolid, lisage kinnitatud e-kirjad ja tühjendage sisselogimisperioodid",
-      "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi"
+      "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi",
+      "bot_create": "Loo endale kuuluvaid botikontosid",
+      "bot_manage": "Vaata ja halda kõiki botikontosid"
     }
   }
 }

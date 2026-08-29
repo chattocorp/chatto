@@ -104,7 +104,25 @@
       "edit": "Modifica",
       "assigned_role": "Ruolo {role} assegnato",
       "removed_role": "Rimosso il ruolo {role}",
-      "role_update_failed": "Impossibile aggiornare l'assegnazione del ruolo"
+      "role_update_failed": "Impossibile aggiornare l'assegnazione del ruolo",
+      "danger_zone": "Zona di pericolo",
+      "open_delete_account": "Elimina account",
+      "delete_account_entry_description": "Elimina definitivamente l'account di questo membro. I suoi messaggi diventano illeggibili. Questa azione non può essere annullata."
+    },
+    "member_delete": {
+      "title": "Elimina membro",
+      "warning": "Questa azione elimina definitivamente l'account di {name}. Non può essere annullata.",
+      "consequences_intro": "Cosa succederà:",
+      "consequence_rooms": "Il membro viene rimosso da tutte le stanze.",
+      "consequence_messages": "Tutti i messaggi che ha scritto diventano permanentemente illeggibili.",
+      "consequence_profile": "Profilo, avatar e nome utente vengono eliminati. Il nome utente torna disponibile in seguito.",
+      "consequence_sessions": "L'accesso viene terminato ovunque.",
+      "confirm_label": "Digita {login} per confermare",
+      "submit": "Elimina definitivamente l'account",
+      "deleting": "Eliminazione...",
+      "failed": "Impossibile eliminare l'account.",
+      "success": "L'account è stato eliminato.",
+      "not_allowed": "Non puoi eliminare questo account."
     },
     "member_detail": {
       "no_self_rename": "Nessuna ridenominazione registrata.",

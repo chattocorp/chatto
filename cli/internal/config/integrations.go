@@ -46,6 +46,43 @@ type SMTPConfig struct {
 	From          string        `toml:"from" env:"CHATTO_SMTP_FROM" comment:"From address for outgoing emails. Example: noreply@example.com"`
 }
 
+// EmailTransport identifies the configured transactional email submission transport.
+type EmailTransport string
+
+const (
+	// EmailTransportSMTP submits transactional email through SMTP.
+	EmailTransportSMTP EmailTransport = "smtp"
+	// EmailTransportJMAP submits transactional email through JMAP.
+	EmailTransportJMAP EmailTransport = "jmap"
+)
+
+// JMAPConfig contains settings for transactional email submitted through JMAP.
+type JMAPConfig struct {
+	SessionURL     string `toml:"session_url,commented" env:"CHATTO_EMAIL_JMAP_SESSION_URL" comment:"JMAP session resource URL. Must use HTTPS."`
+	AccessToken    string `toml:"access_token,commented" env:"CHATTO_EMAIL_JMAP_ACCESS_TOKEN" comment:"Bearer access token for the JMAP account. NEVER SHARE THIS!"`
+	From           string `toml:"from,commented" env:"CHATTO_EMAIL_JMAP_FROM" comment:"From address for outgoing emails. It must match a JMAP identity. Example: noreply@example.com"`
+	AccountID      string `toml:"account_id,commented" env:"CHATTO_EMAIL_JMAP_ACCOUNT_ID" comment:"Optional JMAP account ID. Defaults to the session's primary submission account."`
+	IdentityID     string `toml:"identity_id,commented" env:"CHATTO_EMAIL_JMAP_IDENTITY_ID" comment:"Optional JMAP identity ID. Defaults to the identity matching jmap.from."`
+	DraftMailboxID string `toml:"draft_mailbox_id,commented" env:"CHATTO_EMAIL_JMAP_DRAFT_MAILBOX_ID" comment:"Optional JMAP Drafts mailbox ID. Defaults to the mailbox with role 'drafts'."`
+}
+
+// EmailConfig contains transactional email transport settings. SMTP remains the
+// default so existing configurations continue to work without changes.
+type EmailConfig struct {
+	Transport EmailTransport `toml:"transport" env:"CHATTO_EMAIL_TRANSPORT" comment:"Transactional email transport: smtp (default) or jmap."`
+	JMAP      JMAPConfig     `toml:"jmap,commented" comment:"JMAP transactional email configuration. Used only when email.transport = 'jmap'."`
+}
+
+// TransportOrDefault returns the selected transport, defaulting to SMTP for
+// backward compatibility with existing SMTP-only configurations.
+func (c EmailConfig) TransportOrDefault() EmailTransport {
+	transport := EmailTransport(strings.ToLower(strings.TrimSpace(string(c.Transport))))
+	if transport == "" {
+		return EmailTransportSMTP
+	}
+	return transport
+}
+
 // PushConfig contains settings for Web Push notifications.
 // Push notifications allow messages to be delivered even when the browser is closed.
 type PushConfig struct {

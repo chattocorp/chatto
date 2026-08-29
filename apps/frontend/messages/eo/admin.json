@@ -104,7 +104,25 @@
       "edit": "Redaktu",
       "assigned_role": "Asignita rolo {role}",
       "removed_role": "Forigita rolo {role}",
-      "role_update_failed": "Malsukcesis ĝisdatigi rolasignon"
+      "role_update_failed": "Malsukcesis ĝisdatigi rolasignon",
+      "danger_zone": "Danĝera zono",
+      "open_delete_account": "Forigi konton",
+      "delete_account_entry_description": "Por ĉiam forigas la konton de tiu ĉi membro. Ĝiaj mesaĝoj fariĝas nelegeblaj. Ne eblas revenigi tion."
+    },
+    "member_delete": {
+      "title": "Forigi membron",
+      "warning": "Tio por ĉiam forigas la konton de {name}. Ne eblas revenigi tion.",
+      "consequences_intro": "Kio okazos:",
+      "consequence_rooms": "La membro estos forigita el ĉiuj ĉambroj.",
+      "consequence_messages": "Ĉiuj skribitaj mesaĝoj fariĝos porĉiam nelegeblaj.",
+      "consequence_profile": "La profilo, avataro kaj uzantnomo estos forigitaj. La uzantnomo denove disponeblos poste.",
+      "consequence_sessions": "La persono elsalutos ĉie.",
+      "confirm_label": "Skribu {login} por konfirmi",
+      "submit": "Por ĉiam forigi la konton",
+      "deleting": "Forigado...",
+      "failed": "Malsukcesis forigi la konton.",
+      "success": "La konto estis forigita.",
+      "not_allowed": "Vi ne povas forigi ĉi tiun konton."
     },
     "member_detail": {
       "no_self_rename": "Neniu mem-alinomo registrita.",

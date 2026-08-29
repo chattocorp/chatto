@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"slices"
-	"strings"
 )
 
 // PermissionScope marks where a permission can be configured.
@@ -32,7 +31,8 @@ const (
 	CategoryBot     PermissionCategory = "bot"
 )
 
-// Permission represents a permission in the permission model.
+// Permission is an opaque, stable identifier in the permission model. Its
+// punctuation does not define authorization relationships.
 type Permission string
 
 const (
@@ -76,7 +76,7 @@ const (
 	// account authored or where another account directly mentioned it. Room
 	// membership remains a separate requirement. PermMessageRead explicitly
 	// includes this permission.
-	PermMessageReadInteractions Permission = "message.read.interactions"
+	PermMessageReadInteractions Permission = "message.read-interactions"
 
 	// PermMessagePost allows posting new root messages in rooms. Server-scope
 	// decisions act as global defaults/overrides; room or group denies can narrow
@@ -156,65 +156,117 @@ const (
 	PermBotManage Permission = "bot.manage"
 )
 
-// PermissionMetadata provides display information and scope constraints for a permission.
+// PermissionMetadata defines one known permission. Includes lists other
+// permissions that an allow for this permission also grants. Each relationship
+// is direct and explicit. Denials do not follow inclusion relationships.
 type PermissionMetadata struct {
-	Permission  Permission
-	DisplayName string
-	Description string
-	Category    PermissionCategory
-	Scopes      []PermissionScope // Scopes where this permission can be configured
+	Permission Permission
+	Category   PermissionCategory
+	Scopes     []PermissionScope // Scopes where this permission can be configured
+	Includes   []Permission      // Permissions granted by an allow for this permission
 }
 
 // allPermissions holds metadata for all permissions.
 var allPermissions = []PermissionMetadata{
 	// Server
-	{PermServerManage, "Manage Server", "Update server settings (name, description, logo)", CategoryServer, []PermissionScope{ScopeServer}},
+	{Permission: PermServerManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}},
 
 	// Room
-	{PermRoomCreate, "Create Rooms", "Create new rooms in this group (or anywhere if granted at server scope)", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup}},
-	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermRoomList, "Discover Rooms", "See rooms in the directory and group 'Join all' affordances", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermRoomManage, "Manage Rooms", "Edit, configure permissions on, and delete rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermRoomMemberBan, "Ban Room Members", "Ban members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermRoomCreate, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup}},
+	{Permission: PermRoomJoin, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermRoomList, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermRoomMemberBan, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
-	{PermMessageRead, "Read Messages", "Read message content in channel rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageReadInteractions, "Read Interactions", "Read threads you started or where another user mentioned you", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageAttach, "Attach Files", "Attach files to messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageManage, "Manage Messages", "Edit and delete other users' messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageReact, "React to Messages", "Add and remove reactions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessageRead, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, Includes: []Permission{PermMessageReadInteractions}},
+	{Permission: PermMessageReadInteractions, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessagePost, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessagePostInThread, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessageAttach, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessageManage, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessageReact, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessageEcho, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Role management
-	{PermRoleManage, "Configure Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
-	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
+	{Permission: PermRoleManage, Category: CategoryRole, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermRoleAssign, Category: CategoryRole, Scopes: []PermissionScope{ScopeServer}},
 
 	// Admin
-	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
-	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
+	{Permission: PermAdminUsersView, Category: CategoryAdmin, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermAdminAuditView, Category: CategoryAdmin, Scopes: []PermissionScope{ScopeServer}},
 
 	// User management
-	{PermUserDeleteAny, "Delete Any User", "Delete any user's account", CategoryUser, []PermissionScope{ScopeServer}},
-	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
-	{PermUserInvite, "Invite Users", "List, create, copy, and revoke invite links", CategoryUser, []PermissionScope{ScopeServer}},
-	{PermUserManageAccounts, "Manage User Accounts", "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns", CategoryUser, []PermissionScope{ScopeServer}},
-	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
+	{Permission: PermUserDeleteAny, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermUserDeleteSelf, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermUserInvite, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermUserManageAccounts, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermUserManagePermissions, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
 
 	// Bot accounts
-	{PermBotCreate, "Create Bots", "Create bot accounts owned by your account", CategoryBot, []PermissionScope{ScopeServer}},
-	{PermBotManage, "Manage Bots", "View and manage every bot account", CategoryBot, []PermissionScope{ScopeServer}},
+	{Permission: PermBotCreate, Category: CategoryBot, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermBotManage, Category: CategoryBot, Scopes: []PermissionScope{ScopeServer}},
 }
 
 // permissionIndex provides fast lookup of permission metadata by permission value.
 var permissionIndex map[Permission]PermissionMetadata
 
 func init() {
-	permissionIndex = make(map[Permission]PermissionMetadata, len(allPermissions))
-	for _, p := range allPermissions {
-		permissionIndex[p.Permission] = p
+	var err error
+	permissionIndex, err = validatePermissionCatalog(allPermissions)
+	if err != nil {
+		panic(err)
 	}
+}
+
+func validatePermissionCatalog(catalog []PermissionMetadata) (map[Permission]PermissionMetadata, error) {
+	index := make(map[Permission]PermissionMetadata, len(catalog))
+	for _, metadata := range catalog {
+		if metadata.Permission == "" {
+			return nil, fmt.Errorf("permission identifier must not be empty")
+		}
+		if _, exists := index[metadata.Permission]; exists {
+			return nil, fmt.Errorf("permission catalog contains duplicate permission %s", metadata.Permission)
+		}
+		index[metadata.Permission] = metadata
+	}
+	for _, metadata := range catalog {
+		for _, includedPermission := range metadata.Includes {
+			included, exists := index[includedPermission]
+			if !exists {
+				return nil, fmt.Errorf("permission %s includes unknown permission %s", metadata.Permission, includedPermission)
+			}
+			if metadata.Permission == includedPermission {
+				return nil, fmt.Errorf("permission %s includes itself", metadata.Permission)
+			}
+			if metadata.Category != included.Category {
+				return nil, fmt.Errorf("permission %s and included permission %s use different categories", metadata.Permission, includedPermission)
+			}
+			if !samePermissionScopes(metadata.Scopes, included.Scopes) {
+				return nil, fmt.Errorf("permission %s and included permission %s use different scopes", metadata.Permission, includedPermission)
+			}
+		}
+	}
+	return index, nil
+}
+
+func samePermissionScopes(left, right []PermissionScope) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	counts := make(map[PermissionScope]int, len(left))
+	for _, scope := range left {
+		counts[scope]++
+	}
+	for _, scope := range right {
+		counts[scope]--
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // AllPermissions returns all defined permissions with their metadata.
@@ -251,16 +303,24 @@ func PermissionAppliesAtScope(perm Permission, scope PermissionScope) bool {
 	return slices.Contains(meta.Scopes, scope)
 }
 
-// directlyIncludingPermissions returns permissions whose effective allow also
-// allows the requested permission. Permission inclusion is explicit: dotted
-// name components do not create an automatic hierarchy.
-func directlyIncludingPermissions(perm Permission) []Permission {
-	switch perm {
-	case PermMessageReadInteractions:
-		return []Permission{PermMessageRead}
-	default:
+// includingPermissions returns registered permissions whose allows directly
+// include the requested permission.
+func includingPermissions(perm Permission) []Permission {
+	return includingPermissionsFrom(permissionIndex, perm)
+}
+
+func includingPermissionsFrom(index map[Permission]PermissionMetadata, perm Permission) []Permission {
+	if _, registered := index[perm]; !registered {
 		return nil
 	}
+	var result []Permission
+	for candidate, metadata := range index {
+		if slices.Contains(metadata.Includes, perm) {
+			result = append(result, candidate)
+		}
+	}
+	slices.Sort(result)
+	return result
 }
 
 // PermissionsForScope returns all permissions that can be configured at a given scope.
@@ -368,58 +428,4 @@ func DefaultAnnouncementsEveryoneDenials() []Permission {
 // specific grant.
 func DefaultAnnouncementsAdminPermissions() []Permission {
 	return []Permission{PermMessagePost}
-}
-
-// ============================================================================
-// Permission Key Parts (for KV key generation)
-// ============================================================================
-
-// PermissionKeyParts holds the first identifier component and the remaining
-// action path. Permission strings contain at least two dot-separated
-// components. For example, message.read.interactions has object type
-// "message" and verb "read.interactions".
-type PermissionKeyParts struct {
-	Verb       string // The action path: "create", "post-in-thread", "read.interactions", etc.
-	ObjectType string // The target type: "server", "room", "message", "admin", etc.
-}
-
-// parseKeyParts splits a permission string into its first component and the
-// remaining action path.
-func parseKeyParts(perm string) PermissionKeyParts {
-	objectType, verb, ok := strings.Cut(perm, ".")
-	if !ok {
-		return PermissionKeyParts{}
-	}
-	return PermissionKeyParts{Verb: verb, ObjectType: objectType}
-}
-
-func init() {
-	// Validate that all permission strings contain at least two non-empty
-	// dot-separated components.
-	for _, p := range allPermissions {
-		components := strings.Split(string(p.Permission), ".")
-		if len(components) < 2 || slices.Contains(components, "") {
-			panic(fmt.Sprintf("permission %q must contain at least two non-empty dot-separated components", p.Permission))
-		}
-	}
-}
-
-// GetPermissionKeyParts returns the verb and objectType for a permission.
-func GetPermissionKeyParts(perm Permission) PermissionKeyParts {
-	return parseKeyParts(string(perm))
-}
-
-// KeyParts returns the verb and objectType for this permission.
-func (p Permission) KeyParts() PermissionKeyParts {
-	return parseKeyParts(string(p))
-}
-
-// ReconstructPermission builds a Permission from verb and objectType.
-// Returns empty string if the resulting permission is not registered.
-func ReconstructPermission(verb, objectType string) Permission {
-	perm := Permission(objectType + "." + verb)
-	if _, ok := permissionIndex[perm]; ok {
-		return perm
-	}
-	return ""
 }

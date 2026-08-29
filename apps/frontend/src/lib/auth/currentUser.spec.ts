@@ -1,6 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CurrentUserState } from './currentUser.svelte';
+import { CurrentUserState, type CurrentUser } from './currentUser.svelte';
 
 const { clearCachedUserMock } = vi.hoisted(() => ({
   clearCachedUserMock: vi.fn()
@@ -42,6 +42,39 @@ describe('CurrentUserState', () => {
   it('exports the class', () => {
     expect(CurrentUserState).toBeDefined();
     expect(typeof CurrentUserState).toBe('function');
+  });
+
+  it('shares an in-flight viewer request between concurrent callers', async () => {
+    let resolveViewer!: (user: CurrentUser) => void;
+    const viewerRequest = new Promise<CurrentUser>((resolve) => {
+      resolveViewer = resolve;
+    });
+    const loadViewer = vi.fn(() => viewerRequest);
+    const state = new CurrentUserState(
+      false,
+      { serverId: 'remote', baseUrl: 'https://remote.example.test', bearerToken: 'token' },
+      loadViewer
+    );
+
+    const first = state.load();
+    const second = state.load();
+
+    expect(loadViewer).toHaveBeenCalledOnce();
+    resolveViewer({
+      id: 'U1',
+      login: 'alice',
+      displayName: 'Alice',
+      avatarUrl: null,
+      presenceStatus: PresenceStatus.ONLINE,
+      hasVerifiedEmail: true,
+      viewerCanDeleteAccount: false,
+      hasPassword: true,
+      settings: null
+    });
+    await Promise.all([first, second]);
+
+    expect(state.user?.id).toBe('U1');
+    expect(state.loading).toBe(false);
   });
 
   it('marks auth required without revoking the server session by default', async () => {

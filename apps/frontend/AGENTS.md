@@ -240,6 +240,9 @@ and Storybook.
   replace the user's draft. Keep the form state and show a localized,
   actionable conflict message explaining that the resource changed and must be
   reloaded before saving again.
+- Destructive admin confirmations must confirm the target or effect. Do not use
+  a password prompt as reauthentication unless the server provides an explicit,
+  independently tested reauthentication contract.
 - Checkboxes and similar binary controls in Server Admin should save immediately
   and confirm through toast.
 - Use Save buttons only for multi-field forms that submit together; disable until

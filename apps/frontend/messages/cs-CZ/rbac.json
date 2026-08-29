@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Správa",
+      "bot": "Boti",
+      "message": "Zprávy",
+      "role": "Role",
+      "room": "Místnosti",
+      "server": "Server",
+      "user": "Uživatelé",
+      "other": "Ostatní"
+    },
     "permission_descriptions": {
       "server_manage": "Aktualizace nastavení serveru (název, popis, logo)",
       "room_create": "Vytvořte nové místnosti",
@@ -119,7 +129,9 @@
       "user_delete_self": "Smažte svůj vlastní účet",
       "user_invite": "Vytvářejte a spravujte zvací odkazy",
       "user_manage_accounts": "Vytvářejte uživatele, upravujte identitu účtu, resetujte hesla, připojujte ověřené e-maily a vymažte cooldowny pro přihlášení",
-      "user_manage_permissions": "Upravit přímé přepsání oprávnění pro uživatele"
+      "user_manage_permissions": "Upravit přímé přepsání oprávnění pro uživatele",
+      "bot_create": "Vytvářet účty botů, které vlastníte",
+      "bot_manage": "Zobrazit a spravovat všechny účty botů"
     }
   }
 }

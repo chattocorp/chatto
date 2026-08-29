@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administration",
+      "bot": "Bots",
+      "message": "Messages",
+      "role": "Roles",
+      "room": "Rooms",
+      "server": "Server",
+      "user": "Users",
+      "other": "Other"
+    },
     "permission_descriptions": {
       "server_manage": "Update server settings (name, description, logo)",
       "room_create": "Create new rooms",
@@ -119,7 +129,9 @@
       "user_delete_self": "Delete your own account",
       "user_invite": "Create and manage invite links",
       "user_manage_accounts": "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns",
-      "user_manage_permissions": "Edit direct per-user permission overrides"
+      "user_manage_permissions": "Edit direct per-user permission overrides",
+      "bot_create": "Create bot accounts that you own",
+      "bot_manage": "View and manage every bot account"
     }
   }
 }

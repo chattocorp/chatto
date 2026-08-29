@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/notificationstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -51,23 +53,18 @@ func newNotificationAlertDelivery(core *ChattoCore) *notificationAlertDelivery {
 
 // SetNotificationAlertHandler enables alert work and configures its provider
 // transport. It must be called during process setup, before ChattoCore.Run.
-func (c *ChattoCore) SetNotificationAlertHandler(handler func(context.Context, *corev1.NotificationOccurrence) error) {
+func (c *ChattoCore) SetNotificationAlertHandler(handler func(context.Context, *notificationv1.NotificationOccurrence) error) {
 	c.notificationAlertHandler = handler
 }
 
 func (d *notificationAlertDelivery) initialize(ctx context.Context) error {
-	consumer, err := d.core.storage.notificationStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            notificationAlertConsumerName,
-		Durable:         notificationAlertConsumerName,
-		Description:     "Shared durable worker for Chatto notification alerts",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         notificationAlertAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   notificationstream.SignalledSubject,
-		ReplayPolicy:    jetstream.ReplayInstantPolicy,
-		MaxAckPending:   notificationAlertMaxPending,
-		MaxRequestBatch: notificationAlertMaxPending,
+	consumer, err := evtstream.CreateEffectConsumer(ctx, d.core.storage.notificationStream, evtstream.EffectConsumerConfig{
+		Name:           notificationAlertConsumerName,
+		Description:    "Shared durable worker for Chatto notification alerts",
+		FilterSubjects: []string{notificationstream.SignalledSubject},
+		AckWait:        notificationAlertAckWait,
+		MaxAckPending:  notificationAlertMaxPending,
+		DeliverPolicy:  jetstream.DeliverAllPolicy,
 	})
 	if err != nil {
 		return fmt.Errorf("create notification alert consumer: %w", err)
@@ -80,9 +77,8 @@ func (d *notificationAlertDelivery) run(ctx context.Context) error {
 	if err := d.core.notificationOccurrences.WaitReady(ctx); err != nil {
 		return fmt.Errorf("wait for notification projection before alert delivery: %w", err)
 	}
-	worker, err := events.NewDurableWorker(d.consumer, d.processDelivery, events.DurableWorkerOptions{
+	worker, err := evtstream.NewEffectWorker(d.consumer, d.processDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent:     notificationAlertMaxPending,
-		FetchMaxWait:      time.Second,
 		RetryDelay:        notificationAlertRetryDelay,
 		AckTimeout:        notificationAlertAckTimeout,
 		HeartbeatInterval: notificationAlertHeartbeat,
@@ -98,7 +94,7 @@ func (d *notificationAlertDelivery) run(ctx context.Context) error {
 }
 
 func (d *notificationAlertDelivery) processDelivery(ctx context.Context, delivery events.DurableDelivery) error {
-	var event corev1.NotificationEvent
+	var event notificationv1.NotificationEvent
 	if err := proto.Unmarshal(delivery.Data, &event); err != nil {
 		return events.TerminateDelivery("invalid notification event", err)
 	}
@@ -174,7 +170,7 @@ func (d *notificationAlertDelivery) reconcileExpired(ctx context.Context) error 
 // NotificationSoundEligible fences notification materialization and policy,
 // then checks the exact unread occurrence and current target visibility. Local
 // sound remains a best-effort live effect and is not durable delivery work.
-func (c *ChattoCore) NotificationSoundEligible(ctx context.Context, occurrence *corev1.NotificationOccurrence) (bool, error) {
+func (c *ChattoCore) NotificationSoundEligible(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil {
 		return false, nil
 	}
@@ -201,7 +197,7 @@ func (c *ChattoCore) NotificationSoundEligible(ctx context.Context, occurrence *
 	if presence == PresenceStatusDoNotDisturb {
 		return false, nil
 	}
-	visible, err := c.notificationOccurrences.VisibleOccurrences(ctx, current.GetRecipientId(), []*corev1.NotificationOccurrence{current})
+	visible, err := c.notificationOccurrences.VisibleOccurrences(ctx, current.GetRecipientId(), []*notificationv1.NotificationOccurrence{current})
 	if err != nil {
 		return false, fmt.Errorf("revalidate notification visibility: %w", err)
 	}
@@ -211,7 +207,7 @@ func (c *ChattoCore) NotificationSoundEligible(ctx context.Context, occurrence *
 // NotificationAlertEligible fences notification materialization and policy,
 // then checks the exact unread occurrence and current target visibility. Push
 // transports call it again immediately before contacting their provider.
-func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *corev1.NotificationOccurrence) (bool, error) {
+func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil {
 		return false, nil
 	}
@@ -242,22 +238,22 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 	if presence == PresenceStatusDoNotDisturb {
 		return false, nil
 	}
-	visible, err := c.notificationOccurrences.VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*corev1.NotificationOccurrence{occurrence})
+	visible, err := c.notificationOccurrences.VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*notificationv1.NotificationOccurrence{occurrence})
 	if err != nil {
 		return false, fmt.Errorf("revalidate notification visibility: %w", err)
 	}
 	return len(visible) == 1, nil
 }
 
-func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *corev1.NotificationOccurrence) bool {
+func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *notificationv1.NotificationOccurrence) bool {
 	message := notificationSignalMessage(occurrence.GetSignal())
 	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
 		return false
 	}
-	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal()) == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
+	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal()) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
 }
 
-func (d *notificationAlertDelivery) currentPolicyAllowsSound(occurrence *corev1.NotificationOccurrence) bool {
+func (d *notificationAlertDelivery) currentPolicyAllowsSound(occurrence *notificationv1.NotificationOccurrence) bool {
 	message := notificationSignalMessage(occurrence.GetSignal())
 	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
 		return false

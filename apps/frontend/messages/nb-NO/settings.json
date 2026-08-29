@@ -9,13 +9,19 @@
       "account": "Konto",
       "bots": "Botter",
       "user_preferences": "Brukerinnstillinger",
-      "server_configuration": "Serverkonfigurasjon"
+      "app_preferences": "Appinnstillinger",
+      "your_account": "Kontoen din",
+      "server_configuration": "Server"
     },
     "app_preferences": {
       "title": "Appinnstillinger",
       "subtitle": "Valg for denne appen som gjelder for alle registrerte servere",
-      "appearance": { "title": "Utseende" },
-      "composer": { "title": "Meldingsskriving" }
+      "appearance": {
+        "title": "Utseende"
+      },
+      "composer": {
+        "title": "Meldingsskriving"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -102,7 +108,7 @@
       "presence": {
         "button": "Tilstedeværelse: {status}",
         "title": "Tilstedeværelse",
-        "auto": "På nett",
+        "online": "På nett",
         "away": "Borte",
         "do_not_disturb": "Ikke forstyrr",
         "offline": "Frakoblet",
@@ -110,7 +116,13 @@
       },
       "saved": "Profilen ble oppdatert",
       "save_failed": "Kunne ikke lagre profilen",
-      "save_button": "Lagre endringer"
+      "save_button": "Lagre endringer",
+      "bio": {
+        "label": "Bio",
+        "description": "Opptil {max} tegn, vises i profilen din.",
+        "placeholder": "Fortell litt om deg selv",
+        "too_long": "Bioen kan ha maksimalt {max} tegn."
+      }
     },
     "preferences": {
       "title": "Tid og region",
@@ -291,10 +303,13 @@
         "delivery_mode": {
           "inherit": "Arv",
           "off": "Av",
+          "badge": "Merke",
+          "badge_hint": "Legger bare til en nøytral prikk for ulest innhold. Det opprettes ikke et varsel, spilles ikke av lyd og sendes ikke et push-varsel.",
           "notification": "Varsel",
           "push_notification": "Push-varsel"
         },
         "reason": {
+          "room_message": "Rommeldinger",
           "direct_message": "Direktemeldinger",
           "direct_mention": "Direkte omtaler",
           "reply": "Svar på meldingene dine",
@@ -302,12 +317,12 @@
           "here": "@here-omtaler",
           "all": "@all-omtaler",
           "followed_thread": "Fulgte tråder",
-          "followed_room": "Fulgte rom",
           "reaction": "Reaksjoner på meldingene dine",
           "activity": "Aktivitet",
           "room_invitation": "Invitasjoner til rom"
         },
         "reason_hint": {
+          "room_message": "Rotmeldinger som andre medlemmer legger ut direkte i kanalrom, ikke i tråder.",
           "direct_message": "Meldinger som andre medlemmer sender i direktemeldingssamtaler.",
           "direct_mention": "Meldinger som omtaler brukernavnet ditt direkte.",
           "reply": "Meldinger som svarer på en av meldingene dine.",
@@ -315,7 +330,6 @@
           "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
           "all": "Meldinger som bruker @all i et rom du er medlem av.",
           "followed_thread": "Nye svar i tråder du følger.",
-          "followed_room": "Meldinger på toppnivå i rom du følger.",
           "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
         }
       }
@@ -410,11 +424,6 @@
       "create_title": "Opprett bot-konto",
       "create_failed": "Kunne ikke opprette bot",
       "created": "Bote opprettet",
-      "edit": "Rediger",
-      "edit_title": "Rediger botkonto",
-      "updated": "Bot oppdatert",
-      "update_failed": "Kunne ikke oppdatere bot",
-      "update_conflict": "Noen andre oppdaterte denne boten. Last inn siden på nytt og prøv igjen.",
       "username": "Brukernavn",
       "username_hint": "Botebrukernavn må ende på _bot.",
       "display_name": "Visningsnavn",
@@ -433,6 +442,12 @@
       "rotate_warning": "Gjeldende nøkkel slutter å virke umiddelbart. Enhver integrasjon som bruker det, må oppdateres.",
       "key_rotated": "API-nøkkel rotert",
       "rotate_failed": "Kunne ikke rotere API-nøkkel",
+      "webhook_title": "Innkommende webhooks",
+      "webhook_description": "Publiser meldinger som denne boten fra eksterne verktøy.",
+      "webhook_created": "Innkommende webhook opprettet",
+      "webhook_url_title": "Lagre denne webhook-URL-en",
+      "webhook_url_warning": "Denne URL-en vises bare én gang og inneholder tilgangsinformasjon. Lagre den på et sikkert sted før du lukker dette vinduet.",
+      "webhook_url_copied": "Webhook-URL kopiert",
       "delete_title": "Slett bot",
       "delete_warning": "Vil du slette {name}? API-nøkkelen slutter å fungere umiddelbart, og kontoen kan ikke gjenopprettes.",
       "deleted": "Bote slettet",
@@ -440,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Velg hva denne boten kan gjøre. Du kan bare gi den tillatelser du selv har. Hvis du mister en tillatelse, kan boten heller ikke bruke den lenger.",
         "save_failed": "Kunne ikke oppdatere bottillatelsen"
-      }
+      },
+      "webhook_empty_description": "Ingen innkommende webhooks er opprettet ennå.",
+      "webhook_create": "Opprett webhook",
+      "webhook_name": "Navn",
+      "webhook_created_at": "Opprettet",
+      "webhook_create_failed": "Kunne ikke opprette innkommende webhook",
+      "webhook_revoke": "Tilbakekall webhook",
+      "webhook_revoke_warning": "Den gjeldende webhook-URL-en slutter å virke umiddelbart.",
+      "webhook_revoked": "Innkommende webhook tilbakekalt",
+      "webhook_revoke_failed": "Kunne ikke tilbakekalle innkommende webhook",
+      "webhook_last_used": "Sist brukt",
+      "webhook_no_use_recorded": "Ingen bruk registrert",
+      "webhook_last_used_unavailable": "Midlertidig utilgjengelig",
+      "webhook_limit_reached": "Grensen på 20 innkommende webhooks er nådd."
     }
   }
 }

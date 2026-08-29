@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -61,17 +61,6 @@ export const BotService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates a bot's public identity.
-     *
-     * @generated from rpc chatto.api.v1.BotService.UpdateBot
-     */
-    updateBot: {
-      name: "UpdateBot",
-      I: UpdateBotRequest,
-      O: UpdateBotResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
      * Deletes a bot and invalidates its API key.
      *
      * @generated from rpc chatto.api.v1.BotService.DeleteBot
@@ -93,6 +82,30 @@ export const BotService = {
       I: RotateBotApiKeyRequest,
       O: RotateBotApiKeyResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Creates a named incoming webhook. A bot can have at most 20 active
+     * incoming webhooks.
+     *
+     * @generated from rpc chatto.api.v1.BotService.CreateBotIncomingWebhook
+     */
+    createBotIncomingWebhook: {
+      name: "CreateBotIncomingWebhook",
+      I: CreateBotIncomingWebhookRequest,
+      O: CreateBotIncomingWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Revokes one incoming webhook without changing other webhooks.
+     *
+     * @generated from rpc chatto.api.v1.BotService.RevokeBotIncomingWebhook
+     */
+    revokeBotIncomingWebhook: {
+      name: "RevokeBotIncomingWebhook",
+      I: RevokeBotIncomingWebhookRequest,
+      O: RevokeBotIncomingWebhookResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
     /**
      * Reassigns a bot to another active human owner. Requires bot.manage. The

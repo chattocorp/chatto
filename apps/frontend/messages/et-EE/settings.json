@@ -9,13 +9,19 @@
       "account": "konto",
       "bots": "Botid",
       "user_preferences": "Kasutaja eelistused",
-      "server_configuration": "Serveri konfiguratsioon"
+      "app_preferences": "Rakenduse eelistused",
+      "your_account": "Sinu konto",
+      "server_configuration": "Server"
     },
     "app_preferences": {
       "title": "Rakenduse eelistused",
       "subtitle": "Selle rakenduse valikud, mis kehtivad kõigis sinu registreeritud serverites",
-      "appearance": { "title": "Välimus" },
-      "composer": { "title": "Sõnumi koostamine" }
+      "appearance": {
+        "title": "Välimus"
+      },
+      "composer": {
+        "title": "Sõnumi koostamine"
+      }
     },
     "profile": {
       "title": "Profiil",
@@ -102,7 +108,7 @@
       "presence": {
         "button": "Kohalolek: {status}",
         "title": "Kohalolek",
-        "auto": "Internetis",
+        "online": "Internetis",
         "away": "Eemal",
         "do_not_disturb": "Mitte segada",
         "offline": "Võrguühenduseta",
@@ -110,7 +116,13 @@
       },
       "saved": "Profiili värskendamine õnnestus",
       "save_failed": "Profiili salvestamine ebaõnnestus",
-      "save_button": "Salvesta muudatused"
+      "save_button": "Salvesta muudatused",
+      "bio": {
+        "label": "Bio",
+        "description": "Kuni {max} tähemärki, nähtav sinu profiilis.",
+        "placeholder": "Räägi lühidalt endast",
+        "too_long": "Bio võib olla kuni {max} tähemärki."
+      }
     },
     "preferences": {
       "title": "Aeg ja piirkond",
@@ -291,10 +303,13 @@
         "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",
+          "badge": "Märgis",
+          "badge_hint": "Lisab ainult neutraalse lugemata sisu täpi. See ei loo teavitust, ei esita heli ega saada tõuketeavitust.",
           "notification": "Teavitus",
           "push_notification": "Tõuketeavitus"
         },
         "reason": {
+          "room_message": "Ruumisõnumid",
           "direct_message": "Otsesõnumid",
           "direct_mention": "Otsesed mainimised",
           "reply": "Vastused sinu sõnumitele",
@@ -302,12 +317,12 @@
           "here": "@here mainimised",
           "all": "@all mainimised",
           "followed_thread": "Jälgitavad lõimed",
-          "followed_room": "Jälgitavad ruumid",
           "reaction": "Reaktsioonid sinu sõnumitele",
           "activity": "Tegevus",
           "room_invitation": "Ruumide kutsed"
         },
         "reason_hint": {
+          "room_message": "Juursõnumid, mille teised liikmed postitavad otse kanaliruumidesse, mitte lõimedesse.",
           "direct_message": "Teiste liikmete saadetud sõnumid otsesõnumivestlustes.",
           "direct_mention": "Sõnumid, milles mainitakse otseselt sinu kasutajanime.",
           "reply": "Sõnumid, mis vastavad mõnele sinu sõnumile.",
@@ -315,7 +330,6 @@
           "here": "Sõnumid, mis kasutavad @here, kui sinu olek ei ole võrguühenduseta.",
           "all": "Sõnumid, mis kasutavad @all ruumis, mille liige sa oled.",
           "followed_thread": "Uued vastused lõimedes, mida jälgid.",
-          "followed_room": "Lõimedesse mittekuuluvad sõnumid ruumides, mida jälgid.",
           "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele."
         }
       }
@@ -410,11 +424,6 @@
       "create_title": "Looge roboti konto",
       "create_failed": "Boti loomine ebaõnnestus",
       "created": "Bot loodud",
-      "edit": "Muuda",
-      "edit_title": "Muutke robotikontot",
-      "updated": "Botit värskendati",
-      "update_failed": "Boti värskendamine ebaõnnestus",
-      "update_conflict": "Keegi teine värskendas seda boti. Laadi leht uuesti ja proovi veel kord.",
       "username": "Kasutajanimi",
       "username_hint": "Boti kasutajanimed peavad lõppema numbriga _bot.",
       "display_name": "Kuvatav nimi",
@@ -433,6 +442,12 @@
       "rotate_warning": "Praegune võti lakkab kohe töötamast. Iga seda kasutav integratsioon tuleb värskendada.",
       "key_rotated": "API-võtit pöörati",
       "rotate_failed": "API võtme pööramine ebaõnnestus",
+      "webhook_title": "Sissetulevad veebihaagid",
+      "webhook_description": "Postita väliste tööriistade kaudu sõnumeid selle botina.",
+      "webhook_created": "Sissetulev veebihaak loodi",
+      "webhook_url_title": "Salvesta see veebihaagi URL",
+      "webhook_url_warning": "Seda URL-i näidatakse ainult üks kord ja see sisaldab pääsutunnust. Salvesta see enne akna sulgemist turvalisse kohta.",
+      "webhook_url_copied": "Veebihaagi URL kopeeritud",
       "delete_title": "Kustutage robot",
       "delete_warning": "Kas kustutada {name}? Selle API võti lakkab kohe töötamast ja kontot ei saa taastada.",
       "deleted": "Bot kustutatud",
@@ -440,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Vali, mida see bot teha tohib. Saad anda talle ainult õigusi, mis sul endal on. Kui kaotad mõne õiguse, ei saa ka bot seda enam kasutada.",
         "save_failed": "Boti loa värskendamine ebaõnnestus"
-      }
+      },
+      "webhook_empty_description": "Ühtegi sissetulevat veebihaaki pole veel loodud.",
+      "webhook_create": "Loo veebihaak",
+      "webhook_name": "Nimi",
+      "webhook_created_at": "Loodud",
+      "webhook_create_failed": "Sissetuleva veebihaagi loomine nurjus",
+      "webhook_revoke": "Tühista veebihaak",
+      "webhook_revoke_warning": "Praegune veebihaagi URL lõpetab kohe töötamise.",
+      "webhook_revoked": "Sissetulev veebihaak tühistati",
+      "webhook_revoke_failed": "Sissetuleva veebihaagi tühistamine nurjus",
+      "webhook_last_used": "Viimati kasutatud",
+      "webhook_no_use_recorded": "Kasutust pole registreeritud",
+      "webhook_last_used_unavailable": "Ajutiselt pole saadaval",
+      "webhook_limit_reached": "20 sissetuleva veebihaagi piirang on saavutatud."
     }
   }
 }

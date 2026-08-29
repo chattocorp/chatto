@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-28
 
 ## Overview
 
@@ -14,8 +14,8 @@ DM membership continues to authorize complete DM reads.
 - Channel-room membership is always necessary for message access. It is not
   sufficient.
 - `message.read` gives broad access to message content in a channel room and
-  includes `message.read.interactions`.
-- `message.read.interactions` gives access only to channel-room threads where
+  includes `message.read-interactions`.
+- `message.read-interactions` gives access only to channel-room threads where
   the account has an interaction relationship.
 - The same permissions and rules apply to human and bot accounts.
 - A direct mention from another account creates an interaction relationship.
@@ -33,7 +33,7 @@ DM membership continues to authorize complete DM reads.
   membership loss closes current access. Permission restoration or room
   re-entry opens an existing relationship again.
 - A DM participant can read the complete DM. `message.read` and
-  `message.read.interactions` decisions do not restrict DM reads.
+  `message.read-interactions` decisions do not restrict DM reads.
 - Message-read authority does not grant write authority. Each post, upload,
   reaction, edit, or moderation action needs its normal permission.
 - A channel-room operation that reads or returns an existing message also
@@ -51,10 +51,16 @@ DM membership continues to authorize complete DM reads.
 - The normal realtime protocol carries authorized updates for retained room
   timelines. A client that knows a thread root can use the thread API to get
   complete context.
+- The normal realtime protocol also carries notification occurrence
+  replacements. A bot can use direct-mention, direct-message, reply, and
+  followed-thread occurrences to learn the message and thread IDs that it must
+  load through the normal API.
+- A delivered direct mention in a channel-room root or reply attempts to
+  follow that thread when the recipient has no prior follow state. Notification
+  policy Off suppresses the occurrence and this follow, but it does not remove
+  the interaction relationship.
 - The public API does not list or inspect interaction relationships. A thread
   read succeeds or fails after the server applies the current access rules.
-- This slice does not add interaction-specific bot pings. Realtime delivery for
-  bot pings is a separate feature decision.
 - Fresh servers grant only `message.read` to `everyone` at server scope when
   they initialize an empty RBAC stream. That effective allow includes the
   interaction permission.
@@ -74,17 +80,17 @@ DM membership continues to authorize complete DM reads.
 ### 1. Broad and interaction-scoped access use separate permissions
 
 **Decision:** Use `message.read` for broad channel-room access and
-`message.read.interactions` for relationship-scoped channel-room access. Keep
-membership as a separate required boundary. Make the broad permission
-explicitly include the narrower permission. Do not infer other inclusions from
-dotted names. The child does not include the parent. A child deny cannot
-restrict an effective parent allow, and a parent deny cannot restrict a
-separate child allow.
+`message.read-interactions` for relationship-scoped channel-room access. Keep
+membership as a separate required boundary. State in the permission catalog
+that the broad permission includes the narrower permission. The narrow
+permission does not include the broad permission. A narrow deny cannot restrict
+an effective broad allow, and a broad deny cannot restrict a separate narrow
+allow.
 **Why:** Operators can inspect the difference between broad and narrow access.
 An absent broad permission does not cause an implicit privacy mode.
 **Tradeoff:** Each narrow read checks both RBAC and the requested thread
-relationship. The resolver and inspection surfaces must explain the explicit
-inclusion.
+relationship. The resolver and inspection surfaces must explain the
+explicit catalog inclusion.
 
 ### 2. Direct mentions and authored roots create relationships
 
@@ -128,7 +134,7 @@ using one room-level allow decision.
 ### 6. New-server defaults do not change existing RBAC
 
 **Decision:** Grant only `message.read` to `everyone` during empty-RBAC
-bootstrap. Its effective allow includes `message.read.interactions`. Do not
+bootstrap. Its effective allow includes `message.read-interactions`. Do not
 migrate, backfill, or reconcile an existing server.
 **Why:** Existing RBAC state belongs to the operator. Startup must not replace
 an absent decision with a code default.
@@ -138,8 +144,8 @@ interaction-scoped reads.
 ### 7. Bots use the existing owner ceiling
 
 **Decision:** Use the same permissions for human and bot accounts. Apply the
-explicit read inclusion independently to the bot allowlist and to the owner's
-effective authority.
+explicit read inclusion independently to the bot allowlist and to the
+owner's effective authority.
 **Why:** This keeps one permission vocabulary and one delegation rule.
 **Tradeoff:** Removing broad read access from an owner does not remove a bot's
 narrow read mode when the owner still has the narrow permission. A bot still
@@ -152,15 +158,15 @@ relationships. A client supplies a known thread root to the normal thread API,
 which applies the current access rules.
 **Why:** A relationship is an authorization input, not a user-managed resource.
 This keeps internal cause metadata out of the public API.
-**Tradeoff:** Clients cannot enumerate related threads. A separate bot-ping
-feature must define how a bot learns about a direct mention.
+**Tradeoff:** Clients cannot enumerate related threads. A bot learns the
+relevant message and thread IDs from its normal notification occurrences.
 
 ## Permissions
 
 - `message.read` — read all message content and message-specific metadata in a
   channel room at the configured scope. It includes
-  `message.read.interactions`.
-- `message.read.interactions` — read message content and message-specific
+  `message.read-interactions`.
+- `message.read-interactions` — read message content and message-specific
   metadata only in channel-room threads with a current interaction
   relationship.
 - `message.post` — post root messages and send messages in an existing DM.
@@ -184,4 +190,3 @@ DM membership, not a message-read permission, authorizes DM reads.
 
 - Define an explicit end action and the accounts that can use it.
 - Define profile and administration views that show active relationships.
-- Define realtime delivery and recovery for direct-mention bot pings.

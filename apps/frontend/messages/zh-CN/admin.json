@@ -104,7 +104,25 @@
       "edit": "编辑",
       "assigned_role": "已分配 {role} 角色",
       "removed_role": "已移除 {role} 角色",
-      "role_update_failed": "更新角色分配失败"
+      "role_update_failed": "更新角色分配失败",
+      "danger_zone": "危险区域",
+      "open_delete_account": "删除账号",
+      "delete_account_entry_description": "永久删除该成员的账号。其消息将变为无法读取。此操作无法撤消。"
+    },
+    "member_delete": {
+      "title": "删除成员",
+      "warning": "这将永久删除 {name} 的账号，且无法撤消。",
+      "consequences_intro": "将会发生的事情：",
+      "consequence_rooms": "该成员将从所有房间中移除。",
+      "consequence_messages": "其撰写的所有消息都将永久无法读取。",
+      "consequence_profile": "个人资料、头像和用户名将被删除。用户名之后会重新开放使用。",
+      "consequence_sessions": "对方将在所有位置退出登录。",
+      "confirm_label": "输入 {login} 以确认",
+      "submit": "永久删除账号",
+      "deleting": "正在删除...",
+      "failed": "无法删除该账号。",
+      "success": "该账号已删除。",
+      "not_allowed": "你不能删除此账号。"
     },
     "member_detail": {
       "no_self_rename": "没有自行重命名记录。",

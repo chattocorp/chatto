@@ -2,14 +2,15 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
 
 	"google.golang.org/protobuf/proto"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var contentKeySnapshotContractID = snapshotContractID("v1", &corev1.ContentKeyProjectionSnapshot{})
+var contentKeySnapshotContractID = snapshotContractID("v1", &projectionv1.ContentKeyProjectionSnapshot{})
 
 func (*ContentKeyProjection) SnapshotContractID() string {
 	return contentKeySnapshotContractID
@@ -18,7 +19,7 @@ func (*ContentKeyProjection) SnapshotContractID() string {
 func (p *ContentKeyProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.ContentKeyProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot := &projectionv1.ContentKeyProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	snapshot.ShreddedUserIds = sortedMapKeys(p.shreddedUsers)
 	for _, userID := range sortedMapKeys(p.byUserPurposeEpoch) {
 		purposes := make([]int, 0, len(p.byUserPurposeEpoch[userID]))
@@ -27,14 +28,14 @@ func (p *ContentKeyProjection) Snapshot() ([]byte, error) {
 		}
 		sort.Ints(purposes)
 		for _, rawPurpose := range purposes {
-			purpose := corev1.UserDEKPurpose(rawPurpose)
+			purpose := evtv1.UserDEKPurpose(rawPurpose)
 			epochs := make([]int, 0, len(p.byUserPurposeEpoch[userID][purpose]))
 			for epoch := range p.byUserPurposeEpoch[userID][purpose] {
 				epochs = append(epochs, int(epoch))
 			}
 			sort.Ints(epochs)
 			for _, epoch := range epochs {
-				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.byUserPurposeEpoch[userID][purpose][int32(epoch)]).(*corev1.UserDEKGeneratedEvent))
+				snapshot.Keys = append(snapshot.Keys, proto.Clone(p.byUserPurposeEpoch[userID][purpose][int32(epoch)]).(*evtv1.UserDEKGeneratedEvent))
 			}
 		}
 	}
@@ -42,7 +43,7 @@ func (p *ContentKeyProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *ContentKeyProjection) Restore(data []byte) error {
-	snapshot := &corev1.ContentKeyProjectionSnapshot{}
+	snapshot := &projectionv1.ContentKeyProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal content key snapshot: %w", err)

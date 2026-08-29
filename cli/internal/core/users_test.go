@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestChattoCore_CreateUser(t *testing.T) {
@@ -108,13 +108,13 @@ func TestChattoCore_CreateUserLiveEventUsesProvidedActorID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("waiting for user created live event: %v", err)
 	}
-	var live corev1.LiveEvent
+	var live livev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal live event: %v", err)
 	}
 	created := live.GetUserCreated()
 	if created == nil {
-		t.Fatalf("expected UserCreatedEvent, got %T", live.Event)
+		t.Fatalf("expected UserCreatedSyncEvent, got %T", live.Event)
 	}
 	if created.GetUserId() != user.GetId() {
 		t.Fatalf("created live user_id = %q, want %q", created.GetUserId(), user.GetId())

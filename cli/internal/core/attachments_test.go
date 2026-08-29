@@ -13,7 +13,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
 	"hmans.de/chatto/pkg/events"
@@ -252,11 +252,11 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	})
 
 	t.Run("delete non-existent attachment", func(t *testing.T) {
-		ghost := &corev1.Attachment{
+		ghost := &evtv1.Attachment{
 			Id:     "nonexistent-attachment-id",
 			RoomId: room.Id,
-			Storage: &corev1.DeprecatedAsset{
-				Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "nonexistent-attachment-id"}},
+			Storage: &evtv1.DeprecatedAsset{
+				Asset: &evtv1.DeprecatedAsset_Nats{Nats: &evtv1.NATSAsset{Key: "nonexistent-attachment-id"}},
 			},
 		}
 		// Deletion of non-existent item may or may not error depending on implementation
@@ -462,12 +462,12 @@ func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(
 	if err != nil {
 		t.Fatalf("UploadAttachment failed: %v", err)
 	}
-	derivative, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(32, 32)))
+	derivative, err := core.UploadDerivativeAttachment(ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(32, 32)))
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment failed: %v", err)
 	}
 
-	checkServerAsset := func(name string, asset *corev1.AssetRecord) {
+	checkServerAsset := func(name string, asset *evtv1.AssetRecord) {
 		t.Helper()
 		key := asset.GetS3().GetKey()
 		if bytes.Contains([]byte(key), []byte("tenant-a/chatto")) {
@@ -481,7 +481,7 @@ func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(
 			t.Fatalf("%s raw physical S3 stat failed: %v", name, err)
 		}
 	}
-	checkAttachment := func(name string, attachment *corev1.Attachment) {
+	checkAttachment := func(name string, attachment *evtv1.Attachment) {
 		t.Helper()
 		key := attachment.GetStorage().GetS3().GetKey()
 		if key != S3KeyAttachment(attachment.Id) {
@@ -517,7 +517,7 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 
 		// Older derivative metadata may contain Id + RoomId but no Storage.
 		// Verify GetAttachmentReader can still find the binary by probing.
-		minimal := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+		minimal := &evtv1.Attachment{Id: attachment.Id, RoomId: room.Id}
 		reader, info, err := core.GetAttachmentReader(ctx, minimal)
 		if err != nil {
 			t.Fatalf("GetAttachmentReader with Storage-less attachment: %v", err)
@@ -542,7 +542,7 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 		}
 
 		// Same shape as above but the binary now lives in S3.
-		minimal := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+		minimal := &evtv1.Attachment{Id: attachment.Id, RoomId: room.Id}
 		reader, _, err := core.GetAttachmentReader(ctx, minimal)
 		if err != nil {
 			t.Fatalf("GetAttachmentReader with Storage-less S3 attachment: %v", err)
@@ -567,7 +567,7 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 			t.Fatalf("failed to seed legacy S3 object: %v", err)
 		}
 
-		minimal := &corev1.Attachment{Id: attachmentID, RoomId: "room-legacy"}
+		minimal := &evtv1.Attachment{Id: attachmentID, RoomId: "room-legacy"}
 		reader, info, err := core.GetAttachmentReader(ctx, minimal)
 		if err != nil {
 			t.Fatalf("GetAttachmentReader with prefixed legacy S3 attachment: %v", err)
@@ -588,7 +588,7 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 
-		minimal := &corev1.Attachment{Id: "Aghost", RoomId: "Rghost"}
+		minimal := &evtv1.Attachment{Id: "Aghost", RoomId: "Rghost"}
 		if _, _, err := core.GetAttachmentReader(ctx, minimal); err == nil {
 			t.Error("expected error for missing binary, got nil")
 		}
@@ -1133,7 +1133,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCacheWithoutStorageMetadata(t *test
 		t.Fatalf("Failed to store cached resize: %v", err)
 	}
 
-	storageLess := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+	storageLess := &evtv1.Attachment{Id: attachment.Id, RoomId: room.Id}
 	if err := core.DeleteAttachmentFromStorage(ctx, storageLess); err != nil {
 		t.Fatalf("Failed to delete storage-less attachment: %v", err)
 	}
@@ -1171,27 +1171,27 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	if err != nil {
 		t.Fatalf("Failed to upload original video: %v", err)
 	}
-	thumbnail, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(64, 64)))
+	thumbnail, err := core.UploadDerivativeAttachment(ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(64, 64)))
 	if err != nil {
 		t.Fatalf("Failed to upload derivative thumbnail: %v", err)
 	}
-	hlsSegment, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
+	hlsSegment, err := core.UploadDerivativeAttachment(ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT, room.Id, "segment-00000.ts", "video/mp2t", bytes.NewReader([]byte("segment")))
 	if err != nil {
 		t.Fatalf("Failed to upload HLS segment derivative: %v", err)
 	}
 	inheritedRoomDerivativeID := "A-inherited-room-derivative"
-	inheritedCreated := &corev1.Event{
+	inheritedCreated := &evtv1.Event{
 		Id: "E-inherited-room-derivative-created",
-		Event: &corev1.Event_AssetCreated{
-			AssetCreated: &corev1.AssetCreatedEvent{
+		Event: &evtv1.Event_AssetCreated{
+			AssetCreated: &evtv1.AssetCreatedEvent{
 				OriginalBinaryAvailable: true,
-				Asset: &corev1.AssetRecord{
+				Asset: &evtv1.AssetRecord{
 					Id:          inheritedRoomDerivativeID,
 					Filename:    "inherited-thumb.png",
 					ContentType: "image/png",
 				},
 				ParentAssetId:  original.Id,
-				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
+				DerivativeRole: evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
 			},
 		},
 	}

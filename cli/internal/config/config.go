@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"net/mail"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -26,6 +27,7 @@ type ChattoConfig struct {
 	Core            CoreConfig            `toml:"core" comment:"Core service configuration."`
 	Auth            AuthConfig            `toml:"auth" comment:"Authentication configuration."`
 	Limits          LimitsConfig          `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	Email           EmailConfig           `toml:"email" comment:"Transactional email transport configuration. SMTP is the default transport."`
 	SMTP            SMTPConfig            `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push            PushConfig            `toml:"push,commented" comment:"Web Push notification configuration."`
 	Video           VideoConfig           `toml:"video,commented" comment:"Video uploads and derivative settings."`
@@ -316,25 +318,47 @@ func (c *ChattoConfig) Validate() error {
 		}
 	}
 
-	// SMTP configuration
-	switch c.SMTP.TLSPolicyOrDefault() {
-	case SMTPTLSMandatory, SMTPTLSOpportunistic, SMTPTLSImplicit:
-	default:
-		errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic, implicit")
-	}
-	if c.SMTP.Enabled {
+	// Transactional email configuration
+	switch c.Email.TransportOrDefault() {
+	case EmailTransportSMTP:
+		switch c.SMTP.TLSPolicyOrDefault() {
+		case SMTPTLSMandatory, SMTPTLSOpportunistic, SMTPTLSImplicit:
+		default:
+			errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic, implicit")
+		}
+		if c.SMTP.Enabled {
+			if c.Webserver.URL == "" {
+				errs = append(errs, "webserver.url is required when SMTP is enabled")
+			}
+			if c.SMTP.Host == "" {
+				errs = append(errs, "smtp.host is required when SMTP is enabled")
+			}
+			if c.SMTP.Port < 1 || c.SMTP.Port > 65535 {
+				errs = append(errs, "smtp.port must be between 1 and 65535 when SMTP is enabled")
+			}
+			if c.SMTP.From == "" {
+				errs = append(errs, "smtp.from is required when SMTP is enabled")
+			}
+		}
+	case EmailTransportJMAP:
 		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when SMTP is enabled")
+			errs = append(errs, "webserver.url is required when JMAP email is enabled")
 		}
-		if c.SMTP.Host == "" {
-			errs = append(errs, "smtp.host is required when SMTP is enabled")
+		if c.Email.JMAP.SessionURL == "" {
+			errs = append(errs, "email.jmap.session_url is required when email.transport is jmap")
+		} else if err := validateAbsoluteHTTPSURL("email.jmap.session_url", c.Email.JMAP.SessionURL); err != nil {
+			errs = append(errs, err.Error())
 		}
-		if c.SMTP.Port < 1 || c.SMTP.Port > 65535 {
-			errs = append(errs, "smtp.port must be between 1 and 65535 when SMTP is enabled")
+		if c.Email.JMAP.AccessToken == "" {
+			errs = append(errs, "email.jmap.access_token is required when email.transport is jmap")
 		}
-		if c.SMTP.From == "" {
-			errs = append(errs, "smtp.from is required when SMTP is enabled")
+		if c.Email.JMAP.From == "" {
+			errs = append(errs, "email.jmap.from is required when email.transport is jmap")
+		} else if _, err := mail.ParseAddress(c.Email.JMAP.From); err != nil {
+			errs = append(errs, "email.jmap.from must be a valid email address")
 		}
+	default:
+		errs = append(errs, "email.transport must be one of: smtp, jmap")
 	}
 
 	// Push notification configuration

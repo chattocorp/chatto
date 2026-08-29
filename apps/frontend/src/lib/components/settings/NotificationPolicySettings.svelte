@@ -5,8 +5,8 @@ User notification preferences across server, room-group, and room scopes.
 Rows are notification causes. Columns follow the current navigation layout.
 -->
 <script lang="ts">
-  import { Panel } from '$lib/components/admin';
-  import { MatrixCellButton, MatrixTable } from '$lib/components/matrix';
+  import Panel from '$lib/ui/Panel.svelte';
+  import { MatrixCellButton, MatrixTable } from '$lib/ui/matrix';
   import { HelpTooltip, Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
@@ -44,6 +44,11 @@ Rows are notification causes. Columns follow the current navigation layout.
       hint: m('settings.notifications.policy.reason_hint.direct_message')
     },
     {
+      field: 'roomMessages',
+      label: m('settings.notifications.policy.reason.room_message'),
+      hint: m('settings.notifications.policy.reason_hint.room_message')
+    },
+    {
       field: 'directMentions',
       label: m('settings.notifications.policy.reason.direct_mention'),
       hint: m('settings.notifications.policy.reason_hint.direct_mention')
@@ -72,11 +77,6 @@ Rows are notification causes. Columns follow the current navigation layout.
       field: 'followedThreads',
       label: m('settings.notifications.policy.reason.followed_thread'),
       hint: m('settings.notifications.policy.reason_hint.followed_thread')
-    },
-    {
-      field: 'followedRooms',
-      label: m('settings.notifications.policy.reason.followed_room'),
-      hint: m('settings.notifications.policy.reason_hint.followed_room')
     },
     {
       field: 'reactions',
@@ -136,7 +136,7 @@ Rows are notification causes. Columns follow the current navigation layout.
     class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface/50 px-4 py-2 text-xs text-muted"
     aria-label={m('settings.notifications.policy.legend')}
   >
-    {#each [NotificationDeliveryMode.OFF, NotificationDeliveryMode.IN_APP_NOTIFICATION, NotificationDeliveryMode.PUSH_NOTIFICATION] as mode (mode)}
+    {#each [NotificationDeliveryMode.OFF, NotificationDeliveryMode.UNREAD_BADGE, NotificationDeliveryMode.IN_APP_NOTIFICATION, NotificationDeliveryMode.PUSH_NOTIFICATION] as mode (mode)}
       {@const presentation = notificationDeliveryModePresentation(mode)}
       <span class="inline-flex items-center gap-1.5">
         <span
@@ -144,6 +144,13 @@ Rows are notification causes. Columns follow the current navigation layout.
           aria-hidden="true"
         ></span>
         {notificationDeliveryModeLabel(mode)}
+        {#if mode === NotificationDeliveryMode.UNREAD_BADGE}
+          <HelpTooltip
+            label={`${m('ui.tooltip.more_information')}: ${notificationDeliveryModeLabel(mode)}`}
+          >
+            {m('settings.notifications.policy.delivery_mode.badge_hint')}
+          </HelpTooltip>
+        {/if}
       </span>
     {/each}
   </div>

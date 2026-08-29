@@ -14,11 +14,11 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Application Header** — Global bar across the top of the client. Client-wide navigation, notifications, and meta controls live on the left; the active server's message of the day occupies the centre; version and session controls live on the right. Implemented in `apps/frontend/src/lib/ui/AppHeader.svelte`.
 
-**App Preferences** — User choices that the current app applies to every registered server. They include appearance, language, message editor, and send-key behavior. Open App Preferences from the Application Header. The sidebar contains Appearance, Language, and Composer pages. App Preferences do not sync to another browser or device. See [FDR-022](fdr/FDR-022-user-profile.md) and [FDR-032](fdr/FDR-032-message-formatting.md).
+**App Preferences** — User choices that the current app applies to every registered server. They include appearance, language, message editor, and send-key behavior. The Application Header gear opens Appearance in unified Settings for the active authenticated server. The App preferences group also contains Language and Composer. A separate App Preferences sidebar remains available when there is no authenticated server. App Preferences do not sync to another browser or device. See [FDR-022](fdr/FDR-022-user-profile.md) and [FDR-032](fdr/FDR-032-message-formatting.md).
 
-**User Preferences** — A user's choices for one server. They include time and region settings and notification behavior. The server can sync a preference, or the app can store it with a key for each server. The term identifies the user and server scope, not the storage method. The unified Settings sidebar contains the User Preferences group. See [FDR-012](fdr/FDR-012-notifications.md) and [FDR-022](fdr/FDR-022-user-profile.md).
+**User Preferences** — A user's choices for one server. They include time and region settings and notification behavior. The server can sync a preference, or the app can store it with a key for each server. The term identifies the user and server scope, not the storage method. The unified Settings sidebar puts these pages in the Your account group. See [FDR-012](fdr/FDR-012-notifications.md) and [FDR-022](fdr/FDR-022-user-profile.md).
 
-**Server Configuration** — Permission-gated settings that change a server or its managed resources. Server Configuration is different from one user's User Preferences. The unified Settings sidebar contains both groups. See [FDR-020](fdr/FDR-020-server-branding-and-configuration.md) and [FDR-021](fdr/FDR-021-admin-dashboard.md).
+**Server Configuration** — Permission-gated settings that change a server or its managed resources. Server Configuration is different from one user's User Preferences. The unified Settings sidebar puts these pages in the Server configuration group. See [FDR-020](fdr/FDR-020-server-branding-and-configuration.md) and [FDR-021](fdr/FDR-021-admin-dashboard.md).
 
 **Server Gutter** — Narrow leftmost column listing the user's servers, with the add-server button at the bottom. Metaphor borrowed from the gutter in a text editor: a thin marginal strip. Implemented in `apps/frontend/src/lib/ServerGutter.svelte`.
 
@@ -54,6 +54,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Bot API key** — A bot account's sole non-expiring bearer credential, shown only at creation or rotation. Chatto stores its verifier as a durable EVT fact, never the raw key. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 
+**Bot incoming webhook** — Named HTTP credential that allows an external system to post a message as a bot. A bot can have multiple incoming webhooks. Chatto shows each action-limited URL only when it creates that webhook. A manager replaces a webhook when the manager creates a new one, moves the caller, and revokes the old one. Each webhook has independent revocation and last-use metadata. It cannot authenticate the normal API or realtime connection. See [FDR-038](fdr/FDR-038-bot-accounts.md) and [ADR-083](adr/ADR-083-action-limited-bot-incoming-webhooks.md).
+
 **Invite Link** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. See [FDR-036](fdr/FDR-036-invite-links.md).
 
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the *primary space*). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
@@ -84,11 +86,13 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Mention** — `@handle` syntax in a message that notifies referenced users, pingable roles, or virtual room groups such as `@all` and `@here`. See [FDR-006](fdr/FDR-006-mentions.md).
 
-**Notification** — Persistent user-scoped attention created for activity such as a DM, reply, mention, followed conversation, or reaction. Unread occurrences carry an independent Ambient or Important visual level; notifications remain visible after being read and can be deleted independently of room read state. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification** — Persistent user-scoped attention created for activity such as a DM, root room message, reply, mention, followed conversation, or reaction. Unread occurrences carry an independent Ambient or Important visual level; notifications remain visible after being read and can be deleted independently of room read state. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Notification Group** — Client-side presentation row that combines related notification occurrences by conversation or target while retaining their exact underlying activity and jump targets. It is not a server-side resource. See [ADR-077](adr/ADR-077-persistent-notification-list.md).
 
-**Notification Delivery Mode** — Per-cause notification preference with one of three effective values: Off, Notification, or Push notification. Notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification Delivery Mode** — Per-cause notification preference with one of four effective values: Off, Badge, Notification, or Push notification. Badge adds only a neutral unread dot. Notification creates an in-app item and can play the configured local sound. Push notification also permits push delivery. See [FDR-012](fdr/FDR-012-notifications.md).
+
+**Message Read Cursor** — Per-user position of the last root message read in a room. It places the New messages separator. It does not create a room dot; notification policy controls room attention separately. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Asset** — An uploaded or generated file stored by Chatto; it may exist before or independently of a message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
 
@@ -114,7 +118,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Role** — Named bundle of permissions, assignable to users. System roles are seeded; custom roles can be created. Role names share the message-mention namespace with user logins, and each role can be marked pingable to allow `@role` pings.
 
-**Permission** — Named capability gate, e.g. `message.post`, `role.assign`. Strings use hyphens, never underscores. The full list lives in `cli/internal/core/permission.go`.
+**Permission** — Capability gate with an opaque, stable identifier, for example `message.post` or `role.assign`. Punctuation does not define authority. The catalog in `cli/internal/core/permission.go` defines scope and explicit inclusion.
 
 **Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 
@@ -130,7 +134,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. Each direct user or named role contributes only its nearest explicit decision (room, then group, then server). Denies win across those subject decisions; an allow must be at least as specific as an `everyone` deny to override the baseline. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
-**Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a channel-room root or another account directly mentions it. With room membership and `message.read.interactions`, it permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
+**Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a channel-room root or another account directly mentions it. With room membership and `message.read-interactions`, it permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
 
 **User-level decision** — Permission grant or deny attached directly to a user, not via a role. It participates alongside named-role decisions, so a user deny blocks named-role grants while a named-role deny blocks a user grant. Used for suspensions and ad-hoc grants.
 
@@ -162,7 +166,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; transient sync uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See [`cli/AGENTS.md`](../cli/AGENTS.md) and the [subject and event inventory](architecture/subjects-and-events.md#evt-subject-patterns).
 
-**Event** — Durable domain fact stored on `EVT` using the `corev1.Event` wrapper. Contrast with *Live Event*.
+**Event** — Durable domain fact stored on `EVT` using the `evtv1.Event` wrapper. Contrast with *Live Event*.
 
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
@@ -182,7 +186,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 
-**Live Event** — Internal `corev1.LiveEvent` signal published on `live.sync.>` for ephemeral activity and latest-value invalidation. The server may expose a genuinely transient signal such as typing or presence through `RealtimeEventEnvelope`, or use the signal to assemble an authoritative `RealtimeProjectionOperation`; the internal shape is never the public contract. Durable EVT facts reach live subscribers through `live.evt.>` after server-side projection readiness and authorization checks. See [ADR-051](adr/ADR-051-server-scoped-resumable-client-projection.md).
+**Live Event** — Internal `livev1.LiveEvent` signal published on `live.sync.>` for ephemeral activity and latest-value invalidation. The server may expose a genuinely transient signal such as typing or presence through `RealtimeEventEnvelope`, or use the signal to assemble an authoritative `RealtimeProjectionOperation`; the internal shape is never the public contract. Durable EVT facts reach live subscribers through `live.evt.>` after server-side projection readiness and authorization checks. See [ADR-051](adr/ADR-051-server-scoped-resumable-client-projection.md).
 
 **Client Projection** — Authenticated, server-scoped current state delivered by realtime protocol 2. Compacted bootstrap, resumable replay, live mutation, and lazy room hydration all use the same ordered projection operations and reducer. It is a convergence feed rather than an audit log and does not replace the resource-oriented `chatto.api.v1` integrations API. See [ADR-051](adr/ADR-051-server-scoped-resumable-client-projection.md).
 

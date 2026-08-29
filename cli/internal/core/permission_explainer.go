@@ -68,8 +68,7 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 // remains visible in the trace and can win when its deny is nearer than every
 // named allow.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
+	if _, known := GetPermissionMetadata(perm); !known {
 		return nil
 	}
 	if isBot, ownerUserID, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
@@ -110,7 +109,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 			groupID = room.GroupId
 		}
 	}
-	for _, including := range directlyIncludingPermissions(perm) {
+	for _, including := range includingPermissions(perm) {
 		included := PermissionExplanation{Permission: including, State: DecisionNone}
 		if err := r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, including, &included); err != nil {
 			return err
@@ -188,13 +187,12 @@ func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID,
 }
 
 func (r *PermissionResolver) botDelegatedExplanation(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, Permission, *TraceEntry) {
-	for _, candidate := range append(directlyIncludingPermissions(perm), perm) {
-		parts := candidate.KeyParts()
-		if parts.Verb == "" || parts.ObjectType == "" {
+	for _, candidate := range append(includingPermissions(perm), perm) {
+		if _, known := GetPermissionMetadata(candidate); !known {
 			continue
 		}
 		scopes := r.applicableScopeTargets(kind, roomID, groupID, candidate)
-		entry, ok := r.nearestDecision(botUserID, parts, scopes)
+		entry, ok := r.nearestDecision(botUserID, candidate, scopes)
 		if !ok {
 			continue
 		}

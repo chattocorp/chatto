@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "管理",
+      "bot": "ボット",
+      "message": "メッセージ",
+      "role": "ロール",
+      "room": "ルーム",
+      "server": "サーバー",
+      "user": "ユーザー",
+      "other": "その他"
+    },
     "permission_descriptions": {
       "server_manage": "サーバー設定の更新 (名前、説明、ロゴ)",
       "room_create": "新しいルームを作成する",
@@ -119,7 +129,9 @@
       "user_delete_self": "自分のアカウントを削除してください",
       "user_invite": "招待リンクを作成・管理する",
       "user_manage_accounts": "ユーザーの作成、アカウント ID の編集、パスワードのリセット、確認済みメールの添付、ログインのクールダウンのクリア",
-      "user_manage_permissions": "ユーザーごとの権限オーバーライドを直接編集する"
+      "user_manage_permissions": "ユーザーごとの権限オーバーライドを直接編集する",
+      "bot_create": "自分が所有するボットアカウントを作成",
+      "bot_manage": "すべてのボットアカウントを表示して管理"
     }
   }
 }

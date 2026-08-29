@@ -26,14 +26,19 @@ focusing a cell highlights its permission row and role column.
 -->
 <script lang="ts">
   import { onDestroy, type Snippet } from 'svelte';
-  import { Panel } from '$lib/components/admin';
-  import { MatrixColumnHeading, MatrixTable } from '$lib/components/matrix';
-  import { Hint, HelpTooltip } from '$lib/ui';
+  import Panel from '$lib/ui/Panel.svelte';
+  import { MatrixColumnHeading, MatrixTable } from '$lib/ui/matrix';
+  import { Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';
+  import {
+    getIncludingPermissions,
+    getPermissionCategory,
+    getPermissionCategoryLabel,
+    getPermissionDescription
+  } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
@@ -188,13 +193,25 @@ focusing a cell highlights its permission row and role column.
   // ----- Layout -----------------------------------------------------------
 
   const permissions = $derived.by<string[]>(() =>
-    data ? [...data.applicablePermissions].sort((a, b) => a.localeCompare(b)) : []
+    data ? [...data.applicablePermissions].sort() : []
   );
+  const inclusionChains = $derived.by(() => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- Map is ephemeral within derived computation
+    const chains = new Map<string, string[]>();
+    for (const permission of permissions) {
+      chains.set(permission, getIncludingPermissions(permissions, permission));
+    }
+    return chains;
+  });
   let permissionFilter = $state('');
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
     return query
-      ? permissions.filter((permission) => permission.toLowerCase().includes(query))
+      ? permissions.filter(
+          (permission) =>
+            permission.toLowerCase().includes(query) ||
+            getPermissionDescription(permission).toLowerCase().includes(query)
+        )
       : permissions;
   });
   const panelTitle = $derived(
@@ -222,12 +239,14 @@ focusing a cell highlights its permission row and role column.
   }
 
   function includingPermission(role: TierRole, permission: string): string | null {
-    const including = getIncludedByPermission(permission);
-    if (!including) return null;
-    const includingOverride = overrideState(role, including);
-    if (includingOverride === 'allow') return including;
-    if (includingOverride === 'deny') return null;
-    return exactInheritedState(role, including) === 'allow' ? including : null;
+    for (const including of inclusionChains.get(permission) ?? []) {
+      const includingOverride = overrideState(role, including);
+      if (includingOverride === 'allow') return including;
+      if (includingOverride === 'neutral' && exactInheritedState(role, including) === 'allow') {
+        return including;
+      }
+    }
+    return null;
   }
 
   function inheritedState(role: TierRole, permission: string): State {
@@ -360,7 +379,10 @@ focusing a cell highlights its permission row and role column.
       columns={roles}
       getRowKey={(permission) => permission}
       getColumnKey={(role) => role.roleName}
+      getGroupKey={(permission) => getPermissionCategory(permission)}
       emptyMessage={m('rbac.permissions.no_filter_matches')}
+      compact
+      columnHeaderHeight="10rem"
       stickyHeader={scrollContents}
       {fillHeight}
       stickyHeaderFadeOffset="top-48"
@@ -374,6 +396,11 @@ focusing a cell highlights its permission row and role column.
     >
       {#snippet leadingHeader()}
         {m('rbac.permissions.permission')}
+      {/snippet}
+      {#snippet group(permission)}
+        <h3 data-testid="permission-section-divider" class="text-sm font-medium text-muted">
+          {getPermissionCategoryLabel(getPermissionCategory(permission))}
+        </h3>
       {/snippet}
       {#snippet columnHeader(role, highlighted)}
         {@const handle =
@@ -395,7 +422,7 @@ focusing a cell highlights its permission row and role column.
         {#if newRoleHref}
           <th
             class="bg-background px-0 py-3 text-center align-bottom font-medium"
-            style="width: 2rem; min-width: 2rem; height: 12rem"
+            style="width: 2rem; min-width: 2rem; height: 10rem"
           >
             <MatrixColumnHeading>
               <!-- eslint-disable svelte/no-navigation-without-resolve -- newRoleHref is resolved by the owning route -->
@@ -412,22 +439,15 @@ focusing a cell highlights its permission row and role column.
         {/if}
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        {@const includedBy = getIncludedByPermission(permission)}
-        <div class={['flex items-center gap-2', includedBy ? 'ml-4' : '']}>
-          <HelpTooltip label={`About ${permission}`}>
-            {getPermissionDescription(permission)}
-            {#if includedBy}
-              <span class="mt-1 block">
-                {m('rbac.permissions.included_by', { permission: includedBy })}
-              </span>
-            {/if}
-          </HelpTooltip>
-          <code data-testid="permission-name" class={['text-sm', highlighted ? 'text-action' : '']}
-            >{permission}</code
-          >
-        </div>
+        <span
+          data-testid="permission-name"
+          title={getPermissionDescription(permission)}
+          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
+          >{permission}</span
+        >
       {/snippet}
       {#snippet cell(permission, role)}
+        {@const permissionId = permission}
         {@const ov = overrideState(role, permission)}
         {@const inh = inheritedState(role, permission)}
         {@const includedBy = includingPermission(role, permission)}
@@ -435,11 +455,11 @@ focusing a cell highlights its permission row and role column.
         {@const displayOverride = virtualOwner ? 'allow' : ov}
         {@const displayInherited = virtualOwner ? 'neutral' : inh}
         {@const ariaParts = virtualOwner
-          ? [`Owner is always granted ${permission}`]
+          ? [`Owner is always granted ${permissionId}`]
           : [
               ov !== 'neutral'
-                ? `Override ${ov} for ${role.displayName} on ${permission}`
-                : `No override for ${role.displayName} on ${permission}`,
+                ? `Override ${ov} for ${role.displayName} on ${permissionId}`
+                : `No override for ${role.displayName} on ${permissionId}`,
               inh !== 'neutral' && inheritedFromLabel
                 ? `inheriting ${inh} from ${inheritedFromLabel}`
                 : null
@@ -472,7 +492,7 @@ focusing a cell highlights its permission row and role column.
       {/snippet}
       {#snippet trailingCell()}
         {#if newRoleHref}
-          <td class="px-0 py-2" style="width: 2.5rem; min-width: 2.5rem" aria-hidden="true"></td>
+          <td class="px-0 py-0.5" style="width: 2.5rem; min-width: 2.5rem" aria-hidden="true"></td>
         {/if}
       {/snippet}
     </MatrixTable>

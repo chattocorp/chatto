@@ -58,16 +58,16 @@ func TestPermissionResolver_MessageReadInclusionTruthTable(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		parent PermissionState
-		child  PermissionState
+		broad  PermissionState
+		narrow PermissionState
 		want   DecisionKind
 	}{
-		{name: "no decisions", parent: PermissionStateNone, child: PermissionStateNone, want: DecisionNone},
-		{name: "parent allow", parent: PermissionStateAllow, child: PermissionStateNone, want: DecisionAllow},
-		{name: "parent allow beats child deny", parent: PermissionStateAllow, child: PermissionStateDeny, want: DecisionAllow},
-		{name: "child allow is independent of parent deny", parent: PermissionStateDeny, child: PermissionStateAllow, want: DecisionAllow},
-		{name: "parent deny does not become child deny", parent: PermissionStateDeny, child: PermissionStateNone, want: DecisionNone},
-		{name: "child deny applies without parent allow", parent: PermissionStateNone, child: PermissionStateDeny, want: DecisionDeny},
+		{name: "no decisions", broad: PermissionStateNone, narrow: PermissionStateNone, want: DecisionNone},
+		{name: "broad allow", broad: PermissionStateAllow, narrow: PermissionStateNone, want: DecisionAllow},
+		{name: "broad allow beats narrow deny", broad: PermissionStateAllow, narrow: PermissionStateDeny, want: DecisionAllow},
+		{name: "narrow allow is independent of broad deny", broad: PermissionStateDeny, narrow: PermissionStateAllow, want: DecisionAllow},
+		{name: "broad deny does not become narrow deny", broad: PermissionStateDeny, narrow: PermissionStateNone, want: DecisionNone},
+		{name: "narrow deny applies without broad allow", broad: PermissionStateNone, narrow: PermissionStateDeny, want: DecisionDeny},
 	}
 
 	for _, test := range tests {
@@ -87,8 +87,8 @@ func TestPermissionResolver_MessageReadInclusionTruthTable(t *testing.T) {
 					t.Fatalf("set %s to %s: %v", permission, state, err)
 				}
 			}
-			apply(PermMessageRead, test.parent)
-			apply(PermMessageReadInteractions, test.child)
+			apply(PermMessageRead, test.broad)
+			apply(PermMessageReadInteractions, test.narrow)
 
 			got, err := core.PermResolver().Resolve(ctx, user.GetId(), KindChannel, "", PermMessageReadInteractions)
 			if err != nil {
@@ -101,13 +101,32 @@ func TestPermissionResolver_MessageReadInclusionTruthTable(t *testing.T) {
 	}
 
 	if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
-		t.Fatalf("clear parent: %v", err)
+		t.Fatalf("clear broad permission: %v", err)
 	}
 	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("grant child: %v", err)
+		t.Fatalf("grant narrow permission: %v", err)
 	}
 	if got, err := core.PermResolver().Resolve(ctx, user.GetId(), KindChannel, "", PermMessageRead); err != nil || got != DecisionNone {
-		t.Fatalf("child must not include parent: decision = %s, err = %v", got, err)
+		t.Fatalf("narrow permission must not include broad permission: decision = %s, err = %v", got, err)
+	}
+}
+
+func TestPermissionResolver_ResolvesExplicitInclusion(t *testing.T) {
+	broad, narrow := installTestPermissionInclusion(t)
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "explicit-inclusion", "Explicit Inclusion", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, user.GetId(), broad); err != nil {
+		t.Fatalf("grant broad permission: %v", err)
+	}
+	if err := core.DenyUserPermission(ctx, SystemActorID, user.GetId(), narrow); err != nil {
+		t.Fatalf("deny narrow permission: %v", err)
+	}
+	if got, err := core.PermResolver().Resolve(ctx, user.GetId(), KindChannel, "", narrow); err != nil || got != DecisionAllow {
+		t.Fatalf("included decision = %s, %v; want allow", got, err)
 	}
 }
 
@@ -1102,7 +1121,7 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 	}
 
 	// Synthetic DM room ID — the walker doesn't care about room existence,
-	// only about whether room-scope KV entries exist for it (we set none).
+	// only about whether room-scope permission facts exist for it (we set none).
 	dmRoomID := "R_dm_contract_test"
 
 	// Each row encodes the expected resolution for the given persona at
@@ -1244,7 +1263,7 @@ func TestPermissionResolver_RoomOverridesServerForSameRole(t *testing.T) {
 			t.Fatalf("DenyServerPermission: %v", err)
 		}
 
-		// Deny operation clears the prior grant, so only the deny remains in KV.
+		// Deny operation clears the prior grant, so only the deny remains in the projection.
 		has, err := core.permissionResolver.HasSpacePermission(ctx, newUser.Id, KindChannel, PermMessagePost)
 		if err != nil {
 			t.Fatalf("HasSpacePermission: %v", err)

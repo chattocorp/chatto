@@ -40,6 +40,9 @@
     "user_menu": {
       "profile": "Lietotāja profils",
       "send_message": "Nosūtīt ziņu",
+      "view_profile": "Skatīt profilu",
+      "profile_requires_direct_message": "Lai skatītu šo profilu, ir nepieciešams tiešais ziņojums.",
+      "view_in_admin": "Skatīt servera administrēšanā",
       "copy_user_id": "Kopēt lietotāja ID"
     },
     "server_gutter": {
@@ -66,6 +69,13 @@
       "message_missing": "Ziņa vairs nav pieejama",
       "in_room": "iekšā",
       "in_room_capitalized": "In"
+    },
+    "profile": {
+      "title": "Profils",
+      "fallback_title": "Profils",
+      "not_found": "Lietotājs nav atrasts",
+      "bot": "Bots",
+      "local_time": "{time} vietējais laiks ({zone})"
     }
   }
 }

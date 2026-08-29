@@ -2,15 +2,14 @@ package core
 
 import (
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var roomDirectorySnapshotContractID = snapshotContractID("v1", &corev1.RoomDirectoryProjectionSnapshot{})
+var roomDirectorySnapshotContractID = snapshotContractID("v1", &projectionv1.RoomDirectoryProjectionSnapshot{})
 
 func (*RoomDirectoryProjection) SnapshotContractID() string {
 	return roomDirectorySnapshotContractID
@@ -24,7 +23,7 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 	defer p.Membership.RUnlock()
 	defer p.Bans.RUnlock()
 
-	snapshot := &corev1.RoomDirectoryProjectionSnapshot{CatalogSequence: p.Catalog.seq}
+	snapshot := &projectionv1.RoomDirectoryProjectionSnapshot{CatalogSequence: p.Catalog.seq}
 	for _, roomID := range sortedMapKeys(p.Catalog.rooms) {
 		entry := p.Catalog.rooms[roomID]
 		room := entryToRoom(roomID, entry)
@@ -35,7 +34,7 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 		snapshot.Rooms = append(snapshot.Rooms, room)
 	}
 	for _, roomID := range sortedMapKeys(p.Membership.byRoom) {
-		snapshot.Memberships = append(snapshot.Memberships, &corev1.RoomMembershipSnapshot{
+		snapshot.Memberships = append(snapshot.Memberships, &projectionv1.RoomMembershipSnapshot{
 			RoomId:  roomID,
 			UserIds: sortedMapKeys(p.Membership.byRoom[roomID]),
 		})
@@ -43,7 +42,7 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 	for _, roomID := range sortedMapKeys(p.Bans.byRoom) {
 		for _, userID := range sortedMapKeys(p.Bans.byRoom[roomID]) {
 			ban := p.Bans.byRoom[roomID][userID]
-			row := &corev1.RoomBanSnapshot{
+			row := &projectionv1.RoomBanSnapshot{
 				EventId: ban.EventID, RoomId: ban.RoomID, UserId: ban.UserID,
 				ModeratorId: ban.ModeratorID, Reason: ban.Reason,
 			}
@@ -60,7 +59,7 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *RoomDirectoryProjection) Restore(data []byte) error {
-	snapshot := &corev1.RoomDirectoryProjectionSnapshot{}
+	snapshot := &projectionv1.RoomDirectoryProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal room directory snapshot: %w", err)

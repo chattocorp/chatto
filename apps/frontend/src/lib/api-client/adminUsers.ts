@@ -66,7 +66,6 @@ export type AdminUpdateUserInput = {
 
 export type AdminDeleteUserInput = {
   userId: string;
-  currentPassword?: string;
 };
 
 export type AdminListMembersInput = {

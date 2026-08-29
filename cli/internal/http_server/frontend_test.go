@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -767,11 +767,11 @@ func setupFrontendTestCoreWithLogo(t *testing.T) *core.ChattoCore {
 	}
 	startCoreServices(t, chattoCore)
 
-	logo := &corev1.AssetRecord{
+	logo := &evtv1.AssetRecord{
 		Id:          "logo-asset",
 		Filename:    "logo.webp",
 		ContentType: "image/webp",
-		Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}},
+		Storage:     &evtv1.AssetRecord_Nats{Nats: &evtv1.NATSAsset{Key: "logo-asset"}},
 	}
 	if err := chattoCore.SetServerLogo(ctx, core.SystemActorID, logo); err != nil {
 		t.Fatalf("SetServerLogo: %v", err)
@@ -834,15 +834,7 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
 		assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
 		assert.Equal(t, "strict-origin-when-cross-origin", w.Header().Get("Referrer-Policy"))
-		csp := w.Header().Get("Content-Security-Policy-Report-Only")
-		assert.NotEmpty(t, csp)
-		assert.Contains(t, csp, "default-src 'self'")
-		assert.Contains(t, csp, "connect-src 'self' http: https: ws: wss:")
-		assert.Contains(t, csp, "img-src 'self' data: blob: http: https:")
-		assert.Contains(t, csp, "media-src 'self' blob: http: https:")
-		assert.Contains(t, csp, "frame-src https://www.youtube-nocookie.com")
-		assert.Contains(t, csp, "require-trusted-types-for 'script'")
-		assert.Contains(t, csp, "trusted-types chatto-markdown-html")
-		assert.NotContains(t, csp, "trusted-types default")
+		assert.Equal(t, "frame-ancestors 'none'", w.Header().Get("Content-Security-Policy"))
+		assert.Empty(t, w.Header().Get("Content-Security-Policy-Report-Only"))
 	})
 }

@@ -1,6 +1,7 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBotAPI } from '$lib/api-client/bots';
+import { CredentialLastUsedState } from '@chatto/api-types/api/v1/bots_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -9,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   getBot: vi.fn(),
   createBot: vi.fn(),
   rotateBotApiKey: vi.fn(),
+  createBotIncomingWebhook: vi.fn(),
+  revokeBotIncomingWebhook: vi.fn(),
   reassignBotOwner: vi.fn()
 }));
 
@@ -30,6 +33,8 @@ describe('createBotAPI', () => {
       getBot: mocks.getBot,
       createBot: mocks.createBot,
       rotateBotApiKey: mocks.rotateBotApiKey,
+      createBotIncomingWebhook: mocks.createBotIncomingWebhook,
+      revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
       reassignBotOwner: mocks.reassignBotOwner
     });
   });
@@ -43,7 +48,9 @@ describe('createBotAPI', () => {
             id: 'U-bot',
             login: 'helper_bot',
             displayName: 'Helper',
-            avatarUrl: ''
+            avatarUrl: '',
+            bio: 'Build helper',
+            timezone: 'Europe/Berlin'
           },
           ownerUserId: 'U-owner',
           createdAt: Timestamp.fromDate(createdAt),
@@ -63,10 +70,13 @@ describe('createBotAPI', () => {
           login: 'helper_bot',
           displayName: 'Helper',
           avatarUrl: '',
+          bio: 'Build helper',
+          timezone: 'Europe/Berlin',
           ownerUserId: 'U-owner',
           createdAt,
           apiKeyCreatedAt: createdAt,
-          apiKeyRotatedAt: null
+          apiKeyRotatedAt: null,
+          incomingWebhooks: []
         }
       ],
       totalCount: 1,
@@ -76,6 +86,54 @@ describe('createBotAPI', () => {
       { search: 'helper', page: { limit: 20, offset: 40 } },
       { headers: { Authorization: 'Bearer token' }, signal }
     );
+  });
+
+  it('manages named incoming webhooks and maps safe usage metadata', async () => {
+    const createdAt = new Date('2026-08-27T10:00:00Z');
+    const apiBot = {
+      user: { id: 'one', login: 'one_bot', displayName: 'One' },
+      ownerUserId: 'U-owner',
+      incomingWebhooks: [
+        {
+          id: 'W-one',
+          name: 'Production',
+          createdAt: Timestamp.fromDate(createdAt),
+          lastUsedState: CredentialLastUsedState.NO_USE_RECORDED
+        }
+      ]
+    };
+    mocks.createBotIncomingWebhook.mockResolvedValue({
+      bot: apiBot,
+      webhookUrl: 'https://chat.example/webhooks/incoming/secret'
+    });
+    mocks.revokeBotIncomingWebhook.mockResolvedValue({
+      bot: { ...apiBot, incomingWebhooks: [] }
+    });
+    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    await expect(api.createBotIncomingWebhook('one', 'Production')).resolves.toMatchObject({
+      bot: {
+        id: 'one',
+        incomingWebhooks: [
+          {
+            id: 'W-one',
+            name: 'Production',
+            createdAt,
+            lastUsedState: 'no_use_recorded',
+            lastUsedAt: null
+          }
+        ]
+      },
+      webhookUrl: 'https://chat.example/webhooks/incoming/secret'
+    });
+    expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith(
+      { botUserId: 'one', name: 'Production' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    await expect(api.revokeBotIncomingWebhook('one', 'W-one')).resolves.toMatchObject({
+      id: 'one',
+      incomingWebhooks: []
+    });
   });
 
   it('returns pagination metadata without eagerly loading later pages', async () => {
@@ -113,6 +171,27 @@ describe('createBotAPI', () => {
 
     await expect(api.getBot('one', { signal })).resolves.toMatchObject({ id: 'one' });
     expect(mocks.getBot).toHaveBeenCalledWith({ botUserId: 'one' }, { headers: undefined, signal });
+  });
+
+  it('treats unknown credential last-use states as unavailable', async () => {
+    mocks.getBot.mockResolvedValue({
+      bot: {
+        user: { id: 'one', login: 'one_bot', displayName: 'One' },
+        ownerUserId: 'U-owner',
+        incomingWebhooks: [
+          {
+            id: 'W-one',
+            name: 'Future state',
+            lastUsedState: 99 as CredentialLastUsedState
+          }
+        ]
+      }
+    });
+    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.getBot('one')).resolves.toMatchObject({
+      incomingWebhooks: [{ id: 'W-one', lastUsedState: 'unavailable', lastUsedAt: null }]
+    });
   });
 
   it('reassigns a bot owner and returns the updated bot', async () => {

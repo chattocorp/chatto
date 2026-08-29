@@ -2,7 +2,7 @@ package core
 
 import (
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -29,7 +29,7 @@ func (p *RoomDirectoryProjection) Subjects() []string {
 	return []string{evtstream.RoomSubjectFilter()}
 }
 
-func (p *RoomDirectoryProjection) Apply(event *corev1.Event, seq uint64) error {
+func (p *RoomDirectoryProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if err := p.Catalog.Apply(event, seq); err != nil {
 		return err
 	}

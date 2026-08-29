@@ -6,7 +6,9 @@
   import { createBotAPI } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
   import { viewerResponseToState } from '$lib/api-client/viewer';
-  import { DataTable, Panel } from '$lib/components/admin';
+  import DataTable from '$lib/ui/DataTable.svelte';
+  import Panel from '$lib/ui/Panel.svelte';
+  import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { m } from '$lib/i18n/messages';
@@ -14,7 +16,7 @@
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Dialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
+  import { FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { SvelteSet } from 'svelte/reactivity';
@@ -98,9 +100,7 @@
     },
     () => queryClient
   );
-  const ownersById = $derived(
-    new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner]))
-  );
+  const ownersById = $derived(new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner])));
 
   let createVisible = $state(false);
   let createLogin = $state('');
@@ -186,11 +186,6 @@
     }
   }
 
-  async function copyAPIKey() {
-    await navigator.clipboard.writeText(apiKey);
-    toast.success(m('settings.bots.key_copied'));
-  }
-
   function closeAPIKey() {
     const botId = createdBotId;
     apiKeyVisible = false;
@@ -271,8 +266,10 @@
                   avatarUrl: bot.avatarUrl,
                   deleted: false,
                   isBot: true,
+                  bio: bot.bio,
                   presenceStatus: PresenceStatus.OFFLINE
                 }}
+                viewerSettings={serverScope.store.currentUser.user?.settings}
               />
             </td>
             <td class="px-4 py-3">
@@ -284,11 +281,12 @@
             </td>
             <td class="px-4 py-3">
               {#if owner}
-                <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
+                <UserIdentity
+                  user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }}
+                  viewerSettings={serverScope.store.currentUser.user?.settings}
+                />
               {:else if ownersQuery.isPending}
-                <span
-                  class="skeleton block h-8 w-32 rounded-md"
-                  aria-label={m('common.loading')}
+                <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
                 ></span>
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
@@ -331,25 +329,12 @@
   />
 </FormDialog>
 
-<Dialog
+<ShowOnceCredentialDialog
   bind:visible={apiKeyVisible}
+  bind:value={apiKey}
+  pending={createLoading}
   title={m('settings.bots.api_key_title')}
-  size="lg"
+  warning={m('settings.bots.api_key_warning')}
+  copiedMessage={m('settings.bots.key_copied')}
   onclose={closeAPIKey}
->
-  <div class="flex flex-col gap-4">
-    <Hint tone="warning">{m('settings.bots.api_key_warning')}</Hint>
-    <div class="flex items-center gap-3 surface-box p-3">
-      <code class="min-w-0 flex-1 overflow-x-auto text-sm whitespace-nowrap select-all"
-        >{apiKey}</code
-      >
-      <Button size="sm" variant="secondary" onclick={copyAPIKey}>
-        <span class="iconify icon-[uil--copy]" aria-hidden="true"></span>
-        {m('common.copy_to_clipboard')}
-      </Button>
-    </div>
-    <div class="flex justify-end">
-      <Button defaultAction onclick={closeAPIKey}>{m('common.got_it')}</Button>
-    </div>
-  </div>
-</Dialog>
+/>

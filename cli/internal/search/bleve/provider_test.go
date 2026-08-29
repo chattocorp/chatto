@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	"hmans.de/chatto/internal/search"
 	"hmans.de/chatto/internal/testutil"
@@ -29,13 +29,13 @@ type failingStatusProjection struct{}
 
 func (p *failingStatusProjection) Subjects() []string { return []string{"evt.>"} }
 
-func (p *failingStatusProjection) Apply(*corev1.Event, uint64) error {
+func (p *failingStatusProjection) Apply(*evtv1.Event, uint64) error {
 	return errors.New("index write failed")
 }
 
 func (p *blockingStatusProjection) Subjects() []string { return []string{"evt.>"} }
 
-func (p *blockingStatusProjection) Apply(*corev1.Event, uint64) error {
+func (p *blockingStatusProjection) Apply(*evtv1.Event, uint64) error {
 	p.once.Do(func() { close(p.entered) })
 	<-p.release
 	return nil
@@ -69,9 +69,9 @@ func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
 	})
 	require.NoError(t, err)
 	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
-	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &corev1.Event{
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &evtv1.Event{
 		Id: "M1", ActorId: "U1",
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}},
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}},
 	})
 	require.NoError(t, err)
 
@@ -118,9 +118,9 @@ func TestProviderReportsFailedInitialReplayAsUnavailable(t *testing.T) {
 	})
 	require.NoError(t, err)
 	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
-	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &corev1.Event{
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &evtv1.Event{
 		Id: "M1", ActorId: "U1",
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}},
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}},
 	})
 	require.NoError(t, err)
 
@@ -149,9 +149,9 @@ func TestProviderReportsFailureAfterStartupAsDegraded(t *testing.T) {
 	require.Eventually(t, func() bool { return projector.Status().StartupComplete }, 2*time.Second, 10*time.Millisecond)
 
 	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
-	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &corev1.Event{
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &evtv1.Event{
 		Id: "M1", ActorId: "U1",
-		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}},
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}},
 	})
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return projector.Status().Failed }, 2*time.Second, 10*time.Millisecond)

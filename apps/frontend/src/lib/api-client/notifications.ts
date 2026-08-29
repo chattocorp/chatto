@@ -1,4 +1,4 @@
-import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Empty } from '@bufbuild/protobuf';
 import { authHeaders, createChattoClient } from './connect.js';
 import {
@@ -19,25 +19,20 @@ import {
   NotificationDeliveryMode
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
-import { presenceStatusOrOffline } from './enumDefaults.js';
+import { mapUserPresenceView, mapUserSummary, type UserSummary } from './userSummary.js';
 export type NotificationAPIConfig = {
   baseUrl: string;
   bearerToken: string | null;
   onAuthenticationRequired?: (serverId: string) => void;
 };
 
-export type NotificationActor = {
-  id: string;
-  login: string;
-  displayName: string;
-  deleted: boolean;
-  isBot?: boolean;
-  avatarUrl?: string | null;
+/** The acting user behind one notification occurrence. */
+export type NotificationActor = UserSummary & {
   presenceStatus: PresenceStatus;
   customStatus?: {
     emoji: string;
     text: string;
-    expiresAt?: string | null;
+    expiresAt: string | null;
   } | null;
 };
 
@@ -85,6 +80,7 @@ export { NotificationAttentionLevel, NotificationDeliveryMode };
 
 export const NotificationSignalKind = {
   DIRECT_MESSAGE: 'directMessageReceived',
+  ROOM_MESSAGE: 'roomMessageReceived',
   DIRECT_MENTION: 'directMentionReceived',
   REPLY: 'replyReceived',
   ROLE_MENTION: 'roleMentionReceived',
@@ -101,6 +97,7 @@ export type NotificationSignalKind =
 
 type NotificationPolicyShape<Value> = {
   directMessages: Value;
+  roomMessages: Value;
   directMentions: Value;
   replies: Value;
   roleMentions: Value;
@@ -245,6 +242,7 @@ function notificationPolicy(policy: APINotificationPolicy | undefined): Notifica
   return {
     overrides: {
       directMessages: policy?.overrides?.directMessages ?? null,
+      roomMessages: policy?.overrides?.roomMessages ?? null,
       directMentions: policy?.overrides?.directMentions ?? null,
       replies: policy?.overrides?.replies ?? null,
       roleMentions: policy?.overrides?.roleMentions ?? null,
@@ -258,6 +256,10 @@ function notificationPolicy(policy: APINotificationPolicy | undefined): Notifica
       directMessages: requiredNotificationDeliveryMode(
         policy?.effective?.directMessages,
         'direct_messages'
+      ),
+      roomMessages: requiredNotificationDeliveryMode(
+        policy?.effective?.roomMessages,
+        'room_messages'
       ),
       directMentions: requiredNotificationDeliveryMode(
         policy?.effective?.directMentions,
@@ -323,6 +325,7 @@ function requiredNotificationDeliveryMode(
 ): NotificationDeliveryMode {
   if (
     mode !== NotificationDeliveryMode.OFF &&
+    mode !== NotificationDeliveryMode.UNREAD_BADGE &&
     mode !== NotificationDeliveryMode.IN_APP_NOTIFICATION &&
     mode !== NotificationDeliveryMode.PUSH_NOTIFICATION
   ) {
@@ -339,6 +342,7 @@ function notificationPolicyUpdate(patch: NotificationPolicyPatch): {
   const paths: string[] = [];
 
   addNotificationPolicyUpdate(patch, overrides, paths, 'directMessages', 'direct_messages');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'roomMessages', 'room_messages');
   addNotificationPolicyUpdate(patch, overrides, paths, 'directMentions', 'direct_mentions');
   addNotificationPolicyUpdate(patch, overrides, paths, 'replies', 'replies');
   addNotificationPolicyUpdate(patch, overrides, paths, 'roleMentions', 'role_mentions');
@@ -426,6 +430,13 @@ function notificationSignal(item: APINotificationOccurrence): {
       return {
         supported: true,
         kind: NotificationSignalKind.DIRECT_MESSAGE,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'roomMessageReceived':
+      return {
+        supported: true,
+        kind: NotificationSignalKind.ROOM_MESSAGE,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
@@ -555,7 +566,10 @@ function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem
     return `thread:${roomId}:${occurrence.threadRootId ?? occurrence.eventId}`;
   }
   if (occurrence.signalKind === NotificationSignalKind.FOLLOWED_ROOM) {
-    return `room:${roomId}`;
+    return `followed-room:${roomId}`;
+  }
+  if (occurrence.signalKind === NotificationSignalKind.ROOM_MESSAGE) {
+    return `room-message:${roomId}`;
   }
   // Unknown future causes stay exact until the client deliberately chooses a
   // safe presentation boundary for them.
@@ -565,19 +579,7 @@ function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem
 function notificationActor(actor: APIUser | undefined): NotificationActor | null {
   if (!actor) return null;
   return {
-    id: actor.id,
-    login: actor.login,
-    displayName: actor.displayName,
-    deleted: actor.deleted,
-    isBot: actor.isBot,
-    avatarUrl: actor.avatarUrl ?? null,
-    presenceStatus: presenceStatusOrOffline(actor.presenceStatus),
-    customStatus: actor.customStatus
-      ? {
-          emoji: actor.customStatus.emoji,
-          text: actor.customStatus.text,
-          expiresAt: actor.customStatus.expiresAt?.toDate().toISOString() ?? null
-        }
-      : null
+    ...mapUserSummary(actor),
+    ...mapUserPresenceView(actor)
   };
 }

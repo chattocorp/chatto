@@ -19,7 +19,6 @@
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
   import ServerRuntimeCoordinator from '$lib/state/server/ServerRuntimeCoordinator.svelte';
-  import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { ToastContainer } from '$lib/ui/toast';
   import AppHeader from '$lib/ui/AppHeader.svelte';
   import Frame from '$lib/ui/Frame.svelte';
@@ -35,7 +34,6 @@
 
   setAuthServerInfo(() => data.serverInfo);
   const appUi = provideAppUiState();
-  useServerRegistry(() => data.user);
   useVisualViewport();
   usePinchZoomPrevention();
 

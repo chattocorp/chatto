@@ -7,6 +7,7 @@ const { mocks } = vi.hoisted(() => ({
     servers: [] as Array<{ id: string }>,
     activeServer: '',
     activeStore: undefined as undefined,
+    authenticated: {} as Record<string, boolean>,
     getStore: vi.fn(),
     pushState: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -15,7 +16,10 @@ const { mocks } = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState }));
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({
+  resolve: (path: string, params?: Record<string, string>) =>
+    params?.serverId ? path.replace('[serverId]', params.serverId) : path
+}));
 vi.mock('$app/environment', () => ({ version: '0.5.0-test' }));
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServer
@@ -28,6 +32,14 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     get originServer() {
       return undefined;
     },
+    isAuthenticated: (id: string) => mocks.authenticated[id] === true,
+    firstAuthenticatedServerId: () =>
+      mocks.servers.find((server) => mocks.authenticated[server.id])?.id,
+    isOriginServer: () => false,
+    getServer: (id: string) =>
+      mocks.servers.find((server) => server.id === id)
+        ? { id, url: `https://${id}.example.com` }
+        : undefined,
     getStore: mocks.getStore,
     tryGetStore: (id: string) => (id === mocks.activeServer ? mocks.activeStore : undefined)
   }
@@ -54,6 +66,7 @@ describe('AppHeader', () => {
     mocks.servers = [];
     mocks.activeServer = '';
     mocks.activeStore = undefined;
+    mocks.authenticated = {};
     mocks.getStore.mockReset();
     mocks.pushState.mockReset();
   });
@@ -73,6 +86,29 @@ describe('AppHeader', () => {
 
     expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
     expect(container.querySelector('a[href="/chat/preferences"]')).not.toBeNull();
+  });
+
+  it('treats a server without a store as having no unread notifications', () => {
+    mocks.servers = [{ id: 'remote' }];
+
+    const { container } = render(AppHeader);
+
+    expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="notifications-unread-dot"]')).toBeNull();
+  });
+
+  it('opens Appearance for the active authenticated server', () => {
+    mocks.servers = [{ id: 'remote' }];
+    mocks.activeServer = 'remote';
+    mocks.authenticated = { remote: true };
+    mocks.getStore.mockReturnValue({ notifications: { count: 0 } });
+
+    const { container } = render(AppHeader);
+
+    expect(
+      container.querySelector('a[href="/chat/remote.example.com/settings/appearance"]')
+    ).not.toBeNull();
+    expect(container.querySelector('a[href="/chat/preferences"]')).toBeNull();
   });
 
   it('opens the About Chatto dialog from the frontend version', () => {

@@ -9,13 +9,19 @@
       "account": "Konto",
       "bots": "Boty",
       "user_preferences": "Preferencje użytkownika",
-      "server_configuration": "Konfiguracja serwera"
+      "app_preferences": "Preferencje aplikacji",
+      "your_account": "Twoje konto",
+      "server_configuration": "Serwer"
     },
     "app_preferences": {
       "title": "Preferencje aplikacji",
       "subtitle": "Opcje tej aplikacji dotyczące wszystkich zarejestrowanych serwerów",
-      "appearance": { "title": "Wygląd" },
-      "composer": { "title": "Tworzenie wiadomości" }
+      "appearance": {
+        "title": "Wygląd"
+      },
+      "composer": {
+        "title": "Tworzenie wiadomości"
+      }
     },
     "profile": {
       "title": "Profil",
@@ -102,7 +108,7 @@
       "presence": {
         "button": "Obecność: {status}",
         "title": "Obecność",
-        "auto": "Online",
+        "online": "Online",
         "away": "Nieobecny",
         "do_not_disturb": "Nie przeszkadzać",
         "offline": "Nieaktywny",
@@ -110,7 +116,13 @@
       },
       "saved": "Profil został pomyślnie zaktualizowany",
       "save_failed": "Nie udało się zapisać profilu",
-      "save_button": "Zapisz zmiany"
+      "save_button": "Zapisz zmiany",
+      "bio": {
+        "label": "Bio",
+        "description": "Do {max} znaków, widoczne w Twoim profilu.",
+        "placeholder": "Napisz coś krótko o sobie",
+        "too_long": "Bio może mieć najwyżej {max} znaków."
+      }
     },
     "preferences": {
       "title": "Czas i region",
@@ -291,10 +303,13 @@
         "delivery_mode": {
           "inherit": "Dziedzicz",
           "off": "Wyłączone",
+          "badge": "Znacznik",
+          "badge_hint": "Dodaje tylko neutralną kropkę nieprzeczytanej treści. Nie tworzy powiadomienia, nie odtwarza dźwięku ani nie wysyła powiadomienia push.",
           "notification": "Powiadomienie",
           "push_notification": "Powiadomienie push"
         },
         "reason": {
+          "room_message": "Wiadomości w pokojach",
           "direct_message": "Wiadomości bezpośrednie",
           "direct_mention": "Bezpośrednie wzmianki",
           "reply": "Odpowiedzi na Twoje wiadomości",
@@ -302,12 +317,12 @@
           "here": "Wzmianki @here",
           "all": "Wzmianki @all",
           "followed_thread": "Obserwowane wątki",
-          "followed_room": "Obserwowane pokoje",
           "reaction": "Reakcje na Twoje wiadomości",
           "activity": "Aktywność",
           "room_invitation": "Zaproszenia do pokoi"
         },
         "reason_hint": {
+          "room_message": "Wiadomości główne publikowane przez innych członków bezpośrednio w pokojach kanałów, a nie w wątkach.",
           "direct_message": "Wiadomości wysyłane przez innych członków w rozmowach bezpośrednich.",
           "direct_mention": "Wiadomości, które bezpośrednio wymieniają Twoją nazwę użytkownika.",
           "reply": "Wiadomości będące odpowiedzią na jedną z Twoich wiadomości.",
@@ -315,7 +330,6 @@
           "here": "Wiadomości z @here, gdy Twój status obecności nie jest ustawiony na offline.",
           "all": "Wiadomości z @all w pokoju, do którego należysz.",
           "followed_thread": "Nowe odpowiedzi w obserwowanych przez Ciebie wątkach.",
-          "followed_room": "Wiadomości poza wątkami w obserwowanych przez Ciebie pokojach.",
           "reaction": "Reakcje dodane do Twoich wiadomości przez innych członków."
         }
       }
@@ -410,11 +424,6 @@
       "create_title": "Utwórz konto bota",
       "create_failed": "Nie udało się utworzyć bota",
       "created": "Bot został utworzony",
-      "edit": "Edytuj",
-      "edit_title": "Edytuj konto bota",
-      "updated": "Bot zaktualizowany",
-      "update_failed": "Nie udało się zaktualizować bota",
-      "update_conflict": "Ktoś inny zaktualizował tego bota. Odśwież stronę i spróbuj ponownie.",
       "username": "Nazwa użytkownika",
       "username_hint": "Nazwy użytkowników botów muszą kończyć się na _bot.",
       "display_name": "Nazwa wyświetlana",
@@ -433,6 +442,12 @@
       "rotate_warning": "Bieżący klucz natychmiast przestanie działać. Każda integracja korzystająca z niego musi zostać zaktualizowana.",
       "key_rotated": "Klucz API został zmieniony",
       "rotate_failed": "Nie udało się obrócić klucza API",
+      "webhook_title": "Przychodzące webhooki",
+      "webhook_description": "Publikuj wiadomości jako ten bot z narzędzi zewnętrznych.",
+      "webhook_created": "Utworzono przychodzący webhook",
+      "webhook_url_title": "Zapisz ten adres URL webhooka",
+      "webhook_url_warning": "Ten adres URL jest wyświetlany tylko raz i zawiera dane dostępowe. Zapisz go w bezpiecznym miejscu przed zamknięciem tego okna.",
+      "webhook_url_copied": "Skopiowano adres URL webhooka",
       "delete_title": "Usuń bota",
       "delete_warning": "Usunąć {name}? Jego klucz API natychmiast przestanie działać i konta nie będzie można odzyskać.",
       "deleted": "Bot usunięty",
@@ -440,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Wybierz, co ten bot może robić. Możesz nadać mu tylko uprawnienia, które masz samodzielnie. Jeśli utracisz uprawnienie, bot również nie będzie mógł go używać.",
         "save_failed": "Nie udało się zaktualizować uprawnień bota"
-      }
+      },
+      "webhook_empty_description": "Nie utworzono jeszcze żadnych przychodzących webhooków.",
+      "webhook_create": "Utwórz webhook",
+      "webhook_name": "Nazwa",
+      "webhook_created_at": "Utworzono",
+      "webhook_create_failed": "Nie udało się utworzyć przychodzącego webhooka",
+      "webhook_revoke": "Unieważnij webhook",
+      "webhook_revoke_warning": "Bieżący adres URL webhooka natychmiast przestanie działać.",
+      "webhook_revoked": "Unieważniono przychodzący webhook",
+      "webhook_revoke_failed": "Nie udało się unieważnić przychodzącego webhooka",
+      "webhook_last_used": "Ostatnio użyto",
+      "webhook_no_use_recorded": "Nie zarejestrowano użycia",
+      "webhook_last_used_unavailable": "Tymczasowo niedostępne",
+      "webhook_limit_reached": "Osiągnięto limit 20 przychodzących webhooków."
     }
   }
 }

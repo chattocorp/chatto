@@ -19,7 +19,7 @@ export const ThreadService = {
     /**
      * Returns followed threads in rooms where the current user is a member.
      * Channel-room threads also require message.read or an active relationship
-     * with message.read.interactions. Historical DM threads use DM membership.
+     * with message.read-interactions. Historical DM threads use DM membership.
      * The result includes enough root-message data for clients to render the
      * list without extra per-field fetches.
      *
@@ -33,7 +33,7 @@ export const ThreadService = {
     },
     /**
      * Follows a thread for the current user. Room membership plus message.read or
-     * an active relationship with message.read.interactions are required. DMs do
+     * an active relationship with message.read-interactions are required. DMs do
      * not support current thread actions.
      * Followed threads can be surfaced in clients and can participate in thread
      * notification behavior.
@@ -48,7 +48,7 @@ export const ThreadService = {
     },
     /**
      * Stops following a thread for the current user. Room membership plus
-     * message.read or an active relationship with message.read.interactions are
+     * message.read or an active relationship with message.read-interactions are
      * required. DMs do not support current thread actions. The response reports
      * the resulting follow state so clients can update local UI immediately.
      *
@@ -63,7 +63,7 @@ export const ThreadService = {
     /**
      * Returns one page of events in a message thread. Room membership is
      * required. Channel-room reads also require message.read or an active
-     * relationship with message.read.interactions. Historical DM threads use DM
+     * relationship with message.read-interactions. Historical DM threads use DM
      * membership. Initial pages include the thread root message; cursor pages
      * return replies in the requested direction.
      *
@@ -94,7 +94,7 @@ export const ThreadService = {
     /**
      * Marks a thread timeline as read through the supplied event without changing
      * the room-level read marker. Room membership plus message.read or an active
-     * relationship with message.read.interactions are required. DMs do not
+     * relationship with message.read-interactions are required. DMs do not
      * support current thread actions.
      *
      * @generated from rpc chatto.api.v1.ThreadService.MarkThreadAsRead

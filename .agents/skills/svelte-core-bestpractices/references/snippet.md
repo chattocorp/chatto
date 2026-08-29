@@ -8,7 +8,7 @@
 {#snippet name(param1, param2, paramN)}...{/snippet}
 ```
 
-Snippets, and [render tags](@render), are a way to create reusable chunks of markup inside your components. Instead of writing duplicative code like this...
+Snippets, and [render tags](https://svelte.dev/docs/svelte/@render/llms.txt), are a way to create reusable chunks of markup inside your components. Instead of writing duplicative code like this...
 
 ```svelte
 {#each images as image}
@@ -53,9 +53,12 @@ Like function declarations, snippets can have an arbitrary number of parameters,
 
 ## Snippet scope
 
-Snippets can be declared anywhere inside your component. They can reference values declared outside themselves, for example in the `<script>` tag or in `{#each ...}` blocks (demo...
+Snippets can be declared anywhere inside your component. They can reference values declared outside themselves, for example in the `<script>` tag or in `{#each ...}` blocks...
+
+<!-- codeblock:start {"title":"Snippets"} -->
 
 ```svelte
+<!--- file: App.svelte --->
 <script>
 	let { message = `it's great to see you!` } = $props();
 </script>
@@ -67,6 +70,8 @@ Snippets can be declared anywhere inside your component. They can reference valu
 {@render hello('alice')}
 {@render hello('bob')}
 ```
+
+<!-- codeblock:end -->
 
 ...and they are 'visible' to everything in the same lexical scope (i.e. siblings, and children of those siblings):
 
@@ -87,9 +92,12 @@ Snippets can be declared anywhere inside your component. They can reference valu
 {@render x()}
 ```
 
-Snippets can reference themselves and each other (demo:
+Snippets can reference themselves and each other:
+
+<!-- codeblock:start {"title":"Self-referencing snippets"} -->
 
 ```svelte
+<!--- file: App.svelte --->
 {#snippet blastoff()}
 	<span>🚀</span>
 {/snippet}
@@ -106,20 +114,25 @@ Snippets can reference themselves and each other (demo:
 {@render countdown(10)}
 ```
 
+<!-- codeblock:end -->
+
 ## Passing snippets to components
 
 ### Explicit props
 
-Within the template, snippets are values just like any other. As such, they can be passed to components as props (demo:
+Within the template, snippets are values just like any other. As such, they can be passed to components as props:
+
+<!-- codeblock:start {"title":"Explicit snippet props"} -->
 
 ```svelte
+<!--- file: App.svelte --->
 <script>
 	import Table from './Table.svelte';
 
 	const fruits = [
 		{ name: 'apples', qty: 5, price: 2 },
 		{ name: 'bananas', qty: 10, price: 1 },
-		{ name: 'cherries', qty: 20, price: 0.5 },
+		{ name: 'cherries', qty: 20, price: 0.5 }
 	];
 </script>
 
@@ -137,17 +150,67 @@ Within the template, snippets are values just like any other. As such, they can 
 	<td>{d.qty * d.price}</td>
 {/snippet}
 
-<Table data={fruits} {header} {row} />
+<Table data={fruits} +++{header} {row}+++ />
 ```
+
+```svelte
+<!--- file: Table.svelte --->
+<script>
+	let { data, header, row } = $props();
+</script>
+
+<table>
+	{#if header}
+		<thead>
+			<tr>{@render header()}</tr>
+		</thead>
+	{/if}
+
+	<tbody>
+		{#each data as d}
+			<tr>{@render row(d)}</tr>
+		{/each}
+	</tbody>
+</table>
+
+<style>
+	table {
+		text-align: left;
+		border-spacing: 0;
+	}
+
+	tbody tr:nth-child(2n+1) {
+		background: ButtonFace;
+	}
+
+	table :global(th), table :global(td) {
+		padding: 0.5em;
+	}
+</style>
+```
+
+<!-- codeblock:end -->
 
 Think about it like passing content instead of data to a component. The concept is similar to slots in web components.
 
 ### Implicit props
 
-As an authoring convenience, snippets declared directly _inside_ a component implicitly become props _on_ the component (demo:
+As an authoring convenience, snippets declared directly _inside_ a component implicitly become props _on_ the component:
+
+<!-- codeblock:start {"title":"Implicit snippet props"} -->
 
 ```svelte
-<!-- this is semantically the same as the above -->
+<!--- file: App.svelte --->
+<script>
+	import Table from './Table.svelte';
+
+	const fruits = [
+		{ name: 'apples', qty: 5, price: 2 },
+		{ name: 'bananas', qty: 10, price: 1 },
+		{ name: 'cherries', qty: 20, price: 0.5 }
+	];
+</script>
+
 <Table data={fruits}>
 	{#snippet header()}
 		<th>fruit</th>
@@ -165,12 +228,56 @@ As an authoring convenience, snippets declared directly _inside_ a component imp
 </Table>
 ```
 
+```svelte
+<!--- file: Table.svelte --->
+<script>
+	let { data, header, row } = $props();
+</script>
+
+<table>
+	{#if header}
+		<thead>
+			<tr>{@render header()}</tr>
+		</thead>
+	{/if}
+
+	<tbody>
+		{#each data as d}
+			<tr>{@render row(d)}</tr>
+		{/each}
+	</tbody>
+</table>
+
+<style>
+	table {
+		text-align: left;
+		border-spacing: 0;
+	}
+
+	tbody tr:nth-child(2n+1) {
+		background: ButtonFace;
+	}
+
+	table :global(th), table :global(td) {
+		padding: 0.5em;
+	}
+</style>
+```
+
+<!-- codeblock:end -->
+
 ### Implicit `children` snippet
 
-Any content inside the component tags that is _not_ a snippet declaration implicitly becomes part of the `children` snippet (demo:
+Any content inside the component tags that is _not_ a snippet declaration implicitly becomes part of the `children` snippet:
+
+<!-- codeblock:start {"title":"Implicit children snippet","selected":"Button.svelte"} -->
 
 ```svelte
 <!--- file: App.svelte --->
+<script>
+	import Button from './Button.svelte';
+</script>
+
 <Button>click me</Button>
 ```
 
@@ -184,6 +291,8 @@ Any content inside the component tags that is _not_ a snippet declaration implic
 <button>{@render children()}</button>
 ```
 
+<!-- codeblock:end -->
+
 > [!NOTE] Note that you cannot have a prop called `children` if you also have content inside the component — for this reason, you should avoid having props with that name
 
 ### Optional snippet props
@@ -192,7 +301,7 @@ You can declare snippet props as being optional. You can either use optional cha
 
 ```svelte
 <script>
-	let { children } = $props();
+    let { children } = $props();
 </script>
 
 {@render children?.()}
@@ -202,13 +311,13 @@ You can declare snippet props as being optional. You can either use optional cha
 
 ```svelte
 <script>
-	let { children } = $props();
+    let { children } = $props();
 </script>
 
 {#if children}
-	{@render children()}
+    {@render children()}
 {:else}
-	fallback content
+    fallback content
 {/if}
 ```
 
@@ -241,7 +350,7 @@ We can tighten things up further by declaring a generic, so that `data` and `row
 	let {
 		data,
 		children,
-		row,
+		row
 	}: {
 		data: T[];
 		children: Snippet;
@@ -252,9 +361,22 @@ We can tighten things up further by declaring a generic, so that `data` and `row
 
 ## Exporting snippets
 
-Snippets declared at the top level of a `.svelte` file can be exported from a `<script module>` for use in other components, provided they don't reference any declarations in a non-module `<script>` (whether directly or indirectly, via other snippets) (demo:
+Snippets declared at the top level of a `.svelte` file can be exported from a `<script module>` for use in other components, provided they don't reference any declarations in a non-module `<script>` (whether directly or indirectly, via other snippets):
+
+<!-- codeblock:start {"title":"Exported snippets","selected":"snippets.svelte"} -->
 
 ```svelte
+<!--- file: App.svelte --->
+<script>
+	import { add } from './snippets.svelte';
+</script>
+
+{@render add(1, 2)}
+
+```
+
+```svelte
+<!--- file: snippets.svelte --->
 <script module>
 	export { add };
 </script>
@@ -264,13 +386,15 @@ Snippets declared at the top level of a `.svelte` file can be exported from a `<
 {/snippet}
 ```
 
+<!-- codeblock:end -->
+
 > [!NOTE]
 > This requires Svelte 5.5.0 or newer
 
 ## Programmatic snippets
 
-Snippets can be created programmatically with the [`createRawSnippet`](svelte#createRawSnippet) API. This is intended for advanced use cases.
+Snippets can be created programmatically with the [`createRawSnippet`](https://svelte.dev/docs/svelte/svelte/llms.txt#createRawSnippet) API. This is intended for advanced use cases.
 
 ## Snippets and slots
 
-In Svelte 4, content can be passed to components using [slots](legacy-slots). Snippets are more powerful and flexible, and so slots have been deprecated in Svelte 5.
+In Svelte 4, content can be passed to components using [slots](https://svelte.dev/docs/svelte/legacy-slots/llms.txt). Snippets are more powerful and flexible, and so slots have been deprecated in Svelte 5.

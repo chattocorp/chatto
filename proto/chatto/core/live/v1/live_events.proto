@@ -1,0 +1,303 @@
+syntax = "proto3";
+
+package chatto.core.live.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/live/v1;livev1";
+
+// ============================================================================
+// LIVE-ONLY EVENT DEFINITIONS
+//
+// LiveEvent oneof tags are local to this envelope. They do not need to match
+// Event oneof numbers because LiveEvent is never stored in EVT and never
+// decoded as Event directly.
+// ============================================================================
+
+// ============================================================================
+
+/*
+   LiveEvent is the wire-format envelope for transient pubsub signals.
+   These events are never stored in EVT and are not projection input. They
+   are delivered over the live.sync.> subject family and adapted by myEvents
+   into public realtime events.
+
+   Durable facts belong in Event on the EVT stream. Do not add new transient
+   variants to Event.
+*/
+message LiveEvent {
+  // Universal event identifier (NanoID) for dedupe and client-side idempotency.
+  string id = 1;
+
+  // When this live signal was created.
+  google.protobuf.Timestamp created_at = 2;
+
+  // ID of the user or system actor that triggered this signal.
+  string actor_id = 3;
+
+  reserved 10, 21, 24, 41, 50, 51, 70, 71;
+  reserved "config_updated", "notification_level_changed", "video_processing_completed",
+    "mention_notification", "new_direct_message_notification", "notification_created", "notification_dismissed",
+    "user_deleted";
+
+  oneof event {
+    // ----- User lifecycle / preferences -----
+    UserCreatedSyncEvent user_created = 20;
+    // Transient current-profile snapshot derived after a durable profile change.
+    UserProfileSyncEvent user_profile_updated = 22;
+    ServerUserPreferencesSyncEvent server_user_preferences_updated = 23;
+    ThreadFollowChangedEvent thread_follow_changed = 25;
+
+    // ----- Server membership / lifecycle -----
+    ServerMemberDeletedEvent server_member_deleted = 30;
+    ServerUpdatedEvent server_updated = 31;
+
+    // ----- Typing -----
+    UserTypingEvent user_typing = 40;
+
+    // ----- Presence -----
+    PresenceChangedEvent presence_changed = 45;
+
+    // ----- Voice calls -----
+    CallParticipantJoinedEvent call_participant_joined = 60;
+    CallParticipantLeftEvent call_participant_left = 61;
+
+    // ----- Notification sync -----
+    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 72;
+    NotificationUnreadChangedEvent notification_unread_changed = 73;
+
+    // ----- Unread indicators -----
+    RoomMarkedAsReadEvent room_marked_as_read = 80;
+    MentionStatusClearedEvent mention_status_cleared = 81;
+
+    // ----- Room layout -----
+    RoomGroupsUpdatedEvent room_groups_updated = 90;
+
+    // ----- Session termination -----
+    SessionTerminatedEvent session_terminated = 100;
+  }
+}
+
+// ============================================================================
+// SUBSCRIPTION LIVENESS
+// ============================================================================
+
+// HeartbeatEvent is a synthetic event with no payload. StreamMyEvents
+// emits one every ~15 seconds so clients can detect a dead subscription
+// on an otherwise-healthy WebSocket. It is never persisted and never
+// travels over NATS.
+message HeartbeatEvent {}
+
+// TimeFormat is the transient preference value used by live synchronization.
+// Durable preference facts use the independent EVT enum.
+enum TimeFormat {
+  TIME_FORMAT_UNSPECIFIED = 0;
+  TIME_FORMAT_12H = 1;
+  TIME_FORMAT_24H = 2;
+}
+
+// ServerMemberDeletedEvent invalidates server member views after account
+// deletion. It is a transient signal and is independent from the durable EVT
+// payload with the same fields.
+message ServerMemberDeletedEvent {
+  reserved 1;
+  reserved "space_id";
+  string user_id = 2;
+}
+
+// CallParticipantEventSource describes the source of a transient call
+// participant update.
+enum CallParticipantEventSource {
+  CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED = 0;
+  CALL_PARTICIPANT_EVENT_SOURCE_USER = 1;
+  CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT = 2;
+  CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION = 3;
+}
+
+// CallParticipantJoinedEvent is the transient call-participant join signal.
+message CallParticipantJoinedEvent {
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// CallParticipantLeftEvent is the transient call-participant leave signal.
+message CallParticipantLeftEvent {
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// ============================================================================
+// USER LIFECYCLE, PROFILE, AND PREFERENCE SYNC
+// ============================================================================
+
+// UserCreatedSyncEvent reports a newly created public user profile.
+message UserCreatedSyncEvent {
+  string user_id = 1;
+  string login = 2;
+  string display_name = 3;
+}
+
+// UserProfileSyncEvent is a transient, projection-derived live snapshot. It
+// is published after a public profile field changes and is never stored in EVT.
+// Durable user events remain the authoritative profile facts.
+message UserProfileSyncEvent {
+  string user_id = 1;
+  string display_name = 2;
+  // URL to the user's avatar, or empty if no avatar is set.
+  string avatar_url = 3;
+  // The user's current login/username.
+  string login = 4;
+  // The user's current public bio, or empty when unset.
+  string bio = 5;
+  // The user's shared IANA time zone, or empty when none is shared.
+  string timezone = 6;
+}
+
+// ServerUserPreferencesSyncEvent reports updated user display preferences for
+// synchronization between the user's active clients.
+message ServerUserPreferencesSyncEvent {
+  // IANA time zone name. An empty value selects the browser default.
+  string timezone = 1;
+  // Preferred time display format.
+  TimeFormat time_format = 2;
+}
+
+// ============================================================================
+// SERVER LIFECYCLE EVENTS (deployment-scoped)
+// ============================================================================
+
+message ServerUpdatedEvent {
+  string server_id = 1;
+  string name = 2;
+  string description = 3;
+  // URL to the server's logo, or empty if no logo is set.
+  string logo_url = 4;
+  // URL to the server's banner, or empty if no banner is set.
+  string banner_url = 5;
+}
+
+// ============================================================================
+// TYPING INDICATOR EVENTS (room-scoped)
+// ============================================================================
+
+// Notifies clients that a user is typing in a room or thread.
+// Published directly to NATS Core (bypasses JetStream storage).
+// Clients should implement timeout-based clearing (e.g., 6 seconds).
+message UserTypingEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID where the user is typing
+  string room_id = 2;
+
+  // Thread root event ID (optional). If set, the user is typing a reply in this thread.
+  // If empty, the user is typing in the main room view.
+  optional string thread_root_event_id = 3;
+}
+
+// ============================================================================
+// PRESENCE EVENTS (server-scoped, constructed from KV watcher)
+// ============================================================================
+
+// Notifies clients that a user's presence status changed.
+// Published when a user comes online, goes offline, or changes their status.
+// The user whose presence changed is identified by the parent envelope's actor_id.
+// Presence is server-wide; the server context is implicit in the subscription.
+message PresenceChangedEvent {
+  // The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
+  string status = 1;
+}
+
+// ============================================================================
+// NOTIFICATION SYNC EVENTS (server-scoped)
+// ============================================================================
+
+// User-scoped invalidation for Notifications 2.0 authoritative replacement.
+message NotificationOccurrencesInvalidatedEvent {
+  // Legacy candidate for a one-shot local sound on a push-eligible
+  // occurrence. Consumers must still validate the candidate against the
+  // current occurrence and policy. Retained for rolling compatibility.
+  optional string alert_candidate_notification_id = 1;
+  // Candidate occurrence for one-shot in-app sound. New publishers set this
+  // for both in-app and push-notification modes. Older consumers ignore it.
+  optional string sound_candidate_notification_id = 2;
+}
+
+// ============================================================================
+// THREAD FOLLOW EVENTS (user-scoped)
+// ============================================================================
+
+// ThreadFollowChangedEvent invalidates one user's viewer-specific thread state.
+// It is published for follow/unfollow and read-marker changes and is user-scoped
+// for multi-tab/multi-device projection convergence.
+message ThreadFollowChangedEvent {
+  reserved 1;
+  reserved "space_id";
+  // The room containing the thread.
+  string room_id = 2;
+  // The root event ID of the thread.
+  string thread_root_event_id = 3;
+  // Whether the user is now following (true) or not following (false).
+  bool is_following = 4;
+}
+
+// ============================================================================
+// UNREAD INDICATOR EVENTS (server-scoped)
+// ============================================================================
+
+// Published to the user who marked a room as read. This enables real-time
+// updates to other tabs/devices for the same user.
+message RoomMarkedAsReadEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID that was marked as read
+  string room_id = 2;
+}
+
+// Invalidates neutral unread attention after a Badge delivery decision or a
+// read/visibility change. The signal is user-scoped and carries no message
+// content. Projection transports hydrate authoritative room and thread state.
+message NotificationUnreadChangedEvent {
+  // Room whose unread state changed.
+  string room_id = 1;
+  // Thread root whose unread state changed. Empty means room-level activity.
+  string thread_root_event_id = 2;
+}
+
+// Published to the user whose mention indicator for a room was cleared.
+// Fires whenever the server-side mention KV flag (`room_mention_status.*`) is
+// deleted — that happens when the user marks a room as read (auto on entry or
+// explicit) or dismisses a mention notification on any device. Other devices
+// use this to drop the orange dot for the room without waiting for a refetch.
+message MentionStatusClearedEvent {
+  // Room ID whose mention indicator was cleared
+  string room_id = 1;
+}
+
+// ============================================================================
+// ROOM LAYOUT EVENTS (server-scoped — KV bucket is source of truth)
+// ============================================================================
+
+// Notifies clients that the channel-room groups (their ordering, names,
+// or membership) were updated. Clients should refetch `Server.roomGroups`.
+// Published as a live server event (not stored in JetStream).
+message RoomGroupsUpdatedEvent {
+  reserved 1;
+  reserved "space_id";
+}
+
+// ============================================================================
+// SESSION TERMINATION EVENTS (user-scoped)
+// ============================================================================
+
+// Notifies a user that their session has been terminated.
+// Published as a user-scoped event on logout or admin boot.
+// The subscription handler closes the stream after forwarding this event,
+// ensuring the WebSocket connection is torn down server-side.
+message SessionTerminatedEvent {
+  // Reason for termination: "logout", "admin_boot", "account_deleted"
+  string reason = 1;
+}

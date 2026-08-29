@@ -16,6 +16,7 @@
     onOpenThread,
     activeCallId = null,
     onOpenCall,
+    onOpenProfile,
     threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
@@ -26,6 +27,7 @@
     onOpenThread?: OpenThreadHandler;
     activeCallId?: string | null;
     onOpenCall?: () => void;
+    onOpenProfile?: (userId: string) => void;
     threadingMode?: RoomThreadingMode;
   } = $props();
 
@@ -47,6 +49,7 @@
     {permalinkThreadRootEventId}
     {messageStore}
     {onOpenThread}
+    {onOpenProfile}
     {threadingMode}
   />
 {:else}

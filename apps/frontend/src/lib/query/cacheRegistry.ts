@@ -28,6 +28,7 @@ type RoomMemberQueryCache = {
 
 let removeServerCache: ServerCacheRemover | undefined;
 let removeAdminCache: ServerCacheRemover | undefined;
+let refreshAdminCache: ServerCacheRemover | undefined;
 let removeAdminUserCache: AdminUserCacheRemover | undefined;
 let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
 let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
@@ -41,12 +42,14 @@ const serverQueryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
 export function registerServerQueryCache(removers: {
   server: ServerCacheRemover;
   admin: ServerCacheRemover;
+  refreshAdmin: ServerCacheRemover;
   adminUser: AdminUserCacheRemover;
   adminRoom: AdminRoomQueryReconciler;
   adminRoomGroups: AdminRoomGroupQueryReconciler;
 }): void {
   removeServerCache = removers.server;
   removeAdminCache = removers.admin;
+  refreshAdminCache = removers.refreshAdmin;
   removeAdminUserCache = removers.adminUser;
   reconcileAdminRoomCache = removers.adminRoom;
   reconcileAdminRoomGroupCache = removers.adminRoomGroups;
@@ -121,6 +124,12 @@ export function removeRegisteredAdminQueries(serverId: string): void {
   removeAdminCache?.(serverId);
 }
 
+/** Refetch mounted admin reads without discarding their stable render geometry. */
+export function refreshRegisteredAdminQueries(serverId: string): void {
+  for (const listener of queryCacheRemovalListeners) listener(serverId);
+  refreshAdminCache?.(serverId);
+}
+
 /** Purge admin snapshots that can retain a removed user's private data. */
 export function removeRegisteredAdminUserQueries(serverId: string, userId: string): void {
   for (const listener of adminUserRemovalListeners) listener(serverId, userId);
@@ -150,7 +159,7 @@ export function registerAdminUserRemovalListener(listener: AdminUserRemovalListe
   return () => adminUserRemovalListeners.delete(listener);
 }
 
-/** Fence late query mutations when authentication or admin visibility clears cached data. */
+/** Fence late mutations when authentication or admin snapshots are invalidated. */
 export function registerQueryCacheRemovalListener(listener: QueryCacheRemovalListener): () => void {
   queryCacheRemovalListeners.add(listener);
   return () => queryCacheRemovalListeners.delete(listener);

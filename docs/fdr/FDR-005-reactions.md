@@ -14,7 +14,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 - Clicking a pill toggles the current user's reaction.
 - Adding or removing a reaction requires room membership and `message.react`.
   In a channel room, it also requires broad `message.read`, or
-  `message.read.interactions` with a relationship to the message's thread. DM
+  `message.read-interactions` with a relationship to the message's thread. DM
   membership authorizes the read.
 - Another user's reaction to your message creates one exact Ambient
   notification occurrence when the reaction preference resolves to
@@ -107,7 +107,7 @@ into a narrow commit-time authorization fence instead.
 - `message.react` — add or remove a reaction on a message. Scoped at server, group, and room.
 - `message.read` — read any target channel-room message and its aggregate
   reaction state.
-- `message.read.interactions` — read the target and reaction state when its
+- `message.read-interactions` — read the target and reaction state when its
   thread has an interaction relationship. DM membership authorizes DM reads
   without either permission.
 

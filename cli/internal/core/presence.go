@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/cache_state/v1"
 	"strings"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // Presence status constants used by public API and storage mappings.
@@ -35,23 +35,23 @@ const (
 
 // presenceStatusFromString converts a stored presence status string to protobuf enum.
 // Note: OFFLINE should never be stored - callers should delete the key instead.
-func presenceStatusFromString(s string) corev1.UserPresenceStatus {
+func presenceStatusFromString(s string) cachestatev1.UserPresenceStatus {
 	switch s {
 	case PresenceStatusAway:
-		return corev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY
+		return cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY
 	case PresenceStatusDoNotDisturb:
-		return corev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB
+		return cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB
 	default:
-		return corev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE
+		return cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_ONLINE
 	}
 }
 
 // presenceStatusToString converts a protobuf UserPresenceStatus enum to storage string.
-func presenceStatusToString(status corev1.UserPresenceStatus) string {
+func presenceStatusToString(status cachestatev1.UserPresenceStatus) string {
 	switch status {
-	case corev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY:
+	case cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_AWAY:
 		return PresenceStatusAway
-	case corev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB:
+	case cachestatev1.UserPresenceStatus_USER_PRESENCE_STATUS_DO_NOT_DISTURB:
 		return PresenceStatusDoNotDisturb
 	default:
 		return PresenceStatusOnline
@@ -108,7 +108,7 @@ func (s *PresenceModel) GetUserPresence(ctx context.Context, userID string) (str
 		entry.Operation() == jetstream.KeyValuePurge {
 		return PresenceStatusOffline, nil
 	}
-	presence := &corev1.UserPresence{}
+	presence := &cachestatev1.UserPresence{}
 	if err := proto.Unmarshal(entry.Value(), presence); err != nil {
 		s.logger.Warn("Failed to unmarshal presence, treating user as offline",
 			"error", err, "user_id", userID)
@@ -128,7 +128,7 @@ func (s *PresenceModel) SetPresence(ctx context.Context, userID string, status s
 // manuallySet marks explicit user-selected Away/DND so automatic reports from
 // other clients do not overwrite the user's chosen availability.
 func (s *PresenceModel) SetPresenceWithOptions(ctx context.Context, userID string, status string, manuallySet bool) error {
-	presence := &corev1.UserPresence{
+	presence := &cachestatev1.UserPresence{
 		Status:      presenceStatusFromString(status),
 		ManuallySet: manuallySet && status != PresenceStatusOnline,
 	}
@@ -206,14 +206,14 @@ func (s *PresenceModel) writePresence(ctx context.Context, key string, data []by
 }
 
 func shouldIgnoreAutomaticPresenceWrite(existingData, incomingData []byte) bool {
-	var existing corev1.UserPresence
+	var existing cachestatev1.UserPresence
 	if err := proto.Unmarshal(existingData, &existing); err != nil {
 		return false
 	}
 	if !existing.ManuallySet {
 		return false
 	}
-	var incoming corev1.UserPresence
+	var incoming cachestatev1.UserPresence
 	if err := proto.Unmarshal(incomingData, &incoming); err != nil {
 		return false
 	}

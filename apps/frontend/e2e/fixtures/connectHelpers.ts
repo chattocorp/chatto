@@ -46,13 +46,11 @@ export interface E2EServerRole {
 }
 
 export type E2ENotificationMode =
-  | 'UNSPECIFIED'
-  | 'OFF'
-  | 'IN_APP_NOTIFICATION'
-  | 'PUSH_NOTIFICATION';
+  'UNSPECIFIED' | 'OFF' | 'UNREAD_BADGE' | 'IN_APP_NOTIFICATION' | 'PUSH_NOTIFICATION';
 
 type E2ENotificationPolicyShape<Value> = {
   directMessages: Value;
+  roomMessages: Value;
   directMentions: Value;
   replies: Value;
   roleMentions: Value;
@@ -69,9 +67,7 @@ export interface E2ENotificationPolicy {
 }
 
 export type E2ENotificationPolicyScope =
-  | { server: Record<string, never> }
-  | { roomGroupId: string }
-  | { roomId: string };
+  { server: Record<string, never> } | { roomGroupId: string } | { roomId: string };
 
 interface NotificationPolicyResponse {
   policy?: {
@@ -106,7 +102,11 @@ interface JoinRoomResponse {
 }
 
 interface CreateMessageResponse {
-  event?: { id?: string };
+  message?: { id?: string };
+}
+
+interface GetMessageResponse {
+  message?: { id?: string };
 }
 
 interface ViewerResponse {
@@ -121,7 +121,8 @@ const notificationModeByNumber: Record<number, E2ENotificationMode> = {
   0: 'UNSPECIFIED',
   1: 'OFF',
   2: 'IN_APP_NOTIFICATION',
-  3: 'PUSH_NOTIFICATION'
+  3: 'PUSH_NOTIFICATION',
+  4: 'UNREAD_BADGE'
 };
 
 export async function connectPost<T>(
@@ -324,6 +325,28 @@ export async function postMessageViaConnect(
   return postMessageWithConnectInput(page, { roomId, body });
 }
 
+/** Wait until one message is observable through the viewer's room timeline projection. */
+export async function waitForMessageViaConnect(
+  page: Page,
+  roomId: string,
+  eventId: string,
+  timeout = DEFAULT_POLL_TIMEOUT
+): Promise<void> {
+  await expect(async () => {
+    const data = await connectPost<GetMessageResponse>(
+      page,
+      'chatto.api.v1.MessageService/GetMessage',
+      { roomId, eventId }
+    );
+    expect(data.message?.id).toBe(eventId);
+  }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
+}
+
+/** Establish the Message Read Cursor through the room's current root event. */
+export async function markRoomAsReadViaConnect(page: Page, roomId: string): Promise<void> {
+  await connectPost(page, 'chatto.api.v1.RoomService/MarkRoomAsRead', { roomId });
+}
+
 export async function postMessagesViaConnect(
   page: Page,
   roomId: string,
@@ -465,6 +488,7 @@ function normalizeNotificationPolicy(data: NotificationPolicyResponse): E2ENotif
   return {
     overrides: {
       directMessages: normalizeNotificationOverride(overrides?.directMessages),
+      roomMessages: normalizeNotificationOverride(overrides?.roomMessages),
       directMentions: normalizeNotificationOverride(overrides?.directMentions),
       replies: normalizeNotificationOverride(overrides?.replies),
       roleMentions: normalizeNotificationOverride(overrides?.roleMentions),
@@ -476,6 +500,7 @@ function normalizeNotificationPolicy(data: NotificationPolicyResponse): E2ENotif
     },
     effective: {
       directMessages: normalizeNotificationMode(effective?.directMessages),
+      roomMessages: normalizeNotificationMode(effective?.roomMessages),
       directMentions: normalizeNotificationMode(effective?.directMentions),
       replies: normalizeNotificationMode(effective?.replies),
       roleMentions: normalizeNotificationMode(effective?.roleMentions),

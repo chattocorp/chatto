@@ -18,7 +18,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/assets"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 const (
@@ -100,7 +100,7 @@ type linkedImageImportRecord struct {
 
 // BeginRemoteAttachmentImport reserves capacity before the network fetch, or
 // returns the existing staged attachment for an idempotent repeated request.
-func (m *AssetUploadModel) BeginRemoteAttachmentImport(ctx context.Context, actorID, roomID, sourceURL string) (*corev1.Attachment, *RemoteAttachmentImportReservation, error) {
+func (m *AssetUploadModel) BeginRemoteAttachmentImport(ctx context.Context, actorID, roomID, sourceURL string) (*evtv1.Attachment, *RemoteAttachmentImportReservation, error) {
 	if actorID == "" || roomID == "" || sourceURL == "" {
 		return nil, nil, nil
 	}
@@ -262,7 +262,7 @@ func (m *AssetUploadModel) UploadChunk(ctx context.Context, input AssetUploadChu
 	return session, nil
 }
 
-func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUploadCompleteInput) (*AssetUploadSession, *corev1.Attachment, error) {
+func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUploadCompleteInput) (*AssetUploadSession, *evtv1.Attachment, error) {
 	session, revision, err := m.loadUpload(ctx, input.UploadID)
 	if err != nil {
 		return nil, nil, err
@@ -319,7 +319,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 // ImportRemoteAttachment validates and stores server-fetched image bytes as a
 // pending room attachment. The resulting asset is claimed by a later message
 // post or removed by the existing pending-asset cleanup after its TTL.
-func (m *AssetUploadModel) ImportRemoteAttachment(ctx context.Context, input RemoteAttachmentImportInput) (*corev1.Attachment, error) {
+func (m *AssetUploadModel) ImportRemoteAttachment(ctx context.Context, input RemoteAttachmentImportInput) (*evtv1.Attachment, error) {
 	filename := strings.TrimSpace(input.Filename)
 	if filename == "" {
 		return nil, invalidArgument("filename is required")
@@ -443,7 +443,7 @@ func (m *AssetUploadModel) releaseLinkedImageImportLock(actorID string, revision
 	}
 }
 
-func (m *AssetUploadModel) activeLinkedImageImports(ctx context.Context, actorID, requestedKey string) (int, *corev1.Attachment, error) {
+func (m *AssetUploadModel) activeLinkedImageImports(ctx context.Context, actorID, requestedKey string) (int, *evtv1.Attachment, error) {
 	prefix := m.linkedImageImportActorPrefix(actorID)
 	lister, err := m.core.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix+"*")
 	if err != nil {
@@ -477,7 +477,7 @@ func (m *AssetUploadModel) activeLinkedImageImports(ctx context.Context, actorID
 			}
 			continue
 		case linkedImageImportStateCommitted:
-			attachment := &corev1.Attachment{}
+			attachment := &evtv1.Attachment{}
 			if len(record.Attachment) > 0 && proto.Unmarshal(record.Attachment, attachment) == nil && attachment.GetId() != "" {
 				active++
 				if key == requestedKey {
@@ -496,7 +496,7 @@ func (m *AssetUploadModel) activeLinkedImageImports(ctx context.Context, actorID
 // ReleaseLinkedImageImports removes quota/idempotency entries after a message
 // successfully claims their assets. The durable attachment lifecycle remains
 // authoritative; this runtime index is only staging coordination.
-func (m *AssetUploadModel) ReleaseLinkedImageImports(ctx context.Context, actorID string, attachments []*corev1.Attachment) {
+func (m *AssetUploadModel) ReleaseLinkedImageImports(ctx context.Context, actorID string, attachments []*evtv1.Attachment) {
 	assetIDs := make(map[string]struct{}, len(attachments))
 	for _, attachment := range attachments {
 		if attachment != nil && attachment.GetId() != "" {
@@ -527,7 +527,7 @@ func (m *AssetUploadModel) ReleaseLinkedImageImports(ctx context.Context, actorI
 			continue
 		}
 		var record linkedImageImportRecord
-		attachment := &corev1.Attachment{}
+		attachment := &evtv1.Attachment{}
 		if json.Unmarshal(entry.Value(), &record) != nil || record.State != linkedImageImportStateCommitted || proto.Unmarshal(record.Attachment, attachment) != nil {
 			continue
 		}
@@ -814,7 +814,7 @@ func (m *AssetUploadModel) materializeUpload(ctx context.Context, session *Asset
 	return tmp, nil
 }
 
-func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *AssetUploadSession, reader io.ReadSeeker) (*corev1.Attachment, bool, error) {
+func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *AssetUploadSession, reader io.ReadSeeker) (*evtv1.Attachment, bool, error) {
 	attachmentID := NewAssetID()
 	contentType := session.ContentType
 	isImage := strings.HasPrefix(contentType, "image/")
@@ -841,15 +841,15 @@ func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *As
 		}
 	}
 
-	var storage *corev1.DeprecatedAsset
+	var storage *evtv1.DeprecatedAsset
 	if m.core.ShouldUseS3() {
 		s3Key := S3KeyAttachment(attachmentID)
 		if _, err := m.core.s3Client.PutObject(ctx, s3Key, reader, size, contentType); err != nil {
 			return nil, false, fmt.Errorf("failed to upload attachment to S3: %w", err)
 		}
-		storage = &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_S3{
-				S3: &corev1.S3Asset{Key: s3Key, Bucket: proto.String(m.core.s3Client.Bucket())},
+		storage = &evtv1.DeprecatedAsset{
+			Asset: &evtv1.DeprecatedAsset_S3{
+				S3: &evtv1.S3Asset{Key: s3Key, Bucket: proto.String(m.core.s3Client.Bucket())},
 			},
 		}
 	} else {
@@ -866,14 +866,14 @@ func (m *AssetUploadModel) storeCompletedUpload(ctx context.Context, session *As
 		}, reader); err != nil {
 			return nil, false, fmt.Errorf("failed to store attachment: %w", err)
 		}
-		storage = &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_Nats{
-				Nats: &corev1.NATSAsset{Key: attachmentID},
+		storage = &evtv1.DeprecatedAsset{
+			Asset: &evtv1.DeprecatedAsset_Nats{
+				Nats: &evtv1.NATSAsset{Key: attachmentID},
 			},
 		}
 	}
 
-	return &corev1.Attachment{
+	return &evtv1.Attachment{
 		Id:          attachmentID,
 		RoomId:      session.RoomID,
 		Filename:    session.Filename,

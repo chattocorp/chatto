@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
@@ -27,6 +29,29 @@ func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
 	legacyKey := botAPIKeyPrefix + botID + "." + base64.RawURLEncoding.EncodeToString(legacySecret)
 	if parsedID, ok := parseBotAPIKey(legacyKey); !ok || parsedID != botID {
 		t.Fatalf("parseBotAPIKey(legacy) = %q, %v", parsedID, ok)
+	}
+}
+
+func TestBotIncomingWebhookCredentialFormatIsCompact(t *testing.T) {
+	botID := NewUserID()
+	webhookID := NewBotIncomingWebhookID()
+	credential, err := NewBotIncomingWebhookCredentialForID(botID, webhookID)
+	if err != nil {
+		t.Fatalf("NewBotIncomingWebhookCredentialForID: %v", err)
+	}
+	if got, want := len(credential), len(botIncomingWebhookPrefix)+len(botID)+1+len(webhookID)+1+base64.RawURLEncoding.EncodedLen(botAPIKeySecretBytes); got != want {
+		t.Fatalf("credential length = %d, want %d", got, want)
+	}
+	if parsedBotID, parsedWebhookID, ok := parseBotIncomingWebhookCredential(credential); !ok || parsedBotID != botID || parsedWebhookID != webhookID {
+		t.Fatalf("parseBotIncomingWebhookCredential = %q, %q, %v", parsedBotID, parsedWebhookID, ok)
+	}
+	legacySecret16 := base64.RawURLEncoding.EncodeToString(make([]byte, botAPIKeySecretBytes))
+	if parsedBotID, parsedWebhookID, ok := parseBotIncomingWebhookCredential(botIncomingWebhookPrefix + botID + "." + legacySecret16); !ok || parsedBotID != botID || parsedWebhookID != legacyBotIncomingWebhookID {
+		t.Fatalf("legacy parse = %q, %q, %v", parsedBotID, parsedWebhookID, ok)
+	}
+	legacySecret := base64.RawURLEncoding.EncodeToString(make([]byte, legacyBotAPIKeySecretBytes))
+	if _, _, ok := parseBotIncomingWebhookCredential(botIncomingWebhookPrefix + botID + "." + legacySecret); ok {
+		t.Fatal("incoming webhook parser accepted an unsupported legacy secret length")
 	}
 }
 
@@ -78,11 +103,36 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	if err := c.SetPasswordHash(ctx, bot.User.GetId(), "password123"); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetPasswordHash(bot) err = %v, want ErrHumanAccountRequired", err)
 	}
-	if err := c.SetUserAvatar(ctx, bot.User.GetId(), &corev1.AssetRecord{Id: "avatar"}); !errors.Is(err, ErrHumanAccountRequired) {
+	if err := c.SetUserAvatar(ctx, bot.User.GetId(), &evtv1.AssetRecord{Id: "avatar"}); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetUserAvatar(bot) err = %v, want ErrHumanAccountRequired", err)
 	}
 	if _, err := c.SetUserCustomStatus(ctx, bot.User.GetId(), "🤖", "online", nil); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("SetUserCustomStatus(bot) err = %v, want ErrHumanAccountRequired", err)
+	}
+	bio := "Automates helpful tasks."
+	updated, err := c.UpdateUserBio(ctx, bot.User.GetId(), bio)
+	if err != nil {
+		t.Fatalf("UpdateUserBio bot: %v", err)
+	}
+	if got := updated.GetBio(); got != bio {
+		t.Fatalf("updated bot bio = %q, want %q", got, bio)
+	}
+	bioEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventUserBioChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents bot bio: %v", err)
+	}
+	if len(bioEvents) != 1 {
+		t.Fatalf("bot bio events = %d, want 1", len(bioEvents))
+	}
+	if _, err := c.UpdateUserBio(ctx, bot.User.GetId(), bio); err != nil {
+		t.Fatalf("UpdateUserBio bot no-op: %v", err)
+	}
+	bioEvents, _, err = c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventUserBioChanged))
+	if err != nil {
+		t.Fatalf("SubjectEvents bot bio after no-op: %v", err)
+	}
+	if len(bioEvents) != 1 {
+		t.Fatalf("bot bio events after no-op = %d, want 1", len(bioEvents))
 	}
 
 	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
@@ -105,6 +155,139 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	}
 	if _, err := c.ValidateBotAPIKey(ctx, rotated.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("deleted key err = %v, want ErrAuthTokenNotFound", err)
+	}
+}
+
+func TestBotIncomingWebhookCredentialsAreIndependentFromEachOtherAndAPIKey(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-owner", "Webhook Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "webhook_bot", "Webhook Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if len(bot.IncomingWebhooks) != 0 {
+		t.Fatalf("new bot incoming webhooks = %+v, want none", bot.IncomingWebhooks)
+	}
+
+	first, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "  Production  ")
+	if err != nil {
+		t.Fatalf("CreateBotIncomingWebhook first: %v", err)
+	}
+	replacement, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Production")
+	if err != nil {
+		t.Fatalf("CreateBotIncomingWebhook replacement: %v", err)
+	}
+	if first.WebhookID == replacement.WebhookID || first.Credential == replacement.Credential || len(replacement.Bot.IncomingWebhooks) != 2 {
+		t.Fatalf("created incoming webhooks = first %+v replacement %+v", first, replacement)
+	}
+	if first.Bot.IncomingWebhooks[0].Name != "Production" {
+		t.Fatalf("trimmed webhook name = %q", first.Bot.IncomingWebhooks[0].Name)
+	}
+	if authenticated, err := c.ValidateBotIncomingWebhookCredential(ctx, first.Credential); err != nil || authenticated.GetId() != bot.User.GetId() {
+		t.Fatalf("ValidateBotIncomingWebhookCredential = %+v, %v", authenticated, err)
+	}
+	if _, err := c.ValidateBotIncomingWebhookCredential(ctx, replacement.Credential); err != nil {
+		t.Fatalf("replacement incoming webhook: %v", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, first.Credential); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("webhook credential used as API key error = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := c.ValidateBotIncomingWebhookCredential(ctx, bot.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("API key used as webhook credential error = %v, want ErrAuthTokenNotFound", err)
+	}
+
+	revoked, err := c.RevokeBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), first.WebhookID)
+	if err != nil {
+		t.Fatalf("RevokeBotIncomingWebhook: %v", err)
+	}
+	if len(revoked.IncomingWebhooks) != 1 || revoked.IncomingWebhooks[0].ID != replacement.WebhookID {
+		t.Fatalf("webhooks after revoke = %+v", revoked.IncomingWebhooks)
+	}
+	if _, err := c.ValidateBotIncomingWebhookCredential(ctx, first.Credential); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("revoked webhook credential error = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := c.ValidateBotIncomingWebhookCredential(ctx, replacement.Credential); err != nil {
+		t.Fatalf("revoke changed replacement webhook: %v", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, bot.APIKey); err != nil {
+		t.Fatalf("webhook revocation changed bot API key: %v", err)
+	}
+	if _, err := c.RevokeBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), first.WebhookID); err != nil {
+		t.Fatalf("idempotent RevokeBotIncomingWebhook: %v", err)
+	}
+}
+
+func TestBotIncomingWebhookActiveLimit(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-limit-owner", "Webhook Limit Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "webhook_limit_bot", "Webhook Limit Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	for i := 0; i < maxBotIncomingWebhooks; i++ {
+		if _, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Webhook"); err != nil {
+			t.Fatalf("CreateBotIncomingWebhook %d: %v", i, err)
+		}
+	}
+	if _, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "One too many"); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("limit error = %v, want ErrInvalidArgument", err)
+	}
+}
+
+func TestConcurrentBotIncomingWebhookCreationCannotExceedActiveLimit(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "webhook-create-race-owner", "Webhook Create Race Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "webhook_create_race_bot", "Webhook Create Race Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	for i := 0; i < maxBotIncomingWebhooks-1; i++ {
+		if _, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Existing"); err != nil {
+			t.Fatalf("CreateBotIncomingWebhook %d: %v", i, err)
+		}
+	}
+
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for range 2 {
+		go func() {
+			<-start
+			_, err := c.CreateBotIncomingWebhook(ctx, owner.GetId(), bot.User.GetId(), "Concurrent")
+			results <- err
+		}()
+	}
+	close(start)
+	successes := 0
+	rejections := 0
+	for range 2 {
+		err := <-results
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, events.ErrConflict), errors.Is(err, ErrInvalidArgument):
+			rejections++
+		default:
+			t.Fatalf("concurrent create: %v", err)
+		}
+	}
+	managed, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("GetBot: %v", err)
+	}
+	if successes != 1 || rejections != 1 || len(managed.IncomingWebhooks) != maxBotIncomingWebhooks {
+		t.Fatalf("successes=%d rejections=%d webhooks=%d", successes, rejections, len(managed.IncomingWebhooks))
 	}
 }
 
@@ -464,10 +647,10 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 		t.Fatalf("configured bot message.read = %s, %v; want allow", decision, err)
 	}
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessageReadInteractions, PermissionStateAllow); err != nil {
-		t.Fatalf("SetUserPermissionState message.read.interactions allow: %v", err)
+		t.Fatalf("SetUserPermissionState message.read-interactions allow: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageReadInteractions); err != nil || decision != DecisionAllow {
-		t.Fatalf("configured bot message.read.interactions = %s, %v; want allow", decision, err)
+		t.Fatalf("configured bot message.read-interactions = %s, %v; want allow", decision, err)
 	}
 
 	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
@@ -483,10 +666,10 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 		t.Fatalf("owner-capped bot message.read = %s, %v; want deny", decision, err)
 	}
 	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("deny owner message.read.interactions: %v", err)
+		t.Fatalf("deny owner message.read-interactions: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageReadInteractions); err != nil || decision != DecisionDeny {
-		t.Fatalf("owner-capped bot message.read.interactions = %s, %v; want deny", decision, err)
+		t.Fatalf("owner-capped bot message.read-interactions = %s, %v; want deny", decision, err)
 	}
 	matrix, err := c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil {
@@ -537,10 +720,10 @@ func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
 			}
 			if test.ownerNarrowOnly {
 				if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
-					t.Fatalf("deny owner parent permission: %v", err)
+					t.Fatalf("deny owner broad permission: %v", err)
 				}
 				if err := core.GrantUserPermission(ctx, SystemActorID, owner.GetId(), PermMessageReadInteractions); err != nil {
-					t.Fatalf("grant owner child permission: %v", err)
+					t.Fatalf("grant owner narrow permission: %v", err)
 				}
 			}
 
@@ -551,6 +734,29 @@ func TestBotMessageReadInclusionIntersectsBotAndOwnerAuthority(t *testing.T) {
 				t.Fatalf("broad read = %s, %v; want %s", got, err, test.wantBroad)
 			}
 		})
+	}
+}
+
+func TestBotPermissionCeilingResolvesExplicitInclusion(t *testing.T) {
+	broad, narrow := installTestPermissionInclusion(t)
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := core.CreateUser(ctx, SystemActorID, "inclusion_bot_owner", "Inclusion Bot Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, owner.GetId(), broad); err != nil {
+		t.Fatalf("grant owner broad permission: %v", err)
+	}
+	bot, err := core.CreateBot(ctx, owner.GetId(), "included_permission_bot", "Included Permission Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if err := core.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, narrow, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot narrow permission: %v", err)
+	}
+	if got, err := core.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", narrow); err != nil || got != DecisionAllow {
+		t.Fatalf("bot included decision = %s, %v; want allow", got, err)
 	}
 }
 
@@ -588,6 +794,152 @@ func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
 	}
 	if _, err := c.RoomTimelineReads().GetMessage(ctx, bot.User.GetId(), dm.GetId(), message.GetId()); err != nil {
 		t.Fatalf("GetMessage as bot DM participant: %v", err)
+	}
+	occurrences := testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != message.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMessage) {
+		t.Fatalf("bot DM occurrences = %+v, want the human-authored direct message", occurrences)
+	}
+}
+
+func TestBotDirectMentionActivatesInteractionThread(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "activation-owner", "Activation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "activation_bot", "Activation Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, owner.GetId(), KindChannel, "", "activation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := c.AddMember(ctx, owner.GetId(), KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.read-interactions: %v", err)
+	}
+	resolved, err := c.ResolveRoomMentionKinds(ctx, KindChannel, room.GetId(), []string{bot.User.GetLogin()})
+	if err != nil {
+		t.Fatalf("ResolveRoomMentionKinds bot: %v", err)
+	}
+	if len(resolved.Mentions) != 1 || resolved.Mentions[0].GetUserId() != bot.User.GetId() || resolved.Mentions[0].GetDirect() == nil {
+		t.Fatalf("resolved bot mention = %+v, want one direct mention for %s", resolved, bot.User.GetId())
+	}
+
+	root, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "Please check this @activation_bot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root mention: %v", err)
+	}
+	if following, err := c.IsFollowingThread(ctx, KindChannel, bot.User.GetId(), room.GetId(), root.GetId()); err != nil || !following {
+		t.Fatalf("bot root-mention follow = %v, %v; want true, nil", following, err)
+	}
+	occurrences := testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != root.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMention) {
+		t.Fatalf("bot root-mention occurrences = %+v, want the direct mention", occurrences)
+	}
+
+	reply, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "More context", nil, root.GetId(), "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage followed reply: %v", err)
+	}
+	occurrences = testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 2 || !testOccurrencesHaveKinds(occurrences, notificationTestSignalDirectMention, notificationTestSignalFollowedThread) {
+		t.Fatalf("bot activation occurrences = %+v, want direct mention and followed thread", occurrences)
+	}
+	if occurrences[0].GetSourceEventId() != reply.GetId() || occurrences[1].GetSourceEventId() != root.GetId() {
+		t.Fatalf("bot activation sources = (%q, %q), want reply %q then root %q", occurrences[0].GetSourceEventId(), occurrences[1].GetSourceEventId(), reply.GetId(), root.GetId())
+	}
+
+	thread, err := c.RoomTimelineReads().GetThreadEvents(ctx, ThreadTimelineEventsInput{
+		ActorID: bot.User.GetId(), RoomID: room.GetId(), ThreadRootEventID: root.GetId(), Limit: 20,
+	})
+	if err != nil {
+		t.Fatalf("GetThreadEvents as interaction-scoped bot: %v", err)
+	}
+	if thread.Root.GetId() != root.GetId() || len(thread.Replies.Events) != 1 || thread.Replies.Events[0].GetId() != reply.GetId() {
+		t.Fatalf("bot interaction thread = root %+v, replies %+v", thread.Root, thread.Replies.Events)
+	}
+}
+
+func TestBotReplyToAuthoredMessageActivatesBot(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "reply-activation-owner", "Reply Activation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "reply_activation_bot", "Reply Activation Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, owner.GetId(), KindChannel, "", "reply-activation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := c.AddMember(ctx, owner.GetId(), KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	for _, permission := range []Permission{PermMessagePost, PermMessageRead} {
+		if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, permission, PermissionStateAllow); err != nil {
+			t.Fatalf("grant bot %s: %v", permission, err)
+		}
+	}
+
+	root, err := c.PostMessage(ctx, KindChannel, room.GetId(), bot.User.GetId(), "Bot-authored request", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage bot root: %v", err)
+	}
+	reply, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "Human response", nil, "", root.GetId(), nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	occurrences := testNotificationOccurrences(t, c, bot.User.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != reply.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalReply) {
+		t.Fatalf("bot reply occurrences = %+v, want the reply to its message", occurrences)
+	}
+}
+
+func TestBotDisabledDirectMentionDoesNotActivateOrFollow(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "muted-activation-owner", "Muted Activation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "muted_activation_bot", "Muted Activation Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, owner.GetId(), KindChannel, "", "muted-activation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := c.AddMember(ctx, owner.GetId(), KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.read-interactions: %v", err)
+	}
+	if _, err := c.NotificationPolicy().SetRoomNotificationMode(ctx, bot.User.GetId(), room.GetId(), notificationTestSignalDirectMention, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF); err != nil {
+		t.Fatalf("SetRoomNotificationMode: %v", err)
+	}
+
+	root, err := c.PostMessage(ctx, KindChannel, room.GetId(), owner.GetId(), "Muted ping @muted_activation_bot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root mention: %v", err)
+	}
+	if following, err := c.IsFollowingThread(ctx, KindChannel, bot.User.GetId(), room.GetId(), root.GetId()); err != nil || following {
+		t.Fatalf("muted bot root-mention follow = %v, %v; want false, nil", following, err)
+	}
+	if occurrences := testNotificationOccurrences(t, c, bot.User.GetId()); len(occurrences) != 0 {
+		t.Fatalf("muted bot occurrences = %+v, want none", occurrences)
+	}
+	if _, err := c.RoomTimelineReads().GetMessage(ctx, bot.User.GetId(), room.GetId(), root.GetId()); err != nil {
+		t.Fatalf("GetMessage through muted mention interaction: %v", err)
 	}
 }
 
@@ -910,8 +1262,7 @@ func TestHumanAndBotUsernameSuffixRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("case-insensitive suffix CreateBot: %v", err)
 	}
-	invalidLogin := "lost-suffix"
-	if _, err := c.UpdateBot(ctx, owner.GetId(), uppercase.User.GetId(), &invalidLogin, nil); !errors.Is(err, ErrBotLoginSuffixRequired) {
+	if _, err := c.UpdateUserLogin(ctx, uppercase.User.GetId(), "lost-suffix"); !errors.Is(err, ErrBotLoginSuffixRequired) {
 		t.Fatalf("bot rename without suffix err = %v, want ErrBotLoginSuffixRequired", err)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // TestAttachmentBinaryStatus_TriState pins the three-way classification that
@@ -26,29 +26,29 @@ func TestAttachmentBinaryStatus_TriState(t *testing.T) {
 
 	// Explicit NATS storage pointing at a key that was never written →
 	// the object store returns ErrObjectNotFound (a definitive "gone").
-	missing := &corev1.Attachment{
+	missing := &evtv1.Attachment{
 		Id:          "Amissing",
 		RoomId:      room.Id,
 		ContentType: "video/mp4",
-		Storage: &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "Amissing-never-written"}},
+		Storage: &evtv1.DeprecatedAsset{
+			Asset: &evtv1.DeprecatedAsset_Nats{Nats: &evtv1.NATSAsset{Key: "Amissing-never-written"}},
 		},
 	}
 
 	// S3 storage in a core with no S3 client → "S3 client not configured",
 	// which is NOT a not-found. We can't tell whether the binary exists.
-	unknown := &corev1.Attachment{
+	unknown := &evtv1.Attachment{
 		Id:          "Aunknown",
 		RoomId:      room.Id,
 		ContentType: "video/mp4",
-		Storage: &corev1.DeprecatedAsset{
-			Asset: &corev1.DeprecatedAsset_S3{S3: &corev1.S3Asset{Key: "Aunknown"}},
+		Storage: &evtv1.DeprecatedAsset{
+			Asset: &evtv1.DeprecatedAsset_S3{S3: &evtv1.S3Asset{Key: "Aunknown"}},
 		},
 	}
 
 	cases := []struct {
 		name string
-		att  *corev1.Attachment
+		att  *evtv1.Attachment
 		want AttachmentBinaryStatus
 	}{
 		{"present binary", present, AttachmentBinaryPresent},
@@ -114,7 +114,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 		if !ok || manifest.Failed == nil {
 			t.Fatalf("manifest = %+v, want Failed", manifest)
 		}
-		if manifest.Failed.GetFailureCode() != corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING {
+		if manifest.Failed.GetFailureCode() != evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING {
 			t.Fatalf("failure code = %v, want SOURCE_MISSING", manifest.Failed.GetFailureCode())
 		}
 		if manifest.Started != nil {

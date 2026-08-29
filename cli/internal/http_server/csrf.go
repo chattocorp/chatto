@@ -7,12 +7,12 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
@@ -180,7 +180,7 @@ func (s *HTTPServer) hasCookieCredential(c *gin.Context) bool {
 	return err != nil || len(cookies) != 0
 }
 
-func csrfBindingForSession(userID string, record *corev1.CookieSession) csrfBinding {
+func csrfBindingForSession(userID string, record *runtimestatev1.CookieSession) csrfBinding {
 	if record == nil {
 		return csrfBinding{userID: userID}
 	}

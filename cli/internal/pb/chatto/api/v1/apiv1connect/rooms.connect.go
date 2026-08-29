@@ -114,10 +114,10 @@ type RoomServiceClient interface {
 	// Joins every unarchived room in a group that the current user can join.
 	// Already-joined and non-joinable rooms are skipped.
 	JoinRoomGroup(context.Context, *connect.Request[v1.JoinRoomGroupRequest]) (*connect.Response[v1.JoinRoomGroupResponse], error)
-	// Starts or fetches a direct-message room for the current human user and the
-	// requested participant set. The caller must have message.post. A valid
-	// request from a bot receives PERMISSION_DENIED and cannot use this RPC to
-	// fetch an existing DM.
+	// Starts a direct-message room for the current human user and the requested
+	// participant set, or fetches its existing DM. message.post is required
+	// only when the DM must be created. A valid request from a bot receives
+	// PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
 	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
@@ -146,13 +146,13 @@ type RoomServiceClient interface {
 	ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error)
 	// Lists current message-owned room attachments. Authentication and room
 	// membership are required. Channel-room attachments also require message.read
-	// or a matching thread relationship with message.read.interactions. DM
+	// or a matching thread relationship with message.read-interactions. DM
 	// membership authorizes DM attachments. The server omits attachments from
 	// inaccessible threads. Returns PERMISSION_DENIED when the room is
 	// inaccessible to the caller.
 	ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error)
 	// Lists current pinned messages in a channel room. Room membership plus
-	// message.read or message.read.interactions are required. The server omits
+	// message.read or message.read-interactions are required. The server omits
 	// pins from threads that the caller cannot read. Direct-message rooms do not
 	// support pins.
 	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
@@ -168,7 +168,7 @@ type RoomServiceClient interface {
 	UpdateTypingIndicator(context.Context, *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error)
 	// Returns one page of room timeline events, including related user data
 	// needed to render the page. Room membership is required. Channel-room reads
-	// also require message.read or message.read.interactions. The server returns
+	// also require message.read or message.read-interactions. The server returns
 	// only related thread roots for an interaction-scoped caller. DM membership
 	// authorizes DM reads.
 	GetRoomEvents(context.Context, *connect.Request[v1.GetRoomEventsRequest]) (*connect.Response[v1.GetRoomEventsResponse], error)
@@ -181,7 +181,7 @@ type RoomServiceClient interface {
 	GetRoomEventsAround(context.Context, *connect.Request[v1.GetRoomEventsAroundRequest]) (*connect.Response[v1.GetRoomEventsAroundResponse], error)
 	// Marks a room timeline as read through the supplied event. Room membership
 	// is required. Channel-room reads also require message.read or
-	// message.read.interactions. DM membership authorizes DM reads. If no event
+	// message.read-interactions. DM membership authorizes DM reads. If no event
 	// is supplied, the server marks through the latest root event that the caller
 	// can read. Clients
 	// usually call this after the user has viewed the latest visible event in the
@@ -520,10 +520,10 @@ type RoomServiceHandler interface {
 	// Joins every unarchived room in a group that the current user can join.
 	// Already-joined and non-joinable rooms are skipped.
 	JoinRoomGroup(context.Context, *connect.Request[v1.JoinRoomGroupRequest]) (*connect.Response[v1.JoinRoomGroupResponse], error)
-	// Starts or fetches a direct-message room for the current human user and the
-	// requested participant set. The caller must have message.post. A valid
-	// request from a bot receives PERMISSION_DENIED and cannot use this RPC to
-	// fetch an existing DM.
+	// Starts a direct-message room for the current human user and the requested
+	// participant set, or fetches its existing DM. message.post is required
+	// only when the DM must be created. A valid request from a bot receives
+	// PERMISSION_DENIED and cannot use this RPC to fetch an existing DM.
 	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
@@ -552,13 +552,13 @@ type RoomServiceHandler interface {
 	ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error)
 	// Lists current message-owned room attachments. Authentication and room
 	// membership are required. Channel-room attachments also require message.read
-	// or a matching thread relationship with message.read.interactions. DM
+	// or a matching thread relationship with message.read-interactions. DM
 	// membership authorizes DM attachments. The server omits attachments from
 	// inaccessible threads. Returns PERMISSION_DENIED when the room is
 	// inaccessible to the caller.
 	ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error)
 	// Lists current pinned messages in a channel room. Room membership plus
-	// message.read or message.read.interactions are required. The server omits
+	// message.read or message.read-interactions are required. The server omits
 	// pins from threads that the caller cannot read. Direct-message rooms do not
 	// support pins.
 	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
@@ -574,7 +574,7 @@ type RoomServiceHandler interface {
 	UpdateTypingIndicator(context.Context, *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error)
 	// Returns one page of room timeline events, including related user data
 	// needed to render the page. Room membership is required. Channel-room reads
-	// also require message.read or message.read.interactions. The server returns
+	// also require message.read or message.read-interactions. The server returns
 	// only related thread roots for an interaction-scoped caller. DM membership
 	// authorizes DM reads.
 	GetRoomEvents(context.Context, *connect.Request[v1.GetRoomEventsRequest]) (*connect.Response[v1.GetRoomEventsResponse], error)
@@ -587,7 +587,7 @@ type RoomServiceHandler interface {
 	GetRoomEventsAround(context.Context, *connect.Request[v1.GetRoomEventsAroundRequest]) (*connect.Response[v1.GetRoomEventsAroundResponse], error)
 	// Marks a room timeline as read through the supplied event. Room membership
 	// is required. Channel-room reads also require message.read or
-	// message.read.interactions. DM membership authorizes DM reads. If no event
+	// message.read-interactions. DM membership authorizes DM reads. If no event
 	// is supplied, the server marks through the latest root event that the caller
 	// can read. Clients
 	// usually call this after the user has viewed the latest visible event in the

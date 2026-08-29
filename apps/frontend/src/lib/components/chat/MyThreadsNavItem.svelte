@@ -11,19 +11,30 @@
   const serverScope = useServerScope();
   const serverId = $derived(serverScope.serverId);
   const notificationStore = $derived(serverScope.store.notifications);
+  const hasNotification = $derived(
+    notificationStore.unreadOccurrences.some((n) => notificationTarget(n).threadRootId !== null)
+  );
 
   const hasUnread = $derived(
-    notificationStore.unreadOccurrences.some((n) => notificationTarget(n).threadRootId !== null)
+    hasNotification ||
+      [...serverScope.store.projection.threadViewerStates.values()].some(
+        (state) => state.isFollowing && state.hasUnread
+      )
   );
 </script>
 
 <a
   href={resolve('/chat/[serverId]/threads', { serverId: serverIdToSegment(serverId) })}
-  class={['sidebar-item', active ? 'bg-surface' : '']}
+  aria-current={active ? 'page' : undefined}
+  class="sidebar-item"
 >
   <span class="iconify sidebar-icon icon-[uil--comment-alt-lines]"></span>
   {m('chat.threads.title')}
   {#if hasUnread}
-    <UnreadDot class="ms-auto" testid="my-threads-unread-dot" />
+    <UnreadDot
+      class="ms-auto"
+      color={hasNotification ? 'warning' : 'neutral'}
+      testid="my-threads-unread-dot"
+    />
   {/if}
 </a>

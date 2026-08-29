@@ -104,7 +104,25 @@
       "edit": "Edytuj",
       "assigned_role": "Przypisano rolę {role}",
       "removed_role": "Usunięto rolę {role}",
-      "role_update_failed": "Nie udało się zaktualizować przypisania roli"
+      "role_update_failed": "Nie udało się zaktualizować przypisania roli",
+      "danger_zone": "Strefa zagrożenia",
+      "open_delete_account": "Usuń konto",
+      "delete_account_entry_description": "Trwale usuwa konto tego członka. Jego wiadomości stają się nieczytelne. Tej operacji nie można cofnąć."
+    },
+    "member_delete": {
+      "title": "Usuń członka",
+      "warning": "Ta operacja trwale usuwa konto użytkownika {name}. Nie można jej cofnąć.",
+      "consequences_intro": "Co się stanie:",
+      "consequence_rooms": "Członek zostanie usunięty ze wszystkich pokoi.",
+      "consequence_messages": "Wszystkie napisane wiadomości staną się trwale nieczytelne.",
+      "consequence_profile": "Profil, awatar i nazwa użytkownika zostaną usunięte. Nazwa użytkownika stanie się ponownie dostępna.",
+      "consequence_sessions": "Osoba zostanie wylogowana wszędzie.",
+      "confirm_label": "Wpisz {login}, aby potwierdzić",
+      "submit": "Trwale usuń konto",
+      "deleting": "Usuwanie...",
+      "failed": "Nie udało się usunąć konta.",
+      "success": "Konto zostało usunięte.",
+      "not_allowed": "Nie możesz usunąć tego konta."
     },
     "member_detail": {
       "no_self_rename": "Nie zarejestrowano samodzielnej zmiany nazwy.",

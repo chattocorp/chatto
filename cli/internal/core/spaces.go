@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"sort"
 	"strings"
 
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/core/subjects"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 // DefaultGlobalRoom describes a channel that ships with a fresh
@@ -82,9 +83,9 @@ func (c *ChattoCore) CleanupUserState(ctx context.Context, userID string, kind R
 	}
 
 	if isAccountDeletion {
-		memberDeletedEvent := newLiveEvent(userID, &corev1.LiveEvent{
-			Event: &corev1.LiveEvent_ServerMemberDeleted{
-				ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{
+		memberDeletedEvent := newLiveEvent(userID, &livev1.LiveEvent{
+			Event: &livev1.LiveEvent_ServerMemberDeleted{
+				ServerMemberDeleted: &livev1.ServerMemberDeletedEvent{
 					UserId: userID,
 				},
 			},
@@ -130,7 +131,7 @@ func (c *ChattoCore) GetAssetCount(ctx context.Context) (int, error) {
 // ServerMemberWithRoles represents a server member with their assigned roles.
 type ServerMemberWithRoles struct {
 	UserID string
-	User   *corev1.User
+	User   *evtv1.User
 	Roles  []string
 }
 
@@ -170,9 +171,9 @@ func (c *ChattoCore) GetServerMembers(ctx context.Context, search string, limit,
 	return result, totalCount, nil
 }
 
-func serverMemberUserPage(allUsers []*corev1.User, search string, limit, offset int) ([]*corev1.User, int) {
+func serverMemberUserPage(allUsers []*evtv1.User, search string, limit, offset int) ([]*evtv1.User, int) {
 	searchLower := strings.ToLower(strings.TrimSpace(search))
-	matches := make([]*corev1.User, 0, len(allUsers))
+	matches := make([]*evtv1.User, 0, len(allUsers))
 	for _, user := range allUsers {
 		if searchLower != "" {
 			loginMatch := strings.Contains(strings.ToLower(user.GetLogin()), searchLower)
@@ -206,7 +207,7 @@ func serverMemberUserPage(allUsers []*corev1.User, search string, limit, offset 
 
 	// Apply pagination
 	if offset >= len(matches) {
-		return []*corev1.User{}, totalCount
+		return []*evtv1.User{}, totalCount
 	}
 	matches = matches[offset:]
 	if limit > 0 && len(matches) > limit {

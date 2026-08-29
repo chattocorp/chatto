@@ -82,7 +82,7 @@ type MessageServiceClient interface {
 	// state. Disabled rooms reject creation of a new channel echo while allowing
 	// an existing echo to be removed. Room membership is also required.
 	// Channel-room edits require message.read or a matching thread relationship
-	// with message.read.interactions. DM membership authorizes the DM read.
+	// with message.read-interactions. DM membership authorizes the DM read.
 	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
 	// Retracts a message. Authors can delete their own messages. Non-authors need
 	// message.manage.
@@ -95,26 +95,26 @@ type MessageServiceClient interface {
 	// link preview, reactions, thread metadata, and pin state. Authentication
 	// and room membership are required. Channel-room reads also require
 	// message.read or a matching thread relationship with
-	// message.read.interactions. DM membership authorizes DM reads. Returns
+	// message.read-interactions. DM membership authorizes DM reads. Returns
 	// NOT_FOUND when the event does not exist, is not a message, has been
 	// retracted, or belongs to a different room.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
 	// Reads many renderable messages and their current pin state in one room.
 	// Authentication and room membership are required. Channel-room reads also
 	// require message.read or a matching thread relationship with
-	// message.read.interactions. DM membership authorizes DM reads. Missing,
+	// message.read-interactions. DM membership authorizes DM reads. Missing,
 	// retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
 	// Results preserve first-seen request order, and repeated event IDs are
 	// de-duplicated.
 	BatchGetMessages(context.Context, *connect.Request[v1.BatchGetMessagesRequest]) (*connect.Response[v1.BatchGetMessagesResponse], error)
 	// Adds a reaction to a message. The user must be a room member and have
 	// message.react. Channel-room reactions also require message.read or a
-	// matching thread relationship with message.read.interactions. DM membership
+	// matching thread relationship with message.read-interactions. DM membership
 	// authorizes the DM read.
 	AddReaction(context.Context, *connect.Request[v1.AddReactionRequest]) (*connect.Response[v1.AddReactionResponse], error)
 	// Removes a reaction from a message. The user must be a room member and have
 	// message.react. Channel-room reactions also require message.read or a
-	// matching thread relationship with message.read.interactions. DM membership
+	// matching thread relationship with message.read-interactions. DM membership
 	// authorizes the DM read.
 	RemoveReaction(context.Context, *connect.Request[v1.RemoveReactionRequest]) (*connect.Response[v1.RemoveReactionResponse], error)
 }
@@ -274,7 +274,7 @@ type MessageServiceHandler interface {
 	// state. Disabled rooms reject creation of a new channel echo while allowing
 	// an existing echo to be removed. Room membership is also required.
 	// Channel-room edits require message.read or a matching thread relationship
-	// with message.read.interactions. DM membership authorizes the DM read.
+	// with message.read-interactions. DM membership authorizes the DM read.
 	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
 	// Retracts a message. Authors can delete their own messages. Non-authors need
 	// message.manage.
@@ -287,26 +287,26 @@ type MessageServiceHandler interface {
 	// link preview, reactions, thread metadata, and pin state. Authentication
 	// and room membership are required. Channel-room reads also require
 	// message.read or a matching thread relationship with
-	// message.read.interactions. DM membership authorizes DM reads. Returns
+	// message.read-interactions. DM membership authorizes DM reads. Returns
 	// NOT_FOUND when the event does not exist, is not a message, has been
 	// retracted, or belongs to a different room.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
 	// Reads many renderable messages and their current pin state in one room.
 	// Authentication and room membership are required. Channel-room reads also
 	// require message.read or a matching thread relationship with
-	// message.read.interactions. DM membership authorizes DM reads. Missing,
+	// message.read-interactions. DM membership authorizes DM reads. Missing,
 	// retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
 	// Results preserve first-seen request order, and repeated event IDs are
 	// de-duplicated.
 	BatchGetMessages(context.Context, *connect.Request[v1.BatchGetMessagesRequest]) (*connect.Response[v1.BatchGetMessagesResponse], error)
 	// Adds a reaction to a message. The user must be a room member and have
 	// message.react. Channel-room reactions also require message.read or a
-	// matching thread relationship with message.read.interactions. DM membership
+	// matching thread relationship with message.read-interactions. DM membership
 	// authorizes the DM read.
 	AddReaction(context.Context, *connect.Request[v1.AddReactionRequest]) (*connect.Response[v1.AddReactionResponse], error)
 	// Removes a reaction from a message. The user must be a room member and have
 	// message.react. Channel-room reactions also require message.read or a
-	// matching thread relationship with message.read.interactions. DM membership
+	// matching thread relationship with message.read-interactions. DM membership
 	// authorizes the DM read.
 	RemoveReaction(context.Context, *connect.Request[v1.RemoveReactionRequest]) (*connect.Response[v1.RemoveReactionResponse], error)
 }

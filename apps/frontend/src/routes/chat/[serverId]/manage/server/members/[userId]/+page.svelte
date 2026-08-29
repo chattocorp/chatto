@@ -27,6 +27,7 @@
   import { FormError } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
+  import MemberDangerZone from './MemberDangerZone.svelte';
   import MemberIdentitySettings from './MemberIdentitySettings.svelte';
   import MemberOverviewPanel from './MemberOverviewPanel.svelte';
   import MemberRoleAssignments from './MemberRoleAssignments.svelte';
@@ -85,6 +86,11 @@
   const details = $derived(memberQuery.data ?? null);
   const member = $derived(details?.member ?? null);
   const isBot = $derived(member?.isBot === true);
+  // Self-deletion stays in the account settings danger zone; bots cascade with
+  // their owner and cannot be deleted directly.
+  const canDeleteHere = $derived(
+    !isSelf && !isBot && !!member && !member.deleted && member.viewerCanDeleteAccount
+  );
   const memberTargetKey = $derived(
     `${activeServerId}:${serverScope.connection.queryScope}:${userId}`
   );
@@ -325,6 +331,10 @@
         {/if}
 
         <MemberOverviewPanel {member} roles={details.roles} {canViewMemberEmails} />
+
+        {#if canDeleteHere}
+          <MemberDangerZone {member} />
+        {/if}
 
         {#if !isBot}
           {#key memberTargetKey}

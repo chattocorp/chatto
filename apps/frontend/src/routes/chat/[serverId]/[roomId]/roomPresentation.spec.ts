@@ -78,6 +78,7 @@ describe('buildRoomPresentation', () => {
       isDM: true,
       dmData: {
         currentUserId: 'self',
+        participantIds: ['self', 'other'],
         participants: [
           {
             id: 'self',
@@ -110,6 +111,7 @@ describe('buildRoomPresentation', () => {
     expect(
       build(roomData(), true, {
         currentUserId: 'self',
+        participantIds: ['self'],
         participants: [
           {
             id: 'self',
@@ -127,7 +129,9 @@ describe('buildRoomPresentation', () => {
   });
 
   it('uses the direct-message label while participant data is empty', () => {
-    expect(build(roomData(), true, { currentUserId: 'self', participants: [] })).toEqual({
+    expect(
+      build(roomData(), true, { currentUserId: 'self', participantIds: [], participants: [] })
+    ).toEqual({
       title: 'Direct message',
       description: undefined,
       pageTitle: 'Direct message'

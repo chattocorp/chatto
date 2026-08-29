@@ -104,7 +104,25 @@
       "edit": "Rediger",
       "assigned_role": "Tildelt {role}-rolle",
       "removed_role": "Fjernet {role}-rolle",
-      "role_update_failed": "Kunne ikke oppdatere rolletildelingen"
+      "role_update_failed": "Kunne ikke oppdatere rolletildelingen",
+      "danger_zone": "Faresone",
+      "open_delete_account": "Slett konto",
+      "delete_account_entry_description": "Sletter dette medlemmets konto permanent. Meldingene blir uleselige. Dette kan ikke angres."
+    },
+    "member_delete": {
+      "title": "Slett medlem",
+      "warning": "Dette sletter {name}s konto permanent. Dette kan ikke angres.",
+      "consequences_intro": "Hva som skjer:",
+      "consequence_rooms": "Medlemmet fjernes fra alle rom.",
+      "consequence_messages": "Alle meldinger de har skrevet blir permanent uleselige.",
+      "consequence_profile": "Profilen, avataren og brukernavnet slettes. Brukernavnet blir tilgjengelig igjen etterpå.",
+      "consequence_sessions": "Personen logges ut overalt.",
+      "confirm_label": "Skriv {login} for å bekrefte",
+      "submit": "Slett kontoen permanent",
+      "deleting": "Sletter...",
+      "failed": "Kunne ikke slette kontoen.",
+      "success": "Kontoen er slettet.",
+      "not_allowed": "Du kan ikke slette denne kontoen."
     },
     "member_detail": {
       "no_self_rename": "Ingen selv-gi nytt navn registrert.",

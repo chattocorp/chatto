@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"net"
 	"net/url"
 	"strconv"
@@ -20,7 +21,6 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/pushendpoint"
 )
 
@@ -90,7 +90,7 @@ func (c *ChattoCore) SavePushSubscription(
 	ctx context.Context,
 	userID string,
 	endpoint, p256dh, auth, userAgent string,
-) (*corev1.PushSubscription, error) {
+) (*runtimestatev1.PushSubscription, error) {
 	return c.savePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, "", "")
 }
 
@@ -100,7 +100,7 @@ func (c *ChattoCore) SavePushSubscriptionWithCleanupToken(
 	ctx context.Context,
 	userID string,
 	endpoint, p256dh, auth, userAgent, cleanupToken string,
-) (*corev1.PushSubscription, error) {
+) (*runtimestatev1.PushSubscription, error) {
 	if err := validatePushCleanupToken(cleanupToken); err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (c *ChattoCore) SavePushSubscriptionForClient(
 	ctx context.Context,
 	userID string,
 	endpoint, p256dh, auth, userAgent, clientHost string,
-) (*corev1.PushSubscription, error) {
+) (*runtimestatev1.PushSubscription, error) {
 	return c.savePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, clientHost, "")
 }
 
@@ -123,7 +123,7 @@ func (c *ChattoCore) SavePushSubscriptionForClientWithCleanupToken(
 	ctx context.Context,
 	userID string,
 	endpoint, p256dh, auth, userAgent, clientHost, cleanupToken string,
-) (*corev1.PushSubscription, error) {
+) (*runtimestatev1.PushSubscription, error) {
 	if err := validatePushCleanupToken(cleanupToken); err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (c *ChattoCore) savePushSubscriptionForClient(
 	ctx context.Context,
 	userID string,
 	endpoint, p256dh, auth, userAgent, clientHost, cleanupToken string,
-) (*corev1.PushSubscription, error) {
+) (*runtimestatev1.PushSubscription, error) {
 	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent, clientHost, cleanupToken); err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (c *ChattoCore) savePushSubscriptionForClient(
 		return nil, err
 	}
 
-	subscription := &corev1.PushSubscription{
+	subscription := &runtimestatev1.PushSubscription{
 		Endpoint:     endpoint,
 		P256Dh:       p256dh,
 		Auth:         auth,
@@ -269,7 +269,7 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 			return fmt.Errorf("failed to get current push subscription: %w", err)
 		}
 
-		var currentSubscription corev1.PushSubscription
+		var currentSubscription runtimestatev1.PushSubscription
 		if err := proto.Unmarshal(subscriptionEntry.Value(), &currentSubscription); err != nil {
 			return fmt.Errorf("failed to unmarshal current push subscription: %w", err)
 		}
@@ -353,7 +353,7 @@ func (c *ChattoCore) PushSubscriptionOwnedByUser(ctx context.Context, userID, en
 // exact active record for userID. Callers should recheck this immediately before
 // delivery because browsers can transfer or rotate a subscription while a push
 // is being prepared.
-func (c *ChattoCore) PushSubscriptionCurrentForUser(ctx context.Context, userID string, subscription *corev1.PushSubscription) (bool, error) {
+func (c *ChattoCore) PushSubscriptionCurrentForUser(ctx context.Context, userID string, subscription *runtimestatev1.PushSubscription) (bool, error) {
 	endpoint := subscription.GetEndpoint()
 	key := pushSubscriptionKey(userID, endpoint)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
@@ -364,7 +364,7 @@ func (c *ChattoCore) PushSubscriptionCurrentForUser(ctx context.Context, userID 
 		return false, fmt.Errorf("failed to get push subscription: %w", err)
 	}
 
-	var current corev1.PushSubscription
+	var current runtimestatev1.PushSubscription
 	if err := proto.Unmarshal(entry.Value(), &current); err != nil {
 		return false, fmt.Errorf("failed to unmarshal push subscription: %w", err)
 	}
@@ -499,7 +499,7 @@ func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoin
 	}
 
 	if entry != nil {
-		var subscription corev1.PushSubscription
+		var subscription runtimestatev1.PushSubscription
 		if err := proto.Unmarshal(entry.Value(), &subscription); err != nil {
 			return fmt.Errorf("failed to unmarshal push subscription before deleting: %w", err)
 		}
@@ -560,7 +560,7 @@ func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, end
 		return nil
 	}
 
-	var subscription corev1.PushSubscription
+	var subscription runtimestatev1.PushSubscription
 	if err := proto.Unmarshal(entry.Value(), &subscription); err != nil {
 		return fmt.Errorf("failed to unmarshal push subscription for capability cleanup: %w", err)
 	}
@@ -582,20 +582,20 @@ func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, end
 
 // GetUserPushSubscriptions returns all push subscriptions for a user.
 // Authorization: Caller must verify userID matches authenticated user.
-func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string) ([]*corev1.PushSubscription, error) {
+func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string) ([]*runtimestatev1.PushSubscription, error) {
 	keys, err := listPushRuntimeStateKeys(ctx, c.storage.runtimeStateKV, pushSubscriptionKeyFilter(userID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list push subscription keys: %w", err)
 	}
 
-	var subscriptions []*corev1.PushSubscription
+	var subscriptions []*runtimestatev1.PushSubscription
 	for _, key := range keys {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get push subscription %s: %w", key, err)
 		}
 
-		var sub corev1.PushSubscription
+		var sub runtimestatev1.PushSubscription
 		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal push subscription %s: %w", key, err)
 		}
@@ -633,7 +633,7 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 			continue
 		}
 
-		var sub corev1.PushSubscription
+		var sub runtimestatev1.PushSubscription
 		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
 			// The raw record may still contain credentials even when an older or
 			// damaged payload cannot be decoded. Erase it first; the global
@@ -693,7 +693,7 @@ func (c *ChattoCore) GetAllPushSubscriptions(ctx context.Context) ([]*PushSubscr
 			continue
 		}
 
-		var sub corev1.PushSubscription
+		var sub runtimestatev1.PushSubscription
 		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
 			c.logger.Warn("Failed to unmarshal push subscription", "key", key, "error", err)
 			continue
@@ -724,7 +724,7 @@ func (c *ChattoCore) GetAllPushSubscriptions(ctx context.Context) ([]*PushSubscr
 // PushSubscriptionWithUser pairs a subscription with its owner's user ID.
 type PushSubscriptionWithUser struct {
 	UserID       string
-	Subscription *corev1.PushSubscription
+	Subscription *runtimestatev1.PushSubscription
 }
 
 // extractUserIDFromPushKey extracts the user ID from a push subscription key.

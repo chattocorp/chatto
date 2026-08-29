@@ -85,7 +85,7 @@ test.describe('Mention Notifications', () => {
     await loginTestUser(page, userA);
 
     // Navigate back to the server
-    await page.goto(routes.space());
+    await page.goto(routes.chat);
     await chatPage.enterRoom('announcements');
 
     // Verify server icon now shows the logo image (not text)
@@ -145,8 +145,8 @@ test.describe('Mention Notifications', () => {
   });
 });
 
-test.describe('Followed room notifications', () => {
-  test('plain room messages show room and server notification badges for followed-room subscribers', async ({
+test.describe('Room message notifications', () => {
+  test('plain room messages show room and server notification badges when configured', async ({
     page,
     chatPage,
     notificationsPage,
@@ -160,7 +160,7 @@ test.describe('Followed room notifications', () => {
     await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
 
     const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
-    await updateNotificationPolicy(page, { followedRooms: 'ALERT' }, generalRoomId);
+    await updateNotificationPolicy(page, { roomMessages: 'IN_APP_NOTIFICATION' }, generalRoomId);
 
     await chatPage.goto();
     await chatPage.enterRoom('announcements');
@@ -171,7 +171,7 @@ test.describe('Followed room notifications', () => {
 
     await withServerUser(browser!, serverURL, async ({ chatPage, roomPage }) => {
       await chatPage.enterRoom('general');
-      await roomPage.sendMessage(`plain followed-room notification ${Date.now()}`);
+      await roomPage.sendMessage(`plain room-message notification ${Date.now()}`);
     });
 
     await expect(roomNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -733,8 +733,8 @@ test.describe('Cross-Tab Sync', () => {
     await chatPage.enterRoom('announcements');
 
     await withLoggedInServerWindow(browser!, serverURL, userA, async ({ page: page1b }) => {
-      await page1b.goto(routes.space());
-      await page1b.waitForURL(routes.patterns.anySpace);
+      await page1b.goto(routes.chat);
+      await page1b.waitForURL(routes.patterns.chatRootOrRoom);
       const notificationsPage1b = new NotificationsPage(page1b);
 
       // Both tabs should have no bell indicator
@@ -767,7 +767,7 @@ test.describe('Cross-Tab Sync', () => {
     await chatPage.enterRoom('announcements');
 
     await withLoggedInServerWindow(browser!, serverURL, userA, async ({ page: page1b }) => {
-      await page1b.goto(routes.space());
+      await page1b.goto(routes.chat);
       const notificationsPage1b = new NotificationsPage(page1b);
 
       // User B: Mention User A in general (User B can't post in announcements due to RBAC)
@@ -787,7 +787,7 @@ test.describe('Cross-Tab Sync', () => {
 
       // Second tab: Bell indicator should also be gone
       // Navigate to a server page first to ensure the bell is visible
-      await page1b.goto(routes.space());
+      await page1b.goto(routes.chat);
       await notificationsPage1b.expectBellIndicatorNotVisible();
 
       // Second tab: the dismissed notification is absent too.
@@ -897,7 +897,7 @@ test.describe('Cross-Tab Sync', () => {
     await withLoggedInServerWindow(browser!, serverURL, userA, async ({ page: page1b }) => {
       // User A: second tab, also navigated to announcements so #general's
       // mention badge is visible in the sidebar.
-      await page1b.goto(routes.space());
+      await page1b.goto(routes.chat);
       const chatPage1b = new ChatPage(page1b);
       await chatPage1b.enterRoom('announcements');
       const generalLink1b = chatPage1b.roomList.locator('a', { hasText: '# general' });
@@ -935,7 +935,7 @@ test.describe('Cross-Tab Sync', () => {
       // cleared server-side — local state covered for it transiently. The
       // badge staying gone proves Room.viewerNotifications.totalCount returns 0.
       await page1b.reload();
-      await page1b.waitForURL(routes.patterns.anySpace);
+      await page1b.waitForURL(routes.patterns.chatRootOrRoom);
       const chatPage1bAfter = new ChatPage(page1b);
       await chatPage1bAfter.enterRoom('announcements');
       const generalLink1bAfter = chatPage1bAfter.roomList.locator('a', { hasText: '# general' });
@@ -1192,7 +1192,7 @@ test.describe('Clickable Notification Badges', () => {
     );
 
     // User A: Navigate to the server (not in general room)
-    await page.goto(routes.space());
+    await page.goto(routes.chat);
     await chatPage.enterRoom('announcements');
 
     // Verify notification badge appears on general room.

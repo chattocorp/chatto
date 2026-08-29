@@ -57,21 +57,21 @@ describe('UserAvatar', () => {
     expect(presenceDot.className).toContain('bg-presence-online');
   });
 
-  it('renders away presence dots in yellow', () => {
+  it('renders away presence dots in the semantic warm-gold tone', () => {
     const { container } = render(UserAvatarTestHarness, {
       size: 'md',
       showPresence: true,
       presenceStatus: PresenceStatus.AWAY
     });
     const presenceDot = q(container, '[aria-label="Away"] span')!;
-    const yellow500 = window
+    const presenceAway = window
       .getComputedStyle(document.documentElement)
-      .getPropertyValue('--color-yellow-500')
+      .getPropertyValue('--color-presence-away')
       .trim();
 
     expect(presenceDot.className).toContain('bg-presence-away');
     expect(window.getComputedStyle(presenceDot).backgroundColor).toBe(
-      computedBackgroundColor(yellow500)
+      computedBackgroundColor(presenceAway)
     );
   });
 

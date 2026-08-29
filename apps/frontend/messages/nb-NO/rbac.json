@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administrasjon",
+      "bot": "Boter",
+      "message": "Meldinger",
+      "role": "Roller",
+      "room": "Rom",
+      "server": "Server",
+      "user": "Brukere",
+      "other": "Annet"
+    },
     "permission_descriptions": {
       "server_manage": "Oppdater serverinnstillinger (navn, beskrivelse, logo)",
       "room_create": "Opprett nye rom",
@@ -119,7 +129,9 @@
       "user_delete_self": "Slett din egen konto",
       "user_invite": "Opprett og administrer invitasjonslenker",
       "user_manage_accounts": "Opprett brukere, rediger kontoidentitet, tilbakestill passord, legg ved bekreftede e-poster og fjern påloggingsavkjølinger",
-      "user_manage_permissions": "Rediger direkte overstyringer av tillatelser per bruker"
+      "user_manage_permissions": "Rediger direkte overstyringer av tillatelser per bruker",
+      "bot_create": "Opprett botkontoer som du eier",
+      "bot_manage": "Vis og administrer alle botkontoer"
     }
   }
 }

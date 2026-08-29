@@ -104,7 +104,25 @@
       "edit": "Redigera",
       "assigned_role": "Tilldelad {role}-roll",
       "removed_role": "Borttagen {role}-roll",
-      "role_update_failed": "Det gick inte att uppdatera rolltilldelningen"
+      "role_update_failed": "Det gick inte att uppdatera rolltilldelningen",
+      "danger_zone": "Riskzon",
+      "open_delete_account": "Ta bort konto",
+      "delete_account_entry_description": "Tar bort medlemmens konto permanent. Deras meddelanden blir oläsbara. Detta går inte att ångra."
+    },
+    "member_delete": {
+      "title": "Ta bort medlem",
+      "warning": "Detta tar permanent bort {name}s konto. Detta går inte att ångra.",
+      "consequences_intro": "Vad som händer:",
+      "consequence_rooms": "Medlemmen tas bort från alla rum.",
+      "consequence_messages": "Alla meddelanden de har skrivit blir permanent oläsbara.",
+      "consequence_profile": "Profil, avatar och användarnamn tas bort. Användarnamnet blir tillgängligt igen.",
+      "consequence_sessions": "Personen loggas ut överallt.",
+      "confirm_label": "Skriv {login} för att bekräfta",
+      "submit": "Ta bort kontot permanent",
+      "deleting": "Tar bort...",
+      "failed": "Kontot kunde inte tas bort.",
+      "success": "Kontot har tagits bort.",
+      "not_allowed": "Du kan inte ta bort det här kontot."
     },
     "member_detail": {
       "no_self_rename": "Inget självbyte har registrerats.",

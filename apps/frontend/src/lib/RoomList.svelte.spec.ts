@@ -9,6 +9,7 @@ import { getToasts, toast } from '$lib/ui/toast';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
+    activeRoomId: undefined as string | undefined,
     activeCallRoomIds: new Set<string>(),
     projectedCallParticipants: new Map<string, unknown[]>(),
     unreadRoomIds: new Set<string>(),
@@ -82,7 +83,9 @@ vi.mock('$app/state', () => ({
   page: {
     params: {
       serverId: '-',
-      roomId: undefined
+      get roomId() {
+        return mocks.activeRoomId;
+      }
     }
   }
 }));
@@ -134,6 +137,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+    getLiveBio: () => null,
+    getLiveTimezone: () => null,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
@@ -256,6 +261,7 @@ beforeEach(() => {
   toast.clear();
   localStorage.clear();
   sessionStorage.clear();
+  mocks.activeRoomId = undefined;
   mocks.activeCallRoomIds = new Set();
   mocks.projectedCallParticipants = new Map();
   mocks.unreadRoomIds = new Set();
@@ -862,6 +868,18 @@ describe('RoomList', () => {
     expect(row.classList.contains('sidebar-item-attention')).toBe(true);
     expect(icon?.classList.contains('text-text-top')).toBe(true);
     expect(icon?.classList.contains('text-muted')).toBe(false);
+  });
+
+  it('marks the current room with the shared action-coloured route treatment', async () => {
+    mocks.activeRoomId = 'channel-1';
+
+    const { container } = render(RoomList);
+
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    await expect.element(row).toHaveAttribute('aria-current', 'page');
+    expect(row.classList.contains('sidebar-item')).toBe(true);
+    expect(row.classList.contains('sidebar-item-current')).toBe(false);
+    expect(row.querySelector('.sidebar-icon')?.classList.contains('text-muted')).toBe(true);
   });
 
   it('uses the established globe icon for universal joined rooms', async () => {

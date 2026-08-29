@@ -14,7 +14,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/evtstream"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/events"
 )
@@ -41,7 +41,7 @@ func (r *fakeProcessingRuntime) AssetState(string) core.AssetState {
 func (r *fakeProcessingRuntime) setTerminal() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.state.VideoManifest = &core.VideoAttachmentManifest{Failed: &corev1.AssetProcessingFailedEvent{AssetId: "A-video"}}
+	r.state.VideoManifest = &core.VideoAttachmentManifest{Failed: &evtv1.AssetProcessingFailedEvent{AssetId: "A-video"}}
 }
 
 type fakeAssetProcessor struct {
@@ -56,10 +56,10 @@ func (p *fakeAssetProcessor) ProcessAsset(ctx context.Context, assetID, messageI
 
 func processingDelivery(t *testing.T) events.DurableDelivery {
 	t.Helper()
-	event := &corev1.Event{
+	event := &evtv1.Event{
 		Id: "E-request",
-		Event: &corev1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+		Event: &evtv1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{
 				AssetId:        "A-video",
 				MessageEventId: "E-message",
 			},
@@ -132,10 +132,10 @@ func TestAssetProcessingConsumerHandsOffUnackedWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	event := &corev1.Event{
+	event := &evtv1.Event{
 		Id: "E-request",
-		Event: &corev1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+		Event: &evtv1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{
 				AssetId:        "A-video",
 				MessageEventId: "E-message",
 			},
@@ -182,10 +182,10 @@ func TestAssetProcessingConsumerConsumesLegacyRoomMarker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	event := &corev1.Event{
+	event := &evtv1.Event{
 		Id: "E-legacy-request",
-		Event: &corev1.Event_AssetProcessingStarted{
-			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+		Event: &evtv1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &evtv1.AssetProcessingStartedEvent{
 				AssetId:        "A-legacy-video",
 				MessageEventId: "E-legacy-message",
 			},

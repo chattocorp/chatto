@@ -95,6 +95,16 @@
         }
       }
     },
+    "permission_categories": {
+      "admin": "Administração",
+      "bot": "Bots",
+      "message": "Mensagens",
+      "role": "Funções",
+      "room": "Salas",
+      "server": "Servidor",
+      "user": "Usuários",
+      "other": "Outros"
+    },
     "permission_descriptions": {
       "server_manage": "Atualizar configurações do servidor (nome, descrição, logotipo)",
       "room_create": "Criar novas salas",
@@ -119,7 +129,9 @@
       "user_delete_self": "Exclua sua própria conta",
       "user_invite": "Crie e gerencie links de convite",
       "user_manage_accounts": "Crie usuários, edite a identidade da conta, redefina senhas, anexe e-mails verificados e limpe os tempos de espera de login",
-      "user_manage_permissions": "Editar substituições de permissão direta por usuário"
+      "user_manage_permissions": "Editar substituições de permissão direta por usuário",
+      "bot_create": "Criar contas de bot que pertencem a você",
+      "bot_manage": "Ver e gerenciar todas as contas de bot"
     }
   }
 }

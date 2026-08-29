@@ -17,20 +17,24 @@ func TestNotificationDeliveryModeAliasesPreserveProtoJSONCompatibility(t *testin
 	encoded, err := protojson.Marshal(&apiv1.NotificationDeliveryModes{
 		DirectMessages: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum(),
 		DirectMentions: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
+		Reactions:      apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE.Enum(),
+		RoomMessages:   apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(),
 	})
 	if err != nil {
 		t.Fatalf("marshal delivery modes: %v", err)
 	}
-	if got := string(encoded); !strings.Contains(got, "NOTIFICATION_DELIVERY_MODE_SILENT") || !strings.Contains(got, "NOTIFICATION_DELIVERY_MODE_ALERT") {
+	if got := string(encoded); !strings.Contains(got, "NOTIFICATION_DELIVERY_MODE_SILENT") || !strings.Contains(got, "NOTIFICATION_DELIVERY_MODE_ALERT") || !strings.Contains(got, "NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE") {
 		t.Fatalf("legacy JSON names changed: %s", got)
 	}
 
 	var decoded apiv1.NotificationDeliveryModes
-	if err := protojson.Unmarshal([]byte(`{"directMessages":"NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION","directMentions":"NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION"}`), &decoded); err != nil {
+	if err := protojson.Unmarshal([]byte(`{"directMessages":"NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION","directMentions":"NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION","reactions":"NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE","roomMessages":"NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE"}`), &decoded); err != nil {
 		t.Fatalf("unmarshal canonical aliases: %v", err)
 	}
 	if decoded.GetDirectMessages() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION ||
-		decoded.GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+		decoded.GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION ||
+		decoded.GetReactions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE ||
+		decoded.GetRoomMessages() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 		t.Fatalf("decoded delivery modes = %+v", &decoded)
 	}
 }
@@ -73,15 +77,19 @@ func TestNotificationPolicyServiceScopesBatchAndLegacyCompatibility(t *testing.T
 	updated, err := env.notificationPolicies.UpdateNotificationPolicy(ctx, connect.NewRequest(&apiv1.NotificationPolicyServiceUpdateNotificationPolicyRequest{
 		Scope: groupNotificationPolicyScope(group.Id),
 		Overrides: &apiv1.NotificationDeliveryModes{
-			Reactions: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
+			Reactions:    apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE.Enum(),
+			RoomMessages: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
 		},
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"reactions"}},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"reactions", "room_messages"}},
 	}))
 	if err != nil {
 		t.Fatalf("UpdateNotificationPolicy group: %v", err)
 	}
-	if got := updated.Msg.GetPolicy().GetPolicy().GetEffective().GetReactions(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
-		t.Fatalf("updated group effective reactions = %v, want PUSH_NOTIFICATION", got)
+	if got := updated.Msg.GetPolicy().GetPolicy().GetEffective().GetReactions(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+		t.Fatalf("updated group effective reactions = %v, want UNREAD_BADGE", got)
+	}
+	if got := updated.Msg.GetPolicy().GetPolicy().GetEffective().GetRoomMessages(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+		t.Fatalf("updated group effective room messages = %v, want PUSH_NOTIFICATION", got)
 	}
 
 	roomPolicy, err := env.notificationPolicies.GetNotificationPolicy(ctx, connect.NewRequest(&apiv1.NotificationPolicyServiceGetNotificationPolicyRequest{
@@ -90,8 +98,11 @@ func TestNotificationPolicyServiceScopesBatchAndLegacyCompatibility(t *testing.T
 	if err != nil {
 		t.Fatalf("GetNotificationPolicy room: %v", err)
 	}
-	if got := roomPolicy.Msg.GetPolicy().GetPolicy().GetEffective().GetReactions(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
-		t.Fatalf("room group-inherited reactions = %v, want PUSH_NOTIFICATION", got)
+	if got := roomPolicy.Msg.GetPolicy().GetPolicy().GetEffective().GetReactions(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+		t.Fatalf("room group-inherited reactions = %v, want UNREAD_BADGE", got)
+	}
+	if got := roomPolicy.Msg.GetPolicy().GetPolicy().GetEffective().GetRoomMessages(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+		t.Fatalf("room group-inherited room messages = %v, want PUSH_NOTIFICATION", got)
 	}
 
 	roomID := room.Id
@@ -99,8 +110,8 @@ func TestNotificationPolicyServiceScopesBatchAndLegacyCompatibility(t *testing.T
 	if err != nil {
 		t.Fatalf("legacy GetNotificationPolicy: %v", err)
 	}
-	if got := legacy.Msg.GetPolicy().GetEffective().GetReactions(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
-		t.Fatalf("legacy room effective reactions = %v, want group-inherited PUSH_NOTIFICATION", got)
+	if got := legacy.Msg.GetPolicy().GetEffective().GetReactions(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+		t.Fatalf("legacy room effective reactions = %v, want group-inherited UNREAD_BADGE", got)
 	}
 
 	batch, err := env.notificationPolicies.BatchGetNotificationPolicies(ctx, connect.NewRequest(&apiv1.BatchGetNotificationPoliciesRequest{Scopes: []*apiv1.NotificationPolicyScope{

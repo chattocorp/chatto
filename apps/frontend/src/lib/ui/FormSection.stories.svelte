@@ -21,7 +21,7 @@
 </script>
 
 <script lang="ts">
-  import { Panel } from '$lib/components/admin';
+  import Panel from './Panel.svelte';
   import { Checkbox, Form, TextArea, TextInput } from './form';
 
   let name = $state('Open Source Hangout');

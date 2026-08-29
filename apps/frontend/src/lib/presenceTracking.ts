@@ -2,13 +2,8 @@ import { APIPresenceStatus, type PresenceAPI } from '$lib/api-client/presence';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
-const HIDDEN_DELAY_MS = 10_000;
-const NOISY_ACTIVITY_THROTTLE_MS = 1_000;
 const PRESENCE_REFRESH_MS = 30_000;
 const PRESENCE_MODE_STORAGE_KEY = 'chatto.presence.mode';
-
-type ActivityState = 'active' | 'idle' | 'hidden';
 
 export type PresenceReporter = Pick<PresenceAPI, 'updatePresence'>;
 
@@ -37,7 +32,7 @@ function presenceStatusToAPIStatus(status: PresenceStatus): APIPresenceStatus {
 	}
 }
 
-function modeToExplicitStatus(mode: PresenceMode): PresenceStatus | null {
+function modeToExplicitStatus(mode: PresenceMode): PresenceStatus {
 	switch (mode) {
 		case 'away':
 			return PresenceStatus.AWAY;
@@ -46,27 +41,40 @@ function modeToExplicitStatus(mode: PresenceMode): PresenceStatus | null {
 		case 'invisible':
 			return PresenceStatus.OFFLINE;
 		default:
-			return null;
+			return PresenceStatus.ONLINE;
 	}
 }
 
+function isPresenceMode(value: unknown): value is PresenceMode {
+	return value === 'online' || value === 'away' || value === 'doNotDisturb' || value === 'invisible';
+}
+
+/**
+ * Reads the stored presence mode. Legacy stored values such as 'auto'
+ * (removed implicit idle-away mode) normalize to the explicit 'online' mode.
+ */
 function readStoredMode(): PresenceMode {
-	if (typeof localStorage === 'undefined') return 'auto';
+	if (typeof localStorage === 'undefined') return 'online';
 	const stored = localStorage.getItem(PRESENCE_MODE_STORAGE_KEY);
-	if (
-		stored === 'auto' ||
-		stored === 'away' ||
-		stored === 'doNotDisturb' ||
-		stored === 'invisible'
-	) {
-		return stored;
-	}
-	return 'auto';
+	return isPresenceMode(stored) ? stored : 'online';
 }
 
 function storeMode(mode: PresenceMode) {
 	if (typeof localStorage === 'undefined') return;
 	localStorage.setItem(PRESENCE_MODE_STORAGE_KEY, mode);
+}
+
+/**
+ * Rewrites the stored mode only when it holds a legacy or invalid value
+ * (for example the retired 'auto' mode) so all tabs converge on explicit
+ * modes. Never rewrites a valid or missing stored value: identical setItem
+ * calls can surface as cross-tab storage events and needlessly re-apply
+ * the same mode elsewhere.
+ */
+function normalizeStoredMode(mode: PresenceMode) {
+	if (typeof localStorage === 'undefined') return;
+	const stored = localStorage.getItem(PRESENCE_MODE_STORAGE_KEY);
+	if (stored !== null && !isPresenceMode(stored)) storeMode(mode);
 }
 
 export function setPresenceMode(mode: PresenceMode) {
@@ -75,6 +83,12 @@ export function setPresenceMode(mode: PresenceMode) {
 	applyModeFromUI?.(mode);
 }
 
+/**
+ * Reports an explicit, user-selected presence status to all connected servers.
+ * There is no automatic status: the client never switches modes on its own,
+ * it only refreshes the currently chosen explicit status so server-side
+ * presence TTLs do not expire.
+ */
 export function initPresenceTracking(
 	getReporters: () => PresenceReporter[],
 	onStatusChange?: (status: PresenceStatus) => void
@@ -83,44 +97,35 @@ export function initPresenceTracking(
 	initialized = true;
 
 	let currentMode = readStoredMode();
-	let currentState: ActivityState = document.visibilityState === 'hidden' ? 'hidden' : 'active';
 	let currentVisibleStatus: PresenceStatus | null = null;
-	let idleTimer: ReturnType<typeof setTimeout> | null = null;
-	let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
 	let refreshTimer: ReturnType<typeof setInterval> | null = null;
-	let lastTimerResetAt = 0;
-	let reportRevision = 0;
+	// Latest-request sequence. Out-of-order report responses must not let a
+	// stale accepted status overwrite a newer explicit choice.
+	let lastRequestSeq = 0;
 
 	presencePreference.mode = currentMode;
+	normalizeStoredMode(currentMode);
 
 	function emitLocalStatus(status: PresenceStatus) {
 		presencePreference.effectiveStatus = status;
 		onStatusChange?.(status);
 	}
 
-	function applyAcceptedStatus(accepted: APIPresenceStatus, revision: number) {
-		if (revision !== reportRevision || currentMode === 'invisible') return;
-		const acceptedStatus = apiStatusToPresenceStatus(accepted);
-		currentVisibleStatus = acceptedStatus;
-		if (presencePreference.effectiveStatus !== acceptedStatus) {
-			emitLocalStatus(acceptedStatus);
-		}
-	}
-
-	function sendPresenceReport(status: PresenceStatus, userSelected: boolean, revision: number) {
+	function sendPresenceReport(status: PresenceStatus) {
+		const requestSeq = ++lastRequestSeq;
 		for (const reporter of getReporters()) {
 			reporter
-				.updatePresence(presenceStatusToAPIStatus(status), userSelected)
-				.then((accepted) => applyAcceptedStatus(accepted, revision))
+				.updatePresence(presenceStatusToAPIStatus(status), true)
+				.then((accepted) => {
+					if (requestSeq !== lastRequestSeq || currentMode === 'invisible') return;
+					const acceptedStatus = apiStatusToPresenceStatus(accepted);
+					currentVisibleStatus = acceptedStatus;
+					if (presencePreference.effectiveStatus !== acceptedStatus) {
+						emitLocalStatus(acceptedStatus);
+					}
+				})
 				.catch(() => {});
 		}
-	}
-
-	function reportStatus(status: PresenceStatus, userSelected = false) {
-		const revision = ++reportRevision;
-		currentVisibleStatus = status;
-		emitLocalStatus(status);
-		sendPresenceReport(status, userSelected, revision);
 	}
 
 	function clearRefreshTimer() {
@@ -133,136 +138,44 @@ export function initPresenceTracking(
 	function ensureRefreshTimer() {
 		if (refreshTimer) return;
 		refreshTimer = setInterval(() => {
-			if (currentMode === 'invisible' || currentVisibleStatus === null) return;
-			const userSelected = currentMode !== 'auto';
-			sendPresenceReport(currentVisibleStatus, userSelected, ++reportRevision);
+			if (currentVisibleStatus === null) return;
+			sendPresenceReport(currentVisibleStatus);
 		}, PRESENCE_REFRESH_MS);
 	}
 
-	function resetIdleTimer() {
-		if (idleTimer) clearTimeout(idleTimer);
-		lastTimerResetAt = Date.now();
-		idleTimer = setTimeout(() => transition('idle'), IDLE_TIMEOUT_MS);
-	}
-
-	function statusForAutoState(state: ActivityState): PresenceStatus {
-		return state === 'active' ? PresenceStatus.ONLINE : PresenceStatus.AWAY;
-	}
-
-	function applyMode(mode: PresenceMode, persist = false, syncedFromStorage = false) {
+	function applyMode(mode: PresenceMode, persist = false) {
 		currentMode = mode;
 		presencePreference.mode = mode;
 		if (persist) storeMode(mode);
 
 		if (mode === 'invisible') {
 			clearRefreshTimer();
-			reportRevision++;
+			lastRequestSeq++;
 			currentVisibleStatus = null;
 			emitLocalStatus(PresenceStatus.OFFLINE);
 			return;
 		}
 
-		if (mode === 'auto') {
-			currentState = document.visibilityState === 'hidden' ? 'hidden' : 'active';
-			const userSelected = persist || syncedFromStorage;
-			reportStatus(
-				userSelected ? PresenceStatus.ONLINE : statusForAutoState(currentState),
-				userSelected
-			);
-			ensureRefreshTimer();
-			resetIdleTimer();
-			return;
-		}
-
 		const explicitStatus = modeToExplicitStatus(mode);
-		reportStatus(explicitStatus ?? statusForAutoState(currentState), true);
+		currentVisibleStatus = explicitStatus;
+		emitLocalStatus(explicitStatus);
+		sendPresenceReport(explicitStatus);
 		ensureRefreshTimer();
 	}
 
 	applyModeFromUI = (mode) => applyMode(mode, true);
 
-	function transition(newState: ActivityState) {
-		if (newState === currentState) return;
-		currentState = newState;
-		if (currentMode !== 'auto') return;
-		reportStatus(statusForAutoState(newState));
-		if (newState === 'active') resetIdleTimer();
-	}
-
-	function onActivity(noisy = false) {
-		if (currentMode !== 'auto') return;
-
-		if (currentState !== 'active') {
-			transition('active');
-			return;
-		}
-
-		if (!noisy || Date.now() - lastTimerResetAt >= NOISY_ACTIVITY_THROTTLE_MS) {
-			resetIdleTimer();
-		}
-	}
-
-	function onQuietActivity() {
-		onActivity(false);
-	}
-
-	function onNoisyActivity() {
-		onActivity(true);
-	}
-
-	const quietActivityEvents = ['pointerdown', 'keydown', 'touchstart'] as const;
-	const noisyActivityEvents = ['pointermove', 'wheel', 'scroll'] as const;
-
-	for (const event of quietActivityEvents) {
-		document.addEventListener(event, onQuietActivity, { passive: true });
-	}
-	for (const event of noisyActivityEvents) {
-		document.addEventListener(event, onNoisyActivity, { passive: true });
-	}
-
-	function onVisibilityChange() {
-		if (document.visibilityState === 'hidden') {
-			hiddenTimer = setTimeout(() => transition('hidden'), HIDDEN_DELAY_MS);
-		} else {
-			if (hiddenTimer) {
-				clearTimeout(hiddenTimer);
-				hiddenTimer = null;
-			}
-			transition('active');
-		}
-	}
-
 	function onStorage(event: StorageEvent) {
-		if (event.key !== PRESENCE_MODE_STORAGE_KEY || event.newValue === null) return;
-		if (
-			event.newValue === 'auto' ||
-			event.newValue === 'away' ||
-			event.newValue === 'doNotDisturb' ||
-			event.newValue === 'invisible'
-		) {
-			applyMode(event.newValue, false, true);
-		}
+		if (event.key !== PRESENCE_MODE_STORAGE_KEY || !isPresenceMode(event.newValue)) return;
+		applyMode(event.newValue);
 	}
 
-	document.addEventListener('visibilitychange', onVisibilityChange);
-	window.addEventListener('focus', onQuietActivity);
 	window.addEventListener('storage', onStorage);
 
-	resetIdleTimer();
 	applyMode(currentMode);
 
 	return () => {
-		for (const event of quietActivityEvents) {
-			document.removeEventListener(event, onQuietActivity);
-		}
-		for (const event of noisyActivityEvents) {
-			document.removeEventListener(event, onNoisyActivity);
-		}
-		document.removeEventListener('visibilitychange', onVisibilityChange);
-		window.removeEventListener('focus', onQuietActivity);
 		window.removeEventListener('storage', onStorage);
-		if (idleTimer) clearTimeout(idleTimer);
-		if (hiddenTimer) clearTimeout(hiddenTimer);
 		clearRefreshTimer();
 		if (applyModeFromUI) applyModeFromUI = null;
 		initialized = false;

@@ -14,11 +14,11 @@ Chatto creates persistent notifications for attention-worthy events:
 | Event | Default behavior |
 | ----- | ---------------- |
 | DM messages | Notify the recipient. |
+| Root messages in channel rooms | Add a neutral room dot by default. |
 | Direct `@username` mentions | Notify the mentioned user. |
 | Role, `@all`, and `@here` mentions | Notify matching recipients, with confirmation for broad sends. |
 | Replies to your message | Notify you. |
 | Followed thread replies | Notify followers. |
-| Followed room activity | Notify according to the followed-room policy. |
 | Reactions to your messages | Add a non-interruptive notification by default. |
 
 Notifications are stored for the user, survive browser restarts, sync across tabs and devices, and expire after 90 days. Read and Delete changes synchronize everywhere for that user.
@@ -41,17 +41,24 @@ Members use a matrix to control each notification cause at server, room-group, a
 | Mode | Effect |
 | ---- | ------ |
 | Inherit | Use the next broader room-group or server setting. |
-| Off | Do not create a notification for this cause. |
+| Off | Do not create attention for this cause. |
+| Badge | Add only a neutral unread dot. Do not create a notification, play a sound, or send push. |
 | Notification | Add an in-app notification. The configured in-app sound can play, but Chatto does not send push. |
 | Push notification | Add the same in-app notification and make it eligible for Web Push or native delivery. |
 
-Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Followed threads and reactions use Notification by default; followed rooms are Off until enabled. A message that matches several causes creates one exact notification per cause, so each keeps its own policy and triage identity; the client may still consolidate related activity for display. Notification policy affects future activity and does not hide ordinary unread room state.
+Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Root messages in channel rooms use Badge. Followed threads and reactions use Notification. A message that matches several causes creates one exact output per cause, so each keeps its own policy and triage identity. The client can still consolidate related activity for display.
 
-The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Notification, and Push notification.
+The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Badge, Notification, and Push notification.
 
-Room-group and room cells cycle through Inherit, Off, Notification, Push notification, and back to Inherit. A grey crossed bell means Off. An orange bell means Notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.
+Room-group and room cells cycle through Inherit, Off, Badge, Notification, Push notification, and back to Inherit. A grey crossed bell means Off. A grey filled bell means Badge. An orange bell means Notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.
+
+A Badge setting uses the neutral dot for its room or thread. Thread dots also roll up to their parent room. Reading the room or thread clears covered Badge attention. An orange notification dot takes priority over the grey dot. Badge does not change an operating-system or application-icon badge.
+
+Room dots are controlled only by notification policy. If you set Room messages to Off, ordinary root messages do not add a dot. Chatto still keeps the Message Read Cursor and uses it to place the New messages separator when you open the room.
 
 Channel rooms inherit from their current room group, then from the server. Direct-message rooms inherit directly from the server. A room move changes the policy for future activity only. It does not change earlier notification decisions.
+
+The Direct messages row applies to the server and direct-message rooms. The Room messages row applies to the server, room groups, and channel rooms. Cells outside these scopes are not available.
 
 Use the matrix filter to find a group or room. A room match keeps its parent group visible. A group match keeps all of its current-member room columns visible. The server column always remains in the matrix.
 

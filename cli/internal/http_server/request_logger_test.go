@@ -132,6 +132,36 @@ func TestRequestLoggerRedactsInviteLinkToken(t *testing.T) {
 	}
 }
 
+func TestRequestLoggerRedactsIncomingWebhookCredential(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var buf bytes.Buffer
+	logger := log.New(&buf)
+	logger.SetFormatter(log.JSONFormatter)
+	logger.SetLevel(log.DebugLevel)
+	router := gin.New()
+	router.Use(requestLogger(logger))
+	router.POST("/webhooks/incoming/:credential", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	const credential = "cht_IW_U123456789ABCDE.secret"
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/webhooks/incoming/"+credential+"?room_id=R123", nil))
+
+	var line map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &line); err != nil {
+		t.Fatalf("request log should be JSON, got %q: %v", buf.String(), err)
+	}
+	assertLogField(t, line, "path", "/webhooks/incoming/:credential")
+	if bytes.Contains(buf.Bytes(), []byte(credential)) {
+		t.Fatalf("request log exposed incoming webhook credential: %s", buf.String())
+	}
+	if got := line["query_present"]; got != true {
+		t.Fatalf("query_present field = %v, want true", got)
+	}
+}
+
 func assertLogField(t *testing.T, line map[string]any, key string, want string) {
 	t.Helper()
 

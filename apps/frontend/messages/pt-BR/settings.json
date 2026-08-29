@@ -9,13 +9,19 @@
       "account": "Conta",
       "bots": "Bots",
       "user_preferences": "Preferências do usuário",
-      "server_configuration": "Configuração do servidor"
+      "app_preferences": "Preferências do aplicativo",
+      "your_account": "Sua conta",
+      "server_configuration": "Servidor"
     },
     "app_preferences": {
       "title": "Preferências do aplicativo",
       "subtitle": "Opções deste aplicativo que se aplicam a todos os seus servidores registrados",
-      "appearance": { "title": "Aparência" },
-      "composer": { "title": "Composição" }
+      "appearance": {
+        "title": "Aparência"
+      },
+      "composer": {
+        "title": "Composição"
+      }
     },
     "profile": {
       "title": "Perfil",
@@ -102,7 +108,7 @@
       "presence": {
         "button": "Presença: {status}",
         "title": "Presença",
-        "auto": "On-line",
+        "online": "On-line",
         "away": "Ausente",
         "do_not_disturb": "Não perturbe",
         "offline": "Off-line",
@@ -110,7 +116,13 @@
       },
       "saved": "Perfil atualizado com sucesso",
       "save_failed": "Falha ao salvar perfil",
-      "save_button": "Salvar alterações"
+      "save_button": "Salvar alterações",
+      "bio": {
+        "label": "Bio",
+        "description": "Até {max} caracteres, visível no seu perfil.",
+        "placeholder": "Conte um pouco sobre você",
+        "too_long": "A bio deve ter no máximo {max} caracteres."
+      }
     },
     "preferences": {
       "title": "Hora e região",
@@ -291,10 +303,13 @@
         "delivery_mode": {
           "inherit": "Herdar",
           "off": "Desativado",
+          "badge": "Indicador",
+          "badge_hint": "Adiciona apenas um ponto neutro de conteúdo não lido. Não cria uma notificação, reproduz um som nem envia uma notificação push.",
           "notification": "Notificação",
           "push_notification": "Notificação push"
         },
         "reason": {
+          "room_message": "Mensagens em salas",
           "direct_message": "Mensagens diretas",
           "direct_mention": "Menções diretas",
           "reply": "Respostas às suas mensagens",
@@ -302,12 +317,12 @@
           "here": "Menções @here",
           "all": "Menções @all",
           "followed_thread": "Tópicos seguidos",
-          "followed_room": "Salas seguidas",
           "reaction": "Reações às suas mensagens",
           "activity": "Atividade",
           "room_invitation": "Convites para salas"
         },
         "reason_hint": {
+          "room_message": "Mensagens raiz que outros membros publicam diretamente em salas de canais, não dentro de tópicos.",
           "direct_message": "Mensagens que outros membros enviam em conversas de mensagens diretas.",
           "direct_mention": "Mensagens que mencionam diretamente seu nome de usuário.",
           "reply": "Mensagens que respondem a uma das suas mensagens.",
@@ -315,7 +330,6 @@
           "here": "Mensagens que usam @here quando sua presença não está offline.",
           "all": "Mensagens que usam @all em uma sala da qual você participa.",
           "followed_thread": "Novas respostas nos tópicos que você segue.",
-          "followed_room": "Mensagens fora de tópicos nas salas que você segue.",
           "reaction": "Reações que outros membros adicionam às suas mensagens."
         }
       }
@@ -410,11 +424,6 @@
       "create_title": "Criar conta de bot",
       "create_failed": "Falha ao criar o bot",
       "created": "Bot criado",
-      "edit": "Editar",
-      "edit_title": "Editar conta do bot",
-      "updated": "Bot atualizado",
-      "update_failed": "Falha ao atualizar o bot",
-      "update_conflict": "Outra pessoa atualizou este bot. Recarregue a página e tente novamente.",
       "username": "Nome de usuário",
       "username_hint": "Os nomes de usuário dos bots devem terminar em _bot.",
       "display_name": "Nome de exibição",
@@ -433,6 +442,12 @@
       "rotate_warning": "A chave atual irá parar de funcionar imediatamente. Qualquer integração que o utilize deve ser atualizada.",
       "key_rotated": "Chave de API rotacionada",
       "rotate_failed": "Falha ao alternar a chave de API",
+      "webhook_title": "Webhooks de entrada",
+      "webhook_description": "Publique mensagens como este bot usando ferramentas externas.",
+      "webhook_created": "Webhook de entrada criado",
+      "webhook_url_title": "Salvar esta URL de webhook",
+      "webhook_url_warning": "Esta URL é exibida apenas uma vez e contém uma credencial. Guarde-a em um local seguro antes de fechar esta janela.",
+      "webhook_url_copied": "URL do webhook copiada",
       "delete_title": "Excluir bot",
       "delete_warning": "Excluir {name}? Sua chave de API deixará de funcionar imediatamente e a conta não poderá ser recuperada.",
       "deleted": "Bot excluído",
@@ -440,7 +455,20 @@
       "permissions": {
         "owner_ceiling": "Escolha o que este bot pode fazer. Você só pode conceder a ele permissões que também possui. Se você perder uma permissão, o bot também não poderá mais usá-la.",
         "save_failed": "Falha ao atualizar a permissão do bot"
-      }
+      },
+      "webhook_empty_description": "Nenhum webhook de entrada foi criado ainda.",
+      "webhook_create": "Criar webhook",
+      "webhook_name": "Nome",
+      "webhook_created_at": "Criado",
+      "webhook_create_failed": "Não foi possível criar o webhook de entrada",
+      "webhook_revoke": "Revogar webhook",
+      "webhook_revoke_warning": "A URL atual do webhook deixará de funcionar imediatamente.",
+      "webhook_revoked": "Webhook de entrada revogado",
+      "webhook_revoke_failed": "Não foi possível revogar o webhook de entrada",
+      "webhook_last_used": "Último uso",
+      "webhook_no_use_recorded": "Nenhum uso registrado",
+      "webhook_last_used_unavailable": "Temporariamente indisponível",
+      "webhook_limit_reached": "Você atingiu o limite de 20 webhooks de entrada."
     }
   }
 }
