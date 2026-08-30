@@ -152,7 +152,7 @@ test.describe('unsupported release boundary', () => {
     'Set current and unsupported remote production executables'
   );
 
-  test('current frontend rejects a 0.4 server without opening realtime', async ({
+  test('current frontend hands a 0.4 server off without opening realtime', async ({
     page,
     authPage,
     server
@@ -168,7 +168,6 @@ test.describe('unsupported release boundary', () => {
         6,
         '127.0.0.1'
       );
-      await createProductionUser(unsupportedServer, remoteUser);
 
       await authPage.gotoLogin();
       await authPage.fillLoginForm(originUser.login, originUser.password);
@@ -189,37 +188,27 @@ test.describe('unsupported release boundary', () => {
       await page.getByTitle('Add Server').click();
       await page.getByLabel('Server URL').fill(remoteHost);
       await page.getByRole('button', { name: 'Find server' }).click();
-      await expect(page.getByRole('button', { name: 'Join', exact: true })).toBeVisible({
+      const externalAction = page.getByRole('link', { name: 'Open in new tab', exact: true });
+      await expect(externalAction).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
+      await expect(externalAction).toHaveAttribute('href', unsupportedServer.baseURL);
+      await expect(externalAction).toHaveAttribute('target', '_blank');
+      await expect(externalAction).toHaveAttribute('rel', 'noopener noreferrer');
       const popupPromise = page.waitForEvent('popup');
-      await page.getByRole('button', { name: 'Join', exact: true }).click();
-      const remoteLoginPage = await popupPromise;
-
-      await expect(remoteLoginPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/, {
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-      await remoteLoginPage.locator('input[autocomplete="username"]').fill(remoteUser.login);
-      await remoteLoginPage
-        .locator('input[autocomplete="current-password"]')
-        .fill(remoteUser.password);
-      await remoteLoginPage.getByRole('button', { name: /Sign In/i }).click();
-      await expect(remoteLoginPage).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-      const popupClosed = remoteLoginPage.waitForEvent('close');
-      await remoteLoginPage.getByRole('button', { name: 'Allow Access' }).click();
-      await popupClosed;
-
-      const remoteIcon = page.locator(`[data-testid="server-icon"][href*="127.0.0.1"]`).first();
-      await expect(remoteIcon).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-      await expect(
-        remoteIcon.locator('xpath=..').getByTestId('server-compatibility-warning')
-      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(remoteIcon).toHaveAttribute(
-        'title',
-        /This server must be upgraded to Chatto 0\.5 or newer before this app can connect\./
+      await externalAction.click();
+      const remoteClient = await popupPromise;
+      await expect(remoteClient).toHaveURL(
+        (url) => url.origin === new URL(unsupportedServer!.baseURL).origin,
+        { timeout: TIMEOUTS.REALTIME_EVENT }
       );
+      const registeredRemote = await page.evaluate((origin) => {
+        const registrations = JSON.parse(
+          localStorage.getItem('chatto:instances') || '[]'
+        ) as Array<{ url?: string }>;
+        return registrations.some((registration) => registration.url === origin);
+      }, unsupportedServer.baseURL);
+      expect(registeredRemote).toBe(false);
       expect(remoteRealtimeConnections).toBe(0);
     } finally {
       if (unsupportedServer) {

@@ -124,16 +124,73 @@ export class ListNeighborsRequest extends Message<ListNeighborsRequest> {
 }
 
 /**
- * Publicly advertised canonical server origins. The response has no ordering
- * contract.
+ * One public server recommendation.
+ *
+ * @generated from message chatto.discovery.v1.Neighbor
+ */
+export class Neighbor extends Message<Neighbor> {
+  /**
+   * Canonical HTTP or HTTPS server origin.
+   *
+   * @generated from field: string origin = 1;
+   */
+  origin = "";
+
+  /**
+   * Optional explanation from the recommending server's operator.
+   *
+   * @generated from field: optional string testimonial = 2;
+   */
+  testimonial?: string;
+
+  constructor(data?: PartialMessage<Neighbor>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.Neighbor";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "testimonial", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Neighbor {
+    return new Neighbor().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Neighbor {
+    return new Neighbor().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Neighbor {
+    return new Neighbor().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Neighbor | PlainMessage<Neighbor> | undefined, b: Neighbor | PlainMessage<Neighbor> | undefined): boolean {
+    return proto3.util.equals(Neighbor, a, b);
+  }
+}
+
+/**
+ * Publicly advertised servers. The response has no ordering contract.
  *
  * @generated from message chatto.discovery.v1.ListNeighborsResponse
  */
 export class ListNeighborsResponse extends Message<ListNeighborsResponse> {
   /**
+   * Canonical origins for clients that do not support structured Neighbors.
+   *
    * @generated from field: repeated string origins = 1;
    */
   origins: string[] = [];
+
+  /**
+   * Structured recommendations with optional testimonials.
+   *
+   * @generated from field: repeated chatto.discovery.v1.Neighbor neighbors = 2;
+   */
+  neighbors: Neighbor[] = [];
 
   constructor(data?: PartialMessage<ListNeighborsResponse>) {
     super();
@@ -144,6 +201,7 @@ export class ListNeighborsResponse extends Message<ListNeighborsResponse> {
   static readonly typeName = "chatto.discovery.v1.ListNeighborsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "origins", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "neighbors", kind: "message", T: Neighbor, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNeighborsResponse {

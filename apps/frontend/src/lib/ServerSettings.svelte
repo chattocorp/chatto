@@ -79,7 +79,6 @@
   let originalDescription = $state('');
   let originalMotd = $state('');
   let originalWelcomeMessage = $state('');
-  let saveSuccess = $state(false);
 
   // Logo state
   const logoUrl = $derived(snapshot?.logoUrl ?? null);
@@ -194,11 +193,7 @@
         originalDescription = nextDescription;
         originalMotd = nextMotd;
         originalWelcomeMessage = nextWelcomeMessage;
-        saveSuccess = true;
-        const completedGeneration = privacyGeneration;
-        setTimeout(() => {
-          if (completedGeneration === privacyGeneration) saveSuccess = false;
-        }, 3000);
+        toast.success(m('common.saved'));
       }
     }),
     () => queryClient
@@ -315,7 +310,6 @@
   function handleSave(e: Event) {
     e.preventDefault();
     if (nameError || !changed || saving) return;
-    saveSuccess = false;
     saveMutation.mutate({
       ...mutationScope(),
       input: {
@@ -451,9 +445,6 @@
             <span class="iconify icon-[uil--check]"></span>
             {m('server_settings.save_button')}
           </Button>
-          {#if saveSuccess}
-            <span class="text-sm text-success">{m('common.saved')}</span>
-          {/if}
         </div>
       </form>
     </Panel>
@@ -499,7 +490,6 @@
               onchange={handleLogoUpload}
             />
             <Button
-              variant="secondary"
               onclick={() => logoFileInput?.click()}
               loading={uploadingLogo}
               disabled={assetMutation.isPending}
@@ -512,13 +502,13 @@
             </Button>
             {#if logoUrl}
               <Button
-                variant="ghost"
+                variant="danger-secondary"
                 onclick={handleLogoDelete}
                 loading={deletingLogo}
                 disabled={assetMutation.isPending}
                 loadingText={m('server_settings.removing')}
               >
-                <span class="inline-flex items-center gap-2 text-error">
+                <span class="inline-flex items-center gap-2">
                   <span class="iconify icon-[uil--trash-alt]"></span>
                   {m('server_settings.remove')}
                 </span>
@@ -573,7 +563,6 @@
               onchange={handleBannerUpload}
             />
             <Button
-              variant="secondary"
               onclick={() => bannerFileInput?.click()}
               loading={uploadingBanner}
               disabled={assetMutation.isPending}
@@ -588,13 +577,13 @@
             </Button>
             {#if bannerUrl}
               <Button
-                variant="ghost"
+                variant="danger-secondary"
                 onclick={handleBannerDelete}
                 loading={deletingBanner}
                 disabled={assetMutation.isPending}
                 loadingText={m('server_settings.removing')}
               >
-                <span class="inline-flex items-center gap-2 text-error">
+                <span class="inline-flex items-center gap-2">
                   <span class="iconify icon-[uil--trash-alt]"></span>
                   {m('server_settings.remove')}
                 </span>

@@ -36,8 +36,8 @@ vi.mock('$lib/serverDirectory', async (importOriginal) => {
 
 import Page from './+page.svelte';
 
-function neighbor(origin: string): Neighbor {
-  return { id: 'neighbor-1', origin, revision: 'revision-1' };
+function neighbor(origin: string, testimonial: string | null = null): Neighbor {
+  return { id: 'neighbor-1', origin, testimonial, revision: 'revision-1' };
 }
 
 function profile(): PublicServerInfo {
@@ -74,8 +74,13 @@ describe('Neighbor management page', () => {
     queryClient.clear();
     vi.clearAllMocks();
     mocks.list.mockResolvedValue([]);
-    mocks.create.mockImplementation(async (origin: string) => neighbor(origin));
-    mocks.update.mockImplementation(async (_current: Neighbor, origin: string) => neighbor(origin));
+    mocks.create.mockImplementation(async (origin: string, testimonial: string) =>
+      neighbor(origin, testimonial || null)
+    );
+    mocks.update.mockImplementation(
+      async (_current: Neighbor, origin: string, testimonial: string) =>
+        neighbor(origin, testimonial || null)
+    );
     mocks.delete.mockResolvedValue(undefined);
     mocks.loadServerProfiles.mockResolvedValue([]);
   });
@@ -96,8 +101,8 @@ describe('Neighbor management page', () => {
       expect(container.textContent).toContain(publicProfile.description);
     });
     expect(
-      Array.from(container.querySelectorAll('h2')).some(
-        (heading) => heading.textContent?.trim().startsWith('Neighbors')
+      Array.from(container.querySelectorAll('h2')).some((heading) =>
+        heading.textContent?.trim().startsWith('Neighbors')
       )
     ).toBe(true);
     expect(container.querySelector<HTMLImageElement>('img')?.src).toContain('/banner.webp');
@@ -105,10 +110,7 @@ describe('Neighbor management page', () => {
 
   it.each([
     ['dev.preview.chatto.run', 'https://dev.preview.chatto.run'],
-    [
-      'https://dev.preview.chatto.run/chat/-/RMch1OYtMwZ7sOJ',
-      'https://dev.preview.chatto.run'
-    ]
+    ['https://dev.preview.chatto.run/chat/-/RMch1OYtMwZ7sOJ', 'https://dev.preview.chatto.run']
   ])('adds %s as the canonical origin', async (entered, expected) => {
     const { container } = render(Page);
     await vi.waitFor(() => expect(mocks.list).toHaveBeenCalled());
@@ -116,7 +118,7 @@ describe('Neighbor management page', () => {
     input(container, '#new-neighbor-origin', entered);
     container.querySelector('form')!.requestSubmit();
 
-    await vi.waitFor(() => expect(mocks.create).toHaveBeenCalledWith(expected));
+    await vi.waitFor(() => expect(mocks.create).toHaveBeenCalledWith(expected, ''));
   });
 
   it('canonicalizes a full URL when editing a Neighbor', async () => {
@@ -138,7 +140,56 @@ describe('Neighbor management page', () => {
     button(container, 'Save').click();
 
     await vi.waitFor(() => {
-      expect(mocks.update).toHaveBeenCalledWith(current, 'https://new.example');
+      expect(mocks.update).toHaveBeenCalledWith(current, 'https://new.example', '');
+    });
+  });
+
+  it('displays and edits a public testimonial', async () => {
+    const current = neighbor(
+      'https://neighbor.example',
+      'A **welcoming** community.\n\nPeople listen.'
+    );
+    mocks.list.mockResolvedValue([current]);
+    mocks.loadServerProfiles.mockResolvedValue([{ origin: current.origin, profile: profile() }]);
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(container.textContent).toContain('A welcoming community.'));
+    const testimonial = container.querySelector('[data-testid="neighbor-testimonial"]')!;
+    expect(testimonial.querySelectorAll('p')).toHaveLength(2);
+    expect(testimonial.querySelector('strong')?.textContent).toBe('welcoming');
+
+    flushSync(() => button(container, 'Edit').click());
+    input(container, '#neighbor-testimonial-neighbor-1', '  Clear and kind moderation.  ');
+    button(container, 'Save').click();
+    await vi.waitFor(() => {
+      expect(mocks.update).toHaveBeenCalledWith(
+        current,
+        'https://neighbor.example',
+        'Clear and kind moderation.'
+      );
+    });
+
+    await vi.waitFor(() => expect(button(container, 'Edit')).toBeDefined());
+    flushSync(() => button(container, 'Edit').click());
+    input(container, '#neighbor-testimonial-neighbor-1', '');
+    button(container, 'Save').click();
+    await vi.waitFor(() => {
+      expect(mocks.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({ origin: 'https://neighbor.example' }),
+        'https://neighbor.example',
+        ''
+      );
+    });
+  });
+
+  it('creates a Neighbor with a trimmed testimonial', async () => {
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(mocks.list).toHaveBeenCalled());
+    input(container, '#new-neighbor-origin', 'new.example');
+    input(container, '#new-neighbor-testimonial', '  A small, lively server.  ');
+    container.querySelector('form')!.requestSubmit();
+    await vi.waitFor(() => {
+      expect(mocks.create).toHaveBeenCalledWith('https://new.example', 'A small, lively server.');
     });
   });
 });

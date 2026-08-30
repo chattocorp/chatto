@@ -278,13 +278,13 @@ test.describe('Server Admin Members', () => {
       const admin = await loginAsAdmin(page);
       await serverAdminPage.gotoMemberDetails('server', admin.id!);
 
-      await expect(
-        page.getByRole('heading', { name: 'User Details' })
-      ).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(page.getByRole('heading', { name: 'User Details' })).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
       await expect(page.getByText('Danger Zone')).toHaveCount(0, {
         timeout: TIMEOUTS.UI_STANDARD
       });
-      await expect(page.getByRole('link', { name: 'Delete Account' })).toHaveCount(0);
+      await expect(page.getByRole('link', { name: 'Delete account' })).toHaveCount(0);
     });
 
     test('admin can delete another member through the confirmation page', async ({
@@ -297,7 +297,7 @@ test.describe('Server Admin Members', () => {
       const target = await createSecondTestUser(page);
 
       await serverAdminPage.gotoMemberDetails(server.id, target.id!);
-      const deleteButton = page.getByRole('link', { name: 'Delete Account' });
+      const deleteButton = page.getByRole('link', { name: 'Delete account' });
       await expect(deleteButton).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await deleteButton.click();
 
@@ -307,7 +307,7 @@ test.describe('Server Admin Members', () => {
       const confirmInput = page.locator('#member-delete-confirm');
       await expect(confirmInput).toBeVisible();
       await expect(page.locator('#member-delete-password')).toHaveCount(0);
-      const submit = page.getByRole('button', { name: 'Permanently Delete Account' });
+      const submit = page.getByRole('button', { name: 'Permanently delete account' });
       await expect(submit).toBeDisabled();
 
       await confirmInput.fill(target.login.slice(0, -1));

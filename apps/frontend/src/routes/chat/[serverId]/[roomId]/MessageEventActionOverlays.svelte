@@ -1,5 +1,4 @@
 <script lang="ts">
-  import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { m } from '$lib/i18n/messages';
   import type { MessageActionModel } from './messageActionModel';
@@ -121,7 +120,12 @@
 {/if}
 
 {#if interactions.showActionSheet}
-  <BottomSheet bind:visible={interactions.showActionSheet} onclose={closeActionSheet}>
+  <ContextMenu
+    presentation="sheet"
+    role="dialog"
+    ariaLabel={m('room.message.actions.toolbar')}
+    onclose={closeActionSheet}
+  >
     {@render actionMenu('sheet')}
-  </BottomSheet>
+  </ContextMenu>
 {/if}

@@ -13,6 +13,8 @@ Reads available devices and current selection from `voiceCallState`.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
 
   const serverScope = useServerScope();
   const voiceCallState = $derived(serverScope.store.voiceCall);
@@ -56,31 +58,27 @@ Reads available devices and current selection from `voiceCallState`.
 
 <ContextMenu {anchor} {onclose}>
   {#each sections as section (section.label)}
-    <div class="menu-section">
+    <MenuSection ariaLabel={section.label}>
       <div class="px-3 py-1.5 text-xs font-medium text-muted">{section.label}</div>
-      <nav class="sidebar-nav">
-        {#each section.devices as device (device.deviceId)}
-          <button
-            class="sidebar-item"
-            role="menuitem"
-            onclick={async () => {
-              await section.select(device.deviceId);
-              onclose();
-            }}
-          >
+      {#each section.devices as device (device.deviceId)}
+        <MenuItem
+          onclick={async () => {
+            await section.select(device.deviceId);
+            onclose();
+          }}
+        >
+          {#snippet leading()}
             {#if device.deviceId === section.selectedId}
-              <span class="iconify sidebar-icon icon-[uil--check] text-action"></span>
-            {:else}
-              <span class="sidebar-icon"></span>
+              <span class="iconify icon-[uil--check] text-action"></span>
             {/if}
-            <span class="truncate">{device.label || m('voice.unknown_device')}</span>
-          </button>
-        {/each}
+          {/snippet}
+          <span class="block truncate">{device.label || m('voice.unknown_device')}</span>
+        </MenuItem>
+      {/each}
 
-        {#if section.devices.length === 0}
-          <div class="px-3 py-2 text-sm text-muted">{m('voice.no_devices')}</div>
-        {/if}
-      </nav>
-    </div>
+      {#if section.devices.length === 0}
+        <div class="px-3 py-2 text-sm text-muted">{m('voice.no_devices')}</div>
+      {/if}
+    </MenuSection>
   {/each}
 </ContextMenu>

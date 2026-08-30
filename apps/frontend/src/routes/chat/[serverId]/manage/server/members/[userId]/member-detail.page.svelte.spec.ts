@@ -70,8 +70,8 @@ vi.mock('$lib/components/rbac', async () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveLogin: (_userId: string, login: string) => login,
   getLiveAvatarUrl: (_userId: string, avatarUrl: string | null) => avatarUrl,
   getLiveCustomStatus: () => null
@@ -198,9 +198,7 @@ describe('server member detail queries', () => {
   });
 
   it('marks a bot account in the member overview', async () => {
-    mocks.getMember.mockResolvedValueOnce(
-      details(member('helper_bot', { isBot: true }))
-    );
+    mocks.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));
 
     const rendered = render(MemberDetailPage);
     await settle();
@@ -287,7 +285,7 @@ describe('server member detail queries', () => {
     const rendered = render(MemberDetailPage);
     await settle();
     expect(rendered.container.textContent).toContain('Danger Zone');
-    expect(rendered.container.textContent).toContain('Delete Account');
+    expect(rendered.container.textContent).toContain('Delete account');
     expect(rendered.container.textContent).not.toContain('Identity Settings');
 
     mocks.getMember.mockResolvedValueOnce(details(member('helper_bot', { isBot: true })));

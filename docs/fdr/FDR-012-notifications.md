@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-29
 
 ## Overview
 
@@ -38,9 +38,13 @@ targets, unread counts, read state, or deletion semantics.
   covered according to the reacted-to message and reaction horizon.
 - Notifications cannot be marked Unread. There is no Done state or Inbox/Done
   split.
-- Trash deletes the exact visible occurrences represented by the current row.
-  Dismiss All deletes every visible occurrence current at the server boundary.
-  Both actions update the UI optimistically and then reconcile with the server.
+- The Delete action deletes the exact visible occurrences in the current row.
+  On devices that support hover, this action appears when the row has hover or
+  keyboard focus. It remains visible on touch devices.
+- Dismiss read deletes only the loaded occurrences that were Read when the user
+  selected the action. It does not delete Unread occurrences that arrived
+  before or during the action. Both deletion actions update the UI
+  optimistically and then reconcile with the server.
 - Every occurrence leaves application-visible state exactly 90 days after its
   source activity. Reading or deleting it does not extend that lifetime.
   Physical cleanup may continue during ADR-076's 24-hour grace period without

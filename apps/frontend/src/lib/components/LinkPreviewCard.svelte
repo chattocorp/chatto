@@ -20,6 +20,8 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   import { pushState } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
   import { toast } from '$lib/ui/toast';
   import YouTubeEmbed from './YouTubeEmbed.svelte';
   import SocialPostEmbed from './SocialPostEmbed.svelte';
@@ -169,27 +171,18 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 <!-- Context menu (posted message mode only) -->
 {#if contextMenuPos}
   <ContextMenu position={contextMenuPos} onclose={() => (contextMenuPos = null)}>
-    <div class="menu-section">
-      <nav class="sidebar-nav">
-        <button class="sidebar-item" onclick={handleOpenLink} role="menuitem">
-          <span class="iconify sidebar-icon icon-[uil--external-link-alt]"></span>
-          {isYouTube ? m('preview.youtube_open') : m('preview.open_link')}
-        </button>
-        <button class="sidebar-item" onclick={handleCopyUrl} role="menuitem">
-          <span class="iconify sidebar-icon icon-[uil--copy]"></span>
-          {m('preview.copy_url')}
-        </button>
-        {#if canDelete}
-          <button
-            class="sidebar-item text-danger hover:text-danger"
-            onclick={handleDeleteFromMenu}
-            role="menuitem"
-          >
-            <span class="iconify sidebar-icon icon-[uil--trash-alt]"></span>
-            {isYouTube ? m('preview.youtube_delete_embed') : m('preview.delete')}
-          </button>
-        {/if}
-      </nav>
-    </div>
+    <MenuSection>
+      <MenuItem icon="icon-[uil--external-link-alt]" onclick={handleOpenLink}>
+        {isYouTube ? m('preview.youtube_open') : m('preview.open_link')}
+      </MenuItem>
+      <MenuItem icon="icon-[uil--copy]" onclick={handleCopyUrl}>
+        {m('preview.copy_url')}
+      </MenuItem>
+      {#if canDelete}
+        <MenuItem icon="icon-[uil--trash-alt]" tone="danger" onclick={handleDeleteFromMenu}>
+          {isYouTube ? m('preview.youtube_delete_embed') : m('preview.delete')}
+        </MenuItem>
+      {/if}
+    </MenuSection>
   </ContextMenu>
 {/if}

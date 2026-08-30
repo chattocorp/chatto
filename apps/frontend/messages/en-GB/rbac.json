@@ -7,7 +7,7 @@
       "delete_grants": "Delete all permission grants for this role",
       "irreversible": "This action cannot be undone.",
       "deleting": "Deleting...",
-      "action": "Delete Role"
+      "action": "Delete role"
     },
     "role_form": {
       "save": "Save",

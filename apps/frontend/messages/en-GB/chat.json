@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Here's what's new",
-      "clear_all": "Dismiss all",
+      "clear_read": "Dismiss read",
       "empty_title": "No notifications",
       "empty_body": "You're all caught up!",
       "time_now": "Just now",

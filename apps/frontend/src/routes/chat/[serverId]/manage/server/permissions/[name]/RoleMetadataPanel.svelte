@@ -31,7 +31,8 @@
   );
   const canEditPingable = $derived(role.name !== 'everyone');
 
-  function saveMetadata(): void {
+  function saveMetadata(event: SubmitEvent): void {
+    event.preventDefault();
     if (!metadataChanged || saving || savingPingable) return;
     onSaveMetadata(editDisplayName, editDescription);
   }
@@ -47,7 +48,7 @@
 </script>
 
 <Panel title={m('admin.common.role_details')} icon="iconify icon-[uil--info-circle]">
-  <div class="flex flex-col gap-4">
+  <form class="flex flex-col gap-4" onsubmit={saveMetadata}>
     <div>
       <div class="mb-1 text-sm font-medium">{m('rbac.role_form.name')}</div>
       <code class="rounded bg-surface-emphasized px-2 py-1">{role.name}</code>
@@ -92,11 +93,7 @@
 
     {#if !role.isSystem}
       <div class="flex gap-2">
-        <Button
-          variant="neutral"
-          disabled={!metadataChanged || saving || savingPingable}
-          onclick={saveMetadata}
-        >
+        <Button type="submit" disabled={!metadataChanged || saving || savingPingable}>
           {saving ? m('rbac.role_form.saving') : m('admin.permissions.save_changes')}
         </Button>
       </div>
@@ -113,5 +110,5 @@
         </Button>
       </div>
     {/if}
-  </div>
+  </form>
 </Panel>

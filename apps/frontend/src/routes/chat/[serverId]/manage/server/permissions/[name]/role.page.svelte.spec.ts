@@ -202,17 +202,15 @@ describe('role management page identity', () => {
     displayName.value = 'Role A updated';
     displayName.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
-    const save = [...container.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Save')
-    )!;
-    save.click();
+    const form = container.querySelector('form')!;
+    expect(form.querySelector('button[type="submit"]')).toHaveClass('btn-action');
+    form.requestSubmit();
 
     await vi.waitFor(() => expect(mocks.updateRole).toHaveBeenCalledOnce());
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(
-      queryClient.getQueryData<RoleDetails>(
-        adminQueryKeys.role('origin', connection, 'role-a')
-      )?.role?.displayName
+      queryClient.getQueryData<RoleDetails>(adminQueryKeys.role('origin', connection, 'role-a'))
+        ?.role?.displayName
     ).toBe('Role A updated');
   });
 
@@ -271,7 +269,7 @@ describe('role management page identity', () => {
     await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
 
     const openDelete = [...container.querySelectorAll('button')].find(
-      (button) => button.textContent?.trim() === 'Delete Role'
+      (button) => button.textContent?.trim() === 'Delete role'
     )!;
     openDelete.click();
     flushSync();

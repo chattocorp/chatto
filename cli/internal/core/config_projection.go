@@ -32,9 +32,10 @@ type serverConfigState struct {
 // Neighbor is one server advertised through the public Neighbor directory.
 // Revision is the envelope ID of the latest durable fact for this resource.
 type Neighbor struct {
-	ID       string
-	Origin   string
-	Revision string
+	ID          string
+	Origin      string
+	Testimonial string
+	Revision    string
 }
 
 type userConfigState struct {
@@ -93,7 +94,7 @@ func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 		if p.server.neighbors == nil {
 			p.server.neighbors = make(map[string]Neighbor)
 		}
-		p.server.neighbors[neighbor.GetNeighborId()] = Neighbor{ID: neighbor.GetNeighborId(), Origin: neighbor.GetOrigin(), Revision: event.GetId()}
+		p.server.neighbors[neighbor.GetNeighborId()] = Neighbor{ID: neighbor.GetNeighborId(), Origin: neighbor.GetOrigin(), Testimonial: neighbor.GetTestimonial(), Revision: event.GetId()}
 	case *evtv1.Event_ServerNeighborOriginChanged:
 		neighbor := e.ServerNeighborOriginChanged
 		if neighbor == nil {
@@ -101,6 +102,16 @@ func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 		}
 		if current, exists := p.server.neighbors[neighbor.GetNeighborId()]; exists {
 			current.Origin = neighbor.GetOrigin()
+			current.Revision = event.GetId()
+			p.server.neighbors[neighbor.GetNeighborId()] = current
+		}
+	case *evtv1.Event_ServerNeighborTestimonialChanged:
+		neighbor := e.ServerNeighborTestimonialChanged
+		if neighbor == nil {
+			break
+		}
+		if current, exists := p.server.neighbors[neighbor.GetNeighborId()]; exists {
+			current.Testimonial = neighbor.GetTestimonial()
 			current.Revision = event.GetId()
 			p.server.neighbors[neighbor.GetNeighborId()] = current
 		}

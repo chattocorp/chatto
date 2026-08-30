@@ -17,9 +17,9 @@ func newServerNameChangedEvent(name string) *evtv1.Event {
 	}
 }
 
-func newNeighborCreatedProjectionEvent(eventID, neighborID, origin string) *evtv1.Event {
+func newNeighborCreatedProjectionEvent(eventID, neighborID, origin, testimonial string) *evtv1.Event {
 	return &evtv1.Event{Id: eventID, Event: &evtv1.Event_ServerNeighborCreated{
-		ServerNeighborCreated: &evtv1.ServerNeighborCreatedEvent{NeighborId: neighborID, Origin: origin},
+		ServerNeighborCreated: &evtv1.ServerNeighborCreatedEvent{NeighborId: neighborID, Origin: origin, Testimonial: testimonial},
 	}}
 }
 

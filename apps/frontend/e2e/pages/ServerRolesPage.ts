@@ -63,17 +63,17 @@ export class ServerRolesPage {
 
   /** The submit button on create role form */
   get submitButton(): Locator {
-    return this.page.getByRole('button', { name: 'Create Role' });
+    return this.page.getByRole('button', { name: 'Create role' });
   }
 
   /** The save changes button on edit role form */
   get saveChangesButton(): Locator {
-    return this.page.getByRole('button', { name: 'Save Changes' });
+    return this.page.getByRole('button', { name: 'Save changes' });
   }
 
   /** The delete role button */
   get deleteRoleButton(): Locator {
-    return this.page.getByRole('button', { name: 'Delete Role' });
+    return this.page.getByRole('button', { name: 'Delete role' });
   }
 
   /** The confirm delete button in the modal */
@@ -336,7 +336,7 @@ export class ServerRolesPage {
     return /Override deny/.test(label);
   }
 
-  // --- Delete Role Actions ---
+  // --- Delete role Actions ---
 
   /**
    * Delete the currently viewed role.
@@ -371,14 +371,14 @@ export class ServerRolesPage {
   }
 
   /**
-   * Assert the Create Role button is visible.
+   * Assert the Create role button is visible.
    */
   async expectCreateRoleButtonVisible(): Promise<void> {
     await expect(this.createRoleButton).toBeVisible();
   }
 
   /**
-   * Assert the Create Role button is NOT visible.
+   * Assert the Create role button is NOT visible.
    */
   async expectCreateRoleButtonNotVisible(): Promise<void> {
     await expect(this.createRoleButton).not.toBeVisible();

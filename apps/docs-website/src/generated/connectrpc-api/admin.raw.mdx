@@ -2045,7 +2045,8 @@ One configured Neighbor.
 
 ### CreateNeighbor
 
-Advertises one server origin. This RPC requires server.manage-neighbors.
+Advertises one server origin. The origin must not identify this server.
+This RPC requires server.manage-neighbors.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminServerService/CreateNeighbor
@@ -2060,6 +2061,7 @@ Request to advertise one server origin.
 | Field | Type | Description |
 | --- | --- | --- |
 | `origin` | `string` | No field description provided. |
+| `testimonial` | `optional string` | Optional public explanation of why this server is recommended. |
 
 
 <a id="chatto-admin-v1-CreateNeighborResponse"></a>
@@ -2077,8 +2079,8 @@ Newly configured Neighbor.
 
 ### UpdateNeighbor
 
-Changes one advertised server origin. This RPC requires
-server.manage-neighbors.
+Changes one advertised server origin. The new origin must not identify
+this server. This RPC requires server.manage-neighbors.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminServerService/UpdateNeighbor
@@ -2095,6 +2097,7 @@ Request to change one advertised server origin.
 | `neighbor_id` | `string` | No field description provided. |
 | `origin` | `string` | No field description provided. |
 | `revision` | `string` | No field description provided. |
+| `testimonial` | `optional string` | New testimonial. Omit this field to keep the current value. Send an empty value to clear it. |
 
 
 <a id="chatto-admin-v1-UpdateNeighborResponse"></a>
@@ -2696,6 +2699,7 @@ One server advertised in the public Neighbor directory.
 | `id` | `string` | Stable opaque resource ID. |
 | `origin` | `string` | Canonical HTTP or HTTPS server origin. |
 | `revision` | `string` | Opaque revision required for update and delete requests. |
+| `testimonial` | `optional string` | Optional public explanation of why this server is recommended. |
 
 
 

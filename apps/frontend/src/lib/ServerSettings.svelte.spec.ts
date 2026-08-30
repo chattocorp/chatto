@@ -179,6 +179,31 @@ describe('ServerSettings', () => {
     );
   });
 
+  it('uses the recommended and destructive action tones within each panel', async () => {
+    mocks.getAuthenticatedServerState.mockResolvedValue({
+      name: 'Example server',
+      description: 'Original description',
+      motd: '',
+      welcomeMessage: '',
+      logoUrl: 'https://cdn.example.test/logo.webp',
+      bannerUrl: 'https://cdn.example.test/banner.webp',
+      viewerCanManageServer: true
+    });
+    const { container } = await renderSettings();
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>('button')];
+
+    for (const label of ['Save changes', 'Change logo', 'Change banner']) {
+      expect(buttons.find((button) => button.textContent?.includes(label))).toHaveClass(
+        'btn-action'
+      );
+    }
+    const removeButtons = buttons.filter((candidate) => candidate.textContent?.includes('Remove'));
+    expect(removeButtons).toHaveLength(2);
+    for (const button of removeButtons) {
+      expect(button).toHaveClass('btn-danger-secondary');
+    }
+  });
+
   it('adopts a trimmed canonical description after saving', async () => {
     const { container } = await renderSettings();
     const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;

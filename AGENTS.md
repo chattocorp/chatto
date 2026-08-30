@@ -106,6 +106,10 @@ the Authling toolchain and workflow.
 For an ad-hoc tool command, use `mise x -- ...`. Do not assume that `go`,
 `pnpm`, `node`, or related binaries are on `PATH`.
 
+`mise codegen-proto` removes and rebuilds generated TypeScript API files. Do
+not run it at the same time as `mise test-cli`, a frontend build, or another
+task that reads `packages/api-types/dist`.
+
 When an agent needs the long-running development stack, launch `mise dev`; the
 task runs the child processes through `tools/dev-supervisor.sh` so lifecycle
 signals reach them directly. Stop it before handing control back to the user.

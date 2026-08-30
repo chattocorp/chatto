@@ -768,6 +768,13 @@ export class Neighbor extends Message<Neighbor> {
    */
   revision = "";
 
+  /**
+   * Optional public explanation of why this server is recommended.
+   *
+   * @generated from field: optional string testimonial = 4;
+   */
+  testimonial?: string;
+
   constructor(data?: PartialMessage<Neighbor>) {
     super();
     proto3.util.initPartial(data, this);
@@ -779,6 +786,7 @@ export class Neighbor extends Message<Neighbor> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "revision", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "testimonial", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Neighbor {
@@ -959,6 +967,13 @@ export class CreateNeighborRequest extends Message<CreateNeighborRequest> {
    */
   origin = "";
 
+  /**
+   * Optional public explanation of why this server is recommended.
+   *
+   * @generated from field: optional string testimonial = 2;
+   */
+  testimonial?: string;
+
   constructor(data?: PartialMessage<CreateNeighborRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -968,6 +983,7 @@ export class CreateNeighborRequest extends Message<CreateNeighborRequest> {
   static readonly typeName = "chatto.admin.v1.CreateNeighborRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "testimonial", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateNeighborRequest {
@@ -1047,6 +1063,14 @@ export class UpdateNeighborRequest extends Message<UpdateNeighborRequest> {
    */
   revision = "";
 
+  /**
+   * New testimonial. Omit this field to keep the current value. Send an empty
+   * value to clear it.
+   *
+   * @generated from field: optional string testimonial = 4;
+   */
+  testimonial?: string;
+
   constructor(data?: PartialMessage<UpdateNeighborRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1058,6 +1082,7 @@ export class UpdateNeighborRequest extends Message<UpdateNeighborRequest> {
     { no: 1, name: "neighbor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "revision", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "testimonial", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNeighborRequest {

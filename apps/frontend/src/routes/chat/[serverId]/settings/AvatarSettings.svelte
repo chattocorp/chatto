@@ -145,7 +145,6 @@
           onchange={handleUpload}
         />
         <Button
-          variant="secondary"
           onclick={() => fileInput?.click()}
           loading={uploading}
           loadingText={m('settings.profile.avatar.uploading')}
@@ -157,12 +156,12 @@
         </Button>
         {#if avatarUrl}
           <Button
-            variant="ghost"
+            variant="danger-secondary"
             onclick={deleteAvatar}
             loading={deleting}
             loadingText={m('settings.profile.avatar.removing')}
           >
-            <span class="inline-flex items-center gap-2 text-error">
+            <span class="inline-flex items-center gap-2">
               <span class="iconify icon-[uil--trash-alt]"></span>
               {m('settings.profile.avatar.remove')}
             </span>

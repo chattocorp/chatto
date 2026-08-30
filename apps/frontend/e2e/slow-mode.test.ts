@@ -27,7 +27,7 @@ test('Slow Mode updates live and shares one room timer with threads', async ({
     await expect(slowModeSelect).toBeVisible();
 
     await slowModeSelect.selectOption('5');
-    await adminPage.getByRole('button', { name: 'Save Changes' }).click();
+    await adminPage.getByRole('button', { name: 'Save changes' }).click();
     await expect(adminPage.getByText('Room updated')).toBeVisible();
 
     const roomStatus = page.getByTestId('slow-mode-status');
@@ -58,7 +58,7 @@ test('Slow Mode updates live and shares one room timer with threads', async ({
     await expect(threadSend).toBeDisabled();
 
     await slowModeSelect.selectOption('10');
-    await adminPage.getByRole('button', { name: 'Save Changes' }).click();
+    await adminPage.getByRole('button', { name: 'Save changes' }).click();
     await expect(threadStatus).toHaveText(/Slow Mode: send again in 0:(?:0[6-9]|10)\./, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -66,7 +66,7 @@ test('Slow Mode updates live and shares one room timer with threads', async ({
     await expect(threadSend).toBeDisabled();
 
     await slowModeSelect.selectOption('0');
-    await adminPage.getByRole('button', { name: 'Save Changes' }).click();
+    await adminPage.getByRole('button', { name: 'Save changes' }).click();
     await expect(threadStatus).toBeHidden({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(threadSend).toBeEnabled();
   } finally {

@@ -253,7 +253,7 @@ test.describe('Member list display format', () => {
         await page2.waitForURL(routes.settings);
         const displayNameInput = page2.getByPlaceholder('Enter your display name');
         await displayNameInput.fill('Bob Builder');
-        await page2.getByRole('button', { name: 'Save Changes' }).click();
+        await page2.getByRole('button', { name: 'Save changes' }).click();
         await expect(page2.getByText('Profile updated')).toBeVisible();
 
         // User B opens the server

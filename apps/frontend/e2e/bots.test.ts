@@ -35,10 +35,8 @@ interface CreatedUserResponse {
 
 const BOT_KEY_PATTERN = /^cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const BOT_KEY_IN_TEXT_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
-const WEBHOOK_CREDENTIAL_PATTERN =
-  /^cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
-const WEBHOOK_CREDENTIAL_IN_TEXT_PATTERN =
-  /cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
+const WEBHOOK_CREDENTIAL_PATTERN = /^cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const WEBHOOK_CREDENTIAL_IN_TEXT_PATTERN = /cht_IW_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
 
 // This test handles show-once bearer credentials in the DOM. Keep them out of
 // Playwright artifacts even when the test fails or retries. Playwright 1.62's
@@ -203,11 +201,11 @@ test.describe('Bot account lifecycle', () => {
     const botDisplayName = `Lifecycle Bot ${suffix}`;
     const newOwner = await createHumanOwner(page, suffix);
 
-    await page.getByRole('button', { name: 'Create Bot', exact: true }).click();
+    await page.getByRole('button', { name: 'Create bot', exact: true }).click();
     const createDialog = page.getByRole('dialog', { name: 'Create Bot Account' });
     await createDialog.getByRole('textbox', { name: 'Username' }).fill(botLogin);
     await createDialog.getByRole('textbox', { name: 'Display Name' }).fill(botDisplayName);
-    await createDialog.getByRole('button', { name: 'Create Bot', exact: true }).click();
+    await createDialog.getByRole('button', { name: 'Create bot', exact: true }).click();
 
     const originalKey = await captureShowOnceBotKey(page);
     await page.waitForURL(routes.patterns.anyAdminBot);
@@ -269,16 +267,12 @@ test.describe('Bot account lifecycle', () => {
     await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     const createWebhookDialog = page.getByRole('dialog', { name: 'Create Webhook' });
     await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Production');
-    await createWebhookDialog
-      .getByRole('button', { name: 'Create Webhook', exact: true })
-      .click();
+    await createWebhookDialog.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     const originalWebhookURL = await captureShowOnceWebhookURL(page);
 
     await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Backup');
-    await createWebhookDialog
-      .getByRole('button', { name: 'Create Webhook', exact: true })
-      .click();
+    await createWebhookDialog.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     const backupWebhookURL = await captureShowOnceWebhookURL(page);
     await expect(
       postIncomingWebhook(originalWebhookURL, webhookRoomId, 'First incoming webhook message')
@@ -288,7 +282,9 @@ test.describe('Bot account lifecycle', () => {
     const productionWebhook = webhookList.locator('.selectable-list-item').filter({
       hasText: 'Production'
     });
-    const backupWebhook = webhookList.locator('.selectable-list-item').filter({ hasText: 'Backup' });
+    const backupWebhook = webhookList
+      .locator('.selectable-list-item')
+      .filter({ hasText: 'Backup' });
     await expect(productionWebhook).toContainText('Last used');
     await expect(productionWebhook).not.toContainText('No use recorded');
     await expect(backupWebhook).toContainText('No use recorded');
@@ -298,9 +294,7 @@ test.describe('Bot account lifecycle', () => {
     ).toHaveCount(0);
     await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Replacement');
-    await createWebhookDialog
-      .getByRole('button', { name: 'Create Webhook', exact: true })
-      .click();
+    await createWebhookDialog.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     const replacementWebhookURL = await captureShowOnceWebhookURL(page);
     await expect(
       postIncomingWebhook(

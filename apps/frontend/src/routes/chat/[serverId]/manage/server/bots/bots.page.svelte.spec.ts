@@ -41,7 +41,7 @@ import BotsPage from './+page.svelte';
 
 function createButton(container: Element): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-    button.textContent?.includes('Create Bot')
+    button.textContent?.includes('Create bot')
   );
 }
 

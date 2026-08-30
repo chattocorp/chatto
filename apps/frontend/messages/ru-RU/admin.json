@@ -31,7 +31,10 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted"
+      "deleted": "Neighbor deleted",
+      "testimonial": "Отзыв (необязательно)",
+      "testimonial_help": "Объясните, почему вы рекомендуете этот сервер. Этот текст общедоступен и может содержать до 500 символов.",
+      "testimonial_label": "Общедоступный отзыв"
     },
     "common": {
       "page_title": "{title} | Админ",

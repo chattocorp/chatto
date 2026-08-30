@@ -30,11 +30,11 @@ export class AccountPage {
     return this.page.getByText('Username', { exact: true }).locator('..').locator('dd');
   }
 
-  // --- Locators: Delete Account ---
+  // --- Locators: Delete account ---
 
-  /** The Delete Account button in the Danger Zone */
+  /** The Delete account button in the Danger Zone */
   get deleteAccountButton(): Locator {
-    return this.page.getByRole('button', { name: 'Delete Account' });
+    return this.page.getByRole('button', { name: 'Delete account' });
   }
 
   /** The delete confirmation modal dialog */
@@ -49,7 +49,7 @@ export class AccountPage {
 
   /** The confirm delete button in the modal */
   get confirmDeleteButton(): Locator {
-    return this.deleteDialog.getByRole('button', { name: 'Delete Account' });
+    return this.deleteDialog.getByRole('button', { name: 'Delete account' });
   }
 
   /** The cancel button in the delete modal */

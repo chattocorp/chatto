@@ -77,7 +77,7 @@ test.describe('User context menu', () => {
           await page2.goto(routes.settingsTime);
           const timezoneInput = page2.getByTestId('timezone-input');
           await timezoneInput.fill('America/New_York');
-          const save = page2.getByRole('button', { name: 'Save Time Settings' });
+          const save = page2.getByRole('button', { name: 'Save time settings' });
           await save.click();
           await expect(page2.getByText('Time settings saved')).toBeVisible({
             timeout: TIMEOUTS.UI_STANDARD
@@ -89,7 +89,9 @@ test.describe('User context menu', () => {
           await messageArticle.locator('button').first().click({ button: 'right' });
           const profileDialog = page.getByRole('dialog', { name: 'User profile' });
           await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-          await expect(profileDialog.getByText('America/New_York', { exact: false })).toHaveCount(0);
+          await expect(profileDialog.getByText('America/New_York', { exact: false })).toHaveCount(
+            0
+          );
 
           const shareTimezone = page2.getByRole('checkbox', {
             name: 'Show my time zone on my profile'
@@ -105,9 +107,12 @@ test.describe('User context menu', () => {
           await shareTimezoneLabel.click();
           await expect(shareTimezone).not.toBeChecked();
           await save.click();
-          await expect(profileDialog.getByText('America/New_York', { exact: false })).toHaveCount(0, {
-            timeout: TIMEOUTS.REALTIME_EVENT
-          });
+          await expect(profileDialog.getByText('America/New_York', { exact: false })).toHaveCount(
+            0,
+            {
+              timeout: TIMEOUTS.REALTIME_EVENT
+            }
+          );
           await expect(timezoneInput).toHaveValue('America/New_York');
         }
       );

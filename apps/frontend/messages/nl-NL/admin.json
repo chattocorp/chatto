@@ -31,7 +31,10 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted"
+      "deleted": "Neighbor deleted",
+      "testimonial": "Aanbeveling (optioneel)",
+      "testimonial_help": "Leg uit waarom je deze server aanbeveelt. Deze tekst is openbaar en mag maximaal 500 tekens bevatten.",
+      "testimonial_label": "Openbare aanbeveling"
     },
     "common": {
       "page_title": "{title} | Beheerder",

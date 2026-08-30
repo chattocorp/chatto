@@ -7,6 +7,8 @@ presentation-only.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
 
   let {
     kind,
@@ -36,60 +38,33 @@ presentation-only.
 </script>
 
 {#if (kind === 'room' && !isRoomMember) || showMarkRead || (canConfigure && onConfigure)}
-  <div class="menu-section">
-    <nav class="sidebar-nav">
-      {#if kind === 'room' && !isRoomMember}
-        <button
-          type="button"
-          class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
-          onclick={onJoin}
-          disabled={!canJoin}
-          role="menuitem"
-        >
-          <span class="iconify sidebar-icon icon-[uil--sign-in-alt]" aria-hidden="true"></span>
-          {m('room.join.action')}
-        </button>
-      {:else if showMarkRead}
-        <button
-          type="button"
-          class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
-          onclick={onMarkRead}
-          disabled={!canMarkRead}
-          role="menuitem"
-        >
-          <span class="iconify sidebar-icon icon-[uil--check-circle]" aria-hidden="true"></span>
-          {m('room_list.mark_as_read')}
-        </button>
-      {/if}
+  <MenuSection>
+    {#if kind === 'room' && !isRoomMember}
+      <MenuItem icon="icon-[uil--sign-in-alt]" onclick={onJoin} disabled={!canJoin}>
+        {m('room.join.action')}
+      </MenuItem>
+    {:else if showMarkRead}
+      <MenuItem icon="icon-[uil--check-circle]" onclick={onMarkRead} disabled={!canMarkRead}>
+        {m('room_list.mark_as_read')}
+      </MenuItem>
+    {/if}
 
-      {#if canConfigure && onConfigure}
-        <button type="button" class="sidebar-item" onclick={onConfigure} role="menuitem">
-          <span class="iconify sidebar-icon icon-[uil--setting]" aria-hidden="true"></span>
-          {m('room_list.room_settings')}
-        </button>
-      {/if}
-    </nav>
-  </div>
+    {#if canConfigure && onConfigure}
+      <MenuItem icon="icon-[uil--setting]" onclick={onConfigure}>
+        {m('room_list.room_settings')}
+      </MenuItem>
+    {/if}
+  </MenuSection>
 {/if}
 
 {#if isRoomMember && canLeave}
-  <div class="menu-section">
-    <nav class="sidebar-nav">
-      <button
-        type="button"
-        class="sidebar-item text-danger hover:text-danger"
-        onclick={onLeave}
-        role="menuitem"
-      >
-        <span
-          class={[
-            'iconify sidebar-icon',
-            kind === 'server' ? 'icon-[uil--minus-circle]' : 'icon-[uil--sign-out-alt]'
-          ]}
-          aria-hidden="true"
-        ></span>
-        {kind === 'server' ? m('room_list.remove_server') : m('room_list.leave_room')}
-      </button>
-    </nav>
-  </div>
+  <MenuSection>
+    <MenuItem
+      icon={kind === 'server' ? 'icon-[uil--minus-circle]' : 'icon-[uil--sign-out-alt]'}
+      tone="danger"
+      onclick={onLeave}
+    >
+      {kind === 'server' ? m('room_list.remove_server') : m('room_list.leave_room')}
+    </MenuItem>
+  </MenuSection>
 {/if}

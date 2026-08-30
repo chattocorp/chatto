@@ -67,6 +67,7 @@ type ChattoCore struct {
 	linkPreviewFetcher        *linkpreview.Fetcher // Fetcher for link preview metadata
 	projectionSnapshotWorker  *projectionSnapshotWorker
 	credentialUsage           *credentialUsageRecorder
+	serverOrigins             map[string]struct{}
 	natsRecoveryState         atomic.Int32
 	natsRecoveryStartedAt     atomic.Int64
 	natsRecoveredReconnects   atomic.Uint64

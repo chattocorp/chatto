@@ -41,7 +41,7 @@ async function uploadBannerViaUI(page: Page, _spaceId: string): Promise<void> {
 
   // Upload banner via file chooser
   const fileChooserPromise = page.waitForEvent('filechooser');
-  await page.getByRole('button', { name: /Upload Banner/ }).click();
+  await page.getByRole('button', { name: /Upload banner/ }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles({
     name: 'test-banner.png',

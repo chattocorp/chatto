@@ -3,7 +3,7 @@
     "notifications": {
       "title": "התראות",
       "subtitle": "הנה מה חדש",
-      "clear_all": "נקה הכל",
+      "clear_read": "מחיקת הודעות שנקראו",
       "empty_title": "אין התראות",
       "empty_body": "כולכם מדורגים!",
       "time_now": "ממש עכשיו",

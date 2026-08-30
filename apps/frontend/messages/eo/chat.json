@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Sciigoj",
       "subtitle": "Jen kio estas nova",
-      "clear_all": "Forigi ĉion",
+      "clear_read": "Forigi legitajn",
       "empty_title": "Neniuj sciigoj",
       "empty_body": "Vi ĉiuj estas kaptitaj!",
       "time_now": "Ĝuste nun",

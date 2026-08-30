@@ -1050,6 +1050,22 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 	}
 }
 
+func TestWebserverConfig_ServerOrigins(t *testing.T) {
+	cfg := WebserverConfig{
+		URL: "https://Chat.Example:443/chatto",
+		AllowedOrigins: []string{
+			"*",
+			"https://Alias.Example:0443",
+			"https://chat.example",
+			"invalid",
+		},
+	}
+
+	if got, want := cfg.ServerOrigins(), []string{"https://chat.example", "https://alias.example"}; !slices.Equal(got, want) {
+		t.Fatalf("ServerOrigins() = %v, want %v", got, want)
+	}
+}
+
 func TestChattoConfig_Validate_Metrics(t *testing.T) {
 	base := validTestConfig()
 

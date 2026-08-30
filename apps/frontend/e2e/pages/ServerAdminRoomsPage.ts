@@ -128,7 +128,7 @@ export class ServerAdminRoomsPage {
       await this.roomSettingsDescriptionInput.fill(description);
     }
 
-    await this.page.getByRole('button', { name: 'Save Changes' }).click();
+    await this.page.getByRole('button', { name: 'Save changes' }).click();
     await expect(this.page.getByText('Room updated')).toBeVisible();
   }
 
@@ -163,7 +163,7 @@ export class ServerAdminRoomsPage {
     await expect(this.dialog).not.toBeVisible();
     await this.page.locator('#room-group-settings-name').clear();
     await this.page.locator('#room-group-settings-name').fill(newName);
-    await this.page.getByRole('button', { name: 'Save Changes' }).click();
+    await this.page.getByRole('button', { name: 'Save changes' }).click();
     await expect(this.page.getByText('Group renamed')).toBeVisible();
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.pageHeading).toBeVisible();

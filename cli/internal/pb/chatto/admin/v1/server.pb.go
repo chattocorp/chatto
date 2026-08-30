@@ -853,7 +853,9 @@ type Neighbor struct {
 	// Canonical HTTP or HTTPS server origin.
 	Origin string `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
 	// Opaque revision required for update and delete requests.
-	Revision      string `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Revision string `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Optional public explanation of why this server is recommended.
+	Testimonial   *string `protobuf:"bytes,4,opt,name=testimonial,proto3,oneof" json:"testimonial,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -905,6 +907,13 @@ func (x *Neighbor) GetOrigin() string {
 func (x *Neighbor) GetRevision() string {
 	if x != nil {
 		return x.Revision
+	}
+	return ""
+}
+
+func (x *Neighbor) GetTestimonial() string {
+	if x != nil && x.Testimonial != nil {
+		return *x.Testimonial
 	}
 	return ""
 }
@@ -1083,8 +1092,10 @@ func (x *GetNeighborResponse) GetNeighbor() *Neighbor {
 
 // Request to advertise one server origin.
 type CreateNeighborRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Origin        string                 `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Origin string                 `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	// Optional public explanation of why this server is recommended.
+	Testimonial   *string `protobuf:"bytes,2,opt,name=testimonial,proto3,oneof" json:"testimonial,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1122,6 +1133,13 @@ func (*CreateNeighborRequest) Descriptor() ([]byte, []int) {
 func (x *CreateNeighborRequest) GetOrigin() string {
 	if x != nil {
 		return x.Origin
+	}
+	return ""
+}
+
+func (x *CreateNeighborRequest) GetTestimonial() string {
+	if x != nil && x.Testimonial != nil {
+		return *x.Testimonial
 	}
 	return ""
 }
@@ -1173,10 +1191,13 @@ func (x *CreateNeighborResponse) GetNeighbor() *Neighbor {
 
 // Request to change one advertised server origin.
 type UpdateNeighborRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NeighborId    string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
-	Origin        string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
-	Revision      string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	NeighborId string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
+	Origin     string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	Revision   string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// New testimonial. Omit this field to keep the current value. Send an empty
+	// value to clear it.
+	Testimonial   *string `protobuf:"bytes,4,opt,name=testimonial,proto3,oneof" json:"testimonial,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1228,6 +1249,13 @@ func (x *UpdateNeighborRequest) GetOrigin() string {
 func (x *UpdateNeighborRequest) GetRevision() string {
 	if x != nil {
 		return x.Revision
+	}
+	return ""
+}
+
+func (x *UpdateNeighborRequest) GetTestimonial() string {
+	if x != nil && x.Testimonial != nil {
+		return *x.Testimonial
 	}
 	return ""
 }
@@ -1415,11 +1443,13 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\x1dUpdateBlockedUsernamesRequest\x126\n" +
 	"\x11blocked_usernames\x18\x01 \x03(\tB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x10blockedUsernames\"M\n" +
 	"\x1eUpdateBlockedUsernamesResponse\x12+\n" +
-	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames\"N\n" +
+	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames\"\x85\x01\n" +
 	"\bNeighbor\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x1a\n" +
-	"\brevision\x18\x03 \x01(\tR\brevision\"\x16\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\x12%\n" +
+	"\vtestimonial\x18\x04 \x01(\tH\x00R\vtestimonial\x88\x01\x01B\x0e\n" +
+	"\f_testimonial\"\x16\n" +
 	"\x14ListNeighborsRequest\"P\n" +
 	"\x15ListNeighborsResponse\x127\n" +
 	"\tneighbors\x18\x01 \x03(\v2\x19.chatto.admin.v1.NeighborR\tneighbors\"@\n" +
@@ -1427,18 +1457,22 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\vneighbor_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\n" +
 	"neighborId\"L\n" +
 	"\x13GetNeighborResponse\x125\n" +
-	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\";\n" +
+	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"|\n" +
 	"\x15CreateNeighborRequest\x12\"\n" +
 	"\x06origin\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x06origin\"O\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x06origin\x12/\n" +
+	"\vtestimonial\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03H\x00R\vtestimonial\x88\x01\x01B\x0e\n" +
+	"\f_testimonial\"O\n" +
 	"\x16CreateNeighborResponse\x125\n" +
-	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"\x8e\x01\n" +
+	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"\xcf\x01\n" +
 	"\x15UpdateNeighborRequest\x12*\n" +
 	"\vneighbor_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\n" +
 	"neighborId\x12\"\n" +
 	"\x06origin\x18\x02 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x06origin\x12%\n" +
-	"\brevision\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\brevision\"O\n" +
+	"\brevision\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\brevision\x12/\n" +
+	"\vtestimonial\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03H\x00R\vtestimonial\x88\x01\x01B\x0e\n" +
+	"\f_testimonial\"O\n" +
 	"\x16UpdateNeighborResponse\x125\n" +
 	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"j\n" +
 	"\x15DeleteNeighborRequest\x12*\n" +
@@ -1562,6 +1596,9 @@ func file_chatto_admin_v1_server_proto_init() {
 		return
 	}
 	file_chatto_admin_v1_server_proto_msgTypes[3].OneofWrappers = []any{}
+	file_chatto_admin_v1_server_proto_msgTypes[17].OneofWrappers = []any{}
+	file_chatto_admin_v1_server_proto_msgTypes[22].OneofWrappers = []any{}
+	file_chatto_admin_v1_server_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

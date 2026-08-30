@@ -30,12 +30,12 @@ vi.mock('$lib/navigation', () => ({
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
-      serverId: serverScopeMock.serverId,
-      store: {
-        permissions: serverScopeMock.permissions,
-        currentUser: serverScopeMock.currentUser,
-        projection: serverScopeMock.projection
-      }
+    serverId: serverScopeMock.serverId,
+    store: {
+      permissions: serverScopeMock.permissions,
+      currentUser: serverScopeMock.currentUser,
+      projection: serverScopeMock.projection
+    }
   })
 }));
 
@@ -305,6 +305,18 @@ describe('UserContextMenu', () => {
       'View profile',
       'View in Server Admin',
       'Ban from room'
+    ]);
+    const actionIcons = Array.from(dialog.querySelectorAll('.menu-entry > .menu-entry-leading'));
+    expect(
+      actionIcons.map((icon) =>
+        Array.from(icon.classList).find((className) => className.startsWith('icon-[uil--'))
+      )
+    ).toEqual([
+      'icon-[uil--comment-alt-message]',
+      'icon-[uil--user]',
+      'icon-[uil--servers]',
+      'icon-[uil--ban]',
+      'icon-[uil--copy]'
     ]);
     expect(sections[2]?.textContent).toContain('Copy User ID');
     expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);

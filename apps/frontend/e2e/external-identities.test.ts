@@ -118,9 +118,13 @@ test.describe('External identity confirmation flows', () => {
     );
 
     await githubRow.getByRole('button', { name: 'Disconnect' }).click();
-    await expect(page.getByRole('dialog', { name: 'Provider cannot be disconnected' })).toBeVisible();
     await expect(
-      page.getByText('GitHub is your only sign-in method. Add a password or link another provider first.')
+      page.getByRole('dialog', { name: 'Provider cannot be disconnected' })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'GitHub is your only sign-in method. Add a password or link another provider first.'
+      )
     ).toBeVisible();
     expect(disconnectRequestCount).toBe(0);
     await page.getByRole('dialog').getByText('Close').click();
@@ -129,9 +133,9 @@ test.describe('External identity confirmation flows', () => {
 
     await page.getByLabel('New Password').fill('newpassword456');
     await page.getByLabel('Confirm Password').fill('newpassword456');
-    await page.getByRole('button', { name: 'Add Password' }).click();
+    await page.getByRole('button', { name: 'Add password' }).click();
     await expect(page.getByLabel('Current Password')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Change Password' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Change password' })).toBeVisible();
 
     await githubRow.getByRole('button', { name: 'Disconnect' }).click();
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();

@@ -274,83 +274,80 @@
 
 <PaneContent>
   <div class="flex flex-col gap-6">
-    <NotificationPolicySettings />
-
     <!-- Push Notifications Section (only show if enabled on server) -->
     {#if showPushControls}
-      <Panel title={m('settings.notifications.push.title')} icon="iconify icon-[uil--bell]">
-        <div class="max-w-lg">
-          {#if needsIosHomeScreen}
-            <Hint tone="info">
-              <div>
-                <p class="font-medium">{m('settings.notifications.push.ios_home_screen_title')}</p>
+      <section data-testid="push-notification-settings">
+        <Hint
+          tone={pushError
+            ? 'danger'
+            : pushPermission === 'denied'
+              ? 'warning'
+              : pushSubscribed
+                ? 'success'
+                : 'info'}
+          icon="icon-[uil--bell]"
+        >
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0 max-w-2xl">
+              <h2 class="font-semibold text-text-top">
+                {m('settings.notifications.push.title')}
+              </h2>
+              {#if pushError}
+                <p class="mt-1">{pushError}</p>
+              {:else if needsIosHomeScreen}
+                <p class="mt-1 font-medium">
+                  {m('settings.notifications.push.ios_home_screen_title')}
+                </p>
                 <p class="mt-1 text-sm text-muted">
                   {m('settings.notifications.push.ios_home_screen_description')}
                 </p>
-              </div>
-            </Hint>
-          {:else if !pushSupported}
-            <div class="surface-box px-4 py-3 text-sm text-muted">
-              {m('settings.notifications.push.not_supported')}
-            </div>
-          {:else if pushError}
-            <div class="mb-3">
-              <Hint tone="danger">{pushError}</Hint>
-            </div>
-          {/if}
-
-          {#if pushSupported}
-            {#if pushPermission === 'denied'}
-              <div class="rounded-lg border border-warning/60 bg-warning/10 px-4 py-3">
-                <p class="font-medium text-warning">
+              {:else if !pushSupported}
+                <p class="mt-1">{m('settings.notifications.push.not_supported')}</p>
+              {:else if pushPermission === 'denied'}
+                <p class="mt-1 font-medium">
                   {m('settings.notifications.push.blocked_title')}
                 </p>
                 <p class="mt-1 text-sm text-muted">
                   {m('settings.notifications.push.blocked_description')}
                 </p>
-              </div>
-            {:else if pushSubscribed}
-              <div class="flex flex-col gap-3">
-                <Hint tone="success">
-                  <div>
-                    <p class="font-medium">{m('settings.notifications.push.enabled_title')}</p>
-                    <p class="mt-1 text-sm text-muted">
-                      {m('settings.notifications.push.enabled_description')}
-                    </p>
-                  </div>
-                </Hint>
-                <div class="flex items-center gap-3">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onclick={handleTestPush}
-                    disabled={pushTestLoading}
-                    loading={pushTestLoading}
-                    loadingText={m('settings.notifications.push.testing')}
-                  >
-                    {m('settings.notifications.push.test_button')}
-                  </Button>
-                  {#if pushTestStatus === 'sent'}
-                    <span class="text-sm text-success" role="status">
-                      {m('settings.notifications.push.test_sent')}
-                    </span>
-                  {:else if pushTestStatus === 'failed'}
-                    <span class="text-sm text-danger" role="alert">
-                      {m('settings.notifications.push.test_failed')}
-                    </span>
-                  {/if}
-                </div>
-              </div>
-            {:else}
-              <div class="flex items-center justify-between surface-box px-4 py-3">
-                <div>
-                  <p class="font-medium">{m('settings.notifications.push.enable_title')}</p>
-                  <p class="mt-1 text-sm text-muted">
-                    {m('settings.notifications.push.enable_description')}
-                  </p>
-                </div>
+              {:else if pushSubscribed}
+                <p class="mt-1 font-medium">
+                  {m('settings.notifications.push.enabled_title')}
+                </p>
+                <p class="mt-1 text-sm text-muted">
+                  {m('settings.notifications.push.enabled_description')}
+                </p>
+              {:else}
+                <p class="mt-1 text-sm text-muted">
+                  {m('settings.notifications.push.enable_description')}
+                </p>
+              {/if}
+
+              {#if pushTestStatus === 'sent'}
+                <p class="mt-2 text-success" role="status">
+                  {m('settings.notifications.push.test_sent')}
+                </p>
+              {:else if pushTestStatus === 'failed'}
+                <p class="mt-2 text-danger" role="alert">
+                  {m('settings.notifications.push.test_failed')}
+                </p>
+              {/if}
+            </div>
+
+            {#if pushSupported && pushPermission !== 'denied'}
+              {#if pushSubscribed}
                 <Button
-                  variant="action"
+                  variant="secondary"
+                  size="sm"
+                  onclick={handleTestPush}
+                  disabled={pushTestLoading}
+                  loading={pushTestLoading}
+                  loadingText={m('settings.notifications.push.testing')}
+                >
+                  {m('settings.notifications.push.test_button')}
+                </Button>
+              {:else}
+                <Button
                   size="sm"
                   onclick={handleEnablePush}
                   disabled={pushLoading}
@@ -359,12 +356,14 @@
                 >
                   {m('settings.notifications.push.enable_button')}
                 </Button>
-              </div>
+              {/if}
             {/if}
-          {/if}
-        </div>
-      </Panel>
+          </div>
+        </Hint>
+      </section>
     {/if}
+
+    <NotificationPolicySettings />
 
     <!-- Notification Sound Section -->
     <Panel title={m('settings.notifications.sound.title')} icon="iconify icon-[uil--volume]">

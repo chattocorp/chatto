@@ -153,7 +153,7 @@ test.describe('Server Roles Management', () => {
       await serverRolesPage.expectRoleInList('everyone');
     });
 
-    test('server admin can see Create Role button', async ({ serverRolesPage }) => {
+    test('server admin can see Create role button', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
       await createAndLoginTestUser(page);
@@ -182,7 +182,7 @@ test.describe('Server Roles Management', () => {
     });
   });
 
-  test.describe('Create Role', () => {
+  test.describe('Create role', () => {
     test('server admin can create a new role', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
@@ -366,7 +366,7 @@ test.describe('Server Roles Management', () => {
     });
   });
 
-  test.describe('Delete Role', () => {
+  test.describe('Delete role', () => {
     test('server admin can delete a custom role', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;
 
@@ -599,7 +599,7 @@ test.describe('Server Permission Enforcement', () => {
       // Navigate to roles list
       await serverRolesPage.gotoRolesList(server.id);
 
-      // Should see Create Role button (has roles.manage)
+      // Should see Create role button (has roles.manage)
       await serverRolesPage.expectCreateRoleButtonVisible();
     });
 

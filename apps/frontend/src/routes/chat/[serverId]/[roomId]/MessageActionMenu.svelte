@@ -10,6 +10,8 @@ surface-specific sizing and menu semantics.
 
   import { m } from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
   import type { MessageActionModel } from './messageActionModel';
 
   let {
@@ -117,26 +119,18 @@ surface-specific sizing and menu semantics.
   destructive = false,
   mirrorInRtl = false
 )}
-  <button
-    class={[
-      'sidebar-item',
-      isSheet && 'min-h-11 gap-3 px-3 py-2.5 text-base',
-      destructive && 'text-danger hover:text-danger'
-    ]}
+  <MenuItem
+    {icon}
+    tone={destructive ? 'danger' : 'default'}
+    mirrorIconInRtl={mirrorInRtl}
     {onclick}
-    role={isSheet ? undefined : 'menuitem'}
   >
-    <span class={['iconify sidebar-icon', icon, mirrorInRtl && 'rtl:-scale-x-100']}></span>
     {label}
-  </button>
+  </MenuItem>
 {/snippet}
 
 {#snippet actionGroup(content: Snippet)}
-  <div class={isSheet ? undefined : 'menu-section'}>
-    <nav class={['sidebar-nav', isSheet && 'gap-0 menu-section p-1']}>
-      {@render content()}
-    </nav>
-  </div>
+  <MenuSection>{@render content()}</MenuSection>
 {/snippet}
 
 {#snippet menuContent()}

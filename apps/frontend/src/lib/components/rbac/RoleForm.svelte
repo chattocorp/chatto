@@ -108,13 +108,7 @@
   />
 
   {#snippet footer()}
-    <Button
-      type="submit"
-      variant="neutral"
-      disabled={!isValid || saving}
-      loading={saving}
-      loadingText={savingLabel}
-    >
+    <Button type="submit" disabled={!isValid || saving} loading={saving} loadingText={savingLabel}>
       {#if submitIcon}<span class={submitIcon}></span>{/if}
       {submitLabel}
     </Button>

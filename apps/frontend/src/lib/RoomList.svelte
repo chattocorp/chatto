@@ -38,6 +38,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   } from '$lib/state/server/rooms.svelte';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import {
     contextMenuTrigger,
@@ -1040,61 +1042,37 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     onclose={() => (groupContextMenu = null)}
   >
     {#if contextGroup.viewerCanCreateRoom || contextGroup.viewerCanManageGroup}
-      <div class="menu-section">
-        <nav class="sidebar-nav">
-          {#if contextGroup.viewerCanCreateRoom}
-            <button
-              type="button"
-              class="sidebar-item"
-              onclick={() => openCreateRoom(contextGroup)}
-              role="menuitem"
-            >
-              <span class="iconify sidebar-icon icon-[uil--plus]" aria-hidden="true"></span>
-              {m('admin.rooms_admin.new_room')}
-            </button>
-          {/if}
-          {#if contextGroup.viewerCanManageGroup}
-            <button
-              type="button"
-              class="sidebar-item"
-              onclick={() => openCreateLink(contextGroup)}
-              role="menuitem"
-            >
-              <span class="iconify sidebar-icon icon-[uil--external-link-alt]" aria-hidden="true"
-              ></span>
-              {m('admin.rooms_admin.new_link')}
-            </button>
-          {/if}
-        </nav>
-      </div>
+      <MenuSection>
+        {#if contextGroup.viewerCanCreateRoom}
+          <MenuItem icon="icon-[uil--plus]" onclick={() => openCreateRoom(contextGroup)}>
+            {m('admin.rooms_admin.new_room')}
+          </MenuItem>
+        {/if}
+        {#if contextGroup.viewerCanManageGroup}
+          <MenuItem
+            icon="icon-[uil--external-link-alt]"
+            onclick={() => openCreateLink(contextGroup)}
+          >
+            {m('admin.rooms_admin.new_link')}
+          </MenuItem>
+        {/if}
+      </MenuSection>
     {/if}
     {#if contextGroup.viewerCanManageGroup}
-      <div class="menu-section">
-        <nav class="sidebar-nav">
-          <button
-            type="button"
-            class="sidebar-item"
-            onclick={() => handleConfigureGroup(contextGroup)}
-            role="menuitem"
-          >
-            <span class="iconify sidebar-icon icon-[uil--setting]" aria-hidden="true"></span>
-            {m('room_list.group_settings', { group: contextGroup.name })}
-          </button>
-        </nav>
-      </div>
-      <div class="menu-section">
-        <nav class="sidebar-nav">
-          <button
-            type="button"
-            class="sidebar-item text-danger hover:text-danger"
-            onclick={() => confirmDeleteGroup(contextGroup)}
-            role="menuitem"
-          >
-            <span class="iconify sidebar-icon icon-[uil--trash-alt]" aria-hidden="true"></span>
-            {m('admin.rooms_admin.delete_group')}
-          </button>
-        </nav>
-      </div>
+      <MenuSection>
+        <MenuItem icon="icon-[uil--setting]" onclick={() => handleConfigureGroup(contextGroup)}>
+          {m('room_list.group_settings', { group: contextGroup.name })}
+        </MenuItem>
+      </MenuSection>
+      <MenuSection>
+        <MenuItem
+          icon="icon-[uil--trash-alt]"
+          tone="danger"
+          onclick={() => confirmDeleteGroup(contextGroup)}
+        >
+          {m('admin.rooms_admin.delete_group')}
+        </MenuItem>
+      </MenuSection>
     {/if}
   </ContextMenu>
 {/if}
@@ -1121,34 +1099,21 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       onLeave={() => handleLeaveRoom(contextRoom)}
     />
     {#if contextRoom.viewerCanManageRoom && contextRoom.type !== RoomKind.DM}
-      <div class="menu-section">
-        <nav class="sidebar-nav">
-          <button
-            type="button"
-            class="sidebar-item text-warning hover:text-warning"
-            onclick={() => confirmArchiveRoom(contextRoom)}
-            role="menuitem"
-          >
-            <span class="iconify sidebar-icon icon-[uil--archive]" aria-hidden="true"></span>
-            {m('admin.rooms_admin.archive_room')}
-          </button>
-        </nav>
-      </div>
+      <MenuSection>
+        <MenuItem icon="icon-[uil--archive]" onclick={() => confirmArchiveRoom(contextRoom)}>
+          {m('admin.rooms_admin.archive_room')}
+        </MenuItem>
+      </MenuSection>
     {/if}
-    <div class="menu-section">
-      <nav class="sidebar-nav">
-        <button
-          type="button"
-          class="sidebar-item"
-          onclick={() => void handleCopyRoomId(contextRoom.id)}
-          role="menuitem"
-          data-testid="copy-room-id"
-        >
-          <span class="iconify sidebar-icon icon-[uil--copy]" aria-hidden="true"></span>
-          {m('room_list.copy_room_id')}
-        </button>
-      </nav>
-    </div>
+    <MenuSection>
+      <MenuItem
+        icon="icon-[uil--copy]"
+        onclick={() => void handleCopyRoomId(contextRoom.id)}
+        dataTestid="copy-room-id"
+      >
+        {m('room_list.copy_room_id')}
+      </MenuItem>
+    </MenuSection>
   </ContextMenu>
 {/if}
 
@@ -1160,32 +1125,20 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     ariaLabel={m('admin.rooms_admin.edit_link')}
     onclose={() => (linkContextMenu = null)}
   >
-    <div class="menu-section">
-      <nav class="sidebar-nav">
-        <button
-          type="button"
-          class="sidebar-item"
-          onclick={() => openEditLink(contextLink)}
-          role="menuitem"
-        >
-          <span class="iconify sidebar-icon icon-[uil--pen]" aria-hidden="true"></span>
-          {m('admin.rooms_admin.edit_link')}
-        </button>
-      </nav>
-    </div>
-    <div class="menu-section">
-      <nav class="sidebar-nav">
-        <button
-          type="button"
-          class="sidebar-item text-danger hover:text-danger"
-          onclick={() => confirmDeleteLink(contextLink)}
-          role="menuitem"
-        >
-          <span class="iconify sidebar-icon icon-[uil--trash-alt]" aria-hidden="true"></span>
-          {m('admin.rooms_admin.delete_link')}
-        </button>
-      </nav>
-    </div>
+    <MenuSection>
+      <MenuItem icon="icon-[uil--pen]" onclick={() => openEditLink(contextLink)}>
+        {m('admin.rooms_admin.edit_link')}
+      </MenuItem>
+    </MenuSection>
+    <MenuSection>
+      <MenuItem
+        icon="icon-[uil--trash-alt]"
+        tone="danger"
+        onclick={() => confirmDeleteLink(contextLink)}
+      >
+        {m('admin.rooms_admin.delete_link')}
+      </MenuItem>
+    </MenuSection>
   </ContextMenu>
 {/if}
 

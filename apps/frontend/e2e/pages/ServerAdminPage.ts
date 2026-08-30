@@ -71,19 +71,19 @@ export class ServerAdminPage {
     return this.page.getByRole('textbox', { name: 'Name' });
   }
 
-  /** The Save Changes button */
+  /** The Save changes button */
   get saveButton(): Locator {
-    return this.page.getByRole('button', { name: 'Save Changes' });
+    return this.page.getByRole('button', { name: 'Save changes' });
   }
 
-  /** The Upload Logo button */
+  /** The Upload logo button */
   get uploadLogoButton(): Locator {
-    return this.page.getByRole('button', { name: 'Upload Logo' });
+    return this.page.getByRole('button', { name: 'Upload logo' });
   }
 
-  /** The Change Logo button (shown when logo exists) */
+  /** The Change logo button (shown when logo exists) */
   get changeLogoButton(): Locator {
-    return this.page.getByRole('button', { name: 'Change Logo' });
+    return this.page.getByRole('button', { name: 'Change logo' });
   }
 
   /** The Remove logo button */
@@ -102,14 +102,14 @@ export class ServerAdminPage {
     return this.page.getByRole('heading', { name: 'Logo', exact: true });
   }
 
-  /** The Upload Banner button */
+  /** The Upload banner button */
   get uploadBannerButton(): Locator {
-    return this.page.getByRole('button', { name: 'Upload Banner' });
+    return this.page.getByRole('button', { name: 'Upload banner' });
   }
 
-  /** The Change Banner button (shown when banner exists) */
+  /** The Change banner button (shown when banner exists) */
   get changeBannerButton(): Locator {
-    return this.page.getByRole('button', { name: 'Change Banner' });
+    return this.page.getByRole('button', { name: 'Change banner' });
   }
 
   /** The Remove banner button */
@@ -177,7 +177,7 @@ export class ServerAdminPage {
   }
 
   /**
-   * Click the Save Changes button.
+   * Click the Save changes button.
    */
   async save(): Promise<void> {
     await this.saveButton.click();
@@ -209,8 +209,8 @@ export class ServerAdminPage {
     mimeType: string = 'image/png'
   ): Promise<void> {
     const fileChooserPromise = this.page.waitForEvent('filechooser');
-    // Click whichever button is visible (Upload Logo or Change Logo)
-    const uploadButton = this.page.getByRole('button', { name: /Upload Logo|Change Logo/ });
+    // Click whichever button is visible (Upload logo or Change logo)
+    const uploadButton = this.page.getByRole('button', { name: /Upload logo|Change logo/ });
     await uploadButton.click();
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles({
@@ -241,8 +241,8 @@ export class ServerAdminPage {
     mimeType: string = 'image/png'
   ): Promise<void> {
     const fileChooserPromise = this.page.waitForEvent('filechooser');
-    // Click whichever button is visible (Upload Banner or Change Banner)
-    const uploadButton = this.page.getByRole('button', { name: /Upload Banner|Change Banner/ });
+    // Click whichever button is visible (Upload banner or Change banner)
+    const uploadButton = this.page.getByRole('button', { name: /Upload banner|Change banner/ });
     await uploadButton.click();
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles({
@@ -283,14 +283,14 @@ export class ServerAdminPage {
   }
 
   /**
-   * Assert that the Save Changes button is disabled.
+   * Assert that the Save changes button is disabled.
    */
   async expectSaveDisabled(): Promise<void> {
     await expect(this.saveButton).toBeDisabled();
   }
 
   /**
-   * Assert that the Save Changes button is enabled.
+   * Assert that the Save changes button is enabled.
    */
   async expectSaveEnabled(): Promise<void> {
     await expect(this.saveButton).toBeEnabled();
@@ -318,14 +318,14 @@ export class ServerAdminPage {
   }
 
   /**
-   * Assert that the Upload Logo button is visible (no logo uploaded).
+   * Assert that the Upload logo button is visible (no logo uploaded).
    */
   async expectUploadLogoButtonVisible(): Promise<void> {
     await expect(this.uploadLogoButton).toBeVisible();
   }
 
   /**
-   * Assert that the Change Logo button is visible (logo exists).
+   * Assert that the Change logo button is visible (logo exists).
    */
   async expectChangeLogoButtonVisible(): Promise<void> {
     await expect(this.changeLogoButton).toBeVisible();
@@ -369,14 +369,14 @@ export class ServerAdminPage {
   }
 
   /**
-   * Assert that the Upload Banner button is visible (no banner uploaded).
+   * Assert that the Upload banner button is visible (no banner uploaded).
    */
   async expectUploadBannerButtonVisible(): Promise<void> {
     await expect(this.uploadBannerButton).toBeVisible();
   }
 
   /**
-   * Assert that the Change Banner button is visible (banner exists).
+   * Assert that the Change banner button is visible (banner exists).
    */
   async expectChangeBannerButtonVisible(): Promise<void> {
     await expect(this.changeBannerButton).toBeVisible();
