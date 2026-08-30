@@ -344,6 +344,9 @@ describe('Bot detail page', () => {
       'en-GB'
     );
     expect(container.textContent).toContain(expected);
+    expect(container.textContent).not.toContain('Create API key');
+    expect(container.textContent).not.toContain('Revoke key');
+    expect(container.textContent).not.toContain('Replace all keys');
   });
 
   it('shows owner reassignment only to bot managers', async () => {

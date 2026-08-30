@@ -724,7 +724,7 @@ func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
 		t.Fatalf("RevokeBotAPIKey first: %v", err)
 	}
 	frame, ok := readRealtimeServerFrame(t, firstConn, 5*time.Second)
-	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetMessage() != "the bot API key is no longer valid" || frame.GetClose().GetReconnect() {
 		t.Fatalf("first revoked socket frame = %+v", frame)
 	}
 

@@ -565,7 +565,7 @@ func (p *UserAuthProjection) BotIncomingWebhookCredentials(userID string) []BotI
 
 // watchBotAPIKeyInvalidated registers a process-local notification backed by
 // the durable user-auth projection. Registration and the current-verifier
-// check share the projection lock, so a concurrent rotation cannot leave a
+// check share the projection lock, so a concurrent revocation cannot leave a
 // stale realtime connection unwatched.
 func (p *UserAuthProjection) watchBotAPIKeyInvalidated(userID string, verifier []byte) (<-chan struct{}, func()) {
 	invalidated := make(chan struct{})

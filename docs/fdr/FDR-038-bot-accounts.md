@@ -364,7 +364,8 @@ restoring that key after rollback. Chatto 0.5 removes the experimental
 clients receive an unimplemented-method error if they call that method against
 a current server. They must create a named key, move the integration, and
 revoke the old key. The bundled current client does not expose key management
-when it connects to an older server that lacks the named-key methods.
+when it connects to an older server that lacks the named-key methods. The
+bundled client enables named-key management for Chatto 0.5.0-alpha.4 or later.
 
 Incoming webhook management methods, metadata, and lifecycle facts are
 additive. The create response shows the URL one time. Older clients ignore the
