@@ -826,7 +826,7 @@
 }
 
 @utility menu-entry-leading-floating {
-  margin-top: 1.5px;
+  @apply mt-0.5;
 }
 
 @utility menu-entry-leading-sheet {
