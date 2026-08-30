@@ -205,7 +205,7 @@ test.describe('Bot account lifecycle', () => {
     const createDialog = page.getByRole('dialog', { name: 'Create Bot Account' });
     await createDialog.getByRole('textbox', { name: 'Username' }).fill(botLogin);
     await createDialog.getByRole('textbox', { name: 'Display Name' }).fill(botDisplayName);
-    await createDialog.getByRole('textbox', { name: 'Key name' }).fill('Primary');
+    await expect(createDialog.getByRole('textbox', { name: 'Key name' })).toHaveCount(0);
     await createDialog.getByRole('button', { name: 'Create bot', exact: true }).click();
 
     const originalKey = await captureShowOnceBotKey(page);
@@ -260,8 +260,8 @@ test.describe('Bot account lifecycle', () => {
     await expect(getRoomAsBot(serverURL, backupKey, roomId)).resolves.toEqual({ status: 200 });
 
     const apiKeyList = page.getByTestId('bot-api-keys');
-    const primaryKey = apiKeyList.locator('.selectable-list-item').filter({ hasText: 'Primary' });
-    await primaryKey.getByRole('button', { name: 'Revoke key', exact: true }).click();
+    const defaultKey = apiKeyList.locator('.selectable-list-item').filter({ hasText: 'Default key' });
+    await defaultKey.getByRole('button', { name: 'Revoke key', exact: true }).click();
     const revokeKeyDialog = page.getByRole('dialog', { name: 'Revoke key' });
     await revokeKeyDialog.getByRole('button', { name: 'Revoke key', exact: true }).click();
     await expect(revokeKeyDialog).toBeHidden();

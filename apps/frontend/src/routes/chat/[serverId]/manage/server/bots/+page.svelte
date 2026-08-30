@@ -105,7 +105,6 @@
   let createVisible = $state(false);
   let createLogin = $state('');
   let createDisplayName = $state('');
-  let createAPIKeyName = $state('');
   let createLoading = $state(false);
   let createError = $state<string | null>(null);
   let apiKeyVisible = $state(false);
@@ -142,7 +141,6 @@
     if (!canCreateBots) return;
     createLogin = '';
     createDisplayName = '';
-    createAPIKeyName = m('settings.bots.default_key_name');
     createError = null;
     createVisible = true;
   }
@@ -156,8 +154,7 @@
     try {
       const created = await connection.getAPI(createBotAPI).createBot({
         login: normalizedCreateLogin,
-        displayName: createDisplayName.trim(),
-        apiKeyName: createAPIKeyName.trim()
+        displayName: createDisplayName.trim()
       });
       if (
         !componentActive ||
@@ -310,7 +307,7 @@
   submitLabel={m('settings.bots.create')}
   submitIcon="iconify icon-[uil--robot]"
   loading={createLoading}
-  disabled={!normalizedCreateLogin || !!createLoginError || !createDisplayName.trim() || !createAPIKeyName.trim()}
+  disabled={!normalizedCreateLogin || !!createLoginError || !createDisplayName.trim()}
   error={createError}
   onsubmit={createBot}
   onclose={() => (createVisible = false)}
@@ -331,13 +328,6 @@
     maxlength={32}
     required
     bind:value={createDisplayName}
-  />
-  <TextInput
-    id="bot-api-key-name"
-    label={m('settings.bots.key_name')}
-    maxlength={64}
-    required
-    bind:value={createAPIKeyName}
   />
 </FormDialog>
 
