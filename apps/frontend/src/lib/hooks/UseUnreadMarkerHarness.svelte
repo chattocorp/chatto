@@ -11,15 +11,21 @@
   let {
     targetId,
     markAsRead,
+    canMarkAsRead = true,
     onReady
   }: {
     targetId: string;
-    markAsRead: (targetId: string, upToEventId?: string) => Promise<ReadResult | null>;
+    markAsRead: (
+      targetId: string,
+      upToEventId: string | undefined,
+      signal: AbortSignal
+    ) => Promise<ReadResult>;
+    canMarkAsRead?: boolean;
     onReady: (api: UnreadMarkerHarnessAPI) => void;
   } = $props();
 
   const unread = useUnreadMarker(() => targetId, {
-    markAsRead: (target, upToEventId) => markAsRead(target, upToEventId),
+    markAsRead: (target, upToEventId, signal) => markAsRead(target, upToEventId, signal),
     markerWindowFromReadResult: (result, markedAtMs): UnreadMarkerWindow | null => {
       if (!result.previousLastReadAt || !result.lastReadAt) return null;
       if (result.previousLastReadAt === result.lastReadAt) return null;
@@ -27,10 +33,13 @@
         afterTime: result.previousLastReadAt,
         beforeTime: markedAtMs
       };
-    }
+    },
+    canMarkAsRead: () => canMarkAsRead
   });
 
   $effect(() => {
     onReady(unread);
   });
 </script>
+
+<button type="button">Interaction target</button>

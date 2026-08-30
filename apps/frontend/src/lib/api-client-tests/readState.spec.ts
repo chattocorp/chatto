@@ -75,6 +75,22 @@ describe('createReadStateAPI', () => {
     });
   });
 
+  it('forwards an abort signal to the room read request', async () => {
+    mocks.markRoomAsRead.mockResolvedValue({});
+    const controller = new AbortController();
+    const api = createReadStateAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    await api.markRoomAsRead({ roomId: 'room-1' }, { signal: controller.signal });
+
+    expect(mocks.markRoomAsRead).toHaveBeenCalledWith(
+      { roomId: 'room-1', upToEventId: '' },
+      { headers: undefined, signal: controller.signal }
+    );
+  });
+
   it('marks a thread read without auth headers when no token is available', async () => {
     mocks.markThreadAsRead.mockResolvedValue({
       previousReadAt: Timestamp.fromDate(new Date('2026-06-01T10:00:00Z'))

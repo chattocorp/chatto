@@ -6,7 +6,7 @@ import { useUnreadMarker } from './useUnreadMarker.svelte';
 
 /**
  * Room-specific unread marker wrapper. The shared unread marker hook owns the
- * focus/refocus lifecycle; this wrapper only wires room read-state mutation
+ * entry and foreground lifecycle; this wrapper only wires read-state mutation
  * and room-list unread clearing.
  *
  * Must be called during component initialization (uses context).
@@ -16,7 +16,11 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
   const roomUnreadStore = serverRegistry.getStore(getActiveServer()).roomUnread;
 
   const unread = useUnreadMarker(() => getProps().roomId, {
-    markAsRead: async (targetRoomId: string, upToEventId?: string) => {
+    markAsRead: async (
+      targetRoomId: string,
+      upToEventId: string | undefined,
+      signal: AbortSignal
+    ) => {
       const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {
@@ -25,13 +29,12 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
           serverId: conn.serverId ?? getActiveServer(),
           baseUrl: conn.connectBaseUrl,
           bearerToken: conn.bearerToken
-        }).markRoomAsRead({ roomId: targetRoomId, upToEventId });
+        }).markRoomAsRead({ roomId: targetRoomId, upToEventId }, { signal });
         optimisticRead.commit();
         return result;
       } catch (err) {
         optimisticRead.rollback();
-        console.error('Failed to mark room as read:', err);
-        return null;
+        throw err;
       }
     },
     markerWindowFromReadResult: (result: MarkRoomAsReadResult, markedAtMs: number) => {
@@ -41,7 +44,8 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
         afterTime: result.previousLastReadAt,
         beforeTime: markedAtMs
       };
-    }
+    },
+    onMarkAsReadError: (error) => console.error('Failed to mark room as read:', error)
   });
 
   return {
