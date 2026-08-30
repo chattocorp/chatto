@@ -117,6 +117,20 @@ describe('ServerProjectionStore', () => {
     ]);
     expect(room?.memberUserIds).toEqual(['U1']);
     expect(room?.hasMessageHistory).toBe(true);
+
+    store.apply(
+      event(
+        operation({
+          case: 'roomViewerActivityReplace',
+          value: new RealtimeProjectionRoomViewerActivityReplace({ roomId: 'R1' })
+        })
+      )
+    );
+    expect(store.rooms.get('R1')?.room?.viewerState?.hasUnread).toBe(false);
+    expect(store.rooms.get('R1')?.room?.viewerState?.slowModeNextPostAt).toBeUndefined();
+    expect(store.rooms.get('R1')?.room?.viewerState?.permissions).toEqual([
+      new PermissionGrant({ permission: 'message.post', granted: true })
+    ]);
   });
 
   it('reconciles followed-thread state and clears entries absent from the replacement', () => {
