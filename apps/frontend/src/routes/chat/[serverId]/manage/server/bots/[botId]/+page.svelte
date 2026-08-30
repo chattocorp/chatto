@@ -368,57 +368,59 @@
         </dl>
       </Panel>
 
-      {#if supportsMultipleAPIKeys}
-        <BotCredentialSection
-          idPrefix="bot-api-key"
-          testId="bot-api-keys"
-          items={apiKeyItems}
-          createIcon="iconify icon-[uil--key-skeleton]"
-          labels={{
-            title: m('settings.bots.key_title'),
-            description: m('settings.bots.key_description'),
-            create: m('settings.bots.key_create'),
-            name: m('settings.bots.key_name'),
-            createdAt: m('settings.bots.key_created_at'),
-            lastUsed: m('settings.bots.key_last_used'),
-            empty: m('settings.bots.key_empty_description'),
-            limitReached: m('settings.bots.key_limit_reached'),
-            revoke: m('settings.bots.key_revoke'),
-            revokeWarning: m('settings.bots.key_revoke_warning'),
-            issuedTitle: m('settings.bots.api_key_title'),
-            issuedWarning: m('settings.bots.api_key_warning'),
-            copied: m('settings.bots.key_copied')
-          }}
-          oncreate={createAPIKey}
-          onrevoke={revokeAPIKey}
-        />
-      {/if}
+      {#key targetKey}
+        {#if supportsMultipleAPIKeys}
+          <BotCredentialSection
+            idPrefix="bot-api-key"
+            testId="bot-api-keys"
+            items={apiKeyItems}
+            createIcon="iconify icon-[uil--key-skeleton]"
+            labels={{
+              title: m('settings.bots.key_title'),
+              description: m('settings.bots.key_description'),
+              create: m('settings.bots.key_create'),
+              name: m('settings.bots.key_name'),
+              createdAt: m('settings.bots.key_created_at'),
+              lastUsed: m('settings.bots.key_last_used'),
+              empty: m('settings.bots.key_empty_description'),
+              limitReached: m('settings.bots.key_limit_reached'),
+              revoke: m('settings.bots.key_revoke'),
+              revokeWarning: m('settings.bots.key_revoke_warning'),
+              issuedTitle: m('settings.bots.api_key_title'),
+              issuedWarning: m('settings.bots.api_key_warning'),
+              copied: m('settings.bots.key_copied')
+            }}
+            oncreate={createAPIKey}
+            onrevoke={revokeAPIKey}
+          />
+        {/if}
 
-      {#if supportsIncomingWebhooks}
-        <BotCredentialSection
-          idPrefix="bot-webhook"
-          testId="bot-incoming-webhooks"
-          items={webhookItems}
-          createIcon="iconify icon-[uil--link-add]"
-          labels={{
-            title: m('settings.bots.webhook_title'),
-            description: m('settings.bots.webhook_description'),
-            create: m('settings.bots.webhook_create'),
-            name: m('settings.bots.webhook_name'),
-            createdAt: m('settings.bots.webhook_created_at'),
-            lastUsed: m('settings.bots.webhook_last_used'),
-            empty: m('settings.bots.webhook_empty_description'),
-            limitReached: m('settings.bots.webhook_limit_reached'),
-            revoke: m('settings.bots.webhook_revoke'),
-            revokeWarning: m('settings.bots.webhook_revoke_warning'),
-            issuedTitle: m('settings.bots.webhook_url_title'),
-            issuedWarning: m('settings.bots.webhook_url_warning'),
-            copied: m('settings.bots.webhook_url_copied')
-          }}
-          oncreate={createWebhook}
-          onrevoke={revokeWebhook}
-        />
-      {/if}
+        {#if supportsIncomingWebhooks}
+          <BotCredentialSection
+            idPrefix="bot-webhook"
+            testId="bot-incoming-webhooks"
+            items={webhookItems}
+            createIcon="iconify icon-[uil--link-add]"
+            labels={{
+              title: m('settings.bots.webhook_title'),
+              description: m('settings.bots.webhook_description'),
+              create: m('settings.bots.webhook_create'),
+              name: m('settings.bots.webhook_name'),
+              createdAt: m('settings.bots.webhook_created_at'),
+              lastUsed: m('settings.bots.webhook_last_used'),
+              empty: m('settings.bots.webhook_empty_description'),
+              limitReached: m('settings.bots.webhook_limit_reached'),
+              revoke: m('settings.bots.webhook_revoke'),
+              revokeWarning: m('settings.bots.webhook_revoke_warning'),
+              issuedTitle: m('settings.bots.webhook_url_title'),
+              issuedWarning: m('settings.bots.webhook_url_warning'),
+              copied: m('settings.bots.webhook_url_copied')
+            }}
+            oncreate={createWebhook}
+            onrevoke={revokeWebhook}
+          />
+        {/if}
+      {/key}
 
       <UserPermissionsMatrix
         userId={bot.id}

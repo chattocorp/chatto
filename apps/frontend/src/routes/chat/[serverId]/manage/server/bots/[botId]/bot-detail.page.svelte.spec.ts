@@ -7,6 +7,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
 import { settingsQueryKeys } from '$lib/query/settings';
 import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+import { botDetailPageTestState, botDetailTestPage } from './BotDetailPageTestState.svelte';
 
 const mocks = vi.hoisted(() => ({
   getBot: vi.fn(),
@@ -45,7 +46,7 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$app/state', () => ({ page: { params: { botId: 'bot-user-id' } } }));
+vi.mock('$app/state', () => ({ page: botDetailTestPage }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
@@ -115,6 +116,7 @@ describe('Bot detail page', () => {
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
+    botDetailPageTestState.reset();
     mocks.settings = null;
     mocks.canManageBots = true;
     mocks.supportsMultipleAPIKeys = true;
@@ -206,6 +208,29 @@ describe('Bot detail page', () => {
     await vi.waitFor(() =>
       expect(mocks.revokeBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'legacy')
     );
+  });
+
+  it('closes a pending credential revocation when the route reuses the page for another bot', async () => {
+    mocks.getBot.mockImplementation((botId: string) =>
+      Promise.resolve({ ...mocks.bot, id: botId })
+    );
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    buttonByText(container, 'Revoke key').click();
+    flushSync();
+    expect(container.querySelector('dialog[open]')).not.toBeNull();
+
+    queryClient.setQueryData(
+      settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-b'),
+      { ...mocks.bot, id: 'bot-b' }
+    );
+    botDetailPageTestState.botId = 'bot-b';
+    await vi.waitFor(() => expect(container.textContent).toContain('bot-b'));
+    await settle();
+
+    expect(container.querySelector('dialog[open]')).toBeNull();
+    expect(mocks.revokeBotAPIKey).not.toHaveBeenCalled();
   });
 
   it('keeps hydrated webhook telemetry while it refetches after credential issuance', async () => {
