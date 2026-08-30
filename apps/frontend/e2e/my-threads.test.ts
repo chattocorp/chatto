@@ -40,7 +40,7 @@ test.describe('My Threads', () => {
     // Thread should appear with room name, root message preview, and reply count
     const threadItem = myThreads.threadItems;
     await expect(threadItem).toBeVisible();
-    await expect(threadItem.getByText(/in #general:/)).toBeVisible();
+    await expect(threadItem.getByText('#general')).toBeVisible();
     await expect(threadItem.getByText(rootText)).toBeVisible();
     await expect(threadItem.getByText('1 reply')).toBeVisible();
   });
@@ -162,12 +162,12 @@ test.describe('My Threads', () => {
 
     await myThreads.goto();
 
-    // Initially no unread dot (we just replied so it's "read")
+    // Initially there is no mark-read action (we just replied, so it is read).
     // Use toPass() to allow subscriptions to settle before asserting absence
     const threadItem = myThreads.threadItems;
-    const unreadDot = threadItem.getByTestId('thread-notification-dot');
+    const markReadButton = threadItem.getByRole('button', { name: 'Mark as read' });
     await expect(async () => {
-      await expect(unreadDot).not.toBeVisible();
+      await expect(markReadButton).not.toBeVisible();
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [500, 1000, 2000] });
 
     // User B replies to the thread
@@ -178,8 +178,8 @@ test.describe('My Threads', () => {
       `Reply from B ${Date.now()}`
     );
 
-    // User A should see the unread indicator (orange dot inside the reply button)
-    await expect(unreadDot).toBeVisible({
+    // User A should see the action that is available for unread replies.
+    await expect(markReadButton).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
   });
