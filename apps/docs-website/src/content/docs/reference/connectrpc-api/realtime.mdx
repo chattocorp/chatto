@@ -8,11 +8,19 @@ editUrl: false
 
 Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf frames from `chatto.realtime.v1`.
 
+
+
 Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, projection reducer, room hydration, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.
+
+
 
 This page is the field-level reference. Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.
 
+
+
 ## Protocol Types
+
+
 
 <a id="chatto-realtime-v1-RealtimeActiveCallsState"></a>
 
@@ -20,8 +28,8 @@ This page is the field-level reference. Realtime frames are documented separatel
 
 Complete current active-call state visible to the caller.
 
-| Field   | Type                                | Description                             |
-| ------- | ----------------------------------- | --------------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `calls` | `repeated chatto.api.v1.ActiveCall` | All active calls visible to the viewer. |
 
 <a id="chatto-realtime-v1-RealtimeAssetEvent"></a>
@@ -30,12 +38,12 @@ Complete current active-call state visible to the caller.
 
 Asset lifecycle change associated with a message when one remains visible.
 
-| Field              | Type                                                             | Description                                                       |
-| ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `action`           | [`RealtimeAssetAction`](#chatto-realtime-v1-RealtimeAssetAction) | Asset change that occurred.                                       |
-| `asset_id`         | `string`                                                         | Stable asset ID.                                                  |
-| `room_id`          | `optional string`                                                | Owning room when a visible message still references the asset.    |
-| `message_event_id` | `optional string`                                                | Owning message when a visible message still references the asset. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeAssetAction`](#chatto-realtime-v1-RealtimeAssetAction) | Asset change that occurred. |
+| `asset_id` | `string` | Stable asset ID. |
+| `room_id` | `optional string` | Owning room when a visible message still references the asset. |
+| `message_event_id` | `optional string` | Owning message when a visible message still references the asset. |
 
 <a id="chatto-realtime-v1-RealtimeCallEvent"></a>
 
@@ -43,12 +51,12 @@ Asset lifecycle change associated with a message when one remains visible.
 
 Voice-call lifecycle or participant change.
 
-| Field     | Type                                                           | Description                                      |
-| --------- | -------------------------------------------------------------- | ------------------------------------------------ |
-| `action`  | [`RealtimeCallAction`](#chatto-realtime-v1-RealtimeCallAction) | Call change that occurred.                       |
-| `room_id` | `string`                                                       | Room that owns the call.                         |
-| `call_id` | `string`                                                       | Stable call ID.                                  |
-| `user_id` | `optional string`                                              | Affected participant for a join or leave action. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeCallAction`](#chatto-realtime-v1-RealtimeCallAction) | Call change that occurred. |
+| `room_id` | `string` | Room that owns the call. |
+| `call_id` | `string` | Stable call ID. |
+| `user_id` | `optional string` | Affected participant for a join or leave action. |
 
 <a id="chatto-realtime-v1-RealtimeCaughtUp"></a>
 
@@ -59,8 +67,8 @@ Confirms that recovery is complete and live delivery has begun.
 Clients can retain `cursor` after they apply every preceding event and state
 item. Transient events are never replayed.
 
-| Field    | Type     | Description                                             |
-| -------- | -------- | ------------------------------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `cursor` | `string` | Opaque cursor at the recovery-to-live handoff boundary. |
 
 <a id="chatto-realtime-v1-RealtimeClientFrame"></a>
@@ -73,12 +81,12 @@ Clients send binary protobuf frames to `/api/realtime`. The first frame must
 be `hello`. After the server replies with `hello`, clients send
 `subscribe_events` to start one authorized semantic event stream.
 
-| Field                    | Type                                                                     | Description                                                       |
-| ------------------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| `frame.hello`            | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello)         | Opens the protocol session and optionally carries a bearer token. |
-| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized semantic event stream.             |
-| `frame.ping`             | [`RealtimePing`](#chatto-realtime-v1-RealtimePing)                       | Application-level ping. The server replies with `pong`.           |
-| `frame.hydrate_room`     | [`RealtimeHydrateRoom`](#chatto-realtime-v1-RealtimeHydrateRoom)         | Requests current state for one joined room's recent timeline.     |
+| Field | Type | Description |
+| --- | --- | --- |
+| `frame.hello` | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
+| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized semantic event stream. |
+| `frame.ping` | [`RealtimePing`](#chatto-realtime-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
+| `frame.hydrate_room` | [`RealtimeHydrateRoom`](#chatto-realtime-v1-RealtimeHydrateRoom) | Requests current state for one joined room's recent timeline. |
 
 <a id="chatto-realtime-v1-RealtimeClientHello"></a>
 
@@ -86,10 +94,10 @@ be `hello`. After the server replies with `hello`, clients send
 
 Initial client hello.
 
-| Field              | Type              | Description                                                                           |
-| ------------------ | ----------------- | ------------------------------------------------------------------------------------- |
-| `protocol_version` | `uint32`          | Behavioral protocol version requested by the client. The only supported version is 3. |
-| `bearer_token`     | `optional string` | Optional bearer token. When present, it takes precedence over cookie auth.            |
+| Field | Type | Description |
+| --- | --- | --- |
+| `protocol_version` | `uint32` | Behavioral protocol version requested by the client. The only supported version is 3. |
+| `bearer_token` | `optional string` | Optional bearer token. When present, it takes precedence over cookie auth. |
 
 <a id="chatto-realtime-v1-RealtimeClose"></a>
 
@@ -97,12 +105,12 @@ Initial client hello.
 
 Close instruction sent before the socket closes when possible.
 
-| Field            | Type     | Description                                        |
-| ---------------- | -------- | -------------------------------------------------- |
-| `code`           | `string` | Stable machine-readable close code.                |
-| `message`        | `string` | Safe human-readable close message.                 |
-| `reconnect`      | `bool`   | Whether the client should reconnect automatically. |
-| `retry_after_ms` | `uint32` | Suggested delay before reconnect.                  |
+| Field | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | Stable machine-readable close code. |
+| `message` | `string` | Safe human-readable close message. |
+| `reconnect` | `bool` | Whether the client should reconnect automatically. |
+| `retry_after_ms` | `uint32` | Suggested delay before reconnect. |
 
 <a id="chatto-realtime-v1-RealtimeError"></a>
 
@@ -110,13 +118,13 @@ Close instruction sent before the socket closes when possible.
 
 Protocol error.
 
-| Field            | Type              | Description                                          |
-| ---------------- | ----------------- | ---------------------------------------------------- |
-| `code`           | `string`          | Stable machine-readable error code.                  |
-| `message`        | `string`          | Safe human-readable error message.                   |
-| `fatal`          | `bool`            | Whether the client must stop processing this socket. |
-| `retry_after_ms` | `optional uint32` | Suggested delay before retry, when applicable.       |
-| `room_id`        | `optional string` | Affected room for a room-scoped non-fatal error.     |
+| Field | Type | Description |
+| --- | --- | --- |
+| `code` | `string` | Stable machine-readable error code. |
+| `message` | `string` | Safe human-readable error message. |
+| `fatal` | `bool` | Whether the client must stop processing this socket. |
+| `retry_after_ms` | `optional uint32` | Suggested delay before retry, when applicable. |
+| `room_id` | `optional string` | Affected room for a room-scoped non-fatal error. |
 
 <a id="chatto-realtime-v1-RealtimeEvent"></a>
 
@@ -130,31 +138,31 @@ ignore an additive event variant and still advance safely. `state` contains
 optional authorized current resources that help projection clients converge;
 it does not change the event's semantic meaning.
 
-| Field                         | Type                                                                                         | Description                                                                                                                         |
-| ----------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                          | `string`                                                                                     | Stable public event ID.                                                                                                             |
-| `created_at`                  | `google.protobuf.Timestamp`                                                                  | Time the source change occurred.                                                                                                    |
-| `actor_id`                    | `optional string`                                                                            | User or system actor, when visible to the caller.                                                                                   |
-| `resume_cursor`               | `optional string`                                                                            | Opaque cursor safe to retain after this complete event is accepted.                                                                 |
-| `event.message`               | [`RealtimeMessageEvent`](#chatto-realtime-v1-RealtimeMessageEvent)                           | Message post, edit, or retraction.                                                                                                  |
-| `event.reaction`              | [`RealtimeReactionEvent`](#chatto-realtime-v1-RealtimeReactionEvent)                         | Reaction add or removal.                                                                                                            |
-| `event.pinned_message`        | [`RealtimePinnedMessageEvent`](#chatto-realtime-v1-RealtimePinnedMessageEvent)               | Pin creation or deletion.                                                                                                           |
-| `event.asset`                 | [`RealtimeAssetEvent`](#chatto-realtime-v1-RealtimeAssetEvent)                               | Asset-processing or deletion change.                                                                                                |
-| `event.room`                  | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent)                                 | Room lifecycle or settings change.                                                                                                  |
-| `event.room_membership`       | [`RealtimeRoomMembershipEvent`](#chatto-realtime-v1-RealtimeRoomMembershipEvent)             | Room membership or moderation change.                                                                                               |
-| `event.thread`                | [`RealtimeThreadEvent`](#chatto-realtime-v1-RealtimeThreadEvent)                             | Thread lifecycle change.                                                                                                            |
-| `event.user`                  | [`RealtimeUserEvent`](#chatto-realtime-v1-RealtimeUserEvent)                                 | Public user lifecycle or profile change.                                                                                            |
-| `event.call`                  | [`RealtimeCallEvent`](#chatto-realtime-v1-RealtimeCallEvent)                                 | Voice-call lifecycle or participant change.                                                                                         |
-| `event.server_changed`        | [`RealtimeServerChangedEvent`](#chatto-realtime-v1-RealtimeServerChangedEvent)               | Public server state invalidation.                                                                                                   |
-| `event.room_groups_changed`   | [`RealtimeRoomGroupsChangedEvent`](#chatto-realtime-v1-RealtimeRoomGroupsChangedEvent)       | Visible room-group layout invalidation.                                                                                             |
-| `event.viewer_changed`        | [`RealtimeViewerChangedEvent`](#chatto-realtime-v1-RealtimeViewerChangedEvent)               | Authenticated viewer state invalidation.                                                                                            |
-| `event.notifications_changed` | [`RealtimeNotificationsChangedEvent`](#chatto-realtime-v1-RealtimeNotificationsChangedEvent) | Authenticated viewer notification-state invalidation.                                                                               |
-| `event.room_viewer_changed`   | [`RealtimeRoomViewerChangedEvent`](#chatto-realtime-v1-RealtimeRoomViewerChangedEvent)       | Viewer-specific room state invalidation.                                                                                            |
-| `event.thread_viewer_changed` | [`RealtimeThreadViewerChangedEvent`](#chatto-realtime-v1-RealtimeThreadViewerChangedEvent)   | Viewer-specific thread state invalidation.                                                                                          |
-| `event.user_typing`           | [`RealtimeTypingEvent`](#chatto-realtime-v1-RealtimeTypingEvent)                             | Transient typing activity.                                                                                                          |
-| `event.presence_changed`      | [`RealtimePresenceChangedEvent`](#chatto-realtime-v1-RealtimePresenceChangedEvent)           | Transient presence transition.                                                                                                      |
-| `event.session_terminated`    | [`RealtimeSessionTerminatedEvent`](#chatto-realtime-v1-RealtimeSessionTerminatedEvent)       | Termination of the connected credential's session.                                                                                  |
-| `state`                       | repeated [`RealtimeStateItem`](#chatto-realtime-v1-RealtimeStateItem)                        | Authorized current resources caused or invalidated by this event. Clients that do not maintain a projection can ignore these items. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable public event ID. |
+| `created_at` | `google.protobuf.Timestamp` | Time the source change occurred. |
+| `actor_id` | `optional string` | User or system actor, when visible to the caller. |
+| `resume_cursor` | `optional string` | Opaque cursor safe to retain after this complete event is accepted. |
+| `event.message` | [`RealtimeMessageEvent`](#chatto-realtime-v1-RealtimeMessageEvent) | Message post, edit, or retraction. |
+| `event.reaction` | [`RealtimeReactionEvent`](#chatto-realtime-v1-RealtimeReactionEvent) | Reaction add or removal. |
+| `event.pinned_message` | [`RealtimePinnedMessageEvent`](#chatto-realtime-v1-RealtimePinnedMessageEvent) | Pin creation or deletion. |
+| `event.asset` | [`RealtimeAssetEvent`](#chatto-realtime-v1-RealtimeAssetEvent) | Asset-processing or deletion change. |
+| `event.room` | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent) | Room lifecycle or settings change. |
+| `event.room_membership` | [`RealtimeRoomMembershipEvent`](#chatto-realtime-v1-RealtimeRoomMembershipEvent) | Room membership or moderation change. |
+| `event.thread` | [`RealtimeThreadEvent`](#chatto-realtime-v1-RealtimeThreadEvent) | Thread lifecycle change. |
+| `event.user` | [`RealtimeUserEvent`](#chatto-realtime-v1-RealtimeUserEvent) | Public user lifecycle or profile change. |
+| `event.call` | [`RealtimeCallEvent`](#chatto-realtime-v1-RealtimeCallEvent) | Voice-call lifecycle or participant change. |
+| `event.server_changed` | [`RealtimeServerChangedEvent`](#chatto-realtime-v1-RealtimeServerChangedEvent) | Public server state invalidation. |
+| `event.room_groups_changed` | [`RealtimeRoomGroupsChangedEvent`](#chatto-realtime-v1-RealtimeRoomGroupsChangedEvent) | Visible room-group layout invalidation. |
+| `event.viewer_changed` | [`RealtimeViewerChangedEvent`](#chatto-realtime-v1-RealtimeViewerChangedEvent) | Authenticated viewer state invalidation. |
+| `event.notifications_changed` | [`RealtimeNotificationsChangedEvent`](#chatto-realtime-v1-RealtimeNotificationsChangedEvent) | Authenticated viewer notification-state invalidation. |
+| `event.room_viewer_changed` | [`RealtimeRoomViewerChangedEvent`](#chatto-realtime-v1-RealtimeRoomViewerChangedEvent) | Viewer-specific room state invalidation. |
+| `event.thread_viewer_changed` | [`RealtimeThreadViewerChangedEvent`](#chatto-realtime-v1-RealtimeThreadViewerChangedEvent) | Viewer-specific thread state invalidation. |
+| `event.user_typing` | [`RealtimeTypingEvent`](#chatto-realtime-v1-RealtimeTypingEvent) | Transient typing activity. |
+| `event.presence_changed` | [`RealtimePresenceChangedEvent`](#chatto-realtime-v1-RealtimePresenceChangedEvent) | Transient presence transition. |
+| `event.session_terminated` | [`RealtimeSessionTerminatedEvent`](#chatto-realtime-v1-RealtimeSessionTerminatedEvent) | Termination of the connected credential's session. |
+| `state` | repeated [`RealtimeStateItem`](#chatto-realtime-v1-RealtimeStateItem) | Authorized current resources caused or invalidated by this event. Clients that do not maintain a projection can ignore these items. |
 
 <a id="chatto-realtime-v1-RealtimeHeartbeat"></a>
 
@@ -162,9 +170,9 @@ it does not change the event's semantic meaning.
 
 Application-level heartbeat.
 
-| Field        | Type                        | Description                            |
-| ------------ | --------------------------- | -------------------------------------- |
-| `id`         | `string`                    | Stable heartbeat event ID.             |
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable heartbeat event ID. |
 | `created_at` | `google.protobuf.Timestamp` | Time the server created the heartbeat. |
 
 <a id="chatto-realtime-v1-RealtimeHydrateRoom"></a>
@@ -178,8 +186,8 @@ The server replies with `state` frames containing `room` and
 timeline rows for that room. A connection can retain at most 64 distinct
 room IDs.
 
-| Field     | Type     | Description                                                          |
-| --------- | -------- | -------------------------------------------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `room_id` | `string` | Joined room to materialize. Repeating a retained room is idempotent. |
 
 <a id="chatto-realtime-v1-RealtimeMessageEvent"></a>
@@ -188,12 +196,12 @@ room IDs.
 
 Message lifecycle change.
 
-| Field                  | Type                                                                 | Description                                              |
-| ---------------------- | -------------------------------------------------------------------- | -------------------------------------------------------- |
-| `action`               | [`RealtimeMessageAction`](#chatto-realtime-v1-RealtimeMessageAction) | Message change that occurred.                            |
-| `room_id`              | `string`                                                             | Room that contains the message.                          |
-| `message_event_id`     | `string`                                                             | Stable ID of the original message event.                 |
-| `thread_root_event_id` | `optional string`                                                    | Thread root for a reply. Absent for a room root message. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeMessageAction`](#chatto-realtime-v1-RealtimeMessageAction) | Message change that occurred. |
+| `room_id` | `string` | Room that contains the message. |
+| `message_event_id` | `string` | Stable ID of the original message event. |
+| `thread_root_event_id` | `optional string` | Thread root for a reply. Absent for a room root message. |
 
 <a id="chatto-realtime-v1-RealtimeNotificationsChangedEvent"></a>
 
@@ -207,10 +215,10 @@ The authenticated viewer's notification state changed.
 
 Complete finite notification state for the authenticated viewer.
 
-| Field                     | Type                                                | Description                                                   |
-| ------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
-| `play_notification_sound` | `bool`                                              | Whether this live update can play one notification sound.     |
-| `occurrences`             | `chatto.api.v1.ListNotificationOccurrencesResponse` | Current finite notification occurrences and aggregate counts. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `play_notification_sound` | `bool` | Whether this live update can play one notification sound. |
+| `occurrences` | `chatto.api.v1.ListNotificationOccurrencesResponse` | Current finite notification occurrences and aggregate counts. |
 
 <a id="chatto-realtime-v1-RealtimePing"></a>
 
@@ -218,8 +226,8 @@ Complete finite notification state for the authenticated viewer.
 
 Application-level ping.
 
-| Field   | Type     | Description                                    |
-| ------- | -------- | ---------------------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `nonce` | `string` | Opaque value that the server copies to `pong`. |
 
 <a id="chatto-realtime-v1-RealtimePinnedMessageEvent"></a>
@@ -228,11 +236,11 @@ Application-level ping.
 
 Pinned-message lifecycle change.
 
-| Field              | Type                                                                             | Description                                        |
-| ------------------ | -------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `action`           | [`RealtimePinnedMessageAction`](#chatto-realtime-v1-RealtimePinnedMessageAction) | Pin change that occurred.                          |
-| `room_id`          | `string`                                                                         | Room that owns the pin.                            |
-| `message_event_id` | `string`                                                                         | Stable ID of the pinned or unpinned message event. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimePinnedMessageAction`](#chatto-realtime-v1-RealtimePinnedMessageAction) | Pin change that occurred. |
+| `room_id` | `string` | Room that owns the pin. |
+| `message_event_id` | `string` | Stable ID of the pinned or unpinned message event. |
 
 <a id="chatto-realtime-v1-RealtimePong"></a>
 
@@ -240,8 +248,8 @@ Pinned-message lifecycle change.
 
 Application-level pong.
 
-| Field   | Type     | Description                                 |
-| ------- | -------- | ------------------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `nonce` | `string` | Opaque value copied from the client `ping`. |
 
 <a id="chatto-realtime-v1-RealtimePresenceChangedEvent"></a>
@@ -250,10 +258,10 @@ Application-level pong.
 
 Latest presence transition. It is transient and never replayed.
 
-| Field     | Type                           | Description                       |
-| --------- | ------------------------------ | --------------------------------- |
-| `user_id` | `string`                       | User whose presence changed.      |
-| `status`  | `chatto.api.v1.PresenceStatus` | New latest-value presence status. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User whose presence changed. |
+| `status` | `chatto.api.v1.PresenceStatus` | New latest-value presence status. |
 
 <a id="chatto-realtime-v1-RealtimePresencesState"></a>
 
@@ -261,8 +269,8 @@ Latest presence transition. It is transient and never replayed.
 
 Complete latest-value presence state for the projected user directory.
 
-| Field      | Type                                                | Description                                      |
-| ---------- | --------------------------------------------------- | ------------------------------------------------ |
+| Field | Type | Description |
+| --- | --- | --- |
 | `statuses` | map&lt;`string`, `chatto.api.v1.PresenceStatus`&gt; | Latest presence status keyed by visible user ID. |
 
 <a id="chatto-realtime-v1-RealtimeReactionEvent"></a>
@@ -271,13 +279,13 @@ Complete latest-value presence state for the projected user directory.
 
 Reaction lifecycle change.
 
-| Field              | Type                                                                   | Description                                 |
-| ------------------ | ---------------------------------------------------------------------- | ------------------------------------------- |
-| `action`           | [`RealtimeReactionAction`](#chatto-realtime-v1-RealtimeReactionAction) | Reaction change that occurred.              |
-| `room_id`          | `string`                                                               | Room that contains the message.             |
-| `message_event_id` | `string`                                                               | Stable ID of the reacted-to message event.  |
-| `emoji`            | `string`                                                               | Chatto emoji shortcode, such as `thumbsup`. |
-| `user_id`          | `string`                                                               | User who added or removed the reaction.     |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeReactionAction`](#chatto-realtime-v1-RealtimeReactionAction) | Reaction change that occurred. |
+| `room_id` | `string` | Room that contains the message. |
+| `message_event_id` | `string` | Stable ID of the reacted-to message event. |
+| `emoji` | `string` | Chatto emoji shortcode, such as `thumbsup`. |
+| `user_id` | `string` | User who added or removed the reaction. |
 
 <a id="chatto-realtime-v1-RealtimeRoomEvent"></a>
 
@@ -285,10 +293,10 @@ Reaction lifecycle change.
 
 Room lifecycle or settings change.
 
-| Field     | Type                                                           | Description                |
-| --------- | -------------------------------------------------------------- | -------------------------- |
-| `action`  | [`RealtimeRoomAction`](#chatto-realtime-v1-RealtimeRoomAction) | Room change that occurred. |
-| `room_id` | `string`                                                       | Affected room ID.          |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeRoomAction`](#chatto-realtime-v1-RealtimeRoomAction) | Room change that occurred. |
+| `room_id` | `string` | Affected room ID. |
 
 <a id="chatto-realtime-v1-RealtimeRoomGroupsChangedEvent"></a>
 
@@ -302,8 +310,8 @@ Visible room-group layout changed.
 
 Complete visible room-group layout.
 
-| Field    | Type                               | Description                               |
-| -------- | ---------------------------------- | ----------------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `groups` | `repeated chatto.api.v1.RoomGroup` | All visible room groups in display order. |
 
 <a id="chatto-realtime-v1-RealtimeRoomMembershipEvent"></a>
@@ -312,11 +320,11 @@ Complete visible room-group layout.
 
 Room-membership or moderation change.
 
-| Field     | Type                                                                               | Description                      |
-| --------- | ---------------------------------------------------------------------------------- | -------------------------------- |
-| `action`  | [`RealtimeRoomMembershipAction`](#chatto-realtime-v1-RealtimeRoomMembershipAction) | Membership change that occurred. |
-| `room_id` | `string`                                                                           | Affected room ID.                |
-| `user_id` | `string`                                                                           | Affected user ID.                |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeRoomMembershipAction`](#chatto-realtime-v1-RealtimeRoomMembershipAction) | Membership change that occurred. |
+| `room_id` | `string` | Affected room ID. |
+| `user_id` | `string` | Affected user ID. |
 
 <a id="chatto-realtime-v1-RealtimeRoomRemovedState"></a>
 
@@ -324,8 +332,8 @@ Room-membership or moderation change.
 
 Current-state absence of one room.
 
-| Field     | Type     | Description                             |
-| --------- | -------- | --------------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `room_id` | `string` | Room ID to remove from projected state. |
 
 <a id="chatto-realtime-v1-RealtimeRoomState"></a>
@@ -334,11 +342,11 @@ Current-state absence of one room.
 
 Lightweight current room state visible to the caller.
 
-| Field                 | Type                                | Description                                                            |
-| --------------------- | ----------------------------------- | ---------------------------------------------------------------------- |
-| `room`                | `chatto.api.v1.RoomWithViewerState` | Canonical room and viewer-specific state.                              |
-| `member_user_ids`     | `repeated string`                   | Complete member user IDs when this room's membership is hydrated.      |
-| `has_message_history` | `optional bool`                     | Whether this DM has ever received a root message. Absent for channels. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | `chatto.api.v1.RoomWithViewerState` | Canonical room and viewer-specific state. |
+| `member_user_ids` | `repeated string` | Complete member user IDs when this room's membership is hydrated. |
+| `has_message_history` | `optional bool` | Whether this DM has ever received a root message. Absent for channels. |
 
 <a id="chatto-realtime-v1-RealtimeRoomTimelineEventRemovedState"></a>
 
@@ -346,10 +354,10 @@ Lightweight current room state visible to the caller.
 
 Current-state absence of one projection-only timeline row.
 
-| Field      | Type     | Description                              |
-| ---------- | -------- | ---------------------------------------- |
-| `room_id`  | `string` | Room that owned the projection-only row. |
-| `event_id` | `string` | Timeline event ID to remove.             |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room that owned the projection-only row. |
+| `event_id` | `string` | Timeline event ID to remove. |
 
 <a id="chatto-realtime-v1-RealtimeRoomTimelineEventState"></a>
 
@@ -357,13 +365,13 @@ Current-state absence of one projection-only timeline row.
 
 Current renderable state for one retained timeline event.
 
-| Field                | Type                                 | Description                                          |
-| -------------------- | ------------------------------------ | ---------------------------------------------------- |
-| `room_id`            | `string`                             | Room that owns this timeline row.                    |
-| `event`              | `chatto.api.v1.RoomTimelineEvent`    | Current renderable timeline event.                   |
-| `includes`           | `chatto.api.v1.RoomTimelineIncludes` | Related render data for this row.                    |
-| `retain_deleted_row` | `bool`                               | Keep a deleted tombstone row instead of removing it. |
-| `event_cursor`       | `string`                             | Opaque pagination cursor for this timeline row.      |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room that owns this timeline row. |
+| `event` | `chatto.api.v1.RoomTimelineEvent` | Current renderable timeline event. |
+| `includes` | `chatto.api.v1.RoomTimelineIncludes` | Related render data for this row. |
+| `retain_deleted_row` | `bool` | Keep a deleted tombstone row instead of removing it. |
+| `event_cursor` | `string` | Opaque pagination cursor for this timeline row. |
 
 <a id="chatto-realtime-v1-RealtimeRoomTimelineState"></a>
 
@@ -371,11 +379,11 @@ Current renderable state for one retained timeline event.
 
 Complete retained recent timeline window for one room.
 
-| Field           | Type                             | Description                                          |
-| --------------- | -------------------------------- | ---------------------------------------------------- |
-| `room_id`       | `string`                         | Room that owns this timeline.                        |
-| `page`          | `chatto.api.v1.RoomTimelinePage` | Current recent timeline page.                        |
-| `event_cursors` | map&lt;`string`, `string`&gt;    | Opaque pagination cursor for each included event ID. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room that owns this timeline. |
+| `page` | `chatto.api.v1.RoomTimelinePage` | Current recent timeline page. |
+| `event_cursors` | map&lt;`string`, `string`&gt; | Opaque pagination cursor for each included event ID. |
 
 <a id="chatto-realtime-v1-RealtimeRoomViewerActivityState"></a>
 
@@ -383,10 +391,10 @@ Complete retained recent timeline window for one room.
 
 Volatile viewer activity state for one room.
 
-| Field                    | Type                        | Description                                            |
-| ------------------------ | --------------------------- | ------------------------------------------------------ |
-| `room_id`                | `string`                    | Affected room ID.                                      |
-| `has_unread`             | `bool`                      | Whether the room currently has unread activity.        |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Affected room ID. |
+| `has_unread` | `bool` | Whether the room currently has unread activity. |
 | `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest next post time under Slow Mode, when limited. |
 
 <a id="chatto-realtime-v1-RealtimeRoomViewerChangedEvent"></a>
@@ -395,8 +403,8 @@ Volatile viewer activity state for one room.
 
 One room's viewer-specific state changed.
 
-| Field     | Type     | Description                      |
-| --------- | -------- | -------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `room_id` | `string` | Room whose viewer state changed. |
 
 <a id="chatto-realtime-v1-RealtimeRoomViewerState"></a>
@@ -405,9 +413,9 @@ One room's viewer-specific state changed.
 
 Current viewer state for one room.
 
-| Field          | Type                            | Description                                 |
-| -------------- | ------------------------------- | ------------------------------------------- |
-| `room_id`      | `string`                        | Affected room ID.                           |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Affected room ID. |
 | `viewer_state` | `chatto.api.v1.RoomViewerState` | Complete current viewer state for the room. |
 
 <a id="chatto-realtime-v1-RealtimeServerChangedEvent"></a>
@@ -422,17 +430,17 @@ Public server profile or runtime state changed.
 
 Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 
-| Field              | Type                                                             | Description                                                          |
-| ------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `frame.hello`      | [`RealtimeServerHello`](#chatto-realtime-v1-RealtimeServerHello) | Confirms protocol and server versions.                               |
-| `frame.subscribed` | [`RealtimeSubscribed`](#chatto-realtime-v1-RealtimeSubscribed)   | Confirms the stream and the recovery mode that the server selected.  |
-| `frame.event`      | [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent)             | One authorized semantic public event.                                |
-| `frame.heartbeat`  | [`RealtimeHeartbeat`](#chatto-realtime-v1-RealtimeHeartbeat)     | Application-level heartbeat used for liveness checks.                |
-| `frame.error`      | [`RealtimeError`](#chatto-realtime-v1-RealtimeError)             | Protocol or authorization error.                                     |
-| `frame.close`      | [`RealtimeClose`](#chatto-realtime-v1-RealtimeClose)             | Server-requested close with reconnect guidance.                      |
-| `frame.pong`       | [`RealtimePong`](#chatto-realtime-v1-RealtimePong)               | Reply to a client ping.                                              |
-| `frame.caught_up`  | [`RealtimeCaughtUp`](#chatto-realtime-v1-RealtimeCaughtUp)       | Confirms that recovery reached the live-stream boundary.             |
-| `frame.state`      | [`RealtimeStateItem`](#chatto-realtime-v1-RealtimeStateItem)     | One authorized current-state item during snapshot or reconciliation. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `frame.hello` | [`RealtimeServerHello`](#chatto-realtime-v1-RealtimeServerHello) | Confirms protocol and server versions. |
+| `frame.subscribed` | [`RealtimeSubscribed`](#chatto-realtime-v1-RealtimeSubscribed) | Confirms the stream and the recovery mode that the server selected. |
+| `frame.event` | [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) | One authorized semantic public event. |
+| `frame.heartbeat` | [`RealtimeHeartbeat`](#chatto-realtime-v1-RealtimeHeartbeat) | Application-level heartbeat used for liveness checks. |
+| `frame.error` | [`RealtimeError`](#chatto-realtime-v1-RealtimeError) | Protocol or authorization error. |
+| `frame.close` | [`RealtimeClose`](#chatto-realtime-v1-RealtimeClose) | Server-requested close with reconnect guidance. |
+| `frame.pong` | [`RealtimePong`](#chatto-realtime-v1-RealtimePong) | Reply to a client ping. |
+| `frame.caught_up` | [`RealtimeCaughtUp`](#chatto-realtime-v1-RealtimeCaughtUp) | Confirms that recovery reached the live-stream boundary. |
+| `frame.state` | [`RealtimeStateItem`](#chatto-realtime-v1-RealtimeStateItem) | One authorized current-state item during snapshot or reconciliation. |
 
 <a id="chatto-realtime-v1-RealtimeServerHello"></a>
 
@@ -440,10 +448,10 @@ Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 
 Initial server hello.
 
-| Field                        | Type     | Description                                           |
-| ---------------------------- | -------- | ----------------------------------------------------- |
-| `protocol_version`           | `uint32` | Behavioral protocol version accepted by the server.   |
-| `server_version`             | `string` | Chatto server software version.                       |
+| Field | Type | Description |
+| --- | --- | --- |
+| `protocol_version` | `uint32` | Behavioral protocol version accepted by the server. |
+| `server_version` | `string` | Chatto server software version. |
 | `heartbeat_interval_seconds` | `uint32` | Approximate heartbeat interval clients should expect. |
 
 <a id="chatto-realtime-v1-RealtimeServerState"></a>
@@ -452,9 +460,9 @@ Initial server hello.
 
 Authenticated server state required by signed-in clients.
 
-| Field     | Type                                | Description                                  |
-| --------- | ----------------------------------- | -------------------------------------------- |
-| `motd`    | `optional string`                   | Current message of the day, when configured. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `motd` | `optional string` | Current message of the day, when configured. |
 | `runtime` | `chatto.api.v1.ServerRuntimeConfig` | Current authenticated runtime configuration. |
 
 <a id="chatto-realtime-v1-RealtimeSessionTerminatedEvent"></a>
@@ -463,8 +471,8 @@ Authenticated server state required by signed-in clients.
 
 Session termination for the connected credential.
 
-| Field    | Type     | Description                          |
-| -------- | -------- | ------------------------------------ |
+| Field | Type | Description |
+| --- | --- | --- |
 | `reason` | `string` | Safe reason for session termination. |
 
 <a id="chatto-realtime-v1-RealtimeStateItem"></a>
@@ -477,25 +485,25 @@ Snapshot subscriptions receive these items between `subscribed` and
 `caught_up`. Semantic events can also include items that show current state
 after the event. An item is current state, not a historical event.
 
-| Field                               | Type                                                                                                 | Description                                               |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `state.server`                      | `chatto.api.v1.ServerPublicProfile`                                                                  | Current public server profile.                            |
-| `state.server_state`                | [`RealtimeServerState`](#chatto-realtime-v1-RealtimeServerState)                                     | Current authenticated server runtime state.               |
-| `state.viewer`                      | `chatto.api.v1.GetViewerResponse`                                                                    | Current authenticated viewer resource.                    |
-| `state.user`                        | `chatto.api.v1.DirectoryMember`                                                                      | One current visible user.                                 |
-| `state.user_removed`                | [`RealtimeUserRemovedState`](#chatto-realtime-v1-RealtimeUserRemovedState)                           | One user that is no longer visible.                       |
-| `state.room`                        | [`RealtimeRoomState`](#chatto-realtime-v1-RealtimeRoomState)                                         | One current visible room.                                 |
-| `state.room_removed`                | [`RealtimeRoomRemovedState`](#chatto-realtime-v1-RealtimeRoomRemovedState)                           | One room that is no longer visible.                       |
-| `state.room_groups`                 | [`RealtimeRoomGroupsState`](#chatto-realtime-v1-RealtimeRoomGroupsState)                             | Complete visible room-group layout.                       |
-| `state.room_timeline`               | [`RealtimeRoomTimelineState`](#chatto-realtime-v1-RealtimeRoomTimelineState)                         | Complete recent timeline for one retained room.           |
-| `state.room_timeline_event`         | [`RealtimeRoomTimelineEventState`](#chatto-realtime-v1-RealtimeRoomTimelineEventState)               | One current event row in a retained room timeline.        |
-| `state.room_timeline_event_removed` | [`RealtimeRoomTimelineEventRemovedState`](#chatto-realtime-v1-RealtimeRoomTimelineEventRemovedState) | One projection-only timeline row that is now absent.      |
-| `state.notifications`               | [`RealtimeNotificationsState`](#chatto-realtime-v1-RealtimeNotificationsState)                       | Complete finite notification state for the viewer.        |
-| `state.room_viewer`                 | [`RealtimeRoomViewerState`](#chatto-realtime-v1-RealtimeRoomViewerState)                             | Complete authorization and read state for one room.       |
-| `state.active_calls`                | [`RealtimeActiveCallsState`](#chatto-realtime-v1-RealtimeActiveCallsState)                           | Complete current active-call state visible to the viewer. |
-| `state.presences`                   | [`RealtimePresencesState`](#chatto-realtime-v1-RealtimePresencesState)                               | Complete latest-value presence state for visible users.   |
-| `state.thread_viewer_states`        | [`RealtimeThreadViewerStatesState`](#chatto-realtime-v1-RealtimeThreadViewerStatesState)             | Complete current followed-thread viewer state.            |
-| `state.room_viewer_activity`        | [`RealtimeRoomViewerActivityState`](#chatto-realtime-v1-RealtimeRoomViewerActivityState)             | Focused volatile unread and Slow Mode state for one room. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `state.server` | `chatto.api.v1.ServerPublicProfile` | Current public server profile. |
+| `state.server_state` | [`RealtimeServerState`](#chatto-realtime-v1-RealtimeServerState) | Current authenticated server runtime state. |
+| `state.viewer` | `chatto.api.v1.GetViewerResponse` | Current authenticated viewer resource. |
+| `state.user` | `chatto.api.v1.DirectoryMember` | One current visible user. |
+| `state.user_removed` | [`RealtimeUserRemovedState`](#chatto-realtime-v1-RealtimeUserRemovedState) | One user that is no longer visible. |
+| `state.room` | [`RealtimeRoomState`](#chatto-realtime-v1-RealtimeRoomState) | One current visible room. |
+| `state.room_removed` | [`RealtimeRoomRemovedState`](#chatto-realtime-v1-RealtimeRoomRemovedState) | One room that is no longer visible. |
+| `state.room_groups` | [`RealtimeRoomGroupsState`](#chatto-realtime-v1-RealtimeRoomGroupsState) | Complete visible room-group layout. |
+| `state.room_timeline` | [`RealtimeRoomTimelineState`](#chatto-realtime-v1-RealtimeRoomTimelineState) | Complete recent timeline for one retained room. |
+| `state.room_timeline_event` | [`RealtimeRoomTimelineEventState`](#chatto-realtime-v1-RealtimeRoomTimelineEventState) | One current event row in a retained room timeline. |
+| `state.room_timeline_event_removed` | [`RealtimeRoomTimelineEventRemovedState`](#chatto-realtime-v1-RealtimeRoomTimelineEventRemovedState) | One projection-only timeline row that is now absent. |
+| `state.notifications` | [`RealtimeNotificationsState`](#chatto-realtime-v1-RealtimeNotificationsState) | Complete finite notification state for the viewer. |
+| `state.room_viewer` | [`RealtimeRoomViewerState`](#chatto-realtime-v1-RealtimeRoomViewerState) | Complete authorization and read state for one room. |
+| `state.active_calls` | [`RealtimeActiveCallsState`](#chatto-realtime-v1-RealtimeActiveCallsState) | Complete current active-call state visible to the viewer. |
+| `state.presences` | [`RealtimePresencesState`](#chatto-realtime-v1-RealtimePresencesState) | Complete latest-value presence state for visible users. |
+| `state.thread_viewer_states` | [`RealtimeThreadViewerStatesState`](#chatto-realtime-v1-RealtimeThreadViewerStatesState) | Complete current followed-thread viewer state. |
+| `state.room_viewer_activity` | [`RealtimeRoomViewerActivityState`](#chatto-realtime-v1-RealtimeRoomViewerActivityState) | Focused volatile unread and Slow Mode state for one room. |
 
 <a id="chatto-realtime-v1-RealtimeSubscribeEvents"></a>
 
@@ -503,11 +511,11 @@ after the event. An item is current state, not a historical event.
 
 Request to start the caller's authorized semantic event stream.
 
-| Field               | Type                                                               | Description                                                                                                                                                                                       |
-| ------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `resume_cursor`     | `optional string`                                                  | Opaque cursor from a previously received durable event or `caught_up` frame. A usable cursor receives bounded authorized durable events after that position. Cursors expire 24 hours after issue. |
-| `retained_room_ids` | `repeated string`                                                  | Joined rooms whose recent timeline state the client retains. This affects snapshot and state hydration only. It never filters semantic events. At most 64 room IDs may be supplied.               |
-| `initial_state`     | [`RealtimeInitialState`](#chatto-realtime-v1-RealtimeInitialState) | Required fallback when the cursor is absent or cannot resume safely.                                                                                                                              |
+| Field | Type | Description |
+| --- | --- | --- |
+| `resume_cursor` | `optional string` | Opaque cursor from a previously received durable event or `caught_up` frame. A usable cursor receives bounded authorized durable events after that position. Cursors expire 24 hours after issue. |
+| `retained_room_ids` | `repeated string` | Joined rooms whose recent timeline state the client retains. This affects snapshot and state hydration only. It never filters semantic events. At most 64 room IDs may be supplied. |
+| `initial_state` | [`RealtimeInitialState`](#chatto-realtime-v1-RealtimeInitialState) | Required fallback when the cursor is absent or cannot resume safely. |
 
 <a id="chatto-realtime-v1-RealtimeSubscribed"></a>
 
@@ -515,9 +523,9 @@ Request to start the caller's authorized semantic event stream.
 
 Confirms that event streaming has started.
 
-| Field           | Type                                                               | Description                                                          |
-| --------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| `start_cursor`  | `optional string`                                                  | Opaque boundary from which this subscription starts.                 |
+| Field | Type | Description |
+| --- | --- | --- |
+| `start_cursor` | `optional string` | Opaque boundary from which this subscription starts. |
 | `recovery_mode` | [`RealtimeRecoveryMode`](#chatto-realtime-v1-RealtimeRecoveryMode) | Recovery path selected after cursor validation and admission checks. |
 
 <a id="chatto-realtime-v1-RealtimeThreadEvent"></a>
@@ -526,11 +534,11 @@ Confirms that event streaming has started.
 
 Thread lifecycle or viewer-follow change.
 
-| Field                  | Type                                                               | Description                                 |
-| ---------------------- | ------------------------------------------------------------------ | ------------------------------------------- |
-| `action`               | [`RealtimeThreadAction`](#chatto-realtime-v1-RealtimeThreadAction) | Thread change that occurred.                |
-| `room_id`              | `string`                                                           | Room that contains the thread.              |
-| `thread_root_event_id` | `string`                                                           | Stable message event ID of the thread root. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeThreadAction`](#chatto-realtime-v1-RealtimeThreadAction) | Thread change that occurred. |
+| `room_id` | `string` | Room that contains the thread. |
+| `thread_root_event_id` | `string` | Stable message event ID of the thread root. |
 
 <a id="chatto-realtime-v1-RealtimeThreadViewerChangedEvent"></a>
 
@@ -538,9 +546,9 @@ Thread lifecycle or viewer-follow change.
 
 One thread's viewer-specific state changed.
 
-| Field                  | Type     | Description                                 |
-| ---------------------- | -------- | ------------------------------------------- |
-| `room_id`              | `string` | Room that contains the thread.              |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room that contains the thread. |
 | `thread_root_event_id` | `string` | Stable message event ID of the thread root. |
 
 <a id="chatto-realtime-v1-RealtimeThreadViewerState"></a>
@@ -549,11 +557,11 @@ One thread's viewer-specific state changed.
 
 Current viewer state for one followed thread root.
 
-| Field                  | Type                              | Description                                     |
-| ---------------------- | --------------------------------- | ----------------------------------------------- |
-| `room_id`              | `string`                          | Room that contains the thread.                  |
-| `thread_root_event_id` | `string`                          | Stable message event ID of the thread root.     |
-| `viewer_state`         | `chatto.api.v1.ThreadViewerState` | Current follow and unread state for the viewer. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room that contains the thread. |
+| `thread_root_event_id` | `string` | Stable message event ID of the thread root. |
+| `viewer_state` | `chatto.api.v1.ThreadViewerState` | Current follow and unread state for the viewer. |
 
 <a id="chatto-realtime-v1-RealtimeThreadViewerStatesState"></a>
 
@@ -561,8 +569,8 @@ Current viewer state for one followed thread root.
 
 Complete current followed-thread viewer state.
 
-| Field    | Type                                                                                  | Description                                |
-| -------- | ------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Field | Type | Description |
+| --- | --- | --- |
 | `states` | repeated [`RealtimeThreadViewerState`](#chatto-realtime-v1-RealtimeThreadViewerState) | All current followed-thread viewer states. |
 
 <a id="chatto-realtime-v1-RealtimeTypingEvent"></a>
@@ -571,9 +579,9 @@ Complete current followed-thread viewer state.
 
 Typing signal. It is transient and never replayed.
 
-| Field                  | Type              | Description                                      |
-| ---------------------- | ----------------- | ------------------------------------------------ |
-| `room_id`              | `string`          | Room in which the user is typing.                |
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room in which the user is typing. |
 | `thread_root_event_id` | `optional string` | Thread root when the user is typing in a thread. |
 
 <a id="chatto-realtime-v1-RealtimeUserEvent"></a>
@@ -582,10 +590,10 @@ Typing signal. It is transient and never replayed.
 
 Public user lifecycle or profile change.
 
-| Field     | Type                                                           | Description                |
-| --------- | -------------------------------------------------------------- | -------------------------- |
-| `action`  | [`RealtimeUserAction`](#chatto-realtime-v1-RealtimeUserAction) | User change that occurred. |
-| `user_id` | `string`                                                       | Affected user ID.          |
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeUserAction`](#chatto-realtime-v1-RealtimeUserAction) | User change that occurred. |
+| `user_id` | `string` | Affected user ID. |
 
 <a id="chatto-realtime-v1-RealtimeUserRemovedState"></a>
 
@@ -593,8 +601,8 @@ Public user lifecycle or profile change.
 
 Current-state absence of one user.
 
-| Field     | Type     | Description                             |
-| --------- | -------- | --------------------------------------- |
+| Field | Type | Description |
+| --- | --- | --- |
 | `user_id` | `string` | User ID to remove from projected state. |
 
 <a id="chatto-realtime-v1-RealtimeViewerChangedEvent"></a>
@@ -603,7 +611,11 @@ Current-state absence of one user.
 
 The authenticated viewer's public resource changed.
 
+
+
 ## Protocol Enums
+
+
 
 <a id="chatto-realtime-v1-RealtimeAssetAction"></a>
 
@@ -611,13 +623,13 @@ The authenticated viewer's public resource changed.
 
 Type of public asset change.
 
-| Name                                         | Number | Description                        |
-| -------------------------------------------- | ------ | ---------------------------------- |
-| `REALTIME_ASSET_ACTION_UNSPECIFIED`          | `0`    | Invalid or unknown action.         |
-| `REALTIME_ASSET_ACTION_PROCESSING_STARTED`   | `1`    | Processing started.                |
-| `REALTIME_ASSET_ACTION_PROCESSING_SUCCEEDED` | `2`    | Processing completed successfully. |
-| `REALTIME_ASSET_ACTION_PROCESSING_FAILED`    | `3`    | Processing failed.                 |
-| `REALTIME_ASSET_ACTION_DELETED`              | `4`    | The asset was deleted.             |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_ASSET_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_ASSET_ACTION_PROCESSING_STARTED` | `1` | Processing started. |
+| `REALTIME_ASSET_ACTION_PROCESSING_SUCCEEDED` | `2` | Processing completed successfully. |
+| `REALTIME_ASSET_ACTION_PROCESSING_FAILED` | `3` | Processing failed. |
+| `REALTIME_ASSET_ACTION_DELETED` | `4` | The asset was deleted. |
 
 <a id="chatto-realtime-v1-RealtimeCallAction"></a>
 
@@ -625,13 +637,13 @@ Type of public asset change.
 
 Type of public call change.
 
-| Name                                      | Number | Description                 |
-| ----------------------------------------- | ------ | --------------------------- |
-| `REALTIME_CALL_ACTION_UNSPECIFIED`        | `0`    | Invalid or unknown action.  |
-| `REALTIME_CALL_ACTION_STARTED`            | `1`    | A voice call started.       |
-| `REALTIME_CALL_ACTION_PARTICIPANT_JOINED` | `2`    | A user joined a voice call. |
-| `REALTIME_CALL_ACTION_PARTICIPANT_LEFT`   | `3`    | A user left a voice call.   |
-| `REALTIME_CALL_ACTION_ENDED`              | `4`    | A voice call ended.         |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_CALL_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_CALL_ACTION_STARTED` | `1` | A voice call started. |
+| `REALTIME_CALL_ACTION_PARTICIPANT_JOINED` | `2` | A user joined a voice call. |
+| `REALTIME_CALL_ACTION_PARTICIPANT_LEFT` | `3` | A user left a voice call. |
+| `REALTIME_CALL_ACTION_ENDED` | `4` | A voice call ended. |
 
 <a id="chatto-realtime-v1-RealtimeInitialState"></a>
 
@@ -639,11 +651,11 @@ Type of public call change.
 
 Current-state behavior when a subscription cannot resume from its cursor.
 
-| Name                                 | Number | Description                                                            |
-| ------------------------------------ | ------ | ---------------------------------------------------------------------- |
-| `REALTIME_INITIAL_STATE_UNSPECIFIED` | `0`    | Invalid value. The server rejects subscriptions that use it.           |
-| `REALTIME_INITIAL_STATE_LIVE_ONLY`   | `1`    | Start at the current event boundary without sending current resources. |
-| `REALTIME_INITIAL_STATE_SNAPSHOT`    | `2`    | Send an authorized current-state snapshot before live delivery.        |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_INITIAL_STATE_UNSPECIFIED` | `0` | Invalid value. The server rejects subscriptions that use it. |
+| `REALTIME_INITIAL_STATE_LIVE_ONLY` | `1` | Start at the current event boundary without sending current resources. |
+| `REALTIME_INITIAL_STATE_SNAPSHOT` | `2` | Send an authorized current-state snapshot before live delivery. |
 
 <a id="chatto-realtime-v1-RealtimeMessageAction"></a>
 
@@ -651,12 +663,12 @@ Current-state behavior when a subscription cannot resume from its cursor.
 
 Type of public message change.
 
-| Name                                  | Number | Description                |
-| ------------------------------------- | ------ | -------------------------- |
-| `REALTIME_MESSAGE_ACTION_UNSPECIFIED` | `0`    | Invalid or unknown action. |
-| `REALTIME_MESSAGE_ACTION_POSTED`      | `1`    | A message was posted.      |
-| `REALTIME_MESSAGE_ACTION_EDITED`      | `2`    | A message was edited.      |
-| `REALTIME_MESSAGE_ACTION_RETRACTED`   | `3`    | A message was retracted.   |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_MESSAGE_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_MESSAGE_ACTION_POSTED` | `1` | A message was posted. |
+| `REALTIME_MESSAGE_ACTION_EDITED` | `2` | A message was edited. |
+| `REALTIME_MESSAGE_ACTION_RETRACTED` | `3` | A message was retracted. |
 
 <a id="chatto-realtime-v1-RealtimePinnedMessageAction"></a>
 
@@ -664,11 +676,11 @@ Type of public message change.
 
 Type of public pinned-message change.
 
-| Name                                         | Number | Description                |
-| -------------------------------------------- | ------ | -------------------------- |
-| `REALTIME_PINNED_MESSAGE_ACTION_UNSPECIFIED` | `0`    | Invalid or unknown action. |
-| `REALTIME_PINNED_MESSAGE_ACTION_CREATED`     | `1`    | A message was pinned.      |
-| `REALTIME_PINNED_MESSAGE_ACTION_DELETED`     | `2`    | A pin was removed.         |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_PINNED_MESSAGE_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_PINNED_MESSAGE_ACTION_CREATED` | `1` | A message was pinned. |
+| `REALTIME_PINNED_MESSAGE_ACTION_DELETED` | `2` | A pin was removed. |
 
 <a id="chatto-realtime-v1-RealtimeReactionAction"></a>
 
@@ -676,11 +688,11 @@ Type of public pinned-message change.
 
 Type of public reaction change.
 
-| Name                                   | Number | Description                     |
-| -------------------------------------- | ------ | ------------------------------- |
-| `REALTIME_REACTION_ACTION_UNSPECIFIED` | `0`    | Invalid or unknown action.      |
-| `REALTIME_REACTION_ACTION_ADDED`       | `1`    | The actor added the reaction.   |
-| `REALTIME_REACTION_ACTION_REMOVED`     | `2`    | The actor removed the reaction. |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_REACTION_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_REACTION_ACTION_ADDED` | `1` | The actor added the reaction. |
+| `REALTIME_REACTION_ACTION_REMOVED` | `2` | The actor removed the reaction. |
 
 <a id="chatto-realtime-v1-RealtimeRecoveryMode"></a>
 
@@ -688,12 +700,12 @@ Type of public reaction change.
 
 Recovery path selected for one subscription.
 
-| Name                                 | Number | Description                                                            |
-| ------------------------------------ | ------ | ---------------------------------------------------------------------- |
-| `REALTIME_RECOVERY_MODE_UNSPECIFIED` | `0`    | Invalid value.                                                         |
-| `REALTIME_RECOVERY_MODE_LIVE_ONLY`   | `1`    | Delivery starts at the current boundary without a snapshot or history. |
-| `REALTIME_RECOVERY_MODE_SNAPSHOT`    | `2`    | Current-state items replace the client's local projection.             |
-| `REALTIME_RECOVERY_MODE_RESUME`      | `3`    | Durable semantic events resume after the supplied cursor.              |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_RECOVERY_MODE_UNSPECIFIED` | `0` | Invalid value. |
+| `REALTIME_RECOVERY_MODE_LIVE_ONLY` | `1` | Delivery starts at the current boundary without a snapshot or history. |
+| `REALTIME_RECOVERY_MODE_SNAPSHOT` | `2` | Current-state items replace the client's local projection. |
+| `REALTIME_RECOVERY_MODE_RESUME` | `3` | Durable semantic events resume after the supplied cursor. |
 
 <a id="chatto-realtime-v1-RealtimeRoomAction"></a>
 
@@ -701,17 +713,17 @@ Recovery path selected for one subscription.
 
 Type of public room change.
 
-| Name                                          | Number | Description                           |
-| --------------------------------------------- | ------ | ------------------------------------- |
-| `REALTIME_ROOM_ACTION_UNSPECIFIED`            | `0`    | Invalid or unknown action.            |
-| `REALTIME_ROOM_ACTION_CREATED`                | `1`    | A room was created.                   |
-| `REALTIME_ROOM_ACTION_UPDATED`                | `2`    | Public room metadata changed.         |
-| `REALTIME_ROOM_ACTION_DELETED`                | `3`    | A room was deleted.                   |
-| `REALTIME_ROOM_ACTION_ARCHIVED`               | `4`    | A room was archived.                  |
-| `REALTIME_ROOM_ACTION_UNARCHIVED`             | `5`    | A room was restored from archive.     |
-| `REALTIME_ROOM_ACTION_UNIVERSAL_CHANGED`      | `6`    | Universal membership changed.         |
-| `REALTIME_ROOM_ACTION_SLOW_MODE_CHANGED`      | `7`    | Slow Mode configuration changed.      |
-| `REALTIME_ROOM_ACTION_THREADING_MODE_CHANGED` | `8`    | Threading Mode configuration changed. |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_ROOM_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_ROOM_ACTION_CREATED` | `1` | A room was created. |
+| `REALTIME_ROOM_ACTION_UPDATED` | `2` | Public room metadata changed. |
+| `REALTIME_ROOM_ACTION_DELETED` | `3` | A room was deleted. |
+| `REALTIME_ROOM_ACTION_ARCHIVED` | `4` | A room was archived. |
+| `REALTIME_ROOM_ACTION_UNARCHIVED` | `5` | A room was restored from archive. |
+| `REALTIME_ROOM_ACTION_UNIVERSAL_CHANGED` | `6` | Universal membership changed. |
+| `REALTIME_ROOM_ACTION_SLOW_MODE_CHANGED` | `7` | Slow Mode configuration changed. |
+| `REALTIME_ROOM_ACTION_THREADING_MODE_CHANGED` | `8` | Threading Mode configuration changed. |
 
 <a id="chatto-realtime-v1-RealtimeRoomMembershipAction"></a>
 
@@ -719,15 +731,15 @@ Type of public room change.
 
 Type of public room-membership change.
 
-| Name                                          | Number | Description                             |
-| --------------------------------------------- | ------ | --------------------------------------- |
-| `REALTIME_ROOM_MEMBERSHIP_ACTION_UNSPECIFIED` | `0`    | Invalid or unknown action.              |
-| `REALTIME_ROOM_MEMBERSHIP_ACTION_JOINED`      | `1`    | A user joined the room themselves.      |
-| `REALTIME_ROOM_MEMBERSHIP_ACTION_LEFT`        | `2`    | A user left the room themselves.        |
-| `REALTIME_ROOM_MEMBERSHIP_ACTION_ADDED`       | `3`    | An administrator added a room member.   |
-| `REALTIME_ROOM_MEMBERSHIP_ACTION_REMOVED`     | `4`    | An administrator removed a room member. |
-| `REALTIME_ROOM_MEMBERSHIP_ACTION_BANNED`      | `5`    | An administrator banned a room member.  |
-| `REALTIME_ROOM_MEMBERSHIP_ACTION_UNBANNED`    | `6`    | An administrator removed a room ban.    |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_ROOM_MEMBERSHIP_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_ROOM_MEMBERSHIP_ACTION_JOINED` | `1` | A user joined the room themselves. |
+| `REALTIME_ROOM_MEMBERSHIP_ACTION_LEFT` | `2` | A user left the room themselves. |
+| `REALTIME_ROOM_MEMBERSHIP_ACTION_ADDED` | `3` | An administrator added a room member. |
+| `REALTIME_ROOM_MEMBERSHIP_ACTION_REMOVED` | `4` | An administrator removed a room member. |
+| `REALTIME_ROOM_MEMBERSHIP_ACTION_BANNED` | `5` | An administrator banned a room member. |
+| `REALTIME_ROOM_MEMBERSHIP_ACTION_UNBANNED` | `6` | An administrator removed a room ban. |
 
 <a id="chatto-realtime-v1-RealtimeThreadAction"></a>
 
@@ -735,10 +747,10 @@ Type of public room-membership change.
 
 Type of public thread change.
 
-| Name                                 | Number | Description                |
-| ------------------------------------ | ------ | -------------------------- |
-| `REALTIME_THREAD_ACTION_UNSPECIFIED` | `0`    | Invalid or unknown action. |
-| `REALTIME_THREAD_ACTION_CREATED`     | `1`    | A thread root was created. |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_THREAD_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_THREAD_ACTION_CREATED` | `1` | A thread root was created. |
 
 <a id="chatto-realtime-v1-RealtimeUserAction"></a>
 
@@ -746,9 +758,9 @@ Type of public thread change.
 
 Type of public user change.
 
-| Name                                   | Number | Description                        |
-| -------------------------------------- | ------ | ---------------------------------- |
-| `REALTIME_USER_ACTION_UNSPECIFIED`     | `0`    | Invalid or unknown action.         |
-| `REALTIME_USER_ACTION_CREATED`         | `1`    | A public user account was created. |
-| `REALTIME_USER_ACTION_PROFILE_CHANGED` | `2`    | Public profile data changed.       |
-| `REALTIME_USER_ACTION_DELETED`         | `3`    | A public user account was deleted. |
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_USER_ACTION_UNSPECIFIED` | `0` | Invalid or unknown action. |
+| `REALTIME_USER_ACTION_CREATED` | `1` | A public user account was created. |
+| `REALTIME_USER_ACTION_PROFILE_CHANGED` | `2` | Public profile data changed. |
+| `REALTIME_USER_ACTION_DELETED` | `3` | A public user account was deleted. |
