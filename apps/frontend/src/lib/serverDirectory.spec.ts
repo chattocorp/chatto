@@ -96,7 +96,7 @@ describe('ServerDirectoryDiscovery', () => {
     });
   });
 
-  it('hides unilateral candidates and records them separately from failures', async () => {
+  it('shows a direct root recommendation even when it is not mutual', async () => {
     const discovery = createServerDirectoryDiscovery(['https://source.example'], {
       listNeighbors: vi.fn(async (origin: string) =>
         origin === 'https://source.example' ? [recommendation('https://unilateral.example')] : []
@@ -107,7 +107,9 @@ describe('ServerDirectoryDiscovery', () => {
 
     await startAndSettle(discovery);
 
-    expect(observed.latest().entries).toEqual([]);
+    expect(observed.latest().entries.map(({ origin }) => origin)).toEqual([
+      'https://unilateral.example'
+    ]);
     expect(observed.latest()).toMatchObject({
       failedSourceCount: 0,
       failedCandidateCount: 0,
@@ -115,7 +117,7 @@ describe('ServerDirectoryDiscovery', () => {
     });
   });
 
-  it('does not let two unverified candidates promote each other', async () => {
+  it('does not let two direct but non-mutual candidates promote each other', async () => {
     const directories: Record<string, PublicNeighbor[]> = {
       'https://a.example': [recommendation('https://b.example')],
       'https://c.example': [recommendation('https://x.example')],
@@ -130,8 +132,39 @@ describe('ServerDirectoryDiscovery', () => {
 
     await startAndSettle(discovery);
 
-    expect(observed.latest().entries).toEqual([]);
-    expect(observed.latest().profileRequestCount).toBe(0);
+    expect(observed.latest().entries.map(({ origin }) => origin)).toEqual([
+      'https://b.example',
+      'https://x.example'
+    ]);
+    expect(observed.latest().entries.map(({ sourceOrigins }) => sourceOrigins)).toEqual([
+      ['https://a.example'],
+      ['https://c.example']
+    ]);
+    expect(observed.latest().profileRequestCount).toBe(2);
+  });
+
+  it('hides a unilateral recommendation from a recursive source', async () => {
+    const directories: Record<string, PublicNeighbor[]> = {
+      'https://a.example': [recommendation('https://b.example')],
+      'https://b.example': [
+        recommendation('https://a.example'),
+        recommendation('https://c.example')
+      ],
+      'https://c.example': []
+    };
+    const discovery = createServerDirectoryDiscovery(['https://a.example'], {
+      listNeighbors: vi.fn(async (origin: string) => directories[origin] ?? []),
+      getServerInfo: vi.fn(async (origin: string) => profile(origin))
+    });
+    const observed = observe(discovery);
+
+    await startAndSettle(discovery);
+
+    expect(observed.latest().entries.map(({ origin }) => origin)).toEqual([
+      'https://b.example',
+      'https://a.example'
+    ]);
+    expect(observed.latest().nonMutualCandidateCount).toBe(1);
   });
 
   it('discovers two mutual hops and does not expand the second hop', async () => {
@@ -336,26 +369,24 @@ describe('ServerDirectoryDiscovery', () => {
   });
 
   it('keeps combined directory and profile work within the shared ceiling', async () => {
-    const candidates = Array.from({ length: 12 }, (_, index) => `https://n-${index}.example`);
     let active = 0;
     let maximumActive = 0;
-    let releaseFirst!: () => void;
     let releaseRest!: () => void;
-    const firstGate = new Promise<void>((resolve) => {
-      releaseFirst = resolve;
-    });
     const restGate = new Promise<void>((resolve) => {
       releaseRest = resolve;
     });
     const listNeighbors = vi.fn(async (origin: string) => {
-      if (origin === 'https://source.example') {
-        return candidates.map((candidate) => recommendation(candidate));
-      }
       active += 1;
       maximumActive = Math.max(maximumActive, active);
-      await (origin === candidates[0] ? firstGate : restGate);
+      if (origin === 'https://source.example') {
+        active -= 1;
+        return [recommendation('https://candidate.example')];
+      }
+      await restGate;
       active -= 1;
-      return [recommendation('https://source.example')];
+      return origin === 'https://candidate.example'
+        ? [recommendation('https://source.example')]
+        : [];
     });
     const getServerInfo = vi.fn(async (origin: string) => {
       active += 1;
@@ -364,14 +395,15 @@ describe('ServerDirectoryDiscovery', () => {
       active -= 1;
       return profile(origin);
     });
-    const discovery = createServerDirectoryDiscovery(['https://source.example'], {
-      listNeighbors,
-      getServerInfo
-    });
+    const discovery = createServerDirectoryDiscovery(
+      [
+        'https://source.example',
+        ...Array.from({ length: 5 }, (_, index) => `https://slow-${index}.example`)
+      ],
+      { listNeighbors, getServerInfo }
+    );
     discovery.start();
 
-    await vi.waitFor(() => expect(listNeighbors).toHaveBeenCalledTimes(7));
-    releaseFirst();
     await vi.waitFor(() => expect(getServerInfo).toHaveBeenCalled());
     expect(active).toBe(6);
     expect(maximumActive).toBe(6);

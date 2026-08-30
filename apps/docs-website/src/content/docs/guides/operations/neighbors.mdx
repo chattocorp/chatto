@@ -42,21 +42,24 @@ as a rank or preference.
 ## Use the Server Directory
 
 Select **Add Server** in the Server Gutter to open the Server Directory. The
-client starts from every server that is registered on the device. It follows a
-recommendation only when the source and target servers currently advertise each
-other. The client follows at most two verified mutual hops from a registered
-server.
+client starts from every server that is registered on the device. It shows each
+direct recommendation after its public profile loads. Direct recommendations
+do not need reciprocal confirmation.
 
-The page adds a server when mutuality and its public profile are verified. A
-later result does not move a card that is already visible. The client removes
+The client reads a recommended server's directory before it uses that server as
+a recursive source. It expands the server only when the source and target
+currently advertise each other. It follows at most two mutual hops from a
+registered server.
+
+A later result does not move a card that is already visible. The client removes
 duplicate origins, but it does not sort or rank the results. Each result shows
-the verified servers that recommend it. When more than two servers recommend
-the same result, the card shows two server names and the number of other
-recommendations. Each available testimonial has a review card under the server
-profile. The review card shows the known name and icon of the source server.
-Different sources can publish different testimonials for the same server.
-Cards use a tapestry layout so that cards with different text lengths fit
-together.
+the servers whose recommendations are displayed. When more than two servers
+recommend the same result, the card shows two server names and the number of
+other recommendations. Each available testimonial has a review card under the
+server profile. The review card shows the known name and icon of the source
+server. Different sources can publish different testimonials for the same
+server. Cards use a tapestry layout so that cards with different text lengths
+fit together.
 
 The client requests each advertised server's public profile. A result can show
 the server name, description, logo, and banner. If a server is offline or does
@@ -97,9 +100,9 @@ Neighbor. It does not verify that:
 - the two servers trust each other.
 
 The client can observe a mutual recommendation when two public directories
-advertise each other. This observation is not authenticated consent, a durable
-relationship, compatibility, or trust. Describe these servers as mutually
-recommended, not as verified partners.
+advertise each other. It uses this observation only to expand recursive
+discovery. Direct recommendations can remain one-sided. Neither case is
+authenticated consent, a durable relationship, compatibility, or trust.
 
 Opening the Neighbors administration page or the Server Directory makes the
 client contact advertised origins and load their public images. Public

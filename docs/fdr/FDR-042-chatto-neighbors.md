@@ -23,24 +23,26 @@ recommendation, not a trust or reciprocal relationship.
 - The directory has no ordering contract.
 - Any caller can list the advertised origins through the public discovery API.
 - The Server Directory starts with all servers registered in the client. It
-  follows mutual recommendations for at most two hops from those roots. A
-  mutual recommendation exists when both public directories currently
-  advertise the other server.
-- The client adds a result only after it verifies a mutual recommendation and
-  loads the result's public profile. It adds results as requests finish and
-  does not move results that are already visible.
+  shows their direct recommendations after it loads each public profile. A
+  direct recommendation does not need reciprocal confirmation.
+- The client expands a recommended server only when the source and target
+  public directories currently advertise each other. It follows at most two
+  such mutual hops from a registered server.
+- The client adds results as public profiles load and does not move results
+  that are already visible.
 - The client removes duplicate canonical origins but does not rank or sort the
-  results. Each result identifies all verified sources that recommend it. It
-  preserves each source's testimonial.
+  results. Each result identifies all sources whose recommendations are shown.
+  It preserves each source's testimonial.
 - The Server Directory uses a tapestry layout. It shows each testimonial in a
   review card below the server profile. The review card shows the known name
   and icon of the server that supplied it.
 - The Server Directory and Neighbor administration page load each applicable
   server's public name, description, logo, and banner. The Server Directory
-  omits a server when mutuality is not verified or its public profile does not
-  load. The administration page keeps an advertised server visible so that an
-  administrator can review or remove it. A failed request does not hide
-  profiles that loaded successfully.
+  omits a direct recommendation when its public profile does not load. It omits
+  a recursive recommendation when mutuality is not verified or its public
+  profile does not load. The administration page keeps an advertised server
+  visible so that an administrator can review or remove it. A failed request
+  does not hide profiles that loaded successfully.
 - The Server Directory starts one automatic batch of 12 candidate-directory
   requests. **Load more** starts another batch of 12. One page session permits
   at most 48 directory requests, 24 profile requests, and 72 discovery requests
@@ -81,18 +83,21 @@ unrelated directory state.
 **Tradeoff:** The server maintains resource IDs and revisions in addition to
 origins.
 
-### 2. Each Neighbor remains unilateral
+### 2. Direct recommendations remain unilateral
 
-**Decision:** A server can advertise another server without confirmation. The
-Server Directory shows a server only when the client observes that both public
-directories currently advertise each other.
+**Decision:** The Server Directory shows a direct recommendation from a
+registered server without reciprocal confirmation. It expands that remote
+server only when the client observes that both public directories advertise
+each other.
 
-**Why:** Client-observed mutuality reduces one-sided listings without adding
-server-to-server communication, authentication, queues, or a relationship
-lifecycle.
+**Why:** Direct recommendations keep the directory useful for old servers and
+for registered servers that are not publicly reachable. Client-observed
+mutuality prevents one unilateral recommendation from amplifying the recursive
+crawl.
 
-**Tradeoff:** Two matching public responses are not durable consent or an
-authenticated relationship. The observation can change between requests.
+**Tradeoff:** A direct result can remain one-sided. Two matching public
+responses are not durable consent or an authenticated relationship. The
+observation can change between requests.
 
 ### 3. The server stays passive and the client loads public profiles
 
@@ -147,7 +152,7 @@ join.
 ### 7. Deduplication preserves recommendation sources
 
 **Decision:** One server appears once in the Server Directory. The result also
-identifies each verified source server that advertises it.
+identifies each source server whose recommendation is shown.
 
 **Why:** A user can see where a recommendation comes from without seeing
 duplicate server cards.
@@ -212,10 +217,10 @@ direct join flow, even when it might work with the client.
 
 ### 12. Recursive discovery has a page-session budget
 
-**Decision:** The client follows at most two verified mutual hops. It uses one
-shared six-request scheduler and fixed candidate, directory, profile, and total
-request limits. The first candidate batch starts automatically. Later batches
-require **Load more**.
+**Decision:** The client shows direct recommendations and follows at most two
+verified mutual hops. It uses one shared six-request scheduler and fixed
+candidate, directory, profile, and total request limits. The first candidate
+batch starts automatically. Later batches require **Load more**.
 
 **Why:** Progressive discovery can find servers beyond a direct recommendation,
 but one malicious or cyclic directory must not start unbounded browser work.

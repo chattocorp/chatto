@@ -26,9 +26,9 @@ export type ServerProfileEntry = {
 };
 
 export type ServerDirectoryEntry = ServerProfileEntry & {
-  /** Canonical origins of the servers with a verified mutual recommendation. */
+  /** Canonical origins of the servers whose recommendations are shown. */
   sourceOrigins: string[];
-  /** Ordered verified recommendations, including source-specific testimonials. */
+  /** Ordered recommendations, including source-specific testimonials. */
   recommendations: ServerDirectoryRecommendation[];
 };
 
@@ -150,7 +150,11 @@ export class ServerDirectoryDiscovery {
   private readonly profileStatuses = new Map<string, ProfileStatus>();
   private readonly outgoingByOrigin = new Map<string, OrderedRecommendation[]>();
   private readonly incomingByOrigin = new Map<string, Map<string, OrderedRecommendation>>();
-  private readonly verifiedByOrigin = new Map<string, Map<string, OrderedRecommendation>>();
+  private readonly recommendationsByOrigin = new Map<
+    string,
+    Map<string, OrderedRecommendation>
+  >();
+  private readonly mutualOrigins = new Set<string>();
   private readonly edgeOutcomes = new Map<string, 'verified' | 'non-mutual'>();
   private readonly depths = new Map<string, number>();
   private readonly expansionSources = new Set<string>();
@@ -331,6 +335,12 @@ export class ServerDirectoryDiscovery {
     }
     this.outgoingByOrigin.set(origin, outgoing);
 
+    if (this.rootOrigins.has(origin)) {
+      for (const recommendation of outgoing) {
+        this.recordRecommendation(recommendation.targetOrigin, origin, recommendation);
+      }
+    }
+
     for (const sourceOrigin of this.incomingByOrigin.get(origin)?.keys() ?? []) {
       this.evaluateEdge(sourceOrigin, origin);
     }
@@ -356,12 +366,8 @@ export class ServerDirectoryDiscovery {
     const recommendation = this.incomingByOrigin.get(targetOrigin)?.get(sourceOrigin);
     if (!recommendation) return;
     this.edgeOutcomes.set(edgeKey, 'verified');
-    let verified = this.verifiedByOrigin.get(targetOrigin);
-    if (!verified) {
-      verified = new Map();
-      this.verifiedByOrigin.set(targetOrigin, verified);
-    }
-    verified.set(sourceOrigin, recommendation);
+    this.mutualOrigins.add(targetOrigin);
+    this.recordRecommendation(targetOrigin, sourceOrigin, recommendation);
 
     const sourceDepth = this.depths.get(sourceOrigin);
     if (sourceDepth !== undefined) {
@@ -370,9 +376,22 @@ export class ServerDirectoryDiscovery {
       if (priorDepth === undefined || depth < priorDepth) this.depths.set(targetOrigin, depth);
     }
 
+    this.activateSource(targetOrigin);
+  }
+
+  private recordRecommendation(
+    targetOrigin: string,
+    sourceOrigin: string,
+    recommendation: OrderedRecommendation
+  ): void {
+    let recommendations = this.recommendationsByOrigin.get(targetOrigin);
+    if (!recommendations) {
+      recommendations = new Map();
+      this.recommendationsByOrigin.set(targetOrigin, recommendations);
+    }
+    recommendations.set(sourceOrigin, recommendation);
     this.scheduleProfile(targetOrigin);
     this.refreshEntry(targetOrigin);
-    this.activateSource(targetOrigin);
   }
 
   private activateSource(origin: string): void {
@@ -475,9 +494,9 @@ export class ServerDirectoryDiscovery {
 
   private refreshEntry(origin: string): void {
     const profile = this.profiles.get(origin);
-    const verified = this.verifiedByOrigin.get(origin);
-    if (!profile || !verified?.size) return;
-    const recommendations = [...verified.values()]
+    const availableRecommendations = this.recommendationsByOrigin.get(origin);
+    if (!profile || !availableRecommendations?.size) return;
+    const recommendations = [...availableRecommendations.values()]
       .sort((left, right) => left.order - right.order)
       .map(({ sourceOrigin, testimonial }) => ({ sourceOrigin, testimonial }));
     const entry: ServerDirectoryEntry = {
@@ -498,7 +517,7 @@ export class ServerDirectoryDiscovery {
   }
 
   private isEligibleSource(origin: string): boolean {
-    return this.rootOrigins.has(origin) || this.verifiedByOrigin.has(origin);
+    return this.rootOrigins.has(origin) || this.mutualOrigins.has(origin);
   }
 
   private hasDirectoryBudget(): boolean {

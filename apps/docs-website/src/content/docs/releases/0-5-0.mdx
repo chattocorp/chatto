@@ -93,10 +93,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
   <ReleaseFeatureCard title="Advertise friendly Chatto servers">
     Server administrators can maintain a public Neighbor directory. The Server
-    Directory follows mutually advertised recommendations for at most two hops
-    from a user's registered servers. Verified results appear as requests
-    finish, and fixed batch, concurrency, timeout, and page-session limits bound
-    browser work. Administrators can add a public testimonial to each
+    Directory shows direct recommendations from a user's registered servers. It
+    follows a remote server recursively only when both servers advertise each
+    other, for at most two mutual hops. Results appear as requests finish, and
+    fixed batch, concurrency, timeout, and page-session limits bound browser
+    work. Administrators can add a public testimonial to each
     recommendation. Testimonials support paragraphs and limited inline
     Markdown. The directory shows them as source-labelled review cards below
     each server profile in a tapestry layout. Mutuality is a current client
