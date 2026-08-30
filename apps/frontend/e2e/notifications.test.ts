@@ -721,7 +721,7 @@ test.describe('Navigation from Notifications', () => {
     const readNotification = notificationsPage.getNotificationBySummary('mentioned you.');
     await expect(readNotification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(readNotification.getByLabel('Unread')).not.toBeVisible();
-    await expect(readNotification.locator(':scope > button').first()).toHaveClass(/opacity-60/);
+    await expect(readNotification.locator(':scope > button').first()).toHaveClass(/text-muted/);
   });
 });
 
