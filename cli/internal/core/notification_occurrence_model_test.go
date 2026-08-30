@@ -11,6 +11,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/notificationstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -247,6 +248,96 @@ func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
 	}
 	if deleted != 1 {
 		t.Fatalf("combined concurrent delete count = %d, want 1", deleted)
+	}
+}
+
+func TestThreadAttentionLevelsWaitsForCurrentNotificationProjection(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "attention-fence-alice", "Attention Fence Alice", "password")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := chattoCore.CreateUser(ctx, SystemActorID, "attention-fence-bob", "Attention Fence Bob", "password")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, alice.Id, KindChannel, "", "attention-fence-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{alice.Id, bob.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, alice.Id, "attention fence root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	reply, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, bob.Id, "attention fence reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	replyEntry, ok := chattoCore.roomModel.timelineEntry(reply.GetId())
+	if !ok {
+		t.Fatal("reply missing from room timeline")
+	}
+	signal := testNotificationSignal(notificationTestSignalReply, room.Id, reply.GetId())
+	notificationSignalMessage(signal).ThreadRootEventId = proto.String(root.GetId())
+	if occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: alice.Id, SourceEventID: reply.GetId(), SourceCreated: reply.GetCreatedAt().AsTime(), ActorID: bob.Id,
+		Signal: signal, Mode: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		SourceStreamSequence: replyEntry.StreamSeq, SkipReadLookup: true,
+	}); err != nil || !created || occurrence == nil {
+		t.Fatalf("Create important occurrence = (%+v, %v, %v), want new occurrence", occurrence, created, err)
+	}
+
+	delayedNotifications := notificationstream.NewProjectionHandle(
+		chattoCore.js,
+		chattoCore.storage.notificationStream,
+		NewNotificationProjection(),
+		testCoreLogger(),
+	)
+	chattoCore.notificationOccurrences.projection = delayedNotifications
+	type attentionResult struct {
+		levels map[ThreadAttentionScope]ThreadAttentionLevel
+		err    error
+	}
+	result := make(chan attentionResult, 1)
+	scope := ThreadAttentionScope{RoomID: room.Id, ThreadRootEventID: root.GetId()}
+	go func() {
+		levels, err := chattoCore.NotificationOccurrences().ThreadAttentionLevels(ctx, alice.Id, []ThreadAttentionScope{scope})
+		result <- attentionResult{levels: levels, err: err}
+	}()
+	select {
+	case early := <-result:
+		t.Fatalf("ThreadAttentionLevels returned before delayed notification projection started: (%+v, %v)", early.levels, early.err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- delayedNotifications.Projector().Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("delayed notification projector did not stop")
+		}
+	})
+	select {
+	case got := <-result:
+		if got.err != nil {
+			t.Fatalf("ThreadAttentionLevels after catch-up: %v", got.err)
+		}
+		if got.levels[scope] != ThreadAttentionLevelImportant {
+			t.Fatalf("thread attention after catch-up = %v, want Important", got.levels[scope])
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ThreadAttentionLevels did not finish after notification projection caught up")
 	}
 }
 

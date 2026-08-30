@@ -174,11 +174,17 @@ func (m *NotificationOccurrenceModel) ThreadAttentionLevels(ctx context.Context,
 }
 
 // threadAttentionLevels returns attention for several exact thread scopes. It
-// captures and waits for notification visibility boundaries once for the
-// batch, instead of repeating the same JetStream and projection barriers for
-// every followed-thread row.
+// first waits for the local NOTIFICATIONS projection, then captures and waits
+// for notification visibility boundaries once for the batch instead of
+// repeating the same barriers for every followed-thread row.
 func (m *NotificationOccurrenceModel) threadAttentionLevels(ctx context.Context, userID string, scopes []notificationReadBoundaryScope) (map[notificationReadBoundaryScope]ThreadAttentionLevel, error) {
 	levels := make(map[notificationReadBoundaryScope]ThreadAttentionLevel, len(scopes))
+	if len(scopes) == 0 {
+		return levels, nil
+	}
+	if err := m.projection.Projector().WaitForCurrent(ctx); err != nil {
+		return nil, fmt.Errorf("wait for current notification attention: %w", err)
+	}
 	occurrences := make([]*notificationv1.NotificationOccurrence, 0)
 	now := m.now().UTC()
 	for _, scope := range scopes {
