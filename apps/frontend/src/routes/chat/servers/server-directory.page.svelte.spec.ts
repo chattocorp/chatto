@@ -847,10 +847,19 @@ describe('Server Directory page', () => {
   });
 
   it('explains when the page-session discovery limit is reached', async () => {
+    mockIntersectionObserver();
     mocks.loadServerDirectory.mockResolvedValue({
-      entries: [],
+      entries: [
+        {
+          origin: 'https://first.example',
+          profile: profile('First'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
       failedSourceCount: 0,
       sourceCount: 2,
+      canLoadMore: false,
       sessionLimitReached: true
     });
 
@@ -861,5 +870,9 @@ describe('Server Directory page', () => {
       );
     });
     expect(button(container, 'Load more')).toBeUndefined();
+    expect(
+      container.querySelector('[data-testid="server-directory-auto-load-sentinel"]')
+    ).toBeNull();
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
   });
 });
