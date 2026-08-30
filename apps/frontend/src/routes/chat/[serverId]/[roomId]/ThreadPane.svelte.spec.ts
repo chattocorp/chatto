@@ -61,9 +61,15 @@ vi.mock('$lib/hooks', () => ({
   useProjectionEvent: vi.fn(),
   useUnreadMarker: (
     getTargetId: () => string,
-    options: { markAsRead: (targetId: string, upToEventId?: string) => unknown }
+    options: {
+      markAsRead: (
+        targetId: string,
+        upToEventId: string | undefined,
+        signal: AbortSignal
+      ) => unknown;
+    }
   ) => {
-    void options.markAsRead(getTargetId());
+    void options.markAsRead(getTargetId(), undefined, new AbortController().signal);
     return {
       unreadMarkerEventId: mocks.unreadMarkerEventId,
       markAsRead: options.markAsRead,
@@ -263,11 +269,14 @@ describe('ThreadPane', () => {
     });
 
     await vi.waitFor(() =>
-      expect(mocks.markThreadAsRead).toHaveBeenCalledWith({
-        roomId: 'room-1',
-        threadRootEventId: 'thread-root',
-        upToEventId: undefined
-      })
+      expect(mocks.markThreadAsRead).toHaveBeenCalledWith(
+        {
+          roomId: 'room-1',
+          threadRootEventId: 'thread-root',
+          upToEventId: undefined
+        },
+        { signal: expect.any(AbortSignal) }
+      )
     );
 
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');

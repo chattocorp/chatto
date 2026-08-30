@@ -32,7 +32,10 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "Відгуки про {server}"
+      "testimonials_for": "Відгуки про {server}",
+      "discovering": "Пошук інших серверів…",
+      "load_more": "Завантажити ще",
+      "session_limit_reached": "Досягнуто ліміту пошуку для цього сеансу."
     }
   }
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ConnectError } from '@connectrpc/connect';
-  import { createQuery } from '@tanstack/svelte-query';
+  import { onMount } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import {
@@ -14,11 +15,12 @@
   import { m } from '$lib/i18n/messages';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { queryClient } from '$lib/query/client';
   import {
     canonicalServerOrigin,
-    loadServerDirectory,
-    type ServerDirectoryEntry
+    createServerDirectoryDiscovery,
+    type ServerDirectoryDiscovery,
+    type ServerDirectoryEntry,
+    type ServerDirectorySnapshot
   } from '$lib/serverDirectory';
   import { evaluateServerCompatibility } from '$lib/state/server/compatibility';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
@@ -32,6 +34,12 @@
   let probing = $state(false);
   let pendingOrigin = $state<string | null>(null);
   let actionError = $state('');
+  let directoryState = $state<ServerDirectorySnapshot | null>(null);
+  let scrollContainer = $state<HTMLDivElement>();
+  let directorySession: ServerDirectoryDiscovery | null = null;
+  let unsubscribeDirectory: (() => void) | null = null;
+  let automaticLoadApproached = false;
+  let automaticBatchSpent = false;
 
   const registeredOrigins = $derived.by(() => [
     ...new Set(
@@ -41,26 +49,96 @@
       })
     )
   ]);
-  const directoryQuery = createQuery(
-    () => ({
-      queryKey: ['public', 'server-directory', registeredOrigins],
-      queryFn: ({ signal }) => loadServerDirectory(registeredOrigins, { signal }),
-      staleTime: 0,
-      refetchOnMount: 'always'
-    }),
-    () => queryClient
-  );
-  const entries = $derived(
-    directoryQuery.data?.entries.filter((entry) => entry.profile !== null) ?? []
-  );
+  const entries = $derived(directoryState?.entries.filter((entry) => entry.profile !== null) ?? []);
   const allSourcesFailed = $derived(
-    !!directoryQuery.data &&
-      directoryQuery.data.sourceCount > 0 &&
-      directoryQuery.data.failedSourceCount === directoryQuery.data.sourceCount
+    !!directoryState &&
+      !directoryState.isLoading &&
+      directoryState.sourceCount > 0 &&
+      directoryState.failedSourceCount === directoryState.sourceCount
   );
   const someSourcesFailed = $derived(
-    !!directoryQuery.data && directoryQuery.data.failedSourceCount > 0 && !allSourcesFailed
+    !!directoryState && directoryState.failedSourceCount > 0 && !allSourcesFailed
   );
+
+  onMount(() => {
+    startDirectoryDiscovery();
+    return stopDirectoryDiscovery;
+  });
+
+  function startDirectoryDiscovery() {
+    stopDirectoryDiscovery();
+    directoryState = null;
+    automaticLoadApproached = false;
+    automaticBatchSpent = false;
+    const session = createServerDirectoryDiscovery(registeredOrigins, {
+      initiallyVisible: document.visibilityState === 'visible'
+    });
+    directorySession = session;
+    unsubscribeDirectory = session.subscribe((snapshot) => {
+      if (directorySession !== session) return;
+      directoryState = snapshot;
+      tryAutomaticLoad();
+    });
+    session.start();
+  }
+
+  function stopDirectoryDiscovery() {
+    unsubscribeDirectory?.();
+    unsubscribeDirectory = null;
+    directorySession?.cancel();
+    directorySession = null;
+  }
+
+  function handleVisibilityChange() {
+    directorySession?.setVisible(document.visibilityState === 'visible');
+    tryAutomaticLoad();
+  }
+
+  function tryAutomaticLoad() {
+    const session = directorySession;
+    if (
+      !session ||
+      automaticBatchSpent ||
+      !automaticLoadApproached ||
+      document.visibilityState !== 'visible' ||
+      !directoryState?.canLoadMore
+    ) {
+      return;
+    }
+    automaticBatchSpent = true;
+    session.loadMore();
+  }
+
+  function loadMoreManually() {
+    automaticBatchSpent = true;
+    directorySession?.loadMore();
+  }
+
+  const observeAutomaticLoadSentinel: Attachment<HTMLElement> = (sentinel) => {
+    const root = scrollContainer;
+    if (!root || typeof IntersectionObserver === 'undefined') return;
+    let isNearEnd = false;
+
+    const recordApproach = () => {
+      if (!isNearEnd || root.scrollTop <= 0) return;
+      automaticLoadApproached = true;
+      tryAutomaticLoad();
+    };
+    const observer = new IntersectionObserver(
+      (observations) => {
+        isNearEnd = observations.some((observation) => observation.isIntersecting);
+        recordApproach();
+      },
+      { root, rootMargin: '0px 0px 160px 0px' }
+    );
+    root.addEventListener('scroll', recordApproach, { passive: true });
+    observer.observe(sentinel);
+
+    return () => {
+      root.removeEventListener('scroll', recordApproach);
+      observer.disconnect();
+    };
+  };
 
   function normalizeCustomInput(value: string): string {
     const trimmed = value.trim();
@@ -172,6 +250,8 @@
   function sourceName(origin: string): string {
     const registered = registeredServer(origin);
     if (registered) return registered.name;
+    const discovered = entries.find((entry) => entry.origin === origin);
+    if (discovered?.profile?.name) return discovered.profile.name;
     try {
       return new URL(origin).host;
     } catch {
@@ -208,7 +288,11 @@
             {
               sourceOrigin: recommendation.sourceOrigin,
               sourceName: sourceName(recommendation.sourceOrigin),
-              sourceIconUrl: registeredServer(recommendation.sourceOrigin)?.iconUrl ?? null,
+              sourceIconUrl:
+                registeredServer(recommendation.sourceOrigin)?.iconUrl ??
+                entries.find((candidate) => candidate.origin === recommendation.sourceOrigin)?.profile
+                  ?.iconUrl ??
+                null,
               testimonial: recommendation.testimonial
             }
           ]
@@ -216,6 +300,8 @@
     );
   }
 </script>
+
+<svelte:document onvisibilitychange={handleVisibilityChange} />
 
 <PageTitle title={m('add_server.directory.title')} />
 
@@ -226,7 +312,7 @@
     showMobileNav
   />
 
-  <PaneContent>
+  <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       <Panel title={m('add_server.directory.custom_title')}>
         <Form onsubmit={probeCustomServer} error={customError} maxWidth="max-w-2xl">
@@ -314,20 +400,20 @@
           <div class="mb-4"><Hint tone="warning">{m('add_server.directory.partial')}</Hint></div>
         {/if}
 
-        {#if directoryQuery.isPending}
+        {#if !directoryState || directoryState.isInitialLoading}
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
             {#each Array(3) as _, index (index)}
               <div class="skeleton h-64 rounded-xl bg-surface"></div>
             {/each}
           </div>
-        {:else if directoryQuery.isError || allSourcesFailed}
+        {:else if allSourcesFailed}
           <EmptyState
             icon="icon-[uil--exclamation-triangle]"
             title={m('add_server.directory.unavailable_title')}
           >
             <div class="flex flex-col items-center gap-3">
               <span>{m('add_server.directory.unavailable_body')}</span>
-              <Button variant="secondary" onclick={() => directoryQuery.refetch()}>
+              <Button variant="secondary" onclick={startDirectoryDiscovery}>
                 {m('common.retry')}
               </Button>
             </div>
@@ -414,6 +500,32 @@
               </div>
             {/each}
           </div>
+        {/if}
+        {#if directoryState && !allSourcesFailed}
+          {#if entries.length > 0 && !directoryState.sessionLimitReached}
+            <div
+              class="h-px"
+              aria-hidden="true"
+              data-testid="server-directory-auto-load-sentinel"
+              {@attach observeAutomaticLoadSentinel}
+            ></div>
+          {/if}
+          {#if directoryState.isLoading && !directoryState.isInitialLoading}
+            <p class="mt-4 text-center text-muted" aria-live="polite">
+              {m('add_server.directory.discovering')}
+            </p>
+          {/if}
+          {#if directoryState.sessionLimitReached}
+            <div class="mt-4">
+              <Hint tone="warning">{m('add_server.directory.session_limit_reached')}</Hint>
+            </div>
+          {:else if directoryState.canLoadMore}
+            <div class="mt-4 flex justify-center">
+              <Button variant="secondary" onclick={loadMoreManually}>
+                {m('add_server.directory.load_more')}
+              </Button>
+            </div>
+          {/if}
         {/if}
       </Panel>
     </div>

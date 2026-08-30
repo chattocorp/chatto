@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getPublicNeighbors,
   getPublicServerInfo,
@@ -25,6 +25,8 @@ vi.mock('@connectrpc/connect-web', () => ({
 }));
 
 describe('public server discovery', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
@@ -97,6 +99,7 @@ describe('public server discovery', () => {
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
       baseUrl: 'https://chat.example.test/api/connect',
+      fetch: expect.any(Function),
       useBinaryFormat: false
     });
     expect(mocks.getServer).toHaveBeenCalledWith({}, { signal: undefined });
@@ -122,6 +125,31 @@ describe('public server discovery', () => {
         }
       ]
     });
+  });
+
+  it('omits browser credentials, referrers, and redirects from public discovery', async () => {
+    const browserFetch = vi.fn().mockResolvedValue(new Response());
+    vi.stubGlobal('fetch', browserFetch);
+    mocks.getServer.mockResolvedValue({ profile: { name: 'Chatto', version: '0.5.0' } });
+
+    await getPublicServerInfo('https://chat.example.test');
+    const transportOptions = mocks.createConnectTransport.mock.calls[0]?.[0] as {
+      fetch: typeof fetch;
+    };
+    await transportOptions.fetch('https://chat.example.test/api/connect/discovery', {
+      credentials: 'include',
+      redirect: 'follow',
+      referrerPolicy: 'origin'
+    });
+
+    expect(browserFetch).toHaveBeenCalledWith(
+      'https://chat.example.test/api/connect/discovery',
+      expect.objectContaining({
+        credentials: 'omit',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer'
+      })
+    );
   });
 
   it('uses profile defaults when optional public profile fields are absent', async () => {

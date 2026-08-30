@@ -1,8 +1,8 @@
 import { flushSync } from 'svelte';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
-import { queryClient } from '$lib/query/client';
+import type { ServerDirectorySnapshot } from '$lib/serverDirectory';
 
 const mocks = vi.hoisted(() => ({
   servers: [] as Array<{
@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
   }>,
   authenticated: new Set<string>(),
   loadServerDirectory: vi.fn(),
+  loadMoreDirectory: vi.fn(),
+  publishDirectorySnapshot: undefined as
+    | ((snapshot: Partial<ServerDirectorySnapshot>) => void)
+    | undefined,
   getPublicServerInfo: vi.fn(),
   startServerOAuthFlow: vi.fn(),
   startRemoteReauthentication: vi.fn(),
@@ -35,7 +39,62 @@ vi.mock('$lib/api-client/server', async (importOriginal) => {
 });
 vi.mock('$lib/serverDirectory', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/serverDirectory')>();
-  return { ...actual, loadServerDirectory: mocks.loadServerDirectory };
+  return {
+    ...actual,
+    createServerDirectoryDiscovery: (origins: readonly string[]) => {
+      let listener: ((snapshot: ServerDirectorySnapshot) => void) | undefined;
+      let cancelled = false;
+      const snapshot = (value: Partial<ServerDirectorySnapshot> = {}): ServerDirectorySnapshot => ({
+        entries: [],
+        failedSourceCount: 0,
+        failedCandidateCount: 0,
+        nonMutualCandidateCount: 0,
+        sourceCount: origins.length,
+        activeRequestCount: 0,
+        queuedCandidateCount: 0,
+        directoryRequestCount: origins.length,
+        profileRequestCount: 0,
+        totalRequestCount: origins.length,
+        isStarted: true,
+        isLoading: false,
+        isInitialLoading: false,
+        isPaused: false,
+        canLoadMore: false,
+        sessionLimitReached: false,
+        ...value
+      });
+      const publish = async (
+        loader: (values: readonly string[]) => Promise<Partial<ServerDirectorySnapshot>>
+      ) => {
+        const value = await loader(origins);
+        if (!cancelled) listener?.(snapshot(value));
+      };
+      return {
+        subscribe(callback: (value: ServerDirectorySnapshot) => void) {
+          listener = callback;
+          mocks.publishDirectorySnapshot = (value) => listener?.(snapshot(value));
+          callback(snapshot({ isStarted: false, isLoading: true, isInitialLoading: true }));
+          return () => {
+            listener = undefined;
+            mocks.publishDirectorySnapshot = undefined;
+          };
+        },
+        start() {
+          void publish(mocks.loadServerDirectory);
+        },
+        loadMore() {
+          if (mocks.loadMoreDirectory.getMockImplementation()) {
+            void publish(mocks.loadMoreDirectory);
+          }
+        },
+        setVisible: vi.fn(),
+        cancel() {
+          cancelled = true;
+        },
+        whenIdle: vi.fn(async () => undefined)
+      };
+    }
+  };
 });
 vi.mock('$lib/auth/reauth', () => ({
   startServerOAuthFlow: mocks.startServerOAuthFlow,
@@ -88,9 +147,46 @@ function recommendation(
   return { sourceOrigin, testimonial };
 }
 
+let intersectionCallback: IntersectionObserverCallback | undefined;
+
+function mockIntersectionObserver() {
+  intersectionCallback = undefined;
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(callback: IntersectionObserverCallback) {
+        intersectionCallback = callback;
+      }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+  );
+}
+
+function triggerIntersection(isIntersecting = true) {
+  intersectionCallback?.(
+    [{ isIntersecting } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+}
+
+function approachAutomaticLoad(container: HTMLElement): HTMLElement {
+  const sentinel = container.querySelector<HTMLElement>(
+    '[data-testid="server-directory-auto-load-sentinel"]'
+  )!;
+  const scrollContainer = sentinel.closest<HTMLElement>('[role="region"]')!;
+  Object.defineProperty(scrollContainer, 'scrollTop', {
+    configurable: true,
+    value: 100,
+    writable: true
+  });
+  triggerIntersection();
+  scrollContainer.dispatchEvent(new Event('scroll'));
+  return scrollContainer;
+}
+
 describe('Server Directory page', () => {
   beforeEach(() => {
-    queryClient.clear();
     mocks.servers = [
       {
         id: 'joined',
@@ -109,6 +205,8 @@ describe('Server Directory page', () => {
     ];
     mocks.authenticated = new Set(['joined']);
     mocks.loadServerDirectory.mockReset();
+    mocks.loadMoreDirectory.mockReset();
+    mocks.publishDirectorySnapshot = undefined;
     mocks.getPublicServerInfo.mockReset();
     mocks.startServerOAuthFlow.mockReset();
     mocks.startServerOAuthFlow.mockResolvedValue(undefined);
@@ -116,6 +214,11 @@ describe('Server Directory page', () => {
     mocks.startRemoteReauthentication.mockResolvedValue(undefined);
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('keeps directory response order and marks registered entries as joined', async () => {
@@ -491,5 +594,285 @@ describe('Server Directory page', () => {
     expect(profileCard.contains(section)).toBe(false);
     expect(profileCard.nextElementSibling).toBe(section);
     expect(container.querySelector('.columns-1')).not.toBeNull();
+  });
+
+  it('shows verified entries while discovery is still active', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://ready.example',
+          profile: profile('Ready'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2,
+      isLoading: true,
+      isInitialLoading: false,
+      activeRequestCount: 1
+    });
+
+    const { container } = render(Page);
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Ready description');
+      expect(container.textContent).toContain('Discovering more servers');
+    });
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+
+  it('loads one additional discovery batch without removing existing entries', async () => {
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      failedSourceCount: 0,
+      sourceCount: 2,
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({
+      entries: [
+        first,
+        {
+          origin: 'https://second.example',
+          profile: profile('Second'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Load more')).toBeDefined());
+    button(container, 'Load more')?.click();
+
+    await vi.waitFor(() => {
+      const entries = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-testid="server-directory-entry"]')
+      );
+      expect(entries.map(({ dataset }) => dataset.origin)).toEqual([
+        'https://first.example',
+        'https://second.example'
+      ]);
+    });
+  });
+
+  it('does not add an automatic batch after the user loads more manually', async () => {
+    mockIntersectionObserver();
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 2
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Load more')).toBeDefined());
+    button(container, 'Load more')?.click();
+    await vi.waitFor(() => expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce());
+
+    approachAutomaticLoad(container);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce();
+  });
+
+  it('does not automatically load when a short directory starts near the sentinel', async () => {
+    mockIntersectionObserver();
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://first.example',
+          profile: profile('First'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(intersectionCallback).toBeDefined());
+    triggerIntersection();
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
+    expect(button(container, 'Load more')).toBeDefined();
+  });
+
+  it('automatically loads only one batch after the user scrolls near the end', async () => {
+    mockIntersectionObserver();
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 2
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(intersectionCallback).toBeDefined());
+    const scrollContainer = approachAutomaticLoad(container);
+    triggerIntersection();
+
+    await vi.waitFor(() => expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce());
+    scrollContainer.dispatchEvent(new Event('scroll'));
+    triggerIntersection();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce();
+    expect(button(container, 'Load more')).toBeDefined();
+  });
+
+  it('waits for active discovery before spending an approached automatic batch', async () => {
+    mockIntersectionObserver();
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      isLoading: true,
+      canLoadMore: false,
+      queuedCandidateCount: 1
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({ entries: [first] });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(intersectionCallback).toBeDefined());
+    approachAutomaticLoad(container);
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
+
+    mocks.publishDirectorySnapshot?.({
+      entries: [first],
+      isLoading: false,
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+
+    await vi.waitFor(() => expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce());
+  });
+
+  it('does not spend the automatic batch while the page is hidden', async () => {
+    mockIntersectionObserver();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({ entries: [first] });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(intersectionCallback).toBeDefined());
+    visibility.mockReturnValue('hidden');
+    approachAutomaticLoad(container);
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
+
+    visibility.mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce());
+    visibility.mockRestore();
+  });
+
+  it('uses discovered source profiles for recursive testimonial attribution', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://neighbor.example',
+          profile: profile('Neighbor source', {
+            iconUrl: 'https://cdn.example/neighbor-source.webp'
+          }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        },
+        {
+          origin: 'https://second-hop.example',
+          profile: profile('Second hop'),
+          sourceOrigins: ['https://neighbor.example'],
+          recommendations: [recommendation('https://neighbor.example', 'A mutual second hop.')]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(container.textContent).toContain('A mutual second hop.'));
+
+    const secondHop = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-testid="server-directory-entry"]')
+    ).find(({ dataset }) => dataset.origin === 'https://second-hop.example')!;
+    const testimonial = secondHop.parentElement?.querySelector<HTMLElement>(
+      '[data-testid="server-testimonial"]'
+    );
+    expect(testimonial?.textContent).toContain('Neighbor source');
+    expect(testimonial?.querySelector<HTMLImageElement>('img')?.src).toBe(
+      'https://cdn.example/neighbor-source.webp'
+    );
+  });
+
+  it('explains when the page-session discovery limit is reached', async () => {
+    mockIntersectionObserver();
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://first.example',
+          profile: profile('First'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2,
+      canLoadMore: false,
+      sessionLimitReached: true
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain(
+        'The discovery limit for this session has been reached'
+      );
+    });
+    expect(button(container, 'Load more')).toBeUndefined();
+    expect(
+      container.querySelector('[data-testid="server-directory-auto-load-sentinel"]')
+    ).toBeNull();
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
   });
 });

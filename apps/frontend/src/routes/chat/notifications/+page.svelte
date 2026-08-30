@@ -30,6 +30,12 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { getEmojiByName } from '$lib/emoji';
+  import {
+    enablePushOnAllServers,
+    getPermission,
+    getPushCapability,
+    getPushRegistrationTargets
+  } from '$lib/notifications/pushNotifications';
 
   type ServerGroup = {
     serverId: string;
@@ -65,6 +71,8 @@
   let loadingMore = $state(false);
   let loadMoreError = $state(false);
   let dismissingRead = $state(false);
+  let pushPermission = $state<NotificationPermission | null>(getPermission());
+  let enablingPush = $state(false);
   const pendingMutationKeys = new SvelteSet<string>();
   const hasPendingMutation = $derived(pendingMutationKeys.size > 0);
   const hasMore = $derived(pagination.some((source) => source.hasMore));
@@ -95,6 +103,11 @@
   });
   const dateSections = $derived.by(() => groupNotificationsByDate(visibleGroups));
   const readOccurrenceBatches = $derived.by(readOccurrencesByServer);
+  const showEnablePush = $derived(
+    getPushCapability() === 'supported' &&
+      pushPermission === 'default' &&
+      getPushRegistrationTargets().length > 0
+  );
 
   // Realtime normally hydrates this retained store before the route is opened.
   // Fetch only genuinely missing projections as a transport fallback.
@@ -468,6 +481,30 @@
     }
     dismissingRead = false;
   }
+
+  async function enablePushNotifications() {
+    if (enablingPush) return;
+    enablingPush = true;
+    try {
+      const result = await enablePushOnAllServers();
+      pushPermission = result.permission;
+      if (result.permission === 'denied') {
+        toast.error(m('settings.notifications.push_prompt.blocked'));
+      } else if (
+        result.permission === 'granted' &&
+        result.registrations.length > 0 &&
+        result.registrations.every((registration) => registration.registered)
+      ) {
+        toast.success(m('settings.notifications.push_prompt.enabled'));
+      } else if (result.permission === 'granted') {
+        toast.error(m('settings.notifications.push_prompt.enable_failed'));
+      }
+    } catch {
+      toast.error(m('settings.notifications.push_prompt.enable_failed'));
+    } finally {
+      enablingPush = false;
+    }
+  }
 </script>
 
 <div class="flex h-full w-full flex-col">
@@ -477,6 +514,19 @@
     showMobileNav
   >
     {#snippet actions()}
+      {#if showEnablePush}
+        <Button
+          size="sm"
+          disabled={enablingPush}
+          loading={enablingPush}
+          loadingText={m('settings.notifications.push_prompt.enabling')}
+          label={m('settings.notifications.push_prompt.title')}
+          onclick={enablePushNotifications}
+        >
+          <span class="iconify icon-[uil--bell] text-base" aria-hidden="true"></span>
+          <span>{m('settings.notifications.push_prompt.title')}</span>
+        </Button>
+      {/if}
       {#if readOccurrenceBatches.length > 0 || dismissingRead}
         <Button
           variant="danger-secondary"

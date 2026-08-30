@@ -4,7 +4,7 @@ import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelt
 
 /**
  * Room-specific unread marker wrapper. The shared unread marker hook owns the
- * focus/refocus lifecycle; this wrapper only wires room read-state mutation
+ * entry and foreground lifecycle; this wrapper only wires read-state mutation
  * and room-list unread clearing.
  *
  * Must be called during component initialization (uses context).
@@ -20,21 +20,22 @@ export function useRoomUnread(
   const roomUnreadStore = serverScope.store.roomUnread;
 
   const unread = useUnreadMarker(() => getProps().roomId, {
-    markAsRead: async (targetRoomId: string, upToEventId?: string) => {
-      if (getProps().canReadMessages === false) return null;
-
+    markAsRead: async (
+      targetRoomId: string,
+      upToEventId: string | undefined,
+      signal: AbortSignal
+    ) => {
       const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {
         const result = await serverScope.connection
           .getAPI(createReadStateAPI)
-          .markRoomAsRead({ roomId: targetRoomId, upToEventId });
+          .markRoomAsRead({ roomId: targetRoomId, upToEventId }, { signal });
         optimisticRead.commit();
         return result;
       } catch (err) {
         optimisticRead.rollback();
-        console.error('Failed to mark room as read:', err);
-        return null;
+        throw err;
       }
     },
     markerWindowFromReadResult: (result: MarkRoomAsReadResult, markedAtMs: number) => {
@@ -45,7 +46,9 @@ export function useRoomUnread(
         beforeTime: markedAtMs
       };
     },
-    getMarkerEvents: () => getProps().events
+    getMarkerEvents: () => getProps().events,
+    canMarkAsRead: () => getProps().canReadMessages !== false,
+    onMarkAsReadError: (error) => console.error('Failed to mark room as read:', error)
   });
 
   return {

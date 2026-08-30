@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  enablePushOnAllServers,
   ensureRegistered,
   getPushCapability,
   getPushRegistrationTargets,
@@ -343,6 +344,7 @@ describe('pushNotifications.getPushRegistrationTargets', () => {
     mocks.serverStores.origin.isAuthenticated = true;
     mocks.serverStores.origin.serverInfo.pushNotificationsEnabled = true;
     mocks.serverStores.remote.isAuthenticated = true;
+    mocks.serverStores.remote.currentUser.user.id = 'remote-user';
     mocks.serverStores.remote.serverInfo.pushNotificationsEnabled = true;
   });
 
@@ -366,6 +368,14 @@ describe('pushNotifications.ensureRegistered', () => {
   beforeEach(() => {
     permission = 'default';
     installPushGlobals();
+    mocks.serverStores.origin.isAuthenticated = true;
+    mocks.serverStores.origin.currentUser.user.id = 'origin-user';
+    mocks.serverStores.origin.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverStores.origin.serverInfo.vapidPublicKey = 'origin-vapid';
+    mocks.serverStores.remote.isAuthenticated = true;
+    mocks.serverStores.remote.currentUser.user.id = 'remote-user';
+    mocks.serverStores.remote.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverStores.remote.serverInfo.vapidPublicKey = 'remote-vapid';
     resumePushRegistrationAfterAuthentication('origin');
     resumePushRegistrationAfterAuthentication('remote');
     mocks.createPushNotificationAPI.mockReset();
@@ -673,6 +683,202 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(requestPermission).toHaveBeenCalledOnce();
     expect(subscribe).toHaveBeenCalledOnce();
     expect(mocks.subscribePush).toHaveBeenCalledOnce();
+  });
+
+  it('prompts once and registers the origin and remote servers', async () => {
+    const originSubscription = makeSubscription('https://push.example/origin-all');
+    const remoteSubscription = makeSubscription('https://push.example/remote-all');
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockResolvedValue(originSubscription);
+    const register = vi.fn().mockResolvedValue({
+      active: {},
+      pushManager: {
+        getSubscription: vi.fn().mockResolvedValue(null),
+        subscribe: vi.fn().mockResolvedValue(remoteSubscription)
+      }
+    });
+    Object.assign(navigator.serviceWorker, { register });
+
+    await expect(enablePushOnAllServers()).resolves.toEqual({
+      permission: 'granted',
+      registrations: [
+        expect.objectContaining({ serverId: 'origin', registered: true }),
+        expect.objectContaining({ serverId: 'remote', registered: true })
+      ]
+    });
+    expect(requestPermission).toHaveBeenCalledOnce();
+    expect(mocks.subscribePush).toHaveBeenCalledTimes(2);
+  });
+
+  it('registers a remote-only client through the same enable operation', async () => {
+    mocks.serverStores.origin.isAuthenticated = false;
+    const remoteSubscription = makeSubscription('https://push.example/remote-only');
+    Object.assign(navigator.serviceWorker, {
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        pushManager: {
+          getSubscription: vi.fn().mockResolvedValue(null),
+          subscribe: vi.fn().mockResolvedValue(remoteSubscription)
+        }
+      })
+    });
+
+    const result = await enablePushOnAllServers();
+    expect(result.registrations).toEqual([
+      expect.objectContaining({ serverId: 'remote', registered: true })
+    ]);
+    expect(requestPermission).toHaveBeenCalledOnce();
+  });
+
+  it('does not attempt remaining servers when permission is denied', async () => {
+    requestPermission.mockImplementationOnce(async () => {
+      permission = 'denied';
+      return permission;
+    });
+
+    const result = await enablePushOnAllServers();
+    expect(result).toEqual({
+      permission: 'denied',
+      registrations: [
+        expect.objectContaining({ serverId: 'origin', registered: false }),
+        expect.objectContaining({ serverId: 'remote', registered: false })
+      ]
+    });
+    expect(mocks.subscribePush).not.toHaveBeenCalled();
+  });
+
+  it('shares one permission request across concurrent enable operations', async () => {
+    const permissionChoice = deferred<NotificationPermission>();
+    requestPermission.mockImplementationOnce(() => permissionChoice.promise);
+
+    const first = enablePushOnAllServers();
+    const second = enablePushOnAllServers();
+    expect(first).toBe(second);
+    expect(requestPermission).toHaveBeenCalledOnce();
+
+    permission = 'denied';
+    permissionChoice.resolve('denied');
+    await expect(first).resolves.toEqual({
+      permission: 'denied',
+      registrations: [
+        expect.objectContaining({ serverId: 'origin', registered: false }),
+        expect.objectContaining({ serverId: 'remote', registered: false })
+      ]
+    });
+  });
+
+  it('registers the current server list after the permission prompt closes', async () => {
+    mocks.serverStores.remote.serverInfo.pushNotificationsEnabled = false;
+    const permissionChoice = deferred<NotificationPermission>();
+    requestPermission.mockImplementationOnce(() => permissionChoice.promise);
+    const remoteSubscription = makeSubscription('https://push.example/remote-added');
+    Object.assign(navigator.serviceWorker, {
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        pushManager: {
+          getSubscription: vi.fn().mockResolvedValue(null),
+          subscribe: vi.fn().mockResolvedValue(remoteSubscription)
+        }
+      })
+    });
+
+    const enabling = enablePushOnAllServers();
+    mocks.serverStores.origin.isAuthenticated = false;
+    mocks.serverStores.remote.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverStores.remote.currentUser.user.id = 'new-remote-user';
+    mocks.serverStores.remote.serverInfo.vapidPublicKey = 'new-remote-vapid';
+    permission = 'granted';
+    permissionChoice.resolve('granted');
+
+    await expect(enabling).resolves.toEqual({
+      permission: 'granted',
+      registrations: [
+        expect.objectContaining({
+          serverId: 'remote',
+          userId: 'new-remote-user',
+          vapidPublicKey: 'new-remote-vapid',
+          registered: true
+        })
+      ]
+    });
+    expect(mocks.createPushNotificationAPI).not.toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: 'https://origin.test/api/connect' })
+    );
+  });
+
+  it('reconciles targets added while explicit activation is still registering', async () => {
+    mocks.serverStores.remote.serverInfo.pushNotificationsEnabled = false;
+    const permissionChoice = deferred<NotificationPermission>();
+    const originSave = deferred<{ subscribed: boolean }>();
+    requestPermission.mockImplementationOnce(() => permissionChoice.promise);
+    getSubscription.mockResolvedValue(makeSubscription('https://push.example/origin-race'));
+    mocks.subscribePush
+      .mockReturnValueOnce(originSave.promise)
+      .mockResolvedValue({ subscribed: true });
+    const remoteSubscription = makeSubscription('https://push.example/remote-race');
+    Object.assign(navigator.serviceWorker, {
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        pushManager: {
+          getSubscription: vi.fn().mockResolvedValue(remoteSubscription),
+          subscribe: vi.fn()
+        }
+      })
+    });
+
+    const enabling = enablePushOnAllServers();
+    permission = 'granted';
+    permissionChoice.resolve('granted');
+    await vi.waitFor(() => expect(mocks.subscribePush).toHaveBeenCalledOnce());
+
+    mocks.serverStores.remote.serverInfo.pushNotificationsEnabled = true;
+    const refreshing = refreshPushSubscriptions();
+    originSave.resolve({ subscribed: true });
+
+    await expect(enabling).resolves.toEqual(expect.objectContaining({ permission: 'granted' }));
+    await expect(refreshing).resolves.toBeUndefined();
+    expect(mocks.createPushNotificationAPI).toHaveBeenCalledWith({
+      baseUrl: 'https://remote.test/api/connect',
+      bearerToken: 'remote-token'
+    });
+  });
+
+  it('reports all targets as failed when the permission request rejects', async () => {
+    requestPermission.mockRejectedValueOnce(new Error('permission prompt unavailable'));
+
+    await expect(enablePushOnAllServers()).resolves.toEqual({
+      permission: 'default',
+      registrations: [
+        expect.objectContaining({ serverId: 'origin', registered: false }),
+        expect.objectContaining({ serverId: 'remote', registered: false })
+      ]
+    });
+    expect(mocks.subscribePush).not.toHaveBeenCalled();
+  });
+
+  it('reports a remote registration failure without losing the origin success', async () => {
+    const originSubscription = makeSubscription('https://push.example/origin-partial');
+    const remoteSubscription = makeSubscription('https://push.example/remote-partial');
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockResolvedValue(originSubscription);
+    Object.assign(navigator.serviceWorker, {
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        pushManager: {
+          getSubscription: vi.fn().mockResolvedValue(null),
+          subscribe: vi.fn().mockResolvedValue(remoteSubscription)
+        }
+      })
+    });
+    mocks.subscribePush
+      .mockResolvedValueOnce({ subscribed: true })
+      .mockResolvedValueOnce({ subscribed: false });
+
+    const result = await enablePushOnAllServers();
+    expect(result.registrations).toEqual([
+      expect.objectContaining({ serverId: 'origin', registered: true }),
+      expect.objectContaining({ serverId: 'remote', registered: false })
+    ]);
   });
 
   it('cleans up only a newly created subscription when server save fails', async () => {

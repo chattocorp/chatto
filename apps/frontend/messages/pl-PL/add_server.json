@@ -32,7 +32,10 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "Opinie o {server}"
+      "testimonials_for": "Opinie o {server}",
+      "discovering": "Wyszukiwanie kolejnych serwerów…",
+      "load_more": "Wczytaj więcej",
+      "session_limit_reached": "Osiągnięto limit wyszukiwania dla tej sesji."
     }
   }
 }

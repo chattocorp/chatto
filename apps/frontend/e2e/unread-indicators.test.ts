@@ -180,60 +180,56 @@ test.describe('Unread indicators', () => {
     await waitForRoomReady(page, otherRoomName);
     await waitForRoomReadViaConnect(page, otherRoomId);
 
-    await withServerUser(
-      browser!,
-      serverURL,
-      async ({ page: page2, chatPage: chatPage2 }) => {
-        await joinRoomViaConnect(page2, generalRoomId);
-        await joinRoomViaConnect(page2, otherRoomId);
-        await chatPage2.enterRoom(otherRoomName);
-        await waitForRoomReady(page2, otherRoomName);
-        await waitForRoomReadViaConnect(page2, otherRoomId);
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
-        await waitForRoomReadViaConnect(page2, generalRoomId);
+    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
+      await joinRoomViaConnect(page2, generalRoomId);
+      await joinRoomViaConnect(page2, otherRoomId);
+      await chatPage2.enterRoom(otherRoomName);
+      await waitForRoomReady(page2, otherRoomName);
+      await waitForRoomReadViaConnect(page2, otherRoomId);
+      await chatPage2.enterRoom('general');
+      await waitForRoomReady(page2, 'general');
+      await waitForRoomReadViaConnect(page2, generalRoomId);
 
-        const generalPost = await connectPost<{ message?: { id?: string } }>(
-          page2,
-          'chatto.api.v1.MessageService/CreateMessage',
-          { roomId: generalRoomId, body: `Make general unread ${Date.now()}` }
-        );
-        expect(generalPost.message?.id).toBeTruthy();
-        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+      const generalPost = await connectPost<{ message?: { id?: string } }>(
+        page2,
+        'chatto.api.v1.MessageService/CreateMessage',
+        { roomId: generalRoomId, body: `Make general unread ${Date.now()}` }
+      );
+      expect(generalPost.message?.id).toBeTruthy();
+      await waitForRoomUnreadViaConnect(page, generalRoomId, true);
 
-        await chatPage.enterRoom('general');
-        await waitForRoomReady(page, 'general');
-        await waitForRoomReadViaConnect(page, generalRoomId);
-        await chatPage.enterRoom(otherRoomName);
-        await waitForRoomReady(page, otherRoomName);
-        await waitForRoomReadViaConnect(page, otherRoomId);
+      await chatPage.enterRoom('general');
+      await waitForRoomReady(page, 'general');
+      await waitForRoomReadViaConnect(page, generalRoomId);
+      await chatPage.enterRoom(otherRoomName);
+      await waitForRoomReady(page, otherRoomName);
+      await waitForRoomReadViaConnect(page, otherRoomId);
 
-        const otherRoomPost = await connectPost<{ message?: { id?: string } }>(
-          page,
-          'chatto.api.v1.MessageService/CreateMessage',
-          { roomId: otherRoomId, body: `Other room ${Date.now()}` }
-        );
-        expect(otherRoomPost.message?.id).toBeTruthy();
-        await waitForRoomUnreadViaConnect(page2, otherRoomId, true);
-        await waitForRoomReadViaConnect(page2, generalRoomId);
+      const otherRoomPost = await connectPost<{ message?: { id?: string } }>(
+        page,
+        'chatto.api.v1.MessageService/CreateMessage',
+        { roomId: otherRoomId, body: `Other room ${Date.now()}` }
+      );
+      expect(otherRoomPost.message?.id).toBeTruthy();
+      await waitForRoomUnreadViaConnect(page2, otherRoomId, true);
+      await waitForRoomReadViaConnect(page2, generalRoomId);
 
-        const aliceGeneral = chatPage.roomList.locator('a', { hasText: '# general' });
-        const aliceOtherRoom = chatPage.roomList.locator('a', {
-          hasText: `# ${otherRoomName}`
-        });
-        const bobGeneral = chatPage2.roomList.locator('a', { hasText: '# general' });
-        const bobOtherRoom = chatPage2.roomList.locator('a', {
-          hasText: `# ${otherRoomName}`
-        });
+      const aliceGeneral = chatPage.roomList.locator('a', { hasText: '# general' });
+      const aliceOtherRoom = chatPage.roomList.locator('a', {
+        hasText: `# ${otherRoomName}`
+      });
+      const bobGeneral = chatPage2.roomList.locator('a', { hasText: '# general' });
+      const bobOtherRoom = chatPage2.roomList.locator('a', {
+        hasText: `# ${otherRoomName}`
+      });
 
-        await expect(async () => {
-          await expect(aliceGeneral.getByTestId('room-unread-dot')).not.toBeVisible();
-          await expect(aliceOtherRoom.getByTestId('room-unread-dot')).not.toBeVisible();
-          await expect(bobGeneral.getByTestId('room-unread-dot')).not.toBeVisible();
-          await expect(bobOtherRoom.getByTestId('room-unread-dot')).toBeVisible();
-        }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: POLLING_INTERVALS });
-      }
-    );
+      await expect(async () => {
+        await expect(aliceGeneral.getByTestId('room-unread-dot')).not.toBeVisible();
+        await expect(aliceOtherRoom.getByTestId('room-unread-dot')).not.toBeVisible();
+        await expect(bobGeneral.getByTestId('room-unread-dot')).not.toBeVisible();
+        await expect(bobOtherRoom.getByTestId('room-unread-dot')).toBeVisible();
+      }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: POLLING_INTERVALS });
+    });
   });
 
   test('shows unread indicator when another user posts a message to a different room', async ({
@@ -300,6 +296,139 @@ test.describe('Unread indicators', () => {
           const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
           await expect(unreadDot).not.toBeVisible();
         }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
+      }
+    );
+  });
+
+  test('retries a failed room read when the browser comes online', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000);
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+    await waitForRoomReadViaConnect(page, generalRoomId);
+    await chatPage.enterRoom('announcements');
+    await waitForRoomReady(page, 'announcements');
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: otherPage, chatPage: otherChatPage, roomPage: otherRoomPage }) => {
+        await otherChatPage.enterRoom('general');
+        await waitForRoomReady(otherPage, 'general');
+        await otherRoomPage.sendMessage(`Read retry ${Date.now()}`);
+        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+
+        const generalLink = chatPage.getRoomLink('general');
+        const unreadDot = generalLink.getByTestId('room-unread-dot');
+        await expect(unreadDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+        const markReadRoute = '**/api/connect/chatto.api.v1.RoomService/MarkRoomAsRead';
+        let allowMarkRead = false;
+        let failedAttempts = 0;
+        let allowedAttempts = 0;
+
+        await page.route(markReadRoute, async (route) => {
+          if (!allowMarkRead) {
+            failedAttempts += 1;
+            await route.abort('internetdisconnected');
+            return;
+          }
+
+          allowedAttempts += 1;
+          await route.continue();
+        });
+
+        try {
+          await chatPage.enterRoom('general');
+          await expect.poll(() => failedAttempts).toBeGreaterThan(0);
+
+          // The optimistic read must roll back while the server cursor stays
+          // behind the new message.
+          await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+          await expect(unreadDot).toBeVisible();
+
+          allowMarkRead = true;
+          await page.evaluate(() => window.dispatchEvent(new Event('online')));
+
+          await expect
+            .poll(() => allowedAttempts, { timeout: TIMEOUTS.REALTIME_EVENT })
+            .toBeGreaterThan(0);
+          await waitForRoomReadViaConnect(page, generalRoomId);
+          await expect(unreadDot).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        } finally {
+          await page.unroute(markReadRoute);
+        }
+      }
+    );
+  });
+
+  test('marks a background-entered room read when visibility returns without a focus event', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000);
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+    await waitForRoomReadViaConnect(page, generalRoomId);
+    await chatPage.enterRoom('announcements');
+    await waitForRoomReady(page, 'announcements');
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: otherPage, chatPage: otherChatPage, roomPage: otherRoomPage }) => {
+        await otherChatPage.enterRoom('general');
+        await waitForRoomReady(otherPage, 'general');
+        await otherRoomPage.sendMessage(`Foreground read ${Date.now()}`);
+        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+
+        const generalLink = chatPage.getRoomLink('general');
+        await expect(generalLink.getByTestId('room-unread-dot')).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+
+        // Model Android PWA backgrounding in the browser while keeping the
+        // page and server connection alive.
+        await page.evaluate(() => {
+          Object.defineProperties(document, {
+            hidden: { configurable: true, value: true },
+            visibilityState: { configurable: true, value: 'hidden' }
+          });
+          window.dispatchEvent(new Event('blur'));
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+
+        // Enter the room while the Chatto page is still backgrounded. The
+        // server cursor must stay unread until the page becomes visible.
+        await generalLink.evaluate((link: HTMLAnchorElement) => link.click());
+        await waitForRoomReady(page, 'general');
+        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+
+        // Android can restore visibility without a matching focus event.
+        await page.evaluate(() => {
+          Object.defineProperties(document, {
+            hidden: { configurable: true, value: false },
+            visibilityState: { configurable: true, value: 'visible' }
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await waitForRoomReadViaConnect(page, generalRoomId);
       }
     );
   });

@@ -34,12 +34,11 @@ const mocks = vi.hoisted(() => ({
     supportsFeature: vi.fn(() => true)
   },
   pushNotifications: {
-    ensureRegistered: vi.fn(),
+    enablePushOnAllServers: vi.fn(),
     isBrowserWebPushRuntime: vi.fn(),
     getPushCapability: vi.fn(),
     getPermission: vi.fn(),
     isSubscribed: vi.fn(),
-    refreshPushSubscriptions: vi.fn(),
     sendTestNotification: vi.fn()
   }
 }));
@@ -53,12 +52,11 @@ vi.mock('$lib/audio/notificationSounds', async (importOriginal) => {
 });
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
-  ensureRegistered: mocks.pushNotifications.ensureRegistered,
+  enablePushOnAllServers: mocks.pushNotifications.enablePushOnAllServers,
   isBrowserWebPushRuntime: mocks.pushNotifications.isBrowserWebPushRuntime,
   getPushCapability: mocks.pushNotifications.getPushCapability,
   getPermission: mocks.pushNotifications.getPermission,
   isSubscribed: mocks.pushNotifications.isSubscribed,
-  refreshPushSubscriptions: mocks.pushNotifications.refreshPushSubscriptions,
   sendTestNotification: mocks.pushNotifications.sendTestNotification
 }));
 
@@ -176,8 +174,18 @@ describe('Notification settings page', () => {
     mocks.serverInfo.pushNotificationsEnabled = false;
     mocks.serverInfo.vapidPublicKey = null;
     mocks.serverInfo.supportsFeature.mockReturnValue(true);
-    mocks.pushNotifications.ensureRegistered.mockReset();
-    mocks.pushNotifications.ensureRegistered.mockResolvedValue(true);
+    mocks.pushNotifications.enablePushOnAllServers.mockReset();
+    mocks.pushNotifications.enablePushOnAllServers.mockResolvedValue({
+      permission: 'granted',
+      registrations: [
+        {
+          serverId: 'origin',
+          userId: 'origin-user',
+          vapidPublicKey: 'vapid-key',
+          registered: true
+        }
+      ]
+    });
     mocks.pushNotifications.isBrowserWebPushRuntime.mockReset();
     mocks.pushNotifications.isBrowserWebPushRuntime.mockReturnValue(true);
     mocks.pushNotifications.getPermission.mockReset();
@@ -186,8 +194,6 @@ describe('Notification settings page', () => {
     mocks.pushNotifications.getPushCapability.mockReturnValue('supported');
     mocks.pushNotifications.isSubscribed.mockReset();
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
-    mocks.pushNotifications.refreshPushSubscriptions.mockReset();
-    mocks.pushNotifications.refreshPushSubscriptions.mockResolvedValue(undefined);
     mocks.pushNotifications.sendTestNotification.mockReset();
     mocks.pushNotifications.sendTestNotification.mockResolvedValue(true);
   });
@@ -365,16 +371,26 @@ describe('Notification settings page', () => {
       )
     ).toBe(false);
     expect(mocks.pushNotifications.isSubscribed).not.toHaveBeenCalled();
-    expect(mocks.pushNotifications.ensureRegistered).not.toHaveBeenCalled();
+    expect(mocks.pushNotifications.enablePushOnAllServers).not.toHaveBeenCalled();
   });
 
   it('enables push notifications through the registration helper', async () => {
     mocks.serverInfo.pushNotificationsEnabled = true;
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
-    mocks.pushNotifications.ensureRegistered.mockImplementation(async () => {
+    mocks.pushNotifications.enablePushOnAllServers.mockImplementation(async () => {
       mocks.pushNotifications.getPermission.mockReturnValue('granted');
-      return true;
+      return {
+        permission: 'granted',
+        registrations: [
+          {
+            serverId: 'origin',
+            userId: 'origin-user',
+            vapidPublicKey: 'vapid-key',
+            registered: true
+          }
+        ]
+      };
     });
 
     const { container } = render(NotificationsPage);
@@ -383,10 +399,7 @@ describe('Notification settings page', () => {
     buttonWithText(container, 'Enable').click();
     await settle();
 
-    expect(mocks.pushNotifications.ensureRegistered).toHaveBeenCalledWith('origin', 'vapid-key', {
-      prompt: true
-    });
-    expect(mocks.pushNotifications.refreshPushSubscriptions).toHaveBeenCalledOnce();
+    expect(mocks.pushNotifications.enablePushOnAllServers).toHaveBeenCalledOnce();
     expect(container.textContent).toContain('Push notifications enabled');
     expect(container.textContent).toContain('disable them for this site');
     expect(container.textContent).not.toContain('Disable');
@@ -396,10 +409,28 @@ describe('Notification settings page', () => {
     mocks.serverInfo.pushNotificationsEnabled = true;
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
-    const firstOriginResult = deferred<boolean>();
-    mocks.pushNotifications.ensureRegistered
+    const firstOriginResult = deferred<{
+      permission: NotificationPermission;
+      registrations: Array<{
+        serverId: string;
+        userId: string;
+        vapidPublicKey: string;
+        registered: boolean;
+      }>;
+    }>();
+    mocks.pushNotifications.enablePushOnAllServers
       .mockReturnValueOnce(firstOriginResult.promise)
-      .mockResolvedValueOnce(false);
+      .mockResolvedValueOnce({
+        permission: 'granted',
+        registrations: [
+          {
+            serverId: 'origin',
+            userId: 'origin-user',
+            vapidPublicKey: 'vapid-key',
+            registered: false
+          }
+        ]
+      });
 
     const { container } = render(NotificationsPage);
     await settle();
@@ -416,7 +447,17 @@ describe('Notification settings page', () => {
     await settle();
     expect(container.textContent).toContain('Failed to enable push notifications');
 
-    firstOriginResult.resolve(true);
+    firstOriginResult.resolve({
+      permission: 'granted',
+      registrations: [
+        {
+          serverId: 'origin',
+          userId: 'origin-user',
+          vapidPublicKey: 'vapid-key',
+          registered: true
+        }
+      ]
+    });
     await settle();
 
     expect(container.textContent).toContain('Failed to enable push notifications');
