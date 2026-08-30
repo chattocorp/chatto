@@ -122,8 +122,11 @@ The recorded time can be delayed by approximately one minute.
 
 ## Activate a bot from Chatto activity
 
-Use the normal `subscribe_events` realtime subscription. Chatto sends the
-bot's visible notification occurrences in
+Use the normal `subscribe_events` realtime subscription. See the
+[Realtime Protocol Overview](/guides/integrations/realtime-protocol/) for the
+connection and resume model, or follow the
+[TypeScript tutorial](/guides/integrations/realtime-typescript/) to build a
+small client. Chatto sends the bot's visible notification occurrences in
 `notification_occurrences_replace`. Chatto does not use a bot-only realtime
 channel or a separate bot-interaction event.
 

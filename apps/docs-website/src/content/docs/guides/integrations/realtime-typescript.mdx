@@ -1,0 +1,449 @@
+---
+title: Use Realtime From TypeScript
+description: Generate TypeScript bindings and build a small browser client for Chatto realtime protocol 2.
+---
+
+import { Aside, Steps, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+This tutorial builds a browser-based stream inspector. It connects to one
+Chatto server, applies projection events to a small inspection state, hydrates
+a room, and reconnects with the last safe cursor.
+
+The example does not build a complete Chatto user interface. A production
+client must materialize every projection operation that it supports.
+
+<Aside type="caution">
+  Chatto's public API is experimental before 1.0. Generate bindings from the
+  exact Chatto release that your server runs. Do not mix schemas from different
+  releases.
+</Aside>
+
+## Before you start
+
+You need:
+
+- a Chatto server URL, such as `https://chat.example.com`;
+- a bearer credential for a user or bot that can read the required resources;
+- [Buf](https://buf.build/docs/cli/installation/) and Node.js;
+- the `proto/` directory from the exact Chatto server release.
+
+Keep the credential out of source control, logs, URLs, screenshots, and support
+requests. The example reads it from the caller. It never prints it.
+
+## Generate TypeScript bindings
+
+<Steps>
+
+1. Create a client project and install the protobuf runtime.
+
+   ```sh
+   mkdir chatto-realtime-client
+   cd chatto-realtime-client
+   npm init -y
+   npm install @bufbuild/protobuf@1.10.1
+   npm install --save-dev @bufbuild/protoc-gen-es@1.10.1 typescript vite
+   npm pkg set type=module scripts.dev=vite scripts.check="tsc --noEmit"
+   ```
+
+2. Copy the matching Chatto release's `proto/` directory into the project.
+   Keep its `buf.yaml` file and all imported API definitions.
+
+3. Create `tsconfig.json` in the project root.
+
+   ```json
+   {
+     "compilerOptions": {
+       "target": "ES2022",
+       "module": "NodeNext",
+       "moduleResolution": "NodeNext",
+       "lib": ["ES2022", "DOM"],
+       "strict": true,
+       "noEmit": true
+     },
+     "include": ["src"]
+   }
+   ```
+
+4. Create `buf.gen.yaml` in the project root.
+
+   ```yaml
+   version: v2
+   plugins:
+     - local: node_modules/.bin/protoc-gen-es
+       out: src/gen
+       opt:
+         - target=ts
+   ```
+
+5. Generate the bindings.
+
+   ```sh
+   buf generate proto --template buf.gen.yaml
+   ```
+
+</Steps>
+
+The client below imports from the generated
+`src/gen/chatto/realtime/v1/realtime_pb.ts` file. The generator also creates the
+imported `chatto.api.v1` types.
+
+## Create the inspector
+
+Create `src/realtime.ts`:
+
+```ts
+import {
+  RealtimeClientFrame,
+  RealtimeClientHello,
+  RealtimeHydrateRoom,
+  RealtimeProjectionEvent,
+  RealtimeProjectionOperation,
+  RealtimeServerFrame,
+  RealtimeSubscribeEvents,
+} from "./gen/chatto/realtime/v1/realtime_pb.js";
+
+const PROTOCOL_VERSION = 2;
+const PROJECTION_CAPABILITY = "chatto.realtime.projection.v1";
+const BASE_RECONNECT_MS = 1_000;
+const MAX_RECONNECT_MS = 30_000;
+
+const supportedOperations = new Set<
+  RealtimeProjectionOperation["operation"]["case"]
+>([
+  "reset",
+  "serverUpsert",
+  "viewerUpsert",
+  "userUpsert",
+  "userRemove",
+  "roomUpsert",
+  "roomRemove",
+  "roomGroupsReplace",
+  "roomTimelineReplace",
+  "roomTimelineEventUpsert",
+  "serverStateUpsert",
+  "roomTimelineEventRemove",
+  "roomViewerStateReplace",
+  "activeCallsReplace",
+  "presencesReplace",
+  "threadViewerStatesReplace",
+  "roomActivity",
+  "notificationOccurrencesReplace",
+]);
+
+type InspectedEvent = {
+  id: string;
+  operations: Exclude<
+    RealtimeProjectionOperation["operation"]["case"],
+    undefined
+  >[];
+};
+
+type InspectorState = {
+  events: InspectedEvent[];
+  phase: "empty" | "catching-up" | "live";
+  resumeCursor?: string;
+};
+
+export class ChattoRealtimeInspector {
+  #socket?: WebSocket;
+  #stopped = false;
+  #reconnectAttempt = 0;
+  #reconnectDelay?: number;
+  #lastFrameAt = 0;
+  #heartbeatStallMs = 75_000;
+  #watchdog?: number;
+  #retainedRoomIds = new Set<string>();
+  #state: InspectorState = { events: [], phase: "empty" };
+
+  constructor(
+    private readonly serverUrl: string,
+    private readonly bearerToken?: string,
+  ) {}
+
+  get state(): Readonly<InspectorState> {
+    return this.#state;
+  }
+
+  start(): void {
+    this.#stopped = false;
+    this.#connect();
+  }
+
+  stop(): void {
+    this.#stopped = true;
+    window.clearInterval(this.#watchdog);
+    this.#socket?.close(1000, "client stopped");
+  }
+
+  hydrateRoom(roomId: string): void {
+    this.#send(
+      new RealtimeClientFrame({
+        frame: {
+          case: "hydrateRoom",
+          value: new RealtimeHydrateRoom({ roomId }),
+        },
+      }),
+    );
+  }
+
+  #connect(): void {
+    if (this.#stopped) return;
+    const url = new URL("/api/realtime", this.serverUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+
+    const socket = new WebSocket(url);
+    socket.binaryType = "arraybuffer";
+    this.#socket = socket;
+    this.#reconnectDelay = undefined;
+
+    socket.onopen = () => {
+      if (this.#stopped || this.#socket !== socket) return;
+      this.#lastFrameAt = Date.now();
+      this.#send(
+        new RealtimeClientFrame({
+          frame: {
+            case: "hello",
+            value: new RealtimeClientHello({
+              protocolVersion: PROTOCOL_VERSION,
+              bearerToken: this.bearerToken,
+            }),
+          },
+        }),
+      );
+    };
+
+    socket.onmessage = async (message) => {
+      if (this.#stopped || this.#socket !== socket) return;
+      try {
+        const bytes = await this.#binaryBytes(message.data);
+        const frame = RealtimeServerFrame.fromBinary(bytes);
+        this.#lastFrameAt = Date.now();
+        this.#handleFrame(frame);
+      } catch (error) {
+        console.error("Realtime frame rejected", error);
+        socket.close(1008, "unsupported realtime frame");
+      }
+    };
+
+    socket.onclose = () => {
+      if (this.#socket !== socket) return;
+      this.#socket = undefined;
+      window.clearInterval(this.#watchdog);
+      if (this.#stopped) return;
+
+      const delay = this.#reconnectDelay ?? Math.min(
+        BASE_RECONNECT_MS * 2 ** this.#reconnectAttempt,
+        MAX_RECONNECT_MS,
+      );
+      this.#reconnectAttempt += 1;
+      window.setTimeout(() => this.#connect(), delay);
+    };
+  }
+
+  #handleFrame(frame: RealtimeServerFrame): void {
+    switch (frame.frame.case) {
+      case "hello": {
+        const hello = frame.frame.value;
+        if (
+          hello.protocolVersion !== PROTOCOL_VERSION ||
+          !hello.capabilities.includes(PROJECTION_CAPABILITY)
+        ) {
+          this.#stopped = true;
+          throw new Error("The server does not support realtime protocol 2");
+        }
+
+        this.#heartbeatStallMs = hello.heartbeatIntervalSeconds > 0
+          ? Math.max(hello.heartbeatIntervalSeconds * 3_000, 15_000)
+          : 75_000;
+        this.#startWatchdog();
+        this.#state = { ...this.#state, phase: "catching-up" };
+        this.#send(
+          new RealtimeClientFrame({
+            frame: {
+              case: "subscribeEvents",
+              value: new RealtimeSubscribeEvents({
+                resumeCursor: this.#state.resumeCursor,
+                retainedRoomIds: [...this.#retainedRoomIds],
+              }),
+            },
+          }),
+        );
+        return;
+      }
+
+      case "subscribed":
+        return;
+
+      case "projectionEvent":
+        this.#applyProjectionEvent(frame.frame.value);
+        return;
+
+      case "caughtUp":
+        this.#state = {
+          ...this.#state,
+          phase: "live",
+          resumeCursor: frame.frame.value.cursor,
+        };
+        this.#reconnectAttempt = 0;
+        return;
+
+      case "event":
+        console.info("Transient realtime event", frame.frame.value.event.case);
+        return;
+
+      case "heartbeat":
+      case "pong":
+        return;
+
+      case "error": {
+        const error = frame.frame.value;
+        console.error("Realtime request failed", error.code, error.message);
+        if (error.fatal) {
+          const retryable = [
+            "temporarily_unavailable",
+            "replay_unavailable",
+            "subscribe_failed",
+          ].includes(error.code);
+          this.#stopped = !retryable;
+          this.#reconnectDelay = error.retryAfterMs || BASE_RECONNECT_MS;
+          this.#socket?.close(1008, "fatal realtime error");
+        } else if (error.roomId && error.retryAfterMs !== undefined) {
+          window.setTimeout(() => this.hydrateRoom(error.roomId!), error.retryAfterMs);
+        }
+        return;
+      }
+
+      case "close": {
+        const close = frame.frame.value;
+        this.#stopped = !close.reconnect;
+        this.#reconnectDelay = close.retryAfterMs || BASE_RECONNECT_MS;
+        this.#socket?.close(1000, "server requested reconnect");
+        return;
+      }
+
+      case undefined:
+        throw new Error("Unknown realtime server frame");
+    }
+  }
+
+  #applyProjectionEvent(event: RealtimeProjectionEvent): void {
+    const operationCases = event.operations.map(({ operation }) => {
+      if (!operation.case || !supportedOperations.has(operation.case)) {
+        throw new Error("Unknown realtime projection operation");
+      }
+      return operation.case;
+    });
+
+    // Build the next state first. A production reducer applies each operation
+    // to resource maps here, in this exact order.
+    const resetIndex = operationCases.lastIndexOf("reset");
+    const previousEvents = resetIndex === -1 ? this.#state.events : [];
+    const nextState: InspectorState = {
+      ...this.#state,
+      events: [
+        ...previousEvents,
+        { id: event.id, operations: operationCases },
+      ],
+    };
+
+    // Commit the cursor only with the state produced by the complete event.
+    if (event.resumeCursor !== undefined) {
+      nextState.resumeCursor = event.resumeCursor;
+    }
+    this.#state = nextState;
+
+    for (const operation of event.operations) {
+      if (operation.operation.case === "roomTimelineReplace") {
+        this.#retainedRoomIds.add(operation.operation.value.roomId);
+      }
+    }
+  }
+
+  #startWatchdog(): void {
+    window.clearInterval(this.#watchdog);
+    this.#watchdog = window.setInterval(() => {
+      if (Date.now() - this.#lastFrameAt >= this.#heartbeatStallMs) {
+        this.#socket?.close(1012, "heartbeat stalled");
+      }
+    }, 5_000);
+  }
+
+  #send(frame: RealtimeClientFrame): void {
+    if (this.#socket?.readyState !== WebSocket.OPEN) {
+      throw new Error("Realtime socket is not open");
+    }
+    this.#socket.send(Uint8Array.from(frame.toBinary()).buffer);
+  }
+
+  async #binaryBytes(data: unknown): Promise<Uint8Array> {
+    if (data instanceof ArrayBuffer) return new Uint8Array(data);
+    if (data instanceof Blob) return new Uint8Array(await data.arrayBuffer());
+    throw new Error("Expected a binary protobuf frame");
+  }
+}
+```
+
+The inspector recognizes every protocol-2 projection operation. It records the
+operation names instead of building UI resource maps. Replace the marked block
+in `#applyProjectionEvent` with your reducer. Keep the validation, atomic
+commit, operation order, and cursor rules unchanged.
+
+## Start the connection
+
+Pass the access credential from a secure runtime source:
+
+```ts
+import { ChattoRealtimeInspector } from "./realtime.js";
+
+const inspector = new ChattoRealtimeInspector(
+  "https://chat.example.com",
+  accessToken,
+);
+
+inspector.start();
+```
+
+A same-origin browser client can omit `accessToken`. The browser then sends its
+HttpOnly Chatto cookie during the WebSocket upgrade. A cross-origin browser
+client must use the OAuth authorization code flow with PKCE and pass the current
+access token in `hello`.
+
+Do not put the token in the WebSocket URL or a log message. Rotate an expiring
+OAuth access credential before you reconnect.
+
+## Hydrate a room
+
+After the stream reaches `caught_up`, request a joined room when the user first
+opens it:
+
+```ts
+inspector.hydrateRoom("R…");
+```
+
+Wait for a projection event that contains `roomTimelineReplace`. Only then add
+the room to the retained set. If the socket closes before that replacement,
+request the room again after the next `caught_up` frame.
+
+The sample automatically sends confirmed retained room IDs in later
+subscriptions. A production client must evict retained timelines before it
+reaches the 64-room limit.
+
+## Add a production reducer
+
+Materialize each operation according to its contract in the
+[frame reference](/reference/connectrpc-api/realtime/#realtimeprojectionoperation).
+Use keyed maps for individual resource upserts and removals. Replace complete
+finite collections when you receive a `*_replace` operation.
+
+Do not infer missing history from the convergence stream. Use ConnectRPC for:
+
+- commands and their read-your-writes responses;
+- explicit resource reads;
+- older room or thread history;
+- paginated lists and searches.
+
+<CardGrid>
+  <LinkCard title="Realtime Overview" href="/guides/integrations/realtime-protocol/" description="Review projection, cursor, hydration, and reconnect semantics." />
+  <LinkCard title="Realtime Frame Reference" href="/reference/connectrpc-api/realtime/" description="Read every protobuf frame and operation field." />
+  <LinkCard title="Integrating With Chatto" href="/guides/integrations/chatto-api/" description="Choose among Chatto's public integration surfaces." />
+</CardGrid>
