@@ -6,7 +6,8 @@
 
 > **Amended 2026-08-11:** Configured owner emails now converge on the durable
 > `owner` role instead of acting as a separate permission-time fallback. This
-> keeps live authorization and event-time visibility on one representation.
+> keeps live authorization and current notification visibility on one
+> representation.
 >
 > **Amended 2026-08-28:** Permission identifiers are opaque, stable values.
 > Current identifiers use `domain.capability` or

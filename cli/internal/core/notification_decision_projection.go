@@ -402,19 +402,6 @@ type notificationDecisionSnapshot struct {
 	at            time.Time
 }
 
-func newNotificationDecisionSnapshot() *notificationDecisionSnapshot {
-	return &notificationDecisionSnapshot{
-		rooms:         NewRoomDirectoryProjection(),
-		groups:        NewRoomGroupLayoutProjection(),
-		rbac:          NewRBACProjection(),
-		config:        NewConfigProjection(),
-		activeUsers:   make(map[string]struct{}),
-		threadFollows: make(map[string]notificationThreadFollow),
-		followers:     make(map[string]map[string]struct{}),
-		replyCounts:   make(map[string]uint64),
-	}
-}
-
 func (s *notificationDecisionSnapshot) roomKind(roomID string) (RoomKind, bool) {
 	room, exists := s.rooms.Catalog.Get(roomID)
 	if !exists {
