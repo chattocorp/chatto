@@ -104,6 +104,8 @@ export default defineConfig({
           label: "Integrations",
           items: [
             "guides/integrations/chatto-api",
+            "guides/integrations/realtime-protocol",
+            "guides/integrations/realtime-typescript",
             "guides/integrations/mcp",
             "guides/integrations/bot-accounts",
             "guides/integrations/api-compatibility",
