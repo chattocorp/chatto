@@ -1019,7 +1019,7 @@ describe('RoomList', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/private-group');
   });
 
-  it('shows permission-gated group, room, and link controls without a room menu button', async () => {
+  it('shows permission-gated drag and creation controls without room or group menu buttons', async () => {
     const channel = mocks.store.navigation.rooms.find(
       (room: { id: string }) => room.id === 'channel-1'
     );
@@ -1048,9 +1048,7 @@ describe('RoomList', () => {
     await expect
       .element(q(container, '[data-testid="room-group-drag-handle"]'))
       .toBeInTheDocument();
-    await expect
-      .element(q(container, '[data-testid="room-group-actions-button"]'))
-      .toBeInTheDocument();
+    expect(container.querySelector('[data-testid="room-group-actions-button"]')).toBeNull();
     await expect.element(q(container, '[data-testid="room-drag-handle"]')).toBeInTheDocument();
     expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
     await expect
@@ -1059,6 +1057,28 @@ describe('RoomList', () => {
     await expect
       .element(q(container, '[data-testid="sidebar-link-actions-button"]'))
       .toBeInTheDocument();
+  });
+
+  it('places the new-group control directly after managed groups and before direct messages', () => {
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        viewerCanCreateRoom: true,
+        roomIds: ['channel-1'],
+        items: [{ id: 'room:channel-1', type: 'room', roomId: 'channel-1' }]
+      }
+    ];
+
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const control = q(container, '[data-testid="create-room-group-control"]');
+    if (!control) throw new Error('Expected the new-group control');
+
+    expect(control.previousElementSibling?.getAttribute('data-testid')).toBe(
+      'room-groups-dropzone'
+    );
+    expect(control.nextElementSibling?.getAttribute('data-testid')).toBe('room-group-section');
   });
 
   it('starts room-group dragging only from the group drag handle', async () => {
@@ -1083,7 +1103,7 @@ describe('RoomList', () => {
     const header = Array.from(
       container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
     ).find((button) => button.textContent?.trim() === 'Projects');
-    const title = header?.querySelector('span:last-child');
+    const title = header?.querySelector(':scope > span:last-child');
     expect(title).not.toBeNull();
 
     title!.dispatchEvent(
@@ -1223,7 +1243,7 @@ describe('RoomList', () => {
     await expect.element(q(container, '[data-testid="create-room-button"]')).toBeInTheDocument();
   });
 
-  it('keeps context actions but hides drag handles for a server without relative moves', () => {
+  it('keeps context-menu attachments but hides drag handles for a server without relative moves', () => {
     mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
     mocks.store.navigation.roomGroups = [
       {
@@ -1239,7 +1259,7 @@ describe('RoomList', () => {
 
     expect(container.querySelector('[data-testid="room-group-drag-handle"]')).toBeNull();
     expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
-    expect(container.querySelector('[data-testid="room-group-actions-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="room-group-actions-button"]')).toBeNull();
     expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
   });
 

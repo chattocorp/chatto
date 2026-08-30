@@ -19,6 +19,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+  import CreateRoomGroupControl from '$lib/components/chat/CreateRoomGroupControl.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
@@ -270,12 +271,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       position: rect ? { x: rect.right, y: rect.bottom } : { x: event.clientX, y: event.clientY },
       presentation: 'auto'
     };
-  }
-
-  function openGroupMenu(event: MouseEvent, group: RoomsListGroup): void {
-    event.preventDefault();
-    event.stopPropagation();
-    groupContextMenu = { ...menuDetailsFromButton(event), group };
   }
 
   function openLinkMenu(event: MouseEvent, group: RoomsListGroup, item: RoomsListGroupItem): void {
@@ -944,6 +939,22 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
+{#snippet groupLeadingOverlay()}
+  <button
+    type="button"
+    class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 active:cursor-grabbing [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+    aria-label={m('admin.rooms_admin.drag_group')}
+    onclick={(event) => event.stopPropagation()}
+    onpointerdown={(event) => event.stopPropagation()}
+    data-sidebar-swipe-ignore
+    data-room-group-drag-handle
+    data-testid="room-group-drag-handle"
+    {@attach dndHandleAttachment}
+  >
+    <span class="iconify icon-[uil--draggabledots]" aria-hidden="true"></span>
+  </button>
+{/snippet}
+
 {#snippet groupHeaderActions(group: RoomsListGroup)}
   {#if group.viewerCanCreateRoom}
     <button
@@ -957,32 +968,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       data-testid="create-room-button"
     >
       <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
-    </button>
-  {/if}
-  {#if supportsSidebarRoomManagement && canReorderGroups}
-    <button
-      type="button"
-      class="pointer-events-none mini-icon-action h-6 w-6 cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 active:cursor-grabbing [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
-      aria-label={m('admin.rooms_admin.drag_group')}
-      onclick={(event) => event.stopPropagation()}
-      onpointerdown={(event) => event.stopPropagation()}
-      data-sidebar-swipe-ignore
-      data-room-group-drag-handle
-      data-testid="room-group-drag-handle"
-      {@attach dndHandleAttachment}
-    >
-      <span class="iconify icon-[uil--draggabledots]" aria-hidden="true"></span>
-    </button>
-  {/if}
-  {#if group.viewerCanManageGroup || group.viewerCanCreateRoom}
-    <button
-      type="button"
-      class="pointer-events-none mini-icon-action h-6 w-6 items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
-      aria-label={m('room_list.group_settings', { group: group.name })}
-      onclick={(event) => openGroupMenu(event, group)}
-      data-testid="room-group-actions-button"
-    >
-      <span class="iconify icon-[uil--ellipsis-h]" aria-hidden="true"></span>
     </button>
   {/if}
 {/snippet}
@@ -1009,6 +994,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
             {@render groupHeaderActions(section.group)}
           {/if}
         {/snippet}
+        {#snippet leadingOverlay()}
+          {#if !isDndShadow(section) && supportsSidebarRoomManagement && canReorderGroups}
+            {@render groupLeadingOverlay()}
+          {/if}
+        {/snippet}
         <RoomGroupSection
           label={section.label}
           items={section.items}
@@ -1020,10 +1010,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           containItemDrag
           isDndShadow={isDndShadow(section)}
           {headerActions}
+          {leadingOverlay}
           separated={i > 0}
         />
       {/each}
     </div>
+    {#if canReorderGroups}
+      <CreateRoomGroupControl />
+    {/if}
     {#each unmanagedSections as section, i (section.id)}
       <RoomGroupSection
         label={section.label}

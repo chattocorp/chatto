@@ -17,7 +17,6 @@
   import ServerPresenceSync from './ServerPresenceSync.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
-  import CreateRoomGroupControl from './CreateRoomGroupControl.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { getAdminNavItems } from './adminNav';
@@ -296,9 +295,6 @@
       <!-- Room List - always visible to server members (shows rooms user has joined) -->
       <RoomList canReorderGroups={serverData.canManageRooms} />
     </ScrollFader>
-    {#if serverData.canManageRooms}
-      <CreateRoomGroupControl />
-    {/if}
   {/if}
 </ServerSidebar>
 

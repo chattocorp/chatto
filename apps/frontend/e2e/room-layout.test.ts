@@ -627,7 +627,21 @@ test.describe('Room Layout', () => {
 
       const main = sidebarGroup(page, 'Main');
       const projects = sidebarGroup(page, 'Projects');
-      await projects.hover();
+      const disclosureIcon = projects.getByTestId('room-group-disclosure-icon');
+      await expect(disclosureIcon).toHaveCSS('opacity', '1');
+      await projects.locator('button[aria-expanded]').hover();
+      await expect(projects.getByTestId('room-group-drag-handle')).toHaveCSS('opacity', '1');
+      await expect(disclosureIcon).toHaveCSS('opacity', '0');
+      await expect(projects.getByTestId('room-group-actions-button')).toHaveCount(0);
+
+      const newGroupControl = page.getByTestId('create-room-group-control');
+      await expect(newGroupControl).toBeVisible();
+      expect(
+        await newGroupControl.evaluate((element) =>
+          element.previousElementSibling?.getAttribute('data-testid')
+        )
+      ).toBe('room-groups-dropzone');
+
       const landingIndicator = page.getByTestId('room-groups-dropzone');
       await dragWithPointer(
         page,

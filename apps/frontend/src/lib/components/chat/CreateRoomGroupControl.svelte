@@ -1,7 +1,7 @@
 <!--
 @component
 
-Pinned server-sidebar control for creating a room group without leaving chat.
+Inline server-sidebar control for creating a room group without leaving chat.
 The compact form expands in place and submits with Enter.
 -->
 <script lang="ts">
@@ -58,7 +58,7 @@ The compact form expands in place and submits with Enter.
   }
 </script>
 
-<div class="border-t border-border p-2" data-testid="create-room-group-control">
+<div class="px-2 pb-2" data-testid="create-room-group-control">
   {#if expanded}
     <form class="flex items-end gap-1" onsubmit={submit}>
       <div class="min-w-0 flex-1">
