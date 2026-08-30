@@ -14,11 +14,13 @@ func TestSetupMCPRoutesHonorsEnabled(t *testing.T) {
 		if err := server.setupMCPRoutes(); err != nil {
 			t.Fatalf("setupMCPRoutes: %v", err)
 		}
-		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodGet, "https://chatto.example/.well-known/oauth-protected-resource/mcp", nil)
-		server.router.ServeHTTP(response, request)
-		if response.Code != http.StatusNotFound {
-			t.Fatalf("disabled metadata status = %d, want 404", response.Code)
+		for _, path := range []string{mcpPath, mcpProtectedResourcePath} {
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "https://chatto.example"+path, nil)
+			server.router.ServeHTTP(response, request)
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("disabled %s status = %d, want 404", path, response.Code)
+			}
 		}
 	})
 
@@ -33,6 +35,13 @@ func TestSetupMCPRoutesHonorsEnabled(t *testing.T) {
 		server.router.ServeHTTP(response, request)
 		if response.Code != http.StatusOK {
 			t.Fatalf("enabled metadata status = %d, want 200: %s", response.Code, response.Body.String())
+		}
+
+		response = httptest.NewRecorder()
+		request = httptest.NewRequest(http.MethodPost, "https://chatto.example/mcp", nil)
+		server.router.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized || response.Header().Get("WWW-Authenticate") == "" {
+			t.Fatalf("enabled MCP status/challenge = %d/%q, want 401 with WWW-Authenticate", response.Code, response.Header().Get("WWW-Authenticate"))
 		}
 	})
 }
