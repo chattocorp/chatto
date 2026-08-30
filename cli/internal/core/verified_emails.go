@@ -289,7 +289,7 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 	// The durable effects lane materializes owners.emails into RBAC and retries
 	// transient assignment failures. Wait through this source fact so a
 	// successful verification cannot return while live authorization and
-	// event-time notification visibility disagree about owner status.
+	// current notification visibility disagree about owner status.
 	if c.config.Owners.IsServerOwnerEmail(email) {
 		if c.notificationMaterializer == nil {
 			return errors.New("notification materializer is not configured")

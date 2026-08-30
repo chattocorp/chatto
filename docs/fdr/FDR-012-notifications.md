@@ -170,9 +170,8 @@ rooms. Its room-group and channel-room cells are not applicable and cannot be
 changed. Room-message policy applies at server, room-group, and channel-room
 scope. Its direct-message-room cells are not applicable and cannot be changed.
 
-A room uses the group that contains it at the exact source-event sequence. A
-room move changes future effective policy. It does not change historical
-notification decisions. Deleting a group leaves its saved user preferences
+A room uses the group that contains it when the durable notification
+materializer processes the source activity. Deleting a group leaves its saved user preferences
 inert. Group IDs are not reused, and deletion does not fan out cleanup writes
 to user configuration aggregates.
 
@@ -182,29 +181,33 @@ authorization fence. A concurrent membership loss, room deletion, or group
 deletion can leave a newly committed preference inert, but it cannot change
 another user's state or grant access to the deleted scope.
 
-### 4. Source-time decisions are durable and replayable
+### 4. Materialization uses current policy and visibility
 
-**Decision:** Notification recipients and effective source-time policy are
-derived asynchronously from committed domain facts. Later membership,
-preference, or thread-follow changes do not rewrite that historical decision.
+**Decision:** Notification recipients and effective policy are derived
+asynchronously from committed domain facts and the current projected state when
+the durable materializer processes them. Membership, preference, room-group,
+authorization, and thread-follow changes that are already visible can affect
+the decision.
 A user's own activity does not notify them. One source activity produces at
 most one delivery decision per recipient and cause. For example, a root
 message that contains `@all` and a direct mention can produce room-message,
 `@all`, and direct-mention decisions for one recipient. If these decisions use
 a notification mode, they create separate occurrences. Badge decisions
 coalesce into one latest-value marker for the applicable room or thread.
-Channel-room recipients must have `message.read` at that same source sequence.
+Channel-room recipients must currently have `message.read`.
 A direct mention also permits its recipient when `message.read-interactions`
 applies, because the same message fact creates the interaction relationship.
 
-**Why:** Notifications describe what happened under the policy and visibility
-that applied at that moment. Deriving from committed facts makes retries
-idempotent without adding notification-only trigger events to permanent domain
-history.
+**Why:** Notifications are eventual attention, not permanent domain facts.
+Current state avoids sending work that is already stale and avoids retaining
+historical authorization and policy views. The durable source consumer does not
+acknowledge until its bounded notification output is stored, so recovery does
+not require notification-only events in permanent domain history.
 
 **Tradeoff:** Delivery is eventually consistent with the source activity, and
-the implementation must preserve a recoverable handoff between the domain log
-and the bounded notification lifecycle. ADR-076 defines that architecture.
+changes before materialization can change or suppress its attention. The
+implementation must preserve a recoverable handoff between the domain log and
+the bounded notification lifecycle. ADR-076 defines that architecture.
 
 ### 5. Current visibility remains a privacy boundary
 

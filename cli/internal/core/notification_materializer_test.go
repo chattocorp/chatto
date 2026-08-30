@@ -138,7 +138,7 @@ func TestBadgeReactionAddsOnlyUnreadAttentionUntilRoomRead(t *testing.T) {
 		t.Fatalf("disable future Badge reactions: %v", err)
 	}
 	if unread, err := chattoCore.HasUnread(ctx, KindChannel, author.Id, room.Id); err != nil || !unread {
-		t.Fatalf("source-time Badge after policy change = (%v, %v), want (true, nil)", unread, err)
+		t.Fatalf("existing Badge after policy change = (%v, %v), want (true, nil)", unread, err)
 	}
 	if removed, err := chattoCore.ReactionModel().RemoveReaction(ctx, ReactionMutationInput{
 		ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",

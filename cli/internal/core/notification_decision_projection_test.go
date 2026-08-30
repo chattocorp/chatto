@@ -1,155 +1,31 @@
 package core
 
 import (
-	"context"
-	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"slices"
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
+	notificationv1 "hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 )
 
-func TestNotificationDecisionProjectionRetainsExactBoundaryWhenCurrentStateAdvances(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	created := &evtv1.Event{Id: "create", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
-		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
-	}}}
-	loss := &evtv1.Event{Id: "loss", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{
-		RoomId: "R1", Universal: false,
-	}}}
-	regain := &evtv1.Event{Id: "regain", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{
-		RoomId: "R1", Universal: true,
-	}}}
-	for seq, event := range []*evtv1.Event{created, loss, regain} {
-		if err := p.Apply(event, uint64(seq+1)); err != nil {
-			t.Fatalf("Apply sequence %d: %v", seq+1, err)
-		}
-	}
-
-	lossState, err := p.Boundary(2, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary loss: %v", err)
-	}
-	lossRoom, ok := lossState.rooms.Catalog.Get("R1")
-	if !ok || lossRoom.GetUniversal() {
-		t.Fatalf("loss boundary room = (%+v, %v), want non-universal", lossRoom, ok)
-	}
-	regainState, err := p.Boundary(3, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary regain: %v", err)
-	}
-	regainRoom, ok := regainState.rooms.Catalog.Get("R1")
-	if !ok || !regainRoom.GetUniversal() {
-		t.Fatalf("regain boundary room = (%+v, %v), want universal", regainRoom, ok)
-	}
-}
-
-func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	roomID := "R1"
-	userID := "U1"
-	roomScope := roomID
-	events := []*evtv1.Event{
-		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}},
-		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "join", ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
-		{Id: "silent", Event: &evtv1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
-			UserId: userID, RoomId: &roomScope, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
-		}}},
-		{Id: "source", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}},
-		{Id: "off", Event: &evtv1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
-			UserId: userID, RoomId: &roomScope, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
-		}}},
-		{Id: "later-source", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}},
-	}
-	for i, event := range events {
-		if err := p.Apply(event, uint64(i+1)); err != nil {
-			t.Fatalf("Apply sequence %d: %v", i+1, err)
-		}
-	}
-
-	atSource, err := p.Boundary(5, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary source: %v", err)
-	}
-	directMentionSignal := testNotificationSignal(notificationTestSignalDirectMention, roomID, "source")
-	if got := atSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
-		t.Fatalf("source policy = %v, want IN_APP_NOTIFICATION", got)
-	}
-	atLaterSource, err := p.Boundary(7, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary later source: %v", err)
-	}
-	if got := atLaterSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
-		t.Fatalf("later source policy = %v, want OFF", got)
-	}
-}
-
-func TestNotificationDecisionBoundaryUsesRoomGroupAtSourceSequence(t *testing.T) {
+func TestNotificationDecisionUsesCurrentPolicyAfterSourceEvent(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	const (
-		roomID = "R1"
-		userID = "U1"
-		groupA = "G1"
-		groupB = "G2"
+		roomID      = "R1"
+		recipientID = "U1"
 	)
-	events := []*evtv1.Event{
-		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}},
-		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "join", ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
-		{Id: "group-a", Event: &evtv1.Event_RoomGroupCreated{RoomGroupCreated: &evtv1.RoomGroupCreatedEvent{GroupId: groupA, Name: "A"}}},
-		{Id: "group-b", Event: &evtv1.Event_RoomGroupCreated{RoomGroupCreated: &evtv1.RoomGroupCreatedEvent{GroupId: groupB, Name: "B"}}},
-		roomAddedToGroupEvent(groupA, roomID),
-		{Id: "group-a-off", Event: &evtv1.Event_UserRoomGroupNotificationPolicyChanged{UserRoomGroupNotificationPolicyChanged: &evtv1.UserRoomGroupNotificationPolicyChangedEvent{
-			UserId: userID, RoomGroupId: groupA, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
-		}}},
-		{Id: "group-b-alert", Event: &evtv1.Event_UserRoomGroupNotificationPolicyChanged{UserRoomGroupNotificationPolicyChanged: &evtv1.UserRoomGroupNotificationPolicyChangedEvent{
-			UserId: userID, RoomGroupId: groupB, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
-		}}},
-		{Id: "source-a", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}},
-		roomRemovedFromGroupEvent(groupA, roomID),
-		roomAddedToGroupEvent(groupB, roomID),
-		{Id: "source-b", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}},
-	}
-	for index, event := range events {
-		if event.Id == "" {
-			event.Id = fmt.Sprintf("layout-%d", index)
-		}
-		if err := p.Apply(event, uint64(index+1)); err != nil {
-			t.Fatalf("Apply sequence %d: %v", index+1, err)
-		}
-	}
-	signal := testNotificationSignal(notificationTestSignalDirectMention, roomID, "source")
-	atA, err := p.Boundary(9, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary group A source: %v", err)
-	}
-	if got := atA.effectiveNotificationMode(userID, roomID, signal); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
-		t.Fatalf("group A source mode = %v, want OFF", got)
-	}
-	atB, err := p.Boundary(12, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary group B source: %v", err)
-	}
-	if got := atB.effectiveNotificationMode(userID, roomID, signal); got != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
-		t.Fatalf("group B source mode = %v, want PUSH_NOTIFICATION", got)
-	}
-}
-
-func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	roomID := "R1"
-	recipientID := "U1"
+	roomScope := roomID
 	source := &evtv1.Event{
 		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
 		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
-			RoomId: roomID, MentionedUserIds: []string{recipientID},
+			RoomId: roomID, InThread: "root",
+			Mentions: []*evtv1.MessageMention{{
+				UserId: recipientID,
+				Cause:  &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}},
+			}},
 		}},
 	}
 	events := []*evtv1.Event{
@@ -157,43 +33,96 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
 		{Id: "join", ActorId: recipientID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "notify", Event: &evtv1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
+			UserId: recipientID, RoomId: &roomScope, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
+		}}},
 		source,
+		{Id: "off", Event: &evtv1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &evtv1.UserNotificationPolicyChangedEvent{
+			UserId: recipientID, RoomId: &roomScope, Overrides: &evtv1.NotificationDeliveryModes{DirectMentions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
+		}}},
 	}
-	for i, event := range events {
-		if err := p.Apply(event, uint64(i+1)); err != nil {
-			t.Fatalf("Apply sequence %d: %v", i+1, err)
-		}
+	applyNotificationDecisionEvents(t, p, events)
+
+	var decisions []notificationRecipientDecision
+	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
 	}
-	snapshot, err := p.Boundary(5, source.GetCreatedAt().AsTime())
-	if err != nil {
-		t.Fatalf("Boundary: %v", err)
-	}
-	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
-	if err != nil {
-		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
-	}
-	if len(decisions) != 1 || notificationSignalIdentity(decisions[0].signal) != string(notificationTestSignalRoomMessage) {
-		t.Fatalf("legacy decisions = %+v, want only room-message cause for %s", decisions, recipientID)
+	if len(decisions) != 0 {
+		t.Fatalf("decisions = %+v, want current Off policy to suppress the source", decisions)
 	}
 }
 
-func TestDirectMentionAllowsInteractionScopedSourceVisibility(t *testing.T) {
+func TestNotificationDecisionUsesCurrentMembershipAfterSourceEvent(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	const (
+		roomID = "R1"
+		oldID  = "old-member"
+		newID  = "new-member"
+	)
+	source := &evtv1.Event{Id: "source", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}}
+	events := []*evtv1.Event{
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
+		{Id: "old-user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: oldID}}},
+		{Id: "new-user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: newID}}},
+		{Id: "old-join", ActorId: oldID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		source,
+		{Id: "old-leave", ActorId: oldID, Event: &evtv1.Event_UserLeftRoom{UserLeftRoom: &evtv1.UserLeftRoomEvent{RoomId: roomID}}},
+		{Id: "new-join", ActorId: newID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+	}
+	applyNotificationDecisionEvents(t, p, events)
+
+	var decisions []notificationRecipientDecision
+	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
+	}
+	if len(decisions) != 1 || decisions[0].recipientID != newID || notificationSignalIdentity(decisions[0].signal) != string(notificationTestSignalRoomMessage) {
+		t.Fatalf("decisions = %+v, want only current member %q", decisions, newID)
+	}
+}
+
+func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	const (
 		roomID      = "R1"
 		recipientID = "U1"
 	)
-	events := []*evtv1.Event{
+	source := &evtv1.Event{
+		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID, MentionedUserIds: []string{recipientID}}},
+	}
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
 		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: recipientID}}},
 		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "interaction-read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, recipientID, PermMessageReadInteractions)}},
+		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
 		{Id: "join", ActorId: recipientID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		source,
+	})
+
+	var decisions []notificationRecipientDecision
+	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
 	}
-	for index, event := range events {
-		if err := p.Apply(event, uint64(index+1)); err != nil {
-			t.Fatalf("Apply sequence %d: %v", index+1, err)
-		}
+	if len(decisions) != 1 || notificationSignalIdentity(decisions[0].signal) != string(notificationTestSignalRoomMessage) {
+		t.Fatalf("legacy decisions = %+v, want only room-message cause", decisions)
 	}
+}
+
+func TestDirectMentionAllowsCurrentInteractionScopedVisibility(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	const (
+		roomID      = "R1"
+		recipientID = "U1"
+	)
 	source := &evtv1.Event{
 		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
 		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
@@ -204,106 +133,71 @@ func TestDirectMentionAllowsInteractionScopedSourceVisibility(t *testing.T) {
 			}},
 		}},
 	}
-	if err := p.Apply(source, 5); err != nil {
-		t.Fatalf("Apply source: %v", err)
-	}
-	snapshot, err := p.Boundary(5, source.GetCreatedAt().AsTime())
-	if err != nil {
-		t.Fatalf("Boundary: %v", err)
-	}
-	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
-	if err != nil {
-		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: recipientID}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "interaction-read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacUserPermissionGrantedEvent(ScopeRoom, roomID, recipientID, PermMessageReadInteractions)}},
+		{Id: "join", ActorId: recipientID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
+		source,
+	})
+
+	var decisions []notificationRecipientDecision
+	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
 	}
 	if len(decisions) != 1 || decisions[0].recipientID != recipientID || notificationSignalIdentity(decisions[0].signal) != string(notificationTestSignalDirectMention) {
 		t.Fatalf("interaction-scoped decisions = %+v, want direct mention for %s", decisions, recipientID)
 	}
 }
 
-func TestRootChannelMessageFansOutToExactSourceTimeMembers(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	const (
-		roomID     = "R1"
-		authorID   = "author"
-		recipients = 250
-	)
-	sequence := uint64(1)
-	apply := func(event *evtv1.Event) {
-		t.Helper()
-		if event.GetId() == "" {
-			event.Id = fmt.Sprintf("event-%d", sequence)
-		}
-		if err := p.Apply(event, sequence); err != nil {
-			t.Fatalf("Apply sequence %d: %v", sequence, err)
-		}
-		sequence++
-	}
-	apply(&evtv1.Event{Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}})
-	apply(&evtv1.Event{Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}})
-	for index := 0; index <= recipients; index++ {
-		userID := authorID
-		if index > 0 {
-			userID = fmt.Sprintf("recipient-%03d", index)
-		}
-		apply(&evtv1.Event{Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}})
-		apply(&evtv1.Event{ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}})
-	}
-	source := &evtv1.Event{Id: "source", ActorId: authorID, CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID}}}
-	apply(source)
-
-	snapshot, err := p.Boundary(sequence-1, source.GetCreatedAt().AsTime())
-	if err != nil {
-		t.Fatalf("Boundary: %v", err)
-	}
-	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
-	if err != nil {
-		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
-	}
-	if len(decisions) != recipients {
-		t.Fatalf("decisions = %d, want %d", len(decisions), recipients)
-	}
-	seen := make(map[string]struct{}, recipients)
-	for _, decision := range decisions {
-		if decision.recipientID == authorID || notificationSignalIdentity(decision.signal) != string(notificationTestSignalRoomMessage) || decision.mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
-			t.Fatalf("unexpected decision = %+v", decision)
-		}
-		seen[decision.recipientID] = struct{}{}
-	}
-	if len(seen) != recipients {
-		t.Fatalf("unique recipients = %d, want %d", len(seen), recipients)
-	}
-}
-
 func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 	p := NewNotificationDecisionProjection()
-	events := []*evtv1.Event{
+	source := &evtv1.Event{Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", InThread: "root"}}}
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
 		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: "recipient"}}},
 		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "read", Event: &evtv1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
 		{Id: "join", ActorId: "recipient", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}},
-	}
-	for index, event := range events {
-		if err := p.Apply(event, uint64(index+1)); err != nil {
-			t.Fatalf("Apply sequence %d: %v", index+1, err)
-		}
-	}
-	source := &evtv1.Event{Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1", InThread: "root"}}}
-	if err := p.Apply(source, 5); err != nil {
-		t.Fatalf("Apply reply: %v", err)
-	}
-	snapshot, err := p.Boundary(5, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary: %v", err)
-	}
-	// Avoid the separate auto-follow-first-reply path. This test isolates the
-	// absence of the root room-message cause on a thread message.
-	snapshot.replyCounts["root"] = 2
-	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
-	if err != nil {
-		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
+		source,
+	})
+
+	var decisions []notificationRecipientDecision
+	if err := p.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		decisions = buildMessageNotificationDecisions(snapshot, source, "", "")
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
 	}
 	if len(decisions) != 0 {
 		t.Fatalf("thread decisions = %+v, want no room-message output", decisions)
+	}
+}
+
+func TestNotificationDecisionSnapshotRestoresCurrentState(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	applyNotificationDecisionEvents(t, p, []*evtv1.Event{
+		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: "U1"}}},
+		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "join", ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}},
+	})
+	data, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	restored := NewNotificationDecisionProjection()
+	if err := restored.Restore(data); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if err := restored.withCurrent(time.Now(), func(snapshot *notificationDecisionSnapshot) error {
+		if !snapshot.membershipExists("U1", "R1") {
+			t.Fatal("restored current state does not contain membership")
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("withCurrent: %v", err)
 	}
 }
 
@@ -326,307 +220,11 @@ func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
 	}
 }
 
-func TestNotificationDecisionBoundaryRetainsEventTimeThreadFollowers(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	roomID := "R1"
-	threadRootID := "ROOT"
-	userID := "U1"
-	events := []*evtv1.Event{
-		{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID}}},
-		{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{RoomId: roomID, Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL}}},
-		{Id: "join", ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: roomID}}},
-		{Id: "follow", Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{UserId: userID, RoomId: roomID, ThreadRootEventId: threadRootID}}},
-		{Id: "reply", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID, InThread: threadRootID}}},
-		{Id: "unfollow", Event: &evtv1.Event_ThreadUnfollowed{ThreadUnfollowed: &evtv1.ThreadUnfollowedEvent{UserId: userID, RoomId: roomID, ThreadRootEventId: threadRootID}}},
-		{Id: "later-reply", ActorId: "U2", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: roomID, InThread: threadRootID}}},
-	}
-	for i, event := range events {
-		if err := p.Apply(event, uint64(i+1)); err != nil {
-			t.Fatalf("Apply sequence %d: %v", i+1, err)
+func applyNotificationDecisionEvents(t *testing.T, projection *NotificationDecisionProjection, events []*evtv1.Event) {
+	t.Helper()
+	for index, event := range events {
+		if err := projection.Apply(event, uint64(index+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", index+1, err)
 		}
-	}
-
-	atReply, err := p.Boundary(5, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary reply: %v", err)
-	}
-	if got := atReply.threadFollowerIDs(roomID, threadRootID); !slices.Equal(got, []string{userID}) {
-		t.Fatalf("reply followers = %v, want [%s]", got, userID)
-	}
-	atLaterReply, err := p.Boundary(7, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary later reply: %v", err)
-	}
-	if got := atLaterReply.threadFollowerIDs(roomID, threadRootID); len(got) != 0 {
-		t.Fatalf("later reply followers = %v, want none", got)
-	}
-}
-
-func TestNotificationDecisionProjectionRetainsOnlyIncrementalEventsOverLargeState(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	const members = 2_000
-	// Model startup with all existing state covered by the durable worker floor.
-	// Applying that history builds both the current and lagging projections
-	// without retaining a serialized server-wide checkpoint.
-	p.SetAcknowledgedThrough(members + 1)
-	created := &evtv1.Event{Id: "create", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
-		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
-	}}}
-	if err := p.Apply(created, 1); err != nil {
-		t.Fatalf("Apply room create: %v", err)
-	}
-	for i := 0; i < members; i++ {
-		userID := fmt.Sprintf("U%04d", i)
-		joined := &evtv1.Event{Id: "join-" + userID, ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}}
-		if err := p.Apply(joined, uint64(i+2)); err != nil {
-			t.Fatalf("Apply join %d: %v", i, err)
-		}
-	}
-
-	const pendingBoundaries = 500
-	firstBoundary := uint64(members + 2)
-	for i := 0; i < pendingBoundaries; i++ {
-		event := &evtv1.Event{Id: fmt.Sprintf("universal-%d", i), Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{
-			RoomId: "R1", Universal: i%2 == 1,
-		}}}
-		if err := p.Apply(event, firstBoundary+uint64(i)); err != nil {
-			t.Fatalf("Apply boundary %d: %v", i, err)
-		}
-	}
-
-	p.mu.RLock()
-	deltaCount := len(p.deltas)
-	boundaryCount := len(p.boundaries)
-	deltaBytes := 0
-	for _, delta := range p.deltas {
-		deltaBytes += proto.Size(delta.event)
-	}
-	p.mu.RUnlock()
-	if boundaryCount != pendingBoundaries || deltaCount != pendingBoundaries {
-		t.Fatalf("retained state = %d boundaries, %d deltas; want %d of each", boundaryCount, deltaCount, pendingBoundaries)
-	}
-	if deltaBytes > pendingBoundaries*256 {
-		t.Fatalf("incremental journal = %d bytes for %d small boundary facts; appears to retain more than source events", deltaBytes, pendingBoundaries)
-	}
-
-	lastSequence := firstBoundary + pendingBoundaries - 1
-	last, err := p.Boundary(lastSequence, time.Now())
-	if err != nil {
-		t.Fatalf("Boundary last: %v", err)
-	}
-	room, ok := last.rooms.Catalog.Get("R1")
-	if !ok || !room.GetUniversal() {
-		t.Fatalf("last boundary room = (%+v, %v), want universal", room, ok)
-	}
-}
-
-func TestNotificationDecisionProjectionBoundaryWorkDoesNotGrowWithMembershipHistory(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	const historyEvents = 10_000
-	p.SetAcknowledgedThrough(historyEvents + 1)
-	created := &evtv1.Event{Id: "create", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
-		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
-	}}}
-	if err := p.Apply(created, 1); err != nil {
-		t.Fatalf("Apply room create: %v", err)
-	}
-	for i := 0; i < historyEvents/2; i++ {
-		userID := fmt.Sprintf("U%d", i)
-		joined := &evtv1.Event{Id: fmt.Sprintf("join-%d", i), ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}}
-		left := &evtv1.Event{Id: fmt.Sprintf("left-%d", i), ActorId: userID, Event: &evtv1.Event_UserLeftRoom{UserLeftRoom: &evtv1.UserLeftRoomEvent{RoomId: "R1"}}}
-		if err := p.Apply(joined, uint64(2+i*2)); err != nil {
-			t.Fatalf("Apply join %d: %v", i, err)
-		}
-		if err := p.Apply(left, uint64(3+i*2)); err != nil {
-			t.Fatalf("Apply leave %d: %v", i, err)
-		}
-	}
-	lossSequence := uint64(historyEvents + 2)
-	loss := &evtv1.Event{Id: "loss", Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: "R1", Universal: false}}}
-	if err := p.Apply(loss, lossSequence); err != nil {
-		t.Fatalf("Apply loss after membership history: %v", err)
-	}
-
-	p.mu.RLock()
-	boundaryCount := len(p.boundaries)
-	p.mu.RUnlock()
-	if boundaryCount != 1 {
-		t.Fatalf("retained boundaries = %d, want 1 independent of %d membership events", boundaryCount, historyEvents)
-	}
-	if _, err := p.Boundary(lossSequence, time.Now()); err != nil {
-		t.Fatalf("Boundary after membership history: %v", err)
-	}
-}
-
-func BenchmarkNotificationDecisionBoundaryIncrementalAfterLargeState(b *testing.B) {
-	p := NewNotificationDecisionProjection()
-	const members = 10_000
-	p.SetAcknowledgedThrough(members + 1)
-	if err := p.Apply(&evtv1.Event{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
-		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
-	}}}, 1); err != nil {
-		b.Fatal(err)
-	}
-	for i := 0; i < members; i++ {
-		userID := fmt.Sprintf("U%d", i)
-		if err := p.Apply(&evtv1.Event{Id: "join-" + userID, ActorId: userID, Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}}, uint64(i+2)); err != nil {
-			b.Fatal(err)
-		}
-	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sequence := uint64(members + 2 + i)
-		event := &evtv1.Event{Id: fmt.Sprintf("message-%d", i), ActorId: "author", Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
-		if err := p.Apply(event, sequence); err != nil {
-			b.Fatal(err)
-		}
-		if _, err := p.Boundary(sequence, time.Now()); err != nil {
-			b.Fatal(err)
-		}
-		if err := p.ReleaseThrough(sequence); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-type notificationDecisionCapturingSnapshotSource struct {
-	request events.ProjectionSnapshotLoadRequest
-}
-
-func (s *notificationDecisionCapturingSnapshotSource) LoadProjectionSnapshot(_ context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
-	s.request = request
-	return events.ProjectionSnapshot{}, nil
-}
-
-func TestNotificationDecisionSnapshotRestoreIsCappedAtWorkerFloor(t *testing.T) {
-	projection := NewNotificationDecisionProjection()
-	projection.SetAcknowledgedThrough(41)
-	underlying := &notificationDecisionCapturingSnapshotSource{}
-	source := cappedNotificationDecisionSnapshotSource{source: underlying, projection: projection}
-	if _, err := source.LoadProjectionSnapshot(context.Background(), events.ProjectionSnapshotLoadRequest{MaxCutoff: 99}); err != nil {
-		t.Fatalf("LoadProjectionSnapshot: %v", err)
-	}
-	if underlying.request.MaxCutoff != 41 {
-		t.Fatalf("snapshot max cutoff = %d, want worker floor 41", underlying.request.MaxCutoff)
-	}
-}
-
-func TestNotificationDecisionSnapshotPublicationPreservesSafeGenerationWhilePending(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	p.SetAcknowledgedThrough(1)
-	created := &evtv1.Event{Id: "create", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
-		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
-	}}}
-	if err := p.Apply(created, 1); err != nil {
-		t.Fatalf("Apply room create: %v", err)
-	}
-	if !p.AllowSnapshotPublication(1) {
-		t.Fatal("snapshot before pending boundary was rejected")
-	}
-	loss := &evtv1.Event{Id: "loss", Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{
-		RoomId: "R1", Universal: false,
-	}}}
-	if err := p.Apply(loss, 2); err != nil {
-		t.Fatalf("Apply visibility loss: %v", err)
-	}
-	if p.AllowSnapshotPublication(2) {
-		t.Fatal("snapshot including an unacknowledged boundary was allowed to rotate the safe generation")
-	}
-	if !p.AllowSnapshotPublication(1) {
-		t.Fatal("older capture before pending boundary should remain publishable")
-	}
-	if err := p.ReleaseThrough(2); err != nil {
-		t.Fatalf("ReleaseThrough: %v", err)
-	}
-	if !p.AllowSnapshotPublication(2) {
-		t.Fatal("snapshot remained blocked after confirmed acknowledgement")
-	}
-}
-
-func TestNotificationDecisionSnapshotPublicationUsesFullWorkerFloor(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	p.SetAcknowledgedThrough(1)
-	created := &evtv1.Event{Id: "create", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
-		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
-	}}}
-	if err := p.Apply(created, 1); err != nil {
-		t.Fatalf("Apply room create: %v", err)
-	}
-	// UserJoinedRoom changes visibility state but is not an implicit-loss
-	// boundary. A different non-boundary worker delivery can hold AckFloor at
-	// the same point, so publication must still use the full shared floor.
-	joined := &evtv1.Event{Id: "join", ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: "R1"}}}
-	if err := p.Apply(joined, 2); err != nil {
-		t.Fatalf("Apply membership delta: %v", err)
-	}
-	if p.AllowSnapshotPublication(2) {
-		t.Fatal("snapshot above non-boundary worker floor was allowed")
-	}
-	if err := p.ReleaseThrough(2); err != nil {
-		t.Fatalf("ReleaseThrough: %v", err)
-	}
-	if !p.AllowSnapshotPublication(2) {
-		t.Fatal("snapshot remained blocked after worker floor advanced")
-	}
-}
-
-func TestNotificationDecisionEvaluatorAdvancesAndReleasesStateOnlyDeltas(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	p.SetAcknowledgedThrough(1)
-	if err := p.Apply(&evtv1.Event{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
-		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
-	}}}, 1); err != nil {
-		t.Fatalf("Apply room: %v", err)
-	}
-	if err := p.Apply(&evtv1.Event{Id: "join", ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{
-		RoomId: "R1",
-	}}}, 2); err != nil {
-		t.Fatalf("Apply join: %v", err)
-	}
-	if err := p.AdvanceThrough(2); err != nil {
-		t.Fatalf("AdvanceThrough: %v", err)
-	}
-	if !p.evaluator.membershipExists("U1", "R1") {
-		t.Fatal("lagging evaluator did not apply state-only membership delta")
-	}
-	if err := p.ReleaseThrough(2); err != nil {
-		t.Fatalf("ReleaseThrough: %v", err)
-	}
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	if len(p.deltas) != 0 {
-		t.Fatalf("retained deltas = %d, want none after worker acknowledgement", len(p.deltas))
-	}
-}
-
-func TestNotificationDecisionEvaluatorPreservesOrderWhenIdleFloorAdvancesAheadOfProjector(t *testing.T) {
-	p := NewNotificationDecisionProjection()
-	p.SetAcknowledgedThrough(1)
-	if err := p.Apply(&evtv1.Event{Id: "room", Event: &evtv1.Event_RoomCreated{RoomCreated: &evtv1.RoomCreatedEvent{
-		RoomId: "R1", Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL,
-	}}}, 1); err != nil {
-		t.Fatalf("Apply room: %v", err)
-	}
-	if err := p.Apply(&evtv1.Event{Id: "join", ActorId: "U1", Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{
-		RoomId: "R1",
-	}}}, 2); err != nil {
-		t.Fatalf("Apply pending join: %v", err)
-	}
-
-	// Model ReleaseThrough observing an idle filtered consumer at EVT 3 before
-	// this projection applies the state-only fact at that sequence.
-	p.acknowledgedThrough.Store(3)
-	if err := p.Apply(&evtv1.Event{Id: "user", Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{
-		UserId: "U1",
-	}}}, 3); err != nil {
-		t.Fatalf("Apply acknowledged user: %v", err)
-	}
-	if !p.evaluator.membershipExists("U1", "R1") {
-		t.Fatal("worker-position evaluator skipped the older pending membership delta")
-	}
-	if _, active := p.evaluator.activeUsers["U1"]; !active {
-		t.Fatal("worker-position evaluator did not apply the current acknowledged fact")
 	}
 }

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-10
 
-**Updated:** 2026-08-27
+**Updated:** 2026-08-30
 
 ## Context
 
@@ -55,7 +55,7 @@ consumer position.
 
 The `NotificationEvent` envelope owns notification identity, recipient,
 lifecycle time, and expiry. `NotificationSignalled` contains immutable source
-coordinates, source-time delivery and attention decisions, and a rich
+coordinates, materialization-time delivery and attention decisions, and a rich
 `NotificationSignal` oneof. The
 projection constructs `NotificationOccurrence` current-state resources from
 that fact and later lifecycle facts; the event never embeds its projection.
@@ -94,7 +94,7 @@ Each exact occurrence ID is derived from recipient ID, source event ID, and
 signal kind. Retries are idempotent while distinct causes retain independent
 identity and triage.
 
-The source-time delivery mode is `Off`, `Badge`, `Notification`, or
+The materialization-time delivery mode is `Off`, `Badge`, `Notification`, or
 `Push notification`. `Off` creates no output. `Badge` updates one neutral
 unread marker for the applicable room or thread. It does not create a list
 item, request local sound, or permit push delivery. Both notification modes
@@ -103,7 +103,7 @@ Only `Push notification` is eligible for push delivery. Visual attention is
 independent: reactions are currently Ambient and other current signals are
 Important.
 
-### Source derivation remains outside EVT
+### Notification decisions use current projected state
 
 Message commands resolve mention handles on every room-OCC attempt and persist
 the resulting user-and-mention-kind facts on the existing `MessagePostedEvent`.
@@ -112,9 +112,10 @@ role, and `@all` expansion without recording a notification plan. A conflicting
 retry therefore cannot retain stale mention recipients.
 
 The same existing `MessagePostedEvent` is the source for ordinary root-message
-attention. At that exact event sequence, the materializer selects current room
-members who have `message.read` and resolves each member's Room messages policy.
-Thread messages and direct messages use their existing separate causes.
+attention. When the durable materializer processes it, the materializer uses
+current room membership, authorization, room-group placement, notification
+policy, and thread-follow state. Thread messages and direct messages use their
+existing separate causes.
 Joined-room activity does not produce followed-room activity. That branch is a
 deprecated compatibility slot; Room messages at room scope provide the
 supported control. No notification-specific source event or marker is added to
@@ -129,23 +130,18 @@ root-room, reply, and follow signal kinds that remain independently knowable
 are still derived.
 Current writers populate `mentions` with every rich cause.
 
-The EVT-backed Notification Decisions projection consumes the compact state
-needed for notification derivation: active accounts, room membership and kind,
-universal-room authorization, room-group layout, RBAC, notification policy,
-thread followers, and reply counts. Alongside its current read model it keeps a
-second in-memory evaluator at the durable worker's ordered position. Events
-above that position are retained as compact deltas and applied as the worker
-advances, so an exact boundary costs only the intervening facts rather than a
-copy of total server state. The materializer can therefore reconstruct state at
-the delivered EVT sequence even if live projections have advanced through
-later policy, membership, or follow changes. Persisted snapshots cannot restore
-or publish past the materializer consumer's confirmed EVT floor. This cap is
-specific to the decision projection: the occurrence projection independently
-snapshots its own `NOTIFICATIONS` position and incarnation.
+The EVT-backed Notification Decisions projection consumes the compact current
+state needed for notification derivation: active accounts, room membership and
+kind, universal-room authorization, room-group layout, RBAC, notification
+policy, thread followers, and reply counts. The materializer waits until this
+projection includes the delivered source fact, then makes one decision from its
+current state. Later facts that the projection has already applied intentionally
+affect that decision. This avoids retaining historical decision boundaries or
+putting notification plans in permanent domain history.
 
 The shared `chatto-notification-materializer-v1` durable consumer reads only
-existing domain-changing `EVT` facts. It derives deterministic delivery output
-at the delivered sequence. Notification modes append `NotificationSignalled`
+existing domain-changing `EVT` facts. It derives durable delivery output from
+current projected state. Notification modes append `NotificationSignalled`
 facts to `NOTIFICATIONS`. Badge updates a monotonic latest-value room or thread
 marker in `RUNTIME_STATE`. The consumer acknowledges the EVT delivery only
 after all output writes succeed. A crash before the confirmed acknowledgement
@@ -253,7 +249,7 @@ sequence, fences the EVT materializer, reloads current occurrence state, and
 revalidates policy, visibility, exact reaction/target existence, DND, and push
 subscription ownership.
 
-Only unread, pending occurrences whose source-time mode is `Push notification`
+Only unread, pending occurrences whose materialization-time mode is `Push notification`
 can contact a provider.
 The immutable delivery deadline is two minutes after source time. When a
 still-pending push delivery reaches a delivery or suppression decision, the worker

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"sort"
 
@@ -10,7 +9,7 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-// notificationRecipientDecision is one exact event-time policy result. A
+// notificationRecipientDecision is one processing-time policy result. A
 // recipient can have several decisions for the same source fact because each
 // rich notification signal remains independently addressable.
 type notificationRecipientDecision struct {
@@ -81,19 +80,20 @@ func sortedUniqueStrings(values []string) []string {
 	return result
 }
 
-func (c *ChattoCore) buildMessageNotificationDecisionsAt(
-	ctx context.Context,
+func buildMessageNotificationDecisions(
 	snapshot *notificationDecisionSnapshot,
 	source *evtv1.Event,
-) ([]notificationRecipientDecision, error) {
+	parentActorID string,
+	threadRootActorID string,
+) []notificationRecipientDecision {
 	message := source.GetMessagePosted()
 	if message == nil || message.GetEchoOfEventId() != "" {
-		return nil, nil
+		return nil
 	}
 	roomID := message.GetRoomId()
 	roomKind, exists := snapshot.roomKind(roomID)
 	if !exists {
-		return nil, nil
+		return nil
 	}
 	reference := newNotificationMessageReference(roomID, source.GetId())
 	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
@@ -143,13 +143,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 	}
 
 	if parentEventID := message.GetInReplyTo(); parentEventID != "" {
-		parent, err := c.GetRoomEventByEventID(ctx, roomKind, roomID, parentEventID)
-		if err != nil {
-			return nil, err
-		}
-		if parent != nil {
-			add(parent.GetActorId(), &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
-		}
+		add(parentActorID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_ReplyReceived{ReplyReceived: &notificationv1.ReplyReceived{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 	}
 
 	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
@@ -157,12 +151,8 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 			add(userID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 		}
 		if snapshot.replyCounts[threadRootEventID] == 1 {
-			root, err := c.GetRoomEventByEventID(ctx, roomKind, roomID, threadRootEventID)
-			if err != nil {
-				return nil, err
-			}
-			if root != nil && snapshot.threadFollowState(root.GetActorId(), roomID, threadRootEventID) == ThreadFollowStateNone {
-				add(root.GetActorId(), &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
+			if threadRootActorID != "" && snapshot.threadFollowState(threadRootActorID, roomID, threadRootEventID) == ThreadFollowStateNone {
+				add(threadRootActorID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &notificationv1.FollowedThreadActivity{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 			}
 		}
 	}
@@ -183,7 +173,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 			}
 		}
 	}
-	return decisions, nil
+	return decisions
 }
 
 func newNotificationOccurrenceInputs(

@@ -1243,7 +1243,7 @@ type NotificationOccurrence struct {
 	// cleanup and read-boundary reconciliation; never exposed through the public
 	// API.
 	SourceStreamSequence uint64 `protobuf:"varint,9,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
-	// Source-time visual importance.
+	// Visual importance selected when the source is materialized.
 	AttentionLevel NotificationAttentionLevel `protobuf:"varint,10,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.notification.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
 	// Immutable interruptive-delivery deadline derived from source_created_at.
 	AlertExpiresAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
@@ -1379,7 +1379,7 @@ func (x *NotificationOccurrence) GetAlertDelivered() bool {
 	return false
 }
 
-// NotificationSignalled is the immutable source-time fact from which the
+// NotificationSignalled is the immutable materialized fact from which the
 // current NotificationOccurrence is projected.
 type NotificationSignalled struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`

@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -48,7 +48,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 5. DND is live user state
 
-**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT. While present, it suppresses notification sounds and Web Push at delivery time without dropping, downgrading, or rewriting the source-time delivery mode of underlying notification occurrences. Durable custom statuses live separately as user profile metadata (FDR-022).
+**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT. While present, it suppresses notification sounds and Web Push at delivery time without dropping, downgrading, or rewriting the materialized delivery mode of underlying notification occurrences. Durable custom statuses live separately as user profile metadata (FDR-022).
 **Why:** Presence controls notification routing and "right now" UI hints. Persisting it as domain/account history would overstate its meaning, while custom statuses communicate user-authored profile context without changing availability.
 **Tradeoff:** The UI has two adjacent concepts: live presence dot and durable custom status. They deliberately answer different questions.
 
