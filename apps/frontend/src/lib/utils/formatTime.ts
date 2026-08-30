@@ -121,6 +121,12 @@ export type FileDateGroup = {
   label: string;
 };
 
+export type ActivityDateSection<T> = {
+  key: string;
+  label: string;
+  items: T[];
+};
+
 function dateParts(date: Date, settings: TimeFormatSettings): DateParts {
   const fmt = getFormatter('en-US', {
     year: 'numeric',
@@ -310,4 +316,60 @@ export function fileDateGroup(
     key: `month:${itemParts.year}-${String(itemParts.month).padStart(2, '0')}`,
     label: formatMonthYear(d, settings, locale)
   };
+}
+
+/**
+ * Group newest-first activity records under stable, localized date headings.
+ * Records without an activity timestamp are omitted.
+ */
+export function groupByActivityDate<T>(
+  items: readonly T[],
+  activityAt: (item: T) => Date | string | null | undefined,
+  settingsFor: (item: T) => TimeFormatSettings,
+  now: Date = new Date(),
+  locale: string = activeLocale()
+): ActivityDateSection<T>[] {
+  const sections: ActivityDateSection<T>[] = [];
+
+  for (const item of items) {
+    const timestamp = activityAt(item);
+    if (!timestamp) continue;
+
+    const settings = settingsFor(item);
+    const dateGroup = fileDateGroup(timestamp, settings, now, locale);
+    const label =
+      dateGroup.key === 'this-month'
+        ? formatMonthYear(timestamp, settings, locale)
+        : dateGroup.label;
+    const key = dateGroup.key === 'this-month' ? `this-month:${label}` : dateGroup.key;
+    let section = sections.find((candidate) => candidate.key === key);
+    if (!section) {
+      section = { key, label, items: [] };
+      sections.push(section);
+    }
+    section.items.push(item);
+  }
+
+  return sections;
+}
+
+/** Format recent activity as elapsed time and older activity as a calendar date. */
+export function formatRelativeTime(
+  timestamp: Date | string | null | undefined,
+  settings: TimeFormatSettings,
+  locale: string = activeLocale(),
+  now: Date = new Date()
+): string {
+  if (!timestamp) return '';
+
+  const date = toDate(timestamp);
+  const diffMinutes = Math.floor((now.getTime() - date.getTime()) / 60_000);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMinutes < 1) return m('chat.notifications.time_now');
+  if (diffMinutes < 60) return m('chat.notifications.time_minutes', { count: diffMinutes });
+  if (diffHours < 24) return m('chat.notifications.time_hours', { count: diffHours });
+  if (diffDays < 7) return m('chat.notifications.time_days', { count: diffDays });
+  return formatDate(date, settings, locale);
 }

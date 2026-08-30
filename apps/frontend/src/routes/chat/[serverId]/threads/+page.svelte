@@ -10,7 +10,7 @@
   import { createThreadAPI, type FollowedThread } from '$lib/api-client/threads';
   import { createReadStateAPI } from '$lib/api-client/readState';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
-  import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
   import { queryClient } from '$lib/query/client';
   import {
     flattenFollowedThreads,
@@ -19,13 +19,19 @@
     updateFollowedThreadSummary,
     type FollowedThreadsData
   } from '$lib/query/threads';
-  import { EmptyState, Hint, PaneHeader, SegmentedControl, UnreadDot } from '$lib/ui';
+  import {
+    ActivityListRow,
+    EmptyState,
+    Hint,
+    PaneHeader,
+    SegmentedControl,
+    UnreadDot
+  } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import {
-    fileDateGroup,
-    formatDate,
-    formatMonthYear,
+    formatRelativeTime,
+    groupByActivityDate,
     timeFormatSettingsFor
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
@@ -93,13 +99,15 @@
   const filteredThreads = $derived(
     filter === 'unread' ? threads.filter((t) => t.hasUnreadReplies) : threads
   );
-  const dateSections = $derived.by(() => groupThreadsByDate(filteredThreads));
-
-  type ThreadDateSection = {
-    key: string;
-    label: string;
-    threads: FollowedThread[];
-  };
+  const dateSections = $derived.by(() =>
+    groupByActivityDate(
+      filteredThreads,
+      threadActivityAt,
+      () => userSettings,
+      new Date(),
+      activeLocale
+    )
+  );
 
   function reconcilePageWithCurrentProjection(
     pageData: FollowedThreadsData['pages'][number],
@@ -263,49 +271,10 @@
     );
   }
 
-  function groupThreadsByDate(items: FollowedThread[]): ThreadDateSection[] {
-    const sections: ThreadDateSection[] = [];
-    const now = new Date();
-    for (const thread of items) {
-      const activityAt = threadActivityAt(thread);
-      if (!activityAt) continue;
-      const dateGroup = fileDateGroup(activityAt, userSettings, now, activeLocale);
-      const label =
-        dateGroup.key === 'this-month'
-          ? formatMonthYear(activityAt, userSettings, activeLocale)
-          : dateGroup.label;
-      const key = dateGroup.key === 'this-month' ? `this-month:${label}` : dateGroup.key;
-      let section = sections.find((candidate) => candidate.key === key);
-      if (!section) {
-        section = { key, label, threads: [] };
-        sections.push(section);
-      }
-      section.threads.push(thread);
-    }
-    return sections;
-  }
-
   function replyCountLabel(count: number): string {
     return count === 1
       ? m('room.message.meta.reply_count_one')
       : m('room.message.meta.reply_count_many', { count });
-  }
-
-  function formatRelativeTime(timestamp: string | null): string {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return m('chat.notifications.time_now');
-    if (diffMins < 60) return m('chat.notifications.time_minutes', { count: diffMins });
-    if (diffHours < 24) return m('chat.notifications.time_hours', { count: diffHours });
-    if (diffDays < 7) return m('chat.notifications.time_days', { count: diffDays });
-
-    return formatDate(date, userSettings, activeLocale);
   }
 </script>
 
@@ -357,41 +326,23 @@
         {#each dateSections as section (section.key)}
           <section aria-labelledby={`thread-date-${section.key}`}>
             <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
-            {#each section.threads as thread (thread.threadRootEventId)}
+            {#each section.items as thread (thread.threadRootEventId)}
               {@const actors = rowActors(thread)}
-              <article
-                class={[
-                  'group flex w-full items-center gap-3 selectable-list-item px-3 py-2.5',
-                  thread.attention === 'important' && 'bg-attention/5'
-                ]}
-                data-testid="my-thread-item"
-                data-thread-state={thread.hasUnreadReplies ? 'unread' : 'read'}
-                data-thread-attention={thread.attention}
+              <ActivityListRow
+                pending={actionThreadId === thread.threadRootEventId}
+                disabled={actionThreadId === thread.threadRootEventId}
+                dimmed={!thread.hasUnreadReplies && thread.attention === 'none'}
+                important={thread.attention === 'important'}
+                onclick={() => navigateToThread(thread)}
+                rowAttributes={{
+                  'data-testid': 'my-thread-item',
+                  'data-thread-state': thread.hasUnreadReplies ? 'unread' : 'read',
+                  'data-thread-attention': thread.attention
+                }}
               >
-                <button
-                  type="button"
-                  class={[
-                    'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action',
-                    !thread.hasUnreadReplies && thread.attention === 'none' && 'opacity-60'
-                  ]}
-                  disabled={actionThreadId === thread.threadRootEventId}
-                  onclick={() => navigateToThread(thread)}
-                >
+                {#snippet leading()}
                   <span class="relative flex shrink-0" aria-hidden="true">
-                    {#if actors.length > 1}
-                      <span class="flex -space-x-2 rtl:space-x-reverse">
-                        {#each actors as actor (actor.id)}
-                          <UserAvatar
-                            user={actor}
-                            size="md"
-                            class="ring-2 ring-background"
-                            useLiveProfile={false}
-                          />
-                        {/each}
-                      </span>
-                    {:else if actors[0]}
-                      <UserAvatar user={actors[0]} size="md" useLiveProfile={false} />
-                    {/if}
+                    <UserAvatarStack users={actors} useLiveProfile={false} />
                     {#if thread.attention !== 'none'}
                       <UnreadDot
                         color={thread.attention === 'important' ? 'warning' : 'ambient'}
@@ -401,44 +352,44 @@
                       />
                     {/if}
                   </span>
+                {/snippet}
 
-                  {#if thread.hasUnreadReplies}<span class="sr-only"
-                      >{m('chat.threads.filter_unread')}</span
-                    >{/if}
-                  <span class="min-w-0 flex-1" data-testid="thread-content">
-                    <span class="flex min-w-0 items-baseline gap-2">
-                      <bdi class="min-w-0 flex-1 truncate" dir="auto">
-                        {#if actorName(thread.latestReply)}
-                          <span class="font-medium"
-                            >{actorName(thread.latestReply)}:
-                            <span class="font-normal">{messageExcerpt(thread.latestReply)}</span
-                            ></span
-                          >
-                        {:else}
-                          <span>{messageExcerpt(thread.latestReply)}</span>
-                        {/if}
-                      </bdi>
-                      <span class="shrink-0 text-sm text-muted">
-                        {formatRelativeTime(threadActivityAt(thread))}
-                      </span>
-                    </span>
-                    <span class="flex min-w-0 items-baseline gap-2 text-sm text-muted">
-                      <bdi class="min-w-0 flex-1 truncate" dir="auto">
+                {#if thread.hasUnreadReplies}<span class="sr-only"
+                    >{m('chat.threads.filter_unread')}</span
+                  >{/if}
+                <span class="min-w-0 flex-1" data-testid="thread-content">
+                  <span class="flex min-w-0 items-baseline gap-2">
+                    <bdi class="min-w-0 flex-1 truncate" dir="auto">
+                      {#if actorName(thread.latestReply)}
                         <span class="font-medium"
-                          >#{thread.roomName}
-                          <span class="font-normal"
-                            >· {actorName(thread.rootMessage)}: {messageExcerpt(
-                              thread.rootMessage
-                            )}</span
+                          >{actorName(thread.latestReply)}:
+                          <span class="font-normal">{messageExcerpt(thread.latestReply)}</span
                           ></span
                         >
-                      </bdi>
-                      <span class="shrink-0">{replyCountLabel(thread.replyCount)}</span>
+                      {:else}
+                        <span>{messageExcerpt(thread.latestReply)}</span>
+                      {/if}
+                    </bdi>
+                    <span class="shrink-0 text-sm text-muted">
+                      {formatRelativeTime(threadActivityAt(thread), userSettings, activeLocale)}
                     </span>
                   </span>
-                </button>
+                  <span class="flex min-w-0 items-baseline gap-2 text-sm text-muted">
+                    <bdi class="min-w-0 flex-1 truncate" dir="auto">
+                      <span class="font-medium"
+                        >#{thread.roomName}
+                        <span class="font-normal"
+                          >· {actorName(thread.rootMessage)}: {messageExcerpt(
+                            thread.rootMessage
+                          )}</span
+                        ></span
+                      >
+                    </bdi>
+                    <span class="shrink-0">{replyCountLabel(thread.replyCount)}</span>
+                  </span>
+                </span>
 
-                <div class="hover-reveal-action flex shrink-0 items-center">
+                {#snippet actions()}
                   {#if thread.hasUnreadReplies && thread.latestReply}
                     <button
                       type="button"
@@ -462,8 +413,8 @@
                     <span class="iconify icon-[uil--bell-slash] text-base" aria-hidden="true"
                     ></span>
                   </button>
-                </div>
-              </article>
+                {/snippet}
+              </ActivityListRow>
             {/each}
           </section>
         {/each}

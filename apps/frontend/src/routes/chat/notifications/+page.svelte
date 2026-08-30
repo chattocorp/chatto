@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-  import { EmptyState, PaneHeader } from '$lib/ui';
+  import { ActivityListRow, EmptyState, PaneHeader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -18,12 +18,11 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import UserAvatarStack from '$lib/components/UserAvatarStack.svelte';
   import DaySeparator from '$lib/components/DaySeparator.svelte';
   import {
-    fileDateGroup,
-    formatDate,
-    formatMonthYear,
+    formatRelativeTime,
+    groupByActivityDate,
     timeFormatSettingsFor,
     type TimeFormatSettings
   } from '$lib/utils/formatTime';
@@ -48,12 +47,6 @@
     serverId: string;
     offset: number;
     hasMore: boolean;
-  };
-
-  type NotificationDateSection = {
-    key: string;
-    label: string;
-    items: ServerGroup[];
   };
 
   type ReadOccurrenceBatch = {
@@ -101,7 +94,15 @@
     const newestUnloadedBoundary = activeBoundaries.sort().at(-1);
     return sorted.filter((item) => item.group.latestAt >= newestUnloadedBoundary!);
   });
-  const dateSections = $derived.by(() => groupNotificationsByDate(visibleGroups));
+  const dateSections = $derived.by(() =>
+    groupByActivityDate(
+      visibleGroups,
+      (item) => item.group.latestAt,
+      (item) => item.timeFormatSettings,
+      new Date(),
+      activeLocale
+    )
+  );
   const readOccurrenceBatches = $derived.by(readOccurrencesByServer);
   const showEnablePush = $derived(
     getPushCapability() === 'supported' &&
@@ -268,47 +269,9 @@
     return mutationKey(a).localeCompare(mutationKey(b));
   }
 
-  function groupNotificationsByDate(items: ServerGroup[]): NotificationDateSection[] {
-    const sections: NotificationDateSection[] = [];
-    const now = new Date();
-    for (const item of items) {
-      const dateGroup = fileDateGroup(
-        item.group.latestAt,
-        item.timeFormatSettings,
-        now,
-        activeLocale
-      );
-      const label =
-        dateGroup.key === 'this-month'
-          ? formatMonthYear(item.group.latestAt, item.timeFormatSettings, activeLocale)
-          : dateGroup.label;
-      const key = dateGroup.key === 'this-month' ? `this-month:${label}` : dateGroup.key;
-      let section = sections.find((candidate) => candidate.key === key);
-      if (!section) {
-        section = { key, label, items: [] };
-        sections.push(section);
-      }
-      section.items.push(item);
-    }
-    return sections;
-  }
-
   function setMutationPending(key: string, pending: boolean): void {
     if (pending) pendingMutationKeys.add(key);
     else pendingMutationKeys.delete(key);
-  }
-
-  function formatTime(timestamp: string, settings: TimeFormatSettings): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMins = Math.floor((now.getTime() - date.getTime()) / 60_000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffMins < 1) return m('chat.notifications.time_now');
-    if (diffMins < 60) return m('chat.notifications.time_minutes', { count: diffMins });
-    if (diffHours < 24) return m('chat.notifications.time_hours', { count: diffHours });
-    if (diffDays < 7) return m('chat.notifications.time_days', { count: diffDays });
-    return formatDate(date, settings, activeLocale);
   }
 
   async function navigateToDestination(
@@ -562,75 +525,55 @@
               {@const occurrence = item.group.openTarget}
               {@const targetSupported = occurrence?.targetSupported !== false}
               {@const isReaction = occurrence?.signalKind === NotificationSignalKind.REACTION}
-              {@const actor = occurrence?.actor ?? null}
               {@const actors = notificationActors(item.group)}
               {@const mutationPending =
                 dismissingRead || pendingMutationKeys.has(mutationKey(item))}
-              <div
-                class={[
-                  'group flex w-full items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
-                  targetSupported ? 'cursor-pointer' : 'cursor-default',
-                  item.group.unread &&
-                    item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT &&
-                    'bg-attention/5'
-                ]}
-                data-testid="notification-group"
-                data-notification-state={item.group.unread ? 'unread' : 'read'}
-                data-notification-attention={item.group.unread
-                  ? item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
-                    ? 'important'
-                    : 'ambient'
-                  : 'none'}
+              <ActivityListRow
+                interactive={targetSupported}
+                pending={mutationPending}
+                disabled={mutationPending || !targetSupported}
+                dimmed={!item.group.unread}
+                important={item.group.unread &&
+                  item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT}
+                onclick={() => openGroup(item)}
+                rowAttributes={{
+                  'data-testid': 'notification-group',
+                  'data-notification-state': item.group.unread ? 'unread' : 'read',
+                  'data-notification-attention': item.group.unread
+                    ? item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
+                      ? 'important'
+                      : 'ambient'
+                    : 'none'
+                }}
               >
-                <button
-                  type="button"
-                  class={[
-                    'flex min-w-0 flex-1 items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action',
-                    targetSupported ? 'cursor-pointer' : 'cursor-default',
-                    mutationPending && 'cursor-wait',
-                    !item.group.unread && 'opacity-60'
-                  ]}
-                  disabled={mutationPending || !targetSupported}
-                  onclick={() => openGroup(item)}
-                >
-                  <span class="flex shrink-0">
-                    {#if actors.length > 1}
-                      <span
-                        class="flex shrink-0 -space-x-2 rtl:space-x-reverse"
-                        data-testid="notification-actor-stack"
+                {#snippet leading()}
+                  <UserAvatarStack users={actors} testId="notification-actor-stack" />
+                {/snippet}
+                {#if item.group.unread}
+                  <span class="sr-only">{m('chat.notifications.unread')}</span>
+                {/if}
+                <span class="min-w-0 flex-1" data-testid="notification-content">
+                  <bdi class="block truncate font-medium" dir="auto">
+                    {occurrenceSummary(item.group)}
+                  </bdi>
+                  <span class="block truncate text-sm text-muted">
+                    {#if showServerHostname}{item.serverHostname}<span
+                        class="mx-1.5"
+                        aria-hidden="true">·</span
+                      >{/if}
+                    {#if occurrence?.room?.name && !isReaction}
+                      <bdi dir="auto">#{occurrence.room.name}</bdi><span
+                        class="mx-1.5"
+                        aria-hidden="true">·</span
                       >
-                        {#each actors as groupedActor (groupedActor.id)}
-                          <UserAvatar
-                            user={groupedActor}
-                            size="md"
-                            class="ring-2 ring-background"
-                          />
-                        {/each}
-                      </span>
-                    {:else if actor}<UserAvatar user={actor} size="md" />{/if}
+                    {/if}{formatRelativeTime(
+                      item.group.latestAt,
+                      item.timeFormatSettings,
+                      activeLocale
+                    )}
                   </span>
-                  {#if item.group.unread}
-                    <span class="sr-only">{m('chat.notifications.unread')}</span>
-                  {/if}
-                  <span class="min-w-0 flex-1" data-testid="notification-content">
-                    <bdi class="block truncate font-medium" dir="auto">
-                      {occurrenceSummary(item.group)}
-                    </bdi>
-                    <span class="block truncate text-sm text-muted">
-                      {#if showServerHostname}{item.serverHostname}<span
-                          class="mx-1.5"
-                          aria-hidden="true">·</span
-                        >{/if}
-                      {#if occurrence?.room?.name && !isReaction}
-                        <bdi dir="auto">#{occurrence.room.name}</bdi><span
-                          class="mx-1.5"
-                          aria-hidden="true">·</span
-                        >
-                      {/if}{formatTime(item.group.latestAt, item.timeFormatSettings)}
-                    </span>
-                  </span>
-                </button>
-                <div class="hover-reveal-action flex shrink-0 items-center">
+                </span>
+                {#snippet actions()}
                   <button
                     type="button"
                     class="icon-action hover:text-danger focus-visible:text-danger"
@@ -641,8 +584,8 @@
                   >
                     <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
                   </button>
-                </div>
-              </div>
+                {/snippet}
+              </ActivityListRow>
             {/each}
           </section>
         {/each}

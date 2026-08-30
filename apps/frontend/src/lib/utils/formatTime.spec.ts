@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   fileDateGroup,
   firstDayOfWeekForLocale,
+  formatRelativeTime,
   formatMessageTime,
   formatDate,
   formatDateTime,
   formatMonthYear,
   formatDayLabel,
+  groupByActivityDate,
   isSameDay,
   type TimeFormatSettings
 } from './formatTime';
@@ -299,6 +301,63 @@ describe('fileDateGroup', () => {
       await loadLocaleMessages('en-GB');
       setReactiveLocale('en-GB');
     }
+  });
+});
+
+describe('groupByActivityDate', () => {
+  const now = new Date('2026-06-17T12:00:00Z');
+
+  it('keeps input order and omits records without activity', () => {
+    const items = [
+      { id: 'new', timestamp: '2026-06-17T08:00:00Z' },
+      { id: 'missing', timestamp: null },
+      { id: 'older', timestamp: '2026-06-16T08:00:00Z' }
+    ];
+
+    expect(
+      groupByActivityDate(
+        items,
+        (item) => item.timestamp,
+        () => utc12,
+        now,
+        'en-GB'
+      )
+    ).toEqual([
+      { key: 'today', label: 'Today', items: [items[0]] },
+      { key: 'yesterday', label: 'Yesterday', items: [items[2]] }
+    ]);
+  });
+
+  it('uses a calendar label for activity from earlier in the current month', () => {
+    const items = [{ timestamp: '2026-06-10T08:00:00Z' }];
+
+    expect(
+      groupByActivityDate(
+        items,
+        (item) => item.timestamp,
+        () => utc12,
+        now,
+        'en-GB'
+      )
+    ).toEqual([{ key: 'this-month:June 2026', label: 'June 2026', items }]);
+  });
+});
+
+describe('formatRelativeTime', () => {
+  const now = new Date('2026-06-17T12:00:00Z');
+
+  it.each([
+    ['2026-06-17T11:59:45Z', 'Just now'],
+    ['2026-06-17T11:42:00Z', '18m ago'],
+    ['2026-06-17T09:00:00Z', '3h ago'],
+    ['2026-06-14T12:00:00Z', '3d ago']
+  ])('formats recent activity at %s', (timestamp, expected) => {
+    expect(formatRelativeTime(timestamp, utc12, 'en-GB', now)).toBe(expected);
+  });
+
+  it('uses a calendar date after one week and accepts missing activity', () => {
+    expect(formatRelativeTime('2026-06-09T12:00:00Z', utc12, 'en-GB', now)).toBe('9 Jun 2026');
+    expect(formatRelativeTime(null, utc12, 'en-GB', now)).toBe('');
   });
 });
 

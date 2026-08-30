@@ -33,6 +33,9 @@ message search results:
 
 - Use `selectable-list` on non-table collections and `selectable-list-item` on
   each navigable, draggable, or directly actionable record.
+- Use `ActivityListRow` for newest-first activity records that have one primary
+  open action and optional row actions. It owns the shared unread opacity,
+  important fill, pending state, and hover-reveal action shell.
 - Rows rest transparently on the owning `background` work plane. Hover and
   keyboard focus rise exactly one level to `surface`; do not introduce ruled
   separators or a stronger surface jump.
@@ -63,6 +66,7 @@ inside the icon. Do not add a side stripe or a shadow for navigation selection.
 | One-of-many settings choice               | `ChoiceRow` inside a `radiogroup`                                          | Repeating indicator and selected-state markup                |
 | Compact one-of-many mode                  | `SegmentedControl`                                                         | Separate buttons or independently styled chips               |
 | Selectable non-table collection           | `selectable-list` and `selectable-list-item`                               | Feature-local hover recipes                                  |
+| Newest-first activity record              | `ActivityListRow` inside `selectable-list`                                 | Repeating row, unread, pending, and action-shell recipes     |
 | Modal form                                | `FormDialog`                                                               | A dialog containing an unrelated hand-rolled form footer     |
 | Confirmation                              | `ConfirmDialog`                                                            | A custom destructive modal                                   |
 | General dialog                            | `Dialog`; `BottomSheet` for touch-specific presentation                    | Fixed-position modal shells                                  |
