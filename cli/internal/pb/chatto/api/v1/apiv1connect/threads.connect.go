@@ -58,8 +58,8 @@ type ThreadServiceClient interface {
 	// Returns followed threads in rooms where the current user is a member.
 	// Channel-room threads also require message.read or an active relationship
 	// with message.read-interactions. Historical DM threads use DM membership.
-	// The result includes enough root-message data for clients to render the
-	// list without extra per-field fetches.
+	// The result includes enough root and latest-reply data for clients to render
+	// the list without extra per-thread fetches.
 	ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error)
 	// Follows a thread for the current user. Room membership plus message.read or
 	// an active relationship with message.read-interactions are required. DMs do
@@ -187,8 +187,8 @@ type ThreadServiceHandler interface {
 	// Returns followed threads in rooms where the current user is a member.
 	// Channel-room threads also require message.read or an active relationship
 	// with message.read-interactions. Historical DM threads use DM membership.
-	// The result includes enough root-message data for clients to render the
-	// list without extra per-field fetches.
+	// The result includes enough root and latest-reply data for clients to render
+	// the list without extra per-thread fetches.
 	ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error)
 	// Follows a thread for the current user. Room membership plus message.read or
 	// an active relationship with message.read-interactions are required. DMs do

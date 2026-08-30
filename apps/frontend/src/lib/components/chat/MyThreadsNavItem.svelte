@@ -13,7 +13,15 @@
   const serverId = $derived(serverScope.serverId);
   const notificationStore = $derived(serverScope.store.notifications);
   const threadNotifications = $derived(
-    notificationStore.unreadOccurrences.filter((n) => notificationTarget(n).threadRootId !== null)
+    notificationStore.unreadOccurrences.filter((notification) => {
+      const target = notificationTarget(notification);
+      if (!target.roomId || !target.threadRootId) return false;
+      return (
+        serverScope.store.projection.threadViewerStates.get(
+          `${target.roomId}\u0000${target.threadRootId}`
+        )?.isFollowing === true
+      );
+    })
   );
   const hasNotification = $derived(threadNotifications.length > 0);
 

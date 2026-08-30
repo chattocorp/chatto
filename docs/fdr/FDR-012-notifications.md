@@ -20,11 +20,11 @@ targets, unread counts, read state, or deletion semantics.
 
 ## Behavior
 
-- The notification page is one chronological list containing both Unread and
-  Read activity. Unread reactions are Ambient and use a neutral treatment;
-  every other current cause is Important and uses Chatto's notification
-  orange. Read rows are visually muted while remaining fully interactive. The
-  list does not use a separate unread dot on each row.
+- The notification page is one newest-activity-first chronological list that
+  contains both Unread and Read activity. Unread reactions are Ambient and use
+  a neutral treatment. Every other current cause is Important and uses Chatto's
+  notification orange. Read rows are visually muted while remaining fully
+  interactive. The list does not use a separate unread dot on each row.
 - Badge activity does not add a row to the notification page. It adds a neutral
   unread dot to the applicable room or thread. An orange notification indicator
   takes priority when both types of attention apply.
@@ -359,4 +359,4 @@ separate permission to manage another user's notification list.
 - **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-076,
   ADR-077, ADR-080, ADR-082
 - **FDRs:** FDR-001, FDR-002, FDR-004, FDR-005, FDR-006, FDR-007, FDR-011,
-  FDR-013, FDR-018, FDR-019, FDR-027, FDR-038, FDR-039
+  FDR-013, FDR-018, FDR-019, FDR-027, FDR-038, FDR-039, FDR-043

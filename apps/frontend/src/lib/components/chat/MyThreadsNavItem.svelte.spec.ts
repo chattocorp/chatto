@@ -5,7 +5,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 
 const mocks = vi.hoisted(() => ({
   unreadOccurrences: [] as Array<{
-    room: null;
+    room: { id: string } | null;
     eventId: string;
     threadRootId: string | null;
     attentionLevel: number;
@@ -77,7 +77,12 @@ describe('MyThreadsNavItem', () => {
       hasUnreadReplies: true
     });
     mocks.unreadOccurrences = [
-      { room: null, eventId: 'reply-1', threadRootId: 'root-1', attentionLevel: 2 }
+      {
+        room: { id: 'room-1' },
+        eventId: 'reply-1',
+        threadRootId: 'root-1',
+        attentionLevel: 2
+      }
     ];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
@@ -87,14 +92,42 @@ describe('MyThreadsNavItem', () => {
   });
 
   it('uses a neutral dot for an Ambient notification occurrence', () => {
+    mocks.threadViewerStates.set('room-1\u0000root-1', {
+      isFollowing: true,
+      hasUnreadReplies: false
+    });
     mocks.unreadOccurrences = [
-      { room: null, eventId: 'reply-1', threadRootId: 'root-1', attentionLevel: 1 }
+      {
+        room: { id: 'room-1' },
+        eventId: 'reply-1',
+        threadRootId: 'root-1',
+        attentionLevel: 1
+      }
     ];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
     const dot = container.querySelector('[data-testid="my-threads-unread-dot"]');
     expect(dot?.classList).toContain('bg-neutral-action');
+  });
+
+  it('ignores notification attention for a thread that is not followed', () => {
+    mocks.threadViewerStates.set('room-1\u0000root-1', {
+      isFollowing: false,
+      hasUnreadReplies: false
+    });
+    mocks.unreadOccurrences = [
+      {
+        room: { id: 'room-1' },
+        eventId: 'reply-1',
+        threadRootId: 'root-1',
+        attentionLevel: 2
+      }
+    ];
+
+    const { container } = render(MyThreadsNavItem, { props: { active: false } });
+
+    expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
   });
 
   it('ignores Badge state for a thread that is not followed', () => {

@@ -60,17 +60,17 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 **Why:** Reply attribution is a presentation concern. Special-casing the storage would mean every read path has to handle two flavors of message.
 **Tradeoff:** Bulk operations (deleting a message, etc.) need to consider whether replies still make sense after the target is gone. The UI handles this by gracefully degrading the byline.
 
-### 4. Thread replies use a cursor-paginated event connection
+### 4. Thread timelines use cursor pagination
 
-**Decision:** `MessagePostedEvent.threadReplies(limit, before, after)` returns a `RoomEventsConnection` page of replies, in chronological order, excluding the root event. Cursors use the same opaque sequence shape as `Room.events`.
-**Why:** Threads are append-only timelines and can grow large. A connection keeps the release API from baking in an unbounded reply list while matching the room timeline pagination model clients already understand.
-**Tradeoff:** Thread panes now load reply pages rather than a bare array. The current UI still asks for the default page, and can add older/newer reply paging without another schema change.
+**Decision:** Thread timelines load chronological pages through opaque cursors. The initial page includes the root and the latest replies. Continuation pages load older or newer replies without repeating the root.
+**Why:** Threads can grow large, so bounded pages keep reads predictable and use the same navigation model as room timelines.
+**Tradeoff:** Clients combine the root-bearing initial page with reply-only continuation pages.
 
 ### 5. Anchored thread reads preserve the visible window
 
-**Decision:** `MessagePostedEvent.threadRepliesAround(eventId, limit)` returns a reply page centered around a reply event ID, or around the top of the thread when the root event ID is supplied. The root event itself is still resolved separately and is not included in the reply connection.
-**Why:** Reconnect and wake refreshes need to reload the current thread window without jumping the reader to the newest replies. Anchoring by event ID lets the UI preserve scroll position in the same way room timelines use `eventsAround`.
-**Tradeoff:** This adds a second thread read shape, but keeps the existing forward/backward pagination API simple and avoids teaching cursor pagination how to express "refresh around this visible row."
+**Decision:** An anchored thread read returns a chronological window that includes the root and the requested root or reply, and identifies the requested event's position. Anchoring on the root loads the top of the thread.
+**Why:** Reconnects and message links preserve the reader's visible location instead of jumping to the latest replies.
+**Tradeoff:** Thread clients support both ordinary cursor paging and anchored windows.
 
 ### 6. Thread message links identify both the thread and focused message
 

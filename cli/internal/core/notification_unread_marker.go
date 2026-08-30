@@ -136,33 +136,61 @@ func (m *NotificationOccurrenceModel) HasNotificationUnread(ctx context.Context,
 // for one exact thread. Badge markers are Ambient. Unread occurrences can
 // raise the level to Important.
 func (m *NotificationOccurrenceModel) ThreadAttentionLevel(ctx context.Context, userID, roomID, threadRootEventID string) (ThreadAttentionLevel, error) {
-	badgeUnread, err := m.HasNotificationUnread(ctx, userID, roomID, threadRootEventID)
+	scope := notificationReadBoundaryScope{userID: userID, roomID: roomID, threadRootEventID: threadRootEventID}
+	levels, err := m.threadAttentionLevels(ctx, userID, []notificationReadBoundaryScope{scope})
 	if err != nil {
 		return ThreadAttentionLevelNone, err
 	}
-	level := ThreadAttentionLevelNone
-	if badgeUnread {
-		level = ThreadAttentionLevelAmbient
+	return levels[scope], nil
+}
+
+// threadAttentionLevels returns attention for several exact thread scopes. It
+// captures and waits for notification visibility boundaries once for the
+// batch, instead of repeating the same JetStream and projection barriers for
+// every followed-thread row.
+func (m *NotificationOccurrenceModel) threadAttentionLevels(ctx context.Context, userID string, scopes []notificationReadBoundaryScope) (map[notificationReadBoundaryScope]ThreadAttentionLevel, error) {
+	levels := make(map[notificationReadBoundaryScope]ThreadAttentionLevel, len(scopes))
+	occurrences := make([]*notificationv1.NotificationOccurrence, 0)
+	now := m.now().UTC()
+	for _, scope := range scopes {
+		if scope.userID != userID || scope.roomID == "" || scope.threadRootEventID == "" {
+			continue
+		}
+		if _, exists := levels[scope]; exists {
+			continue
+		}
+		levels[scope] = ThreadAttentionLevelNone
+		badgeUnread, err := m.HasNotificationUnread(ctx, userID, scope.roomID, scope.threadRootEventID)
+		if err != nil {
+			return nil, err
+		}
+		if badgeUnread {
+			levels[scope] = ThreadAttentionLevelAmbient
+		}
+		occurrences = append(occurrences, m.projection.Projection().scopeOccurrences(scope, now)...)
 	}
-	occurrences := m.projection.Projection().scopeOccurrences(notificationReadBoundaryScope{
-		userID: userID, roomID: roomID, threadRootEventID: threadRootEventID,
-	}, m.now().UTC())
 	visible, err := m.VisibleOccurrences(ctx, userID, occurrences)
 	if err != nil {
-		return ThreadAttentionLevelNone, err
+		return nil, err
 	}
 	for _, occurrence := range visible {
 		if occurrence == nil || occurrence.GetRead() {
 			continue
 		}
+		scope, ok := notificationOccurrenceReadScope(occurrence)
+		if !ok {
+			continue
+		}
 		switch occurrence.GetAttentionLevel() {
 		case notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT:
-			return ThreadAttentionLevelImportant, nil
+			levels[scope] = ThreadAttentionLevelImportant
 		case notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT:
-			level = ThreadAttentionLevelAmbient
+			if levels[scope] == ThreadAttentionLevelNone {
+				levels[scope] = ThreadAttentionLevelAmbient
+			}
 		}
 	}
-	return level, nil
+	return levels, nil
 }
 
 func (m *NotificationOccurrenceModel) notificationUnreadMarkerActive(ctx context.Context, userID string, marker *runtimestatev1.NotificationUnreadMarker) (bool, error) {

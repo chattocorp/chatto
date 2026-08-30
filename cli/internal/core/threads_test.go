@@ -1069,6 +1069,59 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 
 }
 
+func TestChattoCore_ListFollowedThreadsUsesRootActivityForThreadsWithoutReplies(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	alice, err := core.CreateUser(ctx, SystemActorID, "thread-order-alice", "Thread Order Alice", "password")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := core.CreateUser(ctx, SystemActorID, "thread-order-bob", "Thread Order Bob", "password")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, alice.Id, KindChannel, "", "thread-order-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{alice.Id, bob.Id} {
+		if _, err := core.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+
+	olderRoot, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "older root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage older root: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, bob.Id, "older reply", nil, olderRoot.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage older reply: %v", err)
+	}
+	time.Sleep(10 * time.Millisecond)
+	newerRoot, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "newer root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage newer root: %v", err)
+	}
+	if err := core.FollowThread(ctx, KindChannel, alice.Id, room.Id, newerRoot.Id); err != nil {
+		t.Fatalf("FollowThread newer root: %v", err)
+	}
+
+	threads, err := core.ListFollowedThreads(ctx, alice.Id, []string{LegacyServerSpaceID})
+	if err != nil {
+		t.Fatalf("ListFollowedThreads: %v", err)
+	}
+	if len(threads) != 2 {
+		t.Fatalf("followed threads = %d, want 2", len(threads))
+	}
+	if got := threads[0].ThreadRootEventID; got != newerRoot.Id {
+		t.Fatalf("first followed thread = %q, want newer root %q", got, newerRoot.Id)
+	}
+	if threads[0].ActivityAt == nil || !threads[0].ActivityAt.Equal(newerRoot.GetCreatedAt().AsTime()) {
+		t.Fatalf("newer root activity = %v, want %v", threads[0].ActivityAt, newerRoot.GetCreatedAt().AsTime())
+	}
+}
+
 func TestChattoCore_PostMessage_AutoFollowsThread(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

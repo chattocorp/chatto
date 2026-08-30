@@ -19,8 +19,8 @@ that they have not read.
   read cursor.
 - Notification attention is separate from reply unread state. Important
   attention uses notification orange. Ambient attention uses a neutral marker.
-- A user can mark the displayed thread activity as read or stop following the
-  thread from its row.
+- A user can mark a thread with unread replies as read, or stop following any
+  displayed thread, from its row.
 - Opening a thread uses the normal thread read behavior. This advances the read
   cursor and clears notification attention that the displayed content covers.
 - A thread can remain in My Threads after all replies and notification
@@ -59,7 +59,16 @@ where newer messages appear at the bottom.
 **Tradeoff:** My Threads and room timelines use different reading directions.
 The list response must also hydrate more message and user data.
 
-### 4. Chatto 0.5 uses the explicit viewer-state contract
+### 4. The navigation indicator covers followed threads
+
+**Decision:** The My Threads navigation indicator summarizes unread replies
+and notification attention only for followed threads. Important attention
+takes visual priority over the neutral indicator.
+**Why:** The indicator must lead to a row that the user can find in My Threads.
+**Tradeoff:** A notification for an unfollowed thread can still appear in
+Notifications without lighting the My Threads indicator.
+
+### 5. Chatto 0.5 uses the explicit viewer-state contract
 
 **Decision:** The 0.5 client and server use separate reply unread and attention
 fields. They do not preserve the ambiguous pre-0.5 client field.
