@@ -247,15 +247,18 @@ function scrubFollowedThreadMessage(serverId: string, roomId: string, eventId: s
       const pages = current.pages.map((page) => ({
         ...page,
         threads: page.threads.map((thread) => {
-          if (
-            thread.roomId !== roomId ||
-            thread.threadRootEventId !== eventId ||
-            !thread.rootMessage
-          ) {
-            return thread;
-          }
+          if (thread.roomId !== roomId) return thread;
+          const scrubRoot =
+            thread.rootMessage !== null &&
+            (thread.threadRootEventId === eventId || thread.rootMessage.id === eventId);
+          const scrubLatestReply = thread.latestReply?.id === eventId;
+          if (!scrubRoot && !scrubLatestReply) return thread;
           changed = true;
-          return { ...thread, rootMessage: null };
+          return {
+            ...thread,
+            rootMessage: scrubRoot ? null : thread.rootMessage,
+            latestReply: scrubLatestReply ? null : thread.latestReply
+          };
         })
       }));
       return changed ? { ...current, pages } : current;

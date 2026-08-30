@@ -186,10 +186,18 @@ describe('followed thread query helpers', () => {
         threadParticipants: []
       }
     };
+    const latestReply = {
+      ...rootMessage,
+      id: 'reply-2',
+      event: { ...rootMessage.event, body: 'Private latest reply' }
+    };
     queryClient.setQueryData(
       queryKey,
       data({
-        threads: [thread('root-1'), thread('root-2', { roomId: 'room-2', rootMessage })],
+        threads: [
+          thread('root-1'),
+          thread('root-2', { roomId: 'room-2', rootMessage, latestReply })
+        ],
         totalCount: 2,
         hasMore: false
       })
@@ -197,6 +205,12 @@ describe('followed thread query helpers', () => {
 
     scrubRegisteredFollowedThreadMessage('origin', 'room-2', 'root-2');
     expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))[1]?.rootMessage).toBeNull();
+    expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))[1]?.latestReply).toEqual(
+      latestReply
+    );
+
+    scrubRegisteredFollowedThreadMessage('origin', 'room-2', 'reply-2');
+    expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))[1]?.latestReply).toBeNull();
 
     scrubRegisteredFollowedThreadRoom('origin', 'room-1');
     expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))).toHaveLength(1);

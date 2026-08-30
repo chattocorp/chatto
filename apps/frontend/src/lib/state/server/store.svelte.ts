@@ -395,6 +395,9 @@ export class ServerStateStore {
 
   private ingestProjectionEvent(event: RealtimeProjectionEvent): void {
     const previousViewer = this.projection.viewer;
+    const resetsProjection = event.operations.some(
+      (operation) => operation.operation.case === 'reset'
+    );
     const existingTimelineRows = new SvelteSet<string>();
     for (const operation of event.operations) {
       if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
@@ -622,6 +625,10 @@ export class ServerStateStore {
             this.serverId,
             this.projection.threadViewerStates
           );
+          // A reply updates this projection even when the room timeline is not
+          // retained. Refresh the feed so its preview, count, and activity order
+          // do not depend on an open room or thread pane.
+          if (!resetsProjection) refreshRegisteredFollowedThreadQueries(this.serverId);
           for (const [roomId, page] of this.projection.timelines) {
             for (const projectedEvent of page.events) {
               if (

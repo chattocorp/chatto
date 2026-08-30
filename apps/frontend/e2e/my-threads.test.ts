@@ -154,6 +154,12 @@ test.describe('My Threads', () => {
     // Verify 1 reply shown
     await expect(page.getByText('1 reply')).toBeVisible();
 
+    // Reload on My Threads so the source room timeline is not retained. Reply
+    // activity must still refresh the query-backed conversation summary.
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'My Threads' })).toBeVisible();
+    await expect(page.getByText('1 reply')).toBeVisible();
+
     // User B opens the thread and posts a reply
     await postThreadReplyFromServerUser(
       browser!,

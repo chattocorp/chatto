@@ -1012,6 +1012,7 @@ describe('ServerStateStore live server updates', () => {
       registered.id,
       expect.any(Map)
     );
+    expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledWith(registered.id);
   });
 
   it('keeps a first-view room timeline loading while requesting it from realtime', () => {
