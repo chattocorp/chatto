@@ -151,6 +151,9 @@ func TestValidateOAuthClientMetadataSupportsNativeLoopbackRedirectsOnRemoteServe
 			if err != nil {
 				t.Fatalf("validateOAuthClientMetadata: %v", err)
 			}
+			if !client.Native {
+				t.Fatal("validated native client lost its application type")
+			}
 			if !client.allowsRedirectURI(redirectURI) {
 				t.Fatalf("client does not allow registered redirect %q", redirectURI)
 			}
@@ -182,16 +185,19 @@ func TestValidateOAuthClientMetadataRestrictsHTTPLoopbackRedirects(t *testing.T)
 				ClientID: identifier.String(), ApplicationType: tt.applicationType,
 				RedirectURIs: []string{tt.redirectURI}, TokenEndpointAuthMethod: "none",
 			}
-			_, err := validateOAuthClientMetadata(document.ClientID, identifier, document, tt.allowLoopback)
+			client, err := validateOAuthClientMetadata(document.ClientID, identifier, document, tt.allowLoopback)
 			if (err == nil) != tt.wantValid {
 				t.Fatalf("validateOAuthClientMetadata error = %v, wantValid = %v", err, tt.wantValid)
+			}
+			if err == nil && client.Native != (tt.applicationType == "native") {
+				t.Fatalf("client.Native = %v, application_type = %q", client.Native, tt.applicationType)
 			}
 		})
 	}
 }
 
-func TestOAuthClientLoopbackIPRedirectUsesVariablePortOnly(t *testing.T) {
-	client := OAuthClient{RedirectURIs: []string{
+func TestOAuthClientNativeLoopbackIPRedirectUsesVariablePortOnly(t *testing.T) {
+	client := OAuthClient{Native: true, RedirectURIs: []string{
 		"http://127.0.0.1:41000/oauth/callback?source=codex",
 		"http://[::1]:41000/oauth/callback",
 		"http://inspector.feature.localhost:41000/oauth/callback",
@@ -214,6 +220,16 @@ func TestOAuthClientLoopbackIPRedirectUsesVariablePortOnly(t *testing.T) {
 				t.Fatalf("allowsRedirectURI(%q) = %v, want %v", tt.candidate, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestOAuthClientWebLoopbackIPRedirectRequiresExactPort(t *testing.T) {
+	client := OAuthClient{RedirectURIs: []string{"http://127.0.0.1:41000/oauth/callback"}}
+	if client.allowsRedirectURI("http://127.0.0.1:52000/oauth/callback") {
+		t.Fatal("web client received the native variable-port exception")
+	}
+	if !client.allowsRedirectURI("http://127.0.0.1:41000/oauth/callback") {
+		t.Fatal("web client could not use its exact registered callback")
 	}
 }
 

@@ -26,19 +26,22 @@ const (
 )
 
 // OAuthClient is the validated identity and redirect contract for one public
-// OAuth client. Metadata is informational; ClientID and RedirectURIs are the
-// security-sensitive fields.
+// OAuth client. Metadata is informational; ClientID, RedirectURIs, and Native
+// are the security-sensitive fields.
 type OAuthClient struct {
 	ClientID     string
 	ClientName   string
 	ClientURI    string
 	RedirectURIs []string
-	BuiltIn      bool
+	// Native permits the RFC 8252 variable-port exception for literal
+	// loopback IP callbacks. Web clients always require an exact callback.
+	Native  bool
+	BuiltIn bool
 }
 
 func (c OAuthClient) allowsRedirectURI(candidate string) bool {
 	for _, redirectURI := range c.RedirectURIs {
-		if redirectURI == candidate || matchesLoopbackIPRedirectURI(redirectURI, candidate) {
+		if redirectURI == candidate || (c.Native && matchesLoopbackIPRedirectURI(redirectURI, candidate)) {
 			return true
 		}
 	}
@@ -290,7 +293,11 @@ func validateOAuthClientMetadata(clientID string, identifier *url.URL, document 
 	if len(name) > 100 {
 		return OAuthClient{}, fmt.Errorf("CIMD client_name exceeds 100 characters")
 	}
-	return OAuthClient{ClientID: clientID, ClientName: name, ClientURI: clientURIValue, RedirectURIs: append([]string(nil), document.RedirectURIs...)}, nil
+	return OAuthClient{
+		ClientID: clientID, ClientName: name, ClientURI: clientURIValue,
+		RedirectURIs: append([]string(nil), document.RedirectURIs...),
+		Native:       document.ApplicationType == "native",
+	}, nil
 }
 
 func validOAuthClientRedirectURI(redirect *url.URL, applicationType string, allowLoopback bool) bool {

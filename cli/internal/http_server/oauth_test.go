@@ -450,6 +450,7 @@ func TestOAuthAuthorize_AllowsNativeLoopbackIPRedirectWithEphemeralPort(t *testi
 		return OAuthClient{
 			ClientID: clientID, ClientName: "Native Tool", ClientURI: "https://native.example",
 			RedirectURIs: []string{"http://127.0.0.1:41000/oauth/callback"},
+			Native:       true,
 		}, true, nil
 	}
 
