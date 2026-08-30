@@ -6,7 +6,7 @@
  */
 
 // ---------------------------------------------------------------------------
-// AppState — browser focus tracking
+// AppState — browser lifecycle tracking
 // ---------------------------------------------------------------------------
 
 class AppState {
@@ -14,12 +14,16 @@ class AppState {
   isVisible = $state(
     typeof document !== 'undefined' ? document.visibilityState === 'visible' : true
   );
+  foregroundRevision = $state(0);
+  onlineRevision = $state(0);
+
+  private foregroundActive =
+    typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
 
   /**
-   * True when the user is actually present at the app: window focused AND
-   * tab visible. Drives read-cursor advancement — we only mark messages
-   * read while the user can actually see them. A blur or tab-hide flips
-   * this false; refocus / re-show flips it back.
+   * True when the app is visible and focused. Continuous message arrivals
+   * use this stricter state. Target entry and foreground activation only need
+   * visibility because some mobile app resumes do not restore focus events.
    */
   get isPresent(): boolean {
     return this.isFocused && this.isVisible;
@@ -33,11 +37,62 @@ class AppState {
       window.addEventListener('blur', () => {
         this.isFocused = false;
       });
+      window.addEventListener('pageshow', () => {
+        this.reconcileVisibility();
+      });
+      window.addEventListener('pagehide', () => {
+        this.foregroundActive = false;
+      });
+      window.addEventListener('online', () => {
+        this.onlineRevision += 1;
+      });
     }
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        this.isVisible = document.visibilityState === 'visible';
+        this.reconcileVisibility();
       });
+      document.addEventListener('freeze', () => {
+        this.foregroundActive = false;
+      });
+      document.addEventListener('resume', () => {
+        this.reconcileVisibility();
+      });
+      document.addEventListener(
+        'pointerdown',
+        (event) => {
+          if (event.isTrusted && this.isVisible) {
+            // A visible user interaction is stronger evidence than a missing
+            // focus event after a mobile app resumes.
+            this.isFocused = true;
+          }
+        },
+        { capture: true }
+      );
+      document.addEventListener(
+        'keydown',
+        (event) => {
+          if (event.isTrusted && this.isVisible) {
+            this.isFocused = true;
+          }
+        },
+        { capture: true }
+      );
+    }
+  }
+
+  private reconcileVisibility() {
+    const visible = document.visibilityState === 'visible';
+    this.isVisible = visible;
+
+    if (!visible) {
+      this.foregroundActive = false;
+      return;
+    }
+
+    this.isFocused = document.hasFocus();
+    if (!this.foregroundActive) {
+      this.foregroundActive = true;
+      this.foregroundRevision += 1;
     }
   }
 }

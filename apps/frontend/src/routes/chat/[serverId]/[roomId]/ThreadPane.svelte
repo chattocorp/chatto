@@ -117,7 +117,8 @@
     markerWindowFromReadResult: (result, markedAtMs) =>
       result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null,
     getMarkerEvents: () => threadEvents,
-    getMarkerSkipActorId: () => currentUser.user?.id ?? null
+    getMarkerSkipActorId: () => currentUser.user?.id ?? null,
+    onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error)
   });
 
   const typingIndicator = createTypingIndicator(() => ({
@@ -256,15 +257,10 @@
   async function markThreadAsRead(
     currentThreadId: string,
     upToEventId?: string
-  ): Promise<MarkThreadAsReadResult | null> {
-    try {
-      return await connection()
-        .getAPI(createReadStateAPI)
-        .markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
-    } catch (err) {
-      console.error('Failed to mark thread as read:', err);
-      return null;
-    }
+  ): Promise<MarkThreadAsReadResult> {
+    return connection()
+      .getAPI(createReadStateAPI)
+      .markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
   }
 </script>
 

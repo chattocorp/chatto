@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
+import { Code, ConnectError } from '@connectrpc/connect';
 import Harness from './UseUnreadMarkerHarness.svelte';
+
+const NO_MARKER_RESULT = {
+  previousLastReadAt: null,
+  lastReadAt: null
+};
 
 type HarnessAPI = {
   readonly unreadMarkerEventId: string | null;
@@ -41,12 +48,13 @@ describe('useUnreadMarker', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     setPresent(true);
     vi.restoreAllMocks();
   });
 
   it('marks the same target as read again on refocus', async () => {
-    const markAsRead = vi.fn().mockResolvedValue(null);
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
 
     const rendered = render(Harness, {
       props: {
@@ -66,16 +74,270 @@ describe('useUnreadMarker', () => {
     rendered.unmount();
   });
 
+  it('marks a visible target on entry without requiring focus', async () => {
+    setVisibility('visible');
+    window.dispatchEvent(new Event('blur'));
+    flushSync();
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+    expect(markAsRead).toHaveBeenCalledWith('room-1', undefined);
+    rendered.unmount();
+  });
+
+  it('marks a hidden target when it becomes visible without a focus event', async () => {
+    setVisibility('hidden');
+    window.dispatchEvent(new Event('blur'));
+    flushSync();
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+    expect(markAsRead).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    window.dispatchEvent(new Event('blur'));
+    flushSync();
+
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+    rendered.unmount();
+  });
+
+  it('marks the target after pageshow and ignores duplicate foreground signals', async () => {
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+
+    window.dispatchEvent(new Event('pagehide'));
+    window.dispatchEvent(new Event('pageshow'));
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
+
+    window.dispatchEvent(new Event('pageshow'));
+    document.dispatchEvent(new Event('resume'));
+    setVisibility('visible');
+    flushSync();
+    await Promise.resolve();
+    expect(markAsRead).toHaveBeenCalledTimes(2);
+    rendered.unmount();
+  });
+
+  it('recovers missing focus state from a visible interaction', async () => {
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+
+    window.dispatchEvent(new Event('blur'));
+    flushSync();
+    await userEvent.click(rendered.container.querySelector('button')!);
+    flushSync();
+
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
+    rendered.unmount();
+  });
+
+  it('retries transient failures with backoff', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValueOnce(new ConnectError('temporarily unavailable', Code.Unavailable))
+      .mockResolvedValueOnce(NO_MARKER_RESULT);
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+    expect(markAsRead).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(499);
+    expect(markAsRead).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(markAsRead).toHaveBeenCalledTimes(2);
+    rendered.unmount();
+  });
+
+  it('does not retry permanent failures', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValue(new ConnectError('permission denied', Code.PermissionDenied));
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(markAsRead).toHaveBeenCalledOnce();
+    rendered.unmount();
+  });
+
+  it('cancels a scheduled retry when the target becomes hidden', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValueOnce(new ConnectError('temporarily unavailable', Code.Unavailable));
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    setVisibility('hidden');
+    flushSync();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(markAsRead).toHaveBeenCalledOnce();
+    rendered.unmount();
+  });
+
+  it('retries immediately after the app returns to the foreground', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValueOnce(new ConnectError('temporarily unavailable', Code.Unavailable))
+      .mockResolvedValueOnce(NO_MARKER_RESULT);
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+    expect(markAsRead).toHaveBeenCalledOnce();
+
+    window.dispatchEvent(new Event('pagehide'));
+    window.dispatchEvent(new Event('pageshow'));
+    flushSync();
+    await Promise.resolve();
+
+    expect(markAsRead).toHaveBeenCalledTimes(2);
+    rendered.unmount();
+  });
+
+  it('cancels a scheduled retry on unmount', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValueOnce(new ConnectError('temporarily unavailable', Code.Unavailable));
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    rendered.unmount();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(markAsRead).toHaveBeenCalledOnce();
+  });
+
+  it('cancels the old retry when the target changes', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValueOnce(new ConnectError('temporarily unavailable', Code.Unavailable))
+      .mockResolvedValue(NO_MARKER_RESULT);
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    const rerendered = rendered.rerender({
+      targetId: 'room-2',
+      markAsRead,
+      onReady: () => {}
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await rerendered;
+    flushSync();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(markAsRead.mock.calls).toEqual([
+      ['room-1', undefined],
+      ['room-2', undefined]
+    ]);
+    rendered.unmount();
+  });
+
+  it('cancels retries on permission loss and marks after permission returns', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValueOnce(new ConnectError('temporarily unavailable', Code.Unavailable))
+      .mockResolvedValue(NO_MARKER_RESULT);
+    const onReady = () => {};
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, canMarkAsRead: true, onReady }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    const permissionRemoved = rendered.rerender({
+      targetId: 'room-1',
+      markAsRead,
+      canMarkAsRead: false,
+      onReady
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await permissionRemoved;
+    flushSync();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(markAsRead).toHaveBeenCalledOnce();
+
+    const permissionRestored = rendered.rerender({
+      targetId: 'room-1',
+      markAsRead,
+      canMarkAsRead: true,
+      onReady
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await permissionRestored;
+    flushSync();
+    await Promise.resolve();
+    expect(markAsRead).toHaveBeenCalledTimes(2);
+    rendered.unmount();
+  });
+
+  it('retries immediately when the browser comes online', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValueOnce(new ConnectError('temporarily unavailable', Code.Unavailable))
+      .mockResolvedValueOnce(NO_MARKER_RESULT);
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+    expect(markAsRead).toHaveBeenCalledOnce();
+
+    window.dispatchEvent(new Event('online'));
+    flushSync();
+    await Promise.resolve();
+    expect(markAsRead).toHaveBeenCalledTimes(2);
+    rendered.unmount();
+  });
+
   it('uses the read-state window returned on refocus', async () => {
     const markedAtMs = Date.UTC(2026, 6, 8, 10, 0, 30);
     vi.spyOn(Date, 'now').mockReturnValue(markedAtMs);
-    const markAsRead = vi
-      .fn()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        previousLastReadAt: '2026-07-08T09:00:00.000Z',
-        lastReadAt: '2026-07-08T10:00:00.000Z'
-      });
+    const markAsRead = vi.fn().mockResolvedValueOnce(NO_MARKER_RESULT).mockResolvedValueOnce({
+      previousLastReadAt: '2026-07-08T09:00:00.000Z',
+      lastReadAt: '2026-07-08T10:00:00.000Z'
+    });
     let api: HarnessAPI | undefined;
 
     const rendered = render(Harness, {
@@ -236,10 +498,7 @@ describe('useUnreadMarker', () => {
   it('preserves a pending refocus marker after a newer explicit read', async () => {
     const markedAtMs = Date.UTC(2026, 6, 8, 10, 0, 30);
     vi.spyOn(Date, 'now').mockReturnValue(markedAtMs);
-    let resolveRefocus!: (value: {
-      previousLastReadAt: string;
-      lastReadAt: string;
-    }) => void;
+    let resolveRefocus!: (value: { previousLastReadAt: string; lastReadAt: string }) => void;
     const refocusRead = new Promise<{
       previousLastReadAt: string;
       lastReadAt: string;
@@ -248,9 +507,9 @@ describe('useUnreadMarker', () => {
     });
     const markAsRead = vi
       .fn()
-      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(NO_MARKER_RESULT)
       .mockReturnValueOnce(refocusRead)
-      .mockResolvedValueOnce(null);
+      .mockResolvedValueOnce(NO_MARKER_RESULT);
     let api: HarnessAPI | undefined;
 
     const rendered = render(Harness, {
@@ -289,7 +548,7 @@ describe('useUnreadMarker', () => {
   });
 
   it('marks a new target as read when the target changes', async () => {
-    const markAsRead = vi.fn().mockResolvedValue(null);
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
 
     const rendered = render(Harness, {
       props: {
@@ -314,17 +573,17 @@ describe('useUnreadMarker', () => {
   });
 
   it('ignores a stale read-state window after the target changes', async () => {
-    let resolveFirstRead!: (value: {
-      previousLastReadAt: string;
-      lastReadAt: string;
-    }) => void;
+    let resolveFirstRead!: (value: { previousLastReadAt: string; lastReadAt: string }) => void;
     const firstRead = new Promise<{
       previousLastReadAt: string;
       lastReadAt: string;
     }>((resolve) => {
       resolveFirstRead = resolve;
     });
-    const markAsRead = vi.fn().mockReturnValueOnce(firstRead).mockResolvedValueOnce(null);
+    const markAsRead = vi
+      .fn()
+      .mockReturnValueOnce(firstRead)
+      .mockResolvedValueOnce(NO_MARKER_RESULT);
     let api: HarnessAPI | undefined;
     const onReady = (nextApi: HarnessAPI) => {
       api = nextApi;

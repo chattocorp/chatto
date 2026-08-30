@@ -17,12 +17,14 @@
     markAsRead,
     events = [],
     skipActorId = null,
+    canMarkAsRead = true,
     onReady
   }: {
     targetId: string;
-    markAsRead: (targetId: string, upToEventId?: string) => Promise<ReadResult | null>;
+    markAsRead: (targetId: string, upToEventId?: string) => Promise<ReadResult>;
     events?: UnreadMarkerEvent[];
     skipActorId?: string | null;
+    canMarkAsRead?: boolean;
     onReady: (api: UnreadMarkerHarnessAPI) => void;
   } = $props();
 
@@ -37,10 +39,13 @@
       };
     },
     getMarkerEvents: () => events,
-    getMarkerSkipActorId: () => skipActorId
+    getMarkerSkipActorId: () => skipActorId,
+    canMarkAsRead: () => canMarkAsRead
   });
 
   $effect(() => {
     onReady(unread);
   });
 </script>
+
+<button type="button">Interaction target</button>

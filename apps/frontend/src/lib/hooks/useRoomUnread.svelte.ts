@@ -4,7 +4,7 @@ import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelt
 
 /**
  * Room-specific unread marker wrapper. The shared unread marker hook owns the
- * focus/refocus lifecycle; this wrapper only wires room read-state mutation
+ * entry and foreground lifecycle; this wrapper only wires read-state mutation
  * and room-list unread clearing.
  *
  * Must be called during component initialization (uses context).
@@ -21,8 +21,6 @@ export function useRoomUnread(
 
   const unread = useUnreadMarker(() => getProps().roomId, {
     markAsRead: async (targetRoomId: string, upToEventId?: string) => {
-      if (getProps().canReadMessages === false) return null;
-
       const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {
@@ -33,8 +31,7 @@ export function useRoomUnread(
         return result;
       } catch (err) {
         optimisticRead.rollback();
-        console.error('Failed to mark room as read:', err);
-        return null;
+        throw err;
       }
     },
     markerWindowFromReadResult: (result: MarkRoomAsReadResult, markedAtMs: number) => {
@@ -45,7 +42,9 @@ export function useRoomUnread(
         beforeTime: markedAtMs
       };
     },
-    getMarkerEvents: () => getProps().events
+    getMarkerEvents: () => getProps().events,
+    canMarkAsRead: () => getProps().canReadMessages !== false,
+    onMarkAsReadError: (error) => console.error('Failed to mark room as read:', error)
   });
 
   return {
