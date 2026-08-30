@@ -79,7 +79,7 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	}
 	handler, err := NewHandler(chattoCore, config.ChattoConfig{
 		Webserver: config.WebserverConfig{URL: "https://chat.example"},
-		MCP:       config.MCPConfig{Enabled: true, URL: resource},
+		MCP:       config.MCPConfig{Enabled: true},
 	}, "test")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
@@ -159,7 +159,7 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 
 	handler, err := NewHandler(chattoCore, config.ChattoConfig{
 		Webserver: config.WebserverConfig{URL: "https://chat.example"},
-		MCP:       config.MCPConfig{Enabled: true, URL: "https://chat.example/mcp"},
+		MCP:       config.MCPConfig{Enabled: true},
 	}, "test")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
@@ -274,7 +274,7 @@ func TestMCPHandlerRejectsWrongHostAndCrossOriginBrowserPOST(t *testing.T) {
 	}
 	handler, err := NewHandler(chattoCore, config.ChattoConfig{
 		Webserver: config.WebserverConfig{URL: "https://chat.example"},
-		MCP:       config.MCPConfig{Enabled: true, URL: "https://chat.example/mcp"},
+		MCP:       config.MCPConfig{Enabled: true},
 	}, "test")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)

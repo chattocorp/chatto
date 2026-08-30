@@ -1,11 +1,10 @@
-// Package mcpserver provides Chatto's optional network MCP runtime unit.
+// Package mcpserver provides Chatto's optional public HTTP MCP integration.
 package mcpserver
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -21,75 +20,21 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/runtimeunit"
 )
 
 const (
-	runtimeUnitName       = "mcp"
 	maxRequestBodyBytes   = 256 * 1024
 	defaultListRoomsLimit = 50
 	maxListRoomsLimit     = 100
 	requestTimeout        = 15 * time.Second
-	shutdownTimeout       = 5 * time.Second
 )
-
-// Unit serves the configured network MCP endpoint. Core is injected by the
-// main Chatto application so tools use the canonical operation layer.
-type Unit struct {
-	Core *core.ChattoCore
-}
-
-// Name returns the stable runtime-unit name.
-func (Unit) Name() string { return runtimeUnitName }
-
-// Run serves MCP until the process context stops.
-func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
-	if u.Core == nil {
-		return fmt.Errorf("MCP runtime unit needs Chatto core")
-	}
-	handler, err := NewHandler(u.Core, env.Config, env.Version)
-	if err != nil {
-		return err
-	}
-	address := net.JoinHostPort(env.Config.MCP.BindAddressOrDefault(), fmt.Sprint(env.Config.MCP.PortOrDefault()))
-	server := &http.Server{
-		Addr:              address,
-		Handler:           handler,
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       requestTimeout,
-		WriteTimeout:      requestTimeout + 5*time.Second,
-		IdleTimeout:       2 * time.Minute,
-	}
-	done := make(chan error, 1)
-	go func() { done <- server.ListenAndServe() }()
-	env.Logger.Info("MCP runtime unit started", "address", address, "resource", env.Config.MCP.ResourceURL())
-
-	select {
-	case err := <-done:
-		if errors.Is(err, http.ErrServerClosed) {
-			return nil
-		}
-		return err
-	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
-		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			_ = server.Close()
-			return fmt.Errorf("stop MCP server: %w", err)
-		}
-		if err := <-done; err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return err
-		}
-		return nil
-	}
-}
 
 // NewHandler constructs the protected MCP and metadata endpoints.
 func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version string) (http.Handler, error) {
 	if chattoCore == nil {
 		return nil, fmt.Errorf("Chatto core is required")
 	}
-	resource := cfg.MCP.ResourceURL()
+	resource := cfg.MCPResourceURL()
 	resourceURL, err := url.Parse(resource)
 	if err != nil || resourceURL.Path != "/mcp" {
 		return nil, fmt.Errorf("valid MCP resource URL is required")
@@ -254,5 +199,3 @@ func roomKind(kind evtv1.RoomKind) string {
 		return "unknown"
 	}
 }
-
-var _ runtimeunit.Unit = Unit{}

@@ -24,7 +24,6 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/mcpserver"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -33,20 +32,13 @@ import (
 
 const testOAuthClientID = "https://client.example/oauth/client-metadata.json"
 
-type oauthMCPRoundTripper struct {
-	oauth http.Handler
-	mcp   http.Handler
-}
+type handlerRoundTripper struct{ handler http.Handler }
 
-func (t oauthMCPRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+func (t handlerRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
 	clone := request.Clone(request.Context())
 	clone.Host = clone.URL.Host
 	recorder := httptest.NewRecorder()
-	if clone.URL.Path == "/mcp" || clone.URL.Path == "/.well-known/oauth-protected-resource/mcp" {
-		t.mcp.ServeHTTP(recorder, clone)
-	} else {
-		t.oauth.ServeHTTP(recorder, clone)
-	}
+	t.handler.ServeHTTP(recorder, clone)
 	return recorder.Result(), nil
 }
 
@@ -1047,7 +1039,8 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 
 func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	s := setupOAuthServer(t)
-	s.config.MCP = config.MCPConfig{Enabled: true, URL: "https://agent.chatto.example/mcp"}
+	s.config.MCP = config.MCPConfig{Enabled: true}
+	resource := s.config.MCPResourceURL()
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-mcp-grant")
 
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
@@ -1058,7 +1051,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 		"code_challenge":        {core.GenerateCodeChallenge(verifier)},
 		"code_challenge_method": {"S256"},
 		"state":                 {"mcp-state"},
-		"resource":              {s.config.MCP.URL},
+		"resource":              {resource},
 		"scope":                 {config.MCPRoomsReadScope},
 	}
 	authorizeReq := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+params.Encode(), nil)
@@ -1084,7 +1077,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	if err := json.Unmarshal(consentW.Body.Bytes(), &consent); err != nil {
 		t.Fatalf("decode consent request: %v", err)
 	}
-	if consent.Resource != s.config.MCP.URL || len(consent.Scopes) != 1 || consent.Scopes[0] != config.MCPRoomsReadScope {
+	if consent.Resource != resource || len(consent.Scopes) != 1 || consent.Scopes[0] != config.MCPRoomsReadScope {
 		t.Fatalf("consent grant = resource %q, scopes %v", consent.Resource, consent.Scopes)
 	}
 
@@ -1115,7 +1108,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 
 	tokenBody, err := json.Marshal(map[string]string{
 		"grant_type": "authorization_code", "code": code, "code_verifier": verifier,
-		"redirect_uri": params.Get("redirect_uri"), "client_id": testOAuthClientID, "resource": s.config.MCP.URL,
+		"redirect_uri": params.Get("redirect_uri"), "client_id": testOAuthClientID, "resource": resource,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1139,7 +1132,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate access token: %v", err)
 	}
-	if credential.Resource != s.config.MCP.URL || len(credential.Scopes) != 1 || credential.Scopes[0] != config.MCPRoomsReadScope {
+	if credential.Resource != resource || len(credential.Scopes) != 1 || credential.Scopes[0] != config.MCPRoomsReadScope {
 		t.Fatalf("access token grant = resource %q, scopes %v", credential.Resource, credential.Scopes)
 	}
 	if _, ok, err := s.bearerPresentedCredential(context.Background(), tokenResponse.AccessToken); err != nil || ok {
@@ -1183,7 +1176,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate refreshed access token: %v", err)
 	}
-	if refreshedCredential.Resource != s.config.MCP.URL || len(refreshedCredential.Scopes) != 1 || refreshedCredential.Scopes[0] != config.MCPRoomsReadScope {
+	if refreshedCredential.Resource != resource || len(refreshedCredential.Scopes) != 1 || refreshedCredential.Scopes[0] != config.MCPRoomsReadScope {
 		t.Fatalf("refreshed grant = resource %q, scopes %v", refreshedCredential.Resource, refreshedCredential.Scopes)
 	}
 	if retryW := refresh(); retryW.Code != http.StatusBadRequest {
@@ -1193,15 +1186,14 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 
 func TestOfficialMCPClientCompletesChattoOAuthAndDiscoversTools(t *testing.T) {
 	s := setupOAuthServer(t)
-	s.config.MCP = config.MCPConfig{Enabled: true, URL: "https://chatto.example/mcp"}
+	s.config.MCP = config.MCPConfig{Enabled: true}
 	s.setupOAuthMetadataRoutes()
+	if err := s.setupMCPRoutes(); err != nil {
+		t.Fatalf("setupMCPRoutes: %v", err)
+	}
 	browserCookies, _ := loginOAuthTestUser(t, s, "official-mcp-oauth")
 
-	mcpHandler, err := mcpserver.NewHandler(s.core, s.config, "test")
-	if err != nil {
-		t.Fatalf("NewHandler: %v", err)
-	}
-	httpClient := &http.Client{Transport: oauthMCPRoundTripper{oauth: s.router, mcp: mcpHandler}}
+	httpClient := &http.Client{Transport: handlerRoundTripper{handler: s.router}}
 	oauthHandler, err := mcpauth.NewAuthorizationCodeHandler(&mcpauth.AuthorizationCodeHandlerConfig{
 		ClientIDMetadataDocumentConfig: &mcpauth.ClientIDMetadataDocumentConfig{URL: testOAuthClientID},
 		RedirectURL:                    "https://client.example/servers/callback",

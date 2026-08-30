@@ -33,13 +33,9 @@ path = '/metrics'
 # s3_refresh_interval = '15m'
 # s3_timeout = '30s'
 
-# Experimental network MCP runtime unit. `mise chatto` overrides this port with
-# the workspace base port + 10 so multiple workspaces can run side by side.
+# Experimental MCP routes on the public HTTP server.
 [mcp]
 enabled = true
-url = 'http://127.0.0.1:8090/mcp'
-bind_address = '127.0.0.1'
-port = 8090
 
 [search]
 enabled = true

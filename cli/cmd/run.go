@@ -23,7 +23,6 @@ import (
 	"hmans.de/chatto/internal/embedded_nats"
 	"hmans.de/chatto/internal/exporter"
 	"hmans.de/chatto/internal/http_server"
-	"hmans.de/chatto/internal/mcpserver"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/push"
 	"hmans.de/chatto/internal/runtimeunit"
@@ -60,18 +59,8 @@ var banner = `
 
 var configFile string
 
-func runtimeUnitRegistrations(cores ...*core.ChattoCore) []runtimeunit.Registration {
-	var chattoCore *core.ChattoCore
-	if len(cores) > 0 {
-		chattoCore = cores[0]
-	}
+func runtimeUnitRegistrations() []runtimeunit.Registration {
 	return []runtimeunit.Registration{
-		{
-			Unit: mcpserver.Unit{Core: chattoCore},
-			StartWithRun: func(cfg config.ChattoConfig) bool {
-				return cfg.MCP.Enabled
-			},
-		},
 		{
 			Unit: exporter.Unit{},
 			StartWithRun: func(cfg config.ChattoConfig) bool {
@@ -253,7 +242,7 @@ func runServer(configPath string) {
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
-	unitRegistrations := runtimeUnitRegistrations(chattoCore)
+	unitRegistrations := runtimeUnitRegistrations()
 	if err := runtimeunit.ValidateRegistrations(unitRegistrations); err != nil {
 		log.Error("Failed to configure runtime units", "error", err)
 		exitCode = 1

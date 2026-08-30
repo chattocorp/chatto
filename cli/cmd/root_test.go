@@ -107,26 +107,6 @@ func TestAssetProcessingRuntimeRegistrationUsesDedicatedConfig(t *testing.T) {
 	}
 }
 
-func TestMCPRuntimeRegistrationUsesDedicatedConfig(t *testing.T) {
-	var registration *runtimeunit.Registration
-	registrations := runtimeUnitRegistrations()
-	for i := range registrations {
-		if registrations[i].Unit.Name() == "mcp" {
-			registration = &registrations[i]
-			break
-		}
-	}
-	if registration == nil {
-		t.Fatal("MCP runtime unit is not registered")
-	}
-	if registration.Enabled(config.ChattoConfig{}) {
-		t.Fatal("MCP runtime unit must default to disabled")
-	}
-	if !registration.Enabled(config.ChattoConfig{MCP: config.MCPConfig{Enabled: true}}) {
-		t.Fatal("mcp.enabled should enable the MCP runtime unit")
-	}
-}
-
 func TestRootRegistersOperatorUserCommands(t *testing.T) {
 	for _, args := range [][]string{
 		{"operator", "user", "create", "--help"},

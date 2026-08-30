@@ -136,19 +136,7 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 ## Model Context Protocol
 
 <EnvVar name="CHATTO_MCP_ENABLED" toml="mcp.enabled" default="false">
-  Start the experimental network MCP runtime unit inside `chatto run`.
-</EnvVar>
-
-<EnvVar name="CHATTO_MCP_URL" toml="mcp.url">
-  Canonical public MCP endpoint and OAuth resource identifier. It must end in `/mcp` and use HTTPS except on loopback hosts.
-</EnvVar>
-
-<EnvVar name="CHATTO_MCP_BIND_ADDRESS" toml="mcp.bind_address" default="127.0.0.1">
-  Address for the separate MCP listener. Keep it on loopback when a reverse proxy provides public TLS.
-</EnvVar>
-
-<EnvVar name="CHATTO_MCP_PORT" toml="mcp.port" default="8090">
-  Port for the separate MCP listener.
+  Expose the experimental MCP routes on the public Chatto HTTP server. The canonical endpoint is the `webserver.url` origin with the `/mcp` path.
 </EnvVar>
 
 ## Shields

@@ -18,7 +18,7 @@ func TestOAuthAuthorizationServerMetadataAdvertisesMCPCompatibility(t *testing.T
 		router: router,
 		config: config.ChattoConfig{
 			Webserver: config.WebserverConfig{URL: "https://chat.example/some-path"},
-			MCP:       config.MCPConfig{Enabled: true, URL: "https://agent.chat.example/mcp"},
+			MCP:       config.MCPConfig{Enabled: true},
 		},
 	}
 	server.setupOAuthMetadataRoutes()

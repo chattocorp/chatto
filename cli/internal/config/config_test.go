@@ -379,31 +379,20 @@ func TestChattoConfig_Validate_AccountCreationPolicy(t *testing.T) {
 	}
 }
 
-func TestChattoConfig_Validate_MCPRuntime(t *testing.T) {
-	for _, test := range []struct {
-		name      string
-		webURL    string
-		mcpURL    string
-		wantError string
-	}{
-		{name: "public HTTPS", webURL: "https://chat.example", mcpURL: "https://chat.example/mcp"},
-		{name: "loopback HTTP", webURL: "http://localhost:4000", mcpURL: "http://127.0.0.1:8090/mcp"},
-		{name: "missing URL", webURL: "https://chat.example", wantError: "mcp.url is required"},
-		{name: "public HTTP", webURL: "http://chat.example", mcpURL: "http://chat.example/mcp", wantError: "mcp.url must use HTTPS"},
-		{name: "wrong path", webURL: "https://chat.example", mcpURL: "https://chat.example/agent", wantError: "mcp.url path must be /mcp"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			cfg := validTestConfig()
-			cfg.Webserver.URL = test.webURL
-			cfg.MCP = MCPConfig{Enabled: true, URL: test.mcpURL}
-			err := cfg.Validate()
-			if test.wantError == "" && err != nil {
-				t.Fatalf("Validate() = %v", err)
-			}
-			if test.wantError != "" && (err == nil || !strings.Contains(err.Error(), test.wantError)) {
-				t.Fatalf("Validate() = %v, want %q", err, test.wantError)
-			}
-		})
+func TestChattoConfig_Validate_MCPRequiresPublicWebserverURL(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = ""
+	cfg.MCP.Enabled = true
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required when MCP is enabled") {
+		t.Fatalf("Validate() = %v, want missing webserver.url error", err)
+	}
+}
+
+func TestChattoConfig_MCPResourceURLUsesPublicOrigin(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = "https://chat.example/configured-path"
+	if got, want := cfg.MCPResourceURL(), "https://chat.example/mcp"; got != want {
+		t.Fatalf("MCPResourceURL() = %q, want %q", got, want)
 	}
 }
 

@@ -45,11 +45,10 @@ ConnectRPC.
 
 The first implementation will use these boundaries:
 
-1. An optional `mcp` runtime unit serves stateless Streamable HTTP at its
-   canonical `/mcp` resource only when an operator sets `[mcp].enabled` to
-   `true`. It owns a separate listener and lifecycle. A public reverse proxy
-   can route the configured MCP URL to this listener. It is a main-app
-   auxiliary unit under ADR-041 because it uses the main app's operation layer.
+1. Chatto mounts stateless Streamable HTTP at `/mcp` on its public HTTP server
+   only when an operator sets `[mcp].enabled` to `true`. The MCP endpoint uses
+   the origin from `webserver.url`; it does not own a separate listener,
+   lifecycle, or canonical URL setting.
 2. The preferred MCP specification version is `2026-07-28`. Chatto does not
    call this version "MCP 2.0." The SDK can negotiate its older supported
    versions during their compatibility window, but Chatto does not add a
@@ -129,7 +128,8 @@ ConnectRPC remains the complete and typed integration contract. MCP tools can
 combine several public operations into one bounded agent task without moving
 domain rules into the transport.
 
-The experimental endpoint adds a new network and dependency boundary. The
+The experimental endpoint expands the public HTTP surface and adds a protocol
+dependency. It does not add another listener or process lifecycle. The
 implementation must add rate limits, request-size limits, bounded pagination,
 timeouts, cancellation, audit attribution, OAuth protected-resource metadata,
 resource indicators, token audience checks, and scope handling. Adding the SDK
@@ -149,6 +149,6 @@ a normal user or bot identity, or deliberately run trusted tooling where it can
 access the Operator socket.
 
 This change adds an integration endpoint but does not change the public
-ConnectRPC discovery schema. An MCP client needs the configured MCP URL. The
-missing feature does not affect ConnectRPC, realtime, browser, desktop, or bot
-API behavior.
+ConnectRPC discovery schema. An MCP client uses the server's public origin with
+the `/mcp` path. The missing feature does not affect ConnectRPC, realtime,
+browser, desktop, or bot API behavior.

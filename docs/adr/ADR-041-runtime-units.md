@@ -76,8 +76,9 @@ Runtime units are classified by behavior:
 - **Main app:** the ConnectRPC/web/realtime-delivery process that owns
   `ChattoCore` boot and HTTP compatibility facades.
 - **Main-app auxiliary:** an optional, separately supervised capability that
-  uses the main app's operation layer and cannot run standalone, such as the
-  experimental network MCP server.
+  uses the main app's operation layer and cannot run standalone. A route on
+  the existing public HTTP server is part of the main app, not an auxiliary
+  runtime unit.
 
 Durable domain facts still go through `EVT`, and any unit that writes them must
 use the same multi-replica-safe OCC and service-boundary rules as the main

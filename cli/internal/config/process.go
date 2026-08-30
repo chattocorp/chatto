@@ -107,51 +107,23 @@ type ExporterConfig struct {
 	S3Timeout         Duration `toml:"s3_timeout,commented" env:"CHATTO_EXPORTER_S3_TIMEOUT" comment:"Timeout for one S3 bucket-size refresh. Default: 30s."`
 }
 
-// MCPConfig controls the experimental network MCP runtime unit.
+// MCPConfig controls the experimental MCP routes on the public HTTP server.
 type MCPConfig struct {
-	Enabled     bool   `toml:"enabled" env:"CHATTO_MCP_ENABLED" comment:"Start the experimental network MCP runtime unit from chatto run. Default: false."`
-	URL         string `toml:"url,commented" env:"CHATTO_MCP_URL" comment:"Canonical public MCP resource URL. It must end in /mcp and use HTTPS except on loopback hosts."`
-	BindAddress string `toml:"bind_address,commented" env:"CHATTO_MCP_BIND_ADDRESS" comment:"Address for the MCP listener. Default: 127.0.0.1. Use a reverse proxy for public TLS."`
-	Port        int    `toml:"port,commented" env:"CHATTO_MCP_PORT" comment:"Port for the MCP listener. Default: 8090."`
+	Enabled bool `toml:"enabled" env:"CHATTO_MCP_ENABLED" comment:"Expose the experimental MCP routes on the public HTTP server. Default: false."`
 }
 
 // MCPRoomsReadScope grants bounded room-directory reads through MCP.
 const MCPRoomsReadScope = "chatto:rooms:read"
 
-// BindAddressOrDefault returns the MCP bind address.
-func (c MCPConfig) BindAddressOrDefault() string {
-	if strings.TrimSpace(c.BindAddress) == "" {
-		return "127.0.0.1"
+// MCPResourceURL returns the canonical MCP endpoint and OAuth resource. MCP is
+// mounted on the public HTTP server, so it always shares the webserver.url
+// origin.
+func (c ChattoConfig) MCPResourceURL() string {
+	publicURL, err := url.Parse(strings.TrimSpace(c.Webserver.URL))
+	if err != nil || publicURL.Scheme == "" || publicURL.Host == "" {
+		return ""
 	}
-	return strings.TrimSpace(c.BindAddress)
-}
-
-// PortOrDefault returns the MCP listener port.
-func (c MCPConfig) PortOrDefault() int {
-	if c.Port == 0 {
-		return 8090
-	}
-	return c.Port
-}
-
-// ResourceURL returns the canonical MCP OAuth resource identifier.
-func (c MCPConfig) ResourceURL() string { return strings.TrimSpace(c.URL) }
-
-func validateMCPURL(raw string) error {
-	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || !u.IsAbs() || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return fmt.Errorf("mcp.url must be an absolute HTTP URL without credentials, query, or fragment")
-	}
-	if u.Path != "/mcp" {
-		return fmt.Errorf("mcp.url path must be /mcp")
-	}
-	if u.Scheme == "https" {
-		return nil
-	}
-	if u.Scheme == "http" && isLoopbackHost(u.Hostname()) {
-		return nil
-	}
-	return fmt.Errorf("mcp.url must use HTTPS except on a loopback host")
+	return (&url.URL{Scheme: publicURL.Scheme, Host: publicURL.Host, Path: "/mcp"}).String()
 }
 
 // SearchConfig controls Chatto's consumer-facing search API and UI.

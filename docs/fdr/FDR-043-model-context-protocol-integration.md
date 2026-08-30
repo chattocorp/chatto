@@ -1,7 +1,7 @@
 # FDR-043: Model Context Protocol Integration
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-29
+**Last reviewed:** 2026-08-30
 **Implementation state:** Initial walking slice implemented with OAuth and
 `list_rooms`.
 
@@ -32,9 +32,9 @@ primitive.
 - On the first MCP rollout, every serving replica must be upgraded while MCP
   stays disabled. Enable MCP only after all replicas understand resource-bound
   grants. Do not roll one replica back to an older version after grants exist.
-- When enabled, the `mcp` runtime unit serves MCP over stateless Streamable
-  HTTP at `/mcp` on a separate listener. The canonical public URL can route
-  through a reverse proxy.
+- When enabled, Chatto serves MCP over stateless Streamable HTTP at `/mcp` on
+  the existing public HTTP server. The canonical resource is the public
+  `webserver.url` origin with the `/mcp` path.
 - The implementation prefers MCP `2026-07-28`. The SDK can negotiate its
   older supported versions during their compatibility window, but Chatto does
   not add a separate compatibility promise for them.
@@ -52,9 +52,9 @@ primitive.
 - Tool arguments use stable Chatto resource IDs and explicit bounded page
   limits. Tool results do not contain raw broker coordinates or internal
   storage identifiers.
-- The listener requires the Host from `[mcp].url`, rejects cross-origin browser
-  writes, limits admission to 20 requests per second with a burst of 40, and
-  gives each request 15 seconds.
+- The endpoint requires the canonical public server Host, rejects cross-origin
+  browser writes, limits admission to 20 requests per second with a burst of
+  40, and gives each request 15 seconds.
 - The server can omit a tool when the credential type or MCP scope cannot use
   that class of operation. A listed tool can still reject a specific target.
 - Every tool call applies current Chatto RBAC, room membership, message access,
@@ -71,7 +71,7 @@ primitive.
 - The network MCP server has no Operator API, bootstrap, password-reset,
   credential-enrolment, account-deletion, role-management, server-management,
   raw diagnostics, or event-log tools in its first release.
-- Disabling MCP removes its endpoint. It does not
+- Disabling MCP removes its routes from the public HTTP server. It does not
   disable ConnectRPC, realtime, OAuth, the CLI, or the local Operator API.
 
 ## Design Decisions
