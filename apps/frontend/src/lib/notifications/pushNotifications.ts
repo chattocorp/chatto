@@ -39,6 +39,15 @@ export type PushRegistrationTarget = {
   vapidPublicKey: string;
 };
 
+export type PushRegistrationResult = PushRegistrationTarget & {
+  registered: boolean;
+};
+
+export type EnablePushOnAllServersResult = {
+  permission: NotificationPermission | null;
+  registrations: PushRegistrationResult[];
+};
+
 export type PushCapability = 'supported' | 'ios_home_screen_required' | 'unsupported';
 
 type StandaloneNavigator = Navigator & {
@@ -47,6 +56,7 @@ type StandaloneNavigator = Navigator & {
 
 const serviceWorkerScriptPath = '/service-worker.js';
 const remotePushScopePrefix = '/__chatto/push/';
+let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
 
 function isIosBrowserContext(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -255,15 +265,95 @@ export function getPushRegistrationTargets(): PushRegistrationTarget[] {
   });
 }
 
+/**
+ * Ask for notification permission directly from a user interaction, then
+ * register every eligible server.
+ *
+ * The permission request must happen before registration enters its async
+ * coordination queue. Some browsers require the call itself to retain the
+ * current user activation.
+ *
+ * A failure on one server does not prevent the other servers from registering.
+ */
+export function enablePushOnAllServers(): Promise<EnablePushOnAllServersResult> {
+  if (enableAllInFlight) return enableAllInFlight;
+
+  const operation = enablePushOnAllServersOnce();
+  enableAllInFlight = operation;
+  const clear = () => {
+    if (enableAllInFlight === operation) enableAllInFlight = null;
+  };
+  void operation.then(clear, clear);
+  return operation;
+}
+
+async function enablePushOnAllServersOnce(): Promise<EnablePushOnAllServersResult> {
+  if (getPushRegistrationTargets().length === 0) {
+    return { permission: getPermission(), registrations: [] };
+  }
+
+  let permission = getPermission();
+  if (permission === 'default') {
+    try {
+      permission = await Notification.requestPermission();
+    } catch (error) {
+      console.error('Failed to request notification permission:', error);
+      permission = getPermission();
+    }
+  }
+
+  // The server list can change while the browser or operating system displays
+  // its permission prompt. Register only the current authenticated accounts.
+  const targets = getPushRegistrationTargets();
+  if (permission !== 'granted') {
+    return {
+      permission,
+      registrations: targets.map((target) => ({ ...target, registered: false }))
+    };
+  }
+
+  const registrations = await Promise.all(
+    targets.map(async (target): Promise<PushRegistrationResult> => {
+      try {
+        return {
+          ...target,
+          registered: await ensureRegistered(target.serverId, target.vapidPublicKey, {
+            prompt: true
+          })
+        };
+      } catch (error) {
+        console.error('Failed to enable push notifications:', error);
+        return {
+          ...target,
+          registered: false
+        };
+      }
+    })
+  );
+  return { permission, registrations };
+}
+
 /** Refresh every configured server after permission or worker lifecycle changes. */
 export async function refreshPushSubscriptions(
-  targets = getPushRegistrationTargets()
+  targets?: PushRegistrationTarget[]
 ): Promise<void> {
+  if (enableAllInFlight) {
+    await enableAllInFlight;
+    // Eligibility can change while explicit activation is in progress. Read
+    // the registry again so the change is not lost behind the shared request.
+    targets = getPushRegistrationTargets();
+  }
+  if (getPermission() !== 'granted') return;
+
   await Promise.all(
-    targets.map(async ({ serverId, vapidPublicKey }) => {
-      const requestId = pendingPushRegistrationRefresh(serverId);
-      const registered = await ensureRegistered(serverId, vapidPublicKey, { prompt: false });
-      if (registered && requestId) completePushRegistrationRefresh(serverId, requestId);
+    (targets ?? getPushRegistrationTargets()).map(async ({ serverId, vapidPublicKey }) => {
+      try {
+        const requestId = pendingPushRegistrationRefresh(serverId);
+        const registered = await ensureRegistered(serverId, vapidPublicKey, { prompt: false });
+        if (registered && requestId) completePushRegistrationRefresh(serverId, requestId);
+      } catch (error) {
+        console.error('Failed to refresh push notifications:', error);
+      }
     })
   );
 }

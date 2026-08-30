@@ -14,12 +14,11 @@
     type SoundCategory
   } from '$lib/audio/notificationSounds';
   import {
-    ensureRegistered,
+    enablePushOnAllServers,
     isBrowserWebPushRuntime,
     getPushCapability,
     getPermission,
     isSubscribed as checkPushSubscription,
-    refreshPushSubscriptions,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
   import { m } from '$lib/i18n/messages';
@@ -213,8 +212,7 @@
   async function handleEnablePush() {
     const serverId = activeServerId;
     const generation = ++pushEnableGeneration;
-    const vapidKey = serverInfo.vapidPublicKey;
-    if (!vapidKey) {
+    if (!serverInfo.vapidPublicKey) {
       pushError = m('settings.notifications.push.not_configured');
       return;
     }
@@ -223,13 +221,19 @@
     pushError = null;
 
     try {
-      const success = await ensureRegistered(serverId, vapidKey, { prompt: true });
+      const result = await enablePushOnAllServers();
       if (activeServerId !== serverId || pushEnableGeneration !== generation) return;
       pushPermission = getPermission();
+      const activeRegistration = result.registrations.find(
+        (registration) => registration.serverId === serverId
+      );
+      const success =
+        result.registrations.length > 0 &&
+        result.registrations.every((registration) => registration.registered);
       if (success) {
-        pushSubscribed = true;
-        void refreshPushSubscriptions().catch(() => undefined);
+        pushSubscribed = activeRegistration?.registered ?? false;
       } else {
+        pushSubscribed = activeRegistration?.registered ?? false;
         pushError =
           pushPermission === 'denied'
             ? m('settings.notifications.push.blocked_error')

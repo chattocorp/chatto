@@ -114,13 +114,6 @@ vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => `${serverId}.example.test`
 }));
 
-vi.mock('$lib/notifications/pushNotifications', () => ({
-  getPushRegistrationTargets: () =>
-    mocks.originCurrentUser.user
-      ? [{ serverId: 'origin', userId: 'origin-user', vapidPublicKey: 'origin-vapid' }]
-      : [{ serverId: 'remote', userId: 'remote-user', vapidPublicKey: 'remote-vapid' }]
-}));
-
 vi.mock('$lib/hooks/useEvent.svelte', () => ({
   useProjectionEvent: (...args: unknown[]) => {
     mocks.lifecycle.push('projection');
@@ -201,10 +194,6 @@ vi.mock('$lib/api-client/viewer', () => ({
 }));
 
 vi.mock('$lib/components/AuthStatusNotice.svelte', async () => ({
-  default: (await import('./ChatRootTestStub.svelte')).default
-}));
-
-vi.mock('$lib/components/PushNotificationPrompt.svelte', async () => ({
   default: (await import('./ChatRootTestStub.svelte')).default
 }));
 
@@ -301,7 +290,7 @@ describe('ChatRoot', () => {
       PresenceStatus.AWAY
     );
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(4);
+    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3);
 
     const [[handleCrossTabLogout]] = mocks.initSessionChannel.mock.calls as [[() => void]];
     handleCrossTabLogout();
@@ -363,7 +352,7 @@ describe('ChatRoot', () => {
       PresenceStatus.AWAY
     );
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3);
+    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(2);
 
     unmount();
 

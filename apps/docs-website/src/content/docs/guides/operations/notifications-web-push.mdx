@@ -112,7 +112,9 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-Each browser or installed PWA creates its own subscription for each connected server. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
+When at least one registered server supports push, the Notifications pane shows an action to enable push while browser permission is unset. The browser or operating system presents the choice. If the user dismisses the prompt, the action remains available. If the user denies permission, Chatto hides the action. The user can change the choice in browser or operating-system settings.
+
+When the user grants permission, Chatto creates a separate subscription for each registered server that supports push, including remote servers. Chatto also registers servers that become eligible later. Users can review the current state, send a test notification, or find recovery guidance in notification settings. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
 
 When a user reopens Chatto, the app refreshes the server's stored subscription for that browser. Expired subscriptions are cleaned up automatically when push providers report them as gone.
 

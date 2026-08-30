@@ -59,7 +59,12 @@ vi.mock('$lib/hooks/useVisualViewport.svelte', () => ({
 }));
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
-  onNotificationClick: vi.fn(() => vi.fn())
+  enablePushOnAllServers: vi.fn().mockResolvedValue({ permission: null, registrations: [] }),
+  getPermission: vi.fn(() => null),
+  getPushCapability: vi.fn(() => 'unsupported'),
+  getPushRegistrationTargets: vi.fn(() => []),
+  onNotificationClick: vi.fn(() => vi.fn()),
+  refreshPushSubscriptions: vi.fn()
 }));
 
 vi.mock('$lib/notifications/notificationNavigationUi', () => ({

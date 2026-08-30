@@ -11,14 +11,12 @@
   import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
-  import PushNotificationPrompt from '$lib/components/PushNotificationPrompt.svelte';
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
   import { useProjectionEvent, useSessionTerminated } from '$lib/hooks/useEvent.svelte';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getPushRegistrationTargets } from '$lib/notifications/pushNotifications';
   import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
   import {
     updateAuthenticatedCurrentUserPresenceEntries,
@@ -60,7 +58,6 @@
     originUser && originServerId && currentUserState
       ? { user: originUser, serverId: originServerId, currentUser: currentUserState }
       : null;
-  const pushPromptTarget = $derived(getPushRegistrationTargets()[0] ?? null);
 
   if (originSession) {
     rootPresenceCache.update(
@@ -244,11 +241,6 @@
   <ScreenWakeLock />
 {/if}
 <PushNotificationSetup />
-{#if pushPromptTarget}
-  {#key `${pushPromptTarget.serverId}:${pushPromptTarget.userId}`}
-    <PushNotificationPrompt {...pushPromptTarget} />
-  {/key}
-{/if}
 {#if originSession}
   <WelcomeBanner />
 {/if}

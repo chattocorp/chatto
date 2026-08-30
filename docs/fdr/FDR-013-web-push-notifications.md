@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -12,10 +12,10 @@ tab is not open. Push is opt-in for each device, requires operator configuration
 
 ## Behavior
 
-- The browser prompts the user for notification permission when they enable push.
-- If push is configured and supported, signed-in users who have not made a browser permission choice see a small top-overlay prompt offering to enable push or opt out of future prompts on that device.
-- On granting permission, the browser creates a subscription using the server's VAPID public key. The subscription details (endpoint URL, keys) are sent to the server and stored.
-- When a signed-in user opens Chatto and browser notification permission is already granted, Chatto refreshes the server's copy of the current browser subscription without prompting again.
+- If push is configured and supported, the Notifications pane shows an action to enable push while browser permission is unset. This action opens the browser or operating-system permission prompt.
+- If the user dismisses the browser prompt, the action remains available because permission is still unset. If the user denies permission, Chatto hides the action. The user can change the choice in browser or operating-system settings.
+- On granting permission, the browser creates one subscription for each eligible server. Each subscription uses that server's VAPID public key. Chatto sends each subscription to its server for storage.
+- When a signed-in user opens Chatto and browser notification permission is already granted, Chatto refreshes every eligible server's subscription without prompting again. Chatto also registers a server that becomes eligible later.
 - A browser push endpoint is active for only the account that most recently registered it. Switching accounts in the same browser transfers delivery to the current account; stale records for the previous account are not delivered.
 - In multi-server mode, each authenticated server gets its own browser subscription under a stable, server-scoped service-worker registration. Each server uses its own VAPID key and sends directly to the browser push endpoint; no serving-server relay is involved.
 - On iOS/iPadOS, Web Push is available only for Home Screen web apps on supported versions. Chatto treats Web Push as a notification trigger rather than authoritative app state.
@@ -37,9 +37,9 @@ tab is not open. Push is opt-in for each device, requires operator configuration
   renewable lease leader performs startup/periodic reconciliation without a
   fixed whole-pass deadline, using that permanent fact to erase late writes and
   repair orphaned endpoint-owner records without a second deletion marker.
-- Browser push requires the Web Locks API and writable durable local storage so registration and cleanup can be serialized safely across tabs and opt-out state survives reloads.
+- Browser push requires the Web Locks API and writable durable local storage so registration and cleanup can be serialized safely across tabs and registration suspension survives reloads.
 - Disabling push, signing out, or removing a server writes a same-origin cross-tab suspension before cancelling active registration and queued refreshes. Per-server Web Locks serialize registration and cleanup across tabs, while storage events and a cross-tab cancellation signal release the lock even when registration is blocked on an unreachable RPC. Another tab therefore cannot recreate or adopt the shared service-worker subscription in the middle of cleanup. If an abort-insensitive save settles after another account resumes registration, account-independent cleanup presents the browser subscription's existing Push API auth secret plus its random per-save token and removes only the matching current owner/revision; this cleanup remains available after cookies or bearer tokens are revoked, and a later save reusing the same browser subscription cannot redirect it at another record. A durable same-origin refresh marker then makes the active account reassert its subscription, restoring ownership when stale work arrived last; the marker remains for the next startup until a covering save succeeds. Sign-out or server removal completes only after the browser subscription is confirmed absent or invalidated, or the server record is removed. Browser lookup failures are not treated as absence and retain the local session or server entry for a retry. Once browser invalidation succeeds, server-record cleanup remains best-effort. Explicit re-enabling clears a disabled suspension, while only a newly authenticated session clears a sign-out/removal suspension.
-- If the server isn't configured with VAPID keys, the push UI is hidden entirely — no opt-in prompt, no settings toggle.
+- Chatto omits servers that do not have VAPID keys from push registration. The server notification settings hide push controls when the selected server does not support push.
 
 ## Design Decisions
 
@@ -81,15 +81,15 @@ device after the occurrence is triaged until the person dismisses it there.
 
 ### 6. Startup subscription reconciliation
 
-**Decision:** Browser/OS notification permission is the user-facing source of truth. When a signed-in client starts and permission is already granted, it idempotently saves the current browser subscription to the server.
-**Why:** Browsers, especially installed PWAs, can rotate or invalidate push subscriptions around updates. Refreshing the server-side delivery cache at startup is simpler and more reliable than depending on foreground delivery of subscription-change events.
-**Tradeoff:** A user who grants permission but never reopens Chatto after a browser-side subscription change will not be repaired until the next app launch. That is acceptable because opening the app is the point where Chatto can reliably observe and refresh the current browser state.
+**Decision:** Browser/OS notification permission is the user-facing source of truth. One permission grant registers every eligible server. When a signed-in client starts and permission is already granted, it idempotently saves each current browser subscription to its server.
+**Why:** Users should not repeat the same device permission choice for each server. Browsers, especially installed PWAs, can rotate or invalidate push subscriptions around updates. Refreshing the server-side delivery caches at startup is simpler and more reliable than depending on foreground delivery of subscription-change events.
+**Tradeoff:** Reconciliation can make an idempotent subscription request when eligible servers change, when the app regains focus, or when the service worker changes. An unavailable server must wait for a later reconciliation attempt.
 
-### 7. Local opt-out for the push prompt
+### 7. Explicit browser permission request
 
-**Decision:** The enable-push prompt is device-local and can be dismissed without changing server-side notification settings.
-**Why:** Whether push is useful depends on the device. Dismissing the prompt on a desktop browser should not suppress the prompt on an iOS PWA where push may be more valuable.
-**Tradeoff:** The same user may see the prompt again on another browser or device. That is intentional; each device has its own push subscription and OS permission.
+**Decision:** When permission is unset, the Notifications pane provides one explicit action that requests browser permission and enables push for every eligible server.
+**Why:** Browsers require notification permission requests to follow a clear user action. A visible action is reliable and gives the prompt relevant context. Notification permission still belongs to the installed app or browser origin, so users do not repeat the choice for each server.
+**Tradeoff:** A user must open the Notifications pane and select the action. Chatto does not interrupt unrelated interactions with a permission prompt.
 
 ### 8. One native push registration per server
 

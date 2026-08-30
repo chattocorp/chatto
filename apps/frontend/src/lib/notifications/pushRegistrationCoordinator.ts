@@ -19,7 +19,7 @@ const refreshListeners = new Set<(serverId: string, requestId: string) => void>(
 let coordinationChannel: BroadcastChannel | null | undefined;
 let storageListenerInstalled = false;
 
-/** Whether push opt-out state can survive reloads and coordinate future tabs. */
+/** Whether push-registration suspension can survive reloads and coordinate future tabs. */
 export function hasDurablePushCoordinationStorage(): boolean {
   if (typeof window === 'undefined') return false;
   const key =
