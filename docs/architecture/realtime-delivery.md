@@ -300,7 +300,7 @@ windows (3,200 recent rows), bounding decryption and transient response memory.
 
 Every subscription emits one finite latest-value reconciliation before
 `caught_up`. It replaces the viewer resource; the complete followed-thread
-viewer-state set, including RUNTIME_STATE unread markers; notification
+viewer-state set, including RUNTIME_STATE reply-read markers; notification
 occurrences and room counts; and the server directory's current presence. Missing
 followed-thread entries authoritatively clear follow/unread state on retained
 thread roots.
@@ -533,6 +533,11 @@ projection reports follow and reply-unread state only. The Message Read Cursor
 determines `has_unread_replies`. Clients do not receive either internal storage
 coordinate. A thread Badge rolls up into the parent room, and notification
 orange takes visual priority over the neutral room dot.
+
+A reply post, edit, or retraction also emits a
+`thread_viewer_states_replace` for a viewer who follows the affected thread.
+This operation lets a mounted My Threads view refresh its query-backed message
+summary when the source room timeline is not retained.
 
 Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection

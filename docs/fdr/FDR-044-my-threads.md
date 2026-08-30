@@ -27,7 +27,8 @@ that they have not read.
 - A thread can remain in My Threads after all replies and notifications are
   read. It remains until the user stops following it or loses access.
 - Thread activity can change the live sort order. The bundled client restarts
-  loaded offset pages after a reply update before it continues pagination.
+  loaded offset pages after a reply post, edit, or retraction before it
+  continues pagination.
 
 ## Design Decisions
 

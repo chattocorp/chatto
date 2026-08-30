@@ -458,6 +458,31 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 		return nil
 	}
+	appendFollowedThreadRefresh := func(roomID string) error {
+		rootID, ok := s.core.MessageEventThreadRoot(roomID, evt)
+		if !ok {
+			return nil
+		}
+		kind, err := s.core.FindRoomKind(ctx, roomID)
+		if err != nil {
+			return err
+		}
+		following, err := s.core.IsFollowingThread(ctx, kind, viewerID, roomID, rootID)
+		if err != nil {
+			return err
+		}
+		if !following {
+			return nil
+		}
+		threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
+		if err != nil {
+			return err
+		}
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+			ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
+		}})
+		return nil
+	}
 	appendRoomResult := func(roomID string) (*connectapi.RealtimeProjectionRoom, error) {
 		var room *connectapi.RealtimeProjectionRoom
 		var err error
@@ -648,6 +673,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		} else if err := appendTimeline(roomID, eventID, nil); err != nil {
 			return nil, false, err
 		}
+		if err := appendFollowedThreadRefresh(roomID); err != nil {
+			return nil, false, err
+		}
 	case *evtv1.Event_MessageRetracted:
 		roomID := payload.MessageRetracted.GetRoomId()
 		eventID := payload.MessageRetracted.GetEventId()
@@ -674,6 +702,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			// pinned. Emit the same idempotent deletion for clients that do not
 			// retain this room's timeline and therefore cannot infer the removal.
 			appendPinnedMessageChange(realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED, roomID, eventID)
+		}
+		if err := appendFollowedThreadRefresh(roomID); err != nil {
+			return nil, false, err
 		}
 	case *evtv1.Event_MessagePinned:
 		appendPinnedMessageChange(realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED, payload.MessagePinned.GetRoomId(), payload.MessagePinned.GetMessageEventId())
