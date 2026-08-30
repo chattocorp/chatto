@@ -105,9 +105,9 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		expect(remoteInstance.userLogin).toBe('remoteuser');
 
 		// 9. Forget the local client-side registration and connect the same
-		// remote again. The remote user session and remembered OAuth consent
-		// remain on the remote server, so this second authorize flow should skip
-		// both login and consent and return directly to the callback.
+		// remote again. The remote user session skips login, but a local callback
+		// requires consent for every authorization because another local process
+		// can claim the handoff.
 		await page.evaluate(() => {
 			const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]');
 			localStorage.setItem(
@@ -123,8 +123,14 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 			timeout: TIMEOUTS.REALTIME_EVENT
 		});
 		const secondPopupPromise = page.waitForEvent('popup');
-		const secondPopupClosed = secondPopupPromise.then((popup) => popup.waitForEvent('close'));
 		await page.getByRole('button', { name: 'Join', exact: true }).click();
+		const secondRemoteAuthPage = await secondPopupPromise;
+		await expect(secondRemoteAuthPage).toHaveURL(/127\.0\.0\.1.*\/oauth\/consent/, {
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		await expect(secondRemoteAuthPage.getByText(/local address on this device/)).toBeVisible();
+		const secondPopupClosed = secondRemoteAuthPage.waitForEvent('close');
+		await secondRemoteAuthPage.getByRole('button', { name: 'Allow Access' }).click();
 		await secondPopupClosed;
 		await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
 			timeout: TIMEOUTS.COMPLEX_OPERATION
