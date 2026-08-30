@@ -32,7 +32,10 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "{server} への推薦文"
+      "testimonials_for": "{server} への推薦文",
+      "discovering": "さらにサーバーを検索しています…",
+      "load_more": "さらに読み込む",
+      "session_limit_reached": "このセッションの検索上限に達しました。"
     }
   }
 }

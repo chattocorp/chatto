@@ -32,7 +32,10 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "Omdömen för {server}"
+      "testimonials_for": "Omdömen för {server}",
+      "discovering": "Upptäcker fler servrar…",
+      "load_more": "Läs in fler",
+      "session_limit_reached": "Upptäcktsgränsen för den här sessionen har nåtts."
     }
   }
 }
