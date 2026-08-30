@@ -798,6 +798,23 @@ func TestOAuthAuthorize_RejectsScopeWithoutResource(t *testing.T) {
 	}
 }
 
+func TestValidOAuthGrantAcceptsOnlyConfiguredMCPResources(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.MCP = config.MCPConfig{Enabled: true}
+	s.config.Webserver.AllowedOrigins = []string{"https://alias.example", "*"}
+
+	for _, resource := range []string{"https://chatto.example/mcp", "https://alias.example/mcp"} {
+		if !s.validOAuthGrant(resource, config.MCPOAuthScopes()) {
+			t.Fatalf("configured resource %q was rejected", resource)
+		}
+	}
+	for _, resource := range []string{"https://wrong.example/mcp", "https://alias.example/other"} {
+		if s.validOAuthGrant(resource, config.MCPOAuthScopes()) {
+			t.Fatalf("unconfigured resource %q was accepted", resource)
+		}
+	}
+}
+
 func TestOAuthAuthorize_FreshRequestOverwritesPendingConsent(t *testing.T) {
 	s := setupOAuthServer(t)
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-consent-overwrite")
@@ -1054,7 +1071,8 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	s := setupOAuthServer(t)
 	s.config.MCP = config.MCPConfig{Enabled: true}
-	resource := s.config.MCPResourceURL()
+	s.config.Webserver.AllowedOrigins = []string{"https://alias.example"}
+	const resource = "https://alias.example/mcp"
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-mcp-grant")
 
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"

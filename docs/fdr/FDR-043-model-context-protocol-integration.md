@@ -30,15 +30,16 @@ primitive.
 
 - The MCP integration is disabled by default while it is experimental.
 - When enabled, Chatto serves MCP over stateless Streamable HTTP at `/mcp` on
-  the existing public HTTP server. The canonical resource is the public
-  `webserver.url` origin with the `/mcp` path.
+  the existing public HTTP server. It serves the canonical `webserver.url`
+  origin and each exact non-wildcard `webserver.allowed_origins` entry.
 - The implementation prefers MCP `2026-07-28`. The SDK can negotiate its
   older supported versions during their compatibility window, but Chatto does
   not add a separate compatibility promise for them.
 - A human grants an MCP client access through Chatto OAuth. The flow uses
   Authorization Code with PKCE and the client's CIMD identity.
-- Human MCP access tokens are valid only for the server's canonical MCP
-  resource. The current grant has the `chatto:rooms:read`,
+- Human MCP access tokens are valid only for the exact MCP resource that the
+  user approved. A token for one configured origin is not valid for another
+  origin. The current grant has the `chatto:rooms:read`,
   `chatto:rooms:write`, `chatto:messages:read`, and
   `chatto:messages:write` scopes. These scopes are an additional ceiling on
   the user's normal Chatto authority. The consent screen states the room-list,
@@ -54,7 +55,8 @@ primitive.
   `list_rooms`, `list_room_messages`, `post_message`, `join_room`, and
   `leave_room`.
 - Identity tools return the effective server identity or the authenticated
-  account identity. Room and message list tools return bounded pages.
+  account identity. Server identity includes the canonical server URL and the
+  connected MCP URL. Room and message list tools return bounded pages.
   `post_message` creates one root text message. The room membership tools join
   or leave one channel room.
 - MCP server metadata uses `Chatto` as its stable implementation name and the
@@ -65,9 +67,10 @@ primitive.
 - Tool arguments use stable Chatto resource IDs and explicit bounded page
   limits. Tool results do not contain raw broker coordinates or internal
   storage identifiers.
-- The endpoint requires the canonical public server Host, rejects cross-origin
-  browser writes, limits admission to 20 requests per second with a burst of
-  40, and gives each request 15 seconds.
+- The endpoint requires a configured public server Host and rejects wildcard
+  or unknown hosts. It rejects cross-origin browser writes, limits admission
+  across all configured hosts to 20 requests per second with a burst of 40,
+  and gives each request 15 seconds.
 - A listed tool can reject a specific target even when the credential has the
   complete MCP grant.
 - Every tool call applies current Chatto RBAC, room membership, message access,
@@ -196,6 +199,17 @@ authority problem.
 **Tradeoff:** A remote-only deployment still needs an out-of-band bootstrap
 procedure. A future one-time network bootstrap flow needs its own security
 decision.
+
+### 10. Treat each configured origin as a separate resource
+
+**Decision:** Serve MCP on the canonical server origin and each exact public
+alias. Bind human OAuth credentials to the exact origin that the client uses.
+Keep the canonical server origin as the authorization-server issuer.
+**Why:** Operators can expose one Chatto server through more than one public
+host. Exact resource binding prevents a credential for one host from becoming
+authority on a different host.
+**Tradeoff:** A human must approve a new grant when the client changes to a
+different configured origin. Wildcard CORS entries cannot expose MCP.
 
 ## Permissions
 

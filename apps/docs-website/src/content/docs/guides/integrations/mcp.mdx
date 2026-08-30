@@ -13,7 +13,7 @@ The experimental integration supports MCP `2026-07-28` and these tools:
 
 | Tool | Result or action |
 | --- | --- |
-| `get_server_info` | Get the effective server name, public URL, and Chatto version. |
+| `get_server_info` | Get the effective server name, canonical public URL, connected MCP URL, and Chatto version. |
 | `get_current_user` | Get the authenticated account ID, display name, and account type. |
 | `list_rooms` | List a bounded page of rooms that the account can see. |
 | `list_room_messages` | List a bounded page of messages in a joined room. |
@@ -40,10 +40,14 @@ enabled = true
 ```
 
 Chatto mounts `/mcp` and `/.well-known/oauth-protected-resource/mcp` on its
-existing public HTTP server. The canonical Streamable HTTP endpoint and OAuth
-resource use the `webserver.url` origin. For example, a server at
-`https://chat.example` has the MCP endpoint `https://chat.example/mcp`. A
-reverse proxy needs no separate MCP upstream.
+existing public HTTP server. It uses the `webserver.url` origin and each exact
+non-wildcard origin in `webserver.allowed_origins`. For example, a server at
+`https://chat.example` has the MCP endpoint `https://chat.example/mcp`.
+
+Each endpoint is a separate OAuth resource. A human access token for one
+origin does not work on another origin. The authorization server always uses
+the canonical `webserver.url` origin as its issuer. Bot API keys work on each
+configured endpoint. A reverse proxy needs no separate MCP upstream.
 
 ## Authenticate an agent host
 
@@ -51,8 +55,9 @@ Human users authorize an MCP client through OAuth Authorization Code with S256
 PKCE. Chatto resolves the client's Client ID Metadata Document (CIMD), shows
 the exact `chatto:rooms:read`, `chatto:rooms:write`,
 `chatto:messages:read`, and `chatto:messages:write` scopes on the consent page,
-and issues an access token bound to the configured MCP resource. A first-party
-Chatto bearer token without this resource and grant cannot use MCP.
+and issues an access token bound to the exact MCP resource in the request. A
+first-party Chatto bearer token without this resource and grant cannot use
+MCP.
 
 An unattended integration can send a current bot API key as its bearer token.
 The bot acts as its own account. Its explicit permission allowlist and its

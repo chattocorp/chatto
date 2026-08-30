@@ -47,8 +47,9 @@ The first implementation will use these boundaries:
 
 1. Chatto mounts stateless Streamable HTTP at `/mcp` on its public HTTP server
    only when an operator sets `[mcp].enabled` to `true`. The MCP endpoint uses
-   the origin from `webserver.url`; it does not own a separate listener,
-   lifecycle, or canonical URL setting.
+   the origin from `webserver.url` and each exact non-wildcard origin from
+   `webserver.allowed_origins`. It does not own a separate listener, lifecycle,
+   or URL setting.
 2. The preferred MCP specification version is `2026-07-28`. Chatto does not
    call this version "MCP 2.0." The SDK can negotiate its older supported
    versions during their compatibility window, but Chatto does not add a
@@ -58,8 +59,8 @@ The first implementation will use these boundaries:
    changes. Later tools can adapt other existing public operations after this
    transport and authorization path has operational evidence.
 4. Human clients use Chatto's OAuth Authorization Code flow with PKCE and CIMD
-   client identity. MCP access tokens are bound to the canonical MCP resource
-   and to explicit MCP scopes.
+   client identity. Each configured origin is a separate MCP resource. MCP
+   access tokens are bound to the exact resource and to explicit MCP scopes.
 5. Bot API keys can authenticate the MCP endpoint as their bot account. The
    bot's explicit permission allowlist and owner ceiling continue to apply.
 6. Each MCP call uses the same authenticated application operation as the
@@ -103,10 +104,11 @@ The first MCP implementation uses the official Tier 1 Go SDK. Chatto does not
 copy MCP protocol types into protobuf definitions or create a custom transport
 binding.
 
-An operator gives the canonical MCP URL to an agent host. The host uses MCP
-and OAuth metadata to discover protocol and authorization details. Chatto's
-ConnectRPC discovery service does not advertise MCP because a general MCP host
-does not use that Chatto-specific service.
+An operator gives one configured MCP URL to an agent host. The host uses MCP
+and OAuth metadata to discover protocol and authorization details. The
+authorization server keeps the canonical `webserver.url` issuer for every MCP
+resource. Chatto's ConnectRPC discovery service does not advertise MCP because
+a general MCP host does not use that Chatto-specific service.
 
 MCP tool names, argument schemas, result schemas, error behavior, and
 authorization meaning are public integration contracts. Chatto will evolve

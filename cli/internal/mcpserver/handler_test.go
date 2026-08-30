@@ -74,14 +74,17 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
-	const resource = "https://chat.example/mcp"
+	const resource = "https://alias.example/mcp"
 	credentials, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, viewer.GetId(), "https://agent.example/client.json", resource, config.MCPOAuthScopes(), generation)
 	if err != nil {
 		t.Fatalf("CreateOAuthBearerSessionForClientGrant: %v", err)
 	}
 	handler, err := NewHandler(chattoCore, config.ChattoConfig{
-		Webserver: config.WebserverConfig{URL: "https://chat.example"},
-		MCP:       config.MCPConfig{Enabled: true},
+		Webserver: config.WebserverConfig{
+			URL:            "https://chat.example",
+			AllowedOrigins: []string{"https://alias.example"},
+		},
+		MCP: config.MCPConfig{Enabled: true},
 	}, "test")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
@@ -92,7 +95,7 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 	httpClient := server.Client()
-	httpClient.Transport = canonicalHostTransport{base: httpClient.Transport, host: "chat.example"}
+	httpClient.Transport = canonicalHostTransport{base: httpClient.Transport, host: "alias.example"}
 
 	client := mcp.NewClient(&mcp.Implementation{Name: "chatto-test", Version: "test"}, nil)
 	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{
@@ -136,8 +139,24 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err := json.Unmarshal(serverInfoRaw, &serverInfo); err != nil {
 		t.Fatalf("decode get_server_info output: %v", err)
 	}
-	if serverInfo.ServerName != "Engineering Chat" || serverInfo.ServerURL != "https://chat.example" || serverInfo.SoftwareVersion != "test" {
+	if serverInfo.ServerName != "Engineering Chat" || serverInfo.ServerURL != "https://chat.example" || serverInfo.MCPURL != resource || serverInfo.SoftwareVersion != "test" {
 		t.Fatalf("get_server_info = %#v", serverInfo)
+	}
+
+	canonicalRequest := newRawMCPRequest(credentials.AccessToken, "tools/list", "", `{
+		"jsonrpc":"2.0",
+		"id":99,
+		"method":"tools/list",
+		"params":{"_meta":{
+			"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+			"io.modelcontextprotocol/clientInfo":{"name":"resource-isolation-test","version":"1.0"},
+			"io.modelcontextprotocol/clientCapabilities":{}
+		}}
+	}`)
+	canonicalResponse := httptest.NewRecorder()
+	handler.ServeHTTP(canonicalResponse, canonicalRequest)
+	if canonicalResponse.Code != http.StatusUnauthorized {
+		t.Fatalf("alias token on canonical resource status = %d, want %d", canonicalResponse.Code, http.StatusUnauthorized)
 	}
 	currentUserResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_current_user"})
 	if err != nil {
@@ -247,8 +266,11 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 	}
 
 	handler, err := NewHandler(chattoCore, config.ChattoConfig{
-		Webserver: config.WebserverConfig{URL: "https://chat.example"},
-		MCP:       config.MCPConfig{Enabled: true},
+		Webserver: config.WebserverConfig{
+			URL:            "https://chat.example",
+			AllowedOrigins: []string{"https://alias.example"},
+		},
+		MCP: config.MCPConfig{Enabled: true},
 	}, "test")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
@@ -330,6 +352,23 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 		}
 	}
 
+	aliasList := newRawMCPRequest(bot.APIKey, "tools/list", "", `{
+		"jsonrpc":"2.0",
+		"id":20,
+		"method":"tools/list",
+		"params":{"_meta":{
+			"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+			"io.modelcontextprotocol/clientInfo":{"name":"alias-bot-test","version":"1.0"},
+			"io.modelcontextprotocol/clientCapabilities":{}
+		}}
+	}`)
+	aliasList.Host = "alias.example"
+	aliasListResponse := httptest.NewRecorder()
+	handler.ServeHTTP(aliasListResponse, aliasList)
+	if aliasListResponse.Code != http.StatusOK {
+		t.Fatalf("bot API key on alias status = %d, want %d: %s", aliasListResponse.Code, http.StatusOK, aliasListResponse.Body.String())
+	}
+
 	call := performRawMCPRequest(t, handler, bot.APIKey, "tools/call", "list_rooms", `{
 		"jsonrpc":"2.0",
 		"id":3,
@@ -389,7 +428,7 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 	}
 }
 
-func TestMCPHandlerRejectsWrongHostAndCrossOriginBrowserPOST(t *testing.T) {
+func TestMCPHandlerServesConfiguredAliasAndRejectsWrongHostAndCrossOriginBrowserPOST(t *testing.T) {
 	_, nc := testutil.StartSharedNATS(t)
 	chattoCore, err := core.NewChattoCore(context.Background(), nc, config.CoreConfig{
 		SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-signing-secret"},
@@ -398,8 +437,11 @@ func TestMCPHandlerRejectsWrongHostAndCrossOriginBrowserPOST(t *testing.T) {
 		t.Fatalf("NewChattoCore: %v", err)
 	}
 	handler, err := NewHandler(chattoCore, config.ChattoConfig{
-		Webserver: config.WebserverConfig{URL: "https://chat.example"},
-		MCP:       config.MCPConfig{Enabled: true},
+		Webserver: config.WebserverConfig{
+			URL:            "https://chat.example",
+			AllowedOrigins: []string{"https://alias.example", "*"},
+		},
+		MCP: config.MCPConfig{Enabled: true},
 	}, "test")
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
@@ -410,6 +452,30 @@ func TestMCPHandlerRejectsWrongHostAndCrossOriginBrowserPOST(t *testing.T) {
 	handler.ServeHTTP(wrongHostResponse, wrongHost)
 	if wrongHostResponse.Code != http.StatusMisdirectedRequest {
 		t.Fatalf("wrong Host status = %d, want %d", wrongHostResponse.Code, http.StatusMisdirectedRequest)
+	}
+
+	aliasMetadata := httptest.NewRequest(http.MethodGet, "https://alias.example/.well-known/oauth-protected-resource/mcp", nil)
+	aliasMetadataResponse := httptest.NewRecorder()
+	handler.ServeHTTP(aliasMetadataResponse, aliasMetadata)
+	if aliasMetadataResponse.Code != http.StatusOK {
+		t.Fatalf("alias metadata status = %d, want %d: %s", aliasMetadataResponse.Code, http.StatusOK, aliasMetadataResponse.Body.String())
+	}
+	var metadata struct {
+		Resource             string   `json:"resource"`
+		AuthorizationServers []string `json:"authorization_servers"`
+	}
+	if err := json.Unmarshal(aliasMetadataResponse.Body.Bytes(), &metadata); err != nil {
+		t.Fatalf("decode alias metadata: %v", err)
+	}
+	if metadata.Resource != "https://alias.example/mcp" || !slices.Equal(metadata.AuthorizationServers, []string{"https://chat.example"}) {
+		t.Fatalf("alias metadata = %#v", metadata)
+	}
+
+	aliasMCP := httptest.NewRequest(http.MethodPost, "https://alias.example/mcp", nil)
+	aliasMCPResponse := httptest.NewRecorder()
+	handler.ServeHTTP(aliasMCPResponse, aliasMCP)
+	if aliasMCPResponse.Code != http.StatusUnauthorized || !strings.Contains(aliasMCPResponse.Header().Get("WWW-Authenticate"), "https://alias.example/.well-known/oauth-protected-resource/mcp") {
+		t.Fatalf("alias MCP status/challenge = %d/%q, want alias-specific 401 challenge", aliasMCPResponse.Code, aliasMCPResponse.Header().Get("WWW-Authenticate"))
 	}
 
 	crossOrigin := httptest.NewRequest(http.MethodPost, "https://chat.example/mcp", nil)

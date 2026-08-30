@@ -396,6 +396,19 @@ func TestChattoConfig_MCPResourceURLUsesPublicOrigin(t *testing.T) {
 	}
 }
 
+func TestChattoConfig_MCPResourceURLsUseExactServerOrigins(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = "https://Chat.Example:443/configured-path"
+	cfg.Webserver.AllowedOrigins = []string{
+		"*",
+		"https://Alias.Example:0443",
+		"https://chat.example",
+	}
+	if got, want := cfg.MCPResourceURLs(), []string{"https://chat.example/mcp", "https://alias.example/mcp"}; !slices.Equal(got, want) {
+		t.Fatalf("MCPResourceURLs() = %v, want %v", got, want)
+	}
+}
+
 func TestChattoConfig_ApplyDefaultsAndNormalize(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.Webserver.URL = "https://chat.example"

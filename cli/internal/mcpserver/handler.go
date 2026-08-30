@@ -35,17 +35,32 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 	if chattoCore == nil {
 		return nil, fmt.Errorf("Chatto core is required")
 	}
-	resource := cfg.MCPResourceURL()
-	resourceURL, err := url.Parse(resource)
-	if err != nil || resourceURL.Path != "/mcp" {
-		return nil, fmt.Errorf("valid MCP resource URL is required")
-	}
-	issuerURL, err := url.Parse(cfg.Webserver.URL)
-	if err != nil || issuerURL.Scheme == "" || issuerURL.Host == "" {
+	origins := cfg.Webserver.ServerOrigins()
+	if len(origins) == 0 {
 		return nil, fmt.Errorf("valid webserver URL is required for MCP OAuth")
 	}
-	issuerURL.Path, issuerURL.RawQuery, issuerURL.Fragment = "", "", ""
-	issuer := issuerURL.String()
+	issuer := origins[0]
+	resources := cfg.MCPResourceURLs()
+	if len(resources) == 0 {
+		return nil, fmt.Errorf("valid MCP resource URL is required")
+	}
+
+	limiter := rate.NewLimiter(20, 40)
+	handlers := make(map[string]http.Handler, len(resources))
+	for _, resource := range resources {
+		resourceURL, err := url.Parse(resource)
+		if err != nil || resourceURL.Path != "/mcp" || resourceURL.Host == "" {
+			return nil, fmt.Errorf("valid MCP resource URL is required")
+		}
+		handlers[strings.ToLower(resourceURL.Host)] = newResourceHandler(chattoCore, issuer, resource, version, limiter)
+	}
+	return requireConfiguredHost(handlers), nil
+}
+
+// newResourceHandler constructs one self-consistent MCP resource. The caller
+// must dispatch requests only when their Host matches the resource origin.
+func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version string, limiter *rate.Limiter) http.Handler {
+	resourceURL, _ := url.Parse(resource)
 	metadataURL := resourceURL.Scheme + "://" + resourceURL.Host + "/.well-known/oauth-protected-resource/mcp"
 
 	streamable := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
@@ -58,9 +73,9 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 		}, &mcp.ServerOptions{Instructions: serverInstructions})
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "get_server_info",
-			Description: "Get the configured name, public URL, and software version of this Chatto server.",
+			Description: "Get the configured name, canonical public URL, connected MCP URL, and software version of this Chatto server.",
 			Annotations: readOnlyToolAnnotations("Get server information"),
-		}, getServerInfoHandler(chattoCore, issuer, version))
+		}, getServerInfoHandler(chattoCore, issuer, resource, version))
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "get_current_user",
 			Description: "Get the identity and account type of the authenticated Chatto user or bot.",
@@ -108,7 +123,7 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 
 	mux := http.NewServeMux()
 	mcpHandler := http.NewCrossOriginProtection().Handler(withRequestDeadline(protected))
-	mcpHandler = withAdmissionLimit(rate.NewLimiter(20, 40), mcpHandler)
+	mcpHandler = withAdmissionLimit(limiter, mcpHandler)
 	mux.Handle("/mcp", mcpHandler)
 	mux.Handle("/.well-known/oauth-protected-resource/mcp", auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
 		Resource:               resource,
@@ -117,16 +132,17 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 		BearerMethodsSupported: []string{"header"},
 		ResourceName:           "Chatto MCP",
 	}))
-	return requireCanonicalHost(resourceURL.Host, mux), nil
+	return mux
 }
 
-func requireCanonicalHost(host string, next http.Handler) http.Handler {
+func requireConfiguredHost(handlers map[string]http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.EqualFold(r.Host, host) {
-			http.Error(w, "request host does not match the configured MCP URL", http.StatusMisdirectedRequest)
+		handler, ok := handlers[strings.ToLower(r.Host)]
+		if !ok {
+			http.Error(w, "request host does not match a configured MCP URL", http.StatusMisdirectedRequest)
 			return
 		}
-		next.ServeHTTP(w, r)
+		handler.ServeHTTP(w, r)
 	})
 }
 
@@ -196,10 +212,11 @@ type getServerInfoInput struct{}
 type getServerInfoOutput struct {
 	ServerName      string `json:"serverName"`
 	ServerURL       string `json:"serverUrl"`
+	MCPURL          string `json:"mcpUrl"`
 	SoftwareVersion string `json:"softwareVersion"`
 }
 
-func getServerInfoHandler(chattoCore *core.ChattoCore, serverURL, version string) mcp.ToolHandlerFor[getServerInfoInput, getServerInfoOutput] {
+func getServerInfoHandler(chattoCore *core.ChattoCore, serverURL, mcpURL, version string) mcp.ToolHandlerFor[getServerInfoInput, getServerInfoOutput] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, _ getServerInfoInput) (*mcp.CallToolResult, getServerInfoOutput, error) {
 		token := auth.TokenInfoFromContext(ctx)
 		if token == nil || token.UserID == "" {
@@ -208,6 +225,7 @@ func getServerInfoHandler(chattoCore *core.ChattoCore, serverURL, version string
 		return nil, getServerInfoOutput{
 			ServerName:      chattoCore.ConfigModel().GetEffectiveServerName(),
 			ServerURL:       serverURL,
+			MCPURL:          mcpURL,
 			SoftwareVersion: version,
 		}, nil
 	}

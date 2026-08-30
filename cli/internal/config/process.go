@@ -48,7 +48,7 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 
 type WebserverConfig struct {
 	URL                    string        `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
-	AllowedOrigins         []string      `toml:"allowed_origins,commented" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional exact browser origins that can use cookie authentication and publish the bundled frontend OAuth identity through a reverse proxy. Do not include paths or configure both HTTP and HTTPS for the same request host. Wildcards apply only to CORS and authorize neither behavior."`
+	AllowedOrigins         []string      `toml:"allowed_origins,commented" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional exact public origins that can use cookie authentication, publish the bundled frontend OAuth identity, and serve MCP through a reverse proxy. Do not include paths or configure both HTTP and HTTPS for the same request host. Wildcards apply only to CORS and authorize none of these behaviors."`
 	Port                   int           `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
 	TrustedProxies         []string      `toml:"trusted_proxies,commented" env:"CHATTO_WEBSERVER_TRUSTED_PROXIES" comment:"IP addresses or CIDR ranges of reverse proxies allowed to supply forwarded host and client-IP headers. Default: none."`
 	APICompression         *bool         `toml:"api_compression" env:"CHATTO_WEBSERVER_API_COMPRESSION" comment:"Compress eligible ConnectRPC API responses with gzip. Disable to reduce compressor memory and CPU at the cost of higher network usage. Default: true."`
@@ -135,14 +135,30 @@ func MCPOAuthScopes() []string {
 }
 
 // MCPResourceURL returns the canonical MCP endpoint and OAuth resource. MCP is
-// mounted on the public HTTP server, so it always shares the webserver.url
+// mounted on the public HTTP server, so it shares the canonical webserver.url
 // origin.
 func (c ChattoConfig) MCPResourceURL() string {
-	publicURL, err := url.Parse(strings.TrimSpace(c.Webserver.URL))
-	if err != nil || publicURL.Scheme == "" || publicURL.Host == "" {
+	resources := c.MCPResourceURLs()
+	if len(resources) == 0 {
 		return ""
 	}
-	return (&url.URL{Scheme: publicURL.Scheme, Host: publicURL.Host, Path: "/mcp"}).String()
+	return resources[0]
+}
+
+// MCPResourceURLs returns each MCP endpoint and OAuth resource served by this
+// configuration. The first resource uses webserver.url. Later resources use
+// exact non-wildcard webserver.allowed_origins entries.
+func (c ChattoConfig) MCPResourceURLs() []string {
+	origins := c.Webserver.ServerOrigins()
+	resources := make([]string, 0, len(origins))
+	for _, origin := range origins {
+		publicURL, err := url.Parse(origin)
+		if err != nil || publicURL.Scheme == "" || publicURL.Host == "" {
+			continue
+		}
+		resources = append(resources, (&url.URL{Scheme: publicURL.Scheme, Host: publicURL.Host, Path: "/mcp"}).String())
+	}
+	return resources
 }
 
 // SearchConfig controls Chatto's consumer-facing search API and UI.

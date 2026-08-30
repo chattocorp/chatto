@@ -14,7 +14,7 @@ const (
 )
 
 // setupMCPRoutes mounts the optional MCP integration on Chatto's public HTTP
-// server. The routes share the public listener and canonical webserver origin.
+// server. The routes accept the canonical origin and exact configured aliases.
 func (s *HTTPServer) setupMCPRoutes() error {
 	if !s.config.MCP.Enabled {
 		notFound := func(c *gin.Context) { c.Status(http.StatusNotFound) }

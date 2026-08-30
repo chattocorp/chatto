@@ -56,7 +56,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
-  Comma-separated exact additional HTTPS origins for reverse-proxy aliases. Each origin can use browser cookie authentication and publishes a matching bundled frontend OAuth identity. Do not include a path, query, or fragment. Do not configure HTTP and HTTPS origins that produce the same request host. Do not use `*`; it permits neither behavior. Upgrade all serving replicas before you add an alias, because older replicas do not use this setting.
+  Comma-separated exact additional HTTPS origins for reverse-proxy aliases. Each origin can use browser cookie authentication, publish a matching bundled frontend OAuth identity, and serve an origin-bound MCP resource. Do not include a path, query, or fragment. Do not configure HTTP and HTTPS origins that produce the same request host. Do not use `*`; it permits none of these behaviors.
 </EnvVar>
 
 ### TLS
@@ -136,7 +136,7 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 ## Model Context Protocol
 
 <EnvVar name="CHATTO_MCP_ENABLED" toml="mcp.enabled" default="false">
-  Expose the experimental MCP routes on the public Chatto HTTP server. The canonical endpoint is the `webserver.url` origin with the `/mcp` path.
+  Expose the experimental MCP routes on the public Chatto HTTP server. The endpoints use the `webserver.url` origin and each exact non-wildcard `webserver.allowed_origins` entry with the `/mcp` path.
 </EnvVar>
 
 ## Shields

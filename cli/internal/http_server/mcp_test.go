@@ -27,6 +27,7 @@ func TestSetupMCPRoutesHonorsEnabled(t *testing.T) {
 	t.Run("enabled on public listener", func(t *testing.T) {
 		server := setupOAuthServer(t)
 		server.config.MCP = config.MCPConfig{Enabled: true}
+		server.config.Webserver.AllowedOrigins = []string{"https://alias.example"}
 		if err := server.setupMCPRoutes(); err != nil {
 			t.Fatalf("setupMCPRoutes: %v", err)
 		}
@@ -35,6 +36,13 @@ func TestSetupMCPRoutesHonorsEnabled(t *testing.T) {
 		server.router.ServeHTTP(response, request)
 		if response.Code != http.StatusOK {
 			t.Fatalf("enabled metadata status = %d, want 200: %s", response.Code, response.Body.String())
+		}
+
+		response = httptest.NewRecorder()
+		request = httptest.NewRequest(http.MethodGet, "https://alias.example/.well-known/oauth-protected-resource/mcp", nil)
+		server.router.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("alias metadata status = %d, want 200: %s", response.Code, response.Body.String())
 		}
 
 		response = httptest.NewRecorder()
