@@ -691,7 +691,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 //
 // ADR-035 phase 6: event-only. Atomically publishes RoomDeletedEvent (which the
 // room directory applies to both catalog and membership indexes) and, for a
-// channel room in a group, RoomRemovedFromGroupEvent per ADR-085. Historical
+// channel room in a group, RoomRemovedFromGroupEvent per ADR-086. Historical
 // room events are retained in EVT; the legacy KV room record is no longer
 // touched here.
 func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
