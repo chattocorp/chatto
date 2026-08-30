@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-08-28
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -67,7 +67,10 @@ Chatto controls who can do what through role-based access control. Every authent
 ### 5. Config-designated owners converge on the durable role
 
 **Decision:** `owners.emails` is materialized as durable `owner` role assignments. Existing verified matches are repaired at boot; a new matching verification is processed by a retryable durable worker and waits for that source fact before returning. Permission checks use only the durable role, and the role cannot be revoked while the matching verified email remains configured.
-**Why:** One durable representation keeps live authorization, event-time visibility, and recovery behavior consistent. A transient role append failure remains pending for redelivery instead of creating a live-only owner that notification cleanup cannot recognize.
+**Why:** One durable representation keeps live authorization, current
+notification visibility, and recovery behavior consistent. A transient role
+append failure remains pending for redelivery instead of creating a live-only
+owner that notification cleanup cannot recognize.
 **Tradeoff:** A transient materialization failure can delay completion of email verification. Removing an email from `owners.emails` does not automatically revoke an already materialized owner role, because the server cannot distinguish config-created assignments from manual ones; operators may revoke it after updating configuration.
 
 ### 6. Target-user mutations are permission-gated and role assignment is bounded

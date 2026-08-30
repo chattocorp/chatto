@@ -312,12 +312,6 @@ func configureProjectionSnapshots(
 			continue
 		}
 		source := events.ProjectionSnapshotSource(projectionSnapshotSource{repository: infra.snapshotRepository})
-		if registration.key == projectionsnapshot.ProjectionNotificationDecisionsKey {
-			source = cappedNotificationDecisionSnapshotSource{
-				source:     source,
-				projection: projections.notificationDecisions.Projection(),
-			}
-		}
 		if err := registration.projector.ConfigureSnapshots(
 			registration.key,
 			source,
@@ -330,9 +324,6 @@ func configureProjectionSnapshots(
 			repository:    infra.snapshotRepository,
 			projectionKey: registration.key,
 			streamName:    registration.streamName,
-		}
-		if registration.key == projectionsnapshot.ProjectionNotificationDecisionsKey {
-			job.allowPublication = projections.notificationDecisions.Projection().AllowSnapshotPublication
 		}
 		projections.snapshotJobs = append(projections.snapshotJobs, job)
 		registration.snapshotEnabled = true

@@ -46,7 +46,7 @@ tab is not open. Push is opt-in for each device, requires operator configuration
 ### 1. Piggyback on persistent notifications
 
 **Decision:** A committed notification signal is eligible to produce a push
-only when its source-time delivery mode is Push notification. Delivery-time
+only when its materialization-time delivery mode is Push notification. Delivery-time
 validation can still suppress it.
 **Why:** Two parallel decision trees would inevitably diverge. One persisted policy decision and occurrence eliminate that bug class. See FDR-012.
 **Tradeoff:** No way to push without also creating an in-app notification. Considered a feature, not a limitation: a push you can't find later in the app would be confusing.

@@ -195,7 +195,7 @@ message NotificationOccurrence {
   // cleanup and read-boundary reconciliation; never exposed through the public
   // API.
   uint64 source_stream_sequence = 9;
-  // Source-time visual importance.
+  // Visual importance selected when the source is materialized.
   NotificationAttentionLevel attention_level = 10;
   // Immutable interruptive-delivery deadline derived from source_created_at.
   google.protobuf.Timestamp alert_expires_at = 11;
@@ -208,7 +208,7 @@ message NotificationOccurrence {
   optional bool alert_delivered = 13;
 }
 
-// NotificationSignalled is the immutable source-time fact from which the
+// NotificationSignalled is the immutable materialized fact from which the
 // current NotificationOccurrence is projected.
 message NotificationSignalled {
   string source_event_id = 1;

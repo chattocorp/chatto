@@ -56,7 +56,7 @@ A Badge setting uses the neutral dot for its room. Thread Badge activity rolls u
 
 Room dots are controlled only by notification policy. If you set Room messages to Off, ordinary root messages do not add a dot. Chatto still keeps the Message Read Cursor and uses it to place the New messages separator when you open the room.
 
-Channel rooms inherit from their current room group, then from the server. Direct-message rooms inherit directly from the server. A room move changes the policy for future activity only. It does not change earlier notification decisions.
+Channel rooms inherit from their current room group, then from the server. Direct-message rooms inherit directly from the server. Chatto uses the current room group and policy when it creates notification output. A room move or policy change can affect source activity that is still waiting for this step. It does not change notification output that Chatto has already created.
 
 The Direct messages row applies to the server and direct-message rooms. The Room messages row applies to the server, room groups, and channel rooms. Cells outside these scopes are not available.
 

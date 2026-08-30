@@ -10,7 +10,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 
 | # | Feature | Status | Last reviewed |
 |---|---------|--------|---------------|
-| [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-08-28 |
+| [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-08-30 |
 | [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-08-30 |
 | [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-08-25 |
 | [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-08-25 |
@@ -20,7 +20,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-08-25 |
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-08-27 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-08-25 |
-| [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-08-27 |
+| [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-08-30 |
 | [FDR-012](FDR-012-notifications.md) | Notifications | Experimental | 2026-08-30 |
 | [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-08-30 |
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |

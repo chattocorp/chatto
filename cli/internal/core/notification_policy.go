@@ -274,8 +274,8 @@ func (c *ChattoCore) GetEffectiveNotificationModeForSignal(userID, roomID string
 	), signal)
 }
 
-// waitForCurrentNotificationPolicy makes source-time policy evaluation observe
-// every policy fact committed before this attempt captured the config boundary.
+// waitForCurrentNotificationPolicy makes policy reads observe every fact
+// committed before this attempt captured the config boundary.
 func (c *ChattoCore) waitForCurrentNotificationPolicy(ctx context.Context) error {
 	position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.ConfigSubjectFilter())
 	if err != nil {

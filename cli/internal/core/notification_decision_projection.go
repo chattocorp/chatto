@@ -1,13 +1,11 @@
 package core
 
 import (
-	"context"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"sort"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -15,13 +13,12 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 var notificationDecisionSnapshotContractID = snapshotContractID("v2", &projectionv1.NotificationDecisionProjectionSnapshot{})
 
-// NotificationDecisionProjection keeps the compact event-time state needed
-// to derive notification recipients and policy while enforcing persistent
+// NotificationDecisionProjection keeps the compact current state needed to
+// derive notification recipients and policy while enforcing persistent
 // privacy boundaries.
 type NotificationDecisionProjection struct {
 	mu sync.RWMutex
@@ -35,22 +32,6 @@ type NotificationDecisionProjection struct {
 	threadFollows map[string]notificationThreadFollow
 	followers     map[string]map[string]struct{}
 	replyCounts   map[string]uint64
-
-	// The main projection may run ahead of the single-lane durable worker. A
-	// second in-memory evaluator follows the worker instead: Apply journals each
-	// relevant event above the confirmed worker floor, and the worker advances
-	// the evaluator through deliveries in order. This keeps ordinary boundary
-	// work proportional to new EVT facts, never to total server state.
-	deltas              []notificationDecisionDelta
-	boundaries          map[uint64]struct{}
-	evaluatorSequence   uint64
-	evaluator           *notificationDecisionSnapshot
-	acknowledgedThrough atomic.Uint64
-}
-
-type notificationDecisionDelta struct {
-	sequence uint64
-	event    *evtv1.Event
 }
 
 type notificationThreadFollow struct {
@@ -70,9 +51,7 @@ func NewNotificationDecisionProjection() *NotificationDecisionProjection {
 		threadFollows: make(map[string]notificationThreadFollow),
 		followers:     make(map[string]map[string]struct{}),
 		replyCounts:   make(map[string]uint64),
-		boundaries:    make(map[uint64]struct{}),
 	}
-	p.evaluator = newNotificationDecisionSnapshot()
 	return p
 }
 
@@ -131,74 +110,7 @@ func (p *NotificationDecisionProjection) Apply(event *evtv1.Event, seq uint64) e
 	if err := applyNotificationDecisionState(p.config, p.activeUsers, p.threadFollows, p.followers, p.replyCounts, event, seq); err != nil {
 		return err
 	}
-	if seq <= p.acknowledgedThrough.Load() {
-		// Idle consumer progress can advance the acknowledged floor across
-		// state-only facts while this projector is catching up. Apply any older
-		// journaled deltas first; advancing the new fact directly would otherwise
-		// skip them and make the worker-position evaluator order-dependent.
-		if seq > 0 && p.evaluatorSequence < seq-1 {
-			if err := p.advanceEvaluatorThrough(seq - 1); err != nil {
-				return fmt.Errorf("advance acknowledged notification decision history before %d: %w", seq, err)
-			}
-		}
-		if seq <= p.evaluatorSequence {
-			return fmt.Errorf("notification decision event %d does not advance evaluator at %d", seq, p.evaluatorSequence)
-		}
-		if err := applyNotificationDecisionDeltas(p.evaluator, []notificationDecisionDelta{{sequence: seq, event: event}}); err != nil {
-			return fmt.Errorf("advance acknowledged notification decision state through %d: %w", seq, err)
-		}
-		p.evaluatorSequence = seq
-		firstRetained := sort.Search(len(p.deltas), func(i int) bool { return p.deltas[i].sequence > seq })
-		if firstRetained > 0 {
-			p.deltas = append([]notificationDecisionDelta(nil), p.deltas[firstRetained:]...)
-		}
-		return nil
-	}
-	p.deltas = append(p.deltas, notificationDecisionDelta{
-		sequence: seq,
-		event:    proto.Clone(event).(*evtv1.Event),
-	})
-	if notificationDecisionBoundaryEvent(event) {
-		p.boundaries[seq] = struct{}{}
-	}
 	return nil
-}
-
-func notificationDecisionBoundaryEvent(event *evtv1.Event) bool {
-	if event == nil {
-		return false
-	}
-	switch event.GetEvent().(type) {
-	case *evtv1.Event_MessagePosted, *evtv1.Event_ReactionAdded:
-		return true
-	default:
-		return notificationVisibilityBoundaryEvent(event)
-	}
-}
-
-func notificationVisibilityBoundaryEvent(event *evtv1.Event) bool {
-	if event == nil {
-		return false
-	}
-	switch payload := event.GetEvent().(type) {
-	case *evtv1.Event_RoomMemberBanned,
-		*evtv1.Event_RoomUniversalChanged,
-		*evtv1.Event_RoomAddedToGroup,
-		*evtv1.Event_RoomRemovedFromGroup,
-		*evtv1.Event_RoomGroupDeleted,
-		*evtv1.Event_RbacRoleAssigned,
-		*evtv1.Event_RbacRoleRevoked,
-		*evtv1.Event_RbacRoleDeleted:
-		return true
-	case *evtv1.Event_RbacPermissionGranted:
-		return notificationVisibilityPermission(payload.RbacPermissionGranted.GetPermission())
-	case *evtv1.Event_RbacPermissionDenied:
-		return notificationVisibilityPermission(payload.RbacPermissionDenied.GetPermission())
-	case *evtv1.Event_RbacPermissionCleared:
-		return notificationVisibilityPermission(payload.RbacPermissionCleared.GetPermission())
-	default:
-		return false
-	}
 }
 
 func notificationVisibilityPermission(permission string) bool {
@@ -220,20 +132,9 @@ func (p *NotificationDecisionProjection) Restore(data []byte) error {
 	if err != nil {
 		return err
 	}
-	evaluatorRooms, evaluatorGroups, evaluatorRBAC, evaluatorConfig, evaluatorActiveUsers, evaluatorThreadFollows, evaluatorFollowers, evaluatorReplyCounts, err := decodeNotificationDecisionState(data)
-	if err != nil {
-		return fmt.Errorf("restore notification decision evaluator: %w", err)
-	}
 	p.mu.Lock()
 	p.rooms, p.groups, p.rbac, p.config = rooms, groups, rbac, config
 	p.activeUsers, p.threadFollows, p.followers, p.replyCounts = activeUsers, threadFollows, followers, replyCounts
-	p.deltas = nil
-	p.boundaries = make(map[uint64]struct{})
-	p.evaluatorSequence = 0
-	p.evaluator = &notificationDecisionSnapshot{
-		rooms: evaluatorRooms, groups: evaluatorGroups, rbac: evaluatorRBAC, config: evaluatorConfig,
-		activeUsers: evaluatorActiveUsers, threadFollows: evaluatorThreadFollows, followers: evaluatorFollowers, replyCounts: evaluatorReplyCounts,
-	}
 	p.mu.Unlock()
 	return nil
 }
@@ -241,8 +142,23 @@ func (p *NotificationDecisionProjection) Restore(data []byte) error {
 func (p *NotificationDecisionProjection) CompleteStartupReplay() {
 	p.mu.Lock()
 	p.rbac.CompleteStartupReplay()
-	p.evaluator.rbac.CompleteStartupReplay()
 	p.mu.Unlock()
+}
+
+// withCurrent evaluates one notification decision against a consistent view
+// of current projected state. The callback must not retain the snapshot or do
+// external I/O because projection application is paused while it runs.
+func (p *NotificationDecisionProjection) withCurrent(at time.Time, evaluate func(*notificationDecisionSnapshot) error) error {
+	if evaluate == nil {
+		return fmt.Errorf("notification decision evaluator is nil")
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return evaluate(&notificationDecisionSnapshot{
+		rooms: p.rooms, groups: p.groups, rbac: p.rbac, config: p.config,
+		activeUsers: p.activeUsers, threadFollows: p.threadFollows, followers: p.followers, replyCounts: p.replyCounts,
+		at: at,
+	})
 }
 
 func applyNotificationDecisionState(
@@ -430,109 +346,6 @@ func decodeNotificationDecisionState(data []byte) (*RoomDirectoryProjection, *Ro
 	return rooms, groups, rbac, config, activeUsers, threadFollows, followers, replyCounts, nil
 }
 
-// SetAcknowledgedThrough seeds the notification consumer's confirmed floor
-// before snapshot restore. Pending deliveries are replayed instead of being
-// hidden behind a newer projection snapshot; ReleaseThrough advances the same
-// floor after startup so unsafe generations cannot be published either.
-func (p *NotificationDecisionProjection) SetAcknowledgedThrough(sequence uint64) {
-	p.acknowledgedThrough.Store(sequence)
-}
-
-func (p *NotificationDecisionProjection) RestoreMaxCutoff() uint64 {
-	return p.acknowledgedThrough.Load()
-}
-
-// AllowSnapshotPublication uses the same full durable-consumer floor as
-// snapshot restore. Any filtered delivery—not only an implicit visibility
-// boundary—can hold that floor behind the projector's current state.
-func (p *NotificationDecisionProjection) AllowSnapshotPublication(cutoff uint64) bool {
-	return cutoff <= p.acknowledgedThrough.Load()
-}
-
-func (p *NotificationDecisionProjection) Boundary(sequence uint64, at time.Time) (*notificationDecisionSnapshot, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	_, retained := p.boundaries[sequence]
-	if !retained || p.evaluator == nil || sequence < p.evaluatorSequence {
-		return nil, fmt.Errorf("notification decision boundary %d is unavailable", sequence)
-	}
-	if err := p.advanceEvaluatorThrough(sequence); err != nil {
-		return nil, fmt.Errorf("advance notification decision boundary %d: %w", sequence, err)
-	}
-	p.evaluator.at = at
-	return p.evaluator, nil
-}
-
-// AdvanceThrough advances the lagging evaluator after a worker delivery has
-// completed. Boundary deliveries have already advanced it; this method also
-// accounts for policy, membership, and other state-only deliveries so they do
-// not accumulate while notification traffic is idle. It intentionally runs
-// before DoubleAck: redelivery at the same sequence is safe and idempotent.
-func (p *NotificationDecisionProjection) AdvanceThrough(sequence uint64) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.advanceEvaluatorThrough(sequence)
-}
-
-func (p *NotificationDecisionProjection) advanceEvaluatorThrough(sequence uint64) error {
-	if p.evaluator == nil {
-		return fmt.Errorf("notification decision evaluator is unavailable")
-	}
-	if sequence < p.evaluatorSequence {
-		return fmt.Errorf("notification decision evaluator is at %d, cannot move back to %d", p.evaluatorSequence, sequence)
-	}
-	start := sort.Search(len(p.deltas), func(i int) bool { return p.deltas[i].sequence > p.evaluatorSequence })
-	end := sort.Search(len(p.deltas), func(i int) bool { return p.deltas[i].sequence > sequence })
-	if err := applyNotificationDecisionDeltas(p.evaluator, p.deltas[start:end]); err != nil {
-		return err
-	}
-	p.evaluatorSequence = sequence
-	return nil
-}
-
-func applyNotificationDecisionDeltas(snapshot *notificationDecisionSnapshot, deltas []notificationDecisionDelta) error {
-	for _, delta := range deltas {
-		if err := snapshot.rooms.Apply(delta.event, delta.sequence); err != nil {
-			return err
-		}
-		if err := snapshot.groups.Apply(delta.event, delta.sequence); err != nil {
-			return err
-		}
-		if err := snapshot.rbac.Apply(delta.event, delta.sequence); err != nil {
-			return err
-		}
-		if err := applyNotificationDecisionState(snapshot.config, snapshot.activeUsers, snapshot.threadFollows, snapshot.followers, snapshot.replyCounts, delta.event, delta.sequence); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// ReleaseThrough drops event-time boundary state only through facts whose
-// durable acknowledgement has been confirmed by the shared consumer. The
-// evaluator has already advanced in the worker handler before DoubleAck, so
-// cleanup never mutates a snapshot that an active delivery is reading.
-func (p *NotificationDecisionProjection) ReleaseThrough(sequence uint64) error {
-	for current := p.acknowledgedThrough.Load(); sequence > current; current = p.acknowledgedThrough.Load() {
-		if p.acknowledgedThrough.CompareAndSwap(current, sequence) {
-			break
-		}
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for boundary := range p.boundaries {
-		if boundary <= sequence {
-			delete(p.boundaries, boundary)
-		}
-	}
-	releaseThrough := min(sequence, p.evaluatorSequence)
-	firstRetained := sort.Search(len(p.deltas), func(i int) bool { return p.deltas[i].sequence > releaseThrough })
-	if firstRetained > 0 {
-		p.deltas = append([]notificationDecisionDelta(nil), p.deltas[firstRetained:]...)
-	}
-	return nil
-}
-
 func (p *NotificationDecisionProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -543,23 +356,10 @@ func (p *NotificationDecisionProjection) adminProjectionEstimate() (int64, int64
 	metrics = append(metrics, rbacMetrics...)
 	policyEntries := notificationPolicyEntryCount(p.config)
 	decisionEntries := int64(len(p.activeUsers)+len(p.threadFollows)+len(p.replyCounts)) + policyEntries
-	evaluatorRoomEntries, evaluatorRoomBytes, _ := p.evaluator.rooms.adminProjectionEstimate()
-	evaluatorGroupEntries, evaluatorGroupBytes, _ := p.evaluator.groups.adminProjectionEstimate()
-	evaluatorRBACEntries, evaluatorRBACBytes, _ := p.evaluator.rbac.adminProjectionEstimate()
-	evaluatorDecisionEntries := int64(len(p.evaluator.activeUsers)+len(p.evaluator.threadFollows)+len(p.evaluator.replyCounts)) + notificationPolicyEntryCount(p.evaluator.config)
-	evaluatorEntries := evaluatorRoomEntries + evaluatorGroupEntries + evaluatorRBACEntries + evaluatorDecisionEntries
-	evaluatorBytes := evaluatorRoomBytes + evaluatorGroupBytes + evaluatorRBACBytes + evaluatorDecisionEntries*projectionMapEntryOverhead
-	var deltaBytes int64
-	for _, delta := range p.deltas {
-		deltaBytes += int64(proto.Size(delta.event))
-	}
 	metrics = append(metrics,
 		ProjectionAdminMetric{Name: "decision_state", Value: decisionEntries, Bytes: decisionEntries * projectionMapEntryOverhead},
-		ProjectionAdminMetric{Name: "worker_position_decision_state", Value: evaluatorEntries, Bytes: evaluatorBytes},
-		ProjectionAdminMetric{Name: "pending_decision_boundaries", Value: int64(len(p.boundaries))},
-		ProjectionAdminMetric{Name: "decision_boundary_deltas", Value: int64(len(p.deltas)), Bytes: deltaBytes},
 	)
-	return roomEntries + groupEntries + rbacEntries + decisionEntries + evaluatorEntries + int64(len(p.boundaries)+len(p.deltas)), roomBytes + groupBytes + rbacBytes + decisionEntries*projectionMapEntryOverhead + evaluatorBytes + deltaBytes, metrics
+	return roomEntries + groupEntries + rbacEntries + decisionEntries, roomBytes + groupBytes + rbacBytes + decisionEntries*projectionMapEntryOverhead, metrics
 }
 
 func notificationPolicyEntryCount(config *ConfigProjection) int64 {
@@ -590,20 +390,6 @@ func notificationDeliveryModeFieldCount(modes *evtv1.NotificationDeliveryModes) 
 	return count
 }
 
-// cappedNotificationDecisionSnapshotSource prevents projection restore from
-// advancing beyond the shared worker's acknowledged floor.
-type cappedNotificationDecisionSnapshotSource struct {
-	source     events.ProjectionSnapshotSource
-	projection *NotificationDecisionProjection
-}
-
-func (s cappedNotificationDecisionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
-	if cutoff := s.projection.RestoreMaxCutoff(); cutoff < request.MaxCutoff {
-		request.MaxCutoff = cutoff
-	}
-	return s.source.LoadProjectionSnapshot(ctx, request)
-}
-
 type notificationDecisionSnapshot struct {
 	rooms         *RoomDirectoryProjection
 	groups        *RoomGroupLayoutProjection
@@ -614,19 +400,6 @@ type notificationDecisionSnapshot struct {
 	followers     map[string]map[string]struct{}
 	replyCounts   map[string]uint64
 	at            time.Time
-}
-
-func newNotificationDecisionSnapshot() *notificationDecisionSnapshot {
-	return &notificationDecisionSnapshot{
-		rooms:         NewRoomDirectoryProjection(),
-		groups:        NewRoomGroupLayoutProjection(),
-		rbac:          NewRBACProjection(),
-		config:        NewConfigProjection(),
-		activeUsers:   make(map[string]struct{}),
-		threadFollows: make(map[string]notificationThreadFollow),
-		followers:     make(map[string]map[string]struct{}),
-		replyCounts:   make(map[string]uint64),
-	}
 }
 
 func (s *notificationDecisionSnapshot) roomKind(roomID string) (RoomKind, bool) {
@@ -709,9 +482,9 @@ func (s *notificationDecisionSnapshot) roomJoinAllowed(userID, roomID, groupID s
 	return s.roomPermissionAllowed(userID, roomID, groupID, PermRoomJoin)
 }
 
-// notificationVisibilityExists is the exact event-time content boundary for
+// notificationVisibilityExists is the current content boundary for
 // notification output. DM membership authorizes DM reads; channel members also
-// need message.read at the same source sequence.
+// need message.read when the materializer makes its decision.
 func (s *notificationDecisionSnapshot) notificationVisibilityExists(userID, roomID string) bool {
 	if !s.membershipExists(userID, roomID) {
 		return false
@@ -725,7 +498,7 @@ func (s *notificationDecisionSnapshot) notificationVisibilityExists(userID, room
 
 // notificationVisibilityExistsForSignal also accepts interaction-scoped read
 // access for a direct mention. The source message establishes that interaction
-// relationship, so the recipient can read the target at the same event boundary.
+// relationship, so the recipient can read the target when materialization runs.
 func (s *notificationDecisionSnapshot) notificationVisibilityExistsForSignal(userID, roomID string, signal *notificationv1.NotificationSignal) bool {
 	if s.notificationVisibilityExists(userID, roomID) {
 		return true
@@ -741,8 +514,8 @@ func (s *notificationDecisionSnapshot) notificationVisibilityExistsForSignal(use
 }
 
 // notificationInteractionVisibilityExists reports whether interaction-scoped
-// message reads can keep an exact notification target visible at this event
-// boundary. The caller must still verify the target's thread relationship.
+// message reads can keep an exact notification target currently visible. The
+// caller must still verify the target's thread relationship.
 func (s *notificationDecisionSnapshot) notificationInteractionVisibilityExists(userID, roomID string) bool {
 	if !s.membershipExists(userID, roomID) {
 		return false

@@ -39,7 +39,7 @@ inventories.
 | `EVT` | `chatto-user-push-subscription-cleanup-v1` | `evt.user.*.account_deleted` | Explicit ack after idempotent owner-first removal of the account's known push credentials; interrupted or partially failed cleanup is redelivered. The permanent exact deletion fact also fences registration, and a leased global reconciliation pass repairs late writes and orphan owners without rescanning all owners for every historical delivery | Shared `ChattoCore` replicas through `events.DurableWorker` |
 | `EVT` | `chatto-call-key-cleanup-v1` | `evt.room.*.call_ended` | Explicit ack after idempotent call-key shredding; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 | `EVT` | `chatto-asset-cleanup-v1` | `evt.asset.*.asset_deleted` | Explicit ack after idempotent binary and transform-cache deletion; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
-| `EVT` | `chatto-notification-materializer-v1` | Existing message, reaction, membership, room-layout, RBAC, account, and configured-owner facts; the name/filter pair is one immutable capability generation | Confirmed double ack only after exact-sequence derivation and idempotent lifecycle facts reach `NOTIFICATIONS`, with privacy boundaries persisted where required; interrupted, partially completed, failed, or schema-unsupported work is redelivered rather than discarded. New source schemas require a new consumer generation | Shared `ChattoCore` replicas through `events.DurableWorker` |
+| `EVT` | `chatto-notification-materializer-v1` | Existing message, reaction, membership, room-layout, RBAC, account, and configured-owner facts; the name/filter pair is one immutable capability generation | The materializer waits until current local projections include the source, stores idempotent bounded notification output, then confirms the source acknowledgement. Interrupted, partially completed, failed, or schema-unsupported work is redelivered rather than discarded. New source schemas require a new consumer generation | Shared `ChattoCore` replicas through `events.DurableWorker` |
 | `NOTIFICATIONS` | `chatto-notification-alert-delivery-v1` | `notifications.signalled` | Explicit ack after the projected occurrence has a terminal delivered/suppressed state; transient provider failures are redelivered within the immutable two-minute delivery horizon | Shared `ChattoCore` replicas through `events.DurableWorker` |
 
 All consumers use file-backed durable consumer state. Most consume domain facts
@@ -53,10 +53,13 @@ idempotency fence.
 
 The consumer names are versioned persisted resource contracts. Required effect
 consumers have no inactivity cleanup and survive worker shutdown or
-scale-to-zero; normal backups include both durable streams and their consumer
-state. Backups snapshot `EVT` before `RUNTIME_STATE`, then `NOTIFICATIONS`.
-The materializer's durable EVT consumer position and deterministic output make
-an in-flight cross-stream handoff recoverable at either backup boundary.
+scale-to-zero. Normal backups include both durable streams and their consumer
+state.
+
+Backups snapshot `EVT` before `RUNTIME_STATE`, then `NOTIFICATIONS`.
+The materializer's durable EVT consumer position and idempotent output
+coordinates make an in-flight cross-stream handoff recoverable at either backup
+boundary.
 Restored push deliveries still obey
 their immutable source-time deadline, so restoring an old backup cannot renew
 interruptive work. Chatto currently has no retired durable
