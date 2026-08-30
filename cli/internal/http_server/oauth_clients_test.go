@@ -263,7 +263,11 @@ func TestOAuthClientMetadataAllowsLoopbackResolutionOnlyForLocalHostname(t *test
 	if allowedOAuthClientAddress("client.feature.localhost", loopback, false) {
 		t.Fatal("remote Chatto server could resolve local metadata")
 	}
-	if !allowedOAuthClientAddress("client.example", netip.MustParseAddr("8.8.8.8"), false) {
+	publicAddress := netip.MustParseAddr("8.8.8.8")
+	if allowedOAuthClientAddress("client.feature.localhost", publicAddress, true) {
+		t.Fatal("local metadata hostname could resolve to a public address")
+	}
+	if !allowedOAuthClientAddress("client.example", publicAddress, false) {
 		t.Fatal("public metadata address was blocked")
 	}
 }

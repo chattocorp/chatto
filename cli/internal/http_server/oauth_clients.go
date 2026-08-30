@@ -368,10 +368,13 @@ func resolveOAuthClientAddresses(ctx context.Context, host string, allowLoopback
 }
 
 func allowedOAuthClientAddress(host string, address netip.Addr, allowLoopback bool) bool {
+	if isLoopbackOAuthRedirectHost(host) {
+		return allowLoopback && address.Unmap().IsLoopback()
+	}
 	if !blockedOAuthClientAddress(address) {
 		return true
 	}
-	return allowLoopback && isLoopbackOAuthRedirectHost(host) && address.Unmap().IsLoopback()
+	return false
 }
 
 func blockedOAuthClientAddress(address netip.Addr) bool {
