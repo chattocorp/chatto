@@ -222,6 +222,139 @@ test.describe('Unread indicators', () => {
     );
   });
 
+  test('retries a failed room read when the browser comes online', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000);
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+    await waitForRoomReadViaConnect(page, generalRoomId);
+    await chatPage.enterRoom('announcements');
+    await waitForRoomReady(page, 'announcements');
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: otherPage, chatPage: otherChatPage, roomPage: otherRoomPage }) => {
+        await otherChatPage.enterRoom('general');
+        await waitForRoomReady(otherPage, 'general');
+        await otherRoomPage.sendMessage(`Read retry ${Date.now()}`);
+        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+
+        const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
+        const unreadDot = generalLink.getByTestId('room-unread-dot');
+        await expect(unreadDot).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+        const markReadRoute = '**/api/connect/chatto.api.v1.RoomService/MarkRoomAsRead';
+        let allowMarkRead = false;
+        let failedAttempts = 0;
+        let allowedAttempts = 0;
+
+        await page.route(markReadRoute, async (route) => {
+          if (!allowMarkRead) {
+            failedAttempts += 1;
+            await route.abort('internetdisconnected');
+            return;
+          }
+
+          allowedAttempts += 1;
+          await route.continue();
+        });
+
+        try {
+          await chatPage.enterRoom('general');
+          await expect.poll(() => failedAttempts).toBeGreaterThan(0);
+
+          // The optimistic read must roll back while the server cursor stays
+          // behind the new message.
+          await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+          await expect(unreadDot).toBeVisible();
+
+          allowMarkRead = true;
+          await page.evaluate(() => window.dispatchEvent(new Event('online')));
+
+          await expect
+            .poll(() => allowedAttempts, { timeout: TIMEOUTS.REALTIME_EVENT })
+            .toBeGreaterThan(0);
+          await waitForRoomReadViaConnect(page, generalRoomId);
+          await expect(unreadDot).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        } finally {
+          await page.unroute(markReadRoute);
+        }
+      }
+    );
+  });
+
+  test('marks a background-entered room read when visibility returns without a focus event', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60000);
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+    await waitForRoomReadViaConnect(page, generalRoomId);
+    await chatPage.enterRoom('announcements');
+    await waitForRoomReady(page, 'announcements');
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: otherPage, chatPage: otherChatPage, roomPage: otherRoomPage }) => {
+        await otherChatPage.enterRoom('general');
+        await waitForRoomReady(otherPage, 'general');
+        await otherRoomPage.sendMessage(`Foreground read ${Date.now()}`);
+        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+
+        const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
+        await expect(generalLink.getByTestId('room-unread-dot')).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+
+        // Model Android PWA backgrounding while the page and connection stay
+        // alive.
+        await page.evaluate(() => {
+          Object.defineProperties(document, {
+            hidden: { configurable: true, value: true },
+            visibilityState: { configurable: true, value: 'hidden' }
+          });
+          window.dispatchEvent(new Event('blur'));
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+
+        // Enter through an untrusted programmatic click so trusted interaction
+        // recovery does not activate the app before visibility is restored.
+        await generalLink.evaluate((link: HTMLAnchorElement) => link.click());
+        await waitForRoomReady(page, 'general');
+        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
+
+        // Android can restore visibility without a matching focus event.
+        await page.evaluate(() => {
+          Object.defineProperties(document, {
+            hidden: { configurable: true, value: false },
+            visibilityState: { configurable: true, value: 'visible' }
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+        await waitForRoomReadViaConnect(page, generalRoomId);
+      }
+    );
+  });
+
   test('unread indicator clears when navigating to room', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

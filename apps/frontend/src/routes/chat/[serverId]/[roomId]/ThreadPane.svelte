@@ -88,7 +88,8 @@
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
     markerWindowFromReadResult: (result, markedAtMs) =>
-      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null
+      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null,
+    onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error)
   });
 
   // Typing indicator for this thread
@@ -306,22 +307,18 @@
 
   async function markThreadAsRead(
     currentThreadId: string,
-    upToEventId?: string
-  ): Promise<MarkThreadAsReadResult | null> {
-    try {
-      const conn = connection();
-      const result = await createReadStateAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
-      void serverStore.rooms.refreshUnreadFollowedThreads();
-      onMarkedRead?.();
-      return result;
-    } catch (err) {
-      console.error('Failed to mark thread as read:', err);
-      return null;
-    }
+    upToEventId: string | undefined,
+    signal: AbortSignal
+  ): Promise<MarkThreadAsReadResult> {
+    const conn = connection();
+    const result = await createReadStateAPI({
+      serverId: conn.serverId ?? getActiveServer(),
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    }).markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId }, { signal });
+    void serverStore.rooms.refreshUnreadFollowedThreads();
+    onMarkedRead?.();
+    return result;
   }
 </script>
 
