@@ -983,6 +983,59 @@ describe('RoomList', () => {
     expect(link.getAttribute('rel')).toBeNull();
   });
 
+  it('adds HTTPS when a new sidebar link uses a hostname without a scheme', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'resources',
+        name: 'Resources',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+
+    const { container } = render(RoomList);
+    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Resources')
+    );
+    groupHeader!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+
+    await vi.waitFor(() =>
+      expect(
+        document.querySelector('[role="menu"][aria-label="Settings for Resources"]')
+      ).not.toBeNull()
+    );
+    const newLink = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'New Link'
+    );
+    newLink!.click();
+
+    await vi.waitFor(() => expect(document.querySelector('#sidebar-link-url')).not.toBeNull());
+    const label = document.querySelector<HTMLInputElement>('#sidebar-link-label')!;
+    const url = document.querySelector<HTMLInputElement>('#sidebar-link-url')!;
+    label.value = 'Docs';
+    label.dispatchEvent(new Event('input', { bubbles: true }));
+    url.value = 'docs.example.test/guide';
+    url.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const submit = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.type === 'submit' && button.textContent?.trim() === 'Create Link'
+    );
+    await expect.element(submit ?? null).toBeEnabled();
+    submit!.click();
+
+    await vi.waitFor(() =>
+      expect(mocks.layoutAPI.createSidebarLink).toHaveBeenCalledWith({
+        groupId: 'resources',
+        label: 'Docs',
+        url: 'https://docs.example.test/guide'
+      })
+    );
+  });
+
   it('keeps an empty manageable group visible and opens its settings from a context menu', async () => {
     mocks.store.navigation.rooms = [];
     mocks.store.navigation.roomGroups = [
@@ -1132,9 +1185,11 @@ describe('RoomList', () => {
     await expect
       .element(q(container, '[data-testid="sidebar-link-drag-handle"]'))
       .toBeInTheDocument();
-    await expect
-      .element(q(container, '[data-testid="sidebar-link-actions-button"]'))
-      .toBeInTheDocument();
+    expect(container.querySelector('[data-testid="sidebar-link-actions-button"]')).toBeNull();
+    const linkLeadingIcon = q(container, '[data-testid="sidebar-link-leading-icon"]');
+    expect(q(container, '[data-testid="sidebar-link-drag-handle"]')?.parentElement).toBe(
+      linkLeadingIcon
+    );
   });
 
   it('places the new-group control directly after managed groups and before direct messages', () => {

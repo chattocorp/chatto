@@ -13,6 +13,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverIdToSegment } from '$lib/navigation';
   import { m } from '$lib/i18n/messages';
   import {
+    normalizeSidebarLinkURL,
     sidebarLinkAnchorAttributes,
     sidebarLinkTarget
   } from '$lib/navigation/sidebarLinkTarget';
@@ -112,6 +113,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const optimisticGroupItems = new SvelteMap<string, RoomsListGroupItem[]>();
   let activeItemDragId = $state<string | null>(null);
   let itemFinalizeScheduled = false;
+  const linkUrlIsValid = $derived(sidebarLinkTarget(linkUrl, activeServerBaseURL).valid);
 
   function roomMenuTrigger(room: RoomsListItem) {
     return contextMenuTrigger((details) => {
@@ -266,21 +268,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     });
   }
 
-  function menuDetailsFromButton(event: MouseEvent): ContextMenuTriggerDetails {
-    const rect =
-      event.currentTarget instanceof Element ? event.currentTarget.getBoundingClientRect() : null;
-    return {
-      position: rect ? { x: rect.right, y: rect.bottom } : { x: event.clientX, y: event.clientY },
-      presentation: 'auto'
-    };
-  }
-
-  function openLinkMenu(event: MouseEvent, group: RoomsListGroup, item: RoomsListGroupItem): void {
-    event.preventDefault();
-    event.stopPropagation();
-    linkContextMenu = { ...menuDetailsFromButton(event), group, item };
-  }
-
   function handleConfigureGroup(group: RoomsListGroup): void {
     groupContextMenu = null;
     void goto(
@@ -326,7 +313,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   async function saveLink(event: Event): Promise<void> {
     event.preventDefault();
     const label = linkLabel.trim();
-    const url = linkUrl.trim();
+    const url = normalizeSidebarLinkURL(linkUrl);
     if (!label || !url) return;
     try {
       if (editingLinkId) {
@@ -896,6 +883,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {:else}
     {@const target = sidebarLinkTarget(item.link.url, activeServerBaseURL)}
     {@const owningGroup = groupByItemId.get(item.id)}
+    {@const showDragHandle = supportsRelativeSidebarMoves && owningGroup?.viewerCanManageGroup}
     <a
       {...sidebarLinkAnchorAttributes(target)}
       aria-disabled={!target.valid}
@@ -908,40 +896,34 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         if (!target.valid) event.preventDefault();
       }}
     >
-      <span class="iconify sidebar-icon icon-[uil--external-link-alt] text-muted"></span>
-      <span class="flex-1 truncate">{item.link.label}</span>
-      {#if owningGroup?.viewerCanManageGroup}
-        <div
-          class="pointer-events-none absolute right-1 z-10 flex items-center rounded-md bg-surface opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:static [@media(hover:none)]:opacity-100"
-        >
-          {#if supportsRelativeSidebarMoves}
-            <button
-              type="button"
-              class="mini-icon-action h-6 w-6 cursor-grab items-center justify-center active:cursor-grabbing"
-              aria-label={m('admin.rooms_admin.drag_room')}
-              onclick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onpointerdown={(event) => event.stopPropagation()}
-              data-sidebar-swipe-ignore
-              data-testid="sidebar-link-drag-handle"
-              {@attach dndHandleAttachment}
-            >
-              <span class="iconify icon-[uil--draggabledots]" aria-hidden="true"></span>
-            </button>
-          {/if}
+      <span class="relative flex shrink-0" data-testid="sidebar-link-leading-icon">
+        <span
+          class={[
+            'iconify sidebar-icon icon-[uil--external-link-alt] text-muted transition-opacity',
+            showDragHandle
+              ? 'group-focus-within/link:opacity-0 group-hover/link:opacity-0 [@media(hover:none)]:opacity-0'
+              : ''
+          ]}
+        ></span>
+        {#if showDragHandle}
           <button
             type="button"
-            class="mini-icon-action h-6 w-6 items-center justify-center"
-            aria-label={m('admin.rooms_admin.edit_link')}
-            onclick={(event) => openLinkMenu(event, owningGroup, item)}
-            data-testid="sidebar-link-actions-button"
+            class="pointer-events-none absolute inset-0 mini-icon-action cursor-grab items-center justify-center opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 active:cursor-grabbing [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+            aria-label={m('admin.rooms_admin.drag_link')}
+            onclick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onpointerdown={(event) => event.stopPropagation()}
+            data-sidebar-swipe-ignore
+            data-testid="sidebar-link-drag-handle"
+            {@attach dndHandleAttachment}
           >
-            <span class="iconify icon-[uil--ellipsis-h]" aria-hidden="true"></span>
+            <span class="iconify icon-[uil--draggabledots]" aria-hidden="true"></span>
           </button>
-        </div>
-      {/if}
+        {/if}
+      </span>
+      <span class="flex-1 truncate">{item.link.label}</span>
     </a>
   {/if}
 {/snippet}
@@ -1167,7 +1149,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       size="sm"
       submitLabel={editingLinkId ? m('rbac.role_form.save') : m('admin.rooms_admin.create_link')}
       submitIcon={editingLinkId ? undefined : 'iconify icon-[uil--plus]'}
-      disabled={!linkLabel.trim() || !linkUrl.trim()}
+      disabled={!linkLabel.trim() || !linkUrlIsValid}
       onsubmit={saveLink}
       onclose={() => (linkDialogVisible = false)}
     >
