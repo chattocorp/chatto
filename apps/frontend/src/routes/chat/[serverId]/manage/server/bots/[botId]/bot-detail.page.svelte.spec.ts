@@ -175,9 +175,9 @@ describe('Bot detail page', () => {
     await vi.waitFor(() =>
       expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith('bot-user-id', 'Production')
     );
-    flushSync();
-
-    expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret');
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret')
+    );
     expect(container.textContent).toContain('This URL is shown only once');
   });
 
@@ -195,9 +195,7 @@ describe('Bot detail page', () => {
     await vi.waitFor(() =>
       expect(mocks.createBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'Production')
     );
-    flushSync();
-
-    expect(container.textContent).toContain('created-secret');
+    await vi.waitFor(() => expect(container.textContent).toContain('created-secret'));
 
     buttonByText(container, 'Revoke key').click();
     flushSync();
