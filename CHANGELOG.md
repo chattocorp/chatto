@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.22](https://github.com/chattocorp/chatto/compare/v0.4.21...v0.4.22) (2026-08-30)
+
+
+### Bug Fixes
+
+* **frontend:** backport resilient unread markers to 0.4 ([#2231](https://github.com/chattocorp/chatto/issues/2231)) ([db6bbc1](https://github.com/chattocorp/chatto/commit/db6bbc1f41dfb216a8b4436425bed81b6592b6c0))
+
 ## [0.4.21](https://github.com/chattocorp/chatto/compare/v0.4.20...v0.4.21) (2026-08-11)
 
 
