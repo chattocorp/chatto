@@ -1026,7 +1026,7 @@ describe('RoomList', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/private-group');
   });
 
-  it('does not offer to delete a room group that contains a sidebar link', async () => {
+  it('disables deletion for a room group that contains a sidebar link', async () => {
     mocks.store.navigation.rooms = [];
     mocks.store.navigation.roomGroups = [
       {
@@ -1053,14 +1053,15 @@ describe('RoomList', () => {
     );
 
     await vi.waitFor(() => expect(document.body.textContent).toContain('Settings for Resources'));
-    expect(
-      Array.from(document.querySelectorAll('button')).find(
-        (button) => button.textContent?.trim() === 'Delete Group'
-      )
-    ).toBeUndefined();
+    const deleteGroup = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Delete Group'
+    );
+    await expect.element(deleteGroup ?? null).toBeDisabled();
+    deleteGroup!.click();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('does not offer to delete a room group that contains a legacy room entry', async () => {
+  it('disables deletion for a room group that contains a legacy room entry', async () => {
     mocks.store.navigation.rooms = [];
     mocks.store.navigation.roomGroups = [
       {
@@ -1082,11 +1083,10 @@ describe('RoomList', () => {
     await vi.waitFor(() =>
       expect(document.body.textContent).toContain('Settings for Private Rooms')
     );
-    expect(
-      Array.from(document.querySelectorAll('button')).find(
-        (button) => button.textContent?.trim() === 'Delete Group'
-      )
-    ).toBeUndefined();
+    const deleteGroup = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Delete Group'
+    );
+    await expect.element(deleteGroup ?? null).toBeDisabled();
   });
 
   it('shows permission-gated drag and creation controls without room or group menu buttons', async () => {

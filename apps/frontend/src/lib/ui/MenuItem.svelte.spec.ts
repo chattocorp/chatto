@@ -48,14 +48,20 @@ describe('MenuItem', () => {
     expect(link.getAttribute('role')).toBe('menuitem');
   });
 
-  it('calls button actions and blocks disabled links', () => {
+  it('calls available actions and blocks disabled buttons and links', () => {
     const { container } = render(MenuItemTestHarness);
     const iconButton = q(container, '[data-testid="icon-button"]') as HTMLButtonElement;
+    const disabledButton = q(container, '[data-testid="disabled-button"]') as HTMLButtonElement;
     const disabledLink = q(container, '[data-testid="disabled-link"]') as HTMLAnchorElement;
     const clickCount = q(container, '[data-testid="click-count"]');
 
     iconButton.click();
     flushSync();
+    expect(clickCount?.textContent).toBe('1');
+
+    disabledButton.click();
+    flushSync();
+    expect(disabledButton.disabled).toBe(true);
     expect(clickCount?.textContent).toBe('1');
 
     const event = new MouseEvent('click', { bubbles: true, cancelable: true });

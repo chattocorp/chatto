@@ -1069,17 +1069,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           {m('room_list.group_settings', { group: contextGroup.name })}
         </MenuItem>
       </MenuSection>
-      {#if groupIsEmpty(contextGroup)}
-        <MenuSection>
-          <MenuItem
-            icon="icon-[uil--trash-alt]"
-            tone="danger"
-            onclick={() => confirmDeleteGroup(contextGroup)}
-          >
-            {m('admin.rooms_admin.delete_group')}
-          </MenuItem>
-        </MenuSection>
-      {/if}
+      <MenuSection>
+        <MenuItem
+          icon="icon-[uil--trash-alt]"
+          tone="danger"
+          disabled={!groupIsEmpty(contextGroup)}
+          onclick={() => confirmDeleteGroup(contextGroup)}
+        >
+          {m('admin.rooms_admin.delete_group')}
+        </MenuItem>
+      </MenuSection>
     {/if}
   </ContextMenu>
 {/if}
