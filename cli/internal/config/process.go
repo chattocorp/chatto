@@ -138,20 +138,28 @@ func MCPOAuthScopes() []string {
 // mounted on the public HTTP server, so it shares the canonical webserver.url
 // origin.
 func (c ChattoConfig) MCPResourceURL() string {
-	resources := c.MCPResourceURLs()
-	if len(resources) == 0 {
+	publicURL, err := url.Parse(strings.TrimSpace(c.Webserver.URL))
+	if err != nil || publicURL.Scheme == "" || publicURL.Host == "" {
 		return ""
 	}
-	return resources[0]
+	return (&url.URL{Scheme: publicURL.Scheme, Host: publicURL.Host, Path: "/mcp"}).String()
 }
 
 // MCPResourceURLs returns each MCP endpoint and OAuth resource served by this
 // configuration. The first resource uses webserver.url. Later resources use
 // exact non-wildcard webserver.allowed_origins entries.
 func (c ChattoConfig) MCPResourceURLs() []string {
+	canonical := c.MCPResourceURL()
+	if canonical == "" {
+		return nil
+	}
 	origins := c.Webserver.ServerOrigins()
 	resources := make([]string, 0, len(origins))
-	for _, origin := range origins {
+	resources = append(resources, canonical)
+	for index, origin := range origins {
+		if index == 0 {
+			continue
+		}
 		publicURL, err := url.Parse(origin)
 		if err != nil || publicURL.Scheme == "" || publicURL.Host == "" {
 			continue

@@ -404,7 +404,7 @@ func TestChattoConfig_MCPResourceURLsUseExactServerOrigins(t *testing.T) {
 		"https://Alias.Example:0443",
 		"https://chat.example",
 	}
-	if got, want := cfg.MCPResourceURLs(), []string{"https://chat.example/mcp", "https://alias.example/mcp"}; !slices.Equal(got, want) {
+	if got, want := cfg.MCPResourceURLs(), []string{"https://Chat.Example:443/mcp", "https://alias.example/mcp"}; !slices.Equal(got, want) {
 		t.Fatalf("MCPResourceURLs() = %v, want %v", got, want)
 	}
 }

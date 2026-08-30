@@ -35,11 +35,12 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 	if chattoCore == nil {
 		return nil, fmt.Errorf("Chatto core is required")
 	}
-	origins := cfg.Webserver.ServerOrigins()
-	if len(origins) == 0 {
+	issuerURL, err := url.Parse(cfg.Webserver.URL)
+	if err != nil || issuerURL.Scheme == "" || issuerURL.Host == "" {
 		return nil, fmt.Errorf("valid webserver URL is required for MCP OAuth")
 	}
-	issuer := origins[0]
+	issuerURL.Path, issuerURL.RawQuery, issuerURL.Fragment = "", "", ""
+	issuer := issuerURL.String()
 	resources := cfg.MCPResourceURLs()
 	if len(resources) == 0 {
 		return nil, fmt.Errorf("valid MCP resource URL is required")
