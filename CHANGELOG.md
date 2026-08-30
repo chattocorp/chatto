@@ -3,6 +3,22 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.5](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.4...v0.5.0-alpha.5) (2026-08-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **neighbors:** remove testimonials ([#2245](https://github.com/chattocorp/chatto/issues/2245))
+
+### Features
+
+* **neighbors:** remove testimonials ([#2245](https://github.com/chattocorp/chatto/issues/2245)) ([7297d0d](https://github.com/chattocorp/chatto/commit/7297d0d4d89d5954b89aa08eab464164590d0468))
+
+
+### Bug Fixes
+
+* **mcp:** serve configured public aliases ([#2249](https://github.com/chattocorp/chatto/issues/2249)) ([2c76717](https://github.com/chattocorp/chatto/commit/2c767173840ccfa4403dff28fd553b59748aefca))
+
 ## [0.5.0-alpha.4](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.3...v0.5.0-alpha.4) (2026-08-30)
 
 
