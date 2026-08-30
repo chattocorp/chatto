@@ -270,8 +270,6 @@ env = {
   CHATTO_DEV_ROUTE_SUFFIX = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}",
 }
 run = '''
-export CHATTO_DEV_ROUTE_SUFFIX
-CHATTO_DEV_ROUTE_SUFFIX=$(../../tools/dev-route-suffix.sh)
 exec portless "storybook.$CHATTO_DEV_ROUTE_SUFFIX" -- \
   sh -c 'exec pnpm exec storybook dev --host "$HOST" --port "$PORT" --no-open'
 '''
@@ -324,8 +322,6 @@ env = {
   CHATTO_DEV_ROUTE_SUFFIX = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}",
 }
 run = '''
-export CHATTO_DEV_ROUTE_SUFFIX
-CHATTO_DEV_ROUTE_SUFFIX=$(tools/dev-route-suffix.sh)
 exec tools/dev-supervisor.sh mise run --jobs 5 --output prefix \
   dev-stack-mailpit ::: dev-stack-livekit ::: dev-stack-authling ::: \
   dev-stack-backend ::: dev-stack-frontend
@@ -508,8 +504,6 @@ env = {
   CHATTO_DEV_ROUTE_SUFFIX = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}",
 }
 run = '''
-export CHATTO_DEV_ROUTE_SUFFIX
-CHATTO_DEV_ROUTE_SUFFIX=$(../../tools/dev-route-suffix.sh)
 exec portless "docs.$CHATTO_DEV_ROUTE_SUFFIX" -- \
   sh -c 'exec pnpm astro dev --host "$HOST" --port "$PORT"'
 '''
@@ -578,7 +572,6 @@ description = "Run CLI tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = [
-    "../tools/dev-route-suffix_test.sh",
     "../tools/dev-supervisor_test.sh",
     "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
 ]
