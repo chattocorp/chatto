@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
 import {
-  RealtimeProjectionEvent,
-  RealtimeProjectionOperation,
-  RealtimeProjectionRoomGroupsReplace
+  RealtimeStateItem,
+  RealtimeRoomGroupsState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   getRoomGroup: vi.fn(),
   updateRoomGroup: vi.fn(),
   refreshLayout: vi.fn(),
-  projectionHandlers: [] as Array<(event: RealtimeProjectionEvent) => void>,
+  projectionHandlers: [] as Array<(event: RealtimeProjectionUpdate) => void>,
   success: vi.fn(),
   error: vi.fn()
 }));
@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$app/state', () => ({ page: roomGroupTestPage }));
 
 vi.mock('$lib/hooks', () => ({
-  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
+  useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionHandlers.push(handler);
   }
 }));
@@ -106,12 +106,12 @@ function deferred<T>() {
 }
 
 function dispatchGroups(groupIds: string[]): void {
-  const event = new RealtimeProjectionEvent({
+  const event = new RealtimeProjectionUpdate({
     operations: [
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomGroupsReplace',
-          value: new RealtimeProjectionRoomGroupsReplace({
+      new RealtimeStateItem({
+        state: {
+          case: 'roomGroups',
+          value: new RealtimeRoomGroupsState({
             groups: groupIds.map((id) => new RoomGroup({ id, name: id }))
           })
         }

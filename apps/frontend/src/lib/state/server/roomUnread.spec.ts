@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { GetViewerResponse, ServerViewerState } from '@chatto/api-types/api/v1/viewer_pb';
-import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeRoomState } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
 
@@ -14,7 +14,7 @@ describe('RoomUnreadStore', () => {
     });
     projection.rooms.set(
       'room-1',
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: new RoomWithViewerState({
           room: new Room({ id: 'room-1' }),
           viewerState: new RoomViewerState({ hasUnread: true })
@@ -40,7 +40,7 @@ describe('RoomUnreadStore', () => {
     });
     projection.rooms.set(
       'room-1',
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: new RoomWithViewerState({
           room: new Room({ id: 'room-1' }),
           viewerState: new RoomViewerState({ hasUnread: false })
@@ -239,7 +239,7 @@ describe('RoomUnreadStore', () => {
     const projection = new ServerProjectionStore();
     projection.rooms.set(
       'room-1',
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: new RoomWithViewerState({
           room: new Room({ id: 'room-1' }),
           viewerState: new RoomViewerState({ hasUnread: true })

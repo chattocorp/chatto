@@ -350,17 +350,17 @@
     });
   }
 
-  // Durable message rows arrive only through projection operations. Keep
+  // Durable message rows arrive through semantic events with current state. Keep
   // presence/read side effects and the independent paginated files read model
   // aligned with those authoritative row replacements.
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-      const update = operation.operation.value;
+    for (const stateItem of event.state) {
+      if (stateItem.state.case !== 'roomTimelineEvent') continue;
+      const update = stateItem.state.value;
       if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
       const message = update.event.event.value.message;
       if (!message?.threadRootEventId) {
-        const actorId = event.actorId;
+        const actorId = event.event?.actorId;
         if (actorId) typingIndicator.removeTypingUser(actorId);
         if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
           // Projection envelopes for row replacements can be driven by an
@@ -752,9 +752,7 @@
               <HeaderIconButton
                 icon="icon-[uil--info-circle]"
                 label={m('chat.profile.title')}
-                tone={activeRoomSidebarProfileUserId
-                  ? 'active'
-                  : 'default'}
+                tone={activeRoomSidebarProfileUserId ? 'active' : 'default'}
                 onclick={() => openDirectMessageProfile(directMessageProfileUserId)}
               />
             {/if}

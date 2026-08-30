@@ -1,4 +1,4 @@
-import { RealtimeEventEnvelope } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { presenceStatusOrOffline } from '$lib/api-client/enumDefaults';
 import { TransientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 
@@ -6,9 +6,7 @@ function timestampToISO(value: { toDate(): Date } | undefined): string {
   return value?.toDate().toISOString() ?? new Date().toISOString();
 }
 
-export function realtimeEventToEventEnvelope(
-  frame: RealtimeEventEnvelope
-): TransientEventEnvelope | null {
+export function realtimeEventToEventEnvelope(frame: RealtimeEvent): TransientEventEnvelope | null {
   const base = {
     id: frame.id,
     createdAt: timestampToISO(frame.createdAt),

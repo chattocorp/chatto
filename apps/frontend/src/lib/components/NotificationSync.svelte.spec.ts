@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { render } from 'vitest-browser-svelte';
 import NotificationSync from './NotificationSync.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import {
-  RealtimeProjectionEvent,
-  RealtimeProjectionNotificationOccurrencesReplace,
-  RealtimeProjectionOperation
+  RealtimeNotificationsState,
+  RealtimeStateItem
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { mocks } = vi.hoisted(() => {
@@ -106,13 +106,13 @@ function dispatch(
   eventId = 'event-id',
   serverId: 'origin' | 'remote' = 'origin'
 ) {
-  const event = new RealtimeProjectionEvent({
+  const event = new RealtimeProjectionUpdate({
     id: eventId,
     operations: [
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'notificationOccurrencesReplace',
-          value: new RealtimeProjectionNotificationOccurrencesReplace({ playNotificationSound })
+      new RealtimeStateItem({
+        state: {
+          case: 'notifications',
+          value: new RealtimeNotificationsState({ playNotificationSound })
         }
       })
     ]

@@ -209,7 +209,12 @@ test.describe('App and User Preferences', () => {
 
     // Type a timezone
     const timezoneInput = page.getByTestId('timezone-input');
-    await timezoneInput.fill('Europe/Berlin');
+    const deviceTimezone = await page.evaluate(
+      () => Intl.DateTimeFormat().resolvedOptions().timeZone
+    );
+    const nextTimezone =
+      deviceTimezone === 'Pacific/Honolulu' ? 'America/New_York' : 'Pacific/Honolulu';
+    await timezoneInput.fill(nextTimezone);
 
     // Save button should be enabled
     const saveButton = page.getByRole('button', { name: 'Save time settings' });
@@ -223,7 +228,7 @@ test.describe('App and User Preferences', () => {
 
     // Reload and verify persistence
     await page.reload();
-    await expect(timezoneInput).toHaveValue('Europe/Berlin', {
+    await expect(timezoneInput).toHaveValue(nextTimezone, {
       timeout: TIMEOUTS.UI_STANDARD
     });
   });

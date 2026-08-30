@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-29
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -20,8 +20,8 @@ Chatto's pre-1.0 API remains experimental.
   non-default port, to the clipboard.
 - A warning marker appears when the server predates the oldest version
   supported by the current client. The 0.5 client classifies pre-0.5 servers as
-  unsupported because they do not provide the required server-projection
-  stream.
+  unsupported because they do not provide the required realtime bootstrap and
+  semantic event stream.
 - Servers with non-standard or unparseable versions remain explicitly unknown.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
@@ -29,9 +29,9 @@ Chatto's pre-1.0 API remains experimental.
 - The bundled client shows relative sidebar drag handles only when the server
   version supports relative room-group and sidebar-item moves. Other sidebar
   management actions continue to use the older management API when available.
-- The `chatto.realtime.v1` protobuf namespace implements only behavioural
-  protocol version 2 in 0.5. Servers reject version 0, version 1, and unknown
-  handshakes.
+- The `chatto.realtime.v1` protobuf namespace uses behavioural protocol version
+  3 for the semantic event stream. The alpha server does not retain protocol 2.
+  It rejects older and unknown handshakes.
 
 ## Design Decisions
 
@@ -79,5 +79,5 @@ breaks without prematurely freezing the API.
 
 ## Related
 
-- **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-051 (server-scoped resumable client projection), ADR-067 (Electron desktop packaging)
-- **FDRs:** FDR-017 (Room Groups & Sidebar Layout), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-034 (Chatto Desktop)
+- **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-067 (Electron desktop packaging), ADR-087 (semantic realtime events)
+- **FDRs:** FDR-017 (Room Groups & Sidebar Layout), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-034 (Chatto Desktop), FDR-045 (Realtime Event Stream)

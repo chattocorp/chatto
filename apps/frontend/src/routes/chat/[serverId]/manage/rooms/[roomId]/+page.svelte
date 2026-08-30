@@ -204,17 +204,17 @@
   }
 
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      switch (operation.operation.case) {
-        case 'roomUpsert':
-          if (operation.operation.value.room?.room?.id === roomId) {
+    for (const stateItem of event.state) {
+      switch (stateItem.state.case) {
+        case 'room':
+          if (stateItem.state.value.room?.room?.id === roomId) {
             snapshotGeneration += 1;
             invalidateAdminRoomLayoutQueries(activeServerId, serverScope.connection, roomId);
             return;
           }
           break;
-        case 'roomRemove':
-          if (operation.operation.value.roomId === roomId) {
+        case 'roomRemoved':
+          if (stateItem.state.value.roomId === roomId) {
             snapshotGeneration += 1;
             privacyGeneration += 1;
             pendingMemberRevalidation = {

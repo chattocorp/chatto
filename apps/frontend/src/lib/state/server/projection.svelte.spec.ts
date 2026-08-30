@@ -1,4 +1,5 @@
 import { Timestamp } from '@bufbuild/protobuf';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { describe, expect, it } from 'vitest';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -25,40 +26,37 @@ import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import {
-  RealtimeProjectionEvent,
-  RealtimeProjectionActiveCallsReplace,
-  RealtimeProjectionOperation,
-  RealtimeProjectionPresencesReplace,
-  RealtimeProjectionThreadViewerState,
-  RealtimeProjectionThreadViewerStatesReplace,
-  RealtimeProjectionReset,
-  RealtimeProjectionRoom,
-  RealtimeProjectionRoomActivity,
-  RealtimeProjectionRoomGroupsReplace,
-  RealtimeProjectionRoomViewerActivityReplace,
-  RealtimeProjectionRoomViewerStateReplace,
-  RealtimeProjectionRoomRemove,
-  RealtimeProjectionRoomTimelineEventRemove,
-  RealtimeProjectionRoomTimelineEventUpsert,
-  RealtimeProjectionRoomTimelineReplace,
-  RealtimeProjectionServerState,
-  RealtimeProjectionUserRemove
+  RealtimeActiveCallsState,
+  RealtimeEvent,
+  RealtimeMessageAction,
+  RealtimeMessageEvent,
+  RealtimeStateItem,
+  RealtimePresencesState,
+  RealtimeThreadViewerState,
+  RealtimeThreadViewerStatesState,
+  RealtimeRoomState,
+  RealtimeRoomGroupsState,
+  RealtimeRoomViewerActivityState,
+  RealtimeRoomViewerState,
+  RealtimeRoomRemovedState,
+  RealtimeRoomTimelineEventRemovedState,
+  RealtimeRoomTimelineEventState,
+  RealtimeRoomTimelineState,
+  RealtimeServerState,
+  RealtimeUserRemovedState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
 
-function event(...operations: RealtimeProjectionOperation[]): RealtimeProjectionEvent {
-  return new RealtimeProjectionEvent({ operations });
+function event(...operations: RealtimeStateItem[]): RealtimeProjectionUpdate {
+  return new RealtimeProjectionUpdate({ operations });
 }
 
-function eventWithId(
-  id: string,
-  ...operations: RealtimeProjectionOperation[]
-): RealtimeProjectionEvent {
-  return new RealtimeProjectionEvent({ id, operations });
+function eventWithId(id: string, ...operations: RealtimeStateItem[]): RealtimeProjectionUpdate {
+  return new RealtimeProjectionUpdate({ id, operations });
 }
 
-function operation(value: RealtimeProjectionOperation['operation']): RealtimeProjectionOperation {
-  return new RealtimeProjectionOperation({ operation: value });
+function operation(value: RealtimeStateItem['state']): RealtimeStateItem {
+  return new RealtimeStateItem({ state: value });
 }
 
 function timelineEvent(id: string, at: string): RoomTimelineEvent {
@@ -77,8 +75,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({
               room: new Room({ id: 'R1' }),
               viewerState: new RoomViewerState({
@@ -98,8 +96,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomViewerActivityReplace',
-          value: new RealtimeProjectionRoomViewerActivityReplace({
+          case: 'roomViewerActivity',
+          value: new RealtimeRoomViewerActivityState({
             roomId: 'R1',
             hasUnread: true,
             slowModeNextPostAt: nextDeadline
@@ -121,8 +119,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomViewerActivityReplace',
-          value: new RealtimeProjectionRoomViewerActivityReplace({ roomId: 'R1' })
+          case: 'roomViewerActivity',
+          value: new RealtimeRoomViewerActivityState({ roomId: 'R1' })
         })
       )
     );
@@ -156,17 +154,17 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomTimelineReplace',
-          value: new RealtimeProjectionRoomTimelineReplace({
+          case: 'roomTimeline',
+          value: new RealtimeRoomTimelineState({
             roomId: 'R1',
             page: new RoomTimelinePage({ events: [root] })
           })
         }),
         operation({
-          case: 'threadViewerStatesReplace',
-          value: new RealtimeProjectionThreadViewerStatesReplace({
+          case: 'threadViewerStates',
+          value: new RealtimeThreadViewerStatesState({
             states: [
-              new RealtimeProjectionThreadViewerState({
+              new RealtimeThreadViewerState({
                 roomId: 'R1',
                 threadRootEventId: 'ROOT',
                 viewerState: new ThreadViewerState({
@@ -193,8 +191,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'threadViewerStatesReplace',
-          value: new RealtimeProjectionThreadViewerStatesReplace()
+          case: 'threadViewerStates',
+          value: new RealtimeThreadViewerStatesState()
         })
       )
     );
@@ -208,14 +206,14 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'userUpsert',
+          case: 'user',
           value: new DirectoryMember({
             user: new User({ id: 'U1', displayName: 'Ada', presenceStatus: PresenceStatus.ONLINE })
           })
         }),
         operation({
-          case: 'presencesReplace',
-          value: new RealtimeProjectionPresencesReplace({
+          case: 'presences',
+          value: new RealtimePresencesState({
             statuses: { U1: PresenceStatus.AWAY }
           })
         })
@@ -226,20 +224,18 @@ describe('ServerProjectionStore', () => {
     expect(store.users.get('U1')?.user?.presenceStatus).toBe(PresenceStatus.AWAY);
   });
 
-  it('rejects an unknown operation before atomically applying known operations', () => {
+  it('ignores an unknown additive state item while applying known state', () => {
     const store = new ServerProjectionStore();
-    expect(() =>
-      store.apply(
-        event(
-          operation({
-            case: 'serverUpsert',
-            value: new ServerPublicProfile({ name: 'must not apply' })
-          }),
-          new RealtimeProjectionOperation()
-        )
+    store.apply(
+      event(
+        operation({
+          case: 'server',
+          value: new ServerPublicProfile({ name: 'applied' })
+        }),
+        new RealtimeStateItem()
       )
-    ).toThrow('unsupported realtime projection operation');
-    expect(store.server).toBeNull();
+    );
+    expect(store.server?.name).toBe('applied');
   });
 
   it('applies canonical resources, replacements, and removals', () => {
@@ -247,7 +243,7 @@ describe('ServerProjectionStore', () => {
     const server = new ServerPublicProfile({ name: 'Projection Server' });
     const viewer = new GetViewerResponse();
     const user = new DirectoryMember({ user: new User({ id: 'U1', displayName: 'Ada' }) });
-    const room = new RealtimeProjectionRoom({
+    const room = new RealtimeRoomState({
       room: new RoomWithViewerState({
         room: new Room({ id: 'R1' }),
         viewerState: new RoomViewerState({ isMember: true })
@@ -258,13 +254,13 @@ describe('ServerProjectionStore', () => {
 
     store.apply(
       event(
-        operation({ case: 'serverUpsert', value: server }),
-        operation({ case: 'viewerUpsert', value: viewer }),
-        operation({ case: 'userUpsert', value: user }),
-        operation({ case: 'roomUpsert', value: room }),
+        operation({ case: 'server', value: server }),
+        operation({ case: 'viewer', value: viewer }),
+        operation({ case: 'user', value: user }),
+        operation({ case: 'room', value: room }),
         operation({
-          case: 'roomTimelineReplace',
-          value: new RealtimeProjectionRoomTimelineReplace({
+          case: 'roomTimeline',
+          value: new RealtimeRoomTimelineState({
             roomId: 'R1',
             page: new RoomTimelinePage({
               includes: new RoomTimelineIncludes({
@@ -274,8 +270,8 @@ describe('ServerProjectionStore', () => {
           })
         }),
         operation({
-          case: 'activeCallsReplace',
-          value: new RealtimeProjectionActiveCallsReplace({
+          case: 'activeCalls',
+          value: new RealtimeActiveCallsState({
             calls: [
               new ActiveCall({
                 callId: 'call-1',
@@ -289,12 +285,12 @@ describe('ServerProjectionStore', () => {
           })
         }),
         operation({
-          case: 'roomGroupsReplace',
-          value: new RealtimeProjectionRoomGroupsReplace({ groups: [group] })
+          case: 'roomGroups',
+          value: new RealtimeRoomGroupsState({ groups: [group] })
         }),
         operation({
-          case: 'roomViewerStateReplace',
-          value: new RealtimeProjectionRoomViewerStateReplace({
+          case: 'roomViewer',
+          value: new RealtimeRoomViewerState({
             roomId: 'R1',
             viewerState: new RoomViewerState({ isMember: false })
           })
@@ -314,12 +310,12 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'userRemove',
-          value: new RealtimeProjectionUserRemove({ userId: 'U1' })
+          case: 'userRemoved',
+          value: new RealtimeUserRemovedState({ userId: 'U1' })
         }),
         operation({
-          case: 'roomGroupsReplace',
-          value: new RealtimeProjectionRoomGroupsReplace()
+          case: 'roomGroups',
+          value: new RealtimeRoomGroupsState()
         })
       )
     );
@@ -333,7 +329,7 @@ describe('ServerProjectionStore', () => {
   it('applies idempotent resource and timeline mutations across every room', () => {
     const store = new ServerProjectionStore();
     const user = new DirectoryMember({ user: new User({ id: 'U1', displayName: 'Ada' }) });
-    const room = new RealtimeProjectionRoom({
+    const room = new RealtimeRoomState({
       room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) }),
       memberUserIds: ['U1']
     });
@@ -341,21 +337,21 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'serverStateUpsert',
-          value: new RealtimeProjectionServerState({ motd: 'Hello' })
+          case: 'serverState',
+          value: new RealtimeServerState({ motd: 'Hello' })
         }),
-        operation({ case: 'userUpsert', value: user }),
-        operation({ case: 'roomUpsert', value: room }),
+        operation({ case: 'user', value: user }),
+        operation({ case: 'room', value: room }),
         operation({
-          case: 'roomTimelineReplace',
-          value: new RealtimeProjectionRoomTimelineReplace({
+          case: 'roomTimeline',
+          value: new RealtimeRoomTimelineState({
             roomId: 'R1',
             page: new RoomTimelinePage({ events: [timelineEvent('M2', '2026-01-02')] })
           })
         }),
         operation({
-          case: 'roomTimelineEventUpsert',
-          value: new RealtimeProjectionRoomTimelineEventUpsert({
+          case: 'roomTimelineEvent',
+          value: new RealtimeRoomTimelineEventState({
             roomId: 'R1',
             event: timelineEvent('M1', '2026-01-01')
           })
@@ -371,8 +367,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomTimelineEventUpsert',
-          value: new RealtimeProjectionRoomTimelineEventUpsert({
+          case: 'roomTimelineEvent',
+          value: new RealtimeRoomTimelineEventState({
             roomId: 'R1',
             event: timelineEvent('M1', '2026-01-01')
           })
@@ -384,8 +380,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomTimelineEventRemove',
-          value: new RealtimeProjectionRoomTimelineEventRemove({ roomId: 'R1', eventId: 'M1' })
+          case: 'roomTimelineEventRemoved',
+          value: new RealtimeRoomTimelineEventRemovedState({ roomId: 'R1', eventId: 'M1' })
         })
       )
     );
@@ -397,15 +393,15 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) }),
             memberUserIds: ['U1', 'U2']
           })
         }),
         operation({
-          case: 'roomTimelineReplace',
-          value: new RealtimeProjectionRoomTimelineReplace({
+          case: 'roomTimeline',
+          value: new RealtimeRoomTimelineState({
             roomId: 'R1',
             page: new RoomTimelinePage({
               events: [timelineEvent('M1', '2026-01-01T00:00:00Z')]
@@ -426,8 +422,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({
               room: new Room({ id: 'R1' }),
               viewerState: new RoomViewerState({ isMember: true })
@@ -435,8 +431,8 @@ describe('ServerProjectionStore', () => {
           })
         }),
         operation({
-          case: 'roomTimelineReplace',
-          value: new RealtimeProjectionRoomTimelineReplace({
+          case: 'roomTimeline',
+          value: new RealtimeRoomTimelineState({
             roomId: 'R1',
             page: new RoomTimelinePage({ events: [timelineEvent('M1', '2026-01-01')] })
           })
@@ -447,8 +443,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({
               room: new Room({ id: 'R1' }),
               viewerState: new RoomViewerState({ isMember: false })
@@ -463,8 +459,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomRemove',
-          value: new RealtimeProjectionRoomRemove({ roomId: 'R1' })
+          case: 'roomRemoved',
+          value: new RealtimeRoomRemovedState({ roomId: 'R1' })
         })
       )
     );
@@ -473,14 +469,14 @@ describe('ServerProjectionStore', () => {
 
     store.apply(
       event(
-        operation({ case: 'viewerUpsert', value: new GetViewerResponse() }),
+        operation({ case: 'viewer', value: new GetViewerResponse() }),
         operation({
-          case: 'userUpsert',
+          case: 'user',
           value: new DirectoryMember({ user: new User({ id: 'U1' }) })
-        }),
-        operation({ case: 'reset', value: new RealtimeProjectionReset() })
+        })
       )
     );
+    store.apply(new RealtimeProjectionUpdate({ reset: true }));
     expect(store.users.size).toBe(0);
     expect(store.viewer).not.toBeNull();
     expect(store.serverState).toBeNull();
@@ -496,15 +492,15 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
           })
         }),
         ...Array.from({ length: 55 }, (_, index) =>
           operation({
-            case: 'roomTimelineEventUpsert',
-            value: new RealtimeProjectionRoomTimelineEventUpsert({
+            case: 'roomTimelineEvent',
+            value: new RealtimeRoomTimelineEventState({
               roomId: 'R1',
               event: timelineEvent(
                 `M${index}`,
@@ -525,8 +521,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomViewerStateReplace',
-          value: new RealtimeProjectionRoomViewerStateReplace({
+          case: 'roomViewer',
+          value: new RealtimeRoomViewerState({
             roomId: 'R1'
           })
         })
@@ -537,40 +533,48 @@ describe('ServerProjectionStore', () => {
   it('retains root-message room activity order across viewer-state replacements', () => {
     const store = new ServerProjectionStore();
     store.apply(
-      eventWithId(
-        'M1',
-        operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
-            room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
-          })
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          id: 'M1',
+          event: {
+            case: 'message',
+            value: new RealtimeMessageEvent({
+              action: RealtimeMessageAction.POSTED,
+              roomId: 'R2',
+              messageEventId: 'M1'
+            })
+          }
         }),
-        operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
-            room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) }),
-            hasMessageHistory: false
+        operations: [
+          operation({
+            case: 'room',
+            value: new RealtimeRoomState({
+              room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
+            })
+          }),
+          operation({
+            case: 'room',
+            value: new RealtimeRoomState({
+              room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) }),
+              hasMessageHistory: false
+            })
+          }),
+          operation({
+            case: 'roomTimelineEvent',
+            value: new RealtimeRoomTimelineEventState({
+              roomId: 'R2',
+              event: timelineEvent('M1', '2026-01-01T00:00:00Z')
+            })
+          }),
+          operation({
+            case: 'roomViewer',
+            value: new RealtimeRoomViewerState({
+              roomId: 'R2',
+              viewerState: new RoomViewerState({ hasUnread: false })
+            })
           })
-        }),
-        operation({
-          case: 'roomTimelineEventUpsert',
-          value: new RealtimeProjectionRoomTimelineEventUpsert({
-            roomId: 'R2',
-            event: timelineEvent('M1', '2026-01-01T00:00:00Z')
-          })
-        }),
-        operation({
-          case: 'roomActivity',
-          value: new RealtimeProjectionRoomActivity({ roomId: 'R2' })
-        }),
-        operation({
-          case: 'roomViewerStateReplace',
-          value: new RealtimeProjectionRoomViewerStateReplace({
-            roomId: 'R2',
-            viewerState: new RoomViewerState({ hasUnread: false })
-          })
-        })
-      )
+        ]
+      })
     );
 
     expect([...store.rooms.keys()]).toEqual(['R2', 'R1']);
@@ -580,8 +584,8 @@ describe('ServerProjectionStore', () => {
       eventWithId(
         'REACTION-1',
         operation({
-          case: 'roomTimelineEventUpsert',
-          value: new RealtimeProjectionRoomTimelineEventUpsert({
+          case: 'roomTimelineEvent',
+          value: new RealtimeRoomTimelineEventState({
             roomId: 'R1',
             event: timelineEvent('OLD-ROOT', '2025-01-01T00:00:00Z')
           })
@@ -597,14 +601,14 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
           })
         }),
         operation({
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) }),
             hasMessageHistory: false
           })
@@ -613,12 +617,19 @@ describe('ServerProjectionStore', () => {
     );
 
     store.apply(
-      event(
-        operation({
-          case: 'roomActivity',
-          value: new RealtimeProjectionRoomActivity({ roomId: 'R2' })
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({
+          id: 'M2',
+          event: {
+            case: 'message',
+            value: new RealtimeMessageEvent({
+              action: RealtimeMessageAction.POSTED,
+              roomId: 'R2',
+              messageEventId: 'M2'
+            })
+          }
         })
-      )
+      })
     );
 
     expect([...store.rooms.keys()]).toEqual(['R2', 'R1']);
@@ -634,8 +645,8 @@ describe('ServerProjectionStore', () => {
     store.apply(
       event(
         operation({
-          case: 'roomTimelineReplace',
-          value: new RealtimeProjectionRoomTimelineReplace({
+          case: 'roomTimeline',
+          value: new RealtimeRoomTimelineState({
             roomId: 'R1',
             page: new RoomTimelinePage({
               events: prefix,
@@ -654,8 +665,8 @@ describe('ServerProjectionStore', () => {
       event(
         ...Array.from({ length: 1 }, (_, index) =>
           operation({
-            case: 'roomTimelineEventUpsert',
-            value: new RealtimeProjectionRoomTimelineEventUpsert({
+            case: 'roomTimelineEvent',
+            value: new RealtimeRoomTimelineEventState({
               roomId: 'R1',
               event: timelineEvent(
                 `L${index}`,

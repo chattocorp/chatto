@@ -335,6 +335,7 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 		evtstream.EventRoomMemberAdded,
 		evtstream.EventRoomMemberRemoved,
 		evtstream.EventRoomMemberBanned,
+		evtstream.EventRoomMemberUnbanned,
 		evtstream.EventThreadCreated,
 		evtstream.EventMessagePosted,
 		evtstream.EventMessageEdited,
@@ -378,8 +379,8 @@ func isDeliverableLiveEVTUserEvent(event *evtv1.Event) bool {
 }
 
 // IsRBACEvent reports whether event changes roles or permission resolution.
-// Realtime protocol v2 uses this to invalidate an authorization-dependent
-// client projection without exposing the internal RBAC payload.
+// The public realtime protocol uses this to invalidate authorization-dependent
+// client state without exposing the internal RBAC payload.
 func IsRBACEvent(event *evtv1.Event) bool {
 	if event == nil {
 		return false

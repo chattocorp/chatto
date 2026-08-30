@@ -18,12 +18,12 @@
   // complete latest-value reconciliation before caught_up so returning to a
   // retained server cannot display transitions missed while it was dormant.
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      if (operation.operation.case !== 'presencesReplace') continue;
+    for (const stateItem of event.state) {
+      if (stateItem.state.case !== 'presences') continue;
       presenceCache.replaceServer(
         serverScope.serverId,
         new Map(
-          Object.entries(operation.operation.value.statuses).map(([userId, status]) => [
+          Object.entries(stateItem.state.value.statuses).map(([userId, status]) => [
             userId,
             apiPresenceStatus(status)
           ])

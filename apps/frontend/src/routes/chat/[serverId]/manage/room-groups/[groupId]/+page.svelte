@@ -160,10 +160,10 @@
   }
 
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      if (operation.operation.case !== 'roomGroupsReplace') continue;
+    for (const stateItem of event.state) {
+      if (stateItem.state.case !== 'roomGroups') continue;
       snapshotGeneration += 1;
-      if (operation.operation.value.groups.some((candidate) => candidate.id === groupId)) {
+      if (stateItem.state.value.groups.some((candidate) => candidate.id === groupId)) {
         invalidateAdminRoomLayoutQueries(
           activeServerId,
           serverScope.connection,

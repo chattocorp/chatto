@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { TransientEventKind } from '$lib/realtimeEvents';
 import {
-  RealtimeEventEnvelope,
+  RealtimeEvent,
   RealtimeClientFrame,
   RealtimeClose,
   RealtimeCaughtUp,
@@ -13,10 +13,9 @@ import {
   RealtimeServerHello,
   RealtimeTypingEvent,
   RealtimeSubscribed,
-  RealtimeProjectionEvent,
-  RealtimeProjectionOperation,
-  RealtimeProjectionReset,
-  RealtimeProjectionRoomTimelineReplace
+  RealtimeRecoveryMode,
+  RealtimeStateItem,
+  RealtimeRoomTimelineState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import {
   eventBusManager,
@@ -131,46 +130,42 @@ function helloFrame(heartbeatIntervalSeconds = 10): RealtimeServerFrame {
   return serverFrame({
     case: 'hello',
     value: new RealtimeServerHello({
-      protocolVersion: 2,
+      protocolVersion: 3,
       serverVersion: 'test',
       heartbeatIntervalSeconds
     })
   });
 }
 
-function subscribedFrame(): RealtimeServerFrame {
-  return serverFrame({ case: 'subscribed', value: new RealtimeSubscribed() });
+function subscribedFrame(recoveryMode = RealtimeRecoveryMode.RESUME): RealtimeServerFrame {
+  return serverFrame({
+    case: 'subscribed',
+    value: new RealtimeSubscribed({ recoveryMode })
+  });
 }
 
 function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
   return serverFrame({
-    case: 'projectionEvent',
-    value: new RealtimeProjectionEvent({
+    case: 'event',
+    value: new RealtimeEvent({
       resumeCursor: cursor,
-      operations: [
-        new RealtimeProjectionOperation({
-          operation: { case: 'reset', value: new RealtimeProjectionReset() }
-        })
-      ]
+      event: { case: undefined },
+      state: []
     })
   });
 }
 
 function roomTimelineFrame(roomId: string): RealtimeServerFrame {
   return serverFrame({
-    case: 'projectionEvent',
-    value: new RealtimeProjectionEvent({
-      operations: [
-        new RealtimeProjectionOperation({
-          operation: {
-            case: 'roomTimelineReplace',
-            value: new RealtimeProjectionRoomTimelineReplace({
-              roomId,
-              page: new RoomTimelinePage()
-            })
-          }
+    case: 'state',
+    value: new RealtimeStateItem({
+      state: {
+        case: 'roomTimeline',
+        value: new RealtimeRoomTimelineState({
+          roomId,
+          page: new RoomTimelinePage()
         })
-      ]
+      }
     })
   });
 }
@@ -178,7 +173,7 @@ function roomTimelineFrame(roomId: string): RealtimeServerFrame {
 function transientFrame(id = 'evt-1'): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
-    value: new RealtimeEventEnvelope({
+    value: new RealtimeEvent({
       id,
       createdAt: Timestamp.now(),
       actorId: 'user-1',
@@ -262,7 +257,7 @@ describe('eventBusManager realtime transport', () => {
     const hello = RealtimeClientFrame.fromBinary(sockets[0].sent[0]);
     expect(hello.frame.case).toBe('hello');
     if (hello.frame.case !== 'hello') throw new Error('expected hello frame');
-    expect(hello.frame.value.protocolVersion).toBe(2);
+    expect(hello.frame.value.protocolVersion).toBe(3);
 
     await sockets[0].receive(helloFrame());
     expect(sockets[0].sent).toHaveLength(2);
@@ -566,7 +561,7 @@ describe('eventBusManager realtime transport', () => {
     expect(subscribeFrame.frame.value.resumeCursor).toBe('cursor-boundary');
   });
 
-  it('accepts a compacted reset when a retained resume cursor is no longer usable', async () => {
+  it('accepts a snapshot when a retained resume cursor is no longer usable', async () => {
     const sync = new RealtimeProjectionSyncState();
     sync.retainRoom('room-retained');
     sync.confirmRoom('room-retained');
@@ -576,10 +571,8 @@ describe('eventBusManager realtime transport', () => {
     const socket = sockets[0];
     socket.open();
     await socket.receive(helloFrame());
-    await socket.receive(subscribedFrame());
     eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
-
-    await socket.receive(projectionFrame(undefined));
+    await socket.receive(subscribedFrame(RealtimeRecoveryMode.SNAPSHOT));
 
     expect(sync.phase).toBe('hydrating');
     // Snapshot frames are deliberately cursorless. Until the complete reset
@@ -745,7 +738,7 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(1);
   });
 
-  it('does not reconnect when the server rejects projection protocol v2', async () => {
+  it('does not reconnect when the server rejects the older protocol version', async () => {
     vi.useFakeTimers();
     const fake = new FakeServerConnection();
     eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);

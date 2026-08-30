@@ -1,4 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -6,11 +7,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import {
-  RealtimeProjectionEvent,
-  RealtimeProjectionOperation,
-  RealtimeProjectionRoom,
-  RealtimeProjectionRoomRemove,
-  RealtimeProjectionUserRemove
+  RealtimeStateItem,
+  RealtimeRoomState,
+  RealtimeRoomRemovedState,
+  RealtimeUserRemovedState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
   DirectoryMember,
@@ -25,7 +25,7 @@ import RoomMembersPanel from './RoomMembersPanel.svelte';
 const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-  projectionHandler: null as ((event: RealtimeProjectionEvent) => void) | null,
+  projectionHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
   directoryAPI: null as MemberDirectoryAPI | null,
   commandAPI: null as RoomCommandAPI | null,
   queryScope: 'session-1',
@@ -37,8 +37,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
@@ -77,7 +77,7 @@ vi.mock('$lib/ui/ConfirmDialog.svelte', async () => ({
 }));
 
 vi.mock('$lib/hooks', () => ({
-  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
+  useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionHandler = handler;
   }
 }));
@@ -302,12 +302,12 @@ describe('RoomMembersPanel', () => {
     expect(container.textContent).toContain('Alice');
 
     mocks.projectionHandler?.(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomRemove',
-              value: new RealtimeProjectionRoomRemove({ roomId: 'room-1' })
+          new RealtimeStateItem({
+            state: {
+              case: 'roomRemoved',
+              value: new RealtimeRoomRemovedState({ roomId: 'room-1' })
             }
           })
         ]
@@ -333,12 +333,12 @@ describe('RoomMembersPanel', () => {
     await settle();
 
     mocks.projectionHandler?.(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomUpsert',
-              value: new RealtimeProjectionRoom({
+          new RealtimeStateItem({
+            state: {
+              case: 'room',
+              value: new RealtimeRoomState({
                 room: new RoomWithViewerState({
                   room: new Room({ id: 'room-1' }),
                   viewerState: new RoomViewerState({ isMember: false })
@@ -420,12 +420,12 @@ describe('RoomMembersPanel', () => {
     expect(buttonByText(rendered.container, 'Add member').disabled).toBe(false);
 
     mocks.projectionHandler?.(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'userRemove',
-              value: new RealtimeProjectionUserRemove({ userId: 'bob' })
+          new RealtimeStateItem({
+            state: {
+              case: 'userRemoved',
+              value: new RealtimeUserRemovedState({ userId: 'bob' })
             }
           })
         ]
@@ -447,12 +447,12 @@ describe('RoomMembersPanel', () => {
     expect(document.querySelector('dialog')).not.toBeNull();
 
     mocks.projectionHandler?.(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'userRemove',
-              value: new RealtimeProjectionUserRemove({ userId: 'alice' })
+          new RealtimeStateItem({
+            state: {
+              case: 'userRemoved',
+              value: new RealtimeUserRemovedState({ userId: 'alice' })
             }
           })
         ]

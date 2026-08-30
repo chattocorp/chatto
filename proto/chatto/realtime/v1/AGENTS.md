@@ -19,15 +19,16 @@ protocol at `/api/realtime`.
 - Realtime compatibility includes protocol behavior and protobuf field tags.
   Negotiate new required client behavior with hello/capability fields or a new
   protocol version.
-- `chatto.realtime.v1` is the protobuf namespace; protocol version 2 is the
-  only accepted handshake. Do not reintroduce protocol-v1 compatibility paths.
+- `chatto.realtime.v1` is the protobuf namespace; protocol version 3 is the
+  only accepted handshake. Do not reintroduce older compatibility paths.
 - Resume cursors are encrypted, authenticated, and viewer-bound. They may use
   EVT coordinates internally but must never disclose NATS/JetStream identities,
   sequences, subjects, or other persistence details on the wire.
 - Resume cursors have a limited public lifetime (currently 24 hours). An
   expired cursor must use compacted current state. Do not use a partly trusted
   replay position.
-- A client must never advance its resume cursor across an undecodable frame,
-  unknown top-level frame, or unknown projection operation. Protocol evolution must preserve that
-  fail-closed invariant and provide an explicit negotiation/migration path for
-  newly required operations.
+- A client must never advance its resume cursor across an undecodable frame or
+  unknown top-level frame. Additive semantic event and state variants are
+  skippable because common event metadata and the cursor remain outside the
+  event `oneof`. Use a new behavioral protocol version when a new variant needs
+  required client behavior.

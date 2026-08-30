@@ -228,16 +228,16 @@
   // forward to the store, and mark the thread as read (with explicit event
   // ID) for replies arriving from other users while the user is present.
   useProjectionEvent((projectionEvent) => {
-    for (const operation of projectionEvent.operations) {
-      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-      const update = operation.operation.value;
+    for (const stateItem of projectionEvent.state) {
+      if (stateItem.state.case !== 'roomTimelineEvent') continue;
+      const update = stateItem.state.value;
       if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
       if (update.event.event.value.message?.threadRootEventId !== threadRootEventId) continue;
 
-      const actorId = projectionEvent.actorId;
+      const actorId = projectionEvent.event?.actorId;
       if (actorId) typingIndicator.removeTypingUser(actorId);
       if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-        void unread.markAsRead(threadRootEventId, projectionEvent.id);
+        void unread.markAsRead(threadRootEventId, projectionEvent.event?.id ?? update.event.id);
       }
     }
   });

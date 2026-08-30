@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	realtimeCursorVersion         = 2
-	realtimeCursorPurpose         = "realtime-resume-v2"
+	realtimeCursorVersion         = 3
+	realtimeCursorPurpose         = "realtime-resume-v3"
 	realtimeCursorLifetime        = 24 * time.Hour
 	realtimeCursorFutureSkew      = 5 * time.Minute
 	realtimeReplayMaxSequenceSpan = uint64(10_000)

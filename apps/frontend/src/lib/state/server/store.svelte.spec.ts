@@ -1,4 +1,5 @@
 import { Timestamp } from '@bufbuild/protobuf';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { flushSync } from 'svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
@@ -29,24 +30,24 @@ import {
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import {
-  RealtimeProjectionEvent,
-  RealtimeProjectionActiveCallsReplace,
-  RealtimeProjectionOperation,
-  RealtimeProjectionPinnedMessageAction,
-  RealtimeProjectionPinnedMessageChange,
-  RealtimeProjectionRoomActivity,
-  RealtimeProjectionRoomViewerStateReplace,
-  RealtimeProjectionReactionChange,
-  RealtimeProjectionRoomTimelineEventRemove,
-  RealtimeProjectionRoomTimelineEventUpsert,
-  RealtimeProjectionRoomTimelineReplace,
-  RealtimeProjectionServerState,
-  RealtimeProjectionReset,
-  RealtimeProjectionRoom,
-  RealtimeProjectionRoomGroupsReplace,
-  RealtimeProjectionRoomRemove,
-  RealtimeProjectionThreadViewerStatesReplace,
-  RealtimeProjectionUserRemove
+  RealtimeActiveCallsState,
+  RealtimeEvent,
+  RealtimeMessageAction,
+  RealtimeMessageEvent,
+  RealtimeStateItem,
+  RealtimePinnedMessageAction,
+  RealtimePinnedMessageEvent,
+  RealtimeRoomViewerState,
+  RealtimeReactionEvent,
+  RealtimeRoomTimelineEventRemovedState,
+  RealtimeRoomTimelineEventState,
+  RealtimeRoomTimelineState,
+  RealtimeServerState,
+  RealtimeRoomState,
+  RealtimeRoomGroupsState,
+  RealtimeRoomRemovedState,
+  RealtimeThreadViewerStatesState,
+  RealtimeUserRemovedState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { MAX_RETAINED_ROOM_TIMELINES } from './realtimeSync.svelte';
 import { roomPinsSeenStorageKey } from '$lib/state/room/pins.svelte';
@@ -625,24 +626,24 @@ describe('ServerStateStore live server updates', () => {
     eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id)!;
-    const remoteRoom = new RealtimeProjectionRoom({
+    const remoteRoom = new RealtimeRoomState({
       room: new RoomWithViewerState({ room: new Room({ id: 'R-remote', name: 'remote-room' }) })
     });
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: { case: 'roomUpsert', value: remoteRoom }
+            new RealtimeStateItem({
+              state: { case: 'room', value: remoteRoom }
             })
           ]
         })
       );
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: { case: 'roomUpsert', value: remoteRoom }
+            new RealtimeStateItem({
+              state: { case: 'room', value: remoteRoom }
             })
           ]
         })
@@ -657,10 +658,10 @@ describe('ServerStateStore live server updates', () => {
     deactivate();
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: { case: 'roomUpsert', value: remoteRoom }
+            new RealtimeStateItem({
+              state: { case: 'room', value: remoteRoom }
             })
           ]
         })
@@ -694,7 +695,7 @@ describe('ServerStateStore live server updates', () => {
     store.roomUnread.setRoomUnread('R1', true);
     store.setPermissions({ canViewAdmin: true } as never);
     store.serverInfo.applyProjectionState(
-      new RealtimeProjectionServerState({
+      new RealtimeServerState({
         motd: 'private MOTD',
         runtime: new ServerRuntimeConfig({
           pushNotificationsEnabled: true,
@@ -707,7 +708,7 @@ describe('ServerStateStore live server updates', () => {
     });
     store.projection.rooms.set(
       'R1',
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
       })
     );
@@ -716,12 +717,8 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
-          operations: [
-            new RealtimeProjectionOperation({
-              operation: { case: 'reset', value: new RealtimeProjectionReset() }
-            })
-          ]
+        new RealtimeProjectionUpdate({
+          reset: true
         })
       );
     }
@@ -748,21 +745,21 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'serverStateUpsert',
-                value: new RealtimeProjectionServerState({
+            new RealtimeStateItem({
+              state: {
+                case: 'serverState',
+                value: new RealtimeServerState({
                   motd: 'rehydrated',
                   runtime: new ServerRuntimeConfig({ livekitUrl: 'wss://fresh' })
                 })
               }
             }),
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'activeCallsReplace',
-                value: new RealtimeProjectionActiveCallsReplace({
+            new RealtimeStateItem({
+              state: {
+                case: 'activeCalls',
+                value: new RealtimeActiveCallsState({
                   calls: [new ActiveCall({ room: new Room({ id: 'R2' }), callId: 'call-2' })]
                 })
               }
@@ -820,12 +817,8 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
-          operations: [
-            new RealtimeProjectionOperation({
-              operation: { case: 'reset', value: new RealtimeProjectionReset() }
-            })
-          ]
+        new RealtimeProjectionUpdate({
+          reset: true
         })
       );
     }
@@ -834,10 +827,10 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: { case: 'viewerUpsert', value: viewer(true) }
+            new RealtimeStateItem({
+              state: { case: 'viewer', value: viewer(true) }
             })
           ]
         })
@@ -847,10 +840,10 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: { case: 'viewerUpsert', value: viewer(true, 'U2') }
+            new RealtimeStateItem({
+              state: { case: 'viewer', value: viewer(true, 'U2') }
             })
           ]
         })
@@ -862,13 +855,11 @@ describe('ServerStateStore live server updates', () => {
     store.projection.viewer = viewer(true);
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
+          reset: true,
           operations: [
-            new RealtimeProjectionOperation({
-              operation: { case: 'reset', value: new RealtimeProjectionReset() }
-            }),
-            new RealtimeProjectionOperation({
-              operation: { case: 'viewerUpsert', value: viewer(false) }
+            new RealtimeStateItem({
+              state: { case: 'viewer', value: viewer(false) }
             })
           ]
         })
@@ -907,7 +898,7 @@ describe('ServerStateStore live server updates', () => {
     );
     store.projection.rooms.set(
       'R1',
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) }),
         memberUserIds: ['U2']
       })
@@ -918,12 +909,12 @@ describe('ServerStateStore live server updates', () => {
     const bus = eventBusManager.getBus(registered.id)!;
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'userRemove',
-                value: new RealtimeProjectionUserRemove({ userId: 'U2' })
+            new RealtimeStateItem({
+              state: {
+                case: 'userRemoved',
+                value: new RealtimeUserRemovedState({ userId: 'U2' })
               }
             })
           ]
@@ -946,43 +937,43 @@ describe('ServerStateStore live server updates', () => {
     eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id)!;
-    const dispatch = (operation: RealtimeProjectionOperation) => {
+    const dispatch = (state: RealtimeStateItem) => {
       for (const handler of bus.projectionHandlers) {
-        handler(new RealtimeProjectionEvent({ operations: [operation] }));
+        handler(new RealtimeProjectionUpdate({ operations: [state] }));
       }
     };
 
     dispatch(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+      new RealtimeStateItem({
+        state: {
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
           })
         }
       })
     );
     dispatch(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'threadViewerStatesReplace',
-          value: new RealtimeProjectionThreadViewerStatesReplace()
+      new RealtimeStateItem({
+        state: {
+          case: 'threadViewerStates',
+          value: new RealtimeThreadViewerStatesState()
         }
       })
     );
     dispatch(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomRemove',
-          value: new RealtimeProjectionRoomRemove({ roomId: 'R2' })
+      new RealtimeStateItem({
+        state: {
+          case: 'roomRemoved',
+          value: new RealtimeRoomRemovedState({ roomId: 'R2' })
         }
       })
     );
     dispatch(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomGroupsReplace',
-          value: new RealtimeProjectionRoomGroupsReplace({
+      new RealtimeStateItem({
+        state: {
+          case: 'roomGroups',
+          value: new RealtimeRoomGroupsState({
             groups: [new RoomGroup({ id: 'G1' })]
           })
         }
@@ -1039,11 +1030,11 @@ describe('ServerStateStore live server updates', () => {
     eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id)!;
-    const dispatch = (projectionEvent: RealtimeProjectionEvent) => {
+    const dispatch = (projectionEvent: RealtimeProjectionUpdate) => {
       for (const handler of bus.projectionHandlers) handler(projectionEvent);
     };
     const room = (isMember: boolean) =>
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: new RoomWithViewerState({
           room: new Room({ id: 'R1' }),
           viewerState: new RoomViewerState({ isMember })
@@ -1051,15 +1042,15 @@ describe('ServerStateStore live server updates', () => {
       });
 
     dispatch(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: { case: 'roomUpsert', value: room(true) }
+          new RealtimeStateItem({
+            state: { case: 'room', value: room(true) }
           }),
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomTimelineReplace',
-              value: new RealtimeProjectionRoomTimelineReplace({
+          new RealtimeStateItem({
+            state: {
+              case: 'roomTimeline',
+              value: new RealtimeRoomTimelineState({
                 roomId: 'R1',
                 page: new RoomTimelinePage({
                   events: [projectedMessage('M-secret', new Date('2026-01-01T00:00:00Z'))]
@@ -1076,10 +1067,10 @@ describe('ServerStateStore live server updates', () => {
     // sends an empty timeline replacement, but the client fails closed if a
     // future or mixed-version sender omits it.
     dispatch(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: { case: 'roomUpsert', value: room(false) }
+          new RealtimeStateItem({
+            state: { case: 'room', value: room(false) }
           })
         ]
       })
@@ -1096,15 +1087,15 @@ describe('ServerStateStore live server updates', () => {
       new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-secret' })
     ]);
     dispatch(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: { case: 'roomUpsert', value: room(false) }
+          new RealtimeStateItem({
+            state: { case: 'room', value: room(false) }
           }),
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomTimelineReplace',
-              value: new RealtimeProjectionRoomTimelineReplace({
+          new RealtimeStateItem({
+            state: {
+              case: 'roomTimeline',
+              value: new RealtimeRoomTimelineState({
                 roomId: 'R1',
                 page: new RoomTimelinePage()
               })
@@ -1116,12 +1107,12 @@ describe('ServerStateStore live server updates', () => {
     // Even a later stale replacement cannot reopen the canonical or mirrored
     // timeline before an explicit positive membership operation arrives.
     dispatch(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomTimelineReplace',
-              value: new RealtimeProjectionRoomTimelineReplace({
+          new RealtimeStateItem({
+            state: {
+              case: 'roomTimeline',
+              value: new RealtimeRoomTimelineState({
                 roomId: 'R1',
                 page: new RoomTimelinePage({
                   events: [projectedMessage('M-stale', new Date('2026-01-01T00:00:01Z'))]
@@ -1137,15 +1128,15 @@ describe('ServerStateStore live server updates', () => {
     expect(store.activeCallRooms.has('R1')).toBe(false);
 
     dispatch(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: { case: 'roomUpsert', value: room(true) }
+          new RealtimeStateItem({
+            state: { case: 'room', value: room(true) }
           }),
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomTimelineReplace',
-              value: new RealtimeProjectionRoomTimelineReplace({
+          new RealtimeStateItem({
+            state: {
+              case: 'roomTimeline',
+              value: new RealtimeRoomTimelineState({
                 roomId: 'R1',
                 page: new RoomTimelinePage({
                   events: [projectedMessage('M-restored', new Date('2026-01-02T00:00:00Z'))]
@@ -1160,12 +1151,12 @@ describe('ServerStateStore live server updates', () => {
     expect(messages.events.map(({ id }) => id)).toEqual(['M-restored']);
 
     dispatch(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomViewerStateReplace',
-              value: new RealtimeProjectionRoomViewerStateReplace({
+          new RealtimeStateItem({
+            state: {
+              case: 'roomViewer',
+              value: new RealtimeRoomViewerState({
                 roomId: 'R1',
                 viewerState: new RoomViewerState({ isMember: false })
               })
@@ -1227,12 +1218,12 @@ describe('ServerStateStore live server updates', () => {
     const bus = eventBusManager.getBus(registered.id)!;
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomRemove',
-                value: new RealtimeProjectionRoomRemove({ roomId: 'R-evicted' })
+            new RealtimeStateItem({
+              state: {
+                case: 'roomRemoved',
+                value: new RealtimeRoomRemovedState({ roomId: 'R-evicted' })
               }
             })
           ]
@@ -1247,10 +1238,10 @@ describe('ServerStateStore live server updates', () => {
     const store = makeStore(new FakeServerConnection([]));
     const pins = store.pinsForRoom('R1');
     pins.applyRealtimeChange(
-      new RealtimeProjectionPinnedMessageChange({
+      new RealtimePinnedMessageEvent({
         roomId: 'R1',
         messageEventId: 'M1',
-        action: RealtimeProjectionPinnedMessageAction.CREATED
+        action: RealtimePinnedMessageAction.CREATED
       }),
       'PIN-1'
     );
@@ -1260,7 +1251,7 @@ describe('ServerStateStore live server updates', () => {
     expect(localStorage.getItem(roomPinsSeenStorageKey(registered.id, '', 'R1'))).toBeNull();
   });
 
-  it('applies public and authenticated server state from projection operations', async () => {
+  it('applies public and authenticated server state from realtime state items', async () => {
     const fake = new FakeServerConnection([roomDirectoryResult(), adminRoomLayoutResult()]);
     const publicServerInfoLoader = vi.fn<(baseUrl: string) => Promise<PublicServerInfo>>();
     publicServerInfoLoader.mockResolvedValue({
@@ -1285,11 +1276,11 @@ describe('ServerStateStore live server updates', () => {
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');
 
-    const projectionEvent = new RealtimeProjectionEvent({
+    const projectionEvent = new RealtimeProjectionUpdate({
       operations: [
-        new RealtimeProjectionOperation({
-          operation: {
-            case: 'serverUpsert',
+        new RealtimeStateItem({
+          state: {
+            case: 'server',
             value: new ServerPublicProfile({
               name: 'Fresh Name',
               welcomeMessage: 'Fresh welcome',
@@ -1299,10 +1290,10 @@ describe('ServerStateStore live server updates', () => {
             })
           }
         }),
-        new RealtimeProjectionOperation({
-          operation: {
-            case: 'serverStateUpsert',
-            value: new RealtimeProjectionServerState({
+        new RealtimeStateItem({
+          state: {
+            case: 'serverState',
+            value: new RealtimeServerState({
               motd: 'Fresh MOTD',
               runtime: new ServerRuntimeConfig({
                 pushNotificationsEnabled: true,
@@ -1343,12 +1334,12 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'activeCallsReplace',
-                value: new RealtimeProjectionActiveCallsReplace({
+            new RealtimeStateItem({
+              state: {
+                case: 'activeCalls',
+                value: new RealtimeActiveCallsState({
                   calls: [new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-1' })]
                 })
               }
@@ -1386,13 +1377,13 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'M1',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomTimelineEventUpsert',
-                value: new RealtimeProjectionRoomTimelineEventUpsert({
+            new RealtimeStateItem({
+              state: {
+                case: 'roomTimelineEvent',
+                value: new RealtimeRoomTimelineEventState({
                   roomId: 'R1',
                   event: projectedMessage('M1', new Date('2026-07-19T12:00:00Z'), ['A1'])
                 })
@@ -1408,13 +1399,13 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'EDIT-1',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomTimelineEventUpsert',
-                value: new RealtimeProjectionRoomTimelineEventUpsert({
+            new RealtimeStateItem({
+              state: {
+                case: 'roomTimelineEvent',
+                value: new RealtimeRoomTimelineEventState({
                   roomId: 'R1',
                   event: projectedMessage('M1', new Date('2026-07-19T12:00:00Z'))
                 })
@@ -1443,12 +1434,12 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomTimelineEventUpsert',
-                value: new RealtimeProjectionRoomTimelineEventUpsert({ roomId: 'R1', event })
+            new RealtimeStateItem({
+              state: {
+                case: 'roomTimelineEvent',
+                value: new RealtimeRoomTimelineEventState({ roomId: 'R1', event })
               }
             })
           ]
@@ -1477,16 +1468,18 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
-          id: 'REACTION-1',
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            id: 'REACTION-1',
+            event: { case: 'reaction', value: new RealtimeReactionEvent() }
+          }),
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomTimelineEventUpsert',
-                value: new RealtimeProjectionRoomTimelineEventUpsert({
+            new RealtimeStateItem({
+              state: {
+                case: 'roomTimelineEvent',
+                value: new RealtimeRoomTimelineEventState({
                   roomId: 'R1',
-                  event: projectedMessage('M1', new Date('2026-07-19T12:00:00Z'), ['A1']),
-                  reactionChange: new RealtimeProjectionReactionChange()
+                  event: projectedMessage('M1', new Date('2026-07-19T12:00:00Z'), ['A1'])
                 })
               }
             })
@@ -1494,13 +1487,13 @@ describe('ServerStateStore live server updates', () => {
         })
       );
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'ECHO-REMOVED-1',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomTimelineEventRemove',
-                value: new RealtimeProjectionRoomTimelineEventRemove({
+            new RealtimeStateItem({
+              state: {
+                case: 'roomTimelineEventRemoved',
+                value: new RealtimeRoomTimelineEventRemovedState({
                   roomId: 'R1',
                   eventId: 'M1'
                 })
@@ -1530,15 +1523,18 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            id: 'REACTION-2',
+            event: { case: 'reaction', value: new RealtimeReactionEvent() }
+          }),
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomTimelineEventUpsert',
-                value: new RealtimeProjectionRoomTimelineEventUpsert({
+            new RealtimeStateItem({
+              state: {
+                case: 'roomTimelineEvent',
+                value: new RealtimeRoomTimelineEventState({
                   roomId: 'R1',
-                  event,
-                  reactionChange: new RealtimeProjectionReactionChange()
+                  event
                 })
               }
             })
@@ -1571,17 +1567,17 @@ describe('ServerStateStore live server updates', () => {
     flushSync();
     const bus = eventBusManager.getBus(registered.id);
     if (!bus) throw new Error('event bus did not start');
-    const dispatch = (operation: RealtimeProjectionOperation) => {
+    const dispatch = (state: RealtimeStateItem) => {
       for (const handler of bus.projectionHandlers) {
-        handler(new RealtimeProjectionEvent({ operations: [operation] }));
+        handler(new RealtimeProjectionUpdate({ operations: [state] }));
       }
     };
 
     dispatch(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+      new RealtimeStateItem({
+        state: {
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({
               room: new Room({ id: 'R1' }),
               viewerState: new RoomViewerState({ isMember: false })
@@ -1593,20 +1589,20 @@ describe('ServerStateStore live server updates', () => {
     expect(files.items).toEqual([]);
 
     dispatch(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomUpsert',
-          value: new RealtimeProjectionRoom({
+      new RealtimeStateItem({
+        state: {
+          case: 'room',
+          value: new RealtimeRoomState({
             room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
           })
         }
       })
     );
     dispatch(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomViewerStateReplace',
-          value: new RealtimeProjectionRoomViewerStateReplace({ roomId: 'R1' })
+      new RealtimeStateItem({
+        state: {
+          case: 'roomViewer',
+          value: new RealtimeRoomViewerState({ roomId: 'R1' })
         }
       })
     );
@@ -1614,10 +1610,10 @@ describe('ServerStateStore live server updates', () => {
     expect(files.items).toEqual([]);
 
     dispatch(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomViewerStateReplace',
-          value: new RealtimeProjectionRoomViewerStateReplace({
+      new RealtimeStateItem({
+        state: {
+          case: 'roomViewer',
+          value: new RealtimeRoomViewerState({
             roomId: 'R1',
             viewerState: new RoomViewerState({ isMember: true })
           })
@@ -1643,13 +1639,13 @@ describe('ServerStateStore live server updates', () => {
     if (!bus) throw new Error('event bus did not start');
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'SNAPSHOT',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomTimelineReplace',
-                value: new RealtimeProjectionRoomTimelineReplace({
+            new RealtimeStateItem({
+              state: {
+                case: 'roomTimeline',
+                value: new RealtimeRoomTimelineState({
                   roomId: 'R1',
                   page: new RoomTimelinePage({ events: retained }),
                   eventCursors: Object.fromEntries(
@@ -1666,13 +1662,13 @@ describe('ServerStateStore live server updates', () => {
     const oldRoot = projectedMessage('OLD-ROOT', new Date(Date.UTC(2025, 0, 1)));
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'REACTION-1',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomTimelineEventUpsert',
-                value: new RealtimeProjectionRoomTimelineEventUpsert({
+            new RealtimeStateItem({
+              state: {
+                case: 'roomTimelineEvent',
+                value: new RealtimeRoomTimelineEventState({
                   roomId: 'R1',
                   event: oldRoot,
                   eventCursor: 'cursor-old'
@@ -1697,13 +1693,13 @@ describe('ServerStateStore live server updates', () => {
     const store = makeStore(fake);
     store.projection.rooms.set(
       'R1',
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
       })
     );
     store.projection.rooms.set(
       'R2',
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: new RoomWithViewerState({ room: new Room({ id: 'R2' }) })
       })
     );
@@ -1714,15 +1710,18 @@ describe('ServerStateStore live server updates', () => {
     if (!bus) throw new Error('event bus did not start');
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
-          operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'roomActivity',
-                value: new RealtimeProjectionRoomActivity({ roomId: 'R2' })
-              }
-            })
-          ]
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            id: 'M2',
+            event: {
+              case: 'message',
+              value: new RealtimeMessageEvent({
+                action: RealtimeMessageAction.POSTED,
+                roomId: 'R2',
+                messageEventId: 'M2'
+              })
+            }
+          })
         })
       );
     }
@@ -1750,13 +1749,13 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'E-call-base',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'activeCallsReplace',
-                value: new RealtimeProjectionActiveCallsReplace({
+            new RealtimeStateItem({
+              state: {
+                case: 'activeCalls',
+                value: new RealtimeActiveCallsState({
                   calls: [new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-1' })]
                 })
               }
@@ -1765,14 +1764,14 @@ describe('ServerStateStore live server updates', () => {
         })
       );
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'E-call-join',
           actorId: 'U2',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'activeCallsReplace',
-                value: new RealtimeProjectionActiveCallsReplace({
+            new RealtimeStateItem({
+              state: {
+                case: 'activeCalls',
+                value: new RealtimeActiveCallsState({
                   calls: [
                     new ActiveCall({
                       room: new Room({ id: 'R1' }),
@@ -1787,14 +1786,14 @@ describe('ServerStateStore live server updates', () => {
         })
       );
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'E-call-leave',
           actorId: 'U2',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'activeCallsReplace',
-                value: new RealtimeProjectionActiveCallsReplace({
+            new RealtimeStateItem({
+              state: {
+                case: 'activeCalls',
+                value: new RealtimeActiveCallsState({
                   calls: [new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-1' })]
                 })
               }
@@ -1825,12 +1824,12 @@ describe('ServerStateStore live server updates', () => {
 
     for (const handler of bus.projectionHandlers) {
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'activeCallsReplace',
-                value: new RealtimeProjectionActiveCallsReplace({
+            new RealtimeStateItem({
+              state: {
+                case: 'activeCalls',
+                value: new RealtimeActiveCallsState({
                   calls: [
                     new ActiveCall({
                       room: new Room({ id: 'R1' }),
@@ -1849,14 +1848,14 @@ describe('ServerStateStore live server updates', () => {
         })
       );
       handler(
-        new RealtimeProjectionEvent({
+        new RealtimeProjectionUpdate({
           id: 'E-call-end',
           actorId: 'U2',
           operations: [
-            new RealtimeProjectionOperation({
-              operation: {
-                case: 'activeCallsReplace',
-                value: new RealtimeProjectionActiveCallsReplace()
+            new RealtimeStateItem({
+              state: {
+                case: 'activeCalls',
+                value: new RealtimeActiveCallsState()
               }
             })
           ]

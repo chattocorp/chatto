@@ -11,19 +11,17 @@ import {
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
-import type {
-  RealtimeProjectionEvent,
-  RealtimeProjectionServerState
-} from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeRoomState } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { RealtimeServerState } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 
 /** Canonical protobuf-native state for one connected Chatto server. */
 export class ServerProjectionStore {
   server = $state.raw<ServerPublicProfile | null>(null);
-  serverState = $state.raw<RealtimeProjectionServerState | null>(null);
+  serverState = $state.raw<RealtimeServerState | null>(null);
   viewer = $state.raw<GetViewerResponse | null>(null);
   users = new SvelteMap<string, DirectoryMember>();
-  rooms = new SvelteMap<string, RealtimeProjectionRoom>();
+  rooms = new SvelteMap<string, RealtimeRoomState>();
   roomGroups = $state.raw<RoomGroup[]>([]);
   activeCalls = $state.raw<ActiveCall[]>([]);
   /** Complete current followed-thread viewer state, keyed by room and root ID. */
@@ -32,61 +30,57 @@ export class ServerProjectionStore {
   private timelineEventCursors = new SvelteMap<string, SvelteMap<string, string>>();
   private revokedRoomIds = new SvelteSet<string>();
 
-  apply(event: RealtimeProjectionEvent): void {
-    // Validate the entire atomic event before mutating anything. An unknown
-    // operation must fail the subscription without partially applying state
-    // or advancing its cursor.
-    for (const operation of event.operations) {
-      switch (operation.operation.case) {
-        case 'reset':
-        case 'serverUpsert':
-        case 'serverStateUpsert':
-        case 'viewerUpsert':
-        case 'userUpsert':
-        case 'userRemove':
-        case 'roomUpsert':
-        case 'roomRemove':
-        case 'roomGroupsReplace':
-        case 'roomTimelineReplace':
-        case 'roomTimelineEventUpsert':
-        case 'roomTimelineEventRemove':
-        case 'notificationOccurrencesReplace':
-        case 'roomViewerStateReplace':
-        case 'roomViewerActivityReplace':
-        case 'activeCallsReplace':
-        case 'presencesReplace':
-        case 'threadViewerStatesReplace':
-        case 'roomActivity':
-          break;
+  apply(update: RealtimeProjectionUpdate): void {
+    if (update.reset) this.reset({ preserveViewer: true });
+    const semantic = update.event?.event;
+
+    // Unknown additive state variants decode without a known oneof case. The
+    // bundled projection ignores them while still accepting the event cursor.
+    for (const stateItem of update.state) {
+      switch (stateItem.state.case) {
+        case 'server':
+        case 'serverState':
+        case 'viewer':
+        case 'user':
+        case 'userRemoved':
+        case 'room':
+        case 'roomRemoved':
+        case 'roomGroups':
+        case 'roomTimeline':
+        case 'roomTimelineEvent':
+        case 'roomTimelineEventRemoved':
+        case 'notifications':
+        case 'roomViewer':
+        case 'roomViewerActivity':
+        case 'activeCalls':
+        case 'presences':
+        case 'threadViewerStates':
         case undefined:
-          throw new Error('unsupported realtime projection operation');
+          break;
       }
     }
-    for (const operation of event.operations) {
-      switch (operation.operation.case) {
-        case 'reset':
-          this.reset({ preserveViewer: true });
+    for (const stateItem of update.state) {
+      switch (stateItem.state.case) {
+        case 'server':
+          this.server = stateItem.state.value;
           break;
-        case 'serverUpsert':
-          this.server = operation.operation.value;
+        case 'serverState':
+          this.serverState = stateItem.state.value;
           break;
-        case 'serverStateUpsert':
-          this.serverState = operation.operation.value;
+        case 'viewer':
+          this.viewer = stateItem.state.value;
           break;
-        case 'viewerUpsert':
-          this.viewer = operation.operation.value;
-          break;
-        case 'userUpsert': {
-          const member = operation.operation.value;
+        case 'user': {
+          const member = stateItem.state.value;
           const userId = member.user?.id;
           if (userId) this.users.set(userId, member);
           break;
         }
-        case 'userRemove':
-          this.removeUser(operation.operation.value.userId);
+        case 'userRemoved':
+          this.removeUser(stateItem.state.value.userId);
           break;
-        case 'roomUpsert': {
-          const room = operation.operation.value;
+        case 'room': {
+          const room = stateItem.state.value;
           const roomId = room.room?.room?.id;
           if (roomId) {
             this.rooms.set(roomId, room);
@@ -100,18 +94,18 @@ export class ServerProjectionStore {
           }
           break;
         }
-        case 'roomRemove':
-          this.revokedRoomIds.add(operation.operation.value.roomId);
-          this.rooms.delete(operation.operation.value.roomId);
-          this.timelines.delete(operation.operation.value.roomId);
-          this.timelineEventCursors.delete(operation.operation.value.roomId);
-          this.removeActiveCallRoom(operation.operation.value.roomId);
+        case 'roomRemoved':
+          this.revokedRoomIds.add(stateItem.state.value.roomId);
+          this.rooms.delete(stateItem.state.value.roomId);
+          this.timelines.delete(stateItem.state.value.roomId);
+          this.timelineEventCursors.delete(stateItem.state.value.roomId);
+          this.removeActiveCallRoom(stateItem.state.value.roomId);
           break;
-        case 'roomGroupsReplace':
-          this.roomGroups = [...operation.operation.value.groups];
+        case 'roomGroups':
+          this.roomGroups = [...stateItem.state.value.groups];
           break;
-        case 'roomTimelineReplace': {
-          const replacement = operation.operation.value;
+        case 'roomTimeline': {
+          const replacement = stateItem.state.value;
           if (replacement.page && !this.revokedRoomIds.has(replacement.roomId)) {
             this.timelines.set(replacement.roomId, replacement.page);
             this.seedTimelineEventCursors(
@@ -122,30 +116,27 @@ export class ServerProjectionStore {
           }
           break;
         }
-        case 'roomTimelineEventUpsert': {
-          const update = operation.operation.value;
+        case 'roomTimelineEvent': {
+          const update = stateItem.state.value;
           if (!this.revokedRoomIds.has(update.roomId)) this.upsertTimelineEvent(update);
           break;
         }
-        case 'roomTimelineEventRemove':
-          this.removeTimelineEvent(
-            operation.operation.value.roomId,
-            operation.operation.value.eventId
-          );
+        case 'roomTimelineEventRemoved':
+          this.removeTimelineEvent(stateItem.state.value.roomId, stateItem.state.value.eventId);
           break;
-        case 'notificationOccurrencesReplace': {
+        case 'notifications': {
           // Notification state is owned by NotificationStore. Keeping another
           // hydrated payload mirror here would make authorization scrubbing
           // and optimistic count updates race across two owners.
           break;
         }
-        case 'roomViewerStateReplace': {
-          const replacement = operation.operation.value;
+        case 'roomViewer': {
+          const replacement = stateItem.state.value;
           const current = this.rooms.get(replacement.roomId);
           if (current) {
             this.rooms.set(
               replacement.roomId,
-              new RealtimeProjectionRoom({
+              new RealtimeRoomState({
                 room: new RoomWithViewerState({
                   room: current.room?.room,
                   viewerState: replacement.viewerState
@@ -165,8 +156,8 @@ export class ServerProjectionStore {
           }
           break;
         }
-        case 'roomViewerActivityReplace': {
-          const replacement = operation.operation.value;
+        case 'roomViewerActivity': {
+          const replacement = stateItem.state.value;
           const current = this.rooms.get(replacement.roomId);
           if (current) {
             const viewerState = current.room?.viewerState?.clone() ?? new RoomViewerState();
@@ -174,7 +165,7 @@ export class ServerProjectionStore {
             viewerState.slowModeNextPostAt = replacement.slowModeNextPostAt;
             this.rooms.set(
               replacement.roomId,
-              new RealtimeProjectionRoom({
+              new RealtimeRoomState({
                 room: new RoomWithViewerState({
                   room: current.room?.room,
                   viewerState
@@ -186,24 +177,23 @@ export class ServerProjectionStore {
           }
           break;
         }
-        case 'activeCallsReplace':
-          this.activeCalls = [...operation.operation.value.calls];
+        case 'activeCalls':
+          this.activeCalls = [...stateItem.state.value.calls];
           break;
-        case 'presencesReplace':
+        case 'presences':
           for (const [userId, member] of this.users) {
             if (!member.user) continue;
             const user = member.user.clone();
-            user.presenceStatus =
-              operation.operation.value.statuses[userId] ?? PresenceStatus.OFFLINE;
+            user.presenceStatus = stateItem.state.value.statuses[userId] ?? PresenceStatus.OFFLINE;
             this.users.set(
               userId,
               new DirectoryMember({ user, roles: [...member.roles], createdAt: member.createdAt })
             );
           }
           break;
-        case 'threadViewerStatesReplace': {
+        case 'threadViewerStates': {
           this.threadViewerStates.clear();
-          for (const state of operation.operation.value.states) {
+          for (const state of stateItem.state.value.states) {
             this.threadViewerStates.set(
               `${state.roomId}\u0000${state.threadRootEventId}`,
               state.viewerState ?? new ThreadViewerState()
@@ -223,7 +213,7 @@ export class ServerProjectionStore {
                 this.threadViewerStates
                   .get(`${roomId}\u0000${thread.threadRootEventId}`)
                   ?.clone() ??
-                  new ThreadViewerState({ isFollowing: false, hasUnreadReplies: false });
+                new ThreadViewerState({ isFollowing: false, hasUnreadReplies: false });
               changed = true;
               return next;
             });
@@ -243,12 +233,16 @@ export class ServerProjectionStore {
           }
           break;
         }
-        case 'roomActivity':
-          this.activateRoom(operation.operation.value.roomId);
-          break;
         case undefined:
-          throw new Error('unsupported realtime projection operation');
+          break;
       }
+    }
+    if (
+      semantic?.case === 'message' &&
+      semantic.value.action === 1 &&
+      !semantic.value.threadRootEventId
+    ) {
+      this.activateRoom(semantic.value.roomId);
     }
   }
 
@@ -261,7 +255,7 @@ export class ServerProjectionStore {
     if (!room) return;
     this.rooms.set(
       roomId,
-      new RealtimeProjectionRoom({
+      new RealtimeRoomState({
         room: room.room,
         memberUserIds: [],
         hasMessageHistory: room.hasMessageHistory
@@ -297,7 +291,7 @@ export class ServerProjectionStore {
       if (!room.memberUserIds.includes(userId)) continue;
       this.rooms.set(
         roomId,
-        new RealtimeProjectionRoom({
+        new RealtimeRoomState({
           room: room.room,
           memberUserIds: room.memberUserIds.filter((candidate) => candidate !== userId),
           hasMessageHistory: room.hasMessageHistory
@@ -398,7 +392,7 @@ export class ServerProjectionStore {
   private activateRoom(roomId: string): void {
     const current = this.rooms.get(roomId);
     if (!current) return;
-    const room = new RealtimeProjectionRoom({
+    const room = new RealtimeRoomState({
       room: current.room,
       memberUserIds: [...current.memberUserIds],
       hasMessageHistory: true

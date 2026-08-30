@@ -1,26 +1,27 @@
 ---
 title: Realtime Protocol Overview
-description: Understand Chatto's ordered projection stream, resumable delivery, room hydration, and connection lifecycle.
+description: Receive semantic events, choose initial state, resume a short gap, and hydrate room state.
 ---
 
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
 import realtimeSequence from "../../../../assets/realtime-protocol-sequence.svg?raw";
 
-Use the realtime protocol when your client must keep an authenticated local
-view of one Chatto server. The protocol sends binary protobuf frames over a
-WebSocket at `/api/realtime`.
+Use realtime protocol 3 when a bot or client must react to activity on one
+Chatto server. The protocol sends binary protobuf frames over a WebSocket at
+`/api/realtime`.
 
-Use [ConnectRPC](/reference/connectrpc-api/) for commands, explicit reads,
-pagination, and read-your-writes results. Realtime protocol 2 complements those
-calls. It does not replace them.
+Use [ConnectRPC](/reference/connectrpc-api/) for commands, explicit resource
+reads, pagination, history, and read-your-writes results. Realtime events tell
+you what happened. ConnectRPC gives you the resource detail that your
+integration needs.
 
-| Need | Use |
-| --- | --- |
-| Create, update, or delete a resource | ConnectRPC |
-| Read one resource or a paginated list | ConnectRPC |
-| Build an initial local server view | Realtime |
-| Keep that local view current | Realtime |
-| Resume a short connection gap | Realtime |
+| Need                                                                     | Use               |
+| ------------------------------------------------------------------------ | ----------------- |
+| React to a message, edit, reaction, membership change, or other activity | Realtime event    |
+| Create, update, or delete a resource                                     | ConnectRPC        |
+| Read one resource or a paginated list                                    | ConnectRPC        |
+| Build the bundled frontend's initial local view                          | Realtime snapshot |
+| Repair a short connection gap                                            | Realtime resume   |
 
 ## Connection lifecycle
 
@@ -28,120 +29,129 @@ calls. It does not replace them.
 
 1. Open a WebSocket to `wss://chat.example.com/api/realtime`.
 2. Send a binary [`RealtimeClientFrame`](/reference/connectrpc-api/realtime/#realtimeclientframe)
-   that contains `hello`. Request protocol version `2` and include a bearer
-   credential when you do not use a same-origin cookie.
-3. Wait for the server `hello`. Check that it accepts version `2` and includes
-   `chatto.realtime.projection.v1` in `capabilities`.
-4. Send `subscribe_events`. Include the last safe resume cursor and the IDs of
-   room timelines that your projection still retains.
-5. Apply all projection operations in order. The server sends `caught_up` when
-   the bootstrap or replay has reached the live boundary.
-6. Continue to apply live projection operations. Handle transient events on a
-   separate path.
+   with `hello`. Request protocol version `3`. Include a bearer credential when
+   you do not use a same-origin cookie.
+3. Wait for the server `hello`. Check that it accepts version `3`.
+4. Send `subscribe_events`. Select `SNAPSHOT` or `LIVE_ONLY` as the required
+   initial-state fallback. You can also include a safe resume cursor and the
+   IDs of room timelines that your projection retains.
+5. Read `subscribed.recovery_mode` to learn whether the server selected
+   `SNAPSHOT`, `LIVE_ONLY`, or `RESUME`.
+6. Process events and state in order. The server sends `caught_up` when recovery
+   reaches the live boundary.
+7. Continue to process live events.
 
-The server can send `subscribed` before it sends projection data. This frame
-confirms the start cursor. It does not mean that the projection is current.
-Treat the projection as current only after `caught_up`.
+The `subscribed` frame does not mean that recovery is complete. Treat the
+stream as live only after `caught_up`.
 
-## One projection, two ways to catch up
+## Choose snapshot or live-only startup
 
-A new client has no cursor. The server first sends a `reset` operation and then
-sends current resources as projection operations. This is a compacted
-bootstrap. It contains current public state, not every historical change.
+Select `LIVE_ONLY` for a bot that wants new events and reads resources through
+ConnectRPC. If the cursor is absent or unusable, the server starts at a stated
+current boundary. It does not send old events or a state snapshot.
 
-A reconnecting client can send its last safe cursor. When the cursor is usable,
-the server derives authorized projection operations for later durable facts.
-The same reducer handles the bootstrap, replay, and live operations.
+Select `SNAPSHOT` for a client that keeps a server projection. If the cursor is
+absent or unusable, the server sends authorized current-state items before
+`caught_up`. The bundled frontend uses this mode.
 
-The server can choose a compacted bootstrap when a cursor is missing, invalid,
-expired, too far behind, or no longer safe for the current authorization state.
-This is normal recovery behavior. It is not a client error.
+When a cursor is usable, both choices can result in `RESUME`. The server sends
+authorized durable events after that cursor, sends finite latest-value state,
+and then sends `caught_up`.
+
+A cursor can become unusable because it is invalid, expired, too far behind,
+from another server history, or unsafe for current authorization. Fallback is
+normal recovery behavior. The server does not send a partial replay.
 
 <Aside type="caution">
-  Keep a resume cursor with the exact projection state that it describes. Do
-  not apply a cursor to an empty or different store. A cursor is valid for up
-  to 24 hours, and the server binds it to the authenticated viewer.
+  Keep a resume cursor with the client state that it describes. Do not apply a
+  cursor to an unrelated projection. A cursor is valid for up to 24 hours, and
+  the server binds it to the authenticated viewer.
 </Aside>
 
-## Apply projection events atomically
+## Handle semantic events
 
-Each `RealtimeProjectionEvent` contains one or more ordered operations. Before
-you change local state:
+Each `RealtimeEvent` describes one authorized activity. Durable variants
+include messages, edits, retractions, reactions, pins, assets, rooms,
+membership, profiles, threads, and calls. Typing, presence changes, and session
+termination are transient variants and have no resume cursor.
 
-1. Decode the complete server frame.
-2. Check that every operation is present and supported by your client.
-3. Apply all operations to a temporary next state, in their received order.
-4. Commit the next state only when every operation succeeds.
-5. Save the event's `resume_cursor` only after the commit.
+An event contains common metadata outside its event `oneof`:
 
-A `reset` clears all state that came from the projection. Apply later operations
-in the same event or stream to rebuild it. Do not start parallel ConnectRPC
-refreshes for the same canonical state.
+- a stable event ID;
+- source time;
+- a visible actor, when applicable; and
+- a resume cursor for durable activity.
 
-If a frame cannot be decoded, a top-level frame is unknown, or a projection
-operation is unknown, close the connection and keep the preceding cursor. A
-client must not advance across data that it did not understand.
+An event can also contain current `state` items. A bot can ignore this state
+and fetch resources through ConnectRPC. A projection client can apply it to
+converge without extra reads.
 
-## Durable state and transient events
+Process one event as one unit:
 
-`RealtimeProjectionEvent` carries the durable, convergent client view. It
-includes server, viewer, user, room, room-group, notification, call, presence,
-and retained timeline state. An operation can replace a complete finite set,
-upsert one resource, or remove one resource.
+1. Decode the complete frame.
+2. Process the semantic variant that you understand.
+3. Apply any current-state items that your client uses.
+4. Save `resume_cursor` only after your processing succeeds.
 
-`room_viewer_activity_replace` is a focused replacement. It replaces only
-`has_unread` and `slow_mode_next_post_at` for the room. Preserve the room's
-membership and permission state when you apply this operation.
+Delivery is at least once across reconnects. Use the stable event ID to
+deduplicate effects.
 
-`RealtimeEventEnvelope` carries signals that are not replayed:
+New event and state variants are additive. You can ignore a variant that you
+do not use and still save the common cursor. If a complete top-level frame
+cannot be decoded, close the socket and keep the preceding cursor.
 
-- typing activity;
-- presence transitions;
-- termination of the current session.
+## Apply snapshot state
 
-Do not use transient events as durable state. For example, every subscription
-also receives a finite presence replacement before `caught_up`, because a
-client can miss presence transitions while it is disconnected.
+If `subscribed.recovery_mode` is `SNAPSHOT`, clear the state that the realtime
+projection owns. Then apply each standalone `state` frame until `caught_up`.
+These frames contain current resources, not historical events.
 
-## Hydrate room timelines only when needed
+Snapshot state can include the server, viewer, users, rooms, room groups,
+notifications, calls, presence, and retained room timelines. A state item can
+replace a finite set, upsert a resource, or report that a resource is absent.
 
-The initial server projection contains lightweight state for every visible
-room. It does not include every room timeline. Send `hydrate_room` when the
-client first needs a joined room's recent timeline.
+Do not start parallel ConnectRPC refreshes for the same canonical state while
+you apply a snapshot. Use ConnectRPC for data that is not part of the snapshot,
+such as old history, searches, and command responses.
 
-The server returns `room_timeline_replace` through the normal projection
-stream. The replacement contains at most 50 recent rows and complete channel
-membership for that room. Later timeline mutations arrive only while the room
-is retained by the connection.
+## Retain room state only when needed
 
-Keep track of rooms whose timeline replacement was applied. Send those room IDs
-again in the next `subscribe_events` frame. One connection can retain at most
-64 room timelines. Evict an old retained timeline before you add another one.
+The initial snapshot contains lightweight state for visible rooms. It does not
+contain every room member list or timeline. Send `hydrate_room` after
+`caught_up` when a client first needs a joined room's complete current member
+IDs and recent timeline.
 
-Hydration admission errors are non-fatal. They identify the room and can include
-`retry_after_ms`. Retry that room on the same connection after the delay. A
+The server returns standalone `room` and `room_timeline` state frames. After
+you apply both, keep that room ID in your retained set and send the set in
+later subscriptions. One connection can retain at most 64 room timelines.
+
+Retained room IDs affect only current timeline state. They never filter
+semantic events. A bot receives an authorized message or reaction event even
+when it does not retain that room's timeline.
+
+Hydration admission errors are non-fatal. They identify the room and can
+include `retry_after_ms`. Retry that room after the delay. A
 `room_unavailable` result means that the room does not exist or the viewer
 cannot access it.
 
 ## Detect a dead connection
 
 The server `hello` reports an approximate heartbeat interval. Reset your
-liveness timer after every server frame, not only after a heartbeat. Replace
-the socket when no frame arrives for several expected heartbeat intervals.
+liveness timer after every server frame. Replace the socket when no frame
+arrives for several expected heartbeat intervals.
 
-You can also send a `ping` with an opaque nonce. The server returns the same
-nonce in `pong`. WebSocket control pings do not replace the application-level
-heartbeat contract.
+You can send `ping` with an opaque nonce. The server returns the same nonce in
+`pong`. WebSocket control pings do not replace the application heartbeat.
 
 ## Handle errors and reconnects
 
-| Frame | Client action |
-| --- | --- |
-| Non-fatal `error` | Keep the socket open. Retry only the rejected operation and honor `retry_after_ms`. |
-| Fatal `error` | Stop processing that socket and keep the preceding cursor. Retry temporary server failures with backoff. Require a client, protocol, or authentication fix for other codes. |
-| `close` with `reconnect: true` | Close the socket, wait for `retry_after_ms` or local backoff, and subscribe again with the last safe cursor. |
-| `close` with `reconnect: false` | Stop automatic reconnects and require the relevant authentication or user action. |
-| Network close without guidance | Retry with bounded exponential backoff and the last safe cursor. |
+| Frame                           | Client action                                                                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Non-fatal `error`               | Keep the socket open. Retry only the rejected operation and honor `retry_after_ms`.                                                                   |
+| Fatal `error`                   | Stop processing that socket and keep the preceding cursor. Retry temporary failures with backoff. Fix protocol or authentication errors before retry. |
+| `close` with `reconnect: true`  | Close the socket, wait for `retry_after_ms` or local backoff, and subscribe with the last safe cursor.                                                |
+| `close` with `reconnect: false` | Stop automatic reconnects and require the applicable user or authentication action.                                                                   |
+| Network close without guidance  | Retry with bounded exponential backoff and the last safe cursor.                                                                                      |
 
 Bearer access credentials can expire while the socket is open. Rotate the
 credential and reconnect when the server requests authentication. Same-origin
@@ -149,7 +159,19 @@ cookie clients can receive a session-renewal close and must renew the browser
 session before they reconnect.
 
 <CardGrid>
-  <LinkCard title="TypeScript Tutorial" href="/guides/integrations/realtime-typescript/" description="Connect, decode frames, inspect operations, hydrate a room, and reconnect." />
-  <LinkCard title="Realtime Frame Reference" href="/reference/connectrpc-api/realtime/" description="Read every realtime protobuf message, field, and enum." />
-  <LinkCard title="API Compatibility" href="/guides/integrations/api-compatibility/" description="Plan for API and protocol changes while Chatto is pre-1.0." />
+  <LinkCard
+    title="TypeScript Tutorial"
+    href="/guides/integrations/realtime-typescript/"
+    description="Connect a small event-driven bot client and resume from a cursor."
+  />
+  <LinkCard
+    title="Realtime Frame Reference"
+    href="/reference/connectrpc-api/realtime/"
+    description="Read every realtime protobuf message, field, and enum."
+  />
+  <LinkCard
+    title="API Compatibility"
+    href="/guides/integrations/api-compatibility/"
+    description="Plan for API and protocol changes while Chatto is pre-1.0."
+  />
 </CardGrid>

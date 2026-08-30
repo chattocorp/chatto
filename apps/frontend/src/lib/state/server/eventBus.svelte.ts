@@ -6,16 +6,24 @@
  */
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { EventHandler, ProjectionHandler, EventBus } from '$lib/eventBus.svelte';
+import type {
+  EventHandler,
+  ProjectionHandler,
+  EventBus,
+  RealtimeProjectionUpdate
+} from '$lib/eventBus.svelte';
 import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeClientFrame,
   RealtimeClientHello,
   RealtimeHydrateRoom,
+  RealtimeInitialState,
+  RealtimeRecoveryMode,
   RealtimeServerFrame,
   RealtimeSubscribeEvents,
-  type RealtimeProjectionEvent
+  type RealtimeEvent,
+  type RealtimeStateItem
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
@@ -87,7 +95,7 @@ function clientHelloFrame(token: string | null): Uint8Array {
     frame: {
       case: 'hello',
       value: new RealtimeClientHello({
-        protocolVersion: 2,
+        protocolVersion: 3,
         bearerToken: token ?? undefined
       })
     }
@@ -100,7 +108,8 @@ function subscribeEventsFrame(resumeCursor: string | null, retainedRoomIds: stri
       case: 'subscribeEvents',
       value: new RealtimeSubscribeEvents({
         resumeCursor: resumeCursor ?? undefined,
-        retainedRoomIds
+        retainedRoomIds,
+        initialState: RealtimeInitialState.SNAPSHOT
       })
     }
   }).toBinary();
@@ -118,10 +127,6 @@ function hydrateRoomFrame(roomId: string): Uint8Array {
 function heartbeatStallMsForInterval(seconds: number): number {
   if (seconds <= 0) return DEFAULT_HEARTBEAT_STALL_MS;
   return Math.max(MIN_HEARTBEAT_STALL_MS, seconds * MISSED_HEARTBEATS_BEFORE_STALL * 1000);
-}
-
-function projectionResets(event: RealtimeProjectionEvent): boolean {
-  return event.operations.some((operation) => operation.operation.case === 'reset');
 }
 
 class EventBusManager {
@@ -372,11 +377,19 @@ class EventBusManager {
       }
     };
 
-    const dispatchProjectionEvent = (event: RealtimeProjectionEvent) => {
+    const dispatchProjectionUpdate = (update: RealtimeProjectionUpdate) => {
       if (projectionHandlers.size === 0) {
-        throw new Error('projection event received before reducer registration');
+        throw new Error('projection update received before reducer registration');
       }
-      for (const handler of projectionHandlers) handler(event);
+      for (const handler of projectionHandlers) handler(update);
+    };
+
+    const dispatchEventState = (event: RealtimeEvent) => {
+      dispatchProjectionUpdate({ event, state: event.state, reset: false });
+    };
+
+    const dispatchSnapshotState = (state: RealtimeStateItem) => {
+      dispatchProjectionUpdate({ event: null, state: [state], reset: false });
     };
 
     const connect = (reason: string) => {
@@ -433,6 +446,10 @@ class EventBusManager {
             case 'subscribed':
               socketSubscribed = true;
               reconnectAttempts = 0;
+              if (frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT) {
+                dispatchProjectionUpdate({ event: null, state: [], reset: true });
+                sync.acceptProjectionEvent(undefined, true);
+              }
               sendNextRoomHydration();
               if (mode === 'live') serverConnection.setRealtimeConnectionStatus('connected');
               console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
@@ -446,26 +463,37 @@ class EventBusManager {
             case 'event': {
               const event = realtimeEventToEventEnvelope(frame.frame.value);
               if (event) dispatchEvent(event);
+              if (frame.frame.value.resumeCursor || frame.frame.value.state.length > 0) {
+                try {
+                  dispatchEventState(frame.frame.value);
+                } catch (error) {
+                  console.error(`[eventBus:${serverId}] projection reducer failed`, error);
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
+                  return;
+                }
+                sync.acceptProjectionEvent(frame.frame.value.resumeCursor, false);
+                for (const state of frame.frame.value.state) {
+                  if (state.state.case === 'roomTimeline') {
+                    const roomId = state.state.value.roomId;
+                    sync.confirmRoom(roomId);
+                    finishRoomHydrationRequest(roomId);
+                  }
+                }
+              }
               return;
             }
-            case 'projectionEvent':
+            case 'state':
               try {
-                dispatchProjectionEvent(frame.frame.value);
+                dispatchSnapshotState(frame.frame.value);
               } catch (error) {
                 console.error(`[eventBus:${serverId}] projection reducer failed`, error);
                 nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
                 return;
               }
-              sync.acceptProjectionEvent(
-                frame.frame.value.resumeCursor,
-                projectionResets(frame.frame.value)
-              );
-              for (const operation of frame.frame.value.operations) {
-                if (operation.operation.case === 'roomTimelineReplace') {
-                  const roomId = operation.operation.value.roomId;
-                  sync.confirmRoom(roomId);
-                  finishRoomHydrationRequest(roomId);
-                }
+              if (frame.frame.value.state.case === 'roomTimeline') {
+                const roomId = frame.frame.value.state.value.roomId;
+                sync.confirmRoom(roomId);
+                finishRoomHydrationRequest(roomId);
               }
               return;
             case 'caughtUp': {

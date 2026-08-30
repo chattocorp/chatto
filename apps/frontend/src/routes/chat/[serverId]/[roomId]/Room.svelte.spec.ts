@@ -4,8 +4,14 @@ import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { RoomMessagePosted, RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
-import { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import {
+  RealtimeRoomTimelineEventState,
+  RealtimeStateItem
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore } from '$lib/state/room';
@@ -37,7 +43,7 @@ const { mocks } = vi.hoisted(() => {
       pushState: vi.fn(),
       replaceState: vi.fn(),
       markRoomAsRead: vi.fn(),
-      projectionEventHandler: null as ((event: RealtimeProjectionEvent) => void) | null,
+      projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
       resetTypingDebounce: vi.fn(),
       query: vi.fn(() => ({
         toPromise: vi.fn().mockResolvedValue({ data: queryData, error: null })
@@ -169,7 +175,7 @@ vi.mock('$lib/hooks', () => ({
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
-  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
+  useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionEventHandler = handler;
   },
   usePresenceChange: vi.fn(),
@@ -693,22 +699,27 @@ describe('Room local message echo', () => {
     await tick();
 
     mocks.projectionEventHandler?.(
-      new RealtimeProjectionEvent({
+      new RealtimeProjectionUpdate({
         id: 'asset-processing-succeeded-id',
         actorId: 'system',
         operations: [
-          {
-            operation: {
-              case: 'roomTimelineEventUpsert',
-              value: {
+          new RealtimeStateItem({
+            state: {
+              case: 'roomTimelineEvent',
+              value: new RealtimeRoomTimelineEventState({
                 roomId: 'room-1',
-                event: {
+                event: new RoomTimelineEvent({
                   id: 'message-event-id',
-                  event: { case: 'messagePosted', value: { message: { threadRootEventId: '' } } }
-                }
-              }
+                  event: {
+                    case: 'messagePosted',
+                    value: new RoomMessagePosted({
+                      message: new Message({ threadRootEventId: '' })
+                    })
+                  }
+                })
+              })
             }
-          }
+          })
         ]
       })
     );

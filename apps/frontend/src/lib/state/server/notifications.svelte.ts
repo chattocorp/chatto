@@ -176,7 +176,7 @@ export class NotificationStore {
     this.error = null;
   }
 
-  /** Invalidate projection-owned state while a compacted reset hydrates. */
+  /** Invalidate projection-owned state while a snapshot hydrates. */
   resetProjectionState(): void {
     this.notificationPolicies.reset();
     this.#fetchGeneration++;

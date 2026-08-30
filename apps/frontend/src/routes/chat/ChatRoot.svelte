@@ -104,11 +104,10 @@
     // operations that own each server-scoped store.
     useProjectionEvent(
       (event) => {
-        for (const operation of event.operations) {
-          if (operation.operation.case === 'reset') {
-            rootProfileCache.clear();
-          } else if (operation.operation.case === 'userUpsert') {
-            const member = mapDirectoryMember(operation.operation.value);
+        if (event.reset) rootProfileCache.clear();
+        for (const stateItem of event.state) {
+          if (stateItem.state.case === 'user') {
+            const member = mapDirectoryMember(stateItem.state.value);
             if (!member.id) continue;
             rootProfileCache.update(
               member.id,
@@ -118,8 +117,8 @@
               member.customStatus,
               { bio: member.bio ?? null, timezone: member.timezone ?? null }
             );
-          } else if (operation.operation.case === 'viewerUpsert') {
-            const viewer = viewerResponseToState(operation.operation.value);
+          } else if (stateItem.state.case === 'viewer') {
+            const viewer = viewerResponseToState(stateItem.state.value);
             session.currentUser.user = viewer.user;
             rootProfileCache.update(
               viewer.user.id,
@@ -129,8 +128,8 @@
               viewer.user.customStatus ?? null,
               { bio: viewer.user.bio ?? null, timezone: viewer.user.publicTimezone ?? null }
             );
-          } else if (operation.operation.case === 'userRemove') {
-            rootProfileCache.remove(operation.operation.value.userId);
+          } else if (stateItem.state.case === 'userRemoved') {
+            rootProfileCache.remove(stateItem.state.value.userId);
           }
         }
       },

@@ -43,14 +43,15 @@ Include this component once in the application root so signed-out pages also cle
       const notificationPreferences = getServerNotificationPreferences(instance.id);
 
       const handler: ProjectionHandler = (event) => {
-        for (const operation of event.operations) {
-          if (operation.operation.case !== 'notificationOccurrencesReplace') continue;
+        const eventId = event.event?.id;
+        for (const stateItem of event.state) {
+          if (stateItem.state.case !== 'notifications') continue;
           if (
-            event.id &&
-            operation.operation.value.playNotificationSound &&
-            !soundedEventIds.includes(event.id)
+            eventId &&
+            stateItem.state.value.playNotificationSound &&
+            !soundedEventIds.includes(eventId)
           ) {
-            soundedEventIds.push(event.id);
+            soundedEventIds.push(eventId);
             if (soundedEventIds.length > rememberedSoundEvents) {
               soundedEventIds.shift();
             }
