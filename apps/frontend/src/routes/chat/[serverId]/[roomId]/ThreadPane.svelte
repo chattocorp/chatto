@@ -256,11 +256,12 @@
 
   async function markThreadAsRead(
     currentThreadId: string,
-    upToEventId?: string
+    upToEventId: string | undefined,
+    signal: AbortSignal
   ): Promise<MarkThreadAsReadResult> {
     return connection()
       .getAPI(createReadStateAPI)
-      .markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
+      .markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId }, { signal });
   }
 </script>
 

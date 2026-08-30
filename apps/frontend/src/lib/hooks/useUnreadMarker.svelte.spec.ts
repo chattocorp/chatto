@@ -20,6 +20,14 @@ type HarnessAPI = {
   setUnreadMarkerEventId(eventId: string | null): void;
 };
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return { promise, resolve };
+}
+
 function getApi(api: HarnessAPI | undefined): HarnessAPI {
   if (!api) {
     throw new Error('Unread marker harness API was not initialized');
@@ -70,7 +78,7 @@ describe('useUnreadMarker', () => {
     setPresent(true);
 
     await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
-    expect(markAsRead).toHaveBeenLastCalledWith('room-1', undefined);
+    expect(markAsRead).toHaveBeenLastCalledWith('room-1', undefined, expect.any(AbortSignal));
     rendered.unmount();
   });
 
@@ -86,7 +94,7 @@ describe('useUnreadMarker', () => {
     flushSync();
 
     await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
-    expect(markAsRead).toHaveBeenCalledWith('room-1', undefined);
+    expect(markAsRead).toHaveBeenCalledWith('room-1', undefined, expect.any(AbortSignal));
     rendered.unmount();
   });
 
@@ -150,6 +158,23 @@ describe('useUnreadMarker', () => {
     rendered.unmount();
   });
 
+  it('recovers foreground state from interaction after pagehide without pageshow', async () => {
+    const markAsRead = vi.fn().mockResolvedValue(NO_MARKER_RESULT);
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+
+    window.dispatchEvent(new Event('pagehide'));
+    flushSync();
+    await userEvent.click(rendered.container.querySelector('button')!);
+    flushSync();
+
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
+    rendered.unmount();
+  });
+
   it('retries transient failures with backoff', async () => {
     vi.useFakeTimers();
     const markAsRead = vi
@@ -201,6 +226,65 @@ describe('useUnreadMarker', () => {
     flushSync();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(markAsRead).toHaveBeenCalledOnce();
+    rendered.unmount();
+  });
+
+  it('cancels a scheduled retry on pagehide without visibilitychange', async () => {
+    vi.useFakeTimers();
+    const markAsRead = vi
+      .fn()
+      .mockRejectedValueOnce(new ConnectError('temporarily unavailable', Code.Unavailable));
+    const rendered = render(Harness, {
+      props: { targetId: 'room-1', markAsRead, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    window.dispatchEvent(new Event('pagehide'));
+    flushSync();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(markAsRead).toHaveBeenCalledOnce();
+    rendered.unmount();
+  });
+
+  it('aborts an in-flight request and ignores its response after hiding', async () => {
+    const request = deferred<{
+      previousLastReadAt: string;
+      lastReadAt: string;
+    }>();
+    let requestSignal: AbortSignal | undefined;
+    const markAsRead = vi.fn(
+      (_targetId: string, _upToEventId: string | undefined, signal: AbortSignal) => {
+        requestSignal = signal;
+        return request.promise;
+      }
+    );
+    let api: HarnessAPI | undefined;
+    const rendered = render(Harness, {
+      props: {
+        targetId: 'room-1',
+        markAsRead,
+        onReady: (nextApi: HarnessAPI) => {
+          api = nextApi;
+        }
+      }
+    });
+    flushSync();
+    await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledOnce());
+
+    setVisibility('hidden');
+    flushSync();
+    expect(requestSignal?.aborted).toBe(true);
+
+    request.resolve({
+      previousLastReadAt: '2026-07-08T09:00:00.000Z',
+      lastReadAt: '2026-07-08T10:00:00.000Z'
+    });
+    await request.promise;
+    flushSync();
+
+    expect(getApi(api).unreadMarkerWindow).toBeNull();
     rendered.unmount();
   });
 
@@ -265,10 +349,12 @@ describe('useUnreadMarker', () => {
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(markAsRead.mock.calls).toEqual([
-      ['room-1', undefined],
-      ['room-2', undefined]
-    ]);
+    expect(markAsRead.mock.calls.map(([targetId, upToEventId]) => [targetId, upToEventId])).toEqual(
+      [
+        ['room-1', undefined],
+        ['room-2', undefined]
+      ]
+    );
     rendered.unmount();
   });
 
@@ -568,7 +654,7 @@ describe('useUnreadMarker', () => {
     flushSync();
 
     await vi.waitFor(() => expect(markAsRead).toHaveBeenCalledTimes(2));
-    expect(markAsRead).toHaveBeenLastCalledWith('room-2', undefined);
+    expect(markAsRead).toHaveBeenLastCalledWith('room-2', undefined, expect.any(AbortSignal));
     rendered.unmount();
   });
 

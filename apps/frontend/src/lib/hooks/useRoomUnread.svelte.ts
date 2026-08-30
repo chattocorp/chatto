@@ -20,13 +20,17 @@ export function useRoomUnread(
   const roomUnreadStore = serverScope.store.roomUnread;
 
   const unread = useUnreadMarker(() => getProps().roomId, {
-    markAsRead: async (targetRoomId: string, upToEventId?: string) => {
+    markAsRead: async (
+      targetRoomId: string,
+      upToEventId: string | undefined,
+      signal: AbortSignal
+    ) => {
       const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {
         const result = await serverScope.connection
           .getAPI(createReadStateAPI)
-          .markRoomAsRead({ roomId: targetRoomId, upToEventId });
+          .markRoomAsRead({ roomId: targetRoomId, upToEventId }, { signal });
         optimisticRead.commit();
         return result;
       } catch (err) {

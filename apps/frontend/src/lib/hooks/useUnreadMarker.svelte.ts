@@ -14,7 +14,11 @@ export type UnreadMarkerEvent = {
 };
 
 type UseUnreadMarkerOptions<TReadResult> = {
-  markAsRead: (targetId: string, upToEventId?: string) => Promise<TReadResult>;
+  markAsRead: (
+    targetId: string,
+    upToEventId: string | undefined,
+    signal: AbortSignal
+  ) => Promise<TReadResult>;
   markerWindowFromReadResult: (
     result: TReadResult,
     markedAtMs: number
@@ -37,6 +41,7 @@ type ReadAttempt = {
   errorReported: boolean;
   updatesMarker: boolean;
   markerGeneration: number;
+  controller: AbortController;
 };
 
 const INITIAL_RETRY_DELAY_MS = 500;
@@ -125,6 +130,7 @@ export function useUnreadMarker<TReadResult>(
     if (attempt?.timer !== null && attempt?.timer !== undefined) {
       clearTimeout(attempt.timer);
     }
+    attempt?.controller.abort();
   }
 
   function cancelLifecycleAttempt() {
@@ -172,7 +178,11 @@ export function useUnreadMarker<TReadResult>(
 
     attempt.inFlight = true;
     try {
-      const result = await markAsRead(attempt.targetId, attempt.upToEventId);
+      const result = await markAsRead(
+        attempt.targetId,
+        attempt.upToEventId,
+        attempt.controller.signal
+      );
       if (!isCurrentAttempt(attempt)) return null;
 
       if (attempt.updatesMarker && attempt.markerGeneration === markerGeneration) {
@@ -216,7 +226,8 @@ export function useUnreadMarker<TReadResult>(
       retryWhenSettled: false,
       errorReported: false,
       updatesMarker,
-      markerGeneration: updatesMarker ? ++markerGeneration : markerGeneration
+      markerGeneration: updatesMarker ? ++markerGeneration : markerGeneration,
+      controller: new AbortController()
     };
   }
 

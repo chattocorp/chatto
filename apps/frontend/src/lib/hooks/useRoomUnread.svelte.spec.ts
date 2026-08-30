@@ -84,6 +84,34 @@ describe('useRoomUnread', () => {
     rendered.unmount();
   });
 
+  it('aborts an in-flight room read and rolls back on unmount', async () => {
+    let requestSignal: AbortSignal | undefined;
+    mocks.markRoomAsRead.mockImplementation(
+      (_input: unknown, options: { signal?: AbortSignal } = {}) =>
+        new Promise((_resolve, reject) => {
+          requestSignal = options.signal;
+          options.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Request canceled', 'AbortError'));
+          });
+        })
+    );
+    mocks.roomUnread!.setRoomUnread('room-1', true);
+
+    const rendered = render(Harness, {
+      props: { roomId: 'room-1', onReady: () => {} }
+    });
+    flushSync();
+
+    await vi.waitFor(() => expect(mocks.markRoomAsRead).toHaveBeenCalledOnce());
+    expect(requestSignal?.aborted).toBe(false);
+    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(false);
+
+    rendered.unmount();
+
+    await vi.waitFor(() => expect(requestSignal?.aborted).toBe(true));
+    await vi.waitFor(() => expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true));
+  });
+
   it('retries a failed room read and clears the unread overlay after success', async () => {
     vi.useFakeTimers();
     mocks.markRoomAsRead

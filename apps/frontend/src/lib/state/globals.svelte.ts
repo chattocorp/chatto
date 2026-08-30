@@ -41,7 +41,7 @@ class AppState {
         this.reconcileVisibility();
       });
       window.addEventListener('pagehide', () => {
-        this.foregroundActive = false;
+        this.markBackgrounded();
       });
       window.addEventListener('online', () => {
         this.onlineRevision += 1;
@@ -52,7 +52,7 @@ class AppState {
         this.reconcileVisibility();
       });
       document.addEventListener('freeze', () => {
-        this.foregroundActive = false;
+        this.markBackgrounded();
       });
       document.addEventListener('resume', () => {
         this.reconcileVisibility();
@@ -60,23 +60,32 @@ class AppState {
       document.addEventListener(
         'pointerdown',
         (event) => {
-          if (event.isTrusted && this.isVisible) {
-            // A visible user interaction is stronger evidence than a missing
-            // focus event after a mobile app resumes.
-            this.isFocused = true;
-          }
+          if (event.isTrusted) this.activateFromInteraction();
         },
         { capture: true }
       );
       document.addEventListener(
         'keydown',
         (event) => {
-          if (event.isTrusted && this.isVisible) {
-            this.isFocused = true;
-          }
+          if (event.isTrusted) this.activateFromInteraction();
         },
         { capture: true }
       );
+    }
+  }
+
+  private markBackgrounded() {
+    this.foregroundActive = false;
+    this.isFocused = false;
+    this.isVisible = false;
+  }
+
+  private activateFromInteraction() {
+    this.isFocused = true;
+    this.isVisible = true;
+    if (!this.foregroundActive) {
+      this.foregroundActive = true;
+      this.foregroundRevision += 1;
     }
   }
 
