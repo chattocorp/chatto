@@ -11,7 +11,8 @@ that they have not read.
 
 ## Behavior
 
-- My Threads lists followed threads in newest-activity-first order.
+- My Threads lists followed threads in newest-activity-first order and groups
+  them by activity date.
 - Each row shows the room, root message, latest visible reply, last activity,
   reply count, and a participant preview.
 - The Unread filter includes only threads with replies after the user's thread
@@ -47,13 +48,16 @@ have read. Notification policy remains an independent way to prioritize work.
 **Tradeoff:** A thread with important attention can appear only in All after
 its replies are read.
 
-### 3. The latest reply makes the list actionable
+### 3. The activity-list presentation makes the order clear
 
-**Decision:** Each row includes the latest visible reply and compact thread
-context instead of showing only the root message.
-**Why:** The latest reply explains why the thread is active and helps the user
-decide whether to open it.
-**Tradeoff:** The list response must hydrate more message and user data.
+**Decision:** My Threads uses flat activity rows and date sections. Each row
+shows the latest visible reply first and keeps compact root-message context
+below it.
+**Why:** The latest reply explains why the thread is active. Flat rows and date
+sections distinguish this newest-first activity list from a room timeline,
+where newer messages appear at the bottom.
+**Tradeoff:** My Threads and room timelines use different reading directions.
+The list response must also hydrate more message and user data.
 
 ### 4. Chatto 0.5 uses the explicit viewer-state contract
 

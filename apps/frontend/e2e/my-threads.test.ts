@@ -38,6 +38,7 @@ test.describe('My Threads', () => {
     await myThreads.goto();
 
     // Thread should appear with room name, root message preview, and reply count
+    await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
     const threadItem = myThreads.threadItems;
     await expect(threadItem).toBeVisible();
     await expect(threadItem.getByText('#general')).toBeVisible();
