@@ -204,6 +204,7 @@
       "drag_hint": "Dra rum mellan grupper för att organisera dem. Dra grupprubriker för att ändra ordning på grupper. Arkiverade rum stannar i sin uppsättning men är dolda för medlemmarna.",
       "drag_group": "Dra för att ändra ordning på gruppen",
       "drag_room": "Dra för att ändra ordning på rummet",
+      "drag_link": "Dra för att ändra ordning på länken",
       "new_room": "Nytt rum",
       "new_link": "Ny länk",
       "new_group": "Ny grupp",
