@@ -73,6 +73,13 @@ Concretely, deleting user U who is in rooms R₁..Rₙ produces:
 
 The N+1 events are emitted by the actor code (`DeleteUser` calls into the existing `LeaveRoom` machinery for each affected room), each carries its own OCC, and each appears as a first-class entry in its aggregate's history. This is "Approach A" from the design discussions.
 
+When partial success would violate one command invariant, the actor commits the
+per-aggregate events in one atomic batch. The batch carries an OCC guard for
+each state boundary used by the decision. Room creation, room deletion, and
+room-group lifecycle changes use this form under ADR-086. Large repairable
+fan-outs can still use independent per-aggregate commits when the command does
+not promise all-or-nothing completion.
+
 Rationale:
 
 - **Room-scoped delivery stays mechanically derivable.** Every per-room event is present on that room aggregate's history and can be surfaced through `EVT` republish (`live.evt.>`). With a single "user deleted" event, room subscribers would not see the room-level effect unless we built derived live-event machinery.
@@ -114,7 +121,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream serve
 - **Subject cardinality is bounded by aggregate count × event types.** Rooms, users, RBAC namespaces, and a small fixed set of event-type lanes are orders of magnitude lower than per-message subjects. This is the property that makes the NATS subject index manageable, and the direct reason ADR-033 unlocks a RAM win.
 - **Single point of contention for hot streams.** Writes across all aggregates serialize through one stream leader. For Chatto's scale (one server per deployment, not a multi-tenant SaaS) this is acceptable. If we ever need to scale past a single stream's write throughput, [ADR-013](ADR-013-per-space-stream-sharding.md) shows the codebase can carry a sharding abstraction — that's a future option, not a current need.
 - **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}.>`. The framework wraps consumer creation around the projection's declared subjects.
-- **No cross-aggregate ordering guarantee.** Projections that need to reason across aggregates carry timestamps in their events. This is conventional event sourcing discipline and not unique to our design.
+- **No implicit cross-aggregate ordering guarantee.** Independent commands can interleave. An explicit atomic batch gives its entries one adjacent stream order, and projections apply that recorded order. Projections that compare independent facts still use their event data instead of assuming a global command order.
 - **Legacy stream is decommissioned.** Historical backups may still contain `SERVER_EVENTS`, but current runtime behavior is centered on `EVT`.
 - **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable `LiveEvent` signals.
 

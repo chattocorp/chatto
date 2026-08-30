@@ -106,8 +106,9 @@ Temporary user-targeted restrictions ("mute", "timeout", "suspend") build on the
   decisions and inherit the server tier until an operator adds an override.
 - Fresh server-role defaults are written only when the RBAC event history is
   empty. Startup never backfills a cleared or missing decision.
-- Channel-room creation commits the room and its exceptional permission facts
-  in one atomic EVT batch. Ordinary rooms store no default overrides.
+- Channel-room creation commits the room, its initial group membership, and its
+  exceptional permission facts in one atomic EVT batch. Ordinary rooms store no
+  default overrides. See ADR-086.
 - Fresh `announcements` rooms store an `everyone.message.post` deny and an
   `admin.message.post` allow. Existing rooms are not backfilled when defaults
   change.

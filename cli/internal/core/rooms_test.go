@@ -84,11 +84,18 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	if err != nil {
 		t.Fatalf("read room default grant: %v", err)
 	}
-	if len(created) != 1 || len(denied) != 1 || len(granted) != 1 {
-		t.Fatalf("created events = %d, denied events = %d, granted events = %d; want 1 each", len(created), len(denied), len(granted))
+	added, addedSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.GroupAggregate(room.GetGroupId()).Subject(evtstream.EventRoomAddedToGroup),
+	)
+	if err != nil {
+		t.Fatalf("read room group membership: %v", err)
 	}
-	if grantedSeq != createdSeq+1 || deniedSeq != grantedSeq+1 {
-		t.Fatalf("room default sequences = created %d, denied %d, granted %d; want one contiguous batch", createdSeq, deniedSeq, grantedSeq)
+	if len(created) != 1 || len(added) != 1 || len(denied) != 1 || len(granted) != 1 {
+		t.Fatalf("created events = %d, added events = %d, denied events = %d, granted events = %d; want 1 each", len(created), len(added), len(denied), len(granted))
+	}
+	if addedSeq != createdSeq+1 || grantedSeq != addedSeq+1 || deniedSeq != grantedSeq+1 {
+		t.Fatalf("room creation sequences = created %d, added %d, denied %d, granted %d; want one contiguous batch", createdSeq, addedSeq, deniedSeq, grantedSeq)
 	}
 }
 
@@ -826,6 +833,24 @@ func TestChattoCore_DeleteRoom(t *testing.T) {
 	_, err = core.GetRoom(ctx, KindChannel, room.Id)
 	if err == nil {
 		t.Error("Expected error when getting deleted room")
+	}
+
+	_, deletedSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomDeleted),
+	)
+	if err != nil {
+		t.Fatalf("read RoomDeleted event: %v", err)
+	}
+	_, removedSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.GroupAggregate(room.GetGroupId()).Subject(evtstream.EventRoomRemovedFromGroup),
+	)
+	if err != nil {
+		t.Fatalf("read RoomRemovedFromGroup event: %v", err)
+	}
+	if removedSeq != deletedSeq+1 {
+		t.Fatalf("room deletion sequences = deleted %d, removed %d; want one contiguous batch", deletedSeq, removedSeq)
 	}
 }
 

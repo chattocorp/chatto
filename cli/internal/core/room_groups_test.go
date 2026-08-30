@@ -75,6 +75,24 @@ func TestCreateRoomGroup(t *testing.T) {
 	if !found {
 		t.Errorf("New group not present in reconciled list: %+v", groups)
 	}
+
+	_, createdSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.GroupAggregate(set.Id).Subject(evtstream.EventRoomGroupCreated),
+	)
+	if err != nil {
+		t.Fatalf("read RoomGroupCreated event: %v", err)
+	}
+	_, layoutSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.LayoutAggregate().Subject(evtstream.EventRoomGroupsReordered),
+	)
+	if err != nil {
+		t.Fatalf("read RoomGroupsReordered event: %v", err)
+	}
+	if layoutSeq != createdSeq+1 {
+		t.Fatalf("room-group creation sequences = created %d, layout %d; want one contiguous batch", createdSeq, layoutSeq)
+	}
 }
 
 func TestCreateRoomGroup_TrimsName(t *testing.T) {
@@ -226,6 +244,24 @@ func TestDeleteRoomGroup_Empty(t *testing.T) {
 	if !errors.Is(err, ErrRoomGroupNotFound) {
 		t.Errorf("Set still exists after deletion: err = %v", err)
 	}
+
+	_, deletedSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.GroupAggregate(set.Id).Subject(evtstream.EventRoomGroupDeleted),
+	)
+	if err != nil {
+		t.Fatalf("read RoomGroupDeleted event: %v", err)
+	}
+	_, layoutSeq, err := core.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.LayoutAggregate().Subject(evtstream.EventRoomGroupsReordered),
+	)
+	if err != nil {
+		t.Fatalf("read RoomGroupsReordered event: %v", err)
+	}
+	if layoutSeq != deletedSeq+1 {
+		t.Fatalf("room-group deletion sequences = deleted %d, layout %d; want one contiguous batch", deletedSeq, layoutSeq)
+	}
 }
 
 func TestDeleteRoomGroup_RejectsNonEmpty(t *testing.T) {
@@ -241,6 +277,82 @@ func TestDeleteRoomGroup_RejectsNonEmpty(t *testing.T) {
 	err := core.DeleteRoomGroup(ctx, "actor", set.Id)
 	if !errors.Is(err, ErrRoomGroupHasRooms) {
 		t.Errorf("DeleteRoomGroup on populated set: err = %v, want ErrRoomGroupHasRooms", err)
+	}
+}
+
+func TestCreateRoomAndDeleteRoomGroupDoNotBothWin(t *testing.T) {
+	for i := 0; i < 30; i++ {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+		group, _ := core.CreateRoomGroup(ctx, "actor", "Race", "")
+
+		start := make(chan struct{})
+		createDone := make(chan error, 1)
+		deleteDone := make(chan error, 1)
+		go func() {
+			<-start
+			_, err := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "race-room", "")
+			createDone <- err
+		}()
+		go func() {
+			<-start
+			deleteDone <- core.DeleteRoomGroup(ctx, "actor", group.Id)
+		}()
+		close(start)
+
+		createErr := <-createDone
+		deleteErr := <-deleteDone
+		if createErr == nil && deleteErr == nil {
+			t.Fatalf("iteration %d: room creation and group deletion both succeeded", i)
+		}
+		if createErr == nil {
+			got, err := core.GetRoomGroup(ctx, group.Id)
+			if err != nil {
+				t.Fatalf("iteration %d: room created but group missing: %v", i, err)
+			}
+			if len(got.GetRoomIds()) != 1 {
+				t.Fatalf("iteration %d: created room but group rooms = %v", i, got.GetRoomIds())
+			}
+		}
+	}
+}
+
+func TestMoveRoomAndDeleteRoomCannotLeaveStaleGroupMembership(t *testing.T) {
+	for i := 0; i < 30; i++ {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+		target, _ := core.CreateRoomGroup(ctx, "actor", "Target", "")
+		room, _ := core.CreateRoom(ctx, "actor", KindChannel, "", "race-room", "")
+
+		start := make(chan struct{})
+		moveDone := make(chan error, 1)
+		deleteDone := make(chan error, 1)
+		go func() {
+			<-start
+			moveDone <- core.MoveRoomToGroup(ctx, "actor", room.Id, target.Id)
+		}()
+		go func() {
+			<-start
+			deleteDone <- core.DeleteRoom(ctx, "actor", KindChannel, room.Id)
+		}()
+		close(start)
+
+		moveErr := <-moveDone
+		deleteErr := <-deleteDone
+		if deleteErr != nil {
+			t.Fatalf("iteration %d: DeleteRoom: %v (MoveRoomToGroup: %v)", i, deleteErr, moveErr)
+		}
+		groups, err := core.ListRoomGroupsOrdered(ctx, KindChannel)
+		if err != nil {
+			t.Fatalf("iteration %d: ListRoomGroupsOrdered: %v", i, err)
+		}
+		for _, group := range groups {
+			for _, roomID := range group.GetRoomIds() {
+				if roomID == room.Id {
+					t.Fatalf("iteration %d: deleted room remains in group %s (move error: %v)", i, group.Id, moveErr)
+				}
+			}
+		}
 	}
 }
 

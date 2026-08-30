@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,6 +53,43 @@ func TestEncodedEventLogPreservesOpaqueRecord(t *testing.T) {
 	}
 	if !bytes.Equal(storedAgain.Data, data) {
 		t.Fatal("mutating returned record changed durable data")
+	}
+}
+
+func TestEncodedEventLogConcurrentStreamAndSubjectPositions(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	const subject = "evt.compatibility.concurrent.created"
+	if _, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{ID: "concurrent-1", Data: []byte("data")}); err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	var workers sync.WaitGroup
+	errorsByWorker := make(chan error, 2)
+	workers.Add(2)
+	go func() {
+		defer workers.Done()
+		for range 100 {
+			if _, err := eventLog.LastStreamSeq(ctx); err != nil {
+				errorsByWorker <- err
+				return
+			}
+		}
+	}()
+	go func() {
+		defer workers.Done()
+		for range 100 {
+			if _, err := eventLog.LastSubjectSeq(ctx, subject); err != nil {
+				errorsByWorker <- err
+				return
+			}
+		}
+	}()
+	workers.Wait()
+	close(errorsByWorker)
+	for err := range errorsByWorker {
+		t.Fatalf("concurrent position read: %v", err)
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	mrand "math/rand"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -110,7 +111,10 @@ type EncodedBatchEntry struct {
 type EncodedEventLog struct {
 	js     jetstream.JetStream
 	stream jetstream.Stream
-	logger Logger
+	// streamMu prevents Stream.Info, which refreshes cached metadata in the
+	// nats.go stream handle, from racing with operations that read that cache.
+	streamMu sync.RWMutex
+	logger   Logger
 }
 
 // NewEncodedEventLog binds opaque event-log mechanics to one JetStream stream.
@@ -120,6 +124,8 @@ func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger 
 
 // StreamUsage returns the current message and byte totals for the bound stream.
 func (l *EncodedEventLog) StreamUsage(ctx context.Context) (messages, bytes uint64, err error) {
+	l.streamMu.Lock()
+	defer l.streamMu.Unlock()
 	info, err := l.stream.Info(ctx)
 	if err != nil {
 		return 0, 0, err
@@ -131,6 +137,8 @@ func (l *EncodedEventLog) StreamUsage(ctx context.Context) (messages, bytes uint
 // the message count, this remains a valid OCC token when messages have been
 // deleted or expired.
 func (l *EncodedEventLog) LastStreamSeq(ctx context.Context) (uint64, error) {
+	l.streamMu.Lock()
+	defer l.streamMu.Unlock()
 	info, err := l.stream.Info(ctx)
 	if err != nil {
 		return 0, err
@@ -518,6 +526,7 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 		deliverPolicy = jetstream.DeliverByStartSequencePolicy
 		startSeq = afterSeq + 1
 	}
+	l.streamMu.RLock()
 	consumer, err := l.stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
 		FilterSubjects:    []string{subject},
 		DeliverPolicy:     deliverPolicy,
@@ -526,10 +535,15 @@ func (l *EncodedEventLog) SubjectRecordsAfterPage(
 		MemoryStorage:     true,
 		InactiveThreshold: 30 * time.Second,
 	})
+	l.streamMu.RUnlock()
 	if err != nil {
 		return SubjectRecordPage{}, err
 	}
-	defer l.stream.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
+	defer func() {
+		l.streamMu.RLock()
+		defer l.streamMu.RUnlock()
+		_ = l.stream.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
+	}()
 
 	info, err := consumer.Info(ctx)
 	if err != nil {
@@ -611,6 +625,8 @@ func (l *EncodedEventLog) SubjectRecordsAfter(
 }
 
 func (l *EncodedEventLog) lastSubjectSeq(ctx context.Context, subject string) (uint64, error) {
+	l.streamMu.RLock()
+	defer l.streamMu.RUnlock()
 	msg, err := l.stream.GetLastMsgForSubject(ctx, subject)
 	if err == nil {
 		return msg.Sequence, nil

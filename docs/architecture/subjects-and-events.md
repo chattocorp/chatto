@@ -360,6 +360,15 @@ cursors are trusted integration coordinates and are not public API cursors.
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go). Protobuf message types are the concrete `evtv1.Event` oneof payloads defined in [`proto/chatto/core/evt/v1/event.proto`](../../proto/chatto/core/evt/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
 
+Room-layout structural commands use atomic EVT batches. Channel-room creation
+commits `RoomCreatedEvent` with `RoomAddedToGroupEvent`. Channel-room deletion
+commits `RoomDeletedEvent` with `RoomRemovedFromGroupEvent`. Room-group creation
+and deletion commit the group lifecycle fact with the resulting
+`RoomGroupsReorderedEvent`. Each batch guards every room, group, layout, and
+authorization boundary that its decision uses. Room moves also guard the
+room-deletion subject, so a concurrent delete cannot leave a stale group
+membership. See ADR-086.
+
 For every attachment message, its `AssetAttachedEvent` is committed in the same
 atomic OCC batch as the owning message body and posted fact. Video messages add
 the Started fact to that batch. The batch guards the room and authorization
