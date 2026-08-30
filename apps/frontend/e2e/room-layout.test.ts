@@ -614,6 +614,58 @@ test.describe('Room Layout', () => {
       ).toHaveCount(2);
     });
 
+    test('admin can create and move a sidebar link from its icon drag handle', async ({ page }) => {
+      await loginAsAdminAndUsePrimaryServer(page);
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const seedSetId = await getSeedSetId(page);
+      await updateRoomLayoutViaAPI(page, [
+        { id: seedSetId, name: 'Main', roomIds: [announcementsId, generalId] },
+        { id: 'sidebar-projects', name: 'Projects', roomIds: [alphaId] }
+      ]);
+      await navigateToSpace(page);
+
+      const main = sidebarGroup(page, 'Main');
+      const projects = sidebarGroup(page, 'Projects');
+      await main.locator('button[aria-expanded]').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'New Link', exact: true }).click();
+
+      const dialog = page.getByRole('dialog', { name: 'Create Link' });
+      await dialog.getByLabel('Label').fill('Docs');
+      await dialog.getByLabel('URL').fill('docs.example.test/guide');
+      await dialog.getByRole('button', { name: 'Create Link', exact: true }).click();
+
+      const linkRow = main.locator('a.sidebar-item', { hasText: 'Docs' });
+      await expect(linkRow).toHaveAttribute('href', 'https://docs.example.test/guide');
+      await linkRow.hover();
+      const handle = linkRow.getByTestId('sidebar-link-drag-handle');
+      await expect(handle).toHaveCSS('opacity', '1');
+      await expect(
+        linkRow.getByTestId('sidebar-link-leading-icon').locator(':scope > span.iconify')
+      ).toHaveCSS('opacity', '0');
+      await expect(linkRow.getByTestId('sidebar-link-actions-button')).toHaveCount(0);
+
+      await dragWithPointer(page, handle, projects.getByTestId('room-group-items-dropzone'), 0.8);
+      await expect(projects.getByTestId('room-group-items-dropzone')).toHaveCSS(
+        'outline-style',
+        'dashed'
+      );
+      await expect(projects.locator('[data-is-dnd-shadow-item-hint="true"]')).toHaveCount(1);
+      await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
+      await page.mouse.up();
+
+      await expect(projects.locator('a.sidebar-item', { hasText: 'Docs' })).toBeVisible();
+      await expect(main.locator('a.sidebar-item', { hasText: 'Docs' })).toHaveCount(0);
+
+      await page.reload();
+      await expect(
+        sidebarGroup(page, 'Projects').locator('a.sidebar-item', { hasText: 'Docs' })
+      ).toHaveAttribute('href', 'https://docs.example.test/guide');
+      await expect(
+        sidebarGroup(page, 'Main').locator('a.sidebar-item', { hasText: 'Docs' })
+      ).toHaveCount(0);
+    });
+
     test('admin can reorder room groups with a visible landing indicator', async ({ page }) => {
       await loginAsAdminAndUsePrimaryServer(page);
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
