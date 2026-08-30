@@ -52,7 +52,7 @@ describe('createThreadAPI', () => {
             threadRootEventId: 'root-1',
             replyCount: 2,
             lastReplyAt: { toDate: () => lastReplyAt },
-            viewerState: { hasUnread: true }
+            viewerState: { hasUnreadReplies: true, attentionLevel: 2 }
           },
           rootMessage: undefined
         }
@@ -81,9 +81,13 @@ describe('createThreadAPI', () => {
           roomName: 'general',
           threadRootEventId: 'root-1',
           rootMessage: null,
+          latestReply: null,
           replyCount: 2,
           lastReplyAt: '2025-01-02T03:04:05.000Z',
-          hasUnread: true
+          participants: [],
+          participantCount: 0,
+          hasUnreadReplies: true,
+          attention: 'important'
         }
       ],
       totalCount: 3,

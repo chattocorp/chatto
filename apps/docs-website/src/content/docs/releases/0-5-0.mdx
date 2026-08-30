@@ -52,6 +52,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     replies, followed conversations, direct messages, and reactions.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="My Threads becomes a conversation inbox">
+    Scan the root and latest reply together, see participants and recent activity, and act
+    without opening the thread. The Unread filter uses the existing thread read cursor. Mark
+    read and Unfollow are available on each conversation.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="Pinned messages">
     Room managers can pin useful channel messages in a shared sidebar. A subtle dot shows
     when a newer pin has not been viewed.
@@ -164,6 +170,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   catalog now needs the room and message read/write MCP scopes. A token that
   has only `chatto:rooms:read` cannot use the expanded catalog.
 
+- Regenerate custom clients that read `ThreadViewerState`. The
+  `has_unread` field is now `has_unread_replies`, and the new
+  `attention_level` field reports notification attention separately. Protobuf
+  tag `2` keeps its Boolean wire type, but the source and ProtoJSON names
+  change. Deploy 0.5 clients and servers together. Stored thread follows, read
+  cursors, and notification state need no migration.
 - Upgrade every Chatto replica before you rely on private time zones. An older replica does not
   understand the sharing setting and can expose a stored time zone. A rollback to an older
   replica has the same risk.

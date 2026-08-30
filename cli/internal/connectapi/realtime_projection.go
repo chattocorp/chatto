@@ -149,14 +149,10 @@ func (a *API) BuildRealtimeProjectionThreadViewerStates(ctx context.Context, use
 			continue
 		}
 		following := true
-		hasUnread := thread.HasUnread
 		states = append(states, &RealtimeProjectionThreadViewerState{
 			RoomID:            thread.RoomID,
 			ThreadRootEventID: thread.ThreadRootEventID,
-			ViewerState: &apiv1.ThreadViewerState{
-				IsFollowing: &following,
-				HasUnread:   &hasUnread,
-			},
+			ViewerState:       apiThreadViewerState(following, thread.HasUnreadReplies, thread.AttentionLevel),
 		})
 	}
 	return states, nil

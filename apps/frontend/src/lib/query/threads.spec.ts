@@ -26,9 +26,13 @@ function thread(
     roomName: 'general',
     threadRootEventId,
     rootMessage: null,
+    latestReply: null,
     replyCount: 1,
     lastReplyAt: '2026-08-01T10:00:00.000Z',
-    hasUnread: false,
+    participants: [],
+    participantCount: 0,
+    hasUnreadReplies: false,
+    attention: 'none',
     ...overrides
   };
 }
@@ -64,12 +68,14 @@ describe('followed thread query helpers', () => {
       totalCount: 2,
       hasMore: false
     });
-    const states = new Map([[followedThreadKey('room-1', 'retained'), { hasUnread: true }]]);
+    const states = new Map([
+      [followedThreadKey('room-1', 'retained'), { hasUnreadReplies: true }]
+    ]);
 
     const reconciled = reconcileFollowedThreadViewerStates(current, states);
 
     expect(flattenFollowedThreads(reconciled.data)).toEqual([
-      thread('retained', { hasUnread: true })
+      thread('retained', { hasUnreadReplies: true })
     ]);
     expect(reconciled.data?.pages[0]).toMatchObject({
       totalCount: 1,
@@ -82,8 +88,8 @@ describe('followed thread query helpers', () => {
   it('reports projection threads that are missing from the cached snapshot', () => {
     const current = data({ threads: [thread('root-1')], totalCount: 2, hasMore: false });
     const states = new Map([
-      [followedThreadKey('room-1', 'root-1'), { hasUnread: false }],
-      [followedThreadKey('room-1', 'root-2'), { hasUnread: true }]
+      [followedThreadKey('room-1', 'root-1'), { hasUnreadReplies: false }],
+      [followedThreadKey('room-1', 'root-2'), { hasUnreadReplies: true }]
     ]);
 
     expect(reconcileFollowedThreadViewerStates(current, states).hasUnknownThreads).toBe(true);
@@ -92,8 +98,8 @@ describe('followed thread query helpers', () => {
   it('does not refetch merely because projected threads belong to unloaded pages', () => {
     const current = data({ threads: [thread('root-1')], totalCount: 2, hasMore: true });
     const states = new Map([
-      [followedThreadKey('room-1', 'root-1'), { hasUnread: false }],
-      [followedThreadKey('room-1', 'root-2'), { hasUnread: true }]
+      [followedThreadKey('room-1', 'root-1'), { hasUnreadReplies: false }],
+      [followedThreadKey('room-1', 'root-2'), { hasUnreadReplies: true }]
     ]);
 
     const reconciled = reconcileFollowedThreadViewerStates(current, states);
@@ -130,16 +136,35 @@ describe('followed thread query helpers', () => {
       threadRootEventId: 'root-1',
       replyCount: 3,
       lastReplyAt: '2026-08-02T10:00:00.000Z',
-      hasUnread: true
+      hasUnreadReplies: true,
+      attentionLevel: 2
     });
     const result = flattenFollowedThreads(updated)[0];
 
-    expect(result).toMatchObject({ replyCount: 3, hasUnread: true });
+    expect(result).toMatchObject({
+      replyCount: 3,
+      hasUnreadReplies: true,
+      attention: 'important'
+    });
     expect(result?.rootMessage?.event).toMatchObject({
       kind: 'messagePosted',
       replyCount: 3,
       lastReplyAt: '2026-08-02T10:00:00.000Z'
     });
+  });
+
+  it('updates attention when the reply summary is unchanged', () => {
+    const current = data({ threads: [thread('root-1')], totalCount: 1, hasMore: false });
+
+    const updated = updateFollowedThreadSummary(current, {
+      roomId: 'room-1',
+      threadRootEventId: 'root-1',
+      replyCount: 1,
+      lastReplyAt: '2026-08-01T10:00:00.000Z',
+      attentionLevel: 2
+    });
+
+    expect(flattenFollowedThreads(updated)[0]?.attention).toBe('important');
   });
 
   it('reconciles every cached session from the process-wide projection owner', () => {
@@ -155,12 +180,12 @@ describe('followed thread query helpers', () => {
 
     reconcileRegisteredFollowedThreadQueries(
       'origin',
-      new Map([[followedThreadKey('room-1', 'retained'), { hasUnread: true }]])
+      new Map([[followedThreadKey('room-1', 'retained'), { hasUnreadReplies: true }]])
     );
 
     for (const key of [firstKey, secondKey]) {
       expect(flattenFollowedThreads(queryClient.getQueryData(key))).toEqual([
-        thread('retained', { hasUnread: true })
+        thread('retained', { hasUnreadReplies: true })
       ]);
     }
   });

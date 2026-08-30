@@ -512,9 +512,10 @@ attention do not use separate transient hint frames. Notification occurrence
 create, update, and delete signals assemble an authoritative
 `notification_occurrences_replace` that contains occurrences plus exact total
 and Important counts. Human connections and bot API-key connections receive
-this same viewer-scoped replacement. A live replacement can carry transition
-metadata for one-shot presentation effects, while replay and finite
-reconciliation omit it.
+this same viewer-scoped replacement. The browser also refreshes a mounted My
+Threads feed because its public attention level derives from these occurrences.
+A live replacement can carry transition metadata for one-shot presentation
+effects, while replay and finite reconciliation omit it.
 
 The internal signal carries no stream coordinate. Before emitting the
 replacement at that live cursor, the serving replica waits until the
@@ -528,13 +529,13 @@ tab remains connected.
 
 Badge marker changes use a separate content-free user invalidation. The server
 maps it to an authoritative `room_viewer_state_replace` and, for thread Badge
-attention, a complete `thread_viewer_states_replace`. The public projection
-continues to use the existing `has_unread` fields. These fields report only
-Badge attention. The independent Message Read Cursor still places the New
-messages separator and does not set `has_unread`. Thus, clients do not receive
-the internal marker or a new public storage coordinate. Thread Badge state
-rolls up into the parent room, and notification orange takes visual priority
-over the neutral unread dot.
+attention, a complete `thread_viewer_states_replace`. The public thread
+projection reports reply unread state and notification attention as separate
+fields. The Message Read Cursor determines `has_unread_replies`. Notification
+occurrences and Badge markers determine the attention level. Clients do not
+receive either internal storage coordinate. Thread attention rolls up into the
+parent room, and notification orange takes visual priority over the neutral
+unread dot.
 
 Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection

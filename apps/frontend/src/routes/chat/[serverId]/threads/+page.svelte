@@ -8,6 +8,8 @@
   import { m } from '$lib/i18n/messages';
 
   import { createThreadAPI, type FollowedThread } from '$lib/api-client/threads';
+  import { createReadStateAPI } from '$lib/api-client/readState';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { queryClient } from '$lib/query/client';
   import {
     flattenFollowedThreads,
@@ -17,40 +19,22 @@
     type FollowedThreadsData
   } from '$lib/query/threads';
   import { EmptyState, Hint, PaneHeader, SegmentedControl } from '$lib/ui';
+  import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import RoomEvent from '../[roomId]/RoomEvent.svelte';
   import { formatDate, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
-  import {
-    createRoomPermissions,
-    DEFAULT_ROOM_PERMISSIONS,
-    createRoomMembers,
-    createComposerContext,
-    createMentionRoles
-  } from '$lib/state/room';
 
   const serverScope = useServerScope();
   const serverStore = $derived(serverScope.store);
-
-  // Provide room contexts so MessageEvent can render in read-only mode.
-  // All permissions are false (no editing, deleting, reacting from this view),
-  // and the members list is empty; role highlighting uses server reference data.
-  createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
-  createRoomMembers();
-  createComposerContext();
-  createMentionRoles(() => serverStore.mentionRoles.roles);
 
   const userSettings = $derived(timeFormatSettingsFor(serverStore.currentUser.user?.settings));
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 
-  $effect(() => {
-    void serverStore.mentionRoles.refresh();
-  });
-
   let reconciledQueryScope: string | null = null;
   let reconciledMountedSnapshot = false;
+  let actionThreadId = $state<string | null>(null);
 
   const threadsQuery = createInfiniteQuery(
     () => {
@@ -101,7 +85,7 @@
   }
 
   const filteredThreads = $derived(
-    filter === 'unread' ? threads.filter((t) => t.hasUnread) : threads
+    filter === 'unread' ? threads.filter((t) => t.hasUnreadReplies) : threads
   );
 
   function reconcilePageWithCurrentProjection(
@@ -135,12 +119,13 @@
       threadRootEventId: thread.threadRootEventId,
       replyCount: summary.replyCount,
       lastReplyAt: summary.lastReplyAt?.toDate().toISOString() ?? null,
-      hasUnread: summary.viewerState?.hasUnread
+      hasUnreadReplies: summary.viewerState?.hasUnreadReplies,
+      attentionLevel: summary.viewerState?.attentionLevel
     });
   }
 
   function reconcileCachedProjection(
-    states: ReadonlyMap<string, { hasUnread?: boolean }>,
+    states: ReadonlyMap<string, { hasUnreadReplies?: boolean; attentionLevel?: number }>,
     refetchUnknown: boolean
   ) {
     const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
@@ -194,6 +179,68 @@
         threadId: thread.threadRootEventId
       })
     );
+  }
+
+  async function markThreadRead(thread: FollowedThread) {
+    const upToEventId = thread.latestReply?.id;
+    if (!upToEventId || actionThreadId) return;
+    actionThreadId = thread.threadRootEventId;
+    try {
+      await serverScope.connection.getAPI(createReadStateAPI).markThreadAsRead({
+        roomId: thread.roomId,
+        threadRootEventId: thread.threadRootEventId,
+        upToEventId
+      });
+      const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
+      queryClient.setQueryData<FollowedThreadsData>(queryKey, (current) =>
+        updateFollowedThreadSummary(current, {
+          roomId: thread.roomId,
+          threadRootEventId: thread.threadRootEventId,
+          replyCount: thread.replyCount,
+          lastReplyAt: thread.lastReplyAt,
+          hasUnreadReplies: false,
+          attentionLevel: 0
+        })
+      );
+    } catch {
+      toast.error(m('common.error.generic'));
+    } finally {
+      actionThreadId = null;
+    }
+  }
+
+  async function unfollowThread(thread: FollowedThread) {
+    if (actionThreadId) return;
+    actionThreadId = thread.threadRootEventId;
+    try {
+      await serverScope.connection.getAPI(createThreadAPI).unfollowThread({
+        roomId: thread.roomId,
+        threadRootEventId: thread.threadRootEventId
+      });
+      await queryClient.invalidateQueries({
+        queryKey: threadQueryKeys.followed(serverScope.serverId, serverScope.connection),
+        exact: true
+      });
+    } catch {
+      toast.error(m('common.error.generic'));
+    } finally {
+      actionThreadId = null;
+    }
+  }
+
+  function messageExcerpt(event: FollowedThread['rootMessage']): string {
+    if (!event || event.event.kind !== 'messagePosted') return m('chat.threads.message_missing');
+    return event.event.body?.trim() || m('room.message.deleted');
+  }
+
+  function actorName(event: FollowedThread['rootMessage']): string {
+    return event?.actor?.displayName || event?.actor?.login || '';
+  }
+
+  function replyCountLabel(count: number): string {
+    return count === 1
+      ? m('room.message.meta.reply_count_one')
+      : m('room.message.meta.reply_count_many', { count });
   }
 
   function formatRelativeTime(timestamp: string | null): string {
@@ -258,43 +305,117 @@
         {/if}
       </EmptyState>
     {:else}
-      <div class="flex flex-col divide-y divide-border">
+      <div class="mx-auto flex w-full max-w-4xl flex-col gap-2 p-2 sm:p-4">
         {#each filteredThreads as thread (thread.threadRootEventId)}
-          <div class="group relative" data-testid="my-thread-item">
-            <!-- Channel label above the message -->
-            <div class="flex gap-4 px-2 pt-4 pb-2 md:mx-2">
-              <div class="w-11 shrink-0"></div>
-              <div class="text-muted">
-                <span
-                  >{#if thread.lastReplyAt}{formatRelativeTime(thread.lastReplyAt)}, {m(
-                      'chat.threads.in_room'
-                    )}{:else}{m('chat.threads.in_room_capitalized')}{/if}
-                  #{thread.roomName}:</span
-                >
-              </div>
-            </div>
-
-            <!-- Clickable wrapper for navigation -->
-            <div
-              class="cursor-pointer pb-4"
+          <article
+            class={[
+              'group relative overflow-hidden rounded-xl border bg-surface transition-colors',
+              'focus-within:border-action/50 hover:border-surface-strong hover:bg-surface-emphasized/40',
+              thread.hasUnreadReplies && 'border-s-2 border-s-text',
+              thread.attention === 'important' && 'border-s-2 border-s-warning',
+              thread.attention === 'ambient' && !thread.hasUnreadReplies && 'border-s-2 border-s-muted'
+            ]}
+            data-testid="my-thread-item"
+          >
+            <button
+              class="flex w-full cursor-pointer flex-col gap-3 p-4 text-start focus:outline-none sm:p-5"
               onclick={() => navigateToThread(thread)}
-              onkeydown={(e) => e.key === 'Enter' && navigateToThread(thread)}
-              role="button"
-              tabindex="0"
             >
-              {#if thread.rootMessage}
-                <RoomEvent
-                  event={thread.rootMessage}
-                  roomId={thread.roomId}
-                  onOpenThread={() => navigateToThread(thread)}
-                />
-              {:else}
-                <div class="px-2 md:mx-2">
-                  <p class="text-sm text-muted">{m('chat.threads.message_missing')}</p>
-                </div>
+              <span class="flex w-full min-w-0 items-center gap-2 text-xs text-muted">
+                <span class="font-semibold text-text">#{thread.roomName}</span>
+                <span aria-hidden="true">·</span>
+                <span>{formatRelativeTime(thread.lastReplyAt)}</span>
+                <span class="ms-auto shrink-0">{replyCountLabel(thread.replyCount)}</span>
+              </span>
+
+              <span class="flex w-full min-w-0 items-start gap-3">
+                {#if thread.rootMessage?.actor}
+                  <UserAvatar user={thread.rootMessage.actor} size="sm" />
+                {/if}
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-xs font-semibold text-muted">
+                    {actorName(thread.rootMessage)}
+                  </span>
+                  <span class="line-clamp-2 block text-sm text-muted">
+                    {messageExcerpt(thread.rootMessage)}
+                  </span>
+                </span>
+              </span>
+
+              {#if thread.latestReply}
+                <span class="ms-4 flex w-[calc(100%-1rem)] min-w-0 items-start gap-3 rounded-lg bg-surface-emphasized/60 p-3 sm:ms-10 sm:w-[calc(100%-2.5rem)]">
+                  {#if thread.latestReply.actor}
+                    <UserAvatar user={thread.latestReply.actor} size="xs" />
+                  {/if}
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-xs font-semibold">
+                      {actorName(thread.latestReply)}
+                    </span>
+                    <span
+                      class={[
+                        'line-clamp-2 block text-sm',
+                        thread.hasUnreadReplies ? 'text-text' : 'text-muted'
+                      ]}
+                    >
+                      {messageExcerpt(thread.latestReply)}
+                    </span>
+                  </span>
+                  {#if thread.hasUnreadReplies}
+                    <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-foreground" aria-hidden="true"></span>
+                  {/if}
+                </span>
               {/if}
+
+              <span class="flex w-full items-center gap-2">
+                <span class="flex -space-x-1.5" aria-hidden="true">
+                  {#each thread.participants.slice(0, 4) as participant (participant.id)}
+                    <UserAvatar
+                      user={participant}
+                      size="xs"
+                      class="ring-2 ring-surface"
+                      useLiveProfile={false}
+                    />
+                  {/each}
+                </span>
+                {#if thread.participantCount > thread.participants.length}
+                  <span class="text-xs text-muted">
+                    +{thread.participantCount - thread.participants.length}
+                  </span>
+                {/if}
+              </span>
+            </button>
+
+            <div
+              class="absolute end-3 bottom-3 flex gap-1 rounded-lg bg-surface/95 p-1 opacity-100 shadow-sm sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            >
+              {#if thread.hasUnreadReplies && thread.latestReply}
+                <button
+                  class="btn-ghost min-h-8 min-w-8 px-2 py-1"
+                  disabled={actionThreadId === thread.threadRootEventId}
+                  onclick={(event) => {
+                    event.stopPropagation();
+                    void markThreadRead(thread);
+                  }}
+                  title={m('room_list.mark_as_read')}
+                  aria-label={m('room_list.mark_as_read')}
+                >
+                  <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
+                </button>
+              {/if}
+              <button
+                class="btn-ghost min-h-8 min-w-8 px-2 py-1"
+                disabled={actionThreadId === thread.threadRootEventId}
+                onclick={(event) => {
+                  event.stopPropagation();
+                  void unfollowThread(thread);
+                }}
+                title={m('room.message.meta.unfollow_thread')}
+                aria-label={m('room.message.meta.unfollow_thread')}
+              >
+                <span class="iconify icon-[uil--bell-slash]" aria-hidden="true"></span>
+              </button>
             </div>
-          </div>
+          </article>
         {/each}
         {#if hasMore}
           <div class="flex min-h-14 justify-center p-4 text-muted" {@attach loadMoreWhenVisible}>

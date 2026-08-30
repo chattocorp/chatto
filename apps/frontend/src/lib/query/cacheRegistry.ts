@@ -4,16 +4,21 @@ type AdminUserRemovalListener = (serverId: string, userId: string) => void;
 type QueryCacheRemovalListener = (serverId: string) => void;
 type AdminRoomQueryReconciler = (serverId: string, roomId: string, removed: boolean) => void;
 type AdminRoomGroupQueryReconciler = (serverId: string, visibleGroupIds: readonly string[]) => void;
-type FollowedThreadViewerState = { hasUnread?: boolean };
+type FollowedThreadViewerState = {
+  hasUnreadReplies?: boolean;
+  attentionLevel?: number;
+};
 type FollowedThreadSummary = {
   roomId: string;
   threadRootEventId: string;
   replyCount: number;
   lastReplyAt: string | null;
-  hasUnread?: boolean;
+  hasUnreadReplies?: boolean;
+  attentionLevel?: number;
 };
 type FollowedThreadCache = {
   reset(serverId: string): void;
+  refresh(serverId: string): void;
   reconcile(serverId: string, states: ReadonlyMap<string, FollowedThreadViewerState>): void;
   scrubRoom(serverId: string, roomId: string): void;
   scrubMessage(serverId: string, roomId: string, eventId: string): void;
@@ -79,6 +84,11 @@ export function scrubRegisteredRoomMemberUser(serverId: string, userId: string):
 
 export function resetRegisteredFollowedThreadQueries(serverId: string): void {
   followedThreadCache?.reset(serverId);
+}
+
+/** Refresh followed-thread feed data after activity changes its latest reply. */
+export function refreshRegisteredFollowedThreadQueries(serverId: string): void {
+  followedThreadCache?.refresh(serverId);
 }
 
 export function reconcileRegisteredFollowedThreadQueries(

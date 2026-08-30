@@ -63,6 +63,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     removeRegisteredAdminUserQueries: vi.fn(),
     removeRegisteredServerQueries: vi.fn(),
     resetFollowedThreads: vi.fn(),
+    refreshFollowedThreads: vi.fn(),
     reconcileFollowedThreads: vi.fn(),
     scrubFollowedThreadRoom: vi.fn(),
     scrubFollowedThreadMessage: vi.fn(),
@@ -431,6 +432,7 @@ beforeEach(() => {
   });
   registerFollowedThreadQueryCache({
     reset: cacheMocks.resetFollowedThreads,
+    refresh: cacheMocks.refreshFollowedThreads,
     reconcile: cacheMocks.reconcileFollowedThreads,
     scrubRoom: cacheMocks.scrubFollowedThreadRoom,
     scrubMessage: cacheMocks.scrubFollowedThreadMessage,
@@ -443,6 +445,7 @@ beforeEach(() => {
     scrubUser: cacheMocks.scrubRoomMemberUser
   });
   cacheMocks.resetFollowedThreads.mockClear();
+  cacheMocks.refreshFollowedThreads.mockClear();
   cacheMocks.reconcileFollowedThreads.mockClear();
   cacheMocks.scrubFollowedThreadRoom.mockClear();
   cacheMocks.scrubFollowedThreadMessage.mockClear();

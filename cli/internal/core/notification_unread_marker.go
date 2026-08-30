@@ -132,6 +132,39 @@ func (m *NotificationOccurrenceModel) HasNotificationUnread(ctx context.Context,
 	return false, nil
 }
 
+// ThreadAttentionLevel returns the strongest current notification attention
+// for one exact thread. Badge markers are Ambient. Unread occurrences can
+// raise the level to Important.
+func (m *NotificationOccurrenceModel) ThreadAttentionLevel(ctx context.Context, userID, roomID, threadRootEventID string) (ThreadAttentionLevel, error) {
+	badgeUnread, err := m.HasNotificationUnread(ctx, userID, roomID, threadRootEventID)
+	if err != nil {
+		return ThreadAttentionLevelNone, err
+	}
+	level := ThreadAttentionLevelNone
+	if badgeUnread {
+		level = ThreadAttentionLevelAmbient
+	}
+	occurrences := m.projection.Projection().scopeOccurrences(notificationReadBoundaryScope{
+		userID: userID, roomID: roomID, threadRootEventID: threadRootEventID,
+	}, m.now().UTC())
+	visible, err := m.VisibleOccurrences(ctx, userID, occurrences)
+	if err != nil {
+		return ThreadAttentionLevelNone, err
+	}
+	for _, occurrence := range visible {
+		if occurrence == nil || occurrence.GetRead() {
+			continue
+		}
+		switch occurrence.GetAttentionLevel() {
+		case notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT:
+			return ThreadAttentionLevelImportant, nil
+		case notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT:
+			level = ThreadAttentionLevelAmbient
+		}
+	}
+	return level, nil
+}
+
 func (m *NotificationOccurrenceModel) notificationUnreadMarkerActive(ctx context.Context, userID string, marker *runtimestatev1.NotificationUnreadMarker) (bool, error) {
 	if marker == nil || marker.GetSourceStreamSequence() == 0 {
 		return false, nil

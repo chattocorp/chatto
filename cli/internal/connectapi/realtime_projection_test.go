@@ -173,13 +173,18 @@ func TestRealtimeProjectionLatestValueViewerStatesConverge(t *testing.T) {
 		t.Fatalf("BuildRealtimeProjectionThreadViewerStates unread: %v", err)
 	}
 	foundUnreadThread := false
+	foundAttention := apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_UNSPECIFIED
 	for _, state := range threadStates {
 		if state.ThreadRootEventID == root.Id {
-			foundUnreadThread = state.ViewerState.GetIsFollowing() && state.ViewerState.GetHasUnread()
+			foundUnreadThread = state.ViewerState.GetIsFollowing() && state.ViewerState.GetHasUnreadReplies()
+			foundAttention = state.ViewerState.GetAttentionLevel()
 		}
 	}
 	if !foundUnreadThread {
 		t.Fatalf("followed thread %s missing unread viewer state: %+v", root.Id, threadStates)
+	}
+	if foundAttention != apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_IMPORTANT {
+		t.Fatalf("followed thread attention = %v, want Important", foundAttention)
 	}
 
 	roomStates, err := env.api.BuildRealtimeProjectionRoomViewerStates(env.ctx, env.viewer.Id)
@@ -208,8 +213,14 @@ func TestRealtimeProjectionLatestValueViewerStatesConverge(t *testing.T) {
 		t.Fatalf("BuildRealtimeProjectionThreadViewerStates read: %v", err)
 	}
 	for _, state := range threadStates {
-		if state.ThreadRootEventID == root.Id && state.ViewerState.GetHasUnread() {
-			t.Fatalf("thread %s remained unread after marker advance", root.Id)
+		if state.ThreadRootEventID != root.Id {
+			continue
+		}
+		if state.ViewerState.GetHasUnreadReplies() {
+			t.Fatalf("thread %s retained unread replies after cursor advance", root.Id)
+		}
+		if state.ViewerState.GetAttentionLevel() != apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_IMPORTANT {
+			t.Fatalf("thread %s attention = %v after cursor-only advance, want Important", root.Id, state.ViewerState.GetAttentionLevel())
 		}
 	}
 }

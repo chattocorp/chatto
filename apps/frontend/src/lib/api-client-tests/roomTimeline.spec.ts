@@ -295,7 +295,7 @@ describe('roomTimelinePageToEventConnectionPage', () => {
                   replyCount: 1,
                   participantPreviewUserIds: ['u2'],
                   participantCount: 1,
-                  viewerState: { isFollowing: true, hasUnread: true }
+                  viewerState: { isFollowing: true, hasUnreadReplies: true }
                 },
                 reactions: [
                   {

@@ -19,10 +19,13 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		}, nil
 	}
 
-	messageIDs := make([]string, 0, len(page.Threads))
+	messageIDs := make([]string, 0, len(page.Threads)*2)
 	for _, thread := range page.Threads {
 		if thread != nil && thread.ThreadRootEventID != "" {
 			messageIDs = append(messageIDs, thread.ThreadRootEventID)
+			if thread.LatestReplyEventID != "" {
+				messageIDs = append(messageIDs, thread.LatestReplyEventID)
+			}
 		}
 	}
 	reactionsByMessageID, err := api.core.GetReactionsBatch(ctx, messageIDs)
@@ -67,6 +70,20 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 			}
 			rootMessage = messageFromTimelineEvent(apiEvent)
 		}
+		var latestReply *apiv1.Message
+		if thread.LatestReplyEventID != "" {
+			latestEvent, err := api.core.GetRoomEventByEventID(ctx, kind, thread.RoomID, thread.LatestReplyEventID)
+			if err != nil {
+				return nil, err
+			}
+			if latestEvent != nil {
+				apiEvent, err := h.event(ctx, &core.RoomEvent{Event: latestEvent})
+				if err != nil {
+					return nil, err
+				}
+				latestReply = messageFromTimelineEvent(apiEvent)
+			}
+		}
 
 		var lastReplyAt *timestamppb.Timestamp
 		if thread.LastReplyAt != nil {
@@ -75,9 +92,9 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		participantPreviewUserIDs := firstN(thread.ParticipantIDs, 5)
 		h.addUserIDs(participantPreviewUserIDs)
 		following := true
-		hasUnread := thread.HasUnread
 		return &apiv1.FollowedThread{
 			RootMessage: rootMessage,
+			LatestReply: latestReply,
 			Room:        apiRoomSummary(room),
 			Thread: &apiv1.ThreadSummary{
 				ThreadRootEventId:         thread.ThreadRootEventID,
@@ -85,10 +102,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 				LastReplyAt:               lastReplyAt,
 				ParticipantPreviewUserIds: participantPreviewUserIDs,
 				ParticipantCount:          int32(len(thread.ParticipantIDs)),
-				ViewerState: &apiv1.ThreadViewerState{
-					IsFollowing: &following,
-					HasUnread:   &hasUnread,
-				},
+				ViewerState:               apiThreadViewerState(following, thread.HasUnreadReplies, thread.AttentionLevel),
 			},
 		}, nil
 	})
@@ -106,4 +120,20 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		Includes: &apiv1.RoomTimelineIncludes{Users: users},
 		Page:     apiPageInfo(page.TotalCount, page.HasMore),
 	}, nil
+}
+
+func apiThreadViewerState(following, hasUnreadReplies bool, attention core.ThreadAttentionLevel) *apiv1.ThreadViewerState {
+	state := &apiv1.ThreadViewerState{
+		IsFollowing:      &following,
+		HasUnreadReplies: &hasUnreadReplies,
+	}
+	switch attention {
+	case core.ThreadAttentionLevelAmbient:
+		state.AttentionLevel = apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_AMBIENT
+	case core.ThreadAttentionLevelImportant:
+		state.AttentionLevel = apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_IMPORTANT
+	default:
+		state.AttentionLevel = apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_UNSPECIFIED
+	}
+	return state
 }

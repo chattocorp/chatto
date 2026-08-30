@@ -62,6 +62,8 @@ message FollowedThread {
   RoomSummary room = 8;
   // Aggregated thread state.
   ThreadSummary thread = 9;
+  // Most recent visible reply, when the thread has one.
+  Message latest_reply = 10;
 }
 
 // Request for a page of followed threads for the current user.

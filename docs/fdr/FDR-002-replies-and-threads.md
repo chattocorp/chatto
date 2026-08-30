@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-08-29
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -34,6 +34,9 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - Before a user posts another root within five minutes of their latest root in the room, the client checks whether that previous root now has a thread. If it does, the client asks whether to continue in that thread or post the prepared root as-is. This also covers a thread another user established after the root was posted. Cancelling preserves the draft. The prompt is omitted when the user cannot post in that thread or when the current room policy forbids thread replies.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
+- My Threads lists followed conversations with their root, latest visible
+  reply, participant preview, reply count, activity time, reply unread state,
+  and separate notification attention.
 - An open thread overlays the dimmed, inactive room timeline by default. A user can instead select a side-by-side layout in App Preferences. The side-by-side layout keeps both panes interactive when the room area is wide enough and uses the overlay when the area becomes too narrow. The side-by-side thread pane is resizable, and the app remembers its width on the device.
 - Within the room's Threading Mode, a user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread. Location permissions still gate the allowed operations independently.
 
@@ -115,4 +118,4 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 ## Related
 
 - **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-050 (ephemeral encrypted projection snapshots), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
-- **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)
+- **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-039 (Message Access & Interactions), FDR-044 (My Threads)

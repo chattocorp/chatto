@@ -290,6 +290,13 @@ export class FollowedThread extends Message<FollowedThread> {
    */
   thread?: ThreadSummary;
 
+  /**
+   * Most recent visible reply, when the thread has one.
+   *
+   * @generated from field: chatto.api.v1.Message latest_reply = 10;
+   */
+  latestReply?: Message$1;
+
   constructor(data?: PartialMessage<FollowedThread>) {
     super();
     proto3.util.initPartial(data, this);
@@ -301,6 +308,7 @@ export class FollowedThread extends Message<FollowedThread> {
     { no: 4, name: "root_message", kind: "message", T: Message$1 },
     { no: 8, name: "room", kind: "message", T: RoomSummary },
     { no: 9, name: "thread", kind: "message", T: ThreadSummary },
+    { no: 10, name: "latest_reply", kind: "message", T: Message$1 },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FollowedThread {

@@ -277,6 +277,9 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 	if got, want := *metadata.LastReplyAt, fixedTime(3); !got.Equal(want) {
 		t.Errorf("ThreadMetadata LastReplyAt = %v, want %v", got, want)
 	}
+	if got, want := metadata.LatestReplyEventID, "ENV-R2"; got != want {
+		t.Errorf("ThreadMetadata LatestReplyEventID = %q, want %q", got, want)
+	}
 	if !slices.Equal(metadata.ParticipantIDs, []string{"U2", "U3"}) {
 		t.Errorf("ThreadMetadata ParticipantIDs = %v, want [U2 U3]", metadata.ParticipantIDs)
 	}
@@ -429,6 +432,9 @@ func TestThreadProjection_MetadataRecomputesWhenLatestReplyRetracted(t *testing.
 	}
 	if got, want := *metadata.LastReplyAt, fixedTime(2); !got.Equal(want) {
 		t.Errorf("LastReplyAt = %v, want %v", got, want)
+	}
+	if got, want := metadata.LatestReplyEventID, "ENV-R1"; got != want {
+		t.Errorf("LatestReplyEventID = %q, want %q", got, want)
 	}
 	if !slices.Equal(metadata.ParticipantIDs, []string{"U1"}) {
 		t.Errorf("ParticipantIDs = %v, want [U1]", metadata.ParticipantIDs)

@@ -196,7 +196,8 @@ export class ServerProjectionStore {
               nextThread.viewerState =
                 this.threadViewerStates
                   .get(`${roomId}\u0000${thread.threadRootEventId}`)
-                  ?.clone() ?? new ThreadViewerState({ isFollowing: false, hasUnread: false });
+                  ?.clone() ??
+                  new ThreadViewerState({ isFollowing: false, hasUnreadReplies: false });
               changed = true;
               return next;
             });

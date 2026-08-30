@@ -21,7 +21,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-08-27 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-08-25 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-08-27 |
-| [FDR-012](FDR-012-notifications.md) | Notifications | Experimental | 2026-08-29 |
+| [FDR-012](FDR-012-notifications.md) | Notifications | Experimental | 2026-08-30 |
 | [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-08-30 |
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
 | [FDR-015](FDR-015-quick-switcher.md) | Quick Switcher (Cmd-K) | Active | 2026-08-27 |
@@ -53,3 +53,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |
 | [FDR-042](FDR-042-chatto-neighbors.md) | Chatto Neighbors | Experimental | 2026-08-30 |
 | [FDR-043](FDR-043-model-context-protocol-integration.md) | Model Context Protocol Integration | Experimental | 2026-08-30 |
+| [FDR-044](FDR-044-my-threads.md) | My Threads | Active | 2026-08-30 |

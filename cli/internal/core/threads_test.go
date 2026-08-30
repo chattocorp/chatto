@@ -952,7 +952,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 	})
 
-	t.Run("hasUnread is true when thread has activity after last opened", func(t *testing.T) {
+	t.Run("hasUnreadReplies is true when thread has activity after last opened", func(t *testing.T) {
 		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
@@ -966,13 +966,13 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		// So User A's last-opened is from when they were auto-followed... but the
 		// auto-follow doesn't set last-opened. Let's verify:
 		for _, thread := range threads {
-			if !thread.HasUnread {
-				t.Errorf("Expected hasUnread=true for thread %s (user never opened it)", thread.ThreadRootEventID)
+			if !thread.HasUnreadReplies {
+				t.Errorf("Expected HasUnreadReplies=true for thread %s (user never opened it)", thread.ThreadRootEventID)
 			}
 		}
 	})
 
-	t.Run("hasUnread is false after opening the thread", func(t *testing.T) {
+	t.Run("hasUnreadReplies is false after opening the thread", func(t *testing.T) {
 		// User A opens thread 2
 		core.SetThreadLastOpened(ctx, KindChannel, userA.Id, room2.Id, rootMsg2.Id)
 
@@ -983,12 +983,12 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 
 		for _, thread := range threads {
 			if thread.ThreadRootEventID == rootMsg2.Id {
-				if thread.HasUnread {
-					t.Error("Expected hasUnread=false after opening thread 2")
+				if thread.HasUnreadReplies {
+					t.Error("Expected HasUnreadReplies=false after opening thread 2")
 				}
 			} else if thread.ThreadRootEventID == rootMsg1.Id {
-				if !thread.HasUnread {
-					t.Error("Expected hasUnread=true for thread 1 (not opened)")
+				if !thread.HasUnreadReplies {
+					t.Error("Expected HasUnreadReplies=true for thread 1 (not opened)")
 				}
 			}
 		}

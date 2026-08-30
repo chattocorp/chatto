@@ -3,6 +3,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { NotificationAttentionLevel } from '$lib/api-client/notifications';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -11,14 +12,26 @@
   const serverScope = useServerScope();
   const serverId = $derived(serverScope.serverId);
   const notificationStore = $derived(serverScope.store.notifications);
-  const hasNotification = $derived(
-    notificationStore.unreadOccurrences.some((n) => notificationTarget(n).threadRootId !== null)
+  const threadNotifications = $derived(
+    notificationStore.unreadOccurrences.filter((n) => notificationTarget(n).threadRootId !== null)
   );
+  const hasNotification = $derived(threadNotifications.length > 0);
 
   const hasUnread = $derived(
     hasNotification ||
       [...serverScope.store.projection.threadViewerStates.values()].some(
-        (state) => state.isFollowing && state.hasUnread
+        (state) =>
+          state.isFollowing &&
+          (state.hasUnreadReplies || state.attentionLevel !== 0)
+      )
+  );
+
+  const hasImportantAttention = $derived(
+    threadNotifications.some(
+      (notification) => notification.attentionLevel === NotificationAttentionLevel.IMPORTANT
+    ) ||
+      [...serverScope.store.projection.threadViewerStates.values()].some(
+        (state) => state.isFollowing && state.attentionLevel === 2
       )
   );
 </script>
@@ -33,7 +46,7 @@
   {#if hasUnread}
     <UnreadDot
       class="ms-auto"
-      color={hasNotification ? 'warning' : 'neutral'}
+      color={hasImportantAttention ? 'warning' : 'neutral'}
       testid="my-threads-unread-dot"
     />
   {/if}

@@ -6,7 +6,7 @@ import { queryClient } from './client';
 import { registerFollowedThreadQueryCache } from './cacheRegistry';
 
 type ThreadQueryConnection = Pick<ServerConnection, 'queryScope'>;
-type ThreadViewerState = { hasUnread?: boolean };
+type ThreadViewerState = { hasUnreadReplies?: boolean; attentionLevel?: number };
 
 export type FollowedThreadsQueryPage = FollowedThreadsPage & {
   /** Next server offset, preserved even when projection reconciliation filters rows. */
@@ -20,7 +20,8 @@ export type ThreadSummaryUpdate = {
   threadRootEventId: string;
   replyCount: number;
   lastReplyAt: string | null;
-  hasUnread?: boolean;
+  hasUnreadReplies?: boolean;
+  attentionLevel?: number;
 };
 
 function threadRoot(serverId: string, connection: ThreadQueryConnection) {
@@ -61,11 +62,17 @@ export function updateFollowedThreadSummary(
   const pages = data.pages.map((page) => ({
     ...page,
     threads: page.threads.map((thread) => {
+      const attention =
+        update.attentionLevel === undefined
+          ? thread.attention
+          : threadAttentionFromProto(update.attentionLevel);
       if (
         thread.roomId !== update.roomId ||
         thread.threadRootEventId !== update.threadRootEventId ||
         (thread.replyCount === update.replyCount &&
-          (update.hasUnread === undefined || thread.hasUnread === update.hasUnread))
+          (update.hasUnreadReplies === undefined ||
+            thread.hasUnreadReplies === update.hasUnreadReplies) &&
+          thread.attention === attention)
       ) {
         return thread;
       }
@@ -87,7 +94,8 @@ export function updateFollowedThreadSummary(
             : rootMessage,
         replyCount: update.replyCount,
         lastReplyAt: update.lastReplyAt ?? thread.lastReplyAt,
-        hasUnread: update.hasUnread ?? thread.hasUnread
+        hasUnreadReplies: update.hasUnreadReplies ?? thread.hasUnreadReplies,
+        attention
       };
     })
   }));
@@ -119,10 +127,13 @@ export function reconcileFollowedThreadViewerStates(
         changed = true;
         return [];
       }
-      const hasUnread = state.hasUnread ?? false;
-      if (thread.hasUnread === hasUnread) return [thread];
+      const hasUnreadReplies = state.hasUnreadReplies ?? false;
+      const attention = threadAttentionFromProto(state.attentionLevel ?? 0);
+      if (thread.hasUnreadReplies === hasUnreadReplies && thread.attention === attention) {
+        return [thread];
+      }
       changed = true;
-      return [{ ...thread, hasUnread }];
+      return [{ ...thread, hasUnreadReplies, attention }];
     });
     return threads.length === page.threads.length && !changed ? page : { ...page, threads };
   });
@@ -141,6 +152,12 @@ export function reconcileFollowedThreadViewerStates(
     data: changed ? { ...data, pages } : data,
     hasUnknownThreads
   };
+}
+
+function threadAttentionFromProto(level: number): FollowedThread['attention'] {
+  if (level === 2) return 'important';
+  if (level === 1) return 'ambient';
+  return 'none';
 }
 
 function isFollowedThreadQuery(key: QueryKey, serverId: string): boolean {
@@ -178,6 +195,12 @@ function resetFollowedThreadQueries(serverId: string): void {
         predicate: (query) => isFollowedThreadQuery(query.queryKey, serverId)
       })
     );
+}
+
+function refreshFollowedThreadQueries(serverId: string): void {
+  for (const query of followedThreadQueries(serverId)) {
+    void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
+  }
 }
 
 function resumeFollowedThreadQuery(queryKey: QueryKey): void {
@@ -270,6 +293,7 @@ function updateFollowedThreadQueries(serverId: string, summary: ThreadSummaryUpd
 
 registerFollowedThreadQueryCache({
   reset: resetFollowedThreadQueries,
+  refresh: refreshFollowedThreadQueries,
   reconcile: reconcileFollowedThreadQueries,
   scrubRoom: scrubFollowedThreadRoom,
   scrubMessage: scrubFollowedThreadMessage,

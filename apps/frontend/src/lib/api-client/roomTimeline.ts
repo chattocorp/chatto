@@ -383,7 +383,9 @@ export function messagePostedPayload(
     viewerIsFollowingThread:
       thread?.viewerState?.isFollowing !== undefined ? thread.viewerState.isFollowing : null,
     viewerHasUnreadThread:
-      thread?.viewerState?.hasUnread !== undefined ? thread.viewerState.hasUnread : null,
+      thread?.viewerState?.hasUnreadReplies !== undefined
+        ? thread.viewerState.hasUnreadReplies
+        : null,
     reactions: message.reactions.map((reaction) => ({
       emoji: reaction.emoji,
       count: reaction.count,

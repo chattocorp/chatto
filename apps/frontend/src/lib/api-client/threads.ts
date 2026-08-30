@@ -8,15 +8,23 @@ import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { messageToTimelineEvent } from './roomTimeline.js';
+import { ThreadAttentionLevel } from '@chatto/api-types/api/v1/message_types_pb';
+import type { UserAvatarUserView } from '$lib/render/users';
+
+export type FollowedThreadAttention = 'none' | 'ambient' | 'important';
 
 export type FollowedThread = {
   roomId: string;
   roomName: string;
   threadRootEventId: string;
   rootMessage: TimelineEventView | null;
+  latestReply: TimelineEventView | null;
   replyCount: number;
   lastReplyAt: string | null;
-  hasUnread: boolean;
+  participants: UserAvatarUserView[];
+  participantCount: number;
+  hasUnreadReplies: boolean;
+  attention: FollowedThreadAttention;
 };
 
 export type FollowedThreadsPage = {
@@ -57,17 +65,29 @@ export function createThreadAPI(config: ConnectAPIConfig) {
         );
         const users = response.includes?.users ?? {};
         return {
-          threads: response.threads.map((thread) => ({
-            roomId: thread.room?.id ?? '',
-            roomName: thread.room?.name ?? '',
-            threadRootEventId: thread.thread?.threadRootEventId ?? '',
-            rootMessage: thread.rootMessage
+          threads: response.threads.map((thread) => {
+            const rootMessage = thread.rootMessage
               ? messageToTimelineEvent(thread.rootMessage, users as Record<string, User>)
-              : null,
-            replyCount: thread.thread?.replyCount ?? 0,
-            lastReplyAt: timestampToISOOrNull(thread.thread?.lastReplyAt),
-            hasUnread: thread.thread?.viewerState?.hasUnread ?? false
-          })),
+              : null;
+            return {
+              roomId: thread.room?.id ?? '',
+              roomName: thread.room?.name ?? '',
+              threadRootEventId: thread.thread?.threadRootEventId ?? '',
+              rootMessage,
+              latestReply: thread.latestReply
+                ? messageToTimelineEvent(thread.latestReply, users as Record<string, User>)
+                : null,
+              replyCount: thread.thread?.replyCount ?? 0,
+              lastReplyAt: timestampToISOOrNull(thread.thread?.lastReplyAt),
+              participants:
+                rootMessage?.event.kind === 'messagePosted'
+                  ? rootMessage.event.threadParticipants
+                  : [],
+              participantCount: thread.thread?.participantCount ?? 0,
+              hasUnreadReplies: thread.thread?.viewerState?.hasUnreadReplies ?? false,
+              attention: mapThreadAttention(thread.thread?.viewerState?.attentionLevel)
+            };
+          }),
           totalCount: Number(response.page?.totalCount ?? 0),
           hasMore: response.page?.hasMore ?? false
         };
@@ -110,6 +130,17 @@ export function createThreadAPI(config: ConnectAPIConfig) {
       }
     }
   };
+}
+
+function mapThreadAttention(level: ThreadAttentionLevel | undefined): FollowedThreadAttention {
+  switch (level) {
+    case ThreadAttentionLevel.IMPORTANT:
+      return 'important';
+    case ThreadAttentionLevel.AMBIENT:
+      return 'ambient';
+    default:
+      return 'none';
+  }
 }
 
 function mapThreadFollowState(state: {

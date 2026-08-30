@@ -63,6 +63,7 @@ import {
   scrubRegisteredFollowedThreadMessage,
   scrubRegisteredFollowedThreadRoom,
   scrubRegisteredFollowedThreadUser,
+  refreshRegisteredFollowedThreadQueries,
   scrubRegisteredRoomMemberUser,
   updateRegisteredFollowedThreadSummary
 } from '$lib/query/cacheRegistry';
@@ -523,6 +524,9 @@ export class ServerStateStore {
             this.#roomPins[update.roomId]?.applyMessageUpdate(update.event.id, projectedMessage);
           }
           const threadSummary = projectedMessage?.thread;
+          if (projectedMessage?.threadRootEventId) {
+            refreshRegisteredFollowedThreadQueries(this.serverId);
+          }
           if (
             update.event &&
             projectedMessage &&
@@ -534,7 +538,8 @@ export class ServerStateStore {
               threadRootEventId: update.event.id,
               replyCount: threadSummary.replyCount,
               lastReplyAt: threadSummary.lastReplyAt?.toDate().toISOString() ?? null,
-              hasUnread: threadSummary.viewerState?.hasUnread
+              hasUnreadReplies: threadSummary.viewerState?.hasUnreadReplies,
+              attentionLevel: threadSummary.viewerState?.attentionLevel
             });
           }
           if (update.event && !update.reactionChange) {
@@ -582,6 +587,7 @@ export class ServerStateStore {
               mapNotificationOccurrencePage(replacement.occurrences)
             );
           }
+          refreshRegisteredFollowedThreadQueries(this.serverId);
           break;
         }
         case 'roomViewerStateReplace': {

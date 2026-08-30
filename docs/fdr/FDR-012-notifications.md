@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-29
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -233,11 +233,13 @@ success.
 **Decision:** Realtime notification updates tell clients to replace their
 finite notification view from authoritative server state. Badge updates tell
 clients to replace the affected room state and, when applicable, the complete
-followed-thread viewer state. Followed-thread Badge attention also contributes
-to the My Threads navigation indicator. Unread totals remain exact even when
+followed-thread viewer state. My Threads presents this attention separately
+from the thread read cursor. Followed-thread attention also contributes to the
+My Threads navigation indicator. Unread totals remain exact even when
 rows are grouped. The client also performs quiet periodic
 reconciliation so a lost transient update cannot leave counts stale
-indefinitely.
+indefinitely. A notification replacement refreshes a mounted My Threads feed,
+so row attention converges with the notification list.
 
 **Why:** A transient notification invalidation is not durable notification
 state. Rebuilding the finite projection avoids exposing internal storage

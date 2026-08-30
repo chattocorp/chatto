@@ -638,7 +638,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 						state.ViewerState.IsFollowing = &isFollowing
 						if evt.GetActorId() != viewerID {
 							hasUnread := true
-							state.ViewerState.HasUnread = &hasUnread
+							state.ViewerState.HasUnreadReplies = &hasUnread
 						}
 						break
 					}
@@ -650,8 +650,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 						RoomID:            roomID,
 						ThreadRootEventID: rootID,
 						ViewerState: &apiv1.ThreadViewerState{
-							IsFollowing: &isFollowing,
-							HasUnread:   &hasUnread,
+							IsFollowing:      &isFollowing,
+							HasUnreadReplies: &hasUnread,
 						},
 					})
 				}

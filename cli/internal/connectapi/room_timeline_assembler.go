@@ -280,19 +280,19 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 			if err != nil {
 				return nil, err
 			}
-			hasUnreadBadge, err := h.api.core.NotificationOccurrences().HasNotificationUnread(ctx, h.viewerID, payload.GetRoomId(), event.Id)
+			attentionLevel, err := h.api.core.NotificationOccurrences().ThreadAttentionLevel(ctx, h.viewerID, payload.GetRoomId(), event.Id)
 			if err != nil {
 				return nil, err
 			}
-			hasUnread := hasUnreadBadge
+			hasUnreadReplies := false
 			if following && metadata.LastReplyAt != nil {
 				lastOpened, err := h.api.core.GetThreadLastOpened(ctx, h.kind, h.viewerID, payload.GetRoomId(), event.Id)
 				if err != nil {
 					return nil, err
 				}
-				hasUnread = hasUnread || lastOpened.IsZero() || metadata.LastReplyAt.After(lastOpened)
+				hasUnreadReplies = lastOpened.IsZero() || metadata.LastReplyAt.After(lastOpened)
 			}
-			thread.ViewerState = &apiv1.ThreadViewerState{IsFollowing: &following, HasUnread: &hasUnread}
+			thread.ViewerState = apiThreadViewerState(following, hasUnreadReplies, attentionLevel)
 			message.Thread = thread
 		}
 	}

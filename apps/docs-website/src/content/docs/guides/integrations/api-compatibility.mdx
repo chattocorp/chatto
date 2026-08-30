@@ -68,6 +68,15 @@ The new fields on
 protobuf wire level. Programmatic clients can use the complete renewable pair.
 The bundled same-origin client completes this flow with its HttpOnly cookie.
 
+Chatto 0.5 renames `ThreadViewerState.has_unread` to
+`has_unread_replies` and adds `attention_level`. Regenerate clients and update
+ProtoJSON consumers. Protobuf tag `2` keeps its Boolean wire type, but its
+source and JSON names change. Its meaning is now limited to replies after the
+thread read cursor. Notification occurrences and Badge markers set
+`attention_level` independently. `FollowedThread.latest_reply` is additive.
+Deploy 0.5 clients and servers together. Existing stored follow facts, read
+cursors, and notification state remain valid.
+
 Chatto 0.5 removes `current_password` from
 `chatto.admin.v1.DeleteUserRequest`. Regenerate custom clients and stop sending
 that field. An older binary client can send protobuf tag `2` to a 0.5 server;

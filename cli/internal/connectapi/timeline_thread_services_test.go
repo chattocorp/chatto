@@ -1002,7 +1002,7 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 		t.Fatalf("JoinRoom participant: %v", err)
 	}
 	root := env.post(room.Id, env.viewer.Id, "root body", "")
-	env.post(room.Id, participant.Id, "reply body", root.Id)
+	reply := env.post(room.Id, participant.Id, "reply body", root.Id)
 
 	if _, err := env.threads.ListFollowedThreads(env.ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
 		Page: &apiv1.PageRequest{Limit: 20},
@@ -1035,8 +1035,11 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	if thread.GetRoom().GetId() != room.Id || thread.GetRoom().GetName() != room.Name || thread.GetThread().GetThreadRootEventId() != root.Id {
 		t.Fatalf("followed thread identity = room %q name %q root %q, want room %q name %q root %q", thread.GetRoom().GetId(), thread.GetRoom().GetName(), thread.GetThread().GetThreadRootEventId(), room.Id, room.Name, root.Id)
 	}
-	if thread.GetThread().GetReplyCount() != 1 || !thread.GetThread().GetViewerState().GetHasUnread() || thread.GetThread().GetLastReplyAt() == nil {
-		t.Fatalf("followed thread metadata = replies %d unread %v lastReplyAt %v, want replies 1 unread true lastReplyAt set", thread.GetThread().GetReplyCount(), thread.GetThread().GetViewerState().GetHasUnread(), thread.GetThread().GetLastReplyAt())
+	if thread.GetThread().GetReplyCount() != 1 || !thread.GetThread().GetViewerState().GetHasUnreadReplies() || thread.GetThread().GetLastReplyAt() == nil {
+		t.Fatalf("followed thread metadata = replies %d unread %v lastReplyAt %v, want replies 1 unread true lastReplyAt set", thread.GetThread().GetReplyCount(), thread.GetThread().GetViewerState().GetHasUnreadReplies(), thread.GetThread().GetLastReplyAt())
+	}
+	if got := thread.GetThread().GetViewerState().GetAttentionLevel(); got != apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_IMPORTANT {
+		t.Fatalf("followed thread attention = %v, want Important", got)
 	}
 	rootMessage := thread.GetRootMessage()
 	if rootMessage == nil || rootMessage.GetId() != root.Id {
@@ -1044,6 +1047,10 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	}
 	if got := rootMessage.GetBody(); got != "root body" {
 		t.Fatalf("root message body = %q, want root body", got)
+	}
+	latestReply := thread.GetLatestReply()
+	if latestReply == nil || latestReply.GetId() != reply.Id || latestReply.GetBody() != "reply body" {
+		t.Fatalf("latest reply = %+v, want hydrated reply %s", latestReply, reply.Id)
 	}
 	users := resp.Msg.GetIncludes().GetUsers()
 	if users[env.viewer.Id] == nil || users[participant.Id] == nil {

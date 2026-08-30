@@ -2364,22 +2364,22 @@ func TestRealtimeProjectionBadgeReplacesRoomThreadAndRetainedRoot(t *testing.T) 
 	if !handled {
 		t.Fatal("Badge unread invalidation was not handled")
 	}
-	var roomUnread, threadUnread, rootUnread bool
+	var roomUnread, threadAttention, rootAttention bool
 	for _, operation := range frame.GetProjectionEvent().GetOperations() {
 		if replacement := operation.GetRoomViewerStateReplace(); replacement != nil {
 			roomUnread = replacement.GetViewerState().GetHasUnread()
 		}
 		if replacement := operation.GetThreadViewerStatesReplace(); replacement != nil {
 			for _, state := range replacement.GetStates() {
-				threadUnread = threadUnread || state.GetThreadRootEventId() == root.Id && state.GetViewerState().GetHasUnread()
+				threadAttention = threadAttention || state.GetThreadRootEventId() == root.Id && state.GetViewerState().GetAttentionLevel() == apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_AMBIENT
 			}
 		}
 		if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil && upsert.GetEvent().GetId() == root.Id {
-			rootUnread = upsert.GetEvent().GetMessagePosted().GetMessage().GetThread().GetViewerState().GetHasUnread()
+			rootAttention = upsert.GetEvent().GetMessagePosted().GetMessage().GetThread().GetViewerState().GetAttentionLevel() == apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_AMBIENT
 		}
 	}
-	if !roomUnread || !threadUnread || !rootUnread {
-		t.Fatalf("Badge projection room/thread/root unread = %v/%v/%v; frame=%+v", roomUnread, threadUnread, rootUnread, frame)
+	if !roomUnread || !threadAttention || !rootAttention {
+		t.Fatalf("Badge projection room/thread/root attention = %v/%v/%v; frame=%+v", roomUnread, threadAttention, rootAttention, frame)
 	}
 }
 
@@ -2568,7 +2568,7 @@ func TestRealtimeThreadReadMarkerPublishesProjectionUpdate(t *testing.T) {
 		return upsert.GetRoomId() == room.Id && upsert.GetEvent().GetId() == root.Id
 	})
 	thread := upsert.GetEvent().GetMessagePosted().GetMessage().GetThread()
-	if !thread.GetViewerState().GetIsFollowing() || thread.GetViewerState().GetHasUnread() {
+	if !thread.GetViewerState().GetIsFollowing() || thread.GetViewerState().GetHasUnreadReplies() {
 		t.Fatalf("thread viewer state after marker advance = %+v, want following and read", thread.GetViewerState())
 	}
 }
@@ -2971,7 +2971,7 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 	if got := upsert.GetEvent().GetMessagePosted().GetMessage().GetThread().GetReplyCount(); got != 1 {
 		t.Fatalf("root reply count = %d, want 1 (reply %q)", got, reply.Id)
 	}
-	if len(states) != 1 || states[0].GetThreadRootEventId() != root.Id || !states[0].GetViewerState().GetHasUnread() {
+	if len(states) != 1 || states[0].GetThreadRootEventId() != root.Id || !states[0].GetViewerState().GetHasUnreadReplies() {
 		t.Fatalf("thread viewer states = %+v, want followed root unread", states)
 	}
 	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, user.Id)
