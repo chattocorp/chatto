@@ -33,9 +33,9 @@ reconnect action; Chatto never opens OAuth automatically.
 
 <Aside type="note" title="Chatto Desktop and native apps">
   Chatto Desktop uses the built-in `chatto://desktop` client identity and exact
-  callback. Future native clients can publish HTTPS CIMD metadata that declares
-  an application-specific callback scheme. Neither case needs CORS or redirect
-  origin configuration.
+  callback. Other native clients can publish HTTPS CIMD metadata that declares
+  an application-specific callback scheme or a local HTTP callback. Neither
+  case needs CORS or redirect origin configuration.
 </Aside>
 
 ## What Client Identity Means
@@ -70,10 +70,11 @@ first-party sessions and connections from other clients remain active.
 - Upgrade all serving replicas and the bundled client together. Pre-renewal
   bearer records are rejected and affected users sign in once to obtain a
   renewable pair.
-- Serve browser client metadata over public HTTPS. Chatto blocks redirects,
-  oversized responses, and private or other special-use network destinations
-  when retrieving CIMD metadata. Loopback HTTP is supported only for loopback
-  development servers.
+- Serve client metadata over public HTTPS. Chatto blocks redirects, oversized
+  responses, and private or other special-use network destinations when it
+  retrieves CIMD metadata. A Chatto server on a loopback or concrete
+  `.localhost` development URL can also retrieve metadata from a confirmed
+  local destination.
 - Make the exact callback URL available in the metadata document. The bundled
   frontend publishes its document automatically.
 - When a reverse proxy serves the bundled frontend from an additional origin,
@@ -81,6 +82,17 @@ first-party sessions and connections from other clients remain active.
   the frontend client ID and callback for that request origin. An unknown host
   receives no frontend metadata document. Do not add a path, query, or fragment.
   Do not configure HTTP and HTTPS origins that produce the same request host.
+
+Native clients can register an HTTP callback on `127.0.0.1`, `[::1]`,
+`localhost`, or one concrete hostname below `.localhost`. Set
+`application_type` to `native`. Chatto accepts a different run-time port only
+for literal `127.0.0.1` and `[::1]` callbacks. It matches the path and query
+exactly. Named localhost callbacks must also use the registered port. Callback
+registrations cannot contain wildcards.
+
+The consent page shows a warning and the local callback origin. Chatto requires
+a new decision for each local authorization because another local process can
+claim the callback before the intended client.
 
 Remove the old `webserver.oauth_redirect_origins` setting during upgrade. The
 CIMD flow does not use a server-side redirect-origin list.

@@ -444,6 +444,30 @@ func TestOAuthAuthorize_AllowsExactCIMDRedirectWithoutOriginConfiguration(t *tes
 	}
 }
 
+func TestOAuthAuthorize_AllowsNativeLoopbackIPRedirectWithEphemeralPort(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.oauthClientResolveHook = func(_ context.Context, clientID string) (OAuthClient, bool, error) {
+		return OAuthClient{
+			ClientID: clientID, ClientName: "Native Tool", ClientURI: "https://native.example",
+			RedirectURIs: []string{"http://127.0.0.1:41000/oauth/callback"},
+		}, true, nil
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {"https://native.example/oauth/metadata.json"},
+		"redirect_uri":          {"http://127.0.0.1:52000/oauth/callback"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("status = %d, want 307: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestOAuthAuthorize_RejectsBlockedClient(t *testing.T) {
 	s := setupOAuthServer(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1065,6 +1089,57 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	}
 	if location := secondW.Header().Get("Location"); !strings.HasPrefix(location, "https://client.example/servers/callback?") || !strings.Contains(location, "code=") {
 		t.Fatalf("second authorize did not mint code directly, Location=%q", location)
+	}
+}
+
+func TestOAuthLocalRedirectRequiresConsentForEveryAuthorization(t *testing.T) {
+	s := setupOAuthServer(t)
+	const clientID = "https://native.example/oauth/metadata.json"
+	const redirectURI = "http://tool.feature.localhost:6276/oauth/callback"
+	s.oauthClientResolveHook = func(_ context.Context, requestedClientID string) (OAuthClient, bool, error) {
+		if requestedClientID != clientID {
+			return OAuthClient{}, false, nil
+		}
+		return OAuthClient{
+			ClientID: clientID, ClientName: "Native Tool", ClientURI: "https://native.example",
+			RedirectURIs: []string{redirectURI},
+		}, true, nil
+	}
+	cookies, user := loginOAuthTestUser(t, s, "oauth-local-consent")
+	if err := s.core.GrantOAuthClientConsent(context.Background(), user.Id, clientID, "Native Tool", "https://native.example", "http://tool.feature.localhost:6276"); err != nil {
+		t.Fatalf("GrantOAuthClientConsent: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {redirectURI},
+		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	addCookies(req, cookies)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("authorize status/location = %d/%q, want consent prompt: %s", w.Code, w.Header().Get("Location"), w.Body.String())
+	}
+	cookies = mergeCookies(cookies, w.Result().Cookies())
+
+	consentReq := httptest.NewRequest(http.MethodGet, "/oauth/consent/request", nil)
+	addCookies(consentReq, cookies)
+	consentW := httptest.NewRecorder()
+	s.router.ServeHTTP(consentW, consentReq)
+	if consentW.Code != http.StatusOK {
+		t.Fatalf("consent request status = %d: %s", consentW.Code, consentW.Body.String())
+	}
+	var consent struct {
+		RedirectOrigin string `json:"redirectOrigin"`
+	}
+	if err := json.Unmarshal(consentW.Body.Bytes(), &consent); err != nil {
+		t.Fatalf("decode consent request: %v", err)
+	}
+	if consent.RedirectOrigin != "http://tool.feature.localhost:6276" {
+		t.Fatalf("local consent details = %#v", consent)
 	}
 }
 

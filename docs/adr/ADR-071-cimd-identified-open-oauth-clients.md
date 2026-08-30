@@ -44,22 +44,34 @@ TLS-terminating proxy does not provide a trusted request scheme.
 The authorization server retrieves a CIMD document itself and validates that:
 
 - the client identifier is an HTTPS URL with a non-root path, or an HTTP
-  loopback URL when the Chatto server itself is in loopback development;
+  loopback or concrete `.localhost` URL when the Chatto server itself uses a
+  local development URL;
 - the document's `client_id` exactly equals the URL that served it;
 - the client is public (`token_endpoint_auth_method` is `none`), supports
   Authorization Code, and declares no grant outside Authorization Code and the
   rotating refresh grant added by ADR-079;
-- the requested callback exactly equals one declared redirect URI; and
-- web callbacks use HTTPS, while native private-use schemes require
-  `application_type = "native"`.
+- the requested callback exactly equals one declared redirect URI, except that
+  a literal `127.0.0.1` or `[::1]` callback can use a different port;
+- callback registrations cannot contain a wildcard hostname; and
+- web callbacks use HTTPS, while native private-use schemes and remote HTTP
+  loopback callbacks require `application_type = "native"`.
+
+A native client can register an HTTP callback on `127.0.0.1`, `[::1]`,
+`localhost`, or one concrete hostname below `.localhost`, even when Chatto is
+not on a local host. Named localhost callbacks keep an exact port. Literal IP
+callbacks can select an available port at run time as required by RFC 8252.
+The authorization code and token exchange remain bound to the callback that
+the client selected for that authorization.
 
 CIMD retrieval is an unauthenticated network boundary. Chatto disables proxy
 inheritance and redirects, limits concurrency, the complete resolution/fetch
 time and body size, requires a JSON media type, rejects special-use destination addresses, pins
 the validated destination through dialing to resist DNS rebinding, and caches
 only valid metadata for at most five minutes in a bounded cache. The retrieval
-concurrency limit covers destination resolution as well as HTTP. Loopback destinations are
-available only for a loopback development server.
+concurrency limit covers destination resolution as well as HTTP. Loopback
+destinations are available only when the Chatto server itself uses a loopback
+or concrete `.localhost` development URL. A remote server does not retrieve
+CIMD from a local address.
 
 The validated authorization request is stored behind an opaque, HMAC-keyed,
 single-use `RUNTIME_STATE` handle; the signed browser session carries only that
@@ -68,12 +80,15 @@ any replica continue the flow. The `client_id` is then carried through the
 single-use authorization code and the resulting opaque OAuth access-token
 record. Token exchange requires the same client identifier, callback, and PKCE
 verifier used by authorization. A mismatch consumes the code and fails closed.
-Consent is remembered by user plus stable client identifier. The consent page
-shows the validated client name and identifier origin, rather than attributing
-the request to a potentially unrelated callback service. Audit facts retain the
-client identifier, validated client URI origin, and canonical callback origin
-or native callback scheme observed at the time of the decision; client URI
-paths and queries are not persisted.
+Consent is remembered by user plus stable client identifier for non-local
+callbacks. A local callback requires a new decision for each authorization.
+The consent page shows the validated client name and identifier origin, rather
+than attributing the request to a potentially unrelated callback service. It
+also shows the exact local callback origin and warns the user to continue only
+when they started the request. Audit facts retain the client identifier,
+validated client URI origin, and canonical callback origin or native callback
+scheme observed at the time of the decision; client URI paths and queries are
+not persisted.
 
 CIMD identifies a client; it does not endorse it. Users still see and approve
 the client application before a token is issued. After a user successfully
@@ -125,6 +140,10 @@ exact callback embedded in its one-time code.
 Native applications can participate without browser CORS, and Chatto Desktop
 continues to work without hosting a metadata document. The fixed Desktop
 registration is part of the server release rather than an operator setting.
+Native development tools can use a local callback with a remote Chatto server,
+but the user must approve each local handoff. A local process can claim the
+callback before the intended client, so public metadata and PKCE do not make a
+local callback equivalent to an HTTPS callback controlled by the client.
 
 The persisted user-event changes are additive. Existing origin-keyed consent
 facts remain replayable, but 0.5 clients create client-ID-keyed facts and access

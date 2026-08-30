@@ -573,7 +573,13 @@ func (s *HTTPServer) continueOAuthAuthorize(c *gin.Context, userID string, authG
 		})
 		return
 	}
-	consented, err := s.core.HasOAuthClientScopedConsent(c.Request.Context(), userID, params.ClientID, redirectOrigin, params.Resource, params.Scopes)
+	// A local process can reuse public client metadata and bind the callback
+	// port before the intended client. Require an explicit decision for every
+	// local flow so remembered consent cannot hide that handoff from the user.
+	consented := false
+	if !isLoopbackOAuthRedirectURI(params.RedirectURI) {
+		consented, err = s.core.HasOAuthClientScopedConsent(c.Request.Context(), userID, params.ClientID, redirectOrigin, params.Resource, params.Scopes)
+	}
 	if err != nil {
 		log.Error("Failed to check OAuth consent", "error", err, "userId", userID)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -758,11 +764,25 @@ func canonicalOrigin(u *url.URL) string {
 }
 
 func isLoopbackOAuthRedirectHost(host string) bool {
-	switch strings.ToLower(host) {
+	host = strings.ToLower(host)
+	switch host {
 	case "localhost", "127.0.0.1", "::1":
 		return true
 	}
+	return strings.HasSuffix(host, ".localhost") && len(host) > len(".localhost")
+}
+
+func isLiteralLoopbackOAuthRedirectHost(host string) bool {
+	switch strings.ToLower(host) {
+	case "127.0.0.1", "::1":
+		return true
+	}
 	return false
+}
+
+func isLoopbackOAuthRedirectURI(raw string) bool {
+	redirect, err := url.Parse(raw)
+	return err == nil && redirect.Host != "" && isLoopbackOAuthRedirectHost(redirect.Hostname())
 }
 
 func oauthErrorRedirectURL(redirectURI, state, issuer, code, description string) (string, error) {

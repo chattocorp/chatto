@@ -126,4 +126,34 @@ describe('OAuth consent client identity', () => {
 			expect.objectContaining({ method: 'POST' })
 		);
 	});
+
+	it('warns about a local callback and does not promise remembered consent', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () =>
+				new Response(
+					JSON.stringify(
+						consentResponse({
+							redirectUri: 'http://tool.feature.localhost:6276/oauth/callback',
+							redirectOrigin: 'http://tool.feature.localhost:6276',
+						})
+					),
+					{ status: 200 }
+				)
+			)
+		);
+
+		const { getByText } = render(ConsentPage);
+
+		await expect
+			.element(
+				getByText(
+					'This app will receive access through a local address on this device. Continue only if you started this request. Callback: http://tool.feature.localhost:6276'
+				)
+			)
+			.toBeVisible();
+		await expect
+			.element(getByText('Chatto will remember this approval for this address.'))
+			.not.toBeInTheDocument();
+	});
 });

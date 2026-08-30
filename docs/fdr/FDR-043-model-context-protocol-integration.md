@@ -37,6 +37,9 @@ primitive.
   not add a separate compatibility promise for them.
 - A human grants an MCP client access through Chatto OAuth. The flow uses
   Authorization Code with PKCE and the client's CIMD identity.
+- A native MCP client can receive the OAuth result on a literal loopback IP,
+  `localhost`, or one concrete `.localhost` hostname. Chatto shows the local
+  callback origin and requires consent for each authorization.
 - Human MCP access tokens are valid only for the exact MCP resource that the
   user approved. A token for one configured origin is not valid for another
   origin. The current grant has the `chatto:rooms:read`,

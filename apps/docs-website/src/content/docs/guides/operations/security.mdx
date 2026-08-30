@@ -95,9 +95,12 @@ Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no s
 When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a renewable bearer session. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the exact callback validated from the frontend's metadata; the main client exchanges the code and stores the access token, rotating refresh credential, and expiry metadata. Normal access renewal happens through the token endpoint without reopening OAuth.
 
 The frontend identifies itself with the URL of its published CIMD document.
-Chatto retrieves that document and accepts only the exact callback registered
-there. The user approves the identified client, and consent is remembered by
-user and stable client ID:
+Chatto retrieves that document and accepts only a registered callback. Native
+clients can use a local HTTP callback. Literal loopback IP callbacks can select
+a run-time port; named localhost callbacks stay exact. The user approves the
+identified client. Chatto remembers consent by user and stable client ID for a
+non-local callback. A local callback shows its origin and requires consent for
+each authorization:
 
 <LinkCard
   title="Connections From Other Chatto Clients"
