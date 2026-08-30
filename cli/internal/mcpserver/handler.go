@@ -151,7 +151,7 @@ func withRequestDeadline(next http.Handler) http.Handler {
 
 func tokenVerifier(chattoCore *core.ChattoCore, resource string) auth.TokenVerifier {
 	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
-		credential, err := chattoCore.ValidatePresentedRuntimeCredential(ctx, token, core.AuthTokenPresentationBearer)
+		credential, err := chattoCore.ValidatePresentedRuntimeCredential(ctx, token, core.AuthTokenPresentationResourceBearer)
 		if err == nil {
 			if credential.Kind != core.AuthTokenKindOAuthAccessToken || credential.Resource != resource || !hasAllScopes(credential.Scopes, config.MCPOAuthScopes()) {
 				return nil, auth.ErrInvalidToken

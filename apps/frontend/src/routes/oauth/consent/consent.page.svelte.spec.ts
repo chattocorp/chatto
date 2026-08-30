@@ -45,7 +45,36 @@ describe('OAuth consent client identity', () => {
 		const { getByText } = render(ConsentPage);
 
 		await expect.element(getByText('It can list the rooms that are available to you.')).toBeVisible();
+		await expect.element(getByText('It can join and leave rooms as you.')).not.toBeInTheDocument();
 		await expect.element(getByText('It can read and send messages as you.')).not.toBeInTheDocument();
+	});
+
+	it('shows every capability in the complete MCP grant', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () =>
+				new Response(
+					JSON.stringify(
+						consentResponse({
+							resource: 'https://chat.example/mcp',
+							scopes: [
+								'chatto:messages:read',
+								'chatto:messages:write',
+								'chatto:rooms:read',
+								'chatto:rooms:write'
+							]
+						})
+					),
+					{ status: 200 }
+				)
+			)
+		);
+
+		const { getByText } = render(ConsentPage);
+
+		await expect.element(getByText('It can list the rooms that are available to you.')).toBeVisible();
+		await expect.element(getByText('It can join and leave rooms as you.')).toBeVisible();
+		await expect.element(getByText('It can read and send messages as you.')).toBeVisible();
 	});
 
 	afterEach(() => {

@@ -42,8 +42,16 @@ type AuthTokenPresentation string
 
 const (
 	AuthTokenPresentationBearer AuthTokenPresentation = "bearer"
-	AuthTokenPresentationCookie AuthTokenPresentation = "cookie"
+	// AuthTokenPresentationResourceBearer identifies access credentials that
+	// are bound to an OAuth resource and scope set. General bearer validators
+	// must reject this presentation instead of ignoring the grant boundary.
+	AuthTokenPresentationResourceBearer AuthTokenPresentation = "resource_bearer"
+	AuthTokenPresentationCookie         AuthTokenPresentation = "cookie"
 )
+
+func isBearerPresentation(presentation AuthTokenPresentation) bool {
+	return presentation == AuthTokenPresentationBearer || presentation == AuthTokenPresentationResourceBearer
+}
 
 // AuthTokenData is the JSON value stored in RUNTIME_STATE under session.{hmac}.
 // New bearer tokens and same-origin cookie session handles share this record
@@ -150,9 +158,10 @@ func (c *ChattoCore) authTokenKey(token string) string {
 }
 
 // ValidatePresentedRuntimeCredential validates an opaque runtime credential
-// handle as presented over a specific transport. Bearer and same-origin cookie
-// auth both use session.{hmac} records; the presentation check prevents a
-// handle minted for one channel from being replayed through another.
+// handle as presented over a specific transport. General bearer,
+// resource-bound bearer, and same-origin cookie auth use session.{hmac}
+// records. The presentation check prevents a handle minted for one channel or
+// grant class from being replayed through another.
 func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, handle string, presentation AuthTokenPresentation) (ValidatedRuntimeCredential, error) {
 	if handle == "" {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
@@ -189,7 +198,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 		}
 	}
-	if presentation == AuthTokenPresentationBearer {
+	if isBearerPresentation(presentation) {
 		now := time.Now()
 		if tokenData.RenewableSessionID == "" || tokenData.ExpiresAt.IsZero() || !now.Before(tokenData.ExpiresAt) {
 			_ = c.storage.runtimeStateKV.Delete(ctx, key)
@@ -353,7 +362,7 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 		return "", false, nil
 	}
 
-	if presentation == AuthTokenPresentationBearer {
+	if isBearerPresentation(presentation) {
 		if tokenData.RenewableSessionID == "" {
 			_ = c.storage.runtimeStateKV.Delete(ctx, key)
 			return tokenData.UserID, true, nil

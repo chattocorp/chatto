@@ -1129,7 +1129,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	if err := json.Unmarshal(tokenW.Body.Bytes(), &tokenResponse); err != nil {
 		t.Fatalf("decode token response: %v", err)
 	}
-	credential, err := s.core.ValidatePresentedRuntimeCredential(context.Background(), tokenResponse.AccessToken, core.AuthTokenPresentationBearer)
+	credential, err := s.core.ValidatePresentedRuntimeCredential(context.Background(), tokenResponse.AccessToken, core.AuthTokenPresentationResourceBearer)
 	if err != nil {
 		t.Fatalf("validate access token: %v", err)
 	}
@@ -1173,7 +1173,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	if err := json.Unmarshal(refreshW.Body.Bytes(), &refreshed); err != nil {
 		t.Fatalf("decode refresh response: %v", err)
 	}
-	refreshedCredential, err := s.core.ValidatePresentedRuntimeCredential(context.Background(), refreshed.AccessToken, core.AuthTokenPresentationBearer)
+	refreshedCredential, err := s.core.ValidatePresentedRuntimeCredential(context.Background(), refreshed.AccessToken, core.AuthTokenPresentationResourceBearer)
 	if err != nil {
 		t.Fatalf("validate refreshed access token: %v", err)
 	}

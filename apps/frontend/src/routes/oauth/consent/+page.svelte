@@ -154,12 +154,7 @@
         <div class="surface-box p-4">
           <div class="mb-3 text-sm font-medium">{m('auth.oauth.allow_intro')}</div>
           <ul class="flex flex-col gap-2 text-sm text-muted">
-            {#if request.scopes.includes('chatto:rooms:read')}
-              <li class="flex gap-2">
-                <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
-                <span>{m('auth.oauth.allow_rooms_read')}</span>
-              </li>
-            {:else}
+            {#if request.scopes.length === 0}
               <li class="flex gap-2">
                 <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
                 <span>{m('auth.oauth.allow_profile')}</span>
@@ -168,6 +163,25 @@
                 <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
                 <span>{m('auth.oauth.allow_messages')}</span>
               </li>
+            {:else}
+              {#if request.scopes.includes('chatto:rooms:read')}
+                <li class="flex gap-2">
+                  <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                  <span>{m('auth.oauth.allow_rooms_read')}</span>
+                </li>
+              {/if}
+              {#if request.scopes.includes('chatto:rooms:write')}
+                <li class="flex gap-2">
+                  <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                  <span>{m('auth.oauth.allow_rooms_write')}</span>
+                </li>
+              {/if}
+              {#if request.scopes.includes('chatto:messages:read') || request.scopes.includes('chatto:messages:write')}
+                <li class="flex gap-2">
+                  <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>
+                  <span>{m('auth.oauth.allow_messages')}</span>
+                </li>
+              {/if}
             {/if}
             <li class="flex gap-2">
               <span class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"></span>

@@ -211,7 +211,14 @@ func TestChattoCore_ExchangeAuthCodeCarriesResourceAndScopesIntoRefreshSession(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	validated, err := core.ValidatePresentedRuntimeCredential(ctx, credentials.AccessToken, AuthTokenPresentationBearer)
+	accessRecord := readAuthTokenData(t, core, credentials.AccessToken)
+	if accessRecord.Presentation != AuthTokenPresentationResourceBearer {
+		t.Fatalf("resource access presentation = %q, want %q", accessRecord.Presentation, AuthTokenPresentationResourceBearer)
+	}
+	if strings.HasPrefix(credentials.RefreshToken, refreshTokenPrefix) {
+		t.Fatalf("resource refresh token uses legacy bearer prefix %q", refreshTokenPrefix)
+	}
+	validated, err := core.ValidatePresentedRuntimeCredential(ctx, credentials.AccessToken, AuthTokenPresentationResourceBearer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,6 +234,19 @@ func TestChattoCore_ExchangeAuthCodeCarriesResourceAndScopesIntoRefreshSession(t
 	}
 	if session.Resource != resource || len(session.Scopes) != 1 || session.Scopes[0] != scopes[0] {
 		t.Fatalf("renewable grant = resource %q scopes %v", session.Resource, session.Scopes)
+	}
+	refreshed, err := core.RefreshBearerSession(ctx, credentials.RefreshToken, testRefreshRequestIDA, clientID)
+	if err != nil {
+		t.Fatalf("refresh resource-bound session: %v", err)
+	}
+	if strings.HasPrefix(refreshed.RefreshToken, refreshTokenPrefix) {
+		t.Fatalf("refreshed resource token uses legacy bearer prefix %q", refreshTokenPrefix)
+	}
+	if _, err := core.ValidatePresentedRuntimeCredential(ctx, refreshed.AccessToken, AuthTokenPresentationResourceBearer); err != nil {
+		t.Fatalf("validate refreshed resource access token: %v", err)
+	}
+	if _, err := core.ValidatePresentedRuntimeCredential(ctx, refreshed.AccessToken, AuthTokenPresentationBearer); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("refreshed resource token used as legacy bearer: %v", err)
 	}
 }
 

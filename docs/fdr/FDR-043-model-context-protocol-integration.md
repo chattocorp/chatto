@@ -41,7 +41,11 @@ primitive.
   resource. The current grant has the `chatto:rooms:read`,
   `chatto:rooms:write`, `chatto:messages:read`, and
   `chatto:messages:write` scopes. These scopes are an additional ceiling on
-  the user's normal Chatto authority.
+  the user's normal Chatto authority. The consent screen states the room-list,
+  room-membership, and message read/write capabilities before approval.
+- Resource-bound access and refresh credentials use a separate credential
+  class. A validator that supports only general bearer credentials rejects
+  them instead of ignoring their resource and scope boundary.
 - A bot can use its existing Bot API key. Calls act as that bot and remain
   limited by its explicit permissions and its owner's current authority.
 - The MCP endpoint does not accept browser cookies. It does not accept a human
