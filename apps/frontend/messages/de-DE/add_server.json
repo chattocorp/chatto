@@ -32,7 +32,6 @@
       "unavailable_body": "Deine Server konnten keine Empfehlungen liefern. Du kannst dich weiterhin direkt verbinden.",
       "empty_title": "Noch keine empfohlenen Server",
       "empty_body": "Du kannst dich weiterhin direkt über eine Serveradresse verbinden.",
-      "testimonials_for": "Empfehlungstexte für {server}",
       "discovering": "Weitere Server werden gesucht…",
       "load_more": "Mehr laden",
       "session_limit_reached": "Das Suchlimit für diese Sitzung wurde erreicht."

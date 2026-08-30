@@ -31,10 +31,7 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted",
-      "testimonial": "Reference (volitelné)",
-      "testimonial_help": "Vysvětlete, proč tento server doporučujete. Tento text je veřejný a může obsahovat až 500 znaků.",
-      "testimonial_label": "Veřejná reference"
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} | Administrace",

@@ -9,7 +9,7 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var configSnapshotContractID = snapshotContractID("v1", &projectionv1.ConfigProjectionSnapshot{})
+var configSnapshotContractID = snapshotContractID("v2", &projectionv1.ConfigProjectionSnapshot{})
 
 func (*ConfigProjection) SnapshotContractID() string { return configSnapshotContractID }
 
@@ -24,7 +24,7 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 	for _, neighborID := range sortedMapKeys(p.server.neighbors) {
 		neighbor := p.server.neighbors[neighborID]
 		snapshot.Neighbors = append(snapshot.Neighbors, &projectionv1.ServerNeighborSnapshot{
-			Id: neighbor.ID, Origin: neighbor.Origin, Testimonial: neighbor.Testimonial, Revision: neighbor.Revision,
+			Id: neighbor.ID, Origin: neighbor.Origin, Revision: neighbor.Revision,
 		})
 	}
 	for _, userID := range sortedMapKeys(p.users) {
@@ -76,7 +76,7 @@ func (p *ConfigProjection) Restore(data []byte) error {
 		if _, duplicate := server.neighbors[row.GetId()]; duplicate {
 			return fmt.Errorf("config snapshot repeats Neighbor %q", row.GetId())
 		}
-		server.neighbors[row.GetId()] = Neighbor{ID: row.GetId(), Origin: row.GetOrigin(), Testimonial: row.GetTestimonial(), Revision: row.GetRevision()}
+		server.neighbors[row.GetId()] = Neighbor{ID: row.GetId(), Origin: row.GetOrigin(), Revision: row.GetRevision()}
 	}
 	users := make(map[string]*userConfigState, len(snapshot.GetUsers()))
 	for _, row := range snapshot.GetUsers() {

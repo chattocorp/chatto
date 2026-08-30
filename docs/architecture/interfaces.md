@@ -65,9 +65,8 @@ ID in the signed browser session, and immediately redirects to registration.
 
 `AdminServerService` provides CRUD operations for Neighbor resources. These
 methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors`
-returns structured recommendations with optional testimonials without a
-session or an ordering contract. It also returns the legacy origin list for
-older clients. The server does not contact the advertised origins.
+returns canonical origins without a session or an ordering contract. The
+server does not contact the advertised origins.
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
 and create and revoke operations for as many as 20 named API keys and 20 named

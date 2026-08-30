@@ -31,10 +31,7 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted",
-      "testimonial": "推薦文（任意）",
-      "testimonial_help": "このサーバーをおすすめする理由を説明してください。この文章は公開され、500文字まで入力できます。",
-      "testimonial_label": "公開推薦文"
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} |管理者",

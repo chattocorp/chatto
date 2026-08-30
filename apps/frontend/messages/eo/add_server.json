@@ -32,7 +32,6 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "Atestoj pri {server}",
       "discovering": "Pliaj serviloj estas serĉataj…",
       "load_more": "Ŝargi pli",
       "session_limit_reached": "La malkovra limo por ĉi tiu seanco estas atingita."

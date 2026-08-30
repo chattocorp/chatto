@@ -18,7 +18,7 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-var notificationDecisionSnapshotContractID = snapshotContractID("v1", &projectionv1.NotificationDecisionProjectionSnapshot{})
+var notificationDecisionSnapshotContractID = snapshotContractID("v2", &projectionv1.NotificationDecisionProjectionSnapshot{})
 
 // NotificationDecisionProjection keeps the compact event-time state needed
 // to derive notification recipients and policy while enforcing persistent

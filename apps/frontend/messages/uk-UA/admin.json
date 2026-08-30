@@ -31,10 +31,7 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted",
-      "testimonial": "Відгук (необов’язково)",
-      "testimonial_help": "Поясніть, чому ви рекомендуєте цей сервер. Цей текст загальнодоступний і може містити до 500 символів.",
-      "testimonial_label": "Загальнодоступний відгук"
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} | адмін",

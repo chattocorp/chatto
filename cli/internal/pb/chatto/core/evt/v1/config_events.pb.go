@@ -989,7 +989,10 @@ type ServerNeighborCreatedEvent struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	NeighborId string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
 	Origin     string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
-	// Optional public explanation from the source server's operator.
+	// Legacy testimonial retained only to decode EVT history. Current code
+	// ignores this field and never writes it.
+	//
+	// Deprecated: Marked as deprecated in chatto/core/evt/v1/config_events.proto.
 	Testimonial   string `protobuf:"bytes,3,opt,name=testimonial,proto3" json:"testimonial,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1039,6 +1042,7 @@ func (x *ServerNeighborCreatedEvent) GetOrigin() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in chatto/core/evt/v1/config_events.proto.
 func (x *ServerNeighborCreatedEvent) GetTestimonial() string {
 	if x != nil {
 		return x.Testimonial
@@ -1100,12 +1104,13 @@ func (x *ServerNeighborOriginChangedEvent) GetOrigin() string {
 	return ""
 }
 
-// Records a change to one Neighbor testimonial. An empty value clears the
-// testimonial. The event envelope ID becomes the resource revision.
+// Legacy testimonial change retained only to decode EVT history. Current code
+// uses the envelope ID as the resource revision and ignores the text.
 type ServerNeighborTestimonialChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NeighborId    string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
-	Testimonial   string                 `protobuf:"bytes,2,opt,name=testimonial,proto3" json:"testimonial,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	NeighborId string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
+	// Deprecated: Marked as deprecated in chatto/core/evt/v1/config_events.proto.
+	Testimonial   string `protobuf:"bytes,2,opt,name=testimonial,proto3" json:"testimonial,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1147,6 +1152,7 @@ func (x *ServerNeighborTestimonialChangedEvent) GetNeighborId() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in chatto/core/evt/v1/config_events.proto.
 func (x *ServerNeighborTestimonialChangedEvent) GetTestimonial() string {
 	if x != nil {
 		return x.Testimonial
@@ -1255,20 +1261,20 @@ const file_chatto_core_evt_v1_config_events_proto_rawDesc = "" +
 	"+UserRoomGroupNotificationPolicyChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\"\n" +
 	"\rroom_group_id\x18\x02 \x01(\tR\vroomGroupId\x12K\n" +
-	"\toverrides\x18\x03 \x01(\v2-.chatto.core.evt.v1.NotificationDeliveryModesR\toverrides\"w\n" +
+	"\toverrides\x18\x03 \x01(\v2-.chatto.core.evt.v1.NotificationDeliveryModesR\toverrides\"{\n" +
 	"\x1aServerNeighborCreatedEvent\x12\x1f\n" +
 	"\vneighbor_id\x18\x01 \x01(\tR\n" +
 	"neighborId\x12\x16\n" +
-	"\x06origin\x18\x02 \x01(\tR\x06origin\x12 \n" +
-	"\vtestimonial\x18\x03 \x01(\tR\vtestimonial\"[\n" +
+	"\x06origin\x18\x02 \x01(\tR\x06origin\x12$\n" +
+	"\vtestimonial\x18\x03 \x01(\tB\x02\x18\x01R\vtestimonial\"[\n" +
 	" ServerNeighborOriginChangedEvent\x12\x1f\n" +
 	"\vneighbor_id\x18\x01 \x01(\tR\n" +
 	"neighborId\x12\x16\n" +
-	"\x06origin\x18\x02 \x01(\tR\x06origin\"j\n" +
+	"\x06origin\x18\x02 \x01(\tR\x06origin\"n\n" +
 	"%ServerNeighborTestimonialChangedEvent\x12\x1f\n" +
 	"\vneighbor_id\x18\x01 \x01(\tR\n" +
-	"neighborId\x12 \n" +
-	"\vtestimonial\x18\x02 \x01(\tR\vtestimonial\"=\n" +
+	"neighborId\x12$\n" +
+	"\vtestimonial\x18\x02 \x01(\tB\x02\x18\x01R\vtestimonial\"=\n" +
 	"\x1aServerNeighborDeletedEvent\x12\x1f\n" +
 	"\vneighbor_id\x18\x01 \x01(\tR\n" +
 	"neighborIdB\xcc\x01\n" +

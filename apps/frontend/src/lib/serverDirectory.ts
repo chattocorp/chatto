@@ -1,8 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import {
-  getPublicNeighbors,
+  getPublicNeighborOrigins,
   getPublicServerInfo,
-  type PublicNeighbor,
   type PublicServerInfo
 } from '$lib/api-client/server';
 
@@ -16,8 +15,7 @@ export const SERVER_DIRECTORY_LIMITS = {
   profileRequests: 24,
   totalRequests: 72,
   candidates: 120,
-  neighborsPerSource: 100,
-  testimonialLength: 500
+  neighborsPerSource: 100
 } as const;
 
 export type ServerProfileEntry = {
@@ -28,13 +26,6 @@ export type ServerProfileEntry = {
 export type ServerDirectoryEntry = ServerProfileEntry & {
   /** Canonical origins of the servers whose recommendations are shown. */
   sourceOrigins: string[];
-  /** Ordered recommendations, including source-specific testimonials. */
-  recommendations: ServerDirectoryRecommendation[];
-};
-
-export type ServerDirectoryRecommendation = {
-  sourceOrigin: string;
-  testimonial: string | null;
 };
 
 /** Progressive state published by one page-session discovery crawl. */
@@ -62,7 +53,7 @@ type DirectoryLoadOptions = {
   initiallyVisible?: boolean;
   /** Test override. Production sessions use the fixed ten-second limit. */
   requestTimeoutMs?: number;
-  listNeighbors?: typeof getPublicNeighbors;
+  listNeighbors?: typeof getPublicNeighborOrigins;
   getServerInfo?: typeof getPublicServerInfo;
 };
 
@@ -71,7 +62,8 @@ type DirectoryListener = (snapshot: ServerDirectorySnapshot) => void;
 type DirectoryStatus = 'queued' | 'loaded' | 'failed' | 'unsupported';
 type ProfileStatus = 'queued' | 'loaded' | 'failed';
 
-type OrderedRecommendation = ServerDirectoryRecommendation & {
+type OrderedRecommendation = {
+  sourceOrigin: string;
   targetOrigin: string;
   order: number;
 };
@@ -138,7 +130,7 @@ export function createServerDirectoryDiscovery(
 
 /** A bounded progressive crawl of mutually recommending Chatto servers. */
 export class ServerDirectoryDiscovery {
-  private readonly listNeighbors: typeof getPublicNeighbors;
+  private readonly listNeighbors: typeof getPublicNeighborOrigins;
   private readonly getServerInfo: typeof getPublicServerInfo;
   private readonly requestTimeoutMs: number;
   private readonly controller = new AbortController();
@@ -150,10 +142,7 @@ export class ServerDirectoryDiscovery {
   private readonly profileStatuses = new Map<string, ProfileStatus>();
   private readonly outgoingByOrigin = new Map<string, OrderedRecommendation[]>();
   private readonly incomingByOrigin = new Map<string, Map<string, OrderedRecommendation>>();
-  private readonly recommendationsByOrigin = new Map<
-    string,
-    Map<string, OrderedRecommendation>
-  >();
+  private readonly sourcesByOrigin = new Map<string, Map<string, number>>();
   private readonly mutualOrigins = new Set<string>();
   private readonly edgeOutcomes = new Map<string, 'verified' | 'non-mutual'>();
   private readonly depths = new Map<string, number>();
@@ -182,7 +171,7 @@ export class ServerDirectoryDiscovery {
   }>();
 
   constructor(registeredOrigins: readonly string[], options: DirectoryLoadOptions = {}) {
-    this.listNeighbors = options.listNeighbors ?? getPublicNeighbors;
+    this.listNeighbors = options.listNeighbors ?? getPublicNeighborOrigins;
     this.getServerInfo = options.getServerInfo ?? getPublicServerInfo;
     this.requestTimeoutMs = options.requestTimeoutMs ?? SERVER_DIRECTORY_LIMITS.timeoutMs;
     this.sourceOrigins = [
@@ -310,18 +299,18 @@ export class ServerDirectoryDiscovery {
     return true;
   }
 
-  private processDirectory(origin: string, advertisedNeighbors: readonly PublicNeighbor[]): void {
+  private processDirectory(origin: string, advertisedOrigins: readonly string[]): void {
     const outgoing: OrderedRecommendation[] = [];
     const seenTargets = new Set<string>();
-    for (const advertised of advertisedNeighbors.slice(
+    for (const advertised of advertisedOrigins.slice(
       0,
       SERVER_DIRECTORY_LIMITS.neighborsPerSource
     )) {
-      const targetOrigin = canonicalServerOrigin(advertised.origin);
+      const targetOrigin = canonicalServerOrigin(advertised);
       if (!targetOrigin || targetOrigin === origin || seenTargets.has(targetOrigin)) continue;
       seenTargets.add(targetOrigin);
-      const recommendation = {
-        ...recommendationFrom(origin, advertised),
+      const recommendation: OrderedRecommendation = {
+        sourceOrigin: origin,
         targetOrigin,
         order: this.recommendationOrder++
       };
@@ -384,12 +373,12 @@ export class ServerDirectoryDiscovery {
     sourceOrigin: string,
     recommendation: OrderedRecommendation
   ): void {
-    let recommendations = this.recommendationsByOrigin.get(targetOrigin);
-    if (!recommendations) {
-      recommendations = new Map();
-      this.recommendationsByOrigin.set(targetOrigin, recommendations);
+    let sources = this.sourcesByOrigin.get(targetOrigin);
+    if (!sources) {
+      sources = new Map();
+      this.sourcesByOrigin.set(targetOrigin, sources);
     }
-    recommendations.set(sourceOrigin, recommendation);
+    sources.set(sourceOrigin, recommendation.order);
     this.scheduleProfile(targetOrigin);
     this.refreshEntry(targetOrigin);
   }
@@ -494,16 +483,15 @@ export class ServerDirectoryDiscovery {
 
   private refreshEntry(origin: string): void {
     const profile = this.profiles.get(origin);
-    const availableRecommendations = this.recommendationsByOrigin.get(origin);
-    if (!profile || !availableRecommendations?.size) return;
-    const recommendations = [...availableRecommendations.values()]
-      .sort((left, right) => left.order - right.order)
-      .map(({ sourceOrigin, testimonial }) => ({ sourceOrigin, testimonial }));
+    const availableSources = this.sourcesByOrigin.get(origin);
+    if (!profile || !availableSources?.size) return;
+    const sourceOrigins = [...availableSources.entries()]
+      .sort((left, right) => left[1] - right[1])
+      .map(([sourceOrigin]) => sourceOrigin);
     const entry: ServerDirectoryEntry = {
       origin,
       profile,
-      sourceOrigins: recommendations.map(({ sourceOrigin }) => sourceOrigin),
-      recommendations
+      sourceOrigins
     };
     const index = this.entries.findIndex((candidate) => candidate.origin === origin);
     if (index === -1) this.entries = [...this.entries, entry];
@@ -666,26 +654,6 @@ class RequestScheduler {
         });
     }
   }
-}
-
-function recommendationFrom(
-  sourceOrigin: string,
-  advertised: PublicNeighbor
-): ServerDirectoryRecommendation {
-  return { sourceOrigin, testimonial: boundedTestimonial(advertised.testimonial) };
-}
-
-function boundedTestimonial(value: string | null): string | null {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  let bounded = '';
-  let length = 0;
-  for (const character of trimmed) {
-    if (length === SERVER_DIRECTORY_LIMITS.testimonialLength) break;
-    bounded += character;
-    length += 1;
-  }
-  return bounded;
 }
 
 function discoverySignal(

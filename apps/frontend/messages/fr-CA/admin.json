@@ -31,10 +31,7 @@
       "delete_description": "Ne plus publier {origin} ?",
       "created": "Voisin ajouté",
       "updated": "Voisin mis à jour",
-      "deleted": "Voisin supprimé",
-      "testimonial": "Témoignage (facultatif)",
-      "testimonial_help": "Expliquez pourquoi vous recommandez ce serveur. Ce texte est public et peut contenir jusqu’à 500 caractères.",
-      "testimonial_label": "Témoignage public"
+      "deleted": "Voisin supprimé"
     },
     "common": {
       "page_title": "{title} | Administrateur",

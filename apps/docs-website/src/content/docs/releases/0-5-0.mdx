@@ -98,11 +98,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     other, for at most two mutual hops. Results appear as requests finish, and
     one additional batch can load when a user scrolls near the end. Fixed batch,
     concurrency, timeout, and page-session limits bound browser work.
-    Administrators can add a public testimonial to each
-    recommendation. Testimonials support paragraphs and limited inline
-    Markdown. The directory shows them as source-labelled review cards below
-    each server profile in a tapestry layout. Mutuality is a current client
-    observation, not a verified relationship or trust statement.
+    Each result identifies the registered servers that supplied the
+    recommendation. Server profile cards use a tapestry layout. Mutuality is a
+    current client observation, not a verified relationship or trust statement.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Remote clients connect without allowlists" size="large">
@@ -163,7 +161,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Existing experimental MCP connections must authorize again. The tester tool
   catalog now needs the room and message read/write MCP scopes. A token that
   has only `chatto:rooms:read` cannot use the expanded catalog.
-
+- Custom clients must remove the testimonial fields from
+  `chatto.admin.v1` and use `ListNeighborsResponse.origins` from
+  `chatto.discovery.v1`. Upgrade every replica together. Historical testimonial
+  text remains in `EVT` and backups, and a rollback to a testimonial-capable
+  binary can expose it again.
 - Upgrade every Chatto replica before you rely on private time zones. An older replica does not
   understand the sharing setting and can expose a stored time zone. A rollback to an older
   replica has the same risk.

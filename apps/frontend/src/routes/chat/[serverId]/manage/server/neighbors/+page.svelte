@@ -2,7 +2,6 @@
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { createNeighborAPI, type Neighbor } from '$lib/api-client/neighbors';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
-  import TestimonialText from '$lib/components/TestimonialText.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { loadServerProfiles, serverOriginFromInput } from '$lib/serverDirectory';
@@ -13,14 +12,12 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import Panel from '$lib/ui/Panel.svelte';
-  import { Button, TextArea, TextInput } from '$lib/ui/form';
+  import { Button, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
   const serverScope = useServerScope();
   let newOrigin = $state('');
-  let newTestimonial = $state('');
   let editOrigin = $state('');
-  let editTestimonial = $state('');
   const normalizedNewOrigin = $derived(serverOriginFromInput(newOrigin));
   const normalizedEditOrigin = $derived(serverOriginFromInput(editOrigin));
 
@@ -30,11 +27,10 @@
     queryKey: ReturnType<typeof adminQueryKeys.neighbors>;
   };
 
-  type CreateVariables = NeighborMutationVariables & { origin: string; testimonial: string };
+  type CreateVariables = NeighborMutationVariables & { origin: string };
   type UpdateVariables = NeighborMutationVariables & {
     neighbor: Neighbor;
     origin: string;
-    testimonial: string;
   };
   type DeleteVariables = NeighborMutationVariables & { neighbor: Neighbor };
 
@@ -51,8 +47,8 @@
 
   const createMutationState = createMutation(
     () => ({
-      mutationFn: ({ connection, origin, testimonial }: CreateVariables) =>
-        connection.getAPI(createNeighborAPI).create(origin, testimonial),
+      mutationFn: ({ connection, origin }: CreateVariables) =>
+        connection.getAPI(createNeighborAPI).create(origin),
       onSuccess: (neighbor, variables) => {
         if (!isCurrent(variables)) return;
         queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) => [
@@ -60,7 +56,6 @@
           neighbor
         ]);
         newOrigin = '';
-        newTestimonial = '';
         toast.success(m('admin.neighbors.created'));
       },
       onError: (error, variables) => {
@@ -72,8 +67,8 @@
 
   const updateMutationState = createMutation(
     () => ({
-      mutationFn: ({ connection, neighbor, origin, testimonial }: UpdateVariables) =>
-        connection.getAPI(createNeighborAPI).update(neighbor, origin, testimonial),
+      mutationFn: ({ connection, neighbor, origin }: UpdateVariables) =>
+        connection.getAPI(createNeighborAPI).update(neighbor, origin),
       onSuccess: (updated, variables) => {
         if (!isCurrent(variables)) return;
         queryClient.setQueryData<Neighbor[]>(variables.queryKey, (current = []) =>
@@ -81,7 +76,6 @@
         );
         editTarget = null;
         editOrigin = '';
-        editTestimonial = '';
         toast.success(m('admin.neighbors.updated'));
       },
       onError: (error, variables) => {
@@ -132,11 +126,9 @@
     editTarget = {
       ...mutationVariables(),
       neighbor,
-      origin: neighbor.origin,
-      testimonial: neighbor.testimonial ?? ''
+      origin: neighbor.origin
     };
     editOrigin = neighbor.origin;
-    editTestimonial = neighbor.testimonial ?? '';
   }
 
   function mutationVariables(): NeighborMutationVariables {
@@ -160,7 +152,6 @@
   function cancelEdit() {
     editTarget = null;
     editOrigin = '';
-    editTestimonial = '';
   }
 
   function showError(error: unknown) {
@@ -189,8 +180,7 @@
             if (normalizedNewOrigin)
               createMutationState.mutate({
                 ...mutationVariables(),
-                origin: normalizedNewOrigin,
-                testimonial: newTestimonial.trim()
+                origin: normalizedNewOrigin
               });
           }}
         >
@@ -204,15 +194,6 @@
               disabled={createMutationState.isPending}
             />
           </div>
-          <TextArea
-            id="new-neighbor-testimonial"
-            label={m('admin.neighbors.testimonial')}
-            description={m('admin.neighbors.testimonial_help')}
-            bind:value={newTestimonial}
-            maxlength={500}
-            rows={4}
-            disabled={createMutationState.isPending}
-          />
           <div class="flex justify-end">
             <Button
               type="submit"
@@ -238,18 +219,6 @@
         {:else}
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each neighbors as neighbor (neighbor.id)}
-              {#snippet details()}
-                {#if editTarget?.neighbor.id !== neighbor.id && neighbor.testimonial}
-                  <figure class="surface-box p-3" data-testid="neighbor-testimonial">
-                    <blockquote class="text-sm">
-                      <TestimonialText testimonial={neighbor.testimonial} />
-                    </blockquote>
-                    <figcaption class="mt-2 text-sm font-medium text-muted">
-                      {m('admin.neighbors.testimonial_label')}
-                    </figcaption>
-                  </figure>
-                {/if}
-              {/snippet}
               {#snippet actions()}
                 <div class="flex flex-col gap-3">
                   {#if editTarget?.neighbor.id === neighbor.id}
@@ -258,15 +227,6 @@
                       label={m('admin.neighbors.origin')}
                       labelHidden
                       bind:value={editOrigin}
-                      disabled={updateMutationState.isPending}
-                    />
-                    <TextArea
-                      id={`neighbor-testimonial-${neighbor.id}`}
-                      label={m('admin.neighbors.testimonial')}
-                      description={m('admin.neighbors.testimonial_help')}
-                      bind:value={editTestimonial}
-                      maxlength={500}
-                      rows={4}
                       disabled={updateMutationState.isPending}
                     />
                   {/if}
@@ -279,16 +239,13 @@
                       <Button
                         size="sm"
                         loading={updateMutationState.isPending}
-                        disabled={!normalizedEditOrigin ||
-                          (normalizedEditOrigin === neighbor.origin &&
-                            editTestimonial.trim() === (neighbor.testimonial ?? ''))}
+                        disabled={!normalizedEditOrigin || normalizedEditOrigin === neighbor.origin}
                         onclick={() =>
                           editTarget &&
                           normalizedEditOrigin &&
                           updateMutationState.mutate({
                             ...editTarget,
-                            origin: normalizedEditOrigin,
-                            testimonial: editTestimonial.trim()
+                            origin: normalizedEditOrigin
                           })}
                       >
                         {m('admin.neighbors.save')}
@@ -315,7 +272,6 @@
                 profile={profilesQuery.isPending
                   ? undefined
                   : (profilesByOrigin.get(neighbor.origin) ?? null)}
-                {details}
                 {actions}
                 testId="neighbor-card"
               />

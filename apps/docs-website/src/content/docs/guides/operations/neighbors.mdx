@@ -11,27 +11,22 @@ Neighbor is a recommendation. It is not a trust or reciprocal relationship.
 1. Open **Server Configuration → Neighbors**.
 2. Enter a hostname or URL, such as `chat.example.com` or a link to a room on
    that server.
-3. Optional: Add a testimonial that explains why you recommend the server.
-4. Select **Add Neighbor**.
+3. Select **Add Neighbor**.
 
 You need `server.manage-neighbors`. The broader `server.manage` permission also
 includes this authority.
 
 The administration page extracts the HTTP or HTTPS origin from the value. It
-removes paths, queries, and fragments before storage. A testimonial is public
-and can contain at most 500 Unicode characters. Blank lines start new
-paragraphs. You can use emphasis, strong emphasis, and inline code. Chatto does
-not render links, headings, lists, tables, images, or source HTML. A server can
-advertise at most 100 Neighbors. Chatto rejects its own `webserver.url` origin
-and each exact
+removes paths, queries, and fragments before storage. A server can advertise
+at most 100 Neighbors. Chatto rejects its own `webserver.url` origin and each
+exact
 `webserver.allowed_origins` alias.
 
 ## Edit or delete a Neighbor
 
-Use **Edit** to change one advertised origin or its testimonial. Remove all
-testimonial text to clear it. Use **Delete** to remove the Neighbor. Chatto
-rejects a stale edit when another administrator changed the same Neighbor
-first. Reload the list, review the current values, and try again.
+Use **Edit** to change one advertised origin. Use **Delete** to remove the
+Neighbor. Chatto rejects a stale edit when another administrator changed the
+same Neighbor first. Reload the list, review the current value, and try again.
 
 The Neighbors panel loads each server's public profile, logo, and banner. Use
 this information to review the advertised server before you keep or remove it.
@@ -55,11 +50,7 @@ A later result does not move a card that is already visible. The client removes
 duplicate origins, but it does not sort or rank the results. Each result shows
 the servers whose recommendations are displayed. When more than two servers
 recommend the same result, the card shows two server names and the number of
-other recommendations. Each available testimonial has a review card under the
-server profile. The review card shows the known name and icon of the source
-server. Different sources can publish different testimonials for the same
-server. Cards use a tapestry layout so that cards with different text lengths
-fit together.
+other recommendations. Server profile cards use a tapestry layout.
 
 The client requests each advertised server's public profile. A result can show
 the server name, description, logo, and banner. If a server is offline or does
@@ -118,8 +109,7 @@ Neighbor configuration remains passive.
 The authenticated `chatto.admin.v1.AdminServerService` provides list, get,
 create, update, and delete methods. The public
 `chatto.discovery.v1.ServerDiscoveryService.ListNeighbors` method returns
-structured recommendations with optional testimonials without a session. The
-response also contains the origin list for older clients.
+canonical origins without a session.
 
 Administrative API callers must send a canonical HTTP or HTTPS origin without
 a path, query, fragment, or credentials. The hostname and deep-link input

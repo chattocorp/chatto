@@ -64,16 +64,10 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 func (s *serverDiscoveryService) ListNeighbors(ctx context.Context, _ *connect.Request[discoveryv1.ListNeighborsRequest]) (*connect.Response[discoveryv1.ListNeighborsResponse], error) {
 	neighbors := s.api.core.ConfigModel().ListNeighbors()
 	origins := make([]string, 0, len(neighbors))
-	publicNeighbors := make([]*discoveryv1.Neighbor, 0, len(neighbors))
 	for _, neighbor := range neighbors {
 		origins = append(origins, neighbor.Origin)
-		publicNeighbor := &discoveryv1.Neighbor{Origin: neighbor.Origin}
-		if neighbor.Testimonial != "" {
-			publicNeighbor.Testimonial = stringPtr(neighbor.Testimonial)
-		}
-		publicNeighbors = append(publicNeighbors, publicNeighbor)
 	}
-	response := &discoveryv1.ListNeighborsResponse{Origins: origins, Neighbors: publicNeighbors}
+	response := &discoveryv1.ListNeighborsResponse{Origins: origins}
 	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
 		etag, err := discoveryResponseETag(response)
 		if err != nil {

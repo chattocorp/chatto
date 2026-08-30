@@ -32,7 +32,6 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "Aanbevelingen voor {server}",
       "discovering": "Meer servers zoeken…",
       "load_more": "Meer laden",
       "session_limit_reached": "De ontdekkingslimiet voor deze sessie is bereikt."

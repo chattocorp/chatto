@@ -232,7 +232,9 @@ message ServerNeighborSnapshot {
   string id = 1;
   string origin = 2;
   string revision = 3;
-  string testimonial = 4;
+  // Legacy testimonial retained only to decode old snapshot generations.
+  // Current code ignores this field and never writes it.
+  string testimonial = 4 [deprecated = true];
 }
 
 message UserConfigSnapshot {

@@ -241,7 +241,7 @@ func (s *serverService) CreateNeighbor(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, err
 	}
-	neighbor, err := s.api.core.CreateNeighbor(ctx, caller.UserID, req.Msg.GetOrigin(), req.Msg.GetTestimonial())
+	neighbor, err := s.api.core.CreateNeighbor(ctx, caller.UserID, req.Msg.GetOrigin())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -253,7 +253,7 @@ func (s *serverService) UpdateNeighbor(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, err
 	}
-	neighbor, err := s.api.core.UpdateNeighbor(ctx, caller.UserID, req.Msg.GetNeighborId(), req.Msg.GetOrigin(), req.Msg.Testimonial, req.Msg.GetRevision())
+	neighbor, err := s.api.core.UpdateNeighbor(ctx, caller.UserID, req.Msg.GetNeighborId(), req.Msg.GetOrigin(), req.Msg.GetRevision())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -280,11 +280,7 @@ func adminNeighbors(neighbors []core.Neighbor) []*adminv1.Neighbor {
 }
 
 func adminNeighbor(neighbor core.Neighbor) *adminv1.Neighbor {
-	result := &adminv1.Neighbor{Id: neighbor.ID, Origin: neighbor.Origin, Revision: neighbor.Revision}
-	if neighbor.Testimonial != "" {
-		result.Testimonial = stringPtr(neighbor.Testimonial)
-	}
-	return result
+	return &adminv1.Neighbor{Id: neighbor.ID, Origin: neighbor.Origin, Revision: neighbor.Revision}
 }
 
 func adminServerConfig(cfg *configv1.ServerConfig) *adminv1.ServerConfig {

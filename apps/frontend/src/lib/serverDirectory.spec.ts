@@ -8,10 +8,10 @@ import {
   type ServerDirectoryDiscovery,
   type ServerDirectorySnapshot
 } from './serverDirectory';
-import type { PublicNeighbor, PublicServerInfo } from '$lib/api-client/server';
+import type { PublicServerInfo } from '$lib/api-client/server';
 
-function recommendation(origin: string, testimonial: string | null = null): PublicNeighbor {
-  return { origin, testimonial };
+function recommendation(origin: string): string {
+  return origin;
 }
 
 function profile(name: string): PublicServerInfo {
@@ -67,16 +67,15 @@ describe('serverOriginFromInput', () => {
 });
 
 describe('ServerDirectoryDiscovery', () => {
-  it('requires a mutual recommendation and preserves bounded testimonial text', async () => {
-    const oversized = `  ${'界'.repeat(505)}  `;
+  it('requires a mutual recommendation and deduplicates canonical origins', async () => {
     const listNeighbors = vi.fn(async (origin: string) => {
       if (origin === 'https://source.example') {
         return [
-          recommendation('HTTPS://NEIGHBOR.EXAMPLE:443/path', oversized),
-          recommendation('https://neighbor.example', 'ignored duplicate')
+          recommendation('HTTPS://NEIGHBOR.EXAMPLE:443/path'),
+          recommendation('https://neighbor.example')
         ];
       }
-      return [recommendation('https://source.example', 'The return recommendation.')];
+      return [recommendation('https://source.example')];
     });
     const discovery = createServerDirectoryDiscovery(['HTTPS://SOURCE.EXAMPLE:443/path'], {
       listNeighbors,
@@ -91,8 +90,7 @@ describe('ServerDirectoryDiscovery', () => {
       .latest()
       .entries.find((entry) => entry.origin === 'https://neighbor.example');
     expect(neighbor).toMatchObject({
-      sourceOrigins: ['https://source.example'],
-      recommendations: [{ sourceOrigin: 'https://source.example', testimonial: '界'.repeat(500) }]
+      sourceOrigins: ['https://source.example']
     });
   });
 
@@ -118,7 +116,7 @@ describe('ServerDirectoryDiscovery', () => {
   });
 
   it('does not let two direct but non-mutual candidates promote each other', async () => {
-    const directories: Record<string, PublicNeighbor[]> = {
+    const directories: Record<string, string[]> = {
       'https://a.example': [recommendation('https://b.example')],
       'https://c.example': [recommendation('https://x.example')],
       'https://b.example': [recommendation('https://x.example')],
@@ -144,7 +142,7 @@ describe('ServerDirectoryDiscovery', () => {
   });
 
   it('hides a unilateral recommendation from a recursive source', async () => {
-    const directories: Record<string, PublicNeighbor[]> = {
+    const directories: Record<string, string[]> = {
       'https://a.example': [recommendation('https://b.example')],
       'https://b.example': [
         recommendation('https://a.example'),
@@ -168,7 +166,7 @@ describe('ServerDirectoryDiscovery', () => {
   });
 
   it('discovers two mutual hops and does not expand the second hop', async () => {
-    const directories: Record<string, PublicNeighbor[]> = {
+    const directories: Record<string, string[]> = {
       'https://a.example': [recommendation('https://b.example')],
       'https://b.example': [
         recommendation('https://a.example'),
@@ -222,7 +220,7 @@ describe('ServerDirectoryDiscovery', () => {
 
   it('publishes a completed branch while another root is still slow', async () => {
     let releaseSlow!: () => void;
-    const slow = new Promise<PublicNeighbor[]>((resolve) => {
+    const slow = new Promise<string[]>((resolve) => {
       releaseSlow = () => resolve([]);
     });
     const listNeighbors = vi.fn(async (origin: string) => {
@@ -249,11 +247,11 @@ describe('ServerDirectoryDiscovery', () => {
 
   it('enriches an existing entry without moving it', async () => {
     let releaseSecond!: () => void;
-    const second = new Promise<PublicNeighbor[]>((resolve) => {
+    const second = new Promise<string[]>((resolve) => {
       releaseSecond = () => resolve([recommendation('https://target.example')]);
     });
-    const directories: Record<string, PublicNeighbor[]> = {
-      'https://one.example': [recommendation('https://target.example', 'First')],
+    const directories: Record<string, string[]> = {
+      'https://one.example': [recommendation('https://target.example')],
       'https://target.example': [
         recommendation('https://one.example'),
         recommendation('https://two.example')
@@ -423,10 +421,10 @@ describe('ServerDirectoryDiscovery', () => {
         recommendation(origin.startsWith('https://a-') ? 'https://a.example' : 'https://b.example')
       ];
     });
-    const discovery = createServerDirectoryDiscovery(
-      ['https://a.example', 'https://b.example'],
-      { listNeighbors, getServerInfo: vi.fn(async (origin: string) => profile(origin)) }
-    );
+    const discovery = createServerDirectoryDiscovery(['https://a.example', 'https://b.example'], {
+      listNeighbors,
+      getServerInfo: vi.fn(async (origin: string) => profile(origin))
+    });
 
     await startAndSettle(discovery);
 
@@ -442,7 +440,7 @@ describe('ServerDirectoryDiscovery', () => {
     const discovery = createServerDirectoryDiscovery(['https://slow.example'], {
       requestTimeoutMs: 5,
       listNeighbors: vi.fn(
-        async (_origin: string, options?: { signal?: AbortSignal }): Promise<PublicNeighbor[]> =>
+        async (_origin: string, options?: { signal?: AbortSignal }): Promise<string[]> =>
           new Promise((_, reject) =>
             options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), {
               once: true
@@ -494,7 +492,7 @@ describe('ServerDirectoryDiscovery', () => {
     let requestSignal: AbortSignal | undefined;
     const discovery = createServerDirectoryDiscovery(['https://source.example'], {
       listNeighbors: vi.fn(
-        async (_origin: string, options?: { signal?: AbortSignal }): Promise<PublicNeighbor[]> => {
+        async (_origin: string, options?: { signal?: AbortSignal }): Promise<string[]> => {
           requestSignal = options?.signal;
           return new Promise((_, reject) =>
             options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), {

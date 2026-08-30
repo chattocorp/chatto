@@ -33,17 +33,6 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
-<a id="chatto-discovery-v1-Neighbor"></a>
-
-### Neighbor
-
-One public server recommendation.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `origin` | `string` | Canonical HTTP or HTTPS server origin. |
-| `testimonial` | `optional string` | Optional explanation from the recommending server's operator. |
-
 <a id="chatto-api-v1-ImageTransformOptions"></a>
 
 ### ImageTransformOptions
@@ -1665,7 +1654,6 @@ One server advertised in the public Neighbor directory.
 | `id` | `string` | Stable opaque resource ID. |
 | `origin` | `string` | Canonical HTTP or HTTPS server origin. |
 | `revision` | `string` | Opaque revision required for update and delete requests. |
-| `testimonial` | `optional string` | Optional public explanation of why this server is recommended. |
 
 <a id="chatto-admin-v1-ServerConfig"></a>
 

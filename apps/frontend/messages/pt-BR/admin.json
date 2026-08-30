@@ -31,10 +31,7 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted",
-      "testimonial": "Depoimento (opcional)",
-      "testimonial_help": "Explique por que você recomenda este servidor. Este texto é público e pode ter até 500 caracteres.",
-      "testimonial_label": "Depoimento público"
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} | Administrador",

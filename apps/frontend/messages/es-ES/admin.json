@@ -31,10 +31,7 @@
       "delete_description": "¿Dejar de publicar {origin}?",
       "created": "Vecino añadido",
       "updated": "Vecino actualizado",
-      "deleted": "Vecino eliminado",
-      "testimonial": "Testimonio (opcional)",
-      "testimonial_help": "Explica por qué recomiendas este servidor. Este texto es público y puede contener hasta 500 caracteres.",
-      "testimonial_label": "Testimonio público"
+      "deleted": "Vecino eliminado"
     },
     "common": {
       "page_title": "{title} | administrador",

@@ -31,10 +31,7 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted",
-      "testimonial": "Görüş (isteğe bağlı)",
-      "testimonial_help": "Bu sunucuyu neden önerdiğinizi açıklayın. Bu metin herkese açıktır ve en fazla 500 karakter içerebilir.",
-      "testimonial_label": "Herkese açık görüş"
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} | Yönetici",

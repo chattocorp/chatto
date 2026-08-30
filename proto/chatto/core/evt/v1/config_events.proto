@@ -121,8 +121,9 @@ message UserRoomGroupNotificationPolicyChangedEvent {
 message ServerNeighborCreatedEvent {
   string neighbor_id = 1;
   string origin = 2;
-  // Optional public explanation from the source server's operator.
-  string testimonial = 3;
+  // Legacy testimonial retained only to decode EVT history. Current code
+  // ignores this field and never writes it.
+  string testimonial = 3 [deprecated = true];
 }
 
 // Records a change to one Neighbor origin. The event envelope ID becomes the
@@ -132,11 +133,11 @@ message ServerNeighborOriginChangedEvent {
   string origin = 2;
 }
 
-// Records a change to one Neighbor testimonial. An empty value clears the
-// testimonial. The event envelope ID becomes the resource revision.
+// Legacy testimonial change retained only to decode EVT history. Current code
+// uses the envelope ID as the resource revision and ignores the text.
 message ServerNeighborTestimonialChangedEvent {
   string neighbor_id = 1;
-  string testimonial = 2;
+  string testimonial = 2 [deprecated = true];
 }
 
 // Removes one Neighbor from the public directory.
