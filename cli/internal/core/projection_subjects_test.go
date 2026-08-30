@@ -125,6 +125,8 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyCreated),
 				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
+				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyAdded),
+				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRevoked),
 				evtstream.UserEventTypeFilter(evtstream.EventBotOwnerReassigned),
 				evtstream.UserEventTypeFilter(evtstream.EventBotIncomingWebhookCreated),
 				evtstream.UserEventTypeFilter(evtstream.EventBotIncomingWebhookRotated),

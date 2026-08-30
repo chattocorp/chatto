@@ -90,7 +90,7 @@ func (s *botService) CreateBot(ctx context.Context, req *connect.Request[apiv1.C
 	if err != nil {
 		return nil, err
 	}
-	bot, err := s.api.core.CreateBot(ctx, caller.UserID, req.Msg.GetLogin(), req.Msg.GetDisplayName())
+	bot, err := s.api.core.CreateBotWithAPIKeyName(ctx, caller.UserID, req.Msg.GetLogin(), req.Msg.GetDisplayName(), req.Msg.GetApiKeyName())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -98,7 +98,9 @@ func (s *botService) CreateBot(ctx context.Context, req *connect.Request[apiv1.C
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.CreateBotResponse{Bot: mapped, ApiKey: bot.APIKey}), nil
+	return connect.NewResponse(&apiv1.CreateBotResponse{
+		Bot: mapped, ApiKey: bot.APIKey, ApiKeyMetadata: apiBotAPIKeyByID(mapped, bot.APIKeyID),
+	}), nil
 }
 
 func (s *botService) DeleteBot(ctx context.Context, req *connect.Request[apiv1.DeleteBotRequest]) (*connect.Response[apiv1.DeleteBotResponse], error) {
@@ -126,7 +128,43 @@ func (s *botService) RotateBotApiKey(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.RotateBotApiKeyResponse{Bot: mapped, ApiKey: bot.APIKey}), nil
+	return connect.NewResponse(&apiv1.RotateBotApiKeyResponse{
+		Bot: mapped, ApiKey: bot.APIKey, ApiKeyMetadata: apiBotAPIKeyByID(mapped, bot.APIKeyID),
+	}), nil
+}
+
+func (s *botService) CreateBotApiKey(ctx context.Context, req *connect.Request[apiv1.CreateBotApiKeyRequest]) (*connect.Response[apiv1.CreateBotApiKeyResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	issued, err := s.api.core.CreateBotAPIKey(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetName())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	mapped, err := apiBot(ctx, s.api, issued.Bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.CreateBotApiKeyResponse{
+		Bot: mapped, ApiKey: issued.Credential, ApiKeyMetadata: apiBotAPIKeyByID(mapped, issued.KeyID),
+	}), nil
+}
+
+func (s *botService) RevokeBotApiKey(ctx context.Context, req *connect.Request[apiv1.RevokeBotApiKeyRequest]) (*connect.Response[apiv1.RevokeBotApiKeyResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := s.api.core.RevokeBotAPIKey(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetKeyId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	mapped, err := newBotAssembler(s.api).assembleOne(ctx, bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.RevokeBotApiKeyResponse{Bot: mapped}), nil
 }
 
 func (s *botService) CreateBotIncomingWebhook(ctx context.Context, req *connect.Request[apiv1.CreateBotIncomingWebhookRequest]) (*connect.Response[apiv1.CreateBotIncomingWebhookResponse], error) {
@@ -192,6 +230,19 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 	if !bot.APIKeyRotatedAt.IsZero() {
 		out.ApiKeyRotatedAt = timestamppb.New(bot.APIKeyRotatedAt)
 	}
+	for _, key := range bot.APIKeys {
+		mapped := &apiv1.BotApiKey{Id: key.ID, Name: key.Name, CreatedAt: timestamppb.New(key.CreatedAt)}
+		switch key.LastUsedState {
+		case core.BotCredentialLastUsedNoUseRecorded:
+			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED
+		case core.BotCredentialLastUsedRecorded:
+			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_RECORDED
+			mapped.LastUsedAt = timestamppb.New(key.LastUsedAt)
+		case core.BotCredentialLastUsedUnavailable:
+			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNAVAILABLE
+		}
+		out.ApiKeys = append(out.ApiKeys, mapped)
+	}
 	for _, webhook := range bot.IncomingWebhooks {
 		mapped := &apiv1.BotIncomingWebhook{
 			Id: webhook.ID, Name: webhook.Name, CreatedAt: timestamppb.New(webhook.CreatedAt),
@@ -208,4 +259,16 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 		out.IncomingWebhooks = append(out.IncomingWebhooks, mapped)
 	}
 	return out, nil
+}
+
+func apiBotAPIKeyByID(bot *apiv1.Bot, keyID string) *apiv1.BotApiKey {
+	if bot == nil {
+		return nil
+	}
+	for _, key := range bot.GetApiKeys() {
+		if key.GetId() == keyID {
+			return key
+		}
+	}
+	return nil
 }

@@ -157,6 +157,11 @@ func NewBotAPIKey(botUserID string) (string, error) {
 	return newBotCredential("cht_BK_", botUserID, "bot API key")
 }
 
+// NewBotAPIKeyID generates a stable opaque API-key credential ID.
+func NewBotAPIKeyID() string {
+	return newID("K")
+}
+
 // NewBotIncomingWebhookCredential creates the show-once action credential for
 // a bot's incoming webhook. The credential authorizes only that HTTP endpoint.
 func NewBotIncomingWebhookCredential(botUserID string) (string, error) {

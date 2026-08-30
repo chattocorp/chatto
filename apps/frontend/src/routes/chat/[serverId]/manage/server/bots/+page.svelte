@@ -105,6 +105,7 @@
   let createVisible = $state(false);
   let createLogin = $state('');
   let createDisplayName = $state('');
+  let createAPIKeyName = $state('');
   let createLoading = $state(false);
   let createError = $state<string | null>(null);
   let apiKeyVisible = $state(false);
@@ -137,17 +138,11 @@
     await botsQuery.fetchNextPage();
   }
 
-  function botHref(botId: string) {
-    return resolve('/chat/[serverId]/manage/server/bots/[botId]', {
-      serverId: serverIdToSegment(serverScope.serverId),
-      botId
-    });
-  }
-
   function openCreate() {
     if (!canCreateBots) return;
     createLogin = '';
     createDisplayName = '';
+    createAPIKeyName = m('settings.bots.default_key_name');
     createError = null;
     createVisible = true;
   }
@@ -161,7 +156,8 @@
     try {
       const created = await connection.getAPI(createBotAPI).createBot({
         login: normalizedCreateLogin,
-        displayName: createDisplayName.trim()
+        displayName: createDisplayName.trim(),
+        apiKeyName: createAPIKeyName.trim()
       });
       if (
         !componentActive ||
@@ -248,7 +244,13 @@
           loadingMore={botsQuery.isFetchingNextPage}
           onLoadMore={loadMore}
           loadMoreRoot={scrollContainer}
-          onRowClick={(bot) => goto(botHref(bot.id))}
+          onRowClick={(bot) =>
+            goto(
+              resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                serverId: serverIdToSegment(serverScope.serverId),
+                botId: bot.id
+              })
+            )}
         >
           {#snippet header()}
             <th class="table-header-cell">{m('settings.bots.singular')}</th>
@@ -275,7 +277,10 @@
             <td class="px-4 py-3">
               <a
                 class="link text-muted"
-                href={botHref(bot.id)}
+                href={resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                  serverId: serverIdToSegment(serverScope.serverId),
+                  botId: bot.id
+                })}
                 onclick={(event) => event.stopPropagation()}>@{bot.login}</a
               >
             </td>
@@ -305,7 +310,7 @@
   submitLabel={m('settings.bots.create')}
   submitIcon="iconify icon-[uil--robot]"
   loading={createLoading}
-  disabled={!normalizedCreateLogin || !!createLoginError || !createDisplayName.trim()}
+  disabled={!normalizedCreateLogin || !!createLoginError || !createDisplayName.trim() || !createAPIKeyName.trim()}
   error={createError}
   onsubmit={createBot}
   onclose={() => (createVisible = false)}
@@ -326,6 +331,13 @@
     maxlength={32}
     required
     bind:value={createDisplayName}
+  />
+  <TextInput
+    id="bot-api-key-name"
+    label={m('settings.bots.key_name')}
+    maxlength={64}
+    required
+    bind:value={createAPIKeyName}
   />
 </FormDialog>
 

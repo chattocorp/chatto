@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   batchGetUsers: vi.fn(),
   listUsers: vi.fn(),
   rotateBotAPIKey: vi.fn(),
+  createBotAPIKey: vi.fn(),
+  revokeBotAPIKey: vi.fn(),
   reassignBotOwner: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
@@ -20,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   settings: null as { timezone: string; timeFormat: TimeFormat } | null,
   canManageBots: true,
+  supportsMultipleAPIKeys: true,
   bot: {
     id: 'bot-user-id',
     login: 'helper_bot',
@@ -31,6 +34,15 @@ const mocks = vi.hoisted(() => ({
     createdAt: null,
     apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
     apiKeyRotatedAt: null,
+    apiKeys: [
+      {
+        id: 'legacy',
+        name: 'Default key',
+        createdAt: new Date('2026-08-21T12:00:00Z'),
+        lastUsedState: 'no_use_recorded' as const,
+        lastUsedAt: null
+      }
+    ],
     incomingWebhooks: []
   }
 }));
@@ -41,7 +53,10 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'server-1',
     store: {
-      serverInfo: { supportsFeature: () => true },
+      serverInfo: {
+        supportsFeature: (feature: string) =>
+          feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
+      },
       currentUser: { user: { settings: mocks.settings } },
       projection: {
         viewer: {
@@ -59,6 +74,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         batchGetUsers: mocks.batchGetUsers,
         listUsers: mocks.listUsers,
         rotateBotAPIKey: mocks.rotateBotAPIKey,
+        createBotAPIKey: mocks.createBotAPIKey,
+        revokeBotAPIKey: mocks.revokeBotAPIKey,
         reassignBotOwner: mocks.reassignBotOwner,
         createBotIncomingWebhook: mocks.createBotIncomingWebhook,
         revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook
@@ -103,6 +120,7 @@ describe('Bot detail page', () => {
     vi.clearAllMocks();
     mocks.settings = null;
     mocks.canManageBots = true;
+    mocks.supportsMultipleAPIKeys = true;
     mocks.getBot.mockResolvedValue(mocks.bot);
     mocks.batchGetUsers.mockResolvedValue([]);
     mocks.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
@@ -110,6 +128,23 @@ describe('Bot detail page', () => {
       Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
     );
     mocks.rotateBotAPIKey.mockResolvedValue({ bot: mocks.bot, apiKey: 'rotated-secret' });
+    mocks.createBotAPIKey.mockResolvedValue({
+      bot: {
+        ...mocks.bot,
+        apiKeys: [
+          ...mocks.bot.apiKeys,
+          {
+            id: 'K-production',
+            name: 'Production',
+            createdAt: new Date(),
+            lastUsedState: 'no_use_recorded' as const,
+            lastUsedAt: null
+          }
+        ]
+      },
+      apiKey: 'created-secret'
+    });
+    mocks.revokeBotAPIKey.mockResolvedValue({ ...mocks.bot, apiKeys: [] });
     mocks.createBotIncomingWebhook.mockResolvedValue({
       bot: {
         ...mocks.bot,
@@ -148,6 +183,35 @@ describe('Bot detail page', () => {
 
     expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret');
     expect(container.textContent).toContain('This URL is shown only once');
+  });
+
+  it('creates and revokes API keys independently', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    buttonByText(container, 'Create API key').click();
+    flushSync();
+    setInput(container.querySelector('#create-bot-api-key-name') as HTMLInputElement, 'Production');
+    const createButtons = [...container.querySelectorAll('button')].filter(
+      (button) => button.textContent?.trim() === 'Create API key'
+    );
+    createButtons.at(-1)?.click();
+    await vi.waitFor(() =>
+      expect(mocks.createBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'Production')
+    );
+    flushSync();
+
+    expect(container.textContent).toContain('created-secret');
+
+    buttonByText(container, 'Revoke key').click();
+    flushSync();
+    const revokeButtons = [...document.querySelectorAll('button')].filter(
+      (button) => button.textContent?.trim() === 'Revoke key'
+    );
+    revokeButtons.at(-1)?.click();
+    await vi.waitFor(() =>
+      expect(mocks.revokeBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'legacy')
+    );
   });
 
   it('keeps hydrated webhook telemetry while it refetches after credential issuance', async () => {
@@ -270,6 +334,7 @@ describe('Bot detail page', () => {
   });
 
   it("formats API key timestamps with the viewer's timezone and time format", async () => {
+    mocks.supportsMultipleAPIKeys = false;
     mocks.settings = {
       timezone: 'America/New_York',
       timeFormat: TimeFormat.TIME_FORMAT_24_HOUR

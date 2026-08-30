@@ -733,6 +733,47 @@ func TestRealtimeWebSocketClosesWhenBotAPIKeyRotates(t *testing.T) {
 	subscribeRealtime(t, freshConn, rotated.APIKey)
 }
 
+func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-multi-key-owner", "RT Multi-key Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := env.core.CreateBot(env.ctx, owner.GetId(), "rt_multi_key_bot", "RT Multi-key Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	first, err := env.core.CreateBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), "First worker")
+	if err != nil {
+		t.Fatalf("CreateBotAPIKey first: %v", err)
+	}
+	second, err := env.core.CreateBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), "Second worker")
+	if err != nil {
+		t.Fatalf("CreateBotAPIKey second: %v", err)
+	}
+
+	firstConn := env.connectRealtime(t)
+	subscribeRealtime(t, firstConn, first.Credential)
+	secondConn := env.connectRealtime(t)
+	subscribeRealtime(t, secondConn, second.Credential)
+
+	if _, err := env.core.RevokeBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), first.KeyID); err != nil {
+		t.Fatalf("RevokeBotAPIKey first: %v", err)
+	}
+	frame, ok := readRealtimeServerFrame(t, firstConn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+		t.Fatalf("first revoked socket frame = %+v", frame)
+	}
+
+	if _, err := env.core.RevokeBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), second.KeyID); err != nil {
+		t.Fatalf("RevokeBotAPIKey second: %v", err)
+	}
+	frame, ok = readRealtimeServerFrame(t, secondConn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+		t.Fatalf("second revoked socket frame = %+v", frame)
+	}
+}
+
 func TestRealtimeBotReceivesNotificationActivations(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-activation-owner", "RT Activation Owner", "password123")

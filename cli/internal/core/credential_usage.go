@@ -18,6 +18,7 @@ const (
 	credentialUsageFlushInterval      = time.Minute
 	credentialUsageRetryInterval      = 5 * time.Second
 	credentialUsageSweepInterval      = time.Minute
+	credentialUsageAPIKeyKind         = "api_key"
 	credentialUsageWebhookKind        = "incoming_webhook"
 )
 
@@ -62,6 +63,10 @@ func credentialUsageRuntimeStateKey(botID string) string {
 
 func incomingWebhookUsageKey(webhookID string) string {
 	return credentialUsageWebhookKind + ":" + webhookID
+}
+
+func botAPIKeyUsageKey(keyID string) string {
+	return credentialUsageAPIKeyKind + ":" + keyID
 }
 
 // Record retains the newest process-local observation and wakes the

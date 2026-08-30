@@ -19,6 +19,13 @@ export type Bot = {
   createdAt: Date | null;
   apiKeyCreatedAt: Date | null;
   apiKeyRotatedAt: Date | null;
+  apiKeys: {
+    id: string;
+    name: string;
+    createdAt: Date | null;
+    lastUsedState: 'no_use_recorded' | 'recorded' | 'unavailable';
+    lastUsedAt: Date | null;
+  }[];
   incomingWebhooks: {
     id: string;
     name: string;
@@ -65,6 +72,7 @@ export function createBotAPI(config: BotAPIConfig) {
     async createBot(input: {
       login: string;
       displayName: string;
+      apiKeyName?: string;
     }): Promise<{ bot: Bot; apiKey: string }> {
       const response = await client.createBot(input, { headers: headers() });
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
@@ -75,6 +83,23 @@ export function createBotAPI(config: BotAPIConfig) {
     async rotateBotAPIKey(botUserId: string): Promise<{ bot: Bot; apiKey: string }> {
       const response = await client.rotateBotApiKey({ botUserId }, { headers: headers() });
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
+    },
+    async createBotAPIKey(
+      botUserId: string,
+      name: string
+    ): Promise<{ bot: Bot; apiKey: string }> {
+      const response = await client.createBotApiKey(
+        { botUserId, name },
+        { headers: headers() }
+      );
+      return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
+    },
+    async revokeBotAPIKey(botUserId: string, keyId: string): Promise<Bot> {
+      const response = await client.revokeBotApiKey(
+        { botUserId, keyId },
+        { headers: headers() }
+      );
+      return botFromAPI(requiredBot(response.bot));
     },
     async createBotIncomingWebhook(
       botUserId: string,
@@ -124,6 +149,18 @@ function botFromAPI(bot: APIBot): Bot {
     createdAt: bot.createdAt?.toDate() ?? null,
     apiKeyCreatedAt: bot.apiKeyCreatedAt?.toDate() ?? null,
     apiKeyRotatedAt: bot.apiKeyRotatedAt?.toDate() ?? null,
+    apiKeys: (bot.apiKeys ?? []).map((key) => ({
+      id: key.id,
+      name: key.name,
+      createdAt: key.createdAt?.toDate() ?? null,
+      lastUsedState:
+        key.lastUsedState === CredentialLastUsedState.RECORDED
+          ? 'recorded'
+          : key.lastUsedState === CredentialLastUsedState.NO_USE_RECORDED
+            ? 'no_use_recorded'
+            : 'unavailable',
+      lastUsedAt: key.lastUsedAt?.toDate() ?? null
+    })),
     incomingWebhooks: (bot.incomingWebhooks ?? []).map((webhook) => ({
       id: webhook.id,
       name: webhook.name,

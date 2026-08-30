@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -61,7 +61,7 @@ export const BotService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes a bot and invalidates its API key.
+     * Deletes a bot and invalidates all of its API keys.
      *
      * @generated from rpc chatto.api.v1.BotService.DeleteBot
      */
@@ -73,7 +73,8 @@ export const BotService = {
       idempotency: MethodIdempotency.Idempotent,
     },
     /**
-     * Rotates the bot's sole API key and immediately invalidates the old key.
+     * Invalidates every active API key and returns one replacement default key.
+     * New integrations should use CreateBotApiKey and RevokeBotApiKey.
      *
      * @generated from rpc chatto.api.v1.BotService.RotateBotApiKey
      */
@@ -82,6 +83,29 @@ export const BotService = {
       I: RotateBotApiKeyRequest,
       O: RotateBotApiKeyResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Creates one named API key. A bot can have at most 20 active API keys.
+     *
+     * @generated from rpc chatto.api.v1.BotService.CreateBotApiKey
+     */
+    createBotApiKey: {
+      name: "CreateBotApiKey",
+      I: CreateBotApiKeyRequest,
+      O: CreateBotApiKeyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Revokes one API key without changing other active keys.
+     *
+     * @generated from rpc chatto.api.v1.BotService.RevokeBotApiKey
+     */
+    revokeBotApiKey: {
+      name: "RevokeBotApiKey",
+      I: RevokeBotApiKeyRequest,
+      O: RevokeBotApiKeyResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
     /**
      * Creates a named incoming webhook. A bot can have at most 20 active
@@ -109,7 +133,7 @@ export const BotService = {
     },
     /**
      * Reassigns a bot to another active human owner. Requires bot.manage. The
-     * current API key and configured permission allowlist remain unchanged,
+     * current API keys and configured permission allowlist remain unchanged,
      * while effective permissions immediately use the new owner's ceiling.
      *
      * @generated from rpc chatto.api.v1.BotService.ReassignBotOwner

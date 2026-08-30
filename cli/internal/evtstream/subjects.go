@@ -179,6 +179,8 @@ const (
 	EventUserCustomStatusCleared      = "custom_status_cleared"
 	EventBotAPIKeyCreated             = "bot_api_key_created"
 	EventBotAPIKeyRotated             = "bot_api_key_rotated"
+	EventBotAPIKeyAdded               = "bot_api_key_added"
+	EventBotAPIKeyRevoked             = "bot_api_key_revoked"
 	EventBotOwnerReassigned           = "bot_owner_reassigned"
 	// The enabled/disabled subject tokens predate the multiple-credential
 	// lifecycle. Keep them stable while the protobuf facts use create/revoke
@@ -390,6 +392,10 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventBotAPIKeyCreated
 	case *evtv1.Event_BotApiKeyRotated:
 		return EventBotAPIKeyRotated
+	case *evtv1.Event_BotApiKeyAdded:
+		return EventBotAPIKeyAdded
+	case *evtv1.Event_BotApiKeyRevoked:
+		return EventBotAPIKeyRevoked
 	case *evtv1.Event_BotOwnerReassigned:
 		return EventBotOwnerReassigned
 	case *evtv1.Event_BotIncomingWebhookCreated:

@@ -32,6 +32,9 @@
   const supportsIncomingWebhooks = $derived(
     serverScope.store.serverInfo.supportsFeature('botIncomingWebhooks')
   );
+  const supportsMultipleAPIKeys = $derived(
+    serverScope.store.serverInfo.supportsFeature('botMultipleApiKeys')
+  );
   const supportsOwnerReassignment = $derived(
     serverScope.store.serverInfo.supportsFeature('botOwnerReassignment')
   );
@@ -84,6 +87,12 @@
   let apiKey = $state('');
   let rotateVisible = $state(false);
   let rotateLoading = $state(false);
+  let createAPIKeyVisible = $state(false);
+  let createAPIKeyName = $state('');
+  let createAPIKeyLoading = $state(false);
+  let revokeAPIKeyVisible = $state(false);
+  let revokeAPIKeyId = $state('');
+  let revokeAPIKeyLoading = $state(false);
   let webhookURLVisible = $state(false);
   let webhookURL = $state('');
   let createWebhookVisible = $state(false);
@@ -105,6 +114,7 @@
   });
 
   const normalizedWebhookName = $derived(createWebhookName.trim());
+  const normalizedAPIKeyName = $derived(createAPIKeyName.trim());
   const timeSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
@@ -152,6 +162,56 @@
       }
     } finally {
       if (isCurrentTarget(mutationTarget)) rotateLoading = false;
+    }
+  }
+
+  function openCreateAPIKey() {
+    createAPIKeyName = '';
+    createAPIKeyVisible = true;
+  }
+
+  async function createAPIKey() {
+    if (!bot || !normalizedAPIKeyName) return;
+    const mutationTarget = targetKey;
+    createAPIKeyLoading = true;
+    try {
+      const created = await botAPI().createBotAPIKey(bot.id, normalizedAPIKeyName);
+      if (!isCurrentTarget(mutationTarget)) return;
+      createAPIKeyVisible = false;
+      apiKey = created.apiKey;
+      apiKeyVisible = true;
+      refreshBot();
+      toast.success(m('settings.bots.key_created_toast'));
+    } catch (error) {
+      if (isCurrentTarget(mutationTarget)) {
+        toast.error(error instanceof Error ? error.message : m('settings.bots.key_create_failed'));
+      }
+    } finally {
+      if (isCurrentTarget(mutationTarget)) createAPIKeyLoading = false;
+    }
+  }
+
+  function openRevokeAPIKey(keyId: string) {
+    revokeAPIKeyId = keyId;
+    revokeAPIKeyVisible = true;
+  }
+
+  async function revokeAPIKey() {
+    if (!bot || !revokeAPIKeyId) return;
+    const mutationTarget = targetKey;
+    revokeAPIKeyLoading = true;
+    try {
+      const updated = await botAPI().revokeBotAPIKey(bot.id, revokeAPIKeyId);
+      if (!isCurrentTarget(mutationTarget)) return;
+      cacheBot(updated);
+      revokeAPIKeyVisible = false;
+      toast.success(m('settings.bots.key_revoked'));
+    } catch (error) {
+      if (isCurrentTarget(mutationTarget)) {
+        toast.error(error instanceof Error ? error.message : m('settings.bots.key_revoke_failed'));
+      }
+    } finally {
+      if (isCurrentTarget(mutationTarget)) revokeAPIKeyLoading = false;
     }
   }
 
@@ -286,6 +346,16 @@
     }
     return formatDate(webhook.lastUsedAt);
   }
+
+  function formatAPIKeyLastUsed(key: Bot['apiKeys'][number]): string {
+    if (key.lastUsedState === 'unavailable') {
+      return m('settings.bots.key_last_used_unavailable');
+    }
+    if (key.lastUsedState === 'no_use_recorded' || !key.lastUsedAt) {
+      return m('settings.bots.key_no_use_recorded');
+    }
+    return formatDate(key.lastUsedAt);
+  }
 </script>
 
 <PageTitle
@@ -309,10 +379,12 @@
     <div class="flex flex-col gap-6">
       <Panel title={bot.displayName} subtitle={`@${bot.login}`}>
         {#snippet actions()}
-          <Button size="sm" variant="warning" onclick={() => (rotateVisible = true)}>
-            <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
-            {m('settings.bots.rotate_key')}
-          </Button>
+          {#if !supportsMultipleAPIKeys}
+            <Button size="sm" variant="warning" onclick={() => (rotateVisible = true)}>
+              <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
+              {m('settings.bots.rotate_key')}
+            </Button>
+          {/if}
           {#if canReassignOwner && supportsOwnerReassignment}
             <Button size="sm" variant="secondary" onclick={openReassignOwner}>
               <span class="iconify icon-[uil--exchange]" aria-hidden="true"></span>
@@ -345,16 +417,81 @@
               {/if}
             </dd>
           </div>
-          <div>
-            <dt class="text-muted">{m('settings.bots.key_created')}</dt>
-            <dd class="mt-1">{formatDate(bot.apiKeyCreatedAt)}</dd>
-          </div>
-          <div>
-            <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
-            <dd class="mt-1">{formatDate(bot.apiKeyRotatedAt)}</dd>
-          </div>
+          {#if !supportsMultipleAPIKeys}
+            <div>
+              <dt class="text-muted">{m('settings.bots.key_created')}</dt>
+              <dd class="mt-1">{formatDate(bot.apiKeyCreatedAt)}</dd>
+            </div>
+            <div>
+              <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
+              <dd class="mt-1">{formatDate(bot.apiKeyRotatedAt)}</dd>
+            </div>
+          {/if}
         </dl>
       </Panel>
+
+      {#if supportsMultipleAPIKeys}
+        <Panel
+          title={m('settings.bots.key_title')}
+          subtitle={m('settings.bots.key_description')}
+          noPadding
+        >
+          {#snippet actions()}
+            <Button
+              size="sm"
+              disabled={bot.apiKeys.length >= 20}
+              onclick={openCreateAPIKey}
+            >
+              <span class="iconify icon-[uil--key-skeleton]" aria-hidden="true"></span>
+              {m('settings.bots.key_create')}
+            </Button>
+            <Button size="sm" variant="warning" onclick={() => (rotateVisible = true)}>
+              <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
+              {m('settings.bots.rotate_key')}
+            </Button>
+          {/snippet}
+          {#if bot.apiKeys.length > 0}
+            <div class="selectable-list" data-testid="bot-api-keys">
+              {#each bot.apiKeys as key (key.id)}
+                <div
+                  class="flex flex-col gap-4 selectable-list-item px-5 py-4 sm:flex-row sm:items-center"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="font-medium text-text-top"><bdi>{key.name}</bdi></div>
+                    <dl class="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                      <div>
+                        <dt class="text-muted">{m('settings.bots.key_created_at')}</dt>
+                        <dd>{formatDate(key.createdAt)}</dd>
+                      </div>
+                      <div>
+                        <dt class="text-muted">{m('settings.bots.key_last_used')}</dt>
+                        <dd>{formatAPIKeyLastUsed(key)}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <div class="flex shrink-0 justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="danger-secondary"
+                      onclick={() => openRevokeAPIKey(key.id)}
+                    >
+                      <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
+                      {m('settings.bots.key_revoke')}
+                    </Button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="p-5 text-muted">{m('settings.bots.key_empty_description')}</div>
+          {/if}
+          {#if bot.apiKeys.length >= 20}
+            <div class="border-t border-border px-5 py-3 text-muted">
+              {m('settings.bots.key_limit_reached')}
+            </div>
+          {/if}
+        </Panel>
+      {/if}
 
       {#if supportsIncomingWebhooks}
         <Panel
@@ -450,6 +587,24 @@
 </FormDialog>
 
 <FormDialog
+  bind:visible={createAPIKeyVisible}
+  title={m('settings.bots.key_create')}
+  submitLabel={m('settings.bots.key_create')}
+  loading={createAPIKeyLoading}
+  disabled={!normalizedAPIKeyName}
+  onsubmit={createAPIKey}
+  onclose={() => (createAPIKeyVisible = false)}
+>
+  <TextInput
+    id="create-bot-api-key-name"
+    label={m('settings.bots.key_name')}
+    maxlength={64}
+    required
+    bind:value={createAPIKeyName}
+  />
+</FormDialog>
+
+<FormDialog
   bind:visible={createWebhookVisible}
   title={m('settings.bots.webhook_create')}
   submitLabel={m('settings.bots.webhook_create')}
@@ -496,6 +651,17 @@
   onclose={() => (rotateVisible = false)}
 >
   {m('settings.bots.rotate_warning')}
+</ConfirmDialog>
+
+<ConfirmDialog
+  bind:visible={revokeAPIKeyVisible}
+  title={m('settings.bots.key_revoke')}
+  actionLabel={m('settings.bots.key_revoke')}
+  loading={revokeAPIKeyLoading}
+  onconfirm={revokeAPIKey}
+  onclose={() => (revokeAPIKeyVisible = false)}
+>
+  {m('settings.bots.key_revoke_warning')}
 </ConfirmDialog>
 
 <ConfirmDialog

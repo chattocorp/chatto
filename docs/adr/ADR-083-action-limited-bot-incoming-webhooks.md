@@ -114,8 +114,8 @@ the new lifecycle fields after these writes occur.
 - Revoked credentials do not create permanent process-local tombstones. A
   cleanup failure can leave stale optional telemetry in storage, but it cannot
   restore the revoked credential.
-- The internal credential-usage recorder can also support multiple bot API
-  keys later. This decision does not change bot API keys.
+- The internal credential-usage recorder also supports multiple bot API keys.
+  This decision does not couple the two credential types.
 - URL credentials can appear in reverse-proxy logs. Operators must redact the
   incoming webhook path. Chatto redacts this path in its request logger.
 - Callers that require exactly-once posting must wait for a later idempotency
