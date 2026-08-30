@@ -79,8 +79,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const appUi = getAppUiState();
   const roomLayoutAPI = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
   const roomCommandAPI = serverScope.connection.getAPI(createRoomCommandAPI);
-  const supportsSidebarRoomManagement = $derived(
-    stores.serverInfo.supportsFeature('sidebarRoomManagement')
+  const supportsRelativeSidebarMoves = $derived(
+    stores.serverInfo.supportsFeature('relativeSidebarMoves')
   );
 
   const navigation = $derived(stores.navigation);
@@ -525,7 +525,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   let itemDragAttachments = $derived(
     new Map(
       visibleSets
-        .filter((group) => supportsSidebarRoomManagement && group.viewerCanManageGroup)
+        .filter((group) => supportsRelativeSidebarMoves && group.viewerCanManageGroup)
         .map((group) => [group.id, createItemDragAttachment(group.id)] as const)
     )
   );
@@ -765,7 +765,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const showActiveCall = hasActiveCall && (isDM || isJoined)}
   {@const presentation = isDM ? dmPresentation(room) : null}
   {@const owningGroup = groupByRoomId.get(room.id)}
-  {@const showDragHandle = supportsSidebarRoomManagement && owningGroup?.viewerCanManageGroup}
+  {@const showDragHandle = supportsRelativeSidebarMoves && owningGroup?.viewerCanManageGroup}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
@@ -914,7 +914,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         <div
           class="pointer-events-none absolute right-1 z-10 flex items-center rounded-md bg-surface opacity-0 transition-opacity group-focus-within/link:pointer-events-auto group-focus-within/link:opacity-100 group-hover/link:pointer-events-auto group-hover/link:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:static [@media(hover:none)]:opacity-100"
         >
-          {#if supportsSidebarRoomManagement}
+          {#if supportsRelativeSidebarMoves}
             <button
               type="button"
               class="mini-icon-action h-6 w-6 cursor-grab items-center justify-center active:cursor-grabbing"
@@ -990,10 +990,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {:else}
   <nav class="room-list md:w-full">
     <div
-      data-testid={supportsSidebarRoomManagement && canReorderGroups
+      data-testid={supportsRelativeSidebarMoves && canReorderGroups
         ? 'room-groups-dropzone'
         : undefined}
-      {@attach supportsSidebarRoomManagement && canReorderGroups ? groupDragAttachment : undefined}
+      {@attach supportsRelativeSidebarMoves && canReorderGroups ? groupDragAttachment : undefined}
     >
       {#each renderManagedSections as section, i (section.id)}
         {#snippet headerActions()}
@@ -1002,7 +1002,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           {/if}
         {/snippet}
         {#snippet leadingOverlay()}
-          {#if !isDndShadow(section) && supportsSidebarRoomManagement && canReorderGroups}
+          {#if !isDndShadow(section) && supportsRelativeSidebarMoves && canReorderGroups}
             {@render groupLeadingOverlay()}
           {/if}
         {/snippet}
