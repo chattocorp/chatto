@@ -3819,7 +3819,7 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 			if operation.GetViewerUpsert() != nil {
 				viewerReconciliations++
 			}
-			if operation.GetRoomViewerStateReplace() != nil {
+			if operation.GetRoomViewerActivityReplace() != nil {
 				roomViewerReconciliations++
 			}
 			if operation.GetThreadViewerStatesReplace() != nil {

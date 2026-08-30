@@ -320,15 +320,6 @@ func TestActiveBadgeMarkerAdvanceDoesNotRequestAnotherInvalidation(t *testing.T)
 func TestBadgeMaterializationPipelinesHighFanoutMarkers(t *testing.T) {
 	chattoCore, nc := setupTestCore(t)
 	ctx := testContext(t)
-	invalidationSub, err := nc.SubscribeSync("live.sync.user.*.notification_unread")
-	if err != nil {
-		t.Fatalf("subscribe to Badge invalidations: %v", err)
-	}
-	defer invalidationSub.Unsubscribe()
-	if err := nc.Flush(); err != nil {
-		t.Fatalf("flush Badge invalidation subscription: %v", err)
-	}
-
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-fanout-author", "Badge Fanout Author", "password")
 	if err != nil {
 		t.Fatal(err)
@@ -347,6 +338,14 @@ func TestBadgeMaterializationPipelinesHighFanoutMarkers(t *testing.T) {
 	entry, exists := chattoCore.roomModel.timelineEntry(posted.Id)
 	if !exists || entry.StreamSeq == 0 {
 		t.Fatalf("source timeline entry = (%+v, %v)", entry, exists)
+	}
+	invalidationSub, err := nc.SubscribeSync("live.sync.user.*.notification_unread")
+	if err != nil {
+		t.Fatalf("subscribe to Badge invalidations: %v", err)
+	}
+	defer invalidationSub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("flush Badge invalidation subscription: %v", err)
 	}
 	inputs := make([]CreateNotificationOccurrenceInput, 250)
 	for index := range inputs {
