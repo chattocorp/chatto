@@ -1,6 +1,7 @@
 package mcpserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -125,6 +126,144 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	}
 }
 
+func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
+	_, nc := testutil.StartSharedNATS(t)
+	chattoCore, err := core.NewChattoCore(context.Background(), nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	startTestCore(t, chattoCore)
+	ctx := context.Background()
+	owner, err := chattoCore.CreateUser(ctx, core.SystemActorID, "raw-mcp-owner", "Raw MCP Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := chattoCore.CreateBot(ctx, owner.GetId(), "raw_mcp_bot", "Raw MCP Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if err := chattoCore.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermRoomList, core.PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot room.list: %v", err)
+	}
+	group, err := chattoCore.CreateRoomGroup(ctx, core.SystemActorID, "Raw MCP Rooms", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, core.SystemActorID, core.KindChannel, group.GetId(), "raw-mcp-visible", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	handler, err := NewHandler(chattoCore, config.ChattoConfig{
+		Webserver: config.WebserverConfig{URL: "https://chat.example"},
+		MCP:       config.MCPConfig{Enabled: true, URL: "https://chat.example/mcp"},
+	}, "test")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+
+	unauthenticated := newRawMCPRequest("", "server/discover", "", `{
+		"jsonrpc":"2.0",
+		"id":1,
+		"method":"server/discover",
+		"params":{"_meta":{
+			"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+			"io.modelcontextprotocol/clientInfo":{"name":"raw-http-test","version":"1.0"},
+			"io.modelcontextprotocol/clientCapabilities":{}
+		}}
+	}`)
+	unauthenticatedResponse := httptest.NewRecorder()
+	handler.ServeHTTP(unauthenticatedResponse, unauthenticated)
+	if unauthenticatedResponse.Code != http.StatusUnauthorized || unauthenticatedResponse.Header().Get("WWW-Authenticate") == "" {
+		t.Fatalf("unauthenticated status/challenge = %d/%q, want 401 with WWW-Authenticate", unauthenticatedResponse.Code, unauthenticatedResponse.Header().Get("WWW-Authenticate"))
+	}
+
+	legacyShape := newRawMCPRequest(bot.APIKey, "tools/list", "", `{
+		"jsonrpc":"2.0",
+		"id":2,
+		"method":"tools/list",
+		"params":{}
+	}`)
+	legacyShapeResponse := httptest.NewRecorder()
+	handler.ServeHTTP(legacyShapeResponse, legacyShape)
+	if legacyShapeResponse.Code != http.StatusBadRequest {
+		t.Fatalf("2026 request without per-request metadata status = %d, want 400: %s", legacyShapeResponse.Code, legacyShapeResponse.Body.String())
+	}
+
+	discover := performRawMCPRequest(t, handler, bot.APIKey, "server/discover", "", `{
+		"jsonrpc":"2.0",
+		"id":1,
+		"method":"server/discover",
+		"params":{"_meta":{
+			"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+			"io.modelcontextprotocol/clientInfo":{"name":"raw-http-test","version":"1.0"},
+			"io.modelcontextprotocol/clientCapabilities":{}
+		}}
+	}`)
+	var discovery struct {
+		Result struct {
+			SupportedVersions []string `json:"supportedVersions"`
+		} `json:"result"`
+	}
+	decodeMCPResponse(t, discover, &discovery)
+	if !slices.Contains(discovery.Result.SupportedVersions, "2026-07-28") {
+		t.Fatalf("supportedVersions = %v, want 2026-07-28", discovery.Result.SupportedVersions)
+	}
+
+	list := performRawMCPRequest(t, handler, bot.APIKey, "tools/list", "", `{
+		"jsonrpc":"2.0",
+		"id":2,
+		"method":"tools/list",
+		"params":{"_meta":{
+			"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+			"io.modelcontextprotocol/clientInfo":{"name":"raw-http-test","version":"1.0"},
+			"io.modelcontextprotocol/clientCapabilities":{}
+		}}
+	}`)
+	var tools struct {
+		Result struct {
+			Tools []struct {
+				Name string `json:"name"`
+			} `json:"tools"`
+		} `json:"result"`
+	}
+	decodeMCPResponse(t, list, &tools)
+	if len(tools.Result.Tools) != 1 || tools.Result.Tools[0].Name != "list_rooms" {
+		t.Fatalf("tools = %#v, want list_rooms", tools.Result.Tools)
+	}
+
+	call := performRawMCPRequest(t, handler, bot.APIKey, "tools/call", "list_rooms", `{
+		"jsonrpc":"2.0",
+		"id":3,
+		"method":"tools/call",
+		"params":{
+			"_meta":{
+				"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+				"io.modelcontextprotocol/clientInfo":{"name":"raw-http-test","version":"1.0"},
+				"io.modelcontextprotocol/clientCapabilities":{}
+			},
+			"name":"list_rooms",
+			"arguments":{"limit":10}
+		}
+	}`)
+	var result struct {
+		Result struct {
+			StructuredContent json.RawMessage `json:"structuredContent"`
+		} `json:"result"`
+	}
+	decodeMCPResponse(t, call, &result)
+	var output listRoomsOutput
+	if err := json.Unmarshal(result.Result.StructuredContent, &output); err != nil {
+		t.Fatalf("decode list_rooms structured content: %v", err)
+	}
+	if !roomResultsContain(output.Rooms, room.GetId()) {
+		t.Fatalf("visible room %q missing from %#v", room.GetId(), output.Rooms)
+	}
+}
+
 func TestMCPHandlerRejectsWrongHostAndCrossOriginBrowserPOST(t *testing.T) {
 	_, nc := testutil.StartSharedNATS(t)
 	chattoCore, err := core.NewChattoCore(context.Background(), nc, config.CoreConfig{
@@ -235,4 +374,37 @@ func roomResultsContain(rooms []roomResult, roomID string) bool {
 		}
 	}
 	return false
+}
+
+func performRawMCPRequest(t *testing.T, handler http.Handler, token, method, name, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := newRawMCPRequest(token, method, name, body)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("%s status = %d, want 200: %s", method, response.Code, response.Body.String())
+	}
+	return response
+}
+
+func newRawMCPRequest(token, method, name, body string) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "https://chat.example/mcp", bytes.NewBufferString(body))
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	req.Header.Set("MCP-Protocol-Version", "2026-07-28")
+	req.Header.Set("MCP-Method", method)
+	if name != "" {
+		req.Header.Set("MCP-Name", name)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	return req
+}
+
+func decodeMCPResponse(t *testing.T, response *httptest.ResponseRecorder, target any) {
+	t.Helper()
+	if err := json.Unmarshal(response.Body.Bytes(), target); err != nil {
+		t.Fatalf("decode MCP response: %v: %s", err, response.Body.String())
+	}
 }
