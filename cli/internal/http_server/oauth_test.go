@@ -1254,8 +1254,15 @@ func TestOfficialMCPClientCompletesChattoOAuthAndDiscoversTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	if len(tools.Tools) != 1 || tools.Tools[0].Name != "list_rooms" {
-		t.Fatalf("tools = %#v, want list_rooms", tools.Tools)
+	toolNames := make(map[string]bool, len(tools.Tools))
+	for _, tool := range tools.Tools {
+		toolNames[tool.Name] = true
+	}
+	if len(tools.Tools) != 2 || !toolNames["get_server_info"] || !toolNames["list_rooms"] {
+		t.Fatalf("tools = %#v, want get_server_info and list_rooms", tools.Tools)
+	}
+	if _, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_server_info"}); err != nil {
+		t.Fatalf("CallTool get_server_info: %v", err)
 	}
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_rooms"}); err != nil {
 		t.Fatalf("CallTool list_rooms: %v", err)

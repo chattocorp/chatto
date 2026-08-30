@@ -9,11 +9,11 @@ Chatto can expose a small, read-only tool catalog through the Model Context
 Protocol (MCP). The optional MCP integration uses the same public HTTP server,
 OAuth implementation, and version as the rest of Chatto.
 
-The first experimental version supports MCP `2026-07-28` and one tool:
-`list_rooms`. This tool returns a bounded page of rooms that the authenticated
-account can see. Protocol metadata and the tool result identify the effective
-Chatto server name. The tool applies the same room visibility rules as the
-public Chatto API.
+The first experimental version supports MCP `2026-07-28` and two tools:
+`get_server_info` and `list_rooms`. The identity tool returns the effective
+server name, public URL, and Chatto version. The room tool returns a bounded
+page of rooms that the authenticated account can see. It applies the same room
+visibility rules as the public Chatto API.
 
 <Aside type="caution">
   MCP access can expose private Chatto data to an agent host. Enable it only
@@ -58,8 +58,10 @@ owner's current permission ceiling still apply. See [Bot Accounts](/guides/integ
 1. Give your agent host the public Chatto URL with the `/mcp` path.
 2. Let the host read protected-resource and authorization-server metadata.
 3. Complete the Chatto consent screen when the host opens it.
-4. Confirm that the host discovers `list_rooms` and can list only rooms that
-   your account can see.
+4. Confirm that the host discovers `get_server_info` and `list_rooms`.
+5. Ask the host to identify the server. Confirm that it reports the expected
+   name and public URL.
+6. Confirm that it can list only rooms that your account can see.
 
 </Steps>
 

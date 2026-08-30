@@ -2,8 +2,8 @@
 
 **Status:** Experimental
 **Last reviewed:** 2026-08-30
-**Implementation state:** Initial walking slice implemented with OAuth and
-`list_rooms`.
+**Implementation state:** Initial walking slice implemented with OAuth, server
+identity, and `list_rooms`.
 
 ## Overview
 
@@ -47,11 +47,15 @@ primitive.
   limited by its explicit permissions and its owner's current authority.
 - The MCP endpoint does not accept browser cookies. It does not accept a human
   bearer session that has no MCP resource and scope grant.
-- The initial tool catalog contains `list_rooms`. It returns a bounded page of
-  rooms visible to the caller and identifies the Chatto server that supplied
-  the page.
+- The initial tool catalog contains `get_server_info` and `list_rooms`.
+  `get_server_info` returns the effective server name, canonical public URL,
+  and Chatto version. `list_rooms` returns a bounded page of rooms visible to
+  the caller and identifies the Chatto server that supplied the page.
 - MCP server metadata uses `Chatto` as its stable implementation name and the
   effective Chatto server name as its display title.
+- Static MCP instructions tell an agent host to call `get_server_info` when it
+  needs to identify the server. Configured values never enter these
+  instructions.
 - Tool arguments use stable Chatto resource IDs and explicit bounded page
   limits. Tool results do not contain raw broker coordinates or internal
   storage identifiers.
@@ -92,11 +96,12 @@ should become a tool.
 
 ### 2. Start with a small read-only catalog
 
-**Decision:** The first walking slice exposes a bounded room-directory read.
-It exposes no mutation tools, resources, or prompts. Later read tools must use
-the same operation-adapter rule.
-**Why:** A room list tests discovery, OAuth, tool schemas, pagination, and
-normal visibility rules without returning message content. A small catalog
+**Decision:** The first walking slice exposes server identity and a bounded
+room-directory read. It exposes no mutation tools, resources, or prompts.
+Later read tools must use the same operation-adapter rule.
+**Why:** Server identity lets an agent confirm which Chatto instance supplied
+its authority. A room list tests discovery, OAuth, tool schemas, pagination,
+and normal visibility rules without returning message content. A small catalog
 lets Chatto test host behavior before a model can read more sensitive content
 or change state.
 **Tradeoff:** Agents cannot post, react, update read state, moderate content,

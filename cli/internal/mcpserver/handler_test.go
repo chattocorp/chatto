@@ -107,12 +107,30 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if initialize == nil || initialize.ServerInfo == nil || initialize.ServerInfo.Name != "Chatto" || initialize.ServerInfo.Title != "Engineering Chat" {
 		t.Fatalf("server info = %#v, want stable Chatto name and Engineering Chat title", initialize)
 	}
+	if initialize.Instructions != serverInstructions {
+		t.Fatalf("instructions = %q, want %q", initialize.Instructions, serverInstructions)
+	}
 	tools, err := session.ListTools(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	if len(tools.Tools) != 1 || tools.Tools[0].Name != "list_rooms" {
-		t.Fatalf("tools = %#v, want list_rooms", tools.Tools)
+	if len(tools.Tools) != 2 || !mcpToolsContain(tools.Tools, "get_server_info") || !mcpToolsContain(tools.Tools, "list_rooms") {
+		t.Fatalf("tools = %#v, want get_server_info and list_rooms", tools.Tools)
+	}
+	serverInfoResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_server_info"})
+	if err != nil {
+		t.Fatalf("CallTool get_server_info: %v", err)
+	}
+	serverInfoRaw, err := json.Marshal(serverInfoResult.StructuredContent)
+	if err != nil {
+		t.Fatalf("marshal get_server_info structured content: %v", err)
+	}
+	var serverInfo getServerInfoOutput
+	if err := json.Unmarshal(serverInfoRaw, &serverInfo); err != nil {
+		t.Fatalf("decode get_server_info output: %v", err)
+	}
+	if serverInfo.ServerName != "Engineering Chat" || serverInfo.ServerURL != "https://chat.example" || serverInfo.SoftwareVersion != "test" {
+		t.Fatalf("get_server_info = %#v", serverInfo)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_rooms", Arguments: map[string]any{"limit": 100}})
 	if err != nil {
@@ -242,8 +260,8 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 		} `json:"result"`
 	}
 	decodeMCPResponse(t, list, &tools)
-	if len(tools.Result.Tools) != 1 || tools.Result.Tools[0].Name != "list_rooms" {
-		t.Fatalf("tools = %#v, want list_rooms", tools.Result.Tools)
+	if len(tools.Result.Tools) != 2 || !rawMCPToolsContain(tools.Result.Tools, "get_server_info") || !rawMCPToolsContain(tools.Result.Tools, "list_rooms") {
+		t.Fatalf("tools = %#v, want get_server_info and list_rooms", tools.Result.Tools)
 	}
 
 	call := performRawMCPRequest(t, handler, bot.APIKey, "tools/call", "list_rooms", `{
@@ -381,6 +399,26 @@ func startTestCore(t *testing.T, chattoCore *core.ChattoCore) {
 func roomResultsContain(rooms []roomResult, roomID string) bool {
 	for _, room := range rooms {
 		if room.ID == roomID {
+			return true
+		}
+	}
+	return false
+}
+
+func mcpToolsContain(tools []*mcp.Tool, name string) bool {
+	for _, tool := range tools {
+		if tool.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func rawMCPToolsContain(tools []struct {
+	Name string `json:"name"`
+}, name string) bool {
+	for _, tool := range tools {
+		if tool.Name == name {
 			return true
 		}
 	}
