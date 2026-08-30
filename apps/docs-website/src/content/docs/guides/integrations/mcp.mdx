@@ -26,10 +26,11 @@ the public Chatto API. `post_message` is not idempotent. An agent must not retry
 it when the first result is uncertain.
 
 The MCP instructions tell an agent host to use these tools as the source of
-truth for Chatto application data on the connected server. They also tell the
-host not to infer rooms or messages from Kubernetes, deployment, DNS, or
-repository configuration. The host still decides which available tool it
-calls.
+truth for Chatto application data on the connected server. They tell the host
+to use the advertised server title to distinguish the connection from other
+Chatto connections. They also tell the host not to infer rooms or messages
+from Kubernetes, deployment, DNS, or repository configuration. The host still
+decides which available tool it calls.
 
 <Aside type="caution">
   MCP access can expose private Chatto data to an agent host. Enable it only

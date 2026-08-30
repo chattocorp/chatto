@@ -118,6 +118,9 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if initialize.Instructions != serverInstructions {
 		t.Fatalf("instructions = %q, want %q", initialize.Instructions, serverInstructions)
 	}
+	if !strings.Contains(initialize.Instructions, "server title advertised by this MCP connection") {
+		t.Fatalf("instructions = %q, want advertised-title routing guidance", initialize.Instructions)
+	}
 	tools, err := session.ListTools(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)

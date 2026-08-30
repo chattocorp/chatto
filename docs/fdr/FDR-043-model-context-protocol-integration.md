@@ -65,10 +65,11 @@ primitive.
   effective Chatto server name as its display title.
 - Static MCP instructions identify the tools as the source of truth for rooms,
   messages, room membership, and account identity on the connected server.
-  They tell an agent host to call `get_server_info` when the target server is
-  not clear, to complete pagination when needed, and not to infer Chatto
-  application data from deployment configuration. Configured values never
-  enter these instructions.
+  They tell an agent host to use the advertised server title to distinguish
+  the connection from other Chatto connections, to call `get_server_info`
+  when the target server is not clear, to complete pagination when needed,
+  and not to infer Chatto application data from deployment configuration.
+  Configured values never enter these instructions.
 - Tool descriptions state that operations apply to the connected Chatto
   server. Identity and list descriptions also explain server matching, exact
   room counts, and continuation fields.
