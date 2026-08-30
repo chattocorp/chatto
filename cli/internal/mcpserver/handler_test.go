@@ -15,6 +15,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -84,6 +85,9 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)
 	}
+	if err := chattoCore.ConfigModel().SetServerConfig(ctx, core.SystemActorID, &configv1.ServerConfig{ServerName: "Engineering Chat"}); err != nil {
+		t.Fatalf("SetServerConfig: %v", err)
+	}
 	server := httptest.NewServer(handler)
 	defer server.Close()
 	httpClient := server.Client()
@@ -99,6 +103,10 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 		t.Fatalf("Connect MCP client: %v", err)
 	}
 	defer session.Close()
+	initialize := session.InitializeResult()
+	if initialize == nil || initialize.ServerInfo == nil || initialize.ServerInfo.Name != "Chatto" || initialize.ServerInfo.Title != "Engineering Chat" {
+		t.Fatalf("server info = %#v, want stable Chatto name and Engineering Chat title", initialize)
+	}
 	tools, err := session.ListTools(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
@@ -117,6 +125,9 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	var output listRoomsOutput
 	if err := json.Unmarshal(raw, &output); err != nil {
 		t.Fatalf("decode list_rooms output: %v", err)
+	}
+	if output.ServerName != "Engineering Chat" {
+		t.Fatalf("server name = %q, want Engineering Chat", output.ServerName)
 	}
 	if !roomResultsContain(output.Rooms, visible.GetId()) {
 		t.Fatalf("visible room %q missing from %#v", visible.GetId(), output.Rooms)

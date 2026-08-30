@@ -47,12 +47,20 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 	issuer := issuerURL.String()
 	metadataURL := resourceURL.Scheme + "://" + resourceURL.Host + "/.well-known/oauth-protected-resource/mcp"
 
-	server := mcp.NewServer(&mcp.Implementation{Name: "Chatto", Version: version}, nil)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "list_rooms",
-		Description: "List a bounded page of Chatto rooms visible to the authenticated account.",
-	}, listRoomsHandler(chattoCore))
-	streamable := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{
+	streamable := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
+		// Build the stateless descriptor per request so a runtime server rename
+		// is advertised without requiring a Chatto restart.
+		server := mcp.NewServer(&mcp.Implementation{
+			Name:    "Chatto",
+			Title:   chattoCore.ConfigModel().GetEffectiveServerName(),
+			Version: version,
+		}, nil)
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "list_rooms",
+			Description: "List a bounded page of Chatto rooms visible to the authenticated account.",
+		}, listRoomsHandler(chattoCore))
+		return server
+	}, &mcp.StreamableHTTPOptions{
 		Stateless:                    true,
 		JSONResponse:                 true,
 		MaxRequestBodyBytes:          maxRequestBodyBytes,
@@ -147,6 +155,7 @@ type roomResult struct {
 }
 
 type listRoomsOutput struct {
+	ServerName      string       `json:"serverName"`
 	Rooms           []roomResult `json:"rooms"`
 	NextAfterRoomID string       `json:"nextAfterRoomId,omitempty"`
 }
@@ -174,7 +183,10 @@ func listRoomsHandler(chattoCore *core.ChattoCore) mcp.ToolHandlerFor[listRoomsI
 		sort.Slice(rooms, func(i, j int) bool { return rooms[i].Room.GetId() < rooms[j].Room.GetId() })
 		start := sort.Search(len(rooms), func(i int) bool { return rooms[i].Room.GetId() > input.AfterRoomID })
 		end := min(start+limit, len(rooms))
-		output := listRoomsOutput{Rooms: make([]roomResult, 0, end-start)}
+		output := listRoomsOutput{
+			ServerName: chattoCore.ConfigModel().GetEffectiveServerName(),
+			Rooms:      make([]roomResult, 0, end-start),
+		}
 		for _, directoryRoom := range rooms[start:end] {
 			room := directoryRoom.Room
 			output.Rooms = append(output.Rooms, roomResult{

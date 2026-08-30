@@ -11,8 +11,9 @@ OAuth implementation, and version as the rest of Chatto.
 
 The first experimental version supports MCP `2026-07-28` and one tool:
 `list_rooms`. This tool returns a bounded page of rooms that the authenticated
-account can see. It applies the same room visibility rules as the public Chatto
-API.
+account can see. Protocol metadata and the tool result identify the effective
+Chatto server name. The tool applies the same room visibility rules as the
+public Chatto API.
 
 <Aside type="caution">
   MCP access can expose private Chatto data to an agent host. Enable it only

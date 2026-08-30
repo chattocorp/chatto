@@ -48,7 +48,10 @@ primitive.
 - The MCP endpoint does not accept browser cookies. It does not accept a human
   bearer session that has no MCP resource and scope grant.
 - The initial tool catalog contains `list_rooms`. It returns a bounded page of
-  rooms visible to the caller.
+  rooms visible to the caller and identifies the Chatto server that supplied
+  the page.
+- MCP server metadata uses `Chatto` as its stable implementation name and the
+  effective Chatto server name as its display title.
 - Tool arguments use stable Chatto resource IDs and explicit bounded page
   limits. Tool results do not contain raw broker coordinates or internal
   storage identifiers.
@@ -149,8 +152,9 @@ Chatto-specific client until that product use case has a separate design.
 ### 7. Treat all Chatto content as untrusted data
 
 **Decision:** Tool descriptions and protocol instructions are static Chatto
-text. Tool results keep user-controlled content in structured result fields.
-No user-controlled value can add tools or change server instructions.
+text. The configured server name is display metadata and a structured tool
+result field. Other user-controlled content also stays in structured result
+fields. No user-controlled value can add tools or change server instructions.
 **Why:** Messages and profiles can contain text that tries to control an agent.
 The server must not present that text as trusted protocol guidance.
 **Tradeoff:** The MCP host and model must still handle prompt injection in
