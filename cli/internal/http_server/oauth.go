@@ -73,7 +73,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		providerID := c.Query("provider_id")
 		clientID := c.Query("client_id")
 		resource := strings.TrimSpace(c.Query("resource"))
-		var scopes []string
+		scopes, scopeErr := normalizeOAuthScopes(c.Query("scope"))
 
 		if responseType != "code" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -113,16 +113,13 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			})
 			return
 		}
-		if resource != "" {
-			var scopeErr error
-			scopes, scopeErr = normalizeOAuthScopes(c.Query("scope"))
-			if scopeErr != nil || !s.validOAuthGrant(resource, scopes) {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error":             "invalid_scope",
-					"error_description": "The requested OAuth resource or scope is not supported",
-				})
-				return
-			}
+		grantRequested := resource != "" || len(scopes) > 0
+		if scopeErr != nil || (grantRequested && !s.validOAuthGrant(resource, scopes)) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_scope",
+				"error_description": "The requested OAuth resource or scope is not supported",
+			})
+			return
 		}
 
 		client, err := s.resolveOAuthClient(c.Request.Context(), clientID)

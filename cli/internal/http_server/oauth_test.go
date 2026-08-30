@@ -763,9 +763,10 @@ func TestOAuthAuthorize_AuthenticatedTrustedRedirectRequiresConsent(t *testing.T
 	}
 }
 
-func TestOAuthAuthorize_IgnoresLegacyScopeWithoutResource(t *testing.T) {
+func TestOAuthAuthorize_RejectsScopeWithoutResource(t *testing.T) {
 	s := setupOAuthServer(t)
-	cookies, _ := loginOAuthTestUser(t, s, "oauth-legacy-scope")
+	s.config.MCP = config.MCPConfig{Enabled: true}
+	cookies, _ := loginOAuthTestUser(t, s, "oauth-scope-without-resource")
 
 	params := url.Values{
 		"response_type":         {"code"},
@@ -773,15 +774,27 @@ func TestOAuthAuthorize_IgnoresLegacyScopeWithoutResource(t *testing.T) {
 		"redirect_uri":          {"https://client.example/servers/callback"},
 		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
 		"code_challenge_method": {"S256"},
-		"scope":                 {"openid profile"},
+		"scope":                 {strings.Join(config.MCPOAuthScopes(), " ")},
 	}
 	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+params.Encode(), nil)
 	addCookies(req, cookies)
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/oauth/consent" {
-		t.Fatalf("legacy scope status/location = %d/%q: %s", w.Code, w.Header().Get("Location"), w.Body.String())
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("scope without resource status = %d, want %d: %s", w.Code, http.StatusBadRequest, w.Body.String())
+	}
+	var response struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if response.Error != "invalid_scope" {
+		t.Fatalf("error = %q, want invalid_scope", response.Error)
+	}
+	if location := w.Header().Get("Location"); location != "" {
+		t.Fatalf("scope without resource redirected to %q", location)
 	}
 }
 
