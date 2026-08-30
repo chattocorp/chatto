@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ConnectError } from '@connectrpc/connect';
   import { onMount } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import {
@@ -34,8 +35,11 @@
   let pendingOrigin = $state<string | null>(null);
   let actionError = $state('');
   let directoryState = $state<ServerDirectorySnapshot | null>(null);
+  let scrollContainer = $state<HTMLDivElement>();
   let directorySession: ServerDirectoryDiscovery | null = null;
   let unsubscribeDirectory: (() => void) | null = null;
+  let automaticLoadApproached = false;
+  let automaticBatchSpent = false;
 
   const registeredOrigins = $derived.by(() => [
     ...new Set(
@@ -64,12 +68,16 @@
   function startDirectoryDiscovery() {
     stopDirectoryDiscovery();
     directoryState = null;
+    automaticLoadApproached = false;
+    automaticBatchSpent = false;
     const session = createServerDirectoryDiscovery(registeredOrigins, {
       initiallyVisible: document.visibilityState === 'visible'
     });
     directorySession = session;
     unsubscribeDirectory = session.subscribe((snapshot) => {
-      if (directorySession === session) directoryState = snapshot;
+      if (directorySession !== session) return;
+      directoryState = snapshot;
+      tryAutomaticLoad();
     });
     session.start();
   }
@@ -83,7 +91,54 @@
 
   function handleVisibilityChange() {
     directorySession?.setVisible(document.visibilityState === 'visible');
+    tryAutomaticLoad();
   }
+
+  function tryAutomaticLoad() {
+    const session = directorySession;
+    if (
+      !session ||
+      automaticBatchSpent ||
+      !automaticLoadApproached ||
+      document.visibilityState !== 'visible' ||
+      !directoryState?.canLoadMore
+    ) {
+      return;
+    }
+    automaticBatchSpent = true;
+    session.loadMore();
+  }
+
+  function loadMoreManually() {
+    automaticBatchSpent = true;
+    directorySession?.loadMore();
+  }
+
+  const observeAutomaticLoadSentinel: Attachment<HTMLElement> = (sentinel) => {
+    const root = scrollContainer;
+    if (!root || typeof IntersectionObserver === 'undefined') return;
+    let isNearEnd = false;
+
+    const recordApproach = () => {
+      if (!isNearEnd || root.scrollTop <= 0) return;
+      automaticLoadApproached = true;
+      tryAutomaticLoad();
+    };
+    const observer = new IntersectionObserver(
+      (observations) => {
+        isNearEnd = observations.some((observation) => observation.isIntersecting);
+        recordApproach();
+      },
+      { root, rootMargin: '0px 0px 160px 0px' }
+    );
+    root.addEventListener('scroll', recordApproach, { passive: true });
+    observer.observe(sentinel);
+
+    return () => {
+      root.removeEventListener('scroll', recordApproach);
+      observer.disconnect();
+    };
+  };
 
   function normalizeCustomInput(value: string): string {
     const trimmed = value.trim();
@@ -257,7 +312,7 @@
     showMobileNav
   />
 
-  <PaneContent>
+  <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       <Panel title={m('add_server.directory.custom_title')}>
         <Form onsubmit={probeCustomServer} error={customError} maxWidth="max-w-2xl">
@@ -447,6 +502,14 @@
           </div>
         {/if}
         {#if directoryState && !allSourcesFailed}
+          {#if entries.length > 0 && !directoryState.sessionLimitReached}
+            <div
+              class="h-px"
+              aria-hidden="true"
+              data-testid="server-directory-auto-load-sentinel"
+              {@attach observeAutomaticLoadSentinel}
+            ></div>
+          {/if}
           {#if directoryState.isLoading && !directoryState.isInitialLoading}
             <p class="mt-4 text-center text-muted" aria-live="polite">
               {m('add_server.directory.discovering')}
@@ -458,7 +521,7 @@
             </div>
           {:else if directoryState.canLoadMore}
             <div class="mt-4 flex justify-center">
-              <Button variant="secondary" onclick={() => directorySession?.loadMore()}>
+              <Button variant="secondary" onclick={loadMoreManually}>
                 {m('add_server.directory.load_more')}
               </Button>
             </div>
