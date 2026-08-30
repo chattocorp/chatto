@@ -637,7 +637,7 @@ describe('ServerProjectionStore', () => {
     expect(store.timelines.has('R2')).toBe(false);
   });
 
-  it('advances a compacted timeline cursor using only streamed row cursors', () => {
+  it('advances a snapshot timeline cursor using only streamed row cursors', () => {
     const store = new ServerProjectionStore();
     const prefix = Array.from({ length: 50 }, (_, index) =>
       timelineEvent(`P${index}`, `2026-01-01T00:00:${String(index).padStart(2, '0')}Z`)

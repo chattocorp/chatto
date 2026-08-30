@@ -177,7 +177,7 @@ describe('NavigationStore', () => {
     expect(navigation.isInitialLoading).toBe(true);
   });
 
-  it('hides a compacted projection prefix until caught up while retaining stale state', () => {
+  it('hides a snapshot prefix until caught up while retaining stale state', () => {
     const projection = new ServerProjectionStore();
     const sync = new RealtimeProjectionSyncState();
     sync.beginCatchUp();

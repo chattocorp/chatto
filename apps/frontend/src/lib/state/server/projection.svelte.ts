@@ -345,7 +345,7 @@ export class ServerProjectionStore {
     );
     const desiredEvents = events.slice(-50);
     const desiredStartCursor = cursors.get(desiredEvents[0]?.id ?? '');
-    // A compacted prefix supplies cursors only for its boundary rows. Keep at
+    // A snapshot prefix supplies cursors only for its boundary rows. Keep at
     // most one extra prefix window until live row cursors can advance the
     // retained start boundary without a separate bootstrap read.
     const didTrim = events.length > 50 && Boolean(desiredStartCursor);

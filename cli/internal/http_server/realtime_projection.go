@@ -814,7 +814,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			}
 		} else {
 			// A universal-membership revocation must remove already-decrypted
-			// timeline state in the same ordered projection event as metadata.
+			// timeline state in the same ordered realtime event as metadata.
 			appendRoomTimelineClear(roomID)
 		}
 		if err := appendViewerSensitiveResources(); err != nil {
@@ -920,6 +920,10 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}
 	case *evtv1.Event_UserDisplayNameChanged:
 		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserDisplayNameChanged.GetUserId(), appendOperation); err != nil {
+			return nil, false, err
+		}
+	case *evtv1.Event_UserBioChanged:
+		if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserBioChanged.GetUserId(), appendOperation); err != nil {
 			return nil, false, err
 		}
 	case *evtv1.Event_UserAvatarSet:

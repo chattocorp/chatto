@@ -414,7 +414,7 @@ export class MessagesStore {
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
     // Reset already purged the pre-prefix state. Preserve writes ingested
-    // after that reset: the compacted page was captured before those writes
+    // after that reset: the snapshot page was captured before those writes
     // and its later arrival must not erase read-your-writes.
     this.replaceWithFetchedAndUpdateCursors(connection);
     this.hasReachedStart = !connection.hasOlder;
@@ -455,8 +455,8 @@ export class MessagesStore {
     this.resetState();
     this.isInitialLoading = true;
 
-    // Thread detail is intentionally lazy and is not part of the compacted
-    // server prefix. Reload an open thread through its existing read model.
+    // Thread detail is intentionally lazy and is not part of the snapshot.
+    // Reload an open thread through its existing read model.
     if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
       void this.fetchCurrent(thisLoad);
     }

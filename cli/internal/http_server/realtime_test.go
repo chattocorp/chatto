@@ -451,6 +451,45 @@ func TestRealtimeDurableSemanticMapperCoversProfileAndUnbanEvents(t *testing.T) 
 	}
 }
 
+func TestRealtimeProjectionMapsBioChangeToCurrentUserState(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-bio-projection", "RT Bio Projection", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := env.core.UpdateUserBio(env.ctx, viewer.Id, "Updated through durable realtime"); err != nil {
+		t.Fatalf("UpdateUserBio: %v", err)
+	}
+	events, _, err := env.core.EventPublisher.SubjectEvents(
+		env.ctx,
+		evtstream.UserAggregate(viewer.Id).Subject(evtstream.EventUserBioChanged),
+	)
+	if err != nil {
+		t.Fatalf("SubjectEvents: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("bio change events = %d, want 1", len(events))
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(events[0]))
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+	}
+	if !handled || frame.GetEvent().GetUser().GetAction() != realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED {
+		t.Fatalf("bio projection frame = %+v, handled=%v", frame, handled)
+	}
+	var currentUser *apiv1.DirectoryMember
+	for _, state := range frame.GetEvent().GetState() {
+		if state.GetUser().GetUser().GetId() == viewer.Id {
+			currentUser = state.GetUser()
+			break
+		}
+	}
+	if currentUser.GetUser().GetBio() != "Updated through durable realtime" {
+		t.Fatalf("projected bio = %q, want updated bio", currentUser.GetUser().GetBio())
+	}
+}
+
 func TestRealtimeProjectionMapsDurableCallTransition(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-call-projection", "RT Call Projection", "password123")
@@ -923,7 +962,7 @@ func TestRealtimeSelfAuthoredRBACAdvancesWithoutUnnecessaryProjectionReset(t *te
 		t.Fatalf("self-authored bot permission frame = %+v, %v, %v", frame, handled, err)
 	}
 	if frame.GetEvent() == nil || len(frame.GetEvent().GetState()) != 0 {
-		t.Fatalf("self-authored bot permission frame = %+v, want empty projection event", frame)
+		t.Fatalf("self-authored bot permission frame = %+v, want cursor-only event", frame)
 	}
 
 	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, core.SystemActorID, core.NewEVTEventEnvelope(event))
@@ -956,7 +995,7 @@ func TestRealtimeSelfAuthoredRBACAdvancesWithoutUnnecessaryProjectionReset(t *te
 		t.Fatalf("self-authored owner RBAC frame = %+v, %v, %v", frame, handled, err)
 	}
 	if frame.GetEvent() == nil || len(frame.GetEvent().GetState()) != 0 {
-		t.Fatalf("self-authored owner RBAC frame = %+v, want empty projection event", frame)
+		t.Fatalf("self-authored owner RBAC frame = %+v, want cursor-only event", frame)
 	}
 	if err := env.core.RevokeServerRole(env.ctx, core.SystemActorID, owner.GetId(), core.RoleOwner); err != nil {
 		t.Fatalf("RevokeServerRole owner: %v", err)
@@ -2087,14 +2126,14 @@ func TestRealtimeWebSocketResumeResetsRetainedTimelineAfterUniversalMembershipRe
 		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second); !ok || frame.GetSubscribed() == nil || frame.GetSubscribed().GetStartCursor() == resumeCursor {
-		t.Fatalf("authorization-sensitive resume did not select a new compacted boundary: %+v", frame)
+		t.Fatalf("authorization-sensitive resume did not select a new snapshot boundary: %+v", frame)
 	}
 
 	var foundRevokedRoom bool
 	for {
 		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
 		if !ok {
-			t.Fatal("timed out waiting for compacted revocation reset")
+			t.Fatal("timed out waiting for revocation snapshot")
 		}
 		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
 			if !foundRevokedRoom || caughtUp.GetCursor() == "" {

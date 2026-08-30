@@ -49,7 +49,7 @@ type realtimeCursorPayload struct {
 // plan, buffers that stream while replay is sent, and discards buffered EVT
 // events through BoundarySequence before continuing live.
 type RealtimeReplayPlan struct {
-	// Reset requires a compacted current-state prefix before replay/live events.
+	// Reset requires a current-state snapshot before replay/live events.
 	Reset bool
 	// StartCursor is the validated request cursor, or BoundaryCursor for a
 	// subscription that did not request history.
@@ -87,7 +87,7 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 	if err != nil {
 		// Invalid, expired, cross-user, and old-incarnation cursors all take the
 		// normal metered path. PlanRealtimeReplay will later turn them into a
-		// safe compacted reset.
+		// safe snapshot fallback.
 		return false, nil
 	}
 	identity, err := evtstream.Identity(c.storage.serverEvtStream)
@@ -127,7 +127,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		return RealtimeReplayPlan{}, err
 	}
 	// The public cursor promises that every current-state read used to shape
-	// authorization or a compacted reset includes all durable facts through
+	// authorization or a snapshot fallback includes all durable facts through
 	// this boundary. Waiting here, before any reset early-return or membership
 	// capture, prevents a lagging replica from publishing stale plaintext or
 	// permissions and then discarding the durable facts that would correct it.
@@ -221,7 +221,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			}
 			if _, authorized := memberRooms[roomID]; !authorized {
 				// A caller that lost access during the gap must discard its old
-				// room state. A compacted replay is the only safe way to do that
+				// room state. A snapshot fallback is the only safe way to do that
 				// without disclosing rooms it never held.
 				if eventChangesRoomVisibility(&event) || isRoomDirectoryProjectionEvent(&event) {
 					plan.Reset = true
