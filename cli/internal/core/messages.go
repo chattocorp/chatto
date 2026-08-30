@@ -1317,7 +1317,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// The durable message fact can reach realtime subscribers before the
 	// poster's read boundary and Slow Mode state above are current. Publish one
 	// transient, user-scoped reconciliation only after those post-commit updates
-	// complete. Recipient Badge decisions publish their own invalidations.
+	// run. Recipient Badge decisions publish their own invalidations.
 	c.NotifyNotificationUnreadChanged(ctx, user_id, user_id, room_id, "")
 
 	return event, nil

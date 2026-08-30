@@ -89,6 +89,10 @@ includes server, viewer, user, room, room-group, notification, call, presence,
 and retained timeline state. An operation can replace a complete finite set,
 upsert one resource, or remove one resource.
 
+`room_viewer_activity_replace` is a focused replacement. It replaces only
+`has_unread` and `slow_mode_next_post_at` for the room. Preserve the room's
+membership and permission state when you apply this operation.
+
 `RealtimeEventEnvelope` carries signals that are not replayed:
 
 - typing activity;
