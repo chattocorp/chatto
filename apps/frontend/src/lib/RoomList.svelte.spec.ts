@@ -1007,11 +1007,13 @@ describe('RoomList', () => {
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
     );
     await vi.waitFor(() =>
-      expect(document.body.textContent).toContain('Settings for Private Group')
+      expect(
+        document.querySelector('[role="menu"][aria-label="Settings for Private Group"]')
+      ).not.toBeNull()
     );
 
     const settings = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Settings for Private Group'
+      (button) => button.textContent?.trim() === 'Settings'
     );
     await expect.element(settings ?? null).toBeInTheDocument();
     await expect
@@ -1052,7 +1054,11 @@ describe('RoomList', () => {
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
     );
 
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Settings for Resources'));
+    await vi.waitFor(() =>
+      expect(
+        document.querySelector('[role="menu"][aria-label="Settings for Resources"]')
+      ).not.toBeNull()
+    );
     const deleteGroup = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Delete Group'
     );
@@ -1081,7 +1087,9 @@ describe('RoomList', () => {
     );
 
     await vi.waitFor(() =>
-      expect(document.body.textContent).toContain('Settings for Private Rooms')
+      expect(
+        document.querySelector('[role="menu"][aria-label="Settings for Private Rooms"]')
+      ).not.toBeNull()
     );
     const deleteGroup = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Delete Group'

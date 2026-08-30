@@ -1066,7 +1066,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {#if contextGroup.viewerCanManageGroup}
       <MenuSection>
         <MenuItem icon="icon-[uil--setting]" onclick={() => handleConfigureGroup(contextGroup)}>
-          {m('room_list.group_settings', { group: contextGroup.name })}
+          {m('settings.nav.title')}
         </MenuItem>
       </MenuSection>
       <MenuSection>
