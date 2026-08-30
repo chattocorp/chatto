@@ -168,7 +168,6 @@ test.describe('unsupported release boundary', () => {
         6,
         '127.0.0.1'
       );
-      await createProductionUser(unsupportedServer, remoteUser);
 
       await authPage.gotoLogin();
       await authPage.fillLoginForm(originUser.login, originUser.password);
