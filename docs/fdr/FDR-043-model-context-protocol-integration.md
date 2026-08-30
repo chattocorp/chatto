@@ -56,14 +56,22 @@ primitive.
   `leave_room`.
 - Identity tools return the effective server identity or the authenticated
   account identity. Server identity includes the canonical server URL and the
-  connected MCP URL. Room and message list tools return bounded pages.
+  connected MCP URL. Room and message list tools return bounded pages. The
+  room-list result also returns the exact number of rooms that the account can
+  see, independent of the page size.
   `post_message` creates one root text message. The room membership tools join
   or leave one channel room.
 - MCP server metadata uses `Chatto` as its stable implementation name and the
   effective Chatto server name as its display title.
-- Static MCP instructions tell an agent host to call `get_server_info` when it
-  needs to identify the server. Configured values never enter these
-  instructions.
+- Static MCP instructions identify the tools as the source of truth for rooms,
+  messages, room membership, and account identity on the connected server.
+  They tell an agent host to call `get_server_info` when the target server is
+  not clear, to complete pagination when needed, and not to infer Chatto
+  application data from deployment configuration. Configured values never
+  enter these instructions.
+- Tool descriptions state that operations apply to the connected Chatto
+  server. Identity and list descriptions also explain server matching, exact
+  room counts, and continuation fields.
 - Tool arguments use stable Chatto resource IDs and explicit bounded page
   limits. Tool results do not contain raw broker coordinates or internal
   storage identifiers.

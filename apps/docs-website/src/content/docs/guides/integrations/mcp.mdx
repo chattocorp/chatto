@@ -13,17 +13,23 @@ The experimental integration supports MCP `2026-07-28` and these tools:
 
 | Tool | Result or action |
 | --- | --- |
-| `get_server_info` | Get the effective server name, canonical public URL, connected MCP URL, and Chatto version. |
-| `get_current_user` | Get the authenticated account ID, display name, and account type. |
-| `list_rooms` | List a bounded page of rooms that the account can see. |
-| `list_room_messages` | List a bounded page of messages in a joined room. |
-| `post_message` | Post one root text message in a joined room. |
-| `join_room` | Join one visible channel room. |
-| `leave_room` | Leave one joined channel room. |
+| `get_server_info` | Identify the connected server and get its effective name, canonical public URL, connected MCP URL, and Chatto version. |
+| `get_current_user` | Get the account ID, display name, and account type for this connection. |
+| `list_rooms` | List a bounded page of visible rooms and get the exact visible-room count. |
+| `list_room_messages` | List a bounded page of messages in a joined room on the connected server. |
+| `post_message` | Post one root text message in a joined room on the connected server. |
+| `join_room` | Join one visible channel room on the connected server. |
+| `leave_room` | Leave one joined channel room on the connected server. |
 
 The tools apply the same RBAC, membership, validation, and visibility rules as
 the public Chatto API. `post_message` is not idempotent. An agent must not retry
 it when the first result is uncertain.
+
+The MCP instructions tell an agent host to use these tools as the source of
+truth for Chatto application data on the connected server. They also tell the
+host not to infer rooms or messages from Kubernetes, deployment, DNS, or
+repository configuration. The host still decides which available tool it
+calls.
 
 <Aside type="caution">
   MCP access can expose private Chatto data to an agent host. Enable it only

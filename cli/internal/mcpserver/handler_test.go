@@ -63,6 +63,10 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
+	secondVisible, err := chattoCore.CreateRoom(ctx, core.SystemActorID, core.KindChannel, group.GetId(), "also-visible-to-mcp", "")
+	if err != nil {
+		t.Fatalf("CreateRoom second visible: %v", err)
+	}
 	hidden, err := chattoCore.CreateRoom(ctx, core.SystemActorID, core.KindChannel, group.GetId(), "hidden-from-mcp", "")
 	if err != nil {
 		t.Fatalf("CreateRoom hidden: %v", err)
@@ -127,6 +131,26 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 			t.Fatalf("tools = %#v, missing %q", tools.Tools, name)
 		}
 	}
+	wantDescriptionParts := map[string][]string{
+		"get_server_info":    {"one Chatto server connected through this MCP endpoint", "match a server that the user names"},
+		"get_current_user":   {"this MCP connection uses", "connected server"},
+		"list_rooms":         {"source of truth for room lists and room counts", "totalCount", "nextAfterRoomId"},
+		"list_room_messages": {"connected Chatto server", "nextBeforeEventId"},
+		"post_message":       {"connected Chatto server", "not idempotent"},
+		"join_room":          {"connected Chatto server"},
+		"leave_room":         {"connected Chatto server"},
+	}
+	for name, parts := range wantDescriptionParts {
+		tool := mcpToolNamed(tools.Tools, name)
+		if tool == nil {
+			t.Fatalf("tools = %#v, missing %q", tools.Tools, name)
+		}
+		for _, part := range parts {
+			if !strings.Contains(tool.Description, part) {
+				t.Fatalf("%s description = %q, want it to contain %q", name, tool.Description, part)
+			}
+		}
+	}
 	serverInfoResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_server_info"})
 	if err != nil {
 		t.Fatalf("CallTool get_server_info: %v", err)
@@ -167,7 +191,7 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if currentUser.ID != viewer.GetId() || currentUser.DisplayName != viewer.GetDisplayName() || currentUser.AccountType != "human" {
 		t.Fatalf("get_current_user = %#v", currentUser)
 	}
-	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_rooms", Arguments: map[string]any{"limit": 100}})
+	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_rooms", Arguments: map[string]any{"limit": 1}})
 	if err != nil {
 		t.Fatalf("CallTool list_rooms: %v", err)
 	}
@@ -182,11 +206,31 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if output.ServerName != "Engineering Chat" {
 		t.Fatalf("server name = %q, want Engineering Chat", output.ServerName)
 	}
-	if !roomResultsContain(output.Rooms, visible.GetId()) {
-		t.Fatalf("visible room %q missing from %#v", visible.GetId(), output.Rooms)
+	if output.TotalCount != 2 {
+		t.Fatalf("total count = %d, want 2 visible rooms", output.TotalCount)
 	}
-	if roomResultsContain(output.Rooms, hidden.GetId()) {
-		t.Fatalf("hidden room %q present in %#v", hidden.GetId(), output.Rooms)
+	if len(output.Rooms) != 1 || output.NextAfterRoomID == "" {
+		t.Fatalf("first room page = %#v, want one room and a continuation", output)
+	}
+	secondPageResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_rooms", Arguments: map[string]any{
+		"limit": 1, "after_room_id": output.NextAfterRoomID,
+	}})
+	if err != nil {
+		t.Fatalf("CallTool list_rooms second page: %v", err)
+	}
+	var secondPage listRoomsOutput
+	decodeStructuredContent(t, secondPageResult.StructuredContent, &secondPage)
+	if secondPage.TotalCount != 2 || len(secondPage.Rooms) != 1 || secondPage.NextAfterRoomID != "" {
+		t.Fatalf("second room page = %#v, want final page with total count 2", secondPage)
+	}
+	allRooms := append(slices.Clone(output.Rooms), secondPage.Rooms...)
+	for _, visibleRoomID := range []string{visible.GetId(), secondVisible.GetId()} {
+		if !roomResultsContain(allRooms, visibleRoomID) {
+			t.Fatalf("visible room %q missing from %#v", visibleRoomID, allRooms)
+		}
+	}
+	if roomResultsContain(allRooms, hidden.GetId()) {
+		t.Fatalf("hidden room %q present in %#v", hidden.GetId(), allRooms)
 	}
 
 	joinResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "join_room", Arguments: map[string]any{"room_id": visible.GetId()}})
@@ -579,12 +623,16 @@ func roomResultsContain(rooms []roomResult, roomID string) bool {
 }
 
 func mcpToolsContain(tools []*mcp.Tool, name string) bool {
+	return mcpToolNamed(tools, name) != nil
+}
+
+func mcpToolNamed(tools []*mcp.Tool, name string) *mcp.Tool {
 	for _, tool := range tools {
 		if tool.Name == name {
-			return true
+			return tool
 		}
 	}
-	return false
+	return nil
 }
 
 func decodeStructuredContent(t *testing.T, content any, output any) {
