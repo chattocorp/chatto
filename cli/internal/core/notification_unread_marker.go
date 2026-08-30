@@ -144,6 +144,35 @@ func (m *NotificationOccurrenceModel) ThreadAttentionLevel(ctx context.Context, 
 	return levels[scope], nil
 }
 
+// ThreadAttentionScope identifies one exact thread for batched attention reads.
+type ThreadAttentionScope struct {
+	RoomID            string
+	ThreadRootEventID string
+}
+
+// ThreadAttentionLevels returns the strongest current attention for each
+// requested thread and shares the notification visibility boundary across the
+// complete batch.
+func (m *NotificationOccurrenceModel) ThreadAttentionLevels(ctx context.Context, userID string, scopes []ThreadAttentionScope) (map[ThreadAttentionScope]ThreadAttentionLevel, error) {
+	internalScopes := make([]notificationReadBoundaryScope, 0, len(scopes))
+	for _, scope := range scopes {
+		internalScopes = append(internalScopes, notificationReadBoundaryScope{
+			userID: userID, roomID: scope.RoomID, threadRootEventID: scope.ThreadRootEventID,
+		})
+	}
+	internalLevels, err := m.threadAttentionLevels(ctx, userID, internalScopes)
+	if err != nil {
+		return nil, err
+	}
+	levels := make(map[ThreadAttentionScope]ThreadAttentionLevel, len(scopes))
+	for _, scope := range scopes {
+		levels[scope] = internalLevels[notificationReadBoundaryScope{
+			userID: userID, roomID: scope.RoomID, threadRootEventID: scope.ThreadRootEventID,
+		}]
+	}
+	return levels, nil
+}
+
 // threadAttentionLevels returns attention for several exact thread scopes. It
 // captures and waits for notification visibility boundaries once for the
 // batch, instead of repeating the same JetStream and projection barriers for
@@ -167,7 +196,7 @@ func (m *NotificationOccurrenceModel) threadAttentionLevels(ctx context.Context,
 		if badgeUnread {
 			levels[scope] = ThreadAttentionLevelAmbient
 		}
-		occurrences = append(occurrences, m.projection.Projection().scopeOccurrences(scope, now)...)
+		occurrences = append(occurrences, m.projection.Projection().unreadScopeOccurrences(scope, now)...)
 	}
 	visible, err := m.VisibleOccurrences(ctx, userID, occurrences)
 	if err != nil {

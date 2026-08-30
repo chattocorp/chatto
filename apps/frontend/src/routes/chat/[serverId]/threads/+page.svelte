@@ -36,6 +36,7 @@
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
+  import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
 
   const serverScope = useServerScope();
   const serverStore = $derived(serverScope.store);
@@ -251,11 +252,27 @@
 
   function messageExcerpt(event: FollowedThread['rootMessage']): string {
     if (!event || event.event.kind !== 'messagePosted') return m('chat.threads.message_missing');
-    return event.event.body?.trim() || m('room.message.deleted');
+    if (event.event.deletedAt) return m('room.message.deleted');
+    const body = event.event.body?.trim();
+    if (body) return body;
+    if (event.event.attachments.length > 1) {
+      return m('message_preview.attachments_count', { count: event.event.attachments.length });
+    }
+    const attachment = event.event.attachments[0];
+    if (attachment) {
+      if (attachment.filename) return attachment.filename;
+      if (attachment.contentType.startsWith('image/')) return m('message_preview.attachment_image');
+      if (attachment.contentType.startsWith('video/')) return m('message_preview.attachment_video');
+      if (attachment.contentType.startsWith('audio/')) return m('message_preview.attachment_audio');
+      return m('message_preview.attachment_file');
+    }
+    const preview = event.event.linkPreview;
+    return preview?.title || preview?.siteName || preview?.url || m('chat.threads.message_missing');
   }
 
   function actorName(event: FollowedThread['rootMessage']): string {
-    return event?.actor?.displayName || event?.actor?.login || '';
+    const actor = event?.actor;
+    return actor ? getLiveDisplayName(actor.id, actor.displayName || actor.login) : '';
   }
 
   function rowActors(thread: FollowedThread): FollowedThread['participants'] {
@@ -263,6 +280,10 @@
     if (participants.length > 0) return participants;
     const actor = thread.latestReply?.actor ?? thread.rootMessage?.actor;
     return actor ? [actor] : [];
+  }
+
+  function primaryEvent(thread: FollowedThread): FollowedThread['rootMessage'] {
+    return thread.latestReply ?? thread.rootMessage;
   }
 
   function threadActivityAt(thread: FollowedThread): string | null {
@@ -328,6 +349,7 @@
             <DaySeparator id={`thread-date-${section.key}`} label={section.label} />
             {#each section.items as thread (thread.threadRootEventId)}
               {@const actors = rowActors(thread)}
+              {@const primary = primaryEvent(thread)}
               <ActivityListRow
                 pending={actionThreadId === thread.threadRootEventId}
                 disabled={actionThreadId === thread.threadRootEventId}
@@ -342,7 +364,7 @@
               >
                 {#snippet leading()}
                   <span class="relative flex shrink-0" aria-hidden="true">
-                    <UserAvatarStack users={actors} useLiveProfile={false} />
+                    <UserAvatarStack users={actors} />
                     {#if thread.attention !== 'none'}
                       <UnreadDot
                         color={thread.attention === 'important' ? 'warning' : 'ambient'}
@@ -357,17 +379,20 @@
                 {#if thread.hasUnreadReplies}<span class="sr-only"
                     >{m('chat.threads.filter_unread')}</span
                   >{/if}
+                {#if thread.attention !== 'none'}<span class="sr-only"
+                    >{m('room_list.notifications', { count: 1 })}</span
+                  >{/if}
                 <span class="min-w-0 flex-1" data-testid="thread-content">
                   <span class="flex min-w-0 items-baseline gap-2">
                     <bdi class="min-w-0 flex-1 truncate" dir="auto">
-                      {#if actorName(thread.latestReply)}
+                      {#if actorName(primary)}
                         <span class="font-medium"
-                          >{actorName(thread.latestReply)}:
-                          <span class="font-normal">{messageExcerpt(thread.latestReply)}</span
+                          >{actorName(primary)}:
+                          <span class="font-normal">{messageExcerpt(primary)}</span
                           ></span
                         >
                       {:else}
-                        <span>{messageExcerpt(thread.latestReply)}</span>
+                        <span>{messageExcerpt(primary)}</span>
                       {/if}
                     </bdi>
                     <span class="shrink-0 text-sm text-muted">
@@ -378,11 +403,11 @@
                     <bdi class="min-w-0 flex-1 truncate" dir="auto">
                       <span class="font-medium"
                         >#{thread.roomName}
-                        <span class="font-normal"
-                          >· {actorName(thread.rootMessage)}: {messageExcerpt(
-                            thread.rootMessage
-                          )}</span
-                        ></span
+                        {#if thread.latestReply}<span class="font-normal"
+                            >· {actorName(thread.rootMessage)}: {messageExcerpt(
+                              thread.rootMessage
+                            )}</span
+                          >{/if}</span
                       >
                     </bdi>
                     <span class="shrink-0">{replyCountLabel(thread.replyCount)}</span>

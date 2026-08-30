@@ -305,6 +305,22 @@ describe('fileDateGroup', () => {
 });
 
 describe('groupByActivityDate', () => {
+  it('uses a whitespace-free key for a localized current-month heading', () => {
+    const sections = groupByActivityDate(
+      [{ createdAt: '2026-06-10T08:00:00Z' }],
+      (item) => item.createdAt,
+      () => utc12,
+      new Date('2026-06-17T12:00:00Z'),
+      'en-US'
+    );
+
+    expect(sections).toHaveLength(1);
+    expect(sections[0]).toMatchObject({ key: 'this-month:2026-06', label: 'June 2026' });
+    expect(sections[0]?.key).not.toMatch(/\s/);
+  });
+});
+
+describe('groupByActivityDate', () => {
   const now = new Date('2026-06-17T12:00:00Z');
 
   it('keeps input order and omits records without activity', () => {
@@ -339,7 +355,7 @@ describe('groupByActivityDate', () => {
         now,
         'en-GB'
       )
-    ).toEqual([{ key: 'this-month:June 2026', label: 'June 2026', items }]);
+    ).toEqual([{ key: 'this-month:2026-06', label: 'June 2026', items }]);
   });
 });
 

@@ -2,6 +2,9 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { createThreadAPI } from '$lib/api-client/threads';
+import { Timestamp } from '@bufbuild/protobuf';
+import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_pb';
+import { User } from '@chatto/api-types/api/v1/users_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -109,6 +112,63 @@ describe('createThreadAPI', () => {
       { page: { limit: 20, offset: 0 } },
       { headers: undefined, signal }
     );
+  });
+
+  it('maps root, latest reply, and participant user includes', async () => {
+    mocks.listFollowedThreads.mockResolvedValue({
+      threads: [
+        {
+          room: { id: 'room-1', name: 'general' },
+          thread: {
+            threadRootEventId: 'root-1',
+            replyCount: 1,
+            participantCount: 1,
+            viewerState: {}
+          },
+          rootMessage: new Message({
+            id: 'root-1',
+            roomId: 'room-1',
+            actorId: 'u1',
+            createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+            body: 'Root body',
+            thread: new ThreadSummary({ participantPreviewUserIds: ['u2'] })
+          }),
+          latestReply: new Message({
+            id: 'reply-1',
+            roomId: 'room-1',
+            actorId: 'u2',
+            createdAt: Timestamp.fromDate(new Date('2026-06-01T12:01:00Z')),
+            body: 'Latest body',
+            threadRootEventId: 'root-1'
+          })
+        }
+      ],
+      page: {},
+      includes: {
+        users: {
+          u1: new User({ id: 'u1', login: 'alice', displayName: 'Alice' }),
+          u2: new User({ id: 'u2', login: 'bob', displayName: 'Bob' })
+        }
+      }
+    });
+
+    const api = createThreadAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const page = await api.listFollowedThreads({ limit: 20, offset: 0 });
+
+    expect(page.threads[0]).toMatchObject({
+      rootMessage: {
+        id: 'root-1',
+        actor: { id: 'u1', displayName: 'Alice' },
+        event: { kind: 'messagePosted', body: 'Root body' }
+      },
+      latestReply: {
+        id: 'reply-1',
+        actor: { id: 'u2', displayName: 'Bob' },
+        event: { kind: 'messagePosted', body: 'Latest body', threadRootEventId: 'root-1' }
+      },
+      participants: [{ id: 'u2', displayName: 'Bob' }],
+      participantCount: 1
+    });
   });
 
   it('follows a thread with bearer auth', async () => {

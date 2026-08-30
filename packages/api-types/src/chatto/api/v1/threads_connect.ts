@@ -22,6 +22,8 @@ export const ThreadService = {
      * with message.read-interactions. Historical DM threads use DM membership.
      * The result includes enough root and latest-reply data for clients to render
      * the list without extra per-thread fetches.
+     * Activity can reorder the live result between offset pages. After a thread
+     * activity update, clients must restart paging at offset zero.
      *
      * @generated from rpc chatto.api.v1.ThreadService.ListFollowedThreads
      */

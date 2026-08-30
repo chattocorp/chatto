@@ -60,6 +60,8 @@ type ThreadServiceClient interface {
 	// with message.read-interactions. Historical DM threads use DM membership.
 	// The result includes enough root and latest-reply data for clients to render
 	// the list without extra per-thread fetches.
+	// Activity can reorder the live result between offset pages. After a thread
+	// activity update, clients must restart paging at offset zero.
 	ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error)
 	// Follows a thread for the current user. Room membership plus message.read or
 	// an active relationship with message.read-interactions are required. DMs do
@@ -189,6 +191,8 @@ type ThreadServiceHandler interface {
 	// with message.read-interactions. Historical DM threads use DM membership.
 	// The result includes enough root and latest-reply data for clients to render
 	// the list without extra per-thread fetches.
+	// Activity can reorder the live result between offset pages. After a thread
+	// activity update, clients must restart paging at offset zero.
 	ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error)
 	// Follows a thread for the current user. Room membership plus message.read or
 	// an active relationship with message.read-interactions are required. DMs do

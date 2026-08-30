@@ -341,7 +341,11 @@ export function groupByActivityDate<T>(
       dateGroup.key === 'this-month'
         ? formatMonthYear(timestamp, settings, locale)
         : dateGroup.label;
-    const key = dateGroup.key === 'this-month' ? `this-month:${label}` : dateGroup.key;
+    const itemParts = dateParts(toDate(timestamp), settings);
+    const key =
+      dateGroup.key === 'this-month'
+        ? `this-month:${itemParts.year}-${String(itemParts.month).padStart(2, '0')}`
+        : dateGroup.key;
     let section = sections.find((candidate) => candidate.key === key);
     if (!section) {
       section = { key, label, items: [] };

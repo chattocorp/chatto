@@ -13,8 +13,8 @@ that they have not read.
 
 - My Threads lists followed threads in newest-activity-first order and groups
   them by activity date.
-- Each row shows the room, root message, latest visible reply, last activity,
-  reply count, and a participant preview.
+- Each row shows the room, root message, latest visible reply when one exists,
+  last activity, reply count, and a participant preview.
 - The Unread filter includes only threads with replies after the user's thread
   read cursor.
 - Notification attention is separate from reply unread state. Important
@@ -26,6 +26,8 @@ that they have not read.
 - A thread can remain in My Threads after all replies and notification
   attention are read. It remains until the user stops following it or loses
   access.
+- Thread activity can change the live sort order. The bundled client restarts
+  loaded offset pages after a reply update before it continues pagination.
 
 ## Design Decisions
 
@@ -51,13 +53,15 @@ its replies are read.
 ### 3. The activity-list presentation makes the order clear
 
 **Decision:** My Threads uses flat activity rows and date sections. Each row
-shows the latest visible reply first and keeps compact root-message context
-below it.
+shows the latest visible reply first when one exists and keeps compact
+root-message context below it. A thread without replies shows its root as the
+primary activity.
 **Why:** The latest reply explains why the thread is active. Flat rows and date
 sections distinguish this newest-first activity list from a room timeline,
 where newer messages appear at the bottom.
 **Tradeoff:** My Threads and room timelines use different reading directions.
-The list response must also hydrate more message and user data.
+The list response must also hydrate more message and user data. API clients
+must restart offset pagination after activity changes the live order.
 
 ### 4. The navigation indicator covers followed threads
 

@@ -312,6 +312,37 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	}
 }
 
+func TestNotificationProjectionUnreadScopeIndexDropsReadHistory(t *testing.T) {
+	p := NewNotificationProjection()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	p.now = func() time.Time { return now }
+	signal := testNotificationSignal(notificationTestSignalReply, "R1", "E1")
+	notificationSignalMessage(signal).ThreadRootEventId = proto.String("ROOT")
+	occurrence := &notificationv1.NotificationOccurrence{
+		Id: "N1", RecipientId: "U1", SourceEventId: "E1", SourceCreatedAt: timestamp(now),
+		Signal: signal, ExpiresAt: timestamp(now.Add(time.Hour)),
+	}
+	if err := p.Apply(notificationSignalledEvent("NE1", occurrence, now.Add(time.Hour)), 1); err != nil {
+		t.Fatalf("Apply signal: %v", err)
+	}
+	scope := notificationReadBoundaryScope{userID: "U1", roomID: "R1", threadRootEventID: "ROOT"}
+	if got := p.unreadScopeOccurrences(scope, now); len(got) != 1 {
+		t.Fatalf("unread scope occurrences = %d, want 1", len(got))
+	}
+	if err := p.Apply(&notificationv1.NotificationEvent{
+		Id: "NE2", RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamp(now), ExpiresAt: timestamp(now.Add(time.Hour)),
+		Event: &notificationv1.NotificationEvent_Read{Read: &notificationv1.NotificationRead{}},
+	}, 2); err != nil {
+		t.Fatalf("Apply read: %v", err)
+	}
+	if got := p.unreadScopeOccurrences(scope, now); len(got) != 0 {
+		t.Fatalf("unread scope occurrences after read = %d, want 0", len(got))
+	}
+	if got := p.scopeOccurrences(scope, now); len(got) != 1 || !got[0].GetRead() {
+		t.Fatalf("retained scope history = %+v, want one read occurrence", got)
+	}
+}
+
 func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinate(t *testing.T) {
 	p := NewNotificationProjection()
 	now := time.Now().UTC().Truncate(time.Millisecond)

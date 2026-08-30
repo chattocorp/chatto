@@ -46,6 +46,34 @@ test.describe('My Threads', () => {
     await expect(threadItem.getByText('1 reply')).toBeVisible();
   });
 
+  test('followed thread without a visible latest reply uses the root as its activity', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootText = `Followed root ${Date.now()}`;
+    const rootMsg = await roomPage.sendMessage(rootText);
+    await rootMsg.openThread();
+    await roomPage.expectThreadPaneVisible();
+    const replyText = `Temporary reply ${Date.now()}`;
+    await roomPage.postThreadReply(replyText);
+    await roomPage.getThreadMessage(replyText).delete();
+    await roomPage.closeThread();
+
+    const myThreads = new MyThreadsPage(page);
+    await myThreads.goto();
+
+    const threadItem = myThreads.threadItems;
+    await expect(threadItem).toBeVisible();
+    await expect(threadItem.getByText(rootText)).toBeVisible();
+    await expect(threadItem.getByText('1 reply')).toBeVisible();
+    await expect(threadItem.getByText('Message no longer available')).not.toBeVisible();
+  });
+
   test('clicking a thread navigates to the room with thread pane open', async ({
     page,
     chatPage,

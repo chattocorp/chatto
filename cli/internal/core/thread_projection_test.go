@@ -285,6 +285,38 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 	}
 }
 
+func TestThreadProjection_LatestReplyUsesStreamOrderDespiteClockSkew(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*evtv1.Event{
+		postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 3}),
+		postedEvent(postedOpts{envelopeID: "ENV-R2", eventID: "REPLY2", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
+	})
+
+	metadata := p.ThreadMetadata("ROOT")
+	if got, want := metadata.LatestReplyEventID, "ENV-R2"; got != want {
+		t.Fatalf("LatestReplyEventID = %q, want stream-latest %q", got, want)
+	}
+	if metadata.LastReplyAt == nil || !metadata.LastReplyAt.Equal(fixedTime(2)) {
+		t.Fatalf("LastReplyAt = %v, want stream-latest time %v", metadata.LastReplyAt, fixedTime(2))
+	}
+}
+
+func TestThreadProjection_LatestReplyRetainsZeroTimestampEvent(t *testing.T) {
+	p := NewThreadProjection()
+	first := postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 1})
+	latest := postedEvent(postedOpts{envelopeID: "ENV-R2", eventID: "REPLY2", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2})
+	latest.CreatedAt = nil
+	applyAll(t, p, []*evtv1.Event{first, latest})
+
+	metadata := p.ThreadMetadata("ROOT")
+	if got, want := metadata.LatestReplyEventID, "ENV-R2"; got != want {
+		t.Fatalf("LatestReplyEventID = %q, want stream-latest %q", got, want)
+	}
+	if metadata.LastReplyAt != nil {
+		t.Fatalf("LastReplyAt = %v, want nil for zero-timestamp latest reply", metadata.LastReplyAt)
+	}
+}
+
 func TestThreadProjection_ApplyDoesNotMutateInputEvent(t *testing.T) {
 	p := NewThreadProjection()
 	reply := postedEvent(postedOpts{envelopeID: "ENV-R1", eventID: "REPLY1", roomID: "R1", actorID: "U2", inThread: "ROOT", inReplyTo: "ROOT", at: 1})

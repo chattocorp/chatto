@@ -32,14 +32,24 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 	if err != nil {
 		return nil, err
 	}
+	threadAttentionLevels := make(map[core.ThreadAttentionScope]core.ThreadAttentionLevel, len(page.Threads))
+	for _, thread := range page.Threads {
+		if thread == nil {
+			continue
+		}
+		threadAttentionLevels[core.ThreadAttentionScope{
+			RoomID: thread.RoomID, ThreadRootEventID: thread.ThreadRootEventID,
+		}] = thread.AttentionLevel
+	}
 
 	h := &timelineHydrator{
-		api:                  api,
-		ctx:                  ctx,
-		viewerID:             viewerID,
-		kind:                 core.KindChannel,
-		reactionsByMessageID: reactionsByMessageID,
-		userIDs:              make(map[string]struct{}),
+		api:                   api,
+		ctx:                   ctx,
+		viewerID:              viewerID,
+		kind:                  core.KindChannel,
+		reactionsByMessageID:  reactionsByMessageID,
+		userIDs:               make(map[string]struct{}),
+		threadAttentionLevels: threadAttentionLevels,
 	}
 
 	threads, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, page.Threads, func(ctx context.Context, _ int, thread *core.FollowedThread) (*apiv1.FollowedThread, error) {

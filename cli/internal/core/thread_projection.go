@@ -482,10 +482,11 @@ func (p *ThreadProjection) applyReplyToSummaryLocked(summary *threadSummary, rep
 	}
 
 	summary.replyCount++
-	if !reply.createdAt.IsZero() && (summary.lastReplyAt == nil || !reply.createdAt.Before(*summary.lastReplyAt)) {
+	summary.latestReplyEventID = replyID
+	summary.lastReplyAt = nil
+	if !reply.createdAt.IsZero() {
 		at := reply.createdAt
 		summary.lastReplyAt = &at
-		summary.latestReplyEventID = replyID
 	}
 	if reply.actorID != "" {
 		summary.participantCounts[reply.actorID]++

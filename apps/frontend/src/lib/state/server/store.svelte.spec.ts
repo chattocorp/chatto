@@ -1428,6 +1428,36 @@ describe('ServerStateStore live server updates', () => {
     expect(apiMocks.listRoomAttachments).toHaveBeenCalledOnce();
   });
 
+  it('restarts followed-thread paging after a reply changes activity order', () => {
+    const fake = new FakeServerConnection([]);
+    const _store = makeStore(fake);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    const event = projectedMessage('REPLY-1', new Date('2026-07-19T12:00:00Z'));
+    if (event.event.case !== 'messagePosted' || !event.event.value.message) {
+      throw new Error('expected projected message');
+    }
+    event.event.value.message.threadRootEventId = 'ROOT-1';
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'roomTimelineEventUpsert',
+                value: new RealtimeProjectionRoomTimelineEventUpsert({ roomId: 'R1', event })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledWith(registered.id);
+  });
+
   it('ignores reaction upserts and projection-only row removals for room files', async () => {
     apiMocks.listRoomAttachments.mockResolvedValue({
       items: [projectedRoomFile()],
