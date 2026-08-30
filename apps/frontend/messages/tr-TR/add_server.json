@@ -32,7 +32,6 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "{server} için görüşler",
       "discovering": "Daha fazla sunucu keşfediliyor…",
       "load_more": "Daha fazla yükle",
       "session_limit_reached": "Bu oturumun keşif sınırına ulaşıldı."

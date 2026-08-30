@@ -16,8 +16,7 @@ const mocks = vi.hoisted(() => ({
   loadServerDirectory: vi.fn(),
   loadMoreDirectory: vi.fn(),
   publishDirectorySnapshot: undefined as
-    | ((snapshot: Partial<ServerDirectorySnapshot>) => void)
-    | undefined,
+    ((snapshot: Partial<ServerDirectorySnapshot>) => void) | undefined,
   getPublicServerInfo: vi.fn(),
   startServerOAuthFlow: vi.fn(),
   startRemoteReauthentication: vi.fn(),
@@ -140,13 +139,6 @@ function link(container: HTMLElement, label: string): HTMLAnchorElement | undefi
   );
 }
 
-function recommendation(
-  sourceOrigin = 'https://source.example',
-  testimonial: string | null = null
-) {
-  return { sourceOrigin, testimonial };
-}
-
 let intersectionCallback: IntersectionObserverCallback | undefined;
 
 function mockIntersectionObserver() {
@@ -227,14 +219,12 @@ describe('Server Directory page', () => {
         {
           origin: 'https://z.example',
           profile: profile('Zulu'),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         },
         {
           origin: 'https://a.example',
           profile: profile('Alpha'),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,
@@ -264,14 +254,12 @@ describe('Server Directory page', () => {
         {
           origin: 'https://offline.example',
           profile: null,
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         },
         {
           origin: 'https://online.example',
           profile: profile('Online'),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 1,
@@ -300,8 +288,7 @@ describe('Server Directory page', () => {
         {
           origin: 'https://remote.example',
           profile: remoteProfile,
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,
@@ -335,8 +322,7 @@ describe('Server Directory page', () => {
         {
           origin: 'https://old.example',
           profile: profile('Old server', { version: '0.4.19', authorizeUrl: '' }),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,
@@ -369,8 +355,7 @@ describe('Server Directory page', () => {
         {
           origin: 'https://a.example',
           profile: profile('Alpha', { version: '0.4.19' }),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,
@@ -393,8 +378,7 @@ describe('Server Directory page', () => {
         {
           origin: 'https://a.example',
           profile: profile('Alpha', { version: '0.4.19' }),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,
@@ -419,8 +403,7 @@ describe('Server Directory page', () => {
         {
           origin: 'https://closed.example',
           profile: profile('Closed', { authorizeUrl: '' }),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,
@@ -496,27 +479,17 @@ describe('Server Directory page', () => {
         {
           origin: 'https://single.example',
           profile: profile('Single'),
-          sourceOrigins: ['https://one.example'],
-          recommendations: [recommendation('https://one.example')]
+          sourceOrigins: ['https://one.example']
         },
         {
           origin: 'https://double.example',
           profile: profile('Double'),
-          sourceOrigins: ['https://one.example', 'https://two.example'],
-          recommendations: [
-            recommendation('https://one.example'),
-            recommendation('https://two.example')
-          ]
+          sourceOrigins: ['https://one.example', 'https://two.example']
         },
         {
           origin: 'https://triple.example',
           profile: profile('Triple'),
-          sourceOrigins: ['https://one.example', 'https://two.example', 'https://three.example'],
-          recommendations: [
-            recommendation('https://one.example'),
-            recommendation('https://two.example'),
-            recommendation('https://three.example')
-          ]
+          sourceOrigins: ['https://one.example', 'https://two.example', 'https://three.example']
         }
       ],
       failedSourceCount: 0,
@@ -539,71 +512,13 @@ describe('Server Directory page', () => {
     expect(attributions[2]?.title).toContain('One, Two, and Three');
   });
 
-  it('shows source-specific testimonials in a labelled tapestry card', async () => {
-    mocks.servers = [
-      {
-        id: 'one',
-        url: 'https://one.example',
-        name: 'One',
-        iconUrl: 'https://cdn.example/one.webp',
-        addedAt: 1
-      },
-      { id: 'two', url: 'https://two.example', name: 'Two', iconUrl: null, addedAt: 2 }
-    ];
-    mocks.loadServerDirectory.mockResolvedValue({
-      entries: [
-        {
-          origin: 'https://remote.example',
-          profile: profile('Remote'),
-          sourceOrigins: ['https://one.example', 'https://two.example'],
-          recommendations: [
-            recommendation(
-              'https://one.example',
-              'A **thoughtful** place for long conversations.\n\nPeople listen.'
-            ),
-            recommendation('https://two.example', 'Friendly people and excellent moderation.')
-          ]
-        }
-      ],
-      failedSourceCount: 0,
-      sourceCount: 2
-    });
-
-    const { container } = render(Page);
-    await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="server-testimonial"]')).toHaveLength(2);
-    });
-    const section = container.querySelector<HTMLElement>('[data-testid="server-testimonials"]')!;
-    expect(section.getAttribute('aria-label')).toBe('Testimonials for Remote');
-    expect(section.querySelectorAll('p')).toHaveLength(3);
-    expect(section.querySelector('strong')?.textContent).toBe('thoughtful');
-    expect(
-      section.querySelector<HTMLImageElement>('[data-testid="server-testimonial-source-icon"] img')
-        ?.src
-    ).toBe('https://cdn.example/one.webp');
-    expect(section.textContent).toContain('One');
-    expect(section.textContent).toContain('Two');
-    expect(section.textContent).not.toContain('Recommended by');
-    const firstReview = section.querySelector<HTMLElement>('[data-testid="server-testimonial"]')!;
-    expect(Array.from(firstReview.children, (child) => child.tagName)).toEqual([
-      'FIGCAPTION',
-      'BLOCKQUOTE'
-    ]);
-    expect(firstReview.querySelector('blockquote')).toHaveClass('bg-surface-emphasized');
-    const profileCard = container.querySelector('[data-testid="server-directory-entry"]')!;
-    expect(profileCard.contains(section)).toBe(false);
-    expect(profileCard.nextElementSibling).toBe(section);
-    expect(container.querySelector('.columns-1')).not.toBeNull();
-  });
-
   it('shows verified entries while discovery is still active', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
         {
           origin: 'https://ready.example',
           profile: profile('Ready'),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,
@@ -626,8 +541,7 @@ describe('Server Directory page', () => {
     const first = {
       origin: 'https://first.example',
       profile: profile('First'),
-      sourceOrigins: ['https://source.example'],
-      recommendations: [recommendation()]
+      sourceOrigins: ['https://source.example']
     };
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [first],
@@ -642,8 +556,7 @@ describe('Server Directory page', () => {
         {
           origin: 'https://second.example',
           profile: profile('Second'),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,
@@ -670,8 +583,7 @@ describe('Server Directory page', () => {
     const first = {
       origin: 'https://first.example',
       profile: profile('First'),
-      sourceOrigins: ['https://source.example'],
-      recommendations: [recommendation()]
+      sourceOrigins: ['https://source.example']
     };
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [first],
@@ -701,8 +613,7 @@ describe('Server Directory page', () => {
         {
           origin: 'https://first.example',
           profile: profile('First'),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       canLoadMore: true,
@@ -723,8 +634,7 @@ describe('Server Directory page', () => {
     const first = {
       origin: 'https://first.example',
       profile: profile('First'),
-      sourceOrigins: ['https://source.example'],
-      recommendations: [recommendation()]
+      sourceOrigins: ['https://source.example']
     };
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [first],
@@ -755,8 +665,7 @@ describe('Server Directory page', () => {
     const first = {
       origin: 'https://first.example',
       profile: profile('First'),
-      sourceOrigins: ['https://source.example'],
-      recommendations: [recommendation()]
+      sourceOrigins: ['https://source.example']
     };
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [first],
@@ -787,8 +696,7 @@ describe('Server Directory page', () => {
     const first = {
       origin: 'https://first.example',
       profile: profile('First'),
-      sourceOrigins: ['https://source.example'],
-      recommendations: [recommendation()]
+      sourceOrigins: ['https://source.example']
     };
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [first],
@@ -809,43 +717,6 @@ describe('Server Directory page', () => {
     visibility.mockRestore();
   });
 
-  it('uses discovered source profiles for recursive testimonial attribution', async () => {
-    mocks.loadServerDirectory.mockResolvedValue({
-      entries: [
-        {
-          origin: 'https://neighbor.example',
-          profile: profile('Neighbor source', {
-            iconUrl: 'https://cdn.example/neighbor-source.webp'
-          }),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
-        },
-        {
-          origin: 'https://second-hop.example',
-          profile: profile('Second hop'),
-          sourceOrigins: ['https://neighbor.example'],
-          recommendations: [recommendation('https://neighbor.example', 'A mutual second hop.')]
-        }
-      ],
-      failedSourceCount: 0,
-      sourceCount: 2
-    });
-
-    const { container } = render(Page);
-    await vi.waitFor(() => expect(container.textContent).toContain('A mutual second hop.'));
-
-    const secondHop = Array.from(
-      container.querySelectorAll<HTMLElement>('[data-testid="server-directory-entry"]')
-    ).find(({ dataset }) => dataset.origin === 'https://second-hop.example')!;
-    const testimonial = secondHop.parentElement?.querySelector<HTMLElement>(
-      '[data-testid="server-testimonial"]'
-    );
-    expect(testimonial?.textContent).toContain('Neighbor source');
-    expect(testimonial?.querySelector<HTMLImageElement>('img')?.src).toBe(
-      'https://cdn.example/neighbor-source.webp'
-    );
-  });
-
   it('explains when the page-session discovery limit is reached', async () => {
     mockIntersectionObserver();
     mocks.loadServerDirectory.mockResolvedValue({
@@ -853,8 +724,7 @@ describe('Server Directory page', () => {
         {
           origin: 'https://first.example',
           profile: profile('First'),
-          sourceOrigins: ['https://source.example'],
-          recommendations: [recommendation()]
+          sourceOrigins: ['https://source.example']
         }
       ],
       failedSourceCount: 0,

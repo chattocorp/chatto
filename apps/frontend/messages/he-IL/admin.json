@@ -31,10 +31,7 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted",
-      "testimonial": "המלצה (רשות)",
-      "testimonial_help": "הסבירו מדוע אתם ממליצים על שרת זה. הטקסט פומבי ויכול להכיל עד 500 תווים.",
-      "testimonial_label": "המלצה פומבית"
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} | מנהל מערכת",

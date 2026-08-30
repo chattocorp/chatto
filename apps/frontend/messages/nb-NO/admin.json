@@ -31,10 +31,7 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted",
-      "testimonial": "Omtale (valgfritt)",
-      "testimonial_help": "Forklar hvorfor du anbefaler denne serveren. Teksten er offentlig og kan inneholde opptil 500 tegn.",
-      "testimonial_label": "Offentlig omtale"
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} | Admin",

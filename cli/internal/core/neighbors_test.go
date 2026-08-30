@@ -3,12 +3,13 @@ package core
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
 func TestNeighborConcurrentDuplicateAcrossReplicas(t *testing.T) {
@@ -28,7 +29,7 @@ func TestNeighborConcurrentDuplicateAcrossReplicas(t *testing.T) {
 	errorsByReplica := make(chan error, 2)
 	for _, replica := range []*ChattoCore{first, second} {
 		go func(replica *ChattoCore) {
-			_, createErr := replica.CreateNeighbor(ctx, actor.GetId(), "https://same.example", "")
+			_, createErr := replica.CreateNeighbor(ctx, actor.GetId(), "https://same.example")
 			errorsByReplica <- createErr
 		}(replica)
 	}
@@ -61,9 +62,9 @@ func TestNeighborConcurrentUpdatesAcrossReplicas(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, first.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermServerManageNeighbors))
 
-	one, err := first.CreateNeighbor(ctx, actor.GetId(), "https://one.example", "")
+	one, err := first.CreateNeighbor(ctx, actor.GetId(), "https://one.example")
 	require.NoError(t, err)
-	two, err := first.CreateNeighbor(ctx, actor.GetId(), "https://two.example", "")
+	two, err := first.CreateNeighbor(ctx, actor.GetId(), "https://two.example")
 	require.NoError(t, err)
 
 	type updateResult struct {
@@ -72,11 +73,11 @@ func TestNeighborConcurrentUpdatesAcrossReplicas(t *testing.T) {
 	}
 	results := make(chan updateResult, 2)
 	go func() {
-		neighbor, updateErr := first.UpdateNeighbor(ctx, actor.GetId(), one.ID, "https://one-updated.example", nil, one.Revision)
+		neighbor, updateErr := first.UpdateNeighbor(ctx, actor.GetId(), one.ID, "https://one-updated.example", one.Revision)
 		results <- updateResult{neighbor: neighbor, err: updateErr}
 	}()
 	go func() {
-		neighbor, updateErr := second.UpdateNeighbor(ctx, actor.GetId(), two.ID, "https://two-updated.example", nil, two.Revision)
+		neighbor, updateErr := second.UpdateNeighbor(ctx, actor.GetId(), two.ID, "https://two-updated.example", two.Revision)
 		results <- updateResult{neighbor: neighbor, err: updateErr}
 	}()
 	for range 2 {
@@ -85,11 +86,11 @@ func TestNeighborConcurrentUpdatesAcrossReplicas(t *testing.T) {
 		require.Contains(t, result.neighbor.Origin, "-updated.example")
 	}
 
-	target, err := first.CreateNeighbor(ctx, actor.GetId(), "https://contended.example", "")
+	target, err := first.CreateNeighbor(ctx, actor.GetId(), "https://contended.example")
 	require.NoError(t, err)
 	for index, replica := range []*ChattoCore{first, second} {
 		go func(index int, replica *ChattoCore) {
-			neighbor, updateErr := replica.UpdateNeighbor(ctx, actor.GetId(), target.ID, fmt.Sprintf("https://winner-%d.example", index), nil, target.Revision)
+			neighbor, updateErr := replica.UpdateNeighbor(ctx, actor.GetId(), target.ID, fmt.Sprintf("https://winner-%d.example", index), target.Revision)
 			results <- updateResult{neighbor: neighbor, err: updateErr}
 		}(index, replica)
 	}
@@ -119,40 +120,31 @@ func TestNeighborCRUDAndPermission(t *testing.T) {
 	require.ErrorIs(t, err, ErrPermissionDenied)
 	require.NoError(t, chatto.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermServerManageNeighbors))
 
-	created, err := chatto.CreateNeighbor(ctx, actor.GetId(), " HTTPS://Example.COM:443/ ", " A thoughtful place to talk. ")
+	created, err := chatto.CreateNeighbor(ctx, actor.GetId(), " HTTPS://Example.COM:443/ ")
 	require.NoError(t, err)
 	require.NotEmpty(t, created.ID)
 	require.Equal(t, "https://example.com", created.Origin)
-	require.Equal(t, "A thoughtful place to talk.", created.Testimonial)
 	require.NotEmpty(t, created.Revision)
 
 	neighbors, err := chatto.ListManagedNeighbors(ctx, actor.GetId())
 	require.NoError(t, err)
 	require.Equal(t, []Neighbor{created}, neighbors)
 
-	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), "https://example.com", "")
+	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), "https://example.com")
 	require.ErrorIs(t, err, ErrNeighborAlreadyExists)
 
-	updatedTestimonial := "A welcoming place for makers."
-	updated, err := chatto.UpdateNeighbor(ctx, actor.GetId(), created.ID, "http://chat.example:8080", &updatedTestimonial, created.Revision)
+	updated, err := chatto.UpdateNeighbor(ctx, actor.GetId(), created.ID, "http://chat.example:8080", created.Revision)
 	require.NoError(t, err)
 	require.Equal(t, "http://chat.example:8080", updated.Origin)
-	require.Equal(t, updatedTestimonial, updated.Testimonial)
 	require.NotEqual(t, created.Revision, updated.Revision)
 
-	originOnly, err := chatto.UpdateNeighbor(ctx, actor.GetId(), created.ID, "https://origin-only.example", nil, updated.Revision)
+	originOnly, err := chatto.UpdateNeighbor(ctx, actor.GetId(), created.ID, "https://origin-only.example", updated.Revision)
 	require.NoError(t, err)
-	require.Equal(t, updatedTestimonial, originOnly.Testimonial)
 
-	clearedTestimonial := ""
-	cleared, err := chatto.UpdateNeighbor(ctx, actor.GetId(), created.ID, originOnly.Origin, &clearedTestimonial, originOnly.Revision)
-	require.NoError(t, err)
-	require.Empty(t, cleared.Testimonial)
-
-	_, err = chatto.UpdateNeighbor(ctx, actor.GetId(), created.ID, "https://stale.example", nil, created.Revision)
+	_, err = chatto.UpdateNeighbor(ctx, actor.GetId(), created.ID, "https://stale.example", created.Revision)
 	require.ErrorIs(t, err, ErrNeighborRevisionChanged)
 	require.ErrorIs(t, chatto.DeleteNeighbor(ctx, actor.GetId(), created.ID, created.Revision), ErrNeighborRevisionChanged)
-	require.NoError(t, chatto.DeleteNeighbor(ctx, actor.GetId(), created.ID, cleared.Revision))
+	require.NoError(t, chatto.DeleteNeighbor(ctx, actor.GetId(), created.ID, originOnly.Revision))
 	_, err = chatto.GetManagedNeighbor(ctx, actor.GetId(), created.ID)
 	require.ErrorIs(t, err, ErrNeighborNotFound)
 }
@@ -165,9 +157,9 @@ func TestNeighborRejectsServerOrigins(t *testing.T) {
 	require.NoError(t, chatto.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermServerManageNeighbors))
 
 	chatto.serverOrigins = nil
-	historical, err := chatto.CreateNeighbor(ctx, actor.GetId(), "https://self.example", "")
+	historical, err := chatto.CreateNeighbor(ctx, actor.GetId(), "https://self.example")
 	require.NoError(t, err)
-	external, err := chatto.CreateNeighbor(ctx, actor.GetId(), "https://external.example", "")
+	external, err := chatto.CreateNeighbor(ctx, actor.GetId(), "https://external.example")
 	require.NoError(t, err)
 
 	chatto.serverOrigins = map[string]struct{}{
@@ -175,18 +167,18 @@ func TestNeighborRejectsServerOrigins(t *testing.T) {
 		"https://alias.example": {},
 	}
 
-	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), " HTTPS://SELF.EXAMPLE:443/ ", "")
+	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), " HTTPS://SELF.EXAMPLE:443/ ")
 	require.ErrorIs(t, err, ErrNeighborMatchesServerOrigin)
-	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), "https://alias.example", "")
+	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), "https://alias.example")
 	require.ErrorIs(t, err, ErrNeighborMatchesServerOrigin)
 
-	_, err = chatto.UpdateNeighbor(ctx, actor.GetId(), external.ID, "https://alias.example", nil, external.Revision)
+	_, err = chatto.UpdateNeighbor(ctx, actor.GetId(), external.ID, "https://alias.example", external.Revision)
 	require.ErrorIs(t, err, ErrNeighborMatchesServerOrigin)
 	unchanged, err := chatto.GetManagedNeighbor(ctx, actor.GetId(), external.ID)
 	require.NoError(t, err)
 	require.Equal(t, external, unchanged)
 
-	corrected, err := chatto.UpdateNeighbor(ctx, actor.GetId(), historical.ID, "https://corrected.example", nil, historical.Revision)
+	corrected, err := chatto.UpdateNeighbor(ctx, actor.GetId(), historical.ID, "https://corrected.example", historical.Revision)
 	require.NoError(t, err)
 	require.Equal(t, "https://corrected.example", corrected.Origin)
 	require.Len(t, chatto.ConfigModel().ListNeighbors(), 2)
@@ -199,7 +191,7 @@ func TestServerManageIncludesNeighborManagement(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, chatto.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermServerManage))
 
-	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), "https://included.example", "")
+	_, err = chatto.CreateNeighbor(ctx, actor.GetId(), "https://included.example")
 	require.NoError(t, err)
 }
 
@@ -229,26 +221,30 @@ func TestCanonicalNeighborOrigin(t *testing.T) {
 	}
 }
 
-func TestNormalizeNeighborTestimonial(t *testing.T) {
-	got, err := normalizeNeighborTestimonial("  A kind place.\n")
-	require.NoError(t, err)
-	require.Equal(t, "A kind place.", got)
-
-	_, err = normalizeNeighborTestimonial(strings.Repeat("界", MaxNeighborTestimonialLength+1))
-	require.ErrorIs(t, err, ErrInvalidArgument)
-}
-
-func TestConfigProjectionNeighborSnapshotRoundTrip(t *testing.T) {
+func TestConfigProjectionIgnoresLegacyTestimonials(t *testing.T) {
 	projection := NewConfigProjection()
 	require.NoError(t, projection.Apply(newNeighborCreatedProjectionEvent("E-create", "N1", "https://one.example", "First testimonial"), 1))
-	require.NoError(t, projection.Apply(newNeighborCreatedProjectionEvent("E-create-2", "N2", "https://two.example", ""), 2))
+	require.Equal(t, []Neighbor{{ID: "N1", Origin: "https://one.example", Revision: "E-create"}}, NewConfigModel(nil, detachedTestProjectionHandle(projection)).ListNeighbors())
 	require.NoError(t, projection.Apply(&evtv1.Event{Id: "E-testimonial", Event: &evtv1.Event_ServerNeighborTestimonialChanged{
 		ServerNeighborTestimonialChanged: &evtv1.ServerNeighborTestimonialChangedEvent{NeighborId: "N1", Testimonial: "Updated testimonial"},
-	}}, 3))
+	}}, 2))
+	require.Equal(t, []Neighbor{{ID: "N1", Origin: "https://one.example", Revision: "E-testimonial"}}, NewConfigModel(nil, detachedTestProjectionHandle(projection)).ListNeighbors())
 
 	payload, err := projection.Snapshot()
 	require.NoError(t, err)
+	snapshot := &projectionv1.ConfigProjectionSnapshot{}
+	require.NoError(t, proto.Unmarshal(payload, snapshot))
+	require.Empty(t, snapshot.GetNeighbors()[0].GetTestimonial())
+
+	legacyPayload, err := proto.Marshal(&projectionv1.ConfigProjectionSnapshot{Neighbors: []*projectionv1.ServerNeighborSnapshot{{
+		Id: "N2", Origin: "https://two.example", Revision: "E-legacy", Testimonial: "Legacy testimonial",
+	}}})
+	require.NoError(t, err)
 	restored := NewConfigProjection()
-	require.NoError(t, restored.Restore(payload))
-	require.ElementsMatch(t, NewConfigModel(nil, detachedTestProjectionHandle(projection)).ListNeighbors(), NewConfigModel(nil, detachedTestProjectionHandle(restored)).ListNeighbors())
+	require.NoError(t, restored.Restore(legacyPayload))
+	require.Equal(t, []Neighbor{{ID: "N2", Origin: "https://two.example", Revision: "E-legacy"}}, NewConfigModel(nil, detachedTestProjectionHandle(restored)).ListNeighbors())
+	restoredPayload, err := restored.Snapshot()
+	require.NoError(t, err)
+	require.NoError(t, proto.Unmarshal(restoredPayload, snapshot))
+	require.Empty(t, snapshot.GetNeighbors()[0].GetTestimonial())
 }

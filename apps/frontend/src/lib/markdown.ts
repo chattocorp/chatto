@@ -202,7 +202,6 @@ function wordBoundaryEmphasis(state: StateInline, silent: boolean): boolean {
 }
 
 let md: MarkdownIt | null = null;
-let testimonialMd: MarkdownIt | null = null;
 let codeHighlighting: CodeHighlightingModule | null = null;
 
 type LowlightText = {
@@ -514,20 +513,4 @@ export async function renderMarkdown(body: string): Promise<string> {
     console.error('[Markdown] renderMarkdown failed:', err, { bodyLength: body.length });
     throw err;
   }
-}
-
-/**
- * Render the deliberately small Markdown subset accepted by public Neighbor
- * testimonials. Paragraphs, emphasis, strong emphasis, and inline code are
- * supported. Links and all other block or inline features remain literal text.
- */
-export function renderTestimonialMarkdown(body: string): string {
-  testimonialMd ??= new MarkdownIt('zero', {
-    html: false,
-    linkify: false,
-    breaks: false,
-    typographer: false
-  }).enable(['paragraph', 'emphasis', 'backticks']);
-
-  return testimonialMd.render(body);
 }

@@ -733,6 +733,7 @@ func (x *Event) GetServerNeighborDeleted() *ServerNeighborDeletedEvent {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/core/evt/v1/event.proto.
 func (x *Event) GetServerNeighborTestimonialChanged() *ServerNeighborTestimonialChangedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_ServerNeighborTestimonialChanged); ok {
@@ -1697,6 +1698,7 @@ type Event_ServerNeighborDeleted struct {
 }
 
 type Event_ServerNeighborTestimonialChanged struct {
+	// Deprecated: Marked as deprecated in chatto/core/evt/v1/event.proto.
 	ServerNeighborTestimonialChanged *ServerNeighborTestimonialChangedEvent `protobuf:"bytes,524,opt,name=server_neighbor_testimonial_changed,json=serverNeighborTestimonialChanged,proto3,oneof"`
 }
 
@@ -2310,7 +2312,7 @@ var File_chatto_core_evt_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\"\xb6r\n" +
+	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\"\xbar\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2368,8 +2370,8 @@ const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\x1duser_timezone_sharing_changed\x18\x88\x04 \x01(\v23.chatto.core.evt.v1.UserTimezoneSharingChangedEventH\x00R\x1auserTimezoneSharingChanged\x12i\n" +
 	"\x17server_neighbor_created\x18\x89\x04 \x01(\v2..chatto.core.evt.v1.ServerNeighborCreatedEventH\x00R\x15serverNeighborCreated\x12|\n" +
 	"\x1eserver_neighbor_origin_changed\x18\x8a\x04 \x01(\v24.chatto.core.evt.v1.ServerNeighborOriginChangedEventH\x00R\x1bserverNeighborOriginChanged\x12i\n" +
-	"\x17server_neighbor_deleted\x18\x8b\x04 \x01(\v2..chatto.core.evt.v1.ServerNeighborDeletedEventH\x00R\x15serverNeighborDeleted\x12\x8b\x01\n" +
-	"#server_neighbor_testimonial_changed\x18\x8c\x04 \x01(\v29.chatto.core.evt.v1.ServerNeighborTestimonialChangedEventH\x00R serverNeighborTestimonialChanged\x12Z\n" +
+	"\x17server_neighbor_deleted\x18\x8b\x04 \x01(\v2..chatto.core.evt.v1.ServerNeighborDeletedEventH\x00R\x15serverNeighborDeleted\x12\x8f\x01\n" +
+	"#server_neighbor_testimonial_changed\x18\x8c\x04 \x01(\v29.chatto.core.evt.v1.ServerNeighborTestimonialChangedEventB\x02\x18\x01H\x00R serverNeighborTestimonialChanged\x12Z\n" +
 	"\x12room_group_created\x18\xd8\x04 \x01(\v2).chatto.core.evt.v1.RoomGroupCreatedEventH\x00R\x10roomGroupCreated\x12Z\n" +
 	"\x12room_group_updated\x18\xd9\x04 \x01(\v2).chatto.core.evt.v1.RoomGroupUpdatedEventH\x00R\x10roomGroupUpdated\x12Z\n" +
 	"\x12room_group_deleted\x18\xda\x04 \x01(\v2).chatto.core.evt.v1.RoomGroupDeletedEventH\x00R\x10roomGroupDeleted\x12[\n" +

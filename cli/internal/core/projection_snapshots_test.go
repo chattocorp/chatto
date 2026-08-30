@@ -68,10 +68,10 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 	}{
 		{assetSnapshotContractID, "v3", &projectionv1.AssetProjectionSnapshot{}},
 		{callStateSnapshotContractID, "v1", &projectionv1.CallStateProjectionSnapshot{}},
-		{configSnapshotContractID, "v1", &projectionv1.ConfigProjectionSnapshot{}},
+		{configSnapshotContractID, "v2", &projectionv1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &projectionv1.ContentKeyProjectionSnapshot{}},
 		{mentionablesSnapshotContractID, "v2", &projectionv1.MentionablesProjectionSnapshot{}},
-		{notificationDecisionSnapshotContractID, "v1", &projectionv1.NotificationDecisionProjectionSnapshot{}},
+		{notificationDecisionSnapshotContractID, "v2", &projectionv1.NotificationDecisionProjectionSnapshot{}},
 		{notificationSnapshotContractID, "v2", &projectionv1.NotificationProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v1", &projectionv1.RBACProjectionSnapshot{}},
 		{reactionSnapshotContractID, "v1", &projectionv1.ReactionProjectionSnapshot{}},
@@ -345,8 +345,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	}
 
 	expectedContractPrefix := map[string]string{
-		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"notification_decisions": "v1-", "notifications": "v2-",
+		"room_directory": "v1-", "server_config": "v2-", "room_group_layout": "v1-",
+		"notification_decisions": "v2-", "notifications": "v2-",
 		"room_timeline": "v7-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v4-",
 	}

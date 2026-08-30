@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"golang.org/x/net/idna"
 
@@ -22,11 +21,8 @@ const (
 	// MaxNeighbors bounds the public directory and its API payloads.
 	MaxNeighbors = 100
 	// MaxNeighborOriginLength bounds each stored canonical origin.
-	MaxNeighborOriginLength = 2048
-	// MaxNeighborTestimonialLength bounds the public operator-written text on
-	// one recommendation, measured in Unicode characters.
-	MaxNeighborTestimonialLength = 500
-	maxNeighborMutationRetries   = 5
+	MaxNeighborOriginLength    = 2048
+	maxNeighborMutationRetries = 5
 )
 
 var (
@@ -93,20 +89,15 @@ func (c *ChattoCore) GetManagedNeighbor(ctx context.Context, actorID, neighborID
 	return neighbor, nil
 }
 
-// CreateNeighbor adds one canonical server origin and optional testimonial to
-// the public directory.
-func (c *ChattoCore) CreateNeighbor(ctx context.Context, actorID, rawOrigin, rawTestimonial string) (Neighbor, error) {
+// CreateNeighbor adds one canonical server origin to the public directory.
+func (c *ChattoCore) CreateNeighbor(ctx context.Context, actorID, rawOrigin string) (Neighbor, error) {
 	origin, err := canonicalNeighborOrigin(rawOrigin)
-	if err != nil {
-		return Neighbor{}, err
-	}
-	testimonial, err := normalizeNeighborTestimonial(rawTestimonial)
 	if err != nil {
 		return Neighbor{}, err
 	}
 	neighborID := NewNeighborID()
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerNeighborCreated{
-		ServerNeighborCreated: &evtv1.ServerNeighborCreatedEvent{NeighborId: neighborID, Origin: origin, Testimonial: testimonial},
+		ServerNeighborCreated: &evtv1.ServerNeighborCreatedEvent{NeighborId: neighborID, Origin: origin},
 	}})
 	for attempt := 0; attempt < maxNeighborMutationRetries; attempt++ {
 		prepared, err := c.prepareNeighborMutation(ctx, actorID)
@@ -123,8 +114,8 @@ func (c *ChattoCore) CreateNeighbor(ctx context.Context, actorID, rawOrigin, raw
 		if neighborOriginExists(neighbors, origin, "") {
 			return Neighbor{}, ErrNeighborAlreadyExists
 		}
-		if err := c.appendNeighborMutations(ctx, []*evtv1.Event{event}, prepared); err == nil {
-			return Neighbor{ID: neighborID, Origin: origin, Testimonial: testimonial, Revision: event.GetId()}, nil
+		if err := c.appendNeighborMutation(ctx, event, prepared); err == nil {
+			return Neighbor{ID: neighborID, Origin: origin, Revision: event.GetId()}, nil
 		} else if !errors.Is(err, events.ErrConflict) {
 			return Neighbor{}, err
 		}
@@ -135,20 +126,11 @@ func (c *ChattoCore) CreateNeighbor(ctx context.Context, actorID, rawOrigin, raw
 	return Neighbor{}, fmt.Errorf("create Neighbor retry exhausted: %w", events.ErrConflict)
 }
 
-// UpdateNeighbor changes one Neighbor origin and, when rawTestimonial is
-// present, its testimonial. The revision fences the complete resource.
-func (c *ChattoCore) UpdateNeighbor(ctx context.Context, actorID, neighborID, rawOrigin string, rawTestimonial *string, revision string) (Neighbor, error) {
+// UpdateNeighbor changes one Neighbor origin if its revision is current.
+func (c *ChattoCore) UpdateNeighbor(ctx context.Context, actorID, neighborID, rawOrigin, revision string) (Neighbor, error) {
 	origin, err := canonicalNeighborOrigin(rawOrigin)
 	if err != nil {
 		return Neighbor{}, err
-	}
-	var testimonial *string
-	if rawTestimonial != nil {
-		normalized, err := normalizeNeighborTestimonial(*rawTestimonial)
-		if err != nil {
-			return Neighbor{}, err
-		}
-		testimonial = &normalized
 	}
 	for attempt := 0; attempt < maxNeighborMutationRetries; attempt++ {
 		prepared, err := c.prepareNeighborMutation(ctx, actorID)
@@ -168,28 +150,14 @@ func (c *ChattoCore) UpdateNeighbor(ctx context.Context, actorID, neighborID, ra
 		if neighborOriginExists(c.ConfigModel().ListNeighbors(), origin, neighborID) {
 			return Neighbor{}, ErrNeighborAlreadyExists
 		}
-		originChanged := current.Origin != origin
-		testimonialChanged := testimonial != nil && current.Testimonial != *testimonial
-		if !originChanged && !testimonialChanged {
+		if current.Origin == origin {
 			return current, nil
 		}
-		eventsToAppend := make([]*evtv1.Event, 0, 2)
-		if originChanged {
-			eventsToAppend = append(eventsToAppend, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerNeighborOriginChanged{
-				ServerNeighborOriginChanged: &evtv1.ServerNeighborOriginChangedEvent{NeighborId: neighborID, Origin: origin},
-			}}))
-		}
-		if testimonialChanged {
-			eventsToAppend = append(eventsToAppend, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerNeighborTestimonialChanged{
-				ServerNeighborTestimonialChanged: &evtv1.ServerNeighborTestimonialChangedEvent{NeighborId: neighborID, Testimonial: *testimonial},
-			}}))
-		}
-		if err := c.appendNeighborMutations(ctx, eventsToAppend, prepared); err == nil {
-			updatedTestimonial := current.Testimonial
-			if testimonial != nil {
-				updatedTestimonial = *testimonial
-			}
-			return Neighbor{ID: neighborID, Origin: origin, Testimonial: updatedTestimonial, Revision: eventsToAppend[len(eventsToAppend)-1].GetId()}, nil
+		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerNeighborOriginChanged{
+			ServerNeighborOriginChanged: &evtv1.ServerNeighborOriginChangedEvent{NeighborId: neighborID, Origin: origin},
+		}})
+		if err := c.appendNeighborMutation(ctx, event, prepared); err == nil {
+			return Neighbor{ID: neighborID, Origin: origin, Revision: event.GetId()}, nil
 		} else if !errors.Is(err, events.ErrConflict) {
 			return Neighbor{}, err
 		}
@@ -222,7 +190,7 @@ func (c *ChattoCore) DeleteNeighbor(ctx context.Context, actorID, neighborID, re
 		if current.Revision != revision {
 			return ErrNeighborRevisionChanged
 		}
-		if err := c.appendNeighborMutations(ctx, []*evtv1.Event{event}, prepared); err == nil {
+		if err := c.appendNeighborMutation(ctx, event, prepared); err == nil {
 			return nil
 		} else if !errors.Is(err, events.ErrConflict) {
 			return err
@@ -282,28 +250,16 @@ func (c *ChattoCore) prepareNeighborMutation(ctx context.Context, actorID string
 	return preparedNeighborMutation{configPosition: position, authorizationSeq: authorizationSeq}, nil
 }
 
-func (c *ChattoCore) appendNeighborMutations(ctx context.Context, neighborEvents []*evtv1.Event, prepared preparedNeighborMutation) error {
-	if len(neighborEvents) == 0 {
-		return nil
-	}
+func (c *ChattoCore) appendNeighborMutation(ctx context.Context, event *evtv1.Event, prepared preparedNeighborMutation) error {
 	aggregate := evtstream.ConfigSubjectAggregate(ConfigSubjectServer)
-	entries := make([]evtstream.BatchEntry, 0, len(neighborEvents))
-	for index, event := range neighborEvents {
-		entry := evtstream.BatchEntry{Subject: aggregate.SubjectFor(event), Event: event}
-		if index == 0 {
-			entry.HasOCC = true
-			entry.ExpectedSeq = prepared.configPosition.Seq
-			entry.FilterSubject = aggregate.AllEventsFilter()
-		}
-		entries = append(entries, entry)
-	}
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, neighborEvents[0].GetActorId(), entries, prepared.authorizationSeq)
+	subject := aggregate.SubjectFor(event)
+	seqs, err := c.appendAuthorizationFencedBatch(ctx, event.GetActorId(), []evtstream.BatchEntry{{
+		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: prepared.configPosition.Seq, FilterSubject: aggregate.AllEventsFilter(),
+	}}, prepared.authorizationSeq)
 	if err != nil {
 		return err
 	}
-	lastIndex := len(neighborEvents) - 1
-	lastSubject := entries[lastIndex].Subject
-	if err := c.ConfigModel().waitFor(ctx, events.SubjectPosition(lastSubject, seqs[lastIndex])); err != nil {
+	if err := c.ConfigModel().waitFor(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
 		return fmt.Errorf("wait for Neighbor mutation: %w", err)
 	}
 	return nil
@@ -325,14 +281,6 @@ func waitNeighborRetry(ctx context.Context, attempt int) error {
 	case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		return nil
 	}
-}
-
-func normalizeNeighborTestimonial(raw string) (string, error) {
-	testimonial := strings.TrimSpace(raw)
-	if utf8.RuneCountInString(testimonial) > MaxNeighborTestimonialLength {
-		return "", fmt.Errorf("%w: Neighbor testimonial must contain at most %d characters", ErrInvalidArgument, MaxNeighborTestimonialLength)
-	}
-	return testimonial, nil
 }
 
 func canonicalNeighborOrigin(raw string) (string, error) {

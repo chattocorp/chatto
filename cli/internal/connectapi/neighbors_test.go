@@ -6,6 +6,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
@@ -20,12 +22,18 @@ func TestAdminServerServiceNeighborCRUDAndPublicDiscovery(t *testing.T) {
 	requireConnectCode(t, err, connect.CodePermissionDenied)
 	require.NoError(t, env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermServerManageNeighbors))
 
-	testimonial := "A thoughtful place to talk."
-	created, err := env.serverState.CreateNeighbor(callerCtx, connect.NewRequest(&adminv1.CreateNeighborRequest{Origin: "https://Neighbor.Example/", Testimonial: &testimonial}))
+	legacyRequestBytes, err := proto.Marshal(&adminv1.CreateNeighborRequest{Origin: "https://Neighbor.Example/"})
+	require.NoError(t, err)
+	legacyRequestBytes = protowire.AppendTag(legacyRequestBytes, 2, protowire.BytesType)
+	legacyRequestBytes = protowire.AppendString(legacyRequestBytes, "legacy testimonial")
+	legacyRequest := &adminv1.CreateNeighborRequest{}
+	require.NoError(t, proto.Unmarshal(legacyRequestBytes, legacyRequest))
+	require.NotEmpty(t, legacyRequest.ProtoReflect().GetUnknown())
+
+	created, err := env.serverState.CreateNeighbor(callerCtx, connect.NewRequest(legacyRequest))
 	require.NoError(t, err)
 	neighbor := created.Msg.GetNeighbor()
 	require.Equal(t, "https://neighbor.example", neighbor.GetOrigin())
-	require.Equal(t, testimonial, neighbor.GetTestimonial())
 	require.NotEmpty(t, neighbor.GetId())
 	require.NotEmpty(t, neighbor.GetRevision())
 
@@ -46,15 +54,12 @@ func TestAdminServerServiceNeighborCRUDAndPublicDiscovery(t *testing.T) {
 	public, err := (&serverDiscoveryService{api: env.api}).ListNeighbors(context.Background(), connect.NewRequest(&discoveryv1.ListNeighborsRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, []string{"https://neighbor.example"}, public.Msg.GetOrigins())
-	require.Equal(t, []*discoveryv1.Neighbor{{Origin: "https://neighbor.example", Testimonial: &testimonial}}, public.Msg.GetNeighbors())
 
-	updatedTestimonial := "A welcoming place for makers."
 	updated, err := env.serverState.UpdateNeighbor(callerCtx, connect.NewRequest(&adminv1.UpdateNeighborRequest{
-		NeighborId: neighbor.GetId(), Origin: "https://updated.example", Revision: neighbor.GetRevision(), Testimonial: &updatedTestimonial,
+		NeighborId: neighbor.GetId(), Origin: "https://updated.example", Revision: neighbor.GetRevision(),
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "https://updated.example", updated.Msg.GetNeighbor().GetOrigin())
-	require.Equal(t, updatedTestimonial, updated.Msg.GetNeighbor().GetTestimonial())
 	_, err = env.serverState.UpdateNeighbor(callerCtx, connect.NewRequest(&adminv1.UpdateNeighborRequest{
 		NeighborId: neighbor.GetId(), Origin: "https://self.example", Revision: updated.Msg.GetNeighbor().GetRevision(),
 	}))

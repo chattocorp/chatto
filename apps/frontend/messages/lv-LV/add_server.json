@@ -32,7 +32,6 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "Atsauksmes par {server}",
       "discovering": "Meklē citus serverus…",
       "load_more": "Ielādēt vēl",
       "session_limit_reached": "Ir sasniegts šīs sesijas atklāšanas limits."

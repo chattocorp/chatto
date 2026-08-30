@@ -5,7 +5,6 @@ import { authHeaders, createChattoClient } from './connect.js';
 export type Neighbor = {
   id: string;
   origin: string;
-  testimonial: string | null;
   revision: string;
 };
 
@@ -28,16 +27,15 @@ export function createNeighborAPI(config: NeighborAPIConfig) {
       return response.neighbors.map(mapNeighbor);
     },
 
-    async create(origin: string, testimonial: string): Promise<Neighbor> {
-      const request = testimonial ? { origin, testimonial } : { origin };
-      const response = await client.createNeighbor(request, { headers: headers() });
+    async create(origin: string): Promise<Neighbor> {
+      const response = await client.createNeighbor({ origin }, { headers: headers() });
       if (!response.neighbor) throw new Error('Neighbor response was incomplete.');
       return mapNeighbor(response.neighbor);
     },
 
-    async update(neighbor: Neighbor, origin: string, testimonial: string): Promise<Neighbor> {
+    async update(neighbor: Neighbor, origin: string): Promise<Neighbor> {
       const response = await client.updateNeighbor(
-        { neighborId: neighbor.id, origin, testimonial, revision: neighbor.revision },
+        { neighborId: neighbor.id, origin, revision: neighbor.revision },
         { headers: headers() }
       );
       if (!response.neighbor) throw new Error('Neighbor response was incomplete.');
@@ -57,7 +55,6 @@ function mapNeighbor(neighbor: APINeighbor): Neighbor {
   return {
     id: neighbor.id,
     origin: neighbor.origin,
-    testimonial: neighbor.testimonial ?? null,
     revision: neighbor.revision
   };
 }

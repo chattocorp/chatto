@@ -31,10 +31,7 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted",
-      "testimonial": "Atesto (nedeviga)",
-      "testimonial_help": "Klarigu kial vi rekomendas ĉi tiun servilon. Ĉi tiu teksto estas publika kaj povas enhavi ĝis 500 signojn.",
-      "testimonial_label": "Publika atesto"
+      "deleted": "Neighbor deleted"
     },
     "common": {
       "page_title": "{title} | Admin",

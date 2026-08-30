@@ -149,7 +149,7 @@ message Event {
     ServerNeighborCreatedEvent server_neighbor_created = 521;
     ServerNeighborOriginChangedEvent server_neighbor_origin_changed = 522;
     ServerNeighborDeletedEvent server_neighbor_deleted = 523;
-    ServerNeighborTestimonialChangedEvent server_neighbor_testimonial_changed = 524;
+    ServerNeighborTestimonialChangedEvent server_neighbor_testimonial_changed = 524 [deprecated = true];
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.

@@ -11,7 +11,6 @@
   } from '$lib/api-client/server';
   import { startRemoteReauthentication, startServerOAuthFlow } from '$lib/auth/reauth';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
-  import ServerTestimonialCard from '$lib/components/ServerTestimonialCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { serverIdToSegment } from '$lib/navigation';
@@ -280,25 +279,6 @@
       full: m('add_server.directory.recommended_by', { servers: formatter.format(names) })
     };
   }
-
-  function testimonialRecommendations(entry: ServerDirectoryEntry) {
-    return entry.recommendations.flatMap((recommendation) =>
-      recommendation.testimonial
-        ? [
-            {
-              sourceOrigin: recommendation.sourceOrigin,
-              sourceName: sourceName(recommendation.sourceOrigin),
-              sourceIconUrl:
-                registeredServer(recommendation.sourceOrigin)?.iconUrl ??
-                entries.find((candidate) => candidate.origin === recommendation.sourceOrigin)?.profile
-                  ?.iconUrl ??
-                null,
-              testimonial: recommendation.testimonial
-            }
-          ]
-        : []
-    );
-  }
 </script>
 
 <svelte:document onvisibilitychange={handleVisibilityChange} />
@@ -346,17 +326,9 @@
           <div class="mt-5 max-w-md">
             {#snippet customActions()}
               {#if external}
-                <Button
-                  href={customOrigin}
-                  opensInNewTab
-                  variant="secondary"
-                  fullWidth
-                >
+                <Button href={customOrigin} opensInNewTab variant="secondary" fullWidth>
                   <span>{actionLabel(customOrigin, customProfile)}</span>
-                  <span
-                    class="iconify icon-[uil--external-link-alt]"
-                    aria-hidden="true"
-                  ></span>
+                  <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
                 </Button>
               {:else}
                 <Button
@@ -428,7 +400,6 @@
               {@const joined = registeredServer(entry.origin)}
               {@const external = opensInServerClient(entry.origin, entry.profile)}
               {@const attribution = sourceAttribution(entry)}
-              {@const testimonials = testimonialRecommendations(entry)}
               {#snippet cardActions()}
                 <div class="flex flex-col gap-3">
                   <p
@@ -440,17 +411,9 @@
                     <bdi>{attribution.visible}</bdi>
                   </p>
                   {#if external}
-                    <Button
-                      href={entry.origin}
-                      opensInNewTab
-                      variant="secondary"
-                      fullWidth
-                    >
+                    <Button href={entry.origin} opensInNewTab variant="secondary" fullWidth>
                       <span>{actionLabel(entry.origin, entry.profile)}</span>
-                      <span
-                        class="iconify icon-[uil--external-link-alt]"
-                        aria-hidden="true"
-                      ></span>
+                      <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
                     </Button>
                   {:else}
                     <Button
@@ -480,23 +443,6 @@
                   actions={cardActions}
                   testId="server-directory-entry"
                 />
-                {#if testimonials.length > 0}
-                  <section
-                    class="mt-2 flex flex-col gap-2"
-                    aria-label={m('add_server.directory.testimonials_for', {
-                      server: entry.profile?.name ?? entry.origin
-                    })}
-                    data-testid="server-testimonials"
-                  >
-                    {#each testimonials as testimonial (testimonial.sourceOrigin)}
-                      <ServerTestimonialCard
-                        testimonial={testimonial.testimonial}
-                        sourceName={testimonial.sourceName}
-                        sourceIconUrl={testimonial.sourceIconUrl}
-                      />
-                    {/each}
-                  </section>
-                {/if}
               </div>
             {/each}
           </div>
