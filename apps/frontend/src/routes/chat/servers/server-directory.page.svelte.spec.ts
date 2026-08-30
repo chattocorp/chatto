@@ -218,6 +218,7 @@ describe('Server Directory page', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('keeps directory response order and marks registered entries as joined', async () => {
