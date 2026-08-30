@@ -24,6 +24,7 @@
       "joined": "Joined",
       "join": "Join",
       "open": "Open",
+      "open_in_new_tab": "Abrir em uma nova aba",
       "sign_in_unavailable": "Sign-in unavailable",
       "profile_unavailable": "This server's public profile could not be loaded.",
       "partial": "Some joined servers could not provide their recommendations.",

@@ -143,6 +143,24 @@
 </Story>
 
 <Story
+  name="In a new tab"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Use opensInNewTab for an explicit handoff to another site. The component adds safe link attributes.'
+      }
+    }
+  }}
+>
+  <Button href="https://www.chatto.run" opensInNewTab variant="secondary">
+    <span>Open Chatto</span>
+    <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
+  </Button>
+</Story>
+
+<Story
   name="Full width"
   asChild
   parameters={{

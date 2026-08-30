@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import type { PublicServerInfo } from '$lib/api-client/server';
+  import { Button } from '$lib/ui/form';
   import ServerProfileCard from './ServerProfileCard.svelte';
   import ServerTestimonialCard from './ServerTestimonialCard.svelte';
 
@@ -44,5 +45,29 @@
         sourceName="Tiny Town"
       />
     </section>
+  </div>
+</Story>
+
+<Story name="External handoff" asChild>
+  <div class="w-full max-w-sm p-4">
+    {#snippet actions()}
+      <Button
+        href="https://old-neighbourhood.example"
+        opensInNewTab
+        variant="secondary"
+        fullWidth
+      >
+        <span>Open in new tab</span>
+        <span class="iconify icon-[uil--external-link-alt]" aria-hidden="true"></span>
+      </Button>
+    {/snippet}
+    <ServerProfileCard
+      origin="https://old-neighbourhood.example"
+      profile={{ ...profile, version: '0.4.19' }}
+      iconHref="https://old-neighbourhood.example"
+      iconOpensInNewTab
+      iconActionLabel="Open in new tab"
+      {actions}
+    />
   </div>
 </Story>

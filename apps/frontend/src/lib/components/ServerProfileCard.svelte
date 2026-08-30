@@ -18,6 +18,8 @@ card. Callers supply trusted badges and actions through explicit props.
     details,
     actions,
     onIconClick,
+    iconHref,
+    iconOpensInNewTab = false,
     iconActionLabel,
     iconActionDisabled = false,
     testId = 'server-profile-card'
@@ -31,6 +33,10 @@ card. Callers supply trusted badges and actions through explicit props.
     actions?: Snippet;
     /** Makes the server icon perform the caller's existing open or join action. */
     onIconClick?: () => void;
+    /** Makes the server icon a link. This takes precedence over `onIconClick`. */
+    iconHref?: string;
+    /** Opens `iconHref` in a separate browsing context without opener access. */
+    iconOpensInNewTab?: boolean;
     iconActionLabel?: string;
     iconActionDisabled?: boolean;
     testId?: string;
@@ -67,7 +73,21 @@ card. Callers supply trusted badges and actions through explicit props.
 
   <div class="flex flex-1 flex-col gap-4 p-4">
     <div class="flex min-w-0 items-start gap-3">
-      {#if onIconClick}
+      {#if iconHref}
+        <!-- eslint-disable svelte/no-navigation-without-resolve -- iconHref is a caller-provided external URL -->
+        <a
+          href={iconHref}
+          target={iconOpensInNewTab ? '_blank' : undefined}
+          rel={iconOpensInNewTab ? 'noopener noreferrer' : undefined}
+          class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96]"
+          aria-label={accessibleIconActionLabel}
+          title={accessibleIconActionLabel}
+          data-testid={`${testId}-icon-action`}
+        >
+          <ServerLogo server={logoServer} fill />
+        </a>
+        <!-- eslint-enable svelte/no-navigation-without-resolve -->
+      {:else if onIconClick}
         <button
           type="button"
           class="-mt-10 h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action active:scale-[0.96] disabled:pointer-events-none disabled:cursor-not-allowed"

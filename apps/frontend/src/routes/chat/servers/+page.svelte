@@ -20,6 +20,7 @@
     loadServerDirectory,
     type ServerDirectoryEntry
   } from '$lib/serverDirectory';
+  import { evaluateServerCompatibility } from '$lib/state/server/compatibility';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
   import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
@@ -113,8 +114,17 @@
         ? m('add_server.directory.open')
         : m('add_server.sign_in');
     }
+    if (opensInServerClient(origin, profile)) return m('add_server.directory.open_in_new_tab');
     if (!profile?.authorizeUrl) return m('add_server.directory.sign_in_unavailable');
     return m('add_server.directory.join');
+  }
+
+  function opensInServerClient(origin: string, profile: PublicServerInfo | null): boolean {
+    return (
+      !registeredServer(origin) &&
+      profile !== null &&
+      evaluateServerCompatibility({ serverVersion: profile.version }).status !== 'supported'
+    );
   }
 
   async function openOrJoin(origin: string, profile: PublicServerInfo | null) {
@@ -152,7 +162,11 @@
   }
 
   function cardDisabled(entry: ServerDirectoryEntry): boolean {
-    return !registeredServer(entry.origin) && !entry.profile?.authorizeUrl;
+    return (
+      !registeredServer(entry.origin) &&
+      !opensInServerClient(entry.origin, entry.profile) &&
+      !entry.profile?.authorizeUrl
+    );
   }
 
   function sourceName(origin: string): string {
@@ -242,23 +256,41 @@
         {#if customProfile && customOrigin}
           {@const profile = customProfile}
           {@const joined = registeredServer(customOrigin)}
+          {@const external = opensInServerClient(customOrigin, profile)}
           <div class="mt-5 max-w-md">
             {#snippet customActions()}
-              <Button
-                variant={joined ? 'secondary' : 'action'}
-                fullWidth
-                loading={pendingOrigin === customOrigin}
-                disabled={!joined && !profile.authorizeUrl}
-                onclick={() => openOrJoin(customOrigin, profile)}
-              >
-                {actionLabel(customOrigin, customProfile)}
-              </Button>
+              {#if external}
+                <Button
+                  href={customOrigin}
+                  opensInNewTab
+                  variant="secondary"
+                  fullWidth
+                >
+                  <span>{actionLabel(customOrigin, customProfile)}</span>
+                  <span
+                    class="iconify icon-[uil--external-link-alt]"
+                    aria-hidden="true"
+                  ></span>
+                </Button>
+              {:else}
+                <Button
+                  variant={joined ? 'secondary' : 'action'}
+                  fullWidth
+                  loading={pendingOrigin === customOrigin}
+                  disabled={!joined && !profile.authorizeUrl}
+                  onclick={() => openOrJoin(customOrigin, profile)}
+                >
+                  {actionLabel(customOrigin, customProfile)}
+                </Button>
+              {/if}
             {/snippet}
             <ServerProfileCard
               origin={customOrigin}
               {profile}
               badge={joined ? m('add_server.directory.joined') : undefined}
-              onIconClick={!joined && !profile.authorizeUrl
+              iconHref={external ? customOrigin : undefined}
+              iconOpensInNewTab={external}
+              onIconClick={external || (!joined && !profile.authorizeUrl)
                 ? undefined
                 : () => openOrJoin(customOrigin, profile)}
               iconActionLabel={actionLabel(customOrigin, profile)}
@@ -308,6 +340,7 @@
           <div class="columns-1 gap-4 sm:columns-2 lg:columns-3">
             {#each entries as entry (entry.origin)}
               {@const joined = registeredServer(entry.origin)}
+              {@const external = opensInServerClient(entry.origin, entry.profile)}
               {@const attribution = sourceAttribution(entry)}
               {@const testimonials = testimonialRecommendations(entry)}
               {#snippet cardActions()}
@@ -320,15 +353,30 @@
                   >
                     <bdi>{attribution.visible}</bdi>
                   </p>
-                  <Button
-                    variant={joined ? 'secondary' : 'action'}
-                    fullWidth
-                    loading={pendingOrigin === entry.origin}
-                    disabled={cardDisabled(entry)}
-                    onclick={() => openOrJoin(entry.origin, entry.profile)}
-                  >
-                    {actionLabel(entry.origin, entry.profile)}
-                  </Button>
+                  {#if external}
+                    <Button
+                      href={entry.origin}
+                      opensInNewTab
+                      variant="secondary"
+                      fullWidth
+                    >
+                      <span>{actionLabel(entry.origin, entry.profile)}</span>
+                      <span
+                        class="iconify icon-[uil--external-link-alt]"
+                        aria-hidden="true"
+                      ></span>
+                    </Button>
+                  {:else}
+                    <Button
+                      variant={joined ? 'secondary' : 'action'}
+                      fullWidth
+                      loading={pendingOrigin === entry.origin}
+                      disabled={cardDisabled(entry)}
+                      onclick={() => openOrJoin(entry.origin, entry.profile)}
+                    >
+                      {actionLabel(entry.origin, entry.profile)}
+                    </Button>
+                  {/if}
                 </div>
               {/snippet}
               <div class="mb-4 break-inside-avoid">
@@ -336,7 +384,9 @@
                   origin={entry.origin}
                   profile={entry.profile}
                   badge={joined ? m('add_server.directory.joined') : undefined}
-                  onIconClick={cardDisabled(entry)
+                  iconHref={external ? entry.origin : undefined}
+                  iconOpensInNewTab={external}
+                  onIconClick={external || cardDisabled(entry)
                     ? undefined
                     : () => openOrJoin(entry.origin, entry.profile)}
                   iconActionLabel={actionLabel(entry.origin, entry.profile)}

@@ -75,6 +75,12 @@ function button(container: HTMLElement, label: string): HTMLButtonElement | unde
   );
 }
 
+function link(container: HTMLElement, label: string): HTMLAnchorElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLAnchorElement>('a')).find(
+    (candidate) => candidate.textContent?.trim() === label
+  );
+}
+
 function recommendation(
   sourceOrigin = 'https://source.example',
   testimonial: string | null = null
@@ -220,12 +226,46 @@ describe('Server Directory page', () => {
     });
   });
 
+  it('hands an incompatible advertised server off to its own client', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://old.example',
+          profile: profile('Old server', { version: '0.4.19', authorizeUrl: '' }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
+
+    const externalAction = link(container, 'Open in new tab')!;
+    expect(externalAction.href).toBe('https://old.example/');
+    expect(externalAction.target).toBe('_blank');
+    expect(externalAction.rel).toBe('noopener noreferrer');
+    expect(externalAction.querySelector('.iconify')).toBeTruthy();
+    expect(button(container, 'Sign-in unavailable')).toBeUndefined();
+
+    const iconAction = container.querySelector<HTMLAnchorElement>(
+      '[data-testid="server-directory-entry-icon-action"]'
+    )!;
+    expect(iconAction.href).toBe('https://old.example/');
+    expect(iconAction.target).toBe('_blank');
+    expect(iconAction.rel).toBe('noopener noreferrer');
+    expect(iconAction.getAttribute('aria-label')).toBe('Open in new tab: Old server');
+    expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
+  });
+
   it('opens an advertised server that is already joined', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
         {
           origin: 'https://a.example',
-          profile: profile('Alpha'),
+          profile: profile('Alpha', { version: '0.4.19' }),
           sourceOrigins: ['https://source.example'],
           recommendations: [recommendation()]
         }
@@ -241,6 +281,56 @@ describe('Server Directory page', () => {
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/joined');
     });
+  });
+
+  it('keeps sign-in for an incompatible joined server without a session', async () => {
+    mocks.authenticated.clear();
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://a.example',
+          profile: profile('Alpha', { version: '0.4.19' }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Sign in')).toBeDefined());
+    expect(link(container, 'Open in new tab')).toBeUndefined();
+    button(container, 'Sign in')?.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'joined' })
+      );
+    });
+  });
+
+  it('keeps sign-in unavailable for a supported server without an OAuth URL', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://closed.example',
+          profile: profile('Closed', { authorizeUrl: '' }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Sign-in unavailable')).toBeDefined());
+    expect(button(container, 'Sign-in unavailable')?.disabled).toBe(true);
+    expect(link(container, 'Open in new tab')).toBeUndefined();
+    expect(
+      container.querySelector('[data-testid="server-directory-entry-icon-action"]')
+    ).toBeNull();
   });
 
   it('probes a custom address and shows the same profile card', async () => {
@@ -265,6 +355,31 @@ describe('Server Directory page', () => {
       );
       expect(container.textContent).toContain('Custom description');
     });
+  });
+
+  it('hands a custom server with an unknown version off to its own client', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+    mocks.getPublicServerInfo.mockResolvedValue(
+      profile('Custom build', { version: 'custom-build', authorizeUrl: '' })
+    );
+
+    const { container } = render(Page);
+    const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
+    input.value = 'custom.example';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    container.querySelector('form')!.requestSubmit();
+
+    await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
+    const externalAction = link(container, 'Open in new tab')!;
+    expect(externalAction.href).toBe('https://custom.example/');
+    expect(externalAction.target).toBe('_blank');
+    expect(externalAction.rel).toBe('noopener noreferrer');
+    expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
   });
 
   it('shows compact recommendation provenance with the full accessible source list', async () => {

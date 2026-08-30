@@ -87,7 +87,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   <ReleaseFeatureCard title="Version-aware compatibility">
     Public server discovery reports the running server version. The multi-server client owns
     its minimum expected server release and uses explicit release boundaries to show useful
-    upgrade guidance.
+    upgrade guidance. If a discovered server is incompatible or does not report a valid version,
+    the Server Directory opens that server's own client instead of adding it to the current app.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Advertise friendly Chatto servers">

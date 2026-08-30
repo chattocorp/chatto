@@ -1,7 +1,7 @@
 # FDR-042: Chatto Neighbors
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-29
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -36,6 +36,10 @@ recommendation, not a trust or reciprocal relationship.
   A failed request does not hide profiles that loaded successfully.
 - An advertised server that is already registered remains visible and is
   marked as joined.
+- An unregistered server has a join action only when its discovered version is
+  compatible with the client. When the version is incompatible or unknown,
+  the client opens the server origin in a new tab. The server can then provide
+  its own compatible client.
 - A user can enter a server address directly when the wanted server is not in
   the directory.
 - The advertising server does not contact a Neighbor. It does not test
@@ -173,6 +177,20 @@ aliases must not make the same server appear as a separate Neighbor.
 **Tradeoff:** A configuration change can make an existing Neighbor identify
 the server. Chatto keeps that historical Neighbor so an administrator can
 remove it or change it to an external origin.
+
+### 11. Incompatible servers use their own client
+
+**Decision:** The Server Directory does not add an unregistered server when
+the discovered version is below the client's minimum supported version or is
+unknown. It opens the canonical server origin in a new tab. Registered servers
+keep their open or sign-in action.
+
+**Why:** The remote server can provide a client that matches its release. The
+current client must not start a server registration flow that it cannot
+support.
+
+**Tradeoff:** A server with a missing or non-standard version cannot use the
+direct join flow, even when it might work with the client.
 
 ## Non-goals
 
