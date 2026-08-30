@@ -360,11 +360,18 @@ func resolveOAuthClientAddresses(ctx context.Context, host string, allowLoopback
 		return nil, fmt.Errorf("resolve CIMD destination")
 	}
 	for _, address := range addresses {
-		if blockedOAuthClientAddress(address) && !(allowLoopback && address.IsLoopback()) {
+		if !allowedOAuthClientAddress(host, address, allowLoopback) {
 			return nil, fmt.Errorf("CIMD destination resolves to a special-use address")
 		}
 	}
 	return addresses, nil
+}
+
+func allowedOAuthClientAddress(host string, address netip.Addr, allowLoopback bool) bool {
+	if !blockedOAuthClientAddress(address) {
+		return true
+	}
+	return allowLoopback && isLoopbackOAuthRedirectHost(host) && address.Unmap().IsLoopback()
 }
 
 func blockedOAuthClientAddress(address netip.Addr) bool {

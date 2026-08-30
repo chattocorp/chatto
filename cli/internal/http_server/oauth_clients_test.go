@@ -252,6 +252,22 @@ func TestOAuthClientMetadataBlocksSpecialUseAddresses(t *testing.T) {
 	}
 }
 
+func TestOAuthClientMetadataAllowsLoopbackResolutionOnlyForLocalHostname(t *testing.T) {
+	loopback := netip.MustParseAddr("127.0.0.1")
+	if !allowedOAuthClientAddress("client.feature.localhost", loopback, true) {
+		t.Fatal("local development hostname could not resolve to loopback")
+	}
+	if allowedOAuthClientAddress("client.example", loopback, true) {
+		t.Fatal("public-looking metadata hostname could resolve to loopback")
+	}
+	if allowedOAuthClientAddress("client.feature.localhost", loopback, false) {
+		t.Fatal("remote Chatto server could resolve local metadata")
+	}
+	if !allowedOAuthClientAddress("client.example", netip.MustParseAddr("8.8.8.8"), false) {
+		t.Fatal("public metadata address was blocked")
+	}
+}
+
 func TestOAuthClientResolverDeadlineIncludesDestinationValidation(t *testing.T) {
 	releaseValidation := make(chan struct{})
 	client := &http.Client{
