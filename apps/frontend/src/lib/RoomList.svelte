@@ -347,9 +347,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 
   function confirmDeleteGroup(group: RoomsListGroup): void {
+    if (!groupIsEmpty(group)) return;
     groupContextMenu = null;
     deleteGroupTarget = group;
     deleteGroupDialogVisible = true;
+  }
+
+  function groupIsEmpty(group: RoomsListGroup): boolean {
+    return group.roomIds.length === 0 && (group.items?.length ?? 0) === 0;
   }
 
   async function deleteGroup(): Promise<void> {
@@ -1064,15 +1069,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           {m('room_list.group_settings', { group: contextGroup.name })}
         </MenuItem>
       </MenuSection>
-      <MenuSection>
-        <MenuItem
-          icon="icon-[uil--trash-alt]"
-          tone="danger"
-          onclick={() => confirmDeleteGroup(contextGroup)}
-        >
-          {m('admin.rooms_admin.delete_group')}
-        </MenuItem>
-      </MenuSection>
+      {#if groupIsEmpty(contextGroup)}
+        <MenuSection>
+          <MenuItem
+            icon="icon-[uil--trash-alt]"
+            tone="danger"
+            onclick={() => confirmDeleteGroup(contextGroup)}
+          >
+            {m('admin.rooms_admin.delete_group')}
+          </MenuItem>
+        </MenuSection>
+      {/if}
     {/if}
   </ContextMenu>
 {/if}

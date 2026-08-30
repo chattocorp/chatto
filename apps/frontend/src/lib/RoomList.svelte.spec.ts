@@ -1014,9 +1014,79 @@ describe('RoomList', () => {
       (button) => button.textContent?.trim() === 'Settings for Private Group'
     );
     await expect.element(settings ?? null).toBeInTheDocument();
+    await expect
+      .element(
+        Array.from(document.querySelectorAll('button')).find(
+          (button) => button.textContent?.trim() === 'Delete Group'
+        ) ?? null
+      )
+      .toBeInTheDocument();
 
     settings!.click();
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/private-group');
+  });
+
+  it('does not offer to delete a room group that contains a sidebar link', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'resources',
+        name: 'Resources',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: [
+          {
+            id: 'link:docs',
+            type: 'link',
+            link: { id: 'docs', label: 'Docs', url: '/docs' }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList);
+    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Resources')
+    );
+    groupHeader!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Settings for Resources'));
+    expect(
+      Array.from(document.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === 'Delete Group'
+      )
+    ).toBeUndefined();
+  });
+
+  it('does not offer to delete a room group that contains a legacy room entry', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'private-rooms',
+        name: 'Private Rooms',
+        viewerCanManageGroup: true,
+        roomIds: ['hidden-room']
+      }
+    ];
+
+    const { container } = render(RoomList);
+    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Private Rooms')
+    );
+    groupHeader!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('Settings for Private Rooms')
+    );
+    expect(
+      Array.from(document.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === 'Delete Group'
+      )
+    ).toBeUndefined();
   });
 
   it('shows permission-gated drag and creation controls without room or group menu buttons', async () => {
