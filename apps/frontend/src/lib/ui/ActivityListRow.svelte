@@ -43,7 +43,7 @@
       'flex min-w-0 flex-1 items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action',
       interactive ? 'cursor-pointer' : 'cursor-default',
       pending && 'cursor-wait',
-      dimmed && 'opacity-60'
+      dimmed && 'text-muted'
     ]}
     {disabled}
     {onclick}

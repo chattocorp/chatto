@@ -34,7 +34,7 @@ message search results:
 - Use `selectable-list` on non-table collections and `selectable-list-item` on
   each navigable, draggable, or directly actionable record.
 - Use `ActivityListRow` for newest-first activity records that have one primary
-  open action and optional row actions. It owns the shared unread opacity,
+  open action and optional row actions. It owns the shared read-state styling,
   important fill, pending state, and hover-reveal action shell.
 - Rows rest transparently on the owning `background` work plane. Hover and
   keyboard focus rise exactly one level to `surface`; do not introduce ruled

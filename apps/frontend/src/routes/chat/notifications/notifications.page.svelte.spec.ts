@@ -364,8 +364,8 @@ describe('notifications page', () => {
     expect(readRow.classList.contains('bg-attention/5')).toBe(false);
     expect(q(readRow, '[data-testid="notification-unread-dot"]')).toBeNull();
     expect(q(unreadRow, '[data-testid="notification-unread-dot"]')).toBeNull();
-    expect(readTarget.classList.contains('opacity-60')).toBe(true);
-    expect(unreadTarget.classList.contains('opacity-60')).toBe(false);
+    expect(readTarget.classList.contains('text-muted')).toBe(true);
+    expect(unreadTarget.classList.contains('text-muted')).toBe(false);
     expect(readContent.querySelectorAll(':scope > *')).toHaveLength(2);
     expect(unreadContent.querySelectorAll(':scope > *')).toHaveLength(2);
   });
