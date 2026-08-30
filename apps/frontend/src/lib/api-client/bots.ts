@@ -18,7 +18,6 @@ export type Bot = {
   ownerUserId: string;
   createdAt: Date | null;
   apiKeyCreatedAt: Date | null;
-  apiKeyRotatedAt: Date | null;
   apiKeys: {
     id: string;
     name: string;
@@ -80,25 +79,12 @@ export function createBotAPI(config: BotAPIConfig) {
     async deleteBot(botUserId: string): Promise<boolean> {
       return (await client.deleteBot({ botUserId }, { headers: headers() })).deleted;
     },
-    async rotateBotAPIKey(botUserId: string): Promise<{ bot: Bot; apiKey: string }> {
-      const response = await client.rotateBotApiKey({ botUserId }, { headers: headers() });
-      return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
-    },
-    async createBotAPIKey(
-      botUserId: string,
-      name: string
-    ): Promise<{ bot: Bot; apiKey: string }> {
-      const response = await client.createBotApiKey(
-        { botUserId, name },
-        { headers: headers() }
-      );
+    async createBotAPIKey(botUserId: string, name: string): Promise<{ bot: Bot; apiKey: string }> {
+      const response = await client.createBotApiKey({ botUserId, name }, { headers: headers() });
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
     },
     async revokeBotAPIKey(botUserId: string, keyId: string): Promise<Bot> {
-      const response = await client.revokeBotApiKey(
-        { botUserId, keyId },
-        { headers: headers() }
-      );
+      const response = await client.revokeBotApiKey({ botUserId, keyId }, { headers: headers() });
       return botFromAPI(requiredBot(response.bot));
     },
     async createBotIncomingWebhook(
@@ -148,7 +134,6 @@ function botFromAPI(bot: APIBot): Bot {
     ownerUserId: bot.ownerUserId,
     createdAt: bot.createdAt?.toDate() ?? null,
     apiKeyCreatedAt: bot.apiKeyCreatedAt?.toDate() ?? null,
-    apiKeyRotatedAt: bot.apiKeyRotatedAt?.toDate() ?? null,
     apiKeys: (bot.apiKeys ?? []).map((key) => ({
       id: key.id,
       name: key.name,

@@ -68,12 +68,11 @@ exercise more authority than its human owner currently possesses.
   or find a DM, and it cannot create a thread in a DM.
 - Newly issued keys use a 128-bit random secret to remain compact enough for
   copy-and-paste workflows. Previously issued 256-bit keys remain valid until
-  a manager revokes them or replaces all keys.
+  a manager revokes them.
 - API keys do not expire through inactivity. Revoking one key immediately
   invalidates that key and terminates realtime connections established with
-  it. Other keys stay active. The legacy rotation operation replaces all
-  active keys with one new default key. Deleting the bot or its owner also
-  invalidates all keys.
+  it. Other keys stay active. Deleting the bot or its owner invalidates all
+  keys.
 - A bot API key authenticates normal public API and realtime requests as that
   bot. The bot can otherwise participate like a user wherever its explicit
   permissions allow.
@@ -119,10 +118,9 @@ exercise more authority than its human owner currently possesses.
   bot grant that is currently ineffective because of the owner's permission
   ceiling remains visibly enabled, but is shown as unavailable and distinct
   from both active grants and unconfigured permissions.
-- A bot owner can view, update, rotate the key for, configure permissions for,
-  create and revoke API keys for, configure permissions for, and delete their
-  own bots. Losing `bot.create` does not remove management of bots they already
-  own.
+- A bot owner can view, update, create and revoke API keys for, configure
+  permissions for, and delete their own bots. Losing `bot.create` does not
+  remove management of bots they already own.
 - The permission matrix exposes room scopes only when they are visible through
   the normal room-directory policy to both the bot owner and the managing
   caller. It exposes the complete directory group layout, including empty
@@ -212,8 +210,8 @@ owners receive `bot.manage` through the normal virtual owner override. Bots do
 not inherit `everyone` and cannot exercise either capability themselves.
 **Why:** Every human member can create automation for their own use, while
 global recovery and moderation remain administrative. Creators must not lose
-access to rotate or delete an existing bot just because their ability to create
-more bots is revoked.
+access to revoke keys or delete an existing bot just because their ability to
+create more bots is revoked.
 **Tradeoff:** Servers that want bot creation to be restricted must change the
 fresh default, and existing servers are not backfilled when defaults change.
 Bot-management authorization also has an ownership path alongside the
@@ -224,8 +222,7 @@ permission path used by global managers.
 **Decision:** Each bot can have at most 20 non-expiring API keys. Each key has
 a name and an independent revocation lifecycle. Names are labels and do not
 need to be unique. Chatto shows a raw key only when it creates that key. The
-legacy rotation operation remains available as an explicit replace-all action.
-New keys contain 128 bits of random secret. The verifier accepts the earlier
+new keys contain 128 bits of random secret. The verifier accepts the earlier
 256-bit format so existing integrations continue to work.
 **Why:** Each integration can have its own credential. A manager can move one
 integration to a replacement key and revoke the old key without an outage for
@@ -242,14 +239,14 @@ active human account. Reassignment keeps the configured permission allowlist
 and active API keys, while immediately applying the new owner's permission
 ceiling. Deleting a human still cascades to bots they own at deletion time.
 **Why:** Operational handoffs need a recovery path before an owner leaves, but
-do not require a two-party invitation protocol. Keeping credential rotation a
-separate explicit action avoids unnecessary integration downtime; an operator
-can still rotate immediately when credential custody is in doubt.
+do not require a two-party invitation protocol. Keeping credential revocation
+separate avoids unnecessary integration downtime; an operator can create a
+replacement and revoke the affected key when credential custody is in doubt.
 **Tradeoff:** Chatto relies on the administrator to verify that the recipient
 requested or accepts the handoff. A permission may become active or inactive
 as soon as the owner changes, so the UI warns about the new ceiling. Existing
-credential holders retain access until an administrator separately rotates the
-key.
+credential holders retain access until an administrator separately revokes
+their keys.
 
 ### 8. Bot identity is visible on canonical user surfaces
 
@@ -343,13 +340,14 @@ override, but bots themselves cannot exercise bot-management operations.
 
 ## API Compatibility
 
-Bot identity, management, reassignment, permission ceilings, and credentials
-are additive in Chatto 0.5. Historical users remain human accounts when bot
-identity is absent. Older clients can still render bot accounts as ordinary
-users, and the bundled client does not call bot-management operations on an
-older server.
+Bot identity, management, reassignment, permission ceilings, and named
+credentials are additive in Chatto 0.5. The removal of the experimental
+replace-all key operation is a breaking public API change. Historical users
+remain human accounts when bot identity is absent. Older clients can still
+render bot accounts as ordinary users, and the bundled client does not call
+bot-management operations on an older server.
 
-Operators must replace all replicas before they create or rotate bot
+Operators must replace all replicas before they create or revoke bot
 credentials, reassign bot ownership, or depend on the rule that bots cannot
 start DMs. An older replica can omit newer bot facts or accept the earlier DM
 behavior. Updated servers continue to accept the first longer bot-key format
@@ -361,8 +359,12 @@ bot API keys project as a named legacy key and stay valid after upgrade. Older
 replicas ignore added named keys, so clients cannot use a new named key on
 every replica until the rollout is complete. A targeted revocation of an
 older key also writes a compatibility fence that prevents an older binary from
-restoring that key after rollback. Older clients continue to use the
-replace-all operation. They ignore the additive key list and metadata.
+restoring that key after rollback. Chatto 0.5 removes the experimental
+`RotateBotApiKey` public method and the legacy rotation timestamp field. Older
+clients receive an unimplemented-method error if they call that method against
+a current server. They must create a named key, move the integration, and
+revoke the old key. The bundled current client does not expose key management
+when it connects to an older server that lacks the named-key methods.
 
 Incoming webhook management methods, metadata, and lifecycle facts are
 additive. The create response shows the URL one time. Older clients ignore the

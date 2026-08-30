@@ -62,8 +62,9 @@ check.
 
 Bot API-key connections similarly retain only the non-secret HMAC verifier
 accepted during the hello. Each connection registers atomically with the
-durable user-auth projection. When an individual revocation or replace-all fact
-reaches a replica, that projection closes watchers for each removed verifier.
+durable user-auth projection. When an individual revocation or a historical
+replace-all fact reaches a replica, that projection closes watchers for each
+removed verifier.
 Connections that use other API keys stay open. The handler cancels authorized
 work, sends a terminal `authentication_required` close when possible, and
 tears down the selected sockets. The raw API key is not retained in request or

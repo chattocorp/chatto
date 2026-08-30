@@ -554,7 +554,6 @@ them.
 | `owner_user_id` | `string` | Stable human owner user ID. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time. |
 | `api_key_created_at` | `google.protobuf.Timestamp` | Legacy time for the initial API key. Use api_keys for active credentials. |
-| `api_key_rotated_at` | `optional google.protobuf.Timestamp` | Legacy time for the most recent replace-all rotation. |
 | `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
 | `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
 

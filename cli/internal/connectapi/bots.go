@@ -115,24 +115,6 @@ func (s *botService) DeleteBot(ctx context.Context, req *connect.Request[apiv1.D
 	return connect.NewResponse(&apiv1.DeleteBotResponse{Deleted: deleted}), nil
 }
 
-func (s *botService) RotateBotApiKey(ctx context.Context, req *connect.Request[apiv1.RotateBotApiKeyRequest]) (*connect.Response[apiv1.RotateBotApiKeyResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	bot, err := s.api.core.RotateBotAPIKey(ctx, caller.UserID, req.Msg.GetBotUserId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	mapped, err := apiBot(ctx, s.api, bot)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&apiv1.RotateBotApiKeyResponse{
-		Bot: mapped, ApiKey: bot.APIKey, ApiKeyMetadata: apiBotAPIKeyByID(mapped, bot.APIKeyID),
-	}), nil
-}
-
 func (s *botService) CreateBotApiKey(ctx context.Context, req *connect.Request[apiv1.CreateBotApiKeyRequest]) (*connect.Response[apiv1.CreateBotApiKeyResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -227,9 +209,6 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 		return nil, err
 	}
 	out := &apiv1.Bot{User: user, OwnerUserId: bot.OwnerUserID, CreatedAt: bot.User.GetCreatedAt(), ApiKeyCreatedAt: timestamppb.New(bot.APIKeyCreatedAt)}
-	if !bot.APIKeyRotatedAt.IsZero() {
-		out.ApiKeyRotatedAt = timestamppb.New(bot.APIKeyRotatedAt)
-	}
 	for _, key := range bot.APIKeys {
 		mapped := &apiv1.BotApiKey{Id: key.ID, Name: key.Name, CreatedAt: timestamppb.New(key.CreatedAt)}
 		switch key.LastUsedState {

@@ -37,7 +37,6 @@ type projectedUserAuth struct {
 	botOwnerUserID      string
 	botAPIKeys          map[string]projectedBotAPIKey
 	botAPIKeyCreatedAt  time.Time
-	botAPIKeyRotatedAt  time.Time
 	botIncomingWebhooks map[string]projectedBotIncomingWebhook
 	passwordHash        []byte
 	passwordSetAt       time.Time
@@ -283,7 +282,6 @@ func (p *UserAuthProjection) applyAccountDeleted(e *evtv1.UserAccountDeletedEven
 	u.oauthConsent = make(map[string]struct{})
 	u.botAPIKeys = make(map[string]projectedBotAPIKey)
 	u.botAPIKeyCreatedAt = time.Time{}
-	u.botAPIKeyRotatedAt = time.Time{}
 	u.botIncomingWebhooks = make(map[string]projectedBotIncomingWebhook)
 	p.closeBotAPIKeyWatchersLocked(e.GetUserId())
 	p.deleteIdentityIndexLocked(e.GetUserId())
@@ -302,7 +300,6 @@ func (p *UserAuthProjection) applyKeyShredded(userID string, seq uint64) {
 	u.oauthConsent = make(map[string]struct{})
 	u.botAPIKeys = make(map[string]projectedBotAPIKey)
 	u.botAPIKeyCreatedAt = time.Time{}
-	u.botAPIKeyRotatedAt = time.Time{}
 	u.botIncomingWebhooks = make(map[string]projectedBotIncomingWebhook)
 	p.closeBotAPIKeyWatchersLocked(userID)
 	p.deleteIdentityIndexLocked(userID)
@@ -322,7 +319,6 @@ func (p *UserAuthProjection) applyBotAPIKeyCreated(e *evtv1.BotApiKeyCreatedEven
 		createdAt: timestampTime(createdAt), rollbackVisible: true,
 	}
 	u.botAPIKeyCreatedAt = timestampTime(createdAt)
-	u.botAPIKeyRotatedAt = time.Time{}
 }
 
 func (p *UserAuthProjection) applyBotAPIKeyRotated(e *evtv1.BotApiKeyRotatedEvent, createdAt *timestamppb.Timestamp) {
@@ -354,7 +350,6 @@ func (p *UserAuthProjection) applyBotAPIKeyRotated(e *evtv1.BotApiKeyRotatedEven
 			createdAt: timestampTime(createdAt), rollbackVisible: true,
 		},
 	}
-	u.botAPIKeyRotatedAt = timestampTime(createdAt)
 }
 
 func (p *UserAuthProjection) applyBotAPIKeyAdded(e *evtv1.BotApiKeyAddedEvent, createdAt *timestamppb.Timestamp) {
@@ -508,14 +503,14 @@ func (p *UserAuthProjection) BotAPIKeyCredentials(userID string) []BotAPIKeyCred
 	return result
 }
 
-func (p *UserAuthProjection) BotAPIKeyLegacyTimes(userID string) (time.Time, time.Time) {
+func (p *UserAuthProjection) BotAPIKeyLegacyCreatedAt(userID string) time.Time {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.deleted || !u.isBot {
-		return time.Time{}, time.Time{}
+		return time.Time{}
 	}
-	return u.botAPIKeyCreatedAt, u.botAPIKeyRotatedAt
+	return u.botAPIKeyCreatedAt
 }
 
 // BotIncomingWebhookCredential is one projected verifier and its safe

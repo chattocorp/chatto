@@ -171,20 +171,6 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 		t.Fatal("bot unexpectedly granted dm.start capability")
 	}
 
-	rotated, err := service.RotateBotApiKey(ctx, connect.NewRequest(&apiv1.RotateBotApiKeyRequest{BotUserId: bot.GetUser().GetId()}))
-	if err != nil || rotated.Msg.GetApiKey() == "" || rotated.Msg.GetApiKey() == created.Msg.GetApiKey() {
-		t.Fatalf("RotateBotApiKey = %+v, %v", rotated, err)
-	}
-	if len(rotated.Msg.GetBot().GetApiKeys()) != 1 || rotated.Msg.GetApiKeyMetadata().GetId() != rotated.Msg.GetBot().GetApiKeys()[0].GetId() {
-		t.Fatalf("replace-all API keys = %+v; metadata = %+v", rotated.Msg.GetBot().GetApiKeys(), rotated.Msg.GetApiKeyMetadata())
-	}
-	if _, err := env.core.ValidateBotAPIKey(env.ctx, secondKey.Msg.GetApiKey()); err == nil {
-		t.Fatal("replace-all rotation left a named API key active")
-	}
-	if state := rotated.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); state != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED {
-		t.Fatalf("rotated bot unhydrated webhook state = %v, want unspecified", state)
-	}
-
 	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("bot caller ListBots code = %v, want failed precondition", connect.CodeOf(err))
 	}

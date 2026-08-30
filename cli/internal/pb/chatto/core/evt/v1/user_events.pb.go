@@ -279,9 +279,9 @@ func (x *BotApiKeyCreatedEvent) GetName() string {
 	return ""
 }
 
-// BotApiKeyRotatedEvent invalidates every active API key and creates one
-// replacement default key. Historical verifiers remain audit history but are
-// never accepted.
+// BotApiKeyRotatedEvent preserves historical replace-all facts and supports
+// rollback-safe revocation of keys that older binaries can read. Current
+// servers do not expose a replace-all command.
 type BotApiKeyRotatedEvent struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	UserId   string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`

@@ -85,8 +85,6 @@
   let componentActive = true;
   let apiKeyVisible = $state(false);
   let apiKey = $state('');
-  let rotateVisible = $state(false);
-  let rotateLoading = $state(false);
   let createAPIKeyVisible = $state(false);
   let createAPIKeyName = $state('');
   let createAPIKeyLoading = $state(false);
@@ -142,27 +140,6 @@
     void queryClient.invalidateQueries({
       queryKey: settingsQueryKeys.botsRoot(serverScope.serverId, serverScope.connection)
     });
-  }
-
-  async function rotateKey() {
-    if (!bot) return;
-    const mutationTarget = targetKey;
-    rotateLoading = true;
-    try {
-      const rotated = await botAPI().rotateBotAPIKey(bot.id);
-      if (!isCurrentTarget(mutationTarget)) return;
-      rotateVisible = false;
-      apiKey = rotated.apiKey;
-      apiKeyVisible = true;
-      refreshBot();
-      toast.success(m('settings.bots.key_rotated'));
-    } catch (error) {
-      if (isCurrentTarget(mutationTarget)) {
-        toast.error(error instanceof Error ? error.message : m('settings.bots.rotate_failed'));
-      }
-    } finally {
-      if (isCurrentTarget(mutationTarget)) rotateLoading = false;
-    }
   }
 
   function openCreateAPIKey() {
@@ -379,12 +356,6 @@
     <div class="flex flex-col gap-6">
       <Panel title={bot.displayName} subtitle={`@${bot.login}`}>
         {#snippet actions()}
-          {#if !supportsMultipleAPIKeys}
-            <Button size="sm" variant="warning" onclick={() => (rotateVisible = true)}>
-              <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
-              {m('settings.bots.rotate_key')}
-            </Button>
-          {/if}
           {#if canReassignOwner && supportsOwnerReassignment}
             <Button size="sm" variant="secondary" onclick={openReassignOwner}>
               <span class="iconify icon-[uil--exchange]" aria-hidden="true"></span>
@@ -422,10 +393,6 @@
               <dt class="text-muted">{m('settings.bots.key_created')}</dt>
               <dd class="mt-1">{formatDate(bot.apiKeyCreatedAt)}</dd>
             </div>
-            <div>
-              <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
-              <dd class="mt-1">{formatDate(bot.apiKeyRotatedAt)}</dd>
-            </div>
           {/if}
         </dl>
       </Panel>
@@ -437,17 +404,9 @@
           noPadding
         >
           {#snippet actions()}
-            <Button
-              size="sm"
-              disabled={bot.apiKeys.length >= 20}
-              onclick={openCreateAPIKey}
-            >
+            <Button size="sm" disabled={bot.apiKeys.length >= 20} onclick={openCreateAPIKey}>
               <span class="iconify icon-[uil--key-skeleton]" aria-hidden="true"></span>
               {m('settings.bots.key_create')}
-            </Button>
-            <Button size="sm" variant="warning" onclick={() => (rotateVisible = true)}>
-              <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
-              {m('settings.bots.rotate_key')}
             </Button>
           {/snippet}
           {#if bot.apiKeys.length > 0}
@@ -625,7 +584,6 @@
 <ShowOnceCredentialDialog
   bind:visible={apiKeyVisible}
   bind:value={apiKey}
-  pending={rotateLoading}
   title={m('settings.bots.api_key_title')}
   warning={m('settings.bots.api_key_warning')}
   copiedMessage={m('settings.bots.key_copied')}
@@ -639,19 +597,6 @@
   warning={m('settings.bots.webhook_url_warning')}
   copiedMessage={m('settings.bots.webhook_url_copied')}
 />
-
-<ConfirmDialog
-  bind:visible={rotateVisible}
-  title={m('settings.bots.rotate_title')}
-  tone="warning"
-  actionLabel={m('settings.bots.rotate_key')}
-  actionIcon="iconify icon-[uil--refresh]"
-  loading={rotateLoading}
-  onconfirm={rotateKey}
-  onclose={() => (rotateVisible = false)}
->
-  {m('settings.bots.rotate_warning')}
-</ConfirmDialog>
 
 <ConfirmDialog
   bind:visible={revokeAPIKeyVisible}

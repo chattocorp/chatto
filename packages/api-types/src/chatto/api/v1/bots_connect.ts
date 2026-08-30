@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -71,18 +71,6 @@ export const BotService = {
       O: DeleteBotResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
-    },
-    /**
-     * Invalidates every active API key and returns one replacement default key.
-     * New integrations should use CreateBotApiKey and RevokeBotApiKey.
-     *
-     * @generated from rpc chatto.api.v1.BotService.RotateBotApiKey
-     */
-    rotateBotApiKey: {
-      name: "RotateBotApiKey",
-      I: RotateBotApiKeyRequest,
-      O: RotateBotApiKeyResponse,
-      kind: MethodKind.Unary,
     },
     /**
      * Creates one named API key. A bot can have at most 20 active API keys.

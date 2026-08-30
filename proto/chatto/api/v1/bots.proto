@@ -19,8 +19,8 @@ message Bot {
   google.protobuf.Timestamp created_at = 3;
   // Legacy time for the initial API key. Use api_keys for active credentials.
   google.protobuf.Timestamp api_key_created_at = 4;
-  // Legacy time for the most recent replace-all rotation.
-  optional google.protobuf.Timestamp api_key_rotated_at = 5;
+  reserved 5;
+  reserved "api_key_rotated_at";
   // Active incoming webhook credentials, ordered by creation time.
   repeated BotIncomingWebhook incoming_webhooks = 6;
   // Active API keys, ordered by creation time.
@@ -149,24 +149,6 @@ message DeleteBotResponse {
   bool deleted = 1;
 }
 
-// Request replacement of every active API key with one default key. New
-// integrations should create and revoke individual named keys instead.
-message RotateBotApiKeyRequest {
-  // Required bot user ID.
-  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-
-// Result of replacing all bot API keys. api_key is shown once and cannot be
-// retrieved later.
-message RotateBotApiKeyResponse {
-  // Updated bot metadata.
-  Bot bot = 1;
-  // Newly issued API key.
-  string api_key = 2;
-  // Safe metadata for the replacement API key.
-  BotApiKey api_key_metadata = 3;
-}
-
 // Request creation of one named API key for a bot.
 message CreateBotApiKeyRequest {
   // Required bot user ID.
@@ -262,9 +244,6 @@ service BotService {
   rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse) {
     option idempotency_level = IDEMPOTENT;
   }
-  // Invalidates every active API key and returns one replacement default key.
-  // New integrations should use CreateBotApiKey and RevokeBotApiKey.
-  rpc RotateBotApiKey(RotateBotApiKeyRequest) returns (RotateBotApiKeyResponse);
   // Creates one named API key. A bot can have at most 20 active API keys.
   rpc CreateBotApiKey(CreateBotApiKeyRequest) returns (CreateBotApiKeyResponse);
   // Revokes one API key without changing other active keys.

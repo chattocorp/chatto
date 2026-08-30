@@ -33,7 +33,7 @@ const (
 )
 
 // legacyBotAPIKeySecretBytes keeps API keys issued before the shorter format
-// valid until their owner explicitly rotates them.
+// valid until their owner explicitly revokes them.
 const legacyBotAPIKeySecretBytes = 32
 
 // Bot is the management view of a bot account. Raw credentials are populated
@@ -44,7 +44,6 @@ type Bot struct {
 	APIKey           string
 	APIKeyID         string
 	APIKeyCreatedAt  time.Time
-	APIKeyRotatedAt  time.Time
 	APIKeys          []BotAPIKey
 	IncomingWebhooks []BotIncomingWebhook
 }
@@ -246,7 +245,7 @@ func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*evtv
 
 // ValidateBotAPIKeyCredential authenticates a bot API key and returns the
 // non-secret verifier generation needed to revoke long-lived transports when
-// a later durable rotation reaches this replica.
+// a later durable revocation reaches this replica.
 func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token string) (*evtv1.User, []byte, error) {
 	botID, ok := parseBotAPIKey(token)
 	if !ok {
@@ -341,10 +340,10 @@ func (c *ChattoCore) botFromUser(user *evtv1.User) (*Bot, error) {
 	if user == nil || !user.GetIsBot() {
 		return nil, ErrNotFound
 	}
-	createdAt, rotatedAt := c.userModel.botAPIKeyLegacyTimes(user.GetId())
+	createdAt := c.userModel.botAPIKeyLegacyCreatedAt(user.GetId())
 	bot := &Bot{
 		User: user, OwnerUserID: user.GetBotOwnerUserId(),
-		APIKeyCreatedAt: createdAt, APIKeyRotatedAt: rotatedAt,
+		APIKeyCreatedAt: createdAt,
 	}
 	for _, credential := range c.userModel.botAPIKeyCredentials(user.GetId()) {
 		bot.APIKeys = append(bot.APIKeys, BotAPIKey{
@@ -512,74 +511,6 @@ func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, erro
 		return strings.ToLower(result[i].User.GetLogin()) < strings.ToLower(result[j].User.GetLogin())
 	})
 	return result, nil
-}
-
-// RotateBotAPIKey invalidates every active key and creates one replacement
-// default key. There is deliberately no retry: concurrent credential changes
-// conflict so a show-once key cannot be returned from a stale decision.
-func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string) (*Bot, error) {
-	key, err := NewBotAPIKey(botID)
-	if err != nil {
-		return nil, err
-	}
-	authorizationSeq, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		return nil, err
-	}
-	filter := evtstream.UserAggregate(botID).AllEventsFilter()
-	filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
-		return nil, err
-	}
-	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key rotation"); err != nil {
-		return nil, err
-	}
-	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
-	if err != nil {
-		return nil, err
-	}
-	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(evtstream.RBACSubjectFilter(), rbacSeq)); err != nil {
-		return nil, err
-	}
-	if _, err := c.requireBotManager(ctx, actorID, botID); err != nil {
-		return nil, err
-	}
-	replacementKeyID := NewBotAPIKeyID()
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyRotated{
-		BotApiKeyRotated: &evtv1.BotApiKeyRotatedEvent{
-			UserId: botID, Verifier: c.botAPIKeyVerifier(key),
-			KeyId: replacementKeyID, Name: defaultBotAPIKeyName,
-		},
-	}})
-	subject := evtstream.UserAggregate(botID).SubjectFor(event)
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
-		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
-	}}, authorizationSeq)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
-		return nil, err
-	}
-	user, err := c.GetUser(ctx, botID)
-	if err != nil {
-		return nil, err
-	}
-	bot, err := c.botFromUser(user)
-	if err != nil {
-		return nil, err
-	}
-	bot.APIKey = key
-	bot.APIKeyID = replacementKeyID
-	for i := range bot.APIKeys {
-		if bot.APIKeys[i].ID == replacementKeyID {
-			bot.APIKeys[i].LastUsedState = BotCredentialLastUsedNoUseRecorded
-		}
-	}
-	return bot, nil
 }
 
 // CreateBotAPIKey creates one named show-once credential. The raw credential

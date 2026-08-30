@@ -377,23 +377,9 @@ test.describe('Bot account lifecycle', () => {
     await expect(page.getByText('Bot owner reassigned', { exact: true })).toBeVisible();
     await expect(page.getByText(newOwner.displayName, { exact: true })).toBeVisible();
 
-    // Reassignment changes administrative responsibility without rotating or
+    // Reassignment changes administrative responsibility without revoking or
     // interrupting the integration credential.
     await expect(getRoomAsBot(serverURL, backupKey, roomId)).resolves.toEqual({ status: 200 });
-
-    await page.getByRole('button', { name: 'Replace all keys', exact: true }).click();
-    const rotateDialog = page.getByRole('dialog', { name: 'Replace All API Keys' });
-    await rotateDialog.getByRole('button', { name: 'Replace all keys', exact: true }).click();
-    const rotatedKey = await captureShowOnceBotKey(page);
-    if (rotatedKey === backupKey) {
-      throw new Error('Rotating the bot API key did not issue a new credential');
-    }
-
-    await expect(getRoomAsBot(serverURL, backupKey, roomId)).resolves.toEqual({
-      status: 401,
-      code: 'unauthenticated'
-    });
-    await expect(getRoomAsBot(serverURL, rotatedKey, roomId)).resolves.toEqual({ status: 200 });
 
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     const deleteDialog = page.getByRole('dialog', { name: 'Delete Bot' });
@@ -401,7 +387,7 @@ test.describe('Bot account lifecycle', () => {
     await page.waitForURL(routes.serverAdminBots);
     await expect(page.getByText('Bot deleted', { exact: true })).toBeVisible();
 
-    await expect(getRoomAsBot(serverURL, rotatedKey, roomId)).resolves.toEqual({
+    await expect(getRoomAsBot(serverURL, backupKey, roomId)).resolves.toEqual({
       status: 401,
       code: 'unauthenticated'
     });

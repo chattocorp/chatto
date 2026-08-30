@@ -86,13 +86,6 @@ export class Bot extends Message<Bot> {
   apiKeyCreatedAt?: Timestamp;
 
   /**
-   * Legacy time for the most recent replace-all rotation.
-   *
-   * @generated from field: optional google.protobuf.Timestamp api_key_rotated_at = 5;
-   */
-  apiKeyRotatedAt?: Timestamp;
-
-  /**
    * Active incoming webhook credentials, ordered by creation time.
    *
    * @generated from field: repeated chatto.api.v1.BotIncomingWebhook incoming_webhooks = 6;
@@ -118,7 +111,6 @@ export class Bot extends Message<Bot> {
     { no: 2, name: "owner_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "created_at", kind: "message", T: Timestamp },
     { no: 4, name: "api_key_created_at", kind: "message", T: Timestamp },
-    { no: 5, name: "api_key_rotated_at", kind: "message", T: Timestamp, opt: true },
     { no: 6, name: "incoming_webhooks", kind: "message", T: BotIncomingWebhook, repeated: true },
     { no: 7, name: "api_keys", kind: "message", T: BotApiKey, repeated: true },
   ]);
@@ -744,106 +736,6 @@ export class DeleteBotResponse extends Message<DeleteBotResponse> {
 
   static equals(a: DeleteBotResponse | PlainMessage<DeleteBotResponse> | undefined, b: DeleteBotResponse | PlainMessage<DeleteBotResponse> | undefined): boolean {
     return proto3.util.equals(DeleteBotResponse, a, b);
-  }
-}
-
-/**
- * Request replacement of every active API key with one default key. New
- * integrations should create and revoke individual named keys instead.
- *
- * @generated from message chatto.api.v1.RotateBotApiKeyRequest
- */
-export class RotateBotApiKeyRequest extends Message<RotateBotApiKeyRequest> {
-  /**
-   * Required bot user ID.
-   *
-   * @generated from field: string bot_user_id = 1;
-   */
-  botUserId = "";
-
-  constructor(data?: PartialMessage<RotateBotApiKeyRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RotateBotApiKeyRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "bot_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RotateBotApiKeyRequest {
-    return new RotateBotApiKeyRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RotateBotApiKeyRequest {
-    return new RotateBotApiKeyRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RotateBotApiKeyRequest {
-    return new RotateBotApiKeyRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RotateBotApiKeyRequest | PlainMessage<RotateBotApiKeyRequest> | undefined, b: RotateBotApiKeyRequest | PlainMessage<RotateBotApiKeyRequest> | undefined): boolean {
-    return proto3.util.equals(RotateBotApiKeyRequest, a, b);
-  }
-}
-
-/**
- * Result of replacing all bot API keys. api_key is shown once and cannot be
- * retrieved later.
- *
- * @generated from message chatto.api.v1.RotateBotApiKeyResponse
- */
-export class RotateBotApiKeyResponse extends Message<RotateBotApiKeyResponse> {
-  /**
-   * Updated bot metadata.
-   *
-   * @generated from field: chatto.api.v1.Bot bot = 1;
-   */
-  bot?: Bot;
-
-  /**
-   * Newly issued API key.
-   *
-   * @generated from field: string api_key = 2;
-   */
-  apiKey = "";
-
-  /**
-   * Safe metadata for the replacement API key.
-   *
-   * @generated from field: chatto.api.v1.BotApiKey api_key_metadata = 3;
-   */
-  apiKeyMetadata?: BotApiKey;
-
-  constructor(data?: PartialMessage<RotateBotApiKeyResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RotateBotApiKeyResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "bot", kind: "message", T: Bot },
-    { no: 2, name: "api_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "api_key_metadata", kind: "message", T: BotApiKey },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RotateBotApiKeyResponse {
-    return new RotateBotApiKeyResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RotateBotApiKeyResponse {
-    return new RotateBotApiKeyResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RotateBotApiKeyResponse {
-    return new RotateBotApiKeyResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RotateBotApiKeyResponse | PlainMessage<RotateBotApiKeyResponse> | undefined, b: RotateBotApiKeyResponse | PlainMessage<RotateBotApiKeyResponse> | undefined): boolean {
-    return proto3.util.equals(RotateBotApiKeyResponse, a, b);
   }
 }
 

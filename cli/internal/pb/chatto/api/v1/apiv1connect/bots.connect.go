@@ -43,9 +43,6 @@ const (
 	BotServiceCreateBotProcedure = "/chatto.api.v1.BotService/CreateBot"
 	// BotServiceDeleteBotProcedure is the fully-qualified name of the BotService's DeleteBot RPC.
 	BotServiceDeleteBotProcedure = "/chatto.api.v1.BotService/DeleteBot"
-	// BotServiceRotateBotApiKeyProcedure is the fully-qualified name of the BotService's
-	// RotateBotApiKey RPC.
-	BotServiceRotateBotApiKeyProcedure = "/chatto.api.v1.BotService/RotateBotApiKey"
 	// BotServiceCreateBotApiKeyProcedure is the fully-qualified name of the BotService's
 	// CreateBotApiKey RPC.
 	BotServiceCreateBotApiKeyProcedure = "/chatto.api.v1.BotService/CreateBotApiKey"
@@ -76,9 +73,6 @@ type BotServiceClient interface {
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	// Deletes a bot and invalidates all of its API keys.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
-	// Invalidates every active API key and returns one replacement default key.
-	// New integrations should use CreateBotApiKey and RevokeBotApiKey.
-	RotateBotApiKey(context.Context, *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error)
 	// Creates one named API key. A bot can have at most 20 active API keys.
 	CreateBotApiKey(context.Context, *connect.Request[v1.CreateBotApiKeyRequest]) (*connect.Response[v1.CreateBotApiKeyResponse], error)
 	// Revokes one API key without changing other active keys.
@@ -136,12 +130,6 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
-		rotateBotApiKey: connect.NewClient[v1.RotateBotApiKeyRequest, v1.RotateBotApiKeyResponse](
-			httpClient,
-			baseURL+BotServiceRotateBotApiKeyProcedure,
-			connect.WithSchema(botServiceMethods.ByName("RotateBotApiKey")),
-			connect.WithClientOptions(opts...),
-		),
 		createBotApiKey: connect.NewClient[v1.CreateBotApiKeyRequest, v1.CreateBotApiKeyResponse](
 			httpClient,
 			baseURL+BotServiceCreateBotApiKeyProcedure,
@@ -185,7 +173,6 @@ type botServiceClient struct {
 	batchGetBots             *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
 	createBot                *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
 	deleteBot                *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
-	rotateBotApiKey          *connect.Client[v1.RotateBotApiKeyRequest, v1.RotateBotApiKeyResponse]
 	createBotApiKey          *connect.Client[v1.CreateBotApiKeyRequest, v1.CreateBotApiKeyResponse]
 	revokeBotApiKey          *connect.Client[v1.RevokeBotApiKeyRequest, v1.RevokeBotApiKeyResponse]
 	createBotIncomingWebhook *connect.Client[v1.CreateBotIncomingWebhookRequest, v1.CreateBotIncomingWebhookResponse]
@@ -216,11 +203,6 @@ func (c *botServiceClient) CreateBot(ctx context.Context, req *connect.Request[v
 // DeleteBot calls chatto.api.v1.BotService.DeleteBot.
 func (c *botServiceClient) DeleteBot(ctx context.Context, req *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error) {
 	return c.deleteBot.CallUnary(ctx, req)
-}
-
-// RotateBotApiKey calls chatto.api.v1.BotService.RotateBotApiKey.
-func (c *botServiceClient) RotateBotApiKey(ctx context.Context, req *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error) {
-	return c.rotateBotApiKey.CallUnary(ctx, req)
 }
 
 // CreateBotApiKey calls chatto.api.v1.BotService.CreateBotApiKey.
@@ -261,9 +243,6 @@ type BotServiceHandler interface {
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	// Deletes a bot and invalidates all of its API keys.
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
-	// Invalidates every active API key and returns one replacement default key.
-	// New integrations should use CreateBotApiKey and RevokeBotApiKey.
-	RotateBotApiKey(context.Context, *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error)
 	// Creates one named API key. A bot can have at most 20 active API keys.
 	CreateBotApiKey(context.Context, *connect.Request[v1.CreateBotApiKeyRequest]) (*connect.Response[v1.CreateBotApiKeyResponse], error)
 	// Revokes one API key without changing other active keys.
@@ -317,12 +296,6 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
-	botServiceRotateBotApiKeyHandler := connect.NewUnaryHandler(
-		BotServiceRotateBotApiKeyProcedure,
-		svc.RotateBotApiKey,
-		connect.WithSchema(botServiceMethods.ByName("RotateBotApiKey")),
-		connect.WithHandlerOptions(opts...),
-	)
 	botServiceCreateBotApiKeyHandler := connect.NewUnaryHandler(
 		BotServiceCreateBotApiKeyProcedure,
 		svc.CreateBotApiKey,
@@ -368,8 +341,6 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 			botServiceCreateBotHandler.ServeHTTP(w, r)
 		case BotServiceDeleteBotProcedure:
 			botServiceDeleteBotHandler.ServeHTTP(w, r)
-		case BotServiceRotateBotApiKeyProcedure:
-			botServiceRotateBotApiKeyHandler.ServeHTTP(w, r)
 		case BotServiceCreateBotApiKeyProcedure:
 			botServiceCreateBotApiKeyHandler.ServeHTTP(w, r)
 		case BotServiceRevokeBotApiKeyProcedure:
@@ -407,10 +378,6 @@ func (UnimplementedBotServiceHandler) CreateBot(context.Context, *connect.Reques
 
 func (UnimplementedBotServiceHandler) DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.DeleteBot is not implemented"))
-}
-
-func (UnimplementedBotServiceHandler) RotateBotApiKey(context.Context, *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RotateBotApiKey is not implemented"))
 }
 
 func (UnimplementedBotServiceHandler) CreateBotApiKey(context.Context, *connect.Request[v1.CreateBotApiKeyRequest]) (*connect.Response[v1.CreateBotApiKeyResponse], error) {

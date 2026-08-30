@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   getBot: vi.fn(),
   batchGetUsers: vi.fn(),
   listUsers: vi.fn(),
-  rotateBotAPIKey: vi.fn(),
   createBotAPIKey: vi.fn(),
   revokeBotAPIKey: vi.fn(),
   reassignBotOwner: vi.fn(),
@@ -33,7 +32,6 @@ const mocks = vi.hoisted(() => ({
     ownerUserId: 'owner-user-id',
     createdAt: null,
     apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
-    apiKeyRotatedAt: null,
     apiKeys: [
       {
         id: 'legacy',
@@ -73,7 +71,6 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         getBot: mocks.getBot,
         batchGetUsers: mocks.batchGetUsers,
         listUsers: mocks.listUsers,
-        rotateBotAPIKey: mocks.rotateBotAPIKey,
         createBotAPIKey: mocks.createBotAPIKey,
         revokeBotAPIKey: mocks.revokeBotAPIKey,
         reassignBotOwner: mocks.reassignBotOwner,
@@ -127,7 +124,6 @@ describe('Bot detail page', () => {
     mocks.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
       Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
     );
-    mocks.rotateBotAPIKey.mockResolvedValue({ bot: mocks.bot, apiKey: 'rotated-secret' });
     mocks.createBotAPIKey.mockResolvedValue({
       bot: {
         ...mocks.bot,

@@ -932,15 +932,18 @@ func TestBearerPresentedCredentialAuthenticatesBotAPIKeys(t *testing.T) {
 		t.Fatalf("expected non-secret bot credential handle, got %q", credential.auth.Handle)
 	}
 
-	rotated, err := s.core.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
+	issued, err := s.core.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Replacement")
 	if err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
+		t.Fatalf("CreateBotAPIKey: %v", err)
+	}
+	if _, err := s.core.RevokeBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), bot.APIKeys[0].ID); err != nil {
+		t.Fatalf("RevokeBotAPIKey: %v", err)
 	}
 	if _, ok, err := s.bearerPresentedCredential(ctx, bot.APIKey); err != nil || ok {
-		t.Fatalf("old bot key authenticated after rotation: ok=%v err=%v", ok, err)
+		t.Fatalf("revoked bot key authenticated: ok=%v err=%v", ok, err)
 	}
-	if _, ok, err := s.bearerPresentedCredential(ctx, rotated.APIKey); err != nil || !ok {
-		t.Fatalf("rotated bot key did not authenticate: ok=%v err=%v", ok, err)
+	if _, ok, err := s.bearerPresentedCredential(ctx, issued.Credential); err != nil || !ok {
+		t.Fatalf("replacement bot key did not authenticate: ok=%v err=%v", ok, err)
 	}
 }
 
@@ -992,17 +995,24 @@ func TestConnectBotAPIKeyAuthenticatesPublicAPIRequests(t *testing.T) {
 		t.Fatalf("ListBots with bot API key code = %v, want failed precondition", connect.CodeOf(err))
 	}
 
-	rotateReq := connect.NewRequest(&apiv1.RotateBotApiKeyRequest{BotUserId: bot.GetId()})
-	rotateReq.Header().Set("Authorization", "Bearer "+ownerToken)
-	rotated, err := botClient.RotateBotApiKey(ctx, rotateReq)
+	createKeyReq := connect.NewRequest(&apiv1.CreateBotApiKeyRequest{BotUserId: bot.GetId(), Name: "Replacement"})
+	createKeyReq.Header().Set("Authorization", "Bearer "+ownerToken)
+	replacement, err := botClient.CreateBotApiKey(ctx, createKeyReq)
 	if err != nil {
-		t.Fatalf("RotateBotApiKey over Connect: %v", err)
+		t.Fatalf("CreateBotApiKey over Connect: %v", err)
+	}
+	revokeReq := connect.NewRequest(&apiv1.RevokeBotApiKeyRequest{
+		BotUserId: bot.GetId(), KeyId: created.Msg.GetApiKeyMetadata().GetId(),
+	})
+	revokeReq.Header().Set("Authorization", "Bearer "+ownerToken)
+	if _, err := botClient.RevokeBotApiKey(ctx, revokeReq); err != nil {
+		t.Fatalf("RevokeBotApiKey over Connect: %v", err)
 	}
 	if _, err := getViewer(apiKey); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("GetViewer with rotated bot API key code = %v, want unauthenticated", connect.CodeOf(err))
+		t.Fatalf("GetViewer with revoked bot API key code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := getViewer(rotated.Msg.GetApiKey()); err != nil {
-		t.Fatalf("GetViewer with new bot API key: %v", err)
+	if _, err := getViewer(replacement.Msg.GetApiKey()); err != nil {
+		t.Fatalf("GetViewer with replacement bot API key: %v", err)
 	}
 }
 

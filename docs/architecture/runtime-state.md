@@ -100,7 +100,7 @@ survives restart but is not content/domain history. See
 
 Bot API keys do not create `RUNTIME_STATE` records. Their current HMAC verifier
 is a durable user-aggregate fact in `EVT`, projected by `UserAuthProjection`;
-this makes key creation and rotation part of the bot's replayable account
+this makes key creation and revocation part of the bot's replayable account
 history while keeping the raw key show-once. Incoming webhook lifecycle facts
 also remain in `EVT`. Only their optional, approximate last-use telemetry is in
 `RUNTIME_STATE`.

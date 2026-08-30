@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -171,25 +170,11 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 		t.Fatalf("bot bio events after no-op = %d, want 1", len(bioEvents))
 	}
 
-	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
-	if err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
-	}
-	if rotated.APIKey == bot.APIKey || rotated.APIKeyRotatedAt.IsZero() {
-		t.Fatal("rotation did not return a distinct key and rotation timestamp")
-	}
-	if _, err := c.ValidateBotAPIKey(ctx, bot.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
-		t.Fatalf("old key err = %v, want ErrAuthTokenNotFound", err)
-	}
-	if _, err := c.ValidateBotAPIKey(ctx, rotated.APIKey); err != nil {
-		t.Fatalf("rotated key: %v", err)
-	}
-
 	deleted, err := c.DeleteBot(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil || !deleted {
 		t.Fatalf("DeleteBot = %v, %v", deleted, err)
 	}
-	if _, err := c.ValidateBotAPIKey(ctx, rotated.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
+	if _, err := c.ValidateBotAPIKey(ctx, bot.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("deleted key err = %v, want ErrAuthTokenNotFound", err)
 	}
 }
@@ -289,48 +274,6 @@ func TestBotAPIKeysAreNamedAndIndependentlyRevocable(t *testing.T) {
 	}
 	if _, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("GetBot without active keys: %v", err)
-	}
-}
-
-func TestRotateBotAPIKeyReplacesEveryNamedKey(t *testing.T) {
-	c, _ := setupTestCore(t)
-	ctx := testContext(t)
-	owner, err := c.CreateUser(ctx, SystemActorID, "rotate-all-owner", "Rotate-all Owner", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	bot, err := c.CreateBot(ctx, owner.GetId(), "rotate_all_bot", "Rotate-all Bot")
-	if err != nil {
-		t.Fatalf("CreateBot: %v", err)
-	}
-	additional, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Deployments")
-	if err != nil {
-		t.Fatalf("CreateBotAPIKey: %v", err)
-	}
-	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
-	if err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
-	}
-	if len(rotated.APIKeys) != 1 || rotated.APIKeys[0].ID != rotated.APIKeyID || rotated.APIKeyID == legacyBotAPIKeyID {
-		t.Fatalf("rotated API keys = %+v; issued ID = %q", rotated.APIKeys, rotated.APIKeyID)
-	}
-	for label, key := range map[string]string{"initial": bot.APIKey, "additional": additional.Credential} {
-		if _, err := c.ValidateBotAPIKey(ctx, key); !errors.Is(err, ErrAuthTokenNotFound) {
-			t.Fatalf("%s key after replace-all err = %v", label, err)
-		}
-	}
-	if _, err := c.ValidateBotAPIKey(ctx, rotated.APIKey); err != nil {
-		t.Fatalf("replacement key: %v", err)
-	}
-	if _, err := c.RevokeBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), rotated.APIKeyID); err != nil {
-		t.Fatalf("RevokeBotAPIKey replacement: %v", err)
-	}
-	eventsForSubject, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventBotAPIKeyRotated))
-	if err != nil || len(eventsForSubject) != 2 {
-		t.Fatalf("rotation events = %+v, %v", eventsForSubject, err)
-	}
-	if got := eventsForSubject[1].GetBotApiKeyRotated().GetRevokedKeyId(); got != rotated.APIKeyID {
-		t.Fatalf("rollback-fenced revoked key ID = %q, want %q", got, rotated.APIKeyID)
 	}
 }
 
@@ -777,34 +720,6 @@ func TestReassignBotOwnerIsRaceSafeWithOwnerDeletion(t *testing.T) {
 				t.Fatalf("successful reassignment to deleted owner left bot active: %+v, %v", current, getErr)
 			}
 		})
-	}
-}
-
-func TestBotAPIKeyInvalidationWatchFollowsDurableRotation(t *testing.T) {
-	c, _ := setupTestCore(t)
-	ctx := testContext(t)
-	owner, err := c.CreateUser(ctx, SystemActorID, "watch-owner", "Watch Owner", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	bot, err := c.CreateBot(ctx, owner.GetId(), "watch_bot", "Watch Bot")
-	if err != nil {
-		t.Fatalf("CreateBot: %v", err)
-	}
-	_, verifier, err := c.ValidateBotAPIKeyCredential(ctx, bot.APIKey)
-	if err != nil {
-		t.Fatalf("ValidateBotAPIKeyCredential: %v", err)
-	}
-	invalidated, stop := c.WatchBotAPIKeyInvalidated(bot.User.GetId(), verifier)
-	defer stop()
-
-	if _, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId()); err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
-	}
-	select {
-	case <-invalidated:
-	case <-time.After(5 * time.Second):
-		t.Fatal("bot key watcher remained open after durable rotation reached the projection")
 	}
 }
 

@@ -264,12 +264,12 @@ func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.
 	if issued.Bot.IncomingWebhooks[0].LastUsedState != BotCredentialLastUsedNoUseRecorded || !issued.Bot.IncomingWebhooks[0].LastUsedAt.IsZero() {
 		t.Fatalf("new webhook usage = %+v, want no recorded use", issued.Bot.IncomingWebhooks[0])
 	}
-	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
+	key, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Production")
 	if err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
+		t.Fatalf("CreateBotAPIKey: %v", err)
 	}
-	if got := rotated.IncomingWebhooks[0].LastUsedState; got != BotCredentialLastUsedUnspecified {
-		t.Fatalf("unhydrated rotated webhook state = %v, want unspecified", got)
+	if got := key.Bot.IncomingWebhooks[0].LastUsedState; got != BotCredentialLastUsedUnspecified {
+		t.Fatalf("unhydrated API-key issuance webhook state = %v, want unspecified", got)
 	}
 	if _, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("GetBot: %v", err)

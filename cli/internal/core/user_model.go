@@ -182,8 +182,8 @@ func (m *UserModel) botAPIKeyCredentials(userID string) []BotAPIKeyCredential {
 	return m.auth.Projection().BotAPIKeyCredentials(userID)
 }
 
-func (m *UserModel) botAPIKeyLegacyTimes(userID string) (time.Time, time.Time) {
-	return m.auth.Projection().BotAPIKeyLegacyTimes(userID)
+func (m *UserModel) botAPIKeyLegacyCreatedAt(userID string) time.Time {
+	return m.auth.Projection().BotAPIKeyLegacyCreatedAt(userID)
 }
 
 func (m *UserModel) botIncomingWebhookCredential(userID, webhookID string) (BotIncomingWebhookCredential, bool) {

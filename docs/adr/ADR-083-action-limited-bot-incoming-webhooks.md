@@ -35,7 +35,7 @@ The bundled frontend stops in-app navigation while it requests a show-once
 credential and while it shows the returned value. It requests the browser's
 native confirmation before a page unload. The manager must acknowledge the
 credential before in-app navigation can continue. This rule also applies to
-bot API-key creation and rotation.
+bot API-key creation.
 
 The request uses a Slack-compatible plain-text JSON subset. `text` and `channel`
 are the Slack field names. `body` and `room_id` are Chatto aliases. The optional

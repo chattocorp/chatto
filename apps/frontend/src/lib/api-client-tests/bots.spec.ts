@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   listBots: vi.fn(),
   getBot: vi.fn(),
   createBot: vi.fn(),
-  rotateBotApiKey: vi.fn(),
   createBotApiKey: vi.fn(),
   revokeBotApiKey: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
@@ -34,7 +33,6 @@ describe('createBotAPI', () => {
       listBots: mocks.listBots,
       getBot: mocks.getBot,
       createBot: mocks.createBot,
-      rotateBotApiKey: mocks.rotateBotApiKey,
       createBotApiKey: mocks.createBotApiKey,
       revokeBotApiKey: mocks.revokeBotApiKey,
       createBotIncomingWebhook: mocks.createBotIncomingWebhook,
@@ -79,7 +77,6 @@ describe('createBotAPI', () => {
           ownerUserId: 'U-owner',
           createdAt,
           apiKeyCreatedAt: createdAt,
-          apiKeyRotatedAt: null,
           apiKeys: [],
           incomingWebhooks: []
         }

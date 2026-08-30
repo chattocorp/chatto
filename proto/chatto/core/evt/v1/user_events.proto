@@ -47,9 +47,9 @@ message BotApiKeyCreatedEvent {
   string name = 4;
 }
 
-// BotApiKeyRotatedEvent invalidates every active API key and creates one
-// replacement default key. Historical verifiers remain audit history but are
-// never accepted.
+// BotApiKeyRotatedEvent preserves historical replace-all facts and supports
+// rollback-safe revocation of keys that older binaries can read. Current
+// servers do not expose a replace-all command.
 message BotApiKeyRotatedEvent {
   string user_id = 1;
   bytes verifier = 2;

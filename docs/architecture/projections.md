@@ -332,8 +332,9 @@ Bot account kind and owner ID are durable user-aggregate fields projected by
 management, reassignment, and cascade deletion. `UserAuthProjection` replays
 the active bot API-key IDs, names, verifiers, and creation times from EVT.
 Historical create and rotation events without key metadata project as the
-synthetic `legacy` default key. A rotation replaces every active verifier. A
-revocation removes only the selected verifier. When either fact takes effect,
+synthetic `legacy` default key. A historical rotation replaces every active
+verifier during replay. Current commands do not write replace-all rotations.
+A revocation removes only the selected verifier. When either fact takes effect,
 the projection closes process-local realtime watchers that used a removed
 verifier. A rollback-visible key uses a rotation-shaped revocation fence so an
 older binary cannot restore the raw revoked key after rollback. The projection

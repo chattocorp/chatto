@@ -189,43 +189,6 @@ Result of deleting a bot account.
 | `deleted` | `bool` | True when the bot was deleted. |
 
 
-<a id="chatto-api-v1-BotService-RotateBotApiKey"></a>
-
-### RotateBotApiKey
-
-Invalidates every active API key and returns one replacement default key.
-New integrations should use CreateBotApiKey and RevokeBotApiKey.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/RotateBotApiKey
-```
-
-<a id="chatto-api-v1-RotateBotApiKeyRequest"></a>
-
-#### Input: RotateBotApiKeyRequest
-
-Request replacement of every active API key with one default key. New
-integrations should create and revoke individual named keys instead.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-
-
-<a id="chatto-api-v1-RotateBotApiKeyResponse"></a>
-
-#### Result: RotateBotApiKeyResponse
-
-Result of replacing all bot API keys. api_key is shown once and cannot be
-retrieved later.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
-| `api_key` | `string` | Newly issued API key. |
-| `api_key_metadata` | [`BotApiKey`](/reference/connectrpc-api/types/#chatto-api-v1-BotApiKey) | Safe metadata for the replacement API key. |
-
-
 <a id="chatto-api-v1-BotService-CreateBotApiKey"></a>
 
 ### CreateBotApiKey
