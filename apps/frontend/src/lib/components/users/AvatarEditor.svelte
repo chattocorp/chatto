@@ -102,7 +102,7 @@
     <DropZoneOverlay
       visible={isDragging}
       title={m('settings.profile.avatar.drop_title')}
-      subtitle={m('settings.profile.avatar.description')}
+      subtitle={m('settings.profile.avatar.drop_subtitle')}
     />
 
     <UserAvatar user={avatarUser} size="xl" useLiveProfile={false} class="shadow-md" />
