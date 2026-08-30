@@ -372,6 +372,9 @@ func marshalEventLogPayloadJSON(event *evtv1.Event) ([]byte, error) {
 	if keyRotated := redacted.GetBotApiKeyRotated(); keyRotated != nil {
 		keyRotated.Verifier = nil
 	}
+	if keyAdded := redacted.GetBotApiKeyAdded(); keyAdded != nil {
+		keyAdded.Verifier = nil
+	}
 	if webhookCreated := redacted.GetBotIncomingWebhookCreated(); webhookCreated != nil {
 		webhookCreated.Verifier = nil
 	}

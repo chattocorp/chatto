@@ -76,7 +76,7 @@ The N+1 events are emitted by the actor code (`DeleteUser` calls into the existi
 When partial success would violate one command invariant, the actor commits the
 per-aggregate events in one atomic batch. The batch carries an OCC guard for
 each state boundary used by the decision. Room creation, room deletion, and
-room-group lifecycle changes use this form under ADR-085. Large repairable
+room-group lifecycle changes use this form under ADR-086. Large repairable
 fan-outs can still use independent per-aggregate commits when the command does
 not promise all-or-nothing completion.
 

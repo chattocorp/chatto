@@ -2,11 +2,14 @@ package http_server
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -69,6 +72,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		state := c.Query("state")
 		providerID := c.Query("provider_id")
 		clientID := c.Query("client_id")
+		resource := strings.TrimSpace(c.Query("resource"))
+		scopes, scopeErr := normalizeOAuthScopes(c.Query("scope"))
 
 		if responseType != "code" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -105,6 +110,14 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_request",
 				"error_description": "code_challenge_method must be S256",
+			})
+			return
+		}
+		grantRequested := resource != "" || len(scopes) > 0
+		if scopeErr != nil || (grantRequested && !s.validOAuthGrant(resource, scopes)) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_scope",
+				"error_description": "The requested OAuth resource or scope is not supported",
 			})
 			return
 		}
@@ -149,6 +162,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			ClientID:            client.ClientID,
 			ClientName:          client.ClientName,
 			ClientURI:           client.ClientURI,
+			Resource:            resource,
+			Scopes:              scopes,
 		}); err != nil {
 			log.Error("Failed to store pending OAuth authorization request", "error", err)
 			c.JSON(http.StatusServiceUnavailable, gin.H{
@@ -215,6 +230,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			req.ClientID = c.PostForm("client_id")
 			req.RefreshToken = c.PostForm("refresh_token")
 			req.RefreshRequestID = c.PostForm("refresh_request_id")
+			req.Resource = c.PostForm("resource")
 		} else {
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{
@@ -236,13 +252,18 @@ func (s *HTTPServer) setupOAuthRoutes() {
 				return
 			}
 
-			credentials, userID, err := s.core.ExchangeAuthCodeForClientSession(ctx, req.Code, req.CodeVerifier, req.RedirectURI, req.ClientID)
+			credentials, userID, err := s.core.ExchangeAuthCodeForClientResourceSession(ctx, req.Code, req.CodeVerifier, req.RedirectURI, req.ClientID, strings.TrimSpace(req.Resource))
 			if err != nil {
 				writeOAuthCodeExchangeError(c, err)
 				return
 			}
 			response := oauthBearerSessionResponse(credentials)
-			if user, err := s.core.GetUser(ctx, userID); err == nil {
+			if req.Resource == "" {
+				user, err := s.core.GetUser(ctx, userID)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "server_error"})
+					return
+				}
 				response["user"] = gin.H{
 					"id":          user.Id,
 					"login":       user.Login,
@@ -252,12 +273,21 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			c.JSON(http.StatusOK, response)
 
 		case "refresh_token":
-			if req.RefreshToken == "" || req.RefreshRequestID == "" {
+			if req.RefreshToken == "" {
 				c.JSON(http.StatusBadRequest, gin.H{
 					"error":             "invalid_request",
-					"error_description": "refresh_token and refresh_request_id are required",
+					"error_description": "refresh_token is required",
 				})
 				return
+			}
+			if req.RefreshRequestID == "" {
+				requestID, err := newStandardRefreshRequestID()
+				if err != nil {
+					log.Error("Failed to create OAuth refresh request identifier", "error", err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "server_error"})
+					return
+				}
+				req.RefreshRequestID = requestID
 			}
 			credentials, err := s.core.RefreshBearerSession(ctx, req.RefreshToken, req.RefreshRequestID, req.ClientID)
 			if err != nil {
@@ -302,6 +332,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			"clientId":       params.ClientID,
 			"clientName":     params.ClientName,
 			"clientUri":      params.ClientURI,
+			"resource":       params.Resource,
+			"scopes":         params.Scopes,
 		})
 	})
 
@@ -326,7 +358,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
 		}
-		if err := s.core.GrantOAuthClientConsent(c.Request.Context(), credential.auth.UserID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin); err != nil {
+		if err := s.core.GrantOAuthClientScopedConsent(c.Request.Context(), credential.auth.UserID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin, params.Resource, params.Scopes); err != nil {
 			log.Error("Failed to record OAuth consent grant", "error", err, "userId", credential.auth.UserID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record consent"})
 			return
@@ -361,19 +393,29 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
 		}
-		if err := s.core.RecordOAuthClientConsentDenied(c.Request.Context(), credential.auth.UserID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin); err != nil {
+		if err := s.core.RecordOAuthClientScopedConsentDenied(c.Request.Context(), credential.auth.UserID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin, params.Resource, params.Scopes); err != nil {
 			log.Error("Failed to record OAuth consent denial", "error", err, "userId", credential.auth.UserID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record consent denial"})
 			return
 		}
 
-		redirectURL, err := oauthErrorRedirectURL(params.RedirectURI, params.State, "access_denied", "The user denied the authorization request")
+		redirectURL, err := oauthErrorRedirectURL(params.RedirectURI, params.State, configuredWebserverOrigin(s.config.Webserver.URL), "access_denied", "The user denied the authorization request")
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"redirectUrl": redirectURL})
 	})
+}
+
+func newStandardRefreshRequestID() (string, error) {
+	var value [16]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		return "", fmt.Errorf("read randomness: %w", err)
+	}
+	value[6] = value[6]&0x0f | 0x40
+	value[8] = value[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", value[0:4], value[4:6], value[6:8], value[8:10], value[10:16]), nil
 }
 
 func (s *HTTPServer) hasPublicAuthProvider(providerID string) bool {
@@ -404,6 +446,7 @@ type oauthTokenRequest struct {
 	ClientID         string `json:"client_id"`
 	RefreshToken     string `json:"refresh_token"`
 	RefreshRequestID string `json:"refresh_request_id"`
+	Resource         string `json:"resource"`
 }
 
 func oauthBearerSessionResponse(credentials core.BearerSessionCredentials) gin.H {
@@ -530,7 +573,7 @@ func (s *HTTPServer) continueOAuthAuthorize(c *gin.Context, userID string, authG
 		})
 		return
 	}
-	consented, err := s.core.HasOAuthClientConsent(c.Request.Context(), userID, params.ClientID, redirectOrigin)
+	consented, err := s.core.HasOAuthClientScopedConsent(c.Request.Context(), userID, params.ClientID, redirectOrigin, params.Resource, params.Scopes)
 	if err != nil {
 		log.Error("Failed to check OAuth consent", "error", err, "userId", userID)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -618,14 +661,14 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		})
 		return "", false
 	}
-	code, err := s.core.CreateOAuthClientAuthorizationCode(ctx, core.OAuthClientAuthorization{
+	code, err := s.core.CreateOAuthClientAuthorizationCodeForGrant(ctx, core.OAuthClientAuthorization{
 		UserID:         userID,
 		ClientID:       params.ClientID,
 		ClientName:     params.ClientName,
 		ClientOrigin:   params.ClientURI,
 		RedirectOrigin: redirectOrigin,
 		Source:         source,
-	}, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
+	}, params.Resource, params.Scopes, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
 	if err != nil {
 		if errors.Is(err, core.ErrOAuthClientBlocked) {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -645,12 +688,32 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 	// Build redirect URL with code and state
 	q := u.Query()
 	q.Set("code", code)
+	q.Set("iss", configuredWebserverOrigin(s.config.Webserver.URL))
 	if params.State != "" {
 		q.Set("state", params.State)
 	}
 	u.RawQuery = q.Encode()
 
 	return u.String(), true
+}
+
+func normalizeOAuthScopes(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	fields := strings.Fields(raw)
+	slices.Sort(fields)
+	fields = slices.Compact(fields)
+	for _, scope := range fields {
+		if strings.ContainsAny(scope, "\"\\") {
+			return nil, errors.New("invalid OAuth scope")
+		}
+	}
+	return fields, nil
+}
+
+func (s *HTTPServer) validOAuthGrant(resource string, scopes []string) bool {
+	return s.config.MCP.Enabled && resource == s.config.MCPResourceURL() && slices.Equal(scopes, config.MCPOAuthScopes())
 }
 
 // hasPendingOAuthAuthorize checks if the session has a pending OAuth authorize flow.
@@ -702,7 +765,7 @@ func isLoopbackOAuthRedirectHost(host string) bool {
 	return false
 }
 
-func oauthErrorRedirectURL(redirectURI, state, code, description string) (string, error) {
+func oauthErrorRedirectURL(redirectURI, state, issuer, code, description string) (string, error) {
 	u, err := url.Parse(redirectURI)
 	if err != nil {
 		return "", err
@@ -714,6 +777,9 @@ func oauthErrorRedirectURL(redirectURI, state, code, description string) (string
 	}
 	if state != "" {
 		q.Set("state", state)
+	}
+	if issuer != "" {
+		q.Set("iss", issuer)
 	}
 	u.RawQuery = q.Encode()
 	return u.String(), nil

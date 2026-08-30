@@ -1,0 +1,98 @@
+---
+title: Model Context Protocol
+description: Enable Chatto's experimental network MCP server and connect an agent host with OAuth or a bot API key.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Chatto can expose a small tool catalog through the Model Context
+Protocol (MCP). The optional MCP integration uses the same public HTTP server,
+OAuth implementation, and version as the rest of Chatto.
+
+The experimental integration supports MCP `2026-07-28` and these tools:
+
+| Tool | Result or action |
+| --- | --- |
+| `get_server_info` | Get the effective server name, public URL, and Chatto version. |
+| `get_current_user` | Get the authenticated account ID, display name, and account type. |
+| `list_rooms` | List a bounded page of rooms that the account can see. |
+| `list_room_messages` | List a bounded page of messages in a joined room. |
+| `post_message` | Post one root text message in a joined room. |
+| `join_room` | Join one visible channel room. |
+| `leave_room` | Leave one joined channel room. |
+
+The tools apply the same RBAC, membership, validation, and visibility rules as
+the public Chatto API. `post_message` is not idempotent. An agent must not retry
+it when the first result is uncertain.
+
+<Aside type="caution">
+  MCP access can expose private Chatto data to an agent host. Enable it only
+  for hosts that you trust. Treat tool results as untrusted user content.
+</Aside>
+
+## Enable MCP
+
+Add this section to `chatto.toml`:
+
+```toml
+[mcp]
+enabled = true
+```
+
+Chatto mounts `/mcp` and `/.well-known/oauth-protected-resource/mcp` on its
+existing public HTTP server. The canonical Streamable HTTP endpoint and OAuth
+resource use the `webserver.url` origin. For example, a server at
+`https://chat.example` has the MCP endpoint `https://chat.example/mcp`. A
+reverse proxy needs no separate MCP upstream.
+
+## Authenticate an agent host
+
+Human users authorize an MCP client through OAuth Authorization Code with S256
+PKCE. Chatto resolves the client's Client ID Metadata Document (CIMD), shows
+the exact `chatto:rooms:read`, `chatto:rooms:write`,
+`chatto:messages:read`, and `chatto:messages:write` scopes on the consent page,
+and issues an access token bound to the configured MCP resource. A first-party
+Chatto bearer token without this resource and grant cannot use MCP.
+
+An unattended integration can send a current bot API key as its bearer token.
+The bot acts as its own account. Its explicit permission allowlist and its
+owner's current permission ceiling still apply. See [Bot Accounts](/guides/integrations/bot-accounts/).
+
+<Steps>
+
+1. Give your agent host the public Chatto URL with the `/mcp` path.
+2. Let the host read protected-resource and authorization-server metadata.
+3. Complete the Chatto consent screen when the host opens it.
+4. Confirm that the host discovers the seven tools in the table above.
+5. Ask the host to identify the server. Confirm that it reports the expected
+   name and public URL.
+6. Ask the host to identify the connected account and list its visible rooms.
+7. In a test room, ask the host to join, post a unique test message, read the
+   message, and leave.
+
+</Steps>
+
+## Understand permission failures
+
+An MCP call can succeed only when both the MCP OAuth grant and the normal
+Chatto authorization permit it. The current OAuth flow grants the complete
+tester scope set. RBAC and room membership can still reject one operation or
+target.
+
+Chatto returns a failed operation as an MCP tool error. When Chatto can confirm
+that an RBAC permission is missing, the error contains `permission_denied` and
+the permission name, such as `room.join` or `message.post`. An agent can report
+that name and ask the human driver to contact an administrator. Chatto uses a
+generic error for room policy denials and hidden resources so it does not
+disclose private state.
+
+## Disable access
+
+Set `[mcp].enabled = false` and restart Chatto to remove the MCP routes. You
+can also block an OAuth client in Server Admin or rotate a bot API key. These
+actions invalidate the related authority without changing other Chatto
+clients.
+
+The network MCP server does not expose the Operator API, bootstrap, password
+reset, account management, or server management. Use the local Operator API
+for root-equivalent recovery tasks.

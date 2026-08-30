@@ -100,6 +100,7 @@
     class={[
       variantClasses[variant],
       sizeClasses[size],
+      'shrink-0 whitespace-nowrap',
       fullWidth ? 'w-full' : '',
       disabled || loading ? 'pointer-events-none opacity-60' : ''
     ]}
@@ -117,7 +118,12 @@
     aria-label={label}
     {title}
     data-dialog-default={defaultAction || undefined}
-    class={[variantClasses[variant], sizeClasses[size], fullWidth ? 'w-full' : '']}
+    class={[
+      variantClasses[variant],
+      sizeClasses[size],
+      'shrink-0 whitespace-nowrap',
+      fullWidth ? 'w-full' : ''
+    ]}
   >
     {@render content()}
   </button>

@@ -298,8 +298,10 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.group.{groupId}.sidebar_entries_reordered`             | `SidebarGroupEntriesReorderedEvent`                 |
 | `evt.layout.default.groups_reordered`                        | `RoomGroupsReorderedEvent`                          |
 | `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
-| `evt.user.{userId}.bot_api_key_created`                    | `BotApiKeyCreatedEvent`; HMAC verifier and issue timestamp, never the raw key |
-| `evt.user.{userId}.bot_api_key_rotated`                    | `BotApiKeyRotatedEvent`; replacement HMAC verifier and rotation timestamp |
+| `evt.user.{userId}.bot_api_key_created`                    | `BotApiKeyCreatedEvent`; initial stable key ID, manager-defined name, HMAC verifier, and issue timestamp, never the raw key. Historical events without ID or name project as the `legacy` default key |
+| `evt.user.{userId}.bot_api_key_added`                      | `BotApiKeyAddedEvent`; stable key ID, manager-defined name, HMAC verifier, and issue timestamp for one additional key |
+| `evt.user.{userId}.bot_api_key_revoked`                    | `BotApiKeyRevokedEvent`; key ID that invalidates only the selected verifier |
+| `evt.user.{userId}.bot_api_key_rotated`                    | Compatibility `BotApiKeyRotatedEvent`; historical replace-all verifier, or a targeted revocation fence with a revoked-key ID and an unissued verifier so an old binary cannot restore the revoked raw key. Current commands do not write replace-all rotations |
 | `evt.user.{userId}.bot_owner_reassigned`                   | `BotOwnerReassignedEvent`; previous and new human owner IDs, with no credential change |
 | `evt.user.{userId}.bot_incoming_webhook_enabled`           | `BotIncomingWebhookCreatedEvent`; stable webhook ID, manager-defined name, HMAC verifier, and creation timestamp, never the raw credential. The legacy `enabled` subject token remains stable |
 | `evt.user.{userId}.bot_incoming_webhook_rotated`           | Compatibility-only `BotIncomingWebhookRotatedEvent`; replacement HMAC verifier from the unreleased implementation. Current servers read but do not write this event |
@@ -336,6 +338,8 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.bearer_token_revoked`                    | `BearerTokenRevokedEvent`                           |
 | `evt.user.{userId}.oauth_consent_granted`                   | `OAuthConsentGrantedEvent`                          |
 | `evt.user.{userId}.oauth_consent_denied`                    | `OAuthConsentDeniedEvent`                           |
+| `evt.user.{userId}.oauth_scoped_consent_granted`            | `OAuthScopedConsentGrantedEvent`; exact resource and scope grant that older projectors ignore |
+| `evt.user.{userId}.oauth_scoped_consent_denied`             | `OAuthScopedConsentDeniedEvent`                     |
 | `evt.rbac.{server\|scopeId}.role_created`                   | `RbacRoleCreatedEvent`                             |
 | `evt.rbac.{server\|scopeId}.role_display_name_changed`      | `RbacRoleDisplayNameChangedEvent`                  |
 | `evt.rbac.{server\|scopeId}.role_description_changed`       | `RbacRoleDescriptionChangedEvent`                  |
@@ -363,7 +367,7 @@ and deletion commit the group lifecycle fact with the resulting
 `RoomGroupsReorderedEvent`. Each batch guards every room, group, layout, and
 authorization boundary that its decision uses. Room moves also guard the
 room-deletion subject, so a concurrent delete cannot leave a stale group
-membership. See ADR-085.
+membership. See ADR-086.
 
 For every attachment message, its `AssetAttachedEvent` is committed in the same
 atomic OCC batch as the owning message body and posted fact. Video messages add

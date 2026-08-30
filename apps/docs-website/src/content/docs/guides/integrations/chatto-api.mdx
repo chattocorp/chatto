@@ -18,6 +18,7 @@ Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automa
 | Public ConnectRPC API | `/api/connect/chatto.api.v1.*` | Normal client and integration behavior. |
 | Admin ConnectRPC API | `/api/connect/chatto.admin.v1.*` | Permission-gated administrative tooling on the public web listener. |
 | Realtime WebSocket | `/api/realtime` | Protobuf live events and resumable server-projection delivery for authenticated clients. |
+| MCP | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations. |
 | Operator API | Unix socket | Root-equivalent local automation and recovery. |
 
 Do not expose the Operator API over a network. It is intentionally separate from the public web listener.
@@ -41,10 +42,11 @@ Discovery is also the right place for custom clients to learn public server iden
 Human bearer sessions return a short-lived access token, a rotating refresh
 credential, and both lifetimes. Send only the access token to ConnectRPC and
 realtime. Rotate through `/oauth/token` with `grant_type=refresh_token`, the
-issuing `client_id` when applicable, and a client-generated
-`refresh_request_id`. Generate a cryptographically random UUID version 4 for
-each rotation. Treat it as a show-once recovery nonce. Persist it before you
-send the request, and reuse it until you persist the complete response. An
+issuing `client_id` when applicable, and the refresh token. Chatto also accepts
+an optional client-generated `refresh_request_id`. Generate a cryptographically
+random UUID version 4 for each rotation when you use this extension. Treat it
+as a show-once recovery nonce. Persist it before you send the request, and
+reuse it until you persist the complete response. An
 exact retry can recover only the immediately previous refresh generation, and
 only during the access-token lifetime created by that rotation. A retry outside
 that boundary is stale reuse and revokes the renewable session. Serialize
@@ -55,6 +57,8 @@ request ID.
 Bearer credentials and bot API keys are opaque. They are not JWTs. See
 [Bot Accounts](/guides/integrations/bot-accounts/) for unattended integration
 identities and their explicit permission model.
+See [Model Context Protocol](/guides/integrations/mcp/) for the resource-bound
+agent integration.
 
 ## Realtime Delivery
 

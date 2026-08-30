@@ -242,7 +242,7 @@ func TestOAuthClientAuthorizationPostCommitWaitFailureKeepsCode(t *testing.T) {
 	}
 	waitErr := errors.New("forced post-commit projection wait failure")
 
-	code, err := c.createOAuthClientAuthorizationCode(ctx, request, "https://wait-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id), func(context.Context, events.StreamPosition) error {
+	code, err := c.createOAuthClientAuthorizationCode(ctx, request, "", nil, "https://wait-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id), func(context.Context, events.StreamPosition) error {
 		return waitErr
 	})
 	if err != nil || code == "" {

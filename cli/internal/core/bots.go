@@ -23,13 +23,17 @@ const (
 	botIncomingWebhookPrefix          = "cht_IW_"
 	botAPIKeyVerifierPurpose          = "bot_api_key"
 	botIncomingWebhookVerifierPurpose = "bot_incoming_webhook"
+	maxBotAPIKeys                     = 20
+	maxBotAPIKeyNameLength            = 64
 	maxBotIncomingWebhooks            = 20
 	maxBotIncomingWebhookNameLength   = 64
+	legacyBotAPIKeyID                 = "legacy"
+	defaultBotAPIKeyName              = "Default key"
 	legacyBotIncomingWebhookID        = "legacy"
 )
 
 // legacyBotAPIKeySecretBytes keeps API keys issued before the shorter format
-// valid until their owner explicitly rotates them.
+// valid until their owner explicitly revokes them.
 const legacyBotAPIKeySecretBytes = 32
 
 // Bot is the management view of a bot account. Raw credentials are populated
@@ -38,9 +42,20 @@ type Bot struct {
 	User             *evtv1.User
 	OwnerUserID      string
 	APIKey           string
+	APIKeyID         string
 	APIKeyCreatedAt  time.Time
-	APIKeyRotatedAt  time.Time
+	APIKeys          []BotAPIKey
 	IncomingWebhooks []BotIncomingWebhook
+}
+
+// BotAPIKey is safe management metadata for one active credential.
+type BotAPIKey struct {
+	ID              string
+	Name            string
+	CreatedAt       time.Time
+	LastUsedAt      time.Time
+	LastUsedState   BotCredentialLastUsedState
+	rollbackVisible bool
 }
 
 // BotIncomingWebhook is safe management metadata for one active credential.
@@ -71,8 +86,46 @@ type BotIncomingWebhookIssue struct {
 	Credential string
 }
 
+// BotAPIKeyIssue contains the show-once secret returned by an issuance command.
+// Credential must never be logged or persisted.
+type BotAPIKeyIssue struct {
+	Bot        *Bot
+	KeyID      string
+	Credential string
+}
+
 func parseBotAPIKey(token string) (string, bool) {
 	return parseBotCredential(token, botAPIKeyPrefix, true)
+}
+
+func normalizedBotAPIKeyID(id string) string {
+	if id == "" {
+		return legacyBotAPIKeyID
+	}
+	return id
+}
+
+func normalizedBotAPIKeyName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return defaultBotAPIKeyName
+	}
+	return name
+}
+
+func isCanonicalBotAPIKeyID(id string) bool {
+	if id == legacyBotAPIKeyID {
+		return true
+	}
+	if len(id) != idLength+1 || id[0] != 'K' {
+		return false
+	}
+	for i := 1; i < len(id); i++ {
+		if !strings.ContainsRune(idAlphabet, rune(id[i])) {
+			return false
+		}
+	}
+	return true
 }
 
 func parseBotIncomingWebhookCredential(token string) (botID, webhookID string, ok bool) {
@@ -192,7 +245,7 @@ func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*evtv
 
 // ValidateBotAPIKeyCredential authenticates a bot API key and returns the
 // non-secret verifier generation needed to revoke long-lived transports when
-// a later durable rotation reaches this replica.
+// a later durable revocation reaches this replica.
 func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token string) (*evtv1.User, []byte, error) {
 	botID, ok := parseBotAPIKey(token)
 	if !ok {
@@ -202,9 +255,9 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 	if err := c.userModel.waitForUsersCurrent(ctx, "bot API key authentication", agg.AllEventsFilter()); err != nil {
 		return nil, nil, err
 	}
-	credential, ok := c.userModel.botAPIKeyCredential(botID)
 	presentedVerifier := c.botAPIKeyVerifier(token)
-	if !ok || subtle.ConstantTimeCompare(presentedVerifier, credential.Verifier) != 1 {
+	credential, ok := c.userModel.matchBotAPIKeyCredential(botID, presentedVerifier)
+	if !ok {
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	bot, err := c.GetUser(ctx, botID)
@@ -215,6 +268,10 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 	if err != nil || owner.GetIsBot() {
 		return nil, nil, ErrAuthTokenNotFound
 	}
+	c.credentialUsage.recordIfActive(botID, botAPIKeyUsageKey(credential.ID), time.Now(), func() bool {
+		current, exists := c.userModel.matchBotAPIKeyCredential(botID, presentedVerifier)
+		return exists && current.ID == credential.ID
+	})
 	return bot, presentedVerifier, nil
 }
 
@@ -283,13 +340,16 @@ func (c *ChattoCore) botFromUser(user *evtv1.User) (*Bot, error) {
 	if user == nil || !user.GetIsBot() {
 		return nil, ErrNotFound
 	}
-	credential, ok := c.userModel.botAPIKeyCredential(user.GetId())
-	if !ok {
-		return nil, ErrNotFound
-	}
+	createdAt := c.userModel.botAPIKeyLegacyCreatedAt(user.GetId())
 	bot := &Bot{
 		User: user, OwnerUserID: user.GetBotOwnerUserId(),
-		APIKeyCreatedAt: credential.CreatedAt, APIKeyRotatedAt: credential.RotatedAt,
+		APIKeyCreatedAt: createdAt,
+	}
+	for _, credential := range c.userModel.botAPIKeyCredentials(user.GetId()) {
+		bot.APIKeys = append(bot.APIKeys, BotAPIKey{
+			ID: credential.ID, Name: credential.Name, CreatedAt: credential.CreatedAt,
+			rollbackVisible: credential.RollbackVisible,
+		})
 	}
 	for _, webhook := range c.userModel.botIncomingWebhookCredentials(user.GetId()) {
 		bot.IncomingWebhooks = append(bot.IncomingWebhooks, BotIncomingWebhook{
@@ -303,10 +363,22 @@ func (c *ChattoCore) botFromUser(user *evtv1.User) (*Bot, error) {
 // bot metadata. Callers must defer this read until after filtering and
 // pagination, and credential-issuing paths must not call it.
 func (c *ChattoCore) HydrateBotCredentialUsage(ctx context.Context, bot *Bot) {
-	if bot == nil || bot.User == nil || len(bot.IncomingWebhooks) == 0 {
+	if bot == nil || bot.User == nil || len(bot.APIKeys)+len(bot.IncomingWebhooks) == 0 {
 		return
 	}
 	lastUsed, available := c.credentialUsage.LastUsed(ctx, bot.User.GetId())
+	for i := range bot.APIKeys {
+		key := &bot.APIKeys[i]
+		key.LastUsedAt = lastUsed[botAPIKeyUsageKey(key.ID)]
+		switch {
+		case !available:
+			key.LastUsedState = BotCredentialLastUsedUnavailable
+		case key.LastUsedAt.IsZero():
+			key.LastUsedState = BotCredentialLastUsedNoUseRecorded
+		default:
+			key.LastUsedState = BotCredentialLastUsedRecorded
+		}
+	}
 	for i := range bot.IncomingWebhooks {
 		webhook := &bot.IncomingWebhooks[i]
 		webhook.LastUsedAt = lastUsed[incomingWebhookUsageKey(webhook.ID)]
@@ -322,13 +394,23 @@ func (c *ChattoCore) HydrateBotCredentialUsage(ctx context.Context, bot *Bot) {
 }
 
 func (c *ChattoCore) credentialUsageIsActive(botID, credentialKey string) bool {
-	prefix := credentialUsageWebhookKind + ":"
-	if !strings.HasPrefix(credentialKey, prefix) {
+	if keyID, ok := strings.CutPrefix(credentialKey, credentialUsageAPIKeyKind+":"); ok {
+		if keyID == "" {
+			return false
+		}
+		for _, credential := range c.userModel.botAPIKeyCredentials(botID) {
+			if credential.ID == keyID {
+				return true
+			}
+		}
+		return false
+	}
+	webhookID, ok := strings.CutPrefix(credentialKey, credentialUsageWebhookKind+":")
+	if !ok {
 		// A future credential kind must define its lifecycle check before this
 		// recorder can remove its telemetry.
 		return true
 	}
-	webhookID := strings.TrimPrefix(credentialKey, prefix)
 	if webhookID == "" {
 		return false
 	}
@@ -338,6 +420,18 @@ func (c *ChattoCore) credentialUsageIsActive(botID, credentialKey string) bool {
 
 // CreateBot creates a passwordless bot owned by actorID and returns its raw key once.
 func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName string) (*Bot, error) {
+	return c.CreateBotWithAPIKeyName(ctx, actorID, login, displayName, defaultBotAPIKeyName)
+}
+
+// CreateBotWithAPIKeyName creates a bot and names its initial show-once API key.
+func (c *ChattoCore) CreateBotWithAPIKeyName(ctx context.Context, actorID, login, displayName, apiKeyName string) (*Bot, error) {
+	if apiKeyName != "" && strings.TrimSpace(apiKeyName) == "" {
+		return nil, invalidArgument("bot API key name must contain 1 to 64 characters")
+	}
+	apiKeyName = normalizedBotAPIKeyName(apiKeyName)
+	if utf8.RuneCountInString(apiKeyName) > maxBotAPIKeyNameLength {
+		return nil, invalidArgument("bot API key name must contain 1 to 64 characters")
+	}
 	check := func() error {
 		if err := c.requireHumanUser(ctx, actorID); err != nil {
 			return err
@@ -356,10 +450,11 @@ func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName 
 	}
 	var apiKey string
 	user, err := c.createUserWithOptions(ctx, actorID, login, displayName, "", userCreationOptions{
-		isBot:        true,
-		botOwnerID:   actorID,
-		botAPIKeyOut: &apiKey,
-		authorize:    check,
+		isBot:         true,
+		botOwnerID:    actorID,
+		botAPIKeyOut:  &apiKey,
+		botAPIKeyName: apiKeyName,
+		authorize:     check,
 	})
 	if err != nil {
 		return nil, err
@@ -369,6 +464,7 @@ func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName 
 		return nil, err
 	}
 	bot.APIKey = apiKey
+	bot.APIKeyID = legacyBotAPIKeyID
 	return bot, nil
 }
 
@@ -417,11 +513,15 @@ func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, erro
 	return result, nil
 }
 
-// RotateBotAPIKey replaces the sole verifier. There is deliberately no retry:
-// concurrent rotations conflict so two callers cannot both receive keys while
-// only one remains current.
-func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string) (*Bot, error) {
-	key, err := NewBotAPIKey(botID)
+// CreateBotAPIKey creates one named show-once credential. The raw credential
+// is returned once and is never persisted.
+func (c *ChattoCore) CreateBotAPIKey(ctx context.Context, actorID, botID, name string) (*BotAPIKeyIssue, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || utf8.RuneCountInString(name) > maxBotAPIKeyNameLength {
+		return nil, invalidArgument("bot API key name must contain 1 to 64 characters")
+	}
+	keyID := NewBotAPIKeyID()
+	credential, err := NewBotAPIKey(botID)
 	if err != nil {
 		return nil, err
 	}
@@ -437,21 +537,28 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 		return nil, err
 	}
-	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key rotation"); err != nil {
+	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key creation"); err != nil {
 		return nil, err
 	}
-	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
+	rbacFilter := evtstream.RBACSubjectFilter()
+	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(evtstream.RBACSubjectFilter(), rbacSeq)); err != nil {
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
 		return nil, err
 	}
-	if _, err := c.requireBotManager(ctx, actorID, botID); err != nil {
+	user, err := c.requireBotManager(ctx, actorID, botID)
+	if err != nil {
 		return nil, err
 	}
-	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyRotated{
-		BotApiKeyRotated: &evtv1.BotApiKeyRotatedEvent{UserId: botID, Verifier: c.botAPIKeyVerifier(key)},
+	if len(c.userModel.botAPIKeyCredentials(botID)) >= maxBotAPIKeys {
+		return nil, invalidArgument("a bot can have at most 20 active API keys")
+	}
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyAdded{
+		BotApiKeyAdded: &evtv1.BotApiKeyAddedEvent{
+			UserId: botID, KeyId: keyID, Name: name, Verifier: c.botAPIKeyVerifier(credential),
+		},
 	}})
 	subject := evtstream.UserAggregate(botID).SubjectFor(event)
 	seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
@@ -463,16 +570,93 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
 		return nil, err
 	}
-	user, err := c.GetUser(ctx, botID)
-	if err != nil {
-		return nil, err
-	}
 	bot, err := c.botFromUser(user)
 	if err != nil {
 		return nil, err
 	}
-	bot.APIKey = key
-	return bot, nil
+	for i := range bot.APIKeys {
+		if bot.APIKeys[i].ID == keyID {
+			bot.APIKeys[i].LastUsedState = BotCredentialLastUsedNoUseRecorded
+		}
+	}
+	return &BotAPIKeyIssue{Bot: bot, KeyID: keyID, Credential: credential}, nil
+}
+
+// RevokeBotAPIKey irreversibly invalidates one credential. Repeated calls for
+// the same well-formed ID are idempotent.
+func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID, keyID string) (*Bot, error) {
+	if !isCanonicalBotAPIKeyID(keyID) {
+		return nil, invalidArgument("invalid bot API key ID")
+	}
+	authorizationSeq, err := c.authorizationFenceSeq(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := evtstream.UserAggregate(botID).AllEventsFilter()
+	filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
+		return nil, err
+	}
+	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key revocation"); err != nil {
+		return nil, err
+	}
+	rbacFilter := evtstream.RBACSubjectFilter()
+	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
+		return nil, err
+	}
+	user, err := c.requireBotManager(ctx, actorID, botID)
+	if err != nil {
+		return nil, err
+	}
+	var selected BotAPIKeyCredential
+	for _, credential := range c.userModel.botAPIKeyCredentials(botID) {
+		if credential.ID == keyID {
+			selected = credential
+			break
+		}
+	}
+	if selected.ID == "" {
+		return c.botFromUser(user)
+	}
+
+	var event *evtv1.Event
+	if selected.RollbackVisible {
+		// Older binaries understand only replace-all rotation. An unissued
+		// verifier prevents this revoked raw key from becoming valid after a
+		// rollback, while current projections revoke only the selected key.
+		rollbackFence, err := NewBotAPIKey(botID)
+		if err != nil {
+			return nil, err
+		}
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyRotated{
+			BotApiKeyRotated: &evtv1.BotApiKeyRotatedEvent{
+				UserId: botID, Verifier: c.botAPIKeyVerifier(rollbackFence), RevokedKeyId: keyID,
+			},
+		}})
+	} else {
+		event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyRevoked{
+			BotApiKeyRevoked: &evtv1.BotApiKeyRevokedEvent{UserId: botID, KeyId: keyID},
+		}})
+	}
+	subject := evtstream.UserAggregate(botID).SubjectFor(event)
+	seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
+	}}, authorizationSeq)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
+		return nil, err
+	}
+	c.credentialUsage.Forget(ctx, botID, botAPIKeyUsageKey(keyID))
+	return c.botFromUser(user)
 }
 
 type botIncomingWebhookMutation int

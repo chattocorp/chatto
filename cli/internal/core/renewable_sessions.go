@@ -19,10 +19,11 @@ import (
 )
 
 const (
-	renewableSessionKeyPrefix = "renewable_session."
-	refreshTokenPrefix        = "cht_RT_"
-	accessTokenPrefix         = "cht_AT"
-	refreshRecoveryClockSkew  = time.Minute
+	renewableSessionKeyPrefix  = "renewable_session."
+	refreshTokenPrefix         = "cht_RT_"
+	resourceRefreshTokenPrefix = "cht_RRT_"
+	accessTokenPrefix          = "cht_AT"
+	refreshRecoveryClockSkew   = time.Minute
 )
 
 var refreshRequestIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -56,15 +57,17 @@ type BearerSessionCredentials struct {
 // one human bearer login. CurrentGeneration and the KV revision jointly fence
 // refresh-token rotation across replicas.
 type RenewableSession struct {
-	UserID            string                       `json:"user_id"`
-	ClientID          string                       `json:"client_id,omitempty"`
-	Kind              AuthTokenKind                `json:"kind"`
-	Source            string                       `json:"source,omitempty"`
+	UserID            string                      `json:"user_id"`
+	ClientID          string                      `json:"client_id,omitempty"`
+	Resource          string                      `json:"resource,omitempty"`
+	Scopes            []string                    `json:"scopes,omitempty"`
+	Kind              AuthTokenKind               `json:"kind"`
+	Source            string                      `json:"source,omitempty"`
 	Request           *evtv1.AuditRequestMetadata `json:"request,omitempty"`
-	CreatedAt         time.Time                    `json:"created_at"`
-	ExpiresAt         time.Time                    `json:"expires_at"`
-	AuthGeneration    uint64                       `json:"auth_generation"`
-	CurrentGeneration uint64                       `json:"current_generation"`
+	CreatedAt         time.Time                   `json:"created_at"`
+	ExpiresAt         time.Time                   `json:"expires_at"`
+	AuthGeneration    uint64                      `json:"auth_generation"`
+	CurrentGeneration uint64                      `json:"current_generation"`
 	// LastRefreshRequestVerifier is a purpose-separated HMAC of the show-once
 	// recovery nonce. The raw nonce must not enter runtime state or backups.
 	LastRefreshRequestVerifier string    `json:"last_refresh_request_verifier,omitempty"`
@@ -109,30 +112,52 @@ func (c *ChattoCore) accessTokenForGeneration(sessionID string, generation uint6
 	return accessTokenPrefix + base64.RawURLEncoding.EncodeToString(c.credentialMAC("bearer-access-v1", sessionID, generation))
 }
 
-func (c *ChattoCore) refreshTokenForGeneration(sessionID string, generation uint64) string {
-	signature := base64.RawURLEncoding.EncodeToString(c.credentialMAC("bearer-refresh-v1", sessionID, generation))
-	return refreshTokenPrefix + sessionID + "." + strconv.FormatUint(generation, 10) + "." + signature
+func (c *ChattoCore) refreshTokenForGeneration(sessionID string, generation uint64, resourceBound bool) string {
+	prefix := refreshTokenPrefix
+	purpose := "bearer-refresh-v1"
+	if resourceBound {
+		prefix = resourceRefreshTokenPrefix
+		purpose = "resource-bearer-refresh-v1"
+	}
+	signature := base64.RawURLEncoding.EncodeToString(c.credentialMAC(purpose, sessionID, generation))
+	return prefix + sessionID + "." + strconv.FormatUint(generation, 10) + "." + signature
 }
 
 func (c *ChattoCore) parseRefreshToken(token string) (string, uint64, bool) {
+	sessionID, generation, _, ok := c.parseRefreshTokenDetails(token)
+	return sessionID, generation, ok
+}
+
+func (c *ChattoCore) parseRefreshTokenDetails(token string) (string, uint64, bool, bool) {
 	raw, ok := strings.CutPrefix(token, refreshTokenPrefix)
+	resourceBound := false
+	purpose := "bearer-refresh-v1"
 	if !ok {
-		return "", 0, false
+		raw, ok = strings.CutPrefix(token, resourceRefreshTokenPrefix)
+		resourceBound = ok
+		purpose = "resource-bearer-refresh-v1"
+	}
+	if !ok {
+		return "", 0, false, false
 	}
 	parts := strings.Split(raw, ".")
 	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
-		return "", 0, false
+		return "", 0, false, false
 	}
 	generation, err := strconv.ParseUint(parts[1], 10, 64)
 	if err != nil {
-		return "", 0, false
+		return "", 0, false, false
 	}
-	expected := c.credentialMAC("bearer-refresh-v1", parts[0], generation)
+	expected := c.credentialMAC(purpose, parts[0], generation)
 	presented, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil || subtle.ConstantTimeCompare(presented, expected) != 1 {
-		return "", 0, false
+		return "", 0, false, false
 	}
-	return parts[0], generation, true
+	return parts[0], generation, resourceBound, true
+}
+
+func renewableSessionIsResourceBound(session RenewableSession) bool {
+	return session.Resource != "" || len(session.Scopes) > 0
 }
 
 func validRefreshRequestID(requestID string) bool {
@@ -169,10 +194,16 @@ func (c *ChattoCore) CreateBearerSessionWithSourceGeneration(ctx context.Context
 // CreateOAuthBearerSessionForClient creates a renewable delegated bearer
 // session bound to the public OAuth client that completed authorization.
 func (c *ChattoCore) CreateOAuthBearerSessionForClient(ctx context.Context, userID, clientID string, authGeneration uint64) (BearerSessionCredentials, error) {
+	return c.CreateOAuthBearerSessionForClientGrant(ctx, userID, clientID, "", nil, authGeneration)
+}
+
+// CreateOAuthBearerSessionForClientGrant creates a delegated bearer session
+// bound to one OAuth resource and its normalized scope set.
+func (c *ChattoCore) CreateOAuthBearerSessionForClientGrant(ctx context.Context, userID, clientID, resource string, scopes []string, authGeneration uint64) (BearerSessionCredentials, error) {
 	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
 		return BearerSessionCredentials{}, err
 	}
-	credentials, err := c.createBearerSession(ctx, userID, clientID, "oauth_code_exchange", authGeneration)
+	credentials, err := c.createBearerSessionForGrant(ctx, userID, clientID, resource, scopes, "oauth_code_exchange", authGeneration)
 	if err != nil {
 		return BearerSessionCredentials{}, err
 	}
@@ -184,6 +215,10 @@ func (c *ChattoCore) CreateOAuthBearerSessionForClient(ctx context.Context, user
 }
 
 func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, source string, authGeneration uint64) (BearerSessionCredentials, error) {
+	return c.createBearerSessionForGrant(ctx, userID, clientID, "", nil, source, authGeneration)
+}
+
+func (c *ChattoCore) createBearerSessionForGrant(ctx context.Context, userID, clientID, resource string, scopes []string, source string, authGeneration uint64) (BearerSessionCredentials, error) {
 	if userID == "" {
 		return BearerSessionCredentials{}, ErrAuthTokenNotFound
 	}
@@ -205,6 +240,8 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 	session := RenewableSession{
 		UserID:            userID,
 		ClientID:          clientID,
+		Resource:          resource,
+		Scopes:            append([]string(nil), scopes...),
 		Kind:              authTokenKindForSource(source),
 		Source:            source,
 		Request:           auditRequestMetadata(ctx),
@@ -242,7 +279,7 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 func (c *ChattoCore) credentialsForGeneration(sessionID string, session RenewableSession, issuedAt time.Time) BearerSessionCredentials {
 	return BearerSessionCredentials{
 		AccessToken:          c.accessTokenForGeneration(sessionID, session.CurrentGeneration),
-		RefreshToken:         c.refreshTokenForGeneration(sessionID, session.CurrentGeneration),
+		RefreshToken:         c.refreshTokenForGeneration(sessionID, session.CurrentGeneration, renewableSessionIsResourceBound(session)),
 		AccessTokenExpiresAt: c.bearerAccessExpiresAt(session, issuedAt),
 		SessionExpiresAt:     session.ExpiresAt,
 	}
@@ -266,8 +303,10 @@ func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID stri
 	data := AuthTokenData{
 		UserID:             session.UserID,
 		ClientID:           session.ClientID,
+		Resource:           session.Resource,
+		Scopes:             append([]string(nil), session.Scopes...),
 		Kind:               session.Kind,
-		Presentation:       AuthTokenPresentationBearer,
+		Presentation:       accessTokenPresentationForSession(session),
 		Source:             session.Source,
 		Request:            session.Request,
 		CreatedAt:          issuedAt,
@@ -290,6 +329,13 @@ func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID stri
 		}
 	}
 	return nil
+}
+
+func accessTokenPresentationForSession(session RenewableSession) AuthTokenPresentation {
+	if renewableSessionIsResourceBound(session) {
+		return AuthTokenPresentationResourceBearer
+	}
+	return AuthTokenPresentationBearer
 }
 
 func (c *ChattoCore) loadRenewableSession(ctx context.Context, sessionID string) (RenewableSession, jetstream.KeyValueEntry, error) {
@@ -350,7 +396,7 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 	if !validRefreshRequestID(requestID) {
 		return BearerSessionCredentials{}, ErrRefreshRequestIDInvalid
 	}
-	sessionID, presentedGeneration, ok := c.parseRefreshToken(refreshToken)
+	sessionID, presentedGeneration, resourceBound, ok := c.parseRefreshTokenDetails(refreshToken)
 	if !ok {
 		return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 	}
@@ -363,6 +409,9 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 		}
 		if session.ClientID != clientID {
 			return BearerSessionCredentials{}, ErrRefreshTokenClientMismatch
+		}
+		if renewableSessionIsResourceBound(session) != resourceBound {
+			return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 		}
 
 		if presentedGeneration != session.CurrentGeneration {
@@ -461,7 +510,7 @@ func (c *ChattoCore) RevokeRefreshTokenWithReason(ctx context.Context, refreshTo
 // the owning user when the presented refresh credential was authentic and the
 // session still existed.
 func (c *ChattoCore) RevokeRefreshTokenWithReasonResult(ctx context.Context, refreshToken, reason string) (string, bool, error) {
-	sessionID, _, ok := c.parseRefreshToken(refreshToken)
+	sessionID, _, resourceBound, ok := c.parseRefreshTokenDetails(refreshToken)
 	if !ok {
 		return "", false, nil
 	}
@@ -471,6 +520,9 @@ func (c *ChattoCore) RevokeRefreshTokenWithReasonResult(ctx context.Context, ref
 			return "", false, nil
 		}
 		return "", false, err
+	}
+	if renewableSessionIsResourceBound(session) != resourceBound {
+		return "", false, nil
 	}
 	if err := c.revokeRenewableSession(ctx, sessionID, reason); err != nil {
 		return "", false, err

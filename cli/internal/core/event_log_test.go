@@ -56,6 +56,25 @@ func TestMarshalEventLogPayloadJSONRedactsBotAPIKeyVerifier(t *testing.T) {
 	}
 }
 
+func TestMarshalEventLogPayloadJSONRedactsAddedBotAPIKeyVerifier(t *testing.T) {
+	verifier := []byte("named-bot-api-key-verifier")
+	event := &evtv1.Event{Event: &evtv1.Event_BotApiKeyAdded{
+		BotApiKeyAdded: &evtv1.BotApiKeyAddedEvent{
+			UserId: "bot-user", KeyId: "Kcredential", Name: "Production", Verifier: append([]byte(nil), verifier...),
+		},
+	}}
+	payload, err := marshalEventLogPayloadJSON(event)
+	if err != nil {
+		t.Fatalf("marshalEventLogPayloadJSON: %v", err)
+	}
+	if strings.Contains(string(payload), "verifier") || strings.Contains(string(payload), string(verifier)) {
+		t.Fatalf("audit payload contains named bot verifier: %s", payload)
+	}
+	if !bytes.Equal(event.GetBotApiKeyAdded().GetVerifier(), verifier) {
+		t.Fatal("durable named bot verifier was mutated")
+	}
+}
+
 func TestMarshalEventLogPayloadJSONRedactsBotIncomingWebhookVerifier(t *testing.T) {
 	verifier := []byte("bot-incoming-webhook-verifier")
 	event := &evtv1.Event{Event: &evtv1.Event_BotIncomingWebhookCreated{

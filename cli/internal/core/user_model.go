@@ -174,8 +174,16 @@ func (m *UserModel) authGeneration(userID string) (uint64, bool) {
 	return m.auth.Projection().AuthGeneration(userID)
 }
 
-func (m *UserModel) botAPIKeyCredential(userID string) (BotAPIKeyCredential, bool) {
-	return m.auth.Projection().BotAPIKeyCredential(userID)
+func (m *UserModel) matchBotAPIKeyCredential(userID string, verifier []byte) (BotAPIKeyCredential, bool) {
+	return m.auth.Projection().MatchBotAPIKeyCredential(userID, verifier)
+}
+
+func (m *UserModel) botAPIKeyCredentials(userID string) []BotAPIKeyCredential {
+	return m.auth.Projection().BotAPIKeyCredentials(userID)
+}
+
+func (m *UserModel) botAPIKeyLegacyCreatedAt(userID string) time.Time {
+	return m.auth.Projection().BotAPIKeyLegacyCreatedAt(userID)
 }
 
 func (m *UserModel) botIncomingWebhookCredential(userID, webhookID string) (BotIncomingWebhookCredential, bool) {

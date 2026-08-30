@@ -132,14 +132,14 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 			// Keep the raw key out of the request context after verification. Bot
 			// keys do not support freshness or per-session lifecycle operations.
 			// Keep only the bot ID and non-secret verifier generation so long-lived
-			// transports can observe a later durable rotation.
+			// transports can observe a later durable revocation.
 			auth: authctx.RuntimeCredential{
 				Kind: authctx.RuntimeCredentialKindBotAPIKey, UserID: user.GetId(), Handle: user.GetId(),
 				BotAPIKeyVerifier: append([]byte(nil), verifier...),
 			},
 		}, true, nil
 	}
-	credential, err := s.core.ValidatePresentedRuntimeCredential(ctx, token, core.AuthTokenPresentationBearer)
+	credential, err := s.core.ValidatePublicBearerCredential(ctx, token)
 	if err != nil {
 		if errors.Is(err, core.ErrAuthTokenNotFound) {
 			return presentedRuntimeCredential{}, false, nil

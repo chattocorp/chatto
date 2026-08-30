@@ -379,6 +379,23 @@ func TestChattoConfig_Validate_AccountCreationPolicy(t *testing.T) {
 	}
 }
 
+func TestChattoConfig_Validate_MCPRequiresPublicWebserverURL(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = ""
+	cfg.MCP.Enabled = true
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required when MCP is enabled") {
+		t.Fatalf("Validate() = %v, want missing webserver.url error", err)
+	}
+}
+
+func TestChattoConfig_MCPResourceURLUsesPublicOrigin(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = "https://chat.example/configured-path"
+	if got, want := cfg.MCPResourceURL(), "https://chat.example/mcp"; got != want {
+		t.Fatalf("MCPResourceURL() = %q, want %q", got, want)
+	}
+}
+
 func TestChattoConfig_ApplyDefaultsAndNormalize(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.Webserver.URL = "https://chat.example"

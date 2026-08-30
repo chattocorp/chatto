@@ -7,6 +7,7 @@ const serverFeatureMinimumVersions = {
   adminApi: '0.5.0-0',
   botAccounts: '0.5.0-0',
   botIncomingWebhooks: '0.5.0-0',
+  botMultipleApiKeys: '0.5.0-alpha.4',
   botOwnerReassignment: '0.5.0-0',
   messageSearch: '0.5.0-0',
   neighbors: '0.5.0-0',

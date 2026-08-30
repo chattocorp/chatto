@@ -185,11 +185,61 @@ func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.
 		t.Fatalf("new incoming webhook usage = %+v", issued.Bot.IncomingWebhooks)
 	}
 	c.HydrateBotCredentialUsage(ctx, issued.Bot)
+	if issued.Bot.APIKeys[0].LastUsedState != BotCredentialLastUsedUnavailable {
+		t.Fatalf("API key usage = %+v", issued.Bot.APIKeys)
+	}
 	if issued.Bot.IncomingWebhooks[0].LastUsedState != BotCredentialLastUsedUnavailable {
 		t.Fatalf("incoming webhook usage = %+v", issued.Bot.IncomingWebhooks)
 	}
 	if authenticated, err := c.ValidateBotIncomingWebhookCredential(ctx, issued.Credential); err != nil || authenticated.GetId() != bot.User.GetId() {
 		t.Fatalf("ValidateBotIncomingWebhookCredential = %+v, %v", authenticated, err)
+	}
+}
+
+func TestBotAPIKeyAuthenticationRecordsAndRevocationForgetsUsage(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "api-key-usage-owner", "API-key Usage Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "api_key_usage_bot", "API-key Usage Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	issued, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Production")
+	if err != nil {
+		t.Fatalf("CreateBotAPIKey: %v", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, issued.Credential); err != nil {
+		t.Fatalf("ValidateBotAPIKey: %v", err)
+	}
+	managed, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("GetBot: %v", err)
+	}
+	c.HydrateBotCredentialUsage(ctx, managed)
+	found := false
+	for _, key := range managed.APIKeys {
+		if key.ID == issued.KeyID {
+			found = true
+			if key.LastUsedState != BotCredentialLastUsedRecorded || key.LastUsedAt.IsZero() {
+				t.Fatalf("recorded API-key usage = %+v", key)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("issued key %q missing from %+v", issued.KeyID, managed.APIKeys)
+	}
+	if _, err := c.RevokeBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), issued.KeyID); err != nil {
+		t.Fatalf("RevokeBotAPIKey: %v", err)
+	}
+	lastUsed, available := c.credentialUsage.LastUsed(ctx, bot.User.GetId())
+	if !available {
+		t.Fatal("credential usage became unavailable")
+	}
+	if _, exists := lastUsed[botAPIKeyUsageKey(issued.KeyID)]; exists {
+		t.Fatalf("revoked API-key usage remained: %+v", lastUsed)
 	}
 }
 
@@ -214,12 +264,12 @@ func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.
 	if issued.Bot.IncomingWebhooks[0].LastUsedState != BotCredentialLastUsedNoUseRecorded || !issued.Bot.IncomingWebhooks[0].LastUsedAt.IsZero() {
 		t.Fatalf("new webhook usage = %+v, want no recorded use", issued.Bot.IncomingWebhooks[0])
 	}
-	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
+	key, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Production")
 	if err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
+		t.Fatalf("CreateBotAPIKey: %v", err)
 	}
-	if got := rotated.IncomingWebhooks[0].LastUsedState; got != BotCredentialLastUsedUnspecified {
-		t.Fatalf("unhydrated rotated webhook state = %v, want unspecified", got)
+	if got := key.Bot.IncomingWebhooks[0].LastUsedState; got != BotCredentialLastUsedUnspecified {
+		t.Fatalf("unhydrated API-key issuance webhook state = %v, want unspecified", got)
 	}
 	if _, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("GetBot: %v", err)

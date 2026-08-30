@@ -100,7 +100,7 @@ current projections and guards every state boundary that it used.
 group or leave a deleted group in the authoritative order. Reconciliation can
 hide an incomplete state, but it cannot add the missing durable fact to EVT.
 **Tradeoff:** These commands can retry when a concurrent room, group, layout, or
-authorization change advances one of their OCC boundaries. See ADR-085.
+authorization change advances one of their OCC boundaries. See ADR-086.
 
 ## Permissions
 
@@ -114,5 +114,5 @@ authorization change advances one of their OCC boundaries. See ADR-085.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-085 (atomic room-layout structural mutations)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

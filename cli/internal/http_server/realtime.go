@@ -714,7 +714,7 @@ func terminateRealtimeForCookieRenewal(
 
 // terminateRealtimeForBotAPIKeyInvalidation cancels authorized work before
 // writing a terminal frame. The key generation is watched through the durable
-// user-auth projection, so rotation reaches sockets on every replica.
+// user-auth projection, so revocation reaches sockets on every replica.
 func terminateRealtimeForBotAPIKeyInvalidation(
 	cancel context.CancelFunc,
 	writeFrame func(*realtimev1.RealtimeServerFrame) error,
@@ -724,7 +724,7 @@ func terminateRealtimeForBotAPIKeyInvalidation(
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
 			Code:      "authentication_required",
-			Message:   "the bot API key has been rotated",
+			Message:   "the bot API key is no longer valid",
 			Reconnect: false,
 		},
 	}})
@@ -841,7 +841,7 @@ func (s *HTTPServer) revalidateRealtimeCredential(ctx context.Context) error {
 			return core.ErrNotAuthenticated
 		}
 	case authctx.RuntimeCredentialKindBearerToken:
-		validated, err := s.core.ValidatePresentedRuntimeCredential(ctx, credential.Handle, core.AuthTokenPresentationBearer)
+		validated, err := s.core.ValidatePublicBearerCredential(ctx, credential.Handle)
 		if err != nil {
 			if errors.Is(err, core.ErrAuthTokenNotFound) {
 				return core.ErrNotAuthenticated

@@ -9,7 +9,9 @@
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { CopyId } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
-  import ShowOnceCredentialDialog from '$lib/components/bots/ShowOnceCredentialDialog.svelte';
+  import BotCredentialSection, {
+    type BotCredentialSectionItem
+  } from '$lib/components/bots/BotCredentialSection.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
@@ -21,7 +23,7 @@
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ConfirmDialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
-  import { Button, TextInput } from '$lib/ui/form';
+  import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { onDestroy } from 'svelte';
@@ -31,6 +33,9 @@
   const supportsBots = $derived(serverScope.store.serverInfo.supportsFeature('botAccounts'));
   const supportsIncomingWebhooks = $derived(
     serverScope.store.serverInfo.supportsFeature('botIncomingWebhooks')
+  );
+  const supportsMultipleAPIKeys = $derived(
+    serverScope.store.serverInfo.supportsFeature('botMultipleApiKeys')
   );
   const supportsOwnerReassignment = $derived(
     serverScope.store.serverInfo.supportsFeature('botOwnerReassignment')
@@ -80,18 +85,6 @@
     `${serverScope.serverId}:${serverScope.connection.queryScope}:${botId}`
   );
   let componentActive = true;
-  let apiKeyVisible = $state(false);
-  let apiKey = $state('');
-  let rotateVisible = $state(false);
-  let rotateLoading = $state(false);
-  let webhookURLVisible = $state(false);
-  let webhookURL = $state('');
-  let createWebhookVisible = $state(false);
-  let createWebhookName = $state('');
-  let createWebhookLoading = $state(false);
-  let revokeWebhookVisible = $state(false);
-  let revokeWebhookId = $state('');
-  let revokeWebhookLoading = $state(false);
   let deleteVisible = $state(false);
   let deleteLoading = $state(false);
   let reassignVisible = $state(false);
@@ -104,7 +97,6 @@
     componentActive = false;
   });
 
-  const normalizedWebhookName = $derived(createWebhookName.trim());
   const timeSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
@@ -134,78 +126,75 @@
     });
   }
 
-  async function rotateKey() {
-    if (!bot) return;
+  async function createAPIKey(name: string): Promise<string | null> {
+    if (!bot) return null;
     const mutationTarget = targetKey;
-    rotateLoading = true;
     try {
-      const rotated = await botAPI().rotateBotAPIKey(bot.id);
-      if (!isCurrentTarget(mutationTarget)) return;
-      rotateVisible = false;
-      apiKey = rotated.apiKey;
-      apiKeyVisible = true;
+      const created = await botAPI().createBotAPIKey(bot.id, name);
+      if (!isCurrentTarget(mutationTarget)) return null;
       refreshBot();
-      toast.success(m('settings.bots.key_rotated'));
+      toast.success(m('settings.bots.key_created_toast'));
+      return created.apiKey;
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
-        toast.error(error instanceof Error ? error.message : m('settings.bots.rotate_failed'));
+        toast.error(error instanceof Error ? error.message : m('settings.bots.key_create_failed'));
       }
-    } finally {
-      if (isCurrentTarget(mutationTarget)) rotateLoading = false;
+      return null;
     }
   }
 
-  function openCreateWebhook() {
-    createWebhookName = '';
-    createWebhookVisible = true;
+  async function revokeAPIKey(keyId: string): Promise<boolean> {
+    if (!bot) return false;
+    const mutationTarget = targetKey;
+    try {
+      const updated = await botAPI().revokeBotAPIKey(bot.id, keyId);
+      if (!isCurrentTarget(mutationTarget)) return false;
+      cacheBot(updated);
+      toast.success(m('settings.bots.key_revoked'));
+      return true;
+    } catch (error) {
+      if (isCurrentTarget(mutationTarget)) {
+        toast.error(error instanceof Error ? error.message : m('settings.bots.key_revoke_failed'));
+      }
+      return false;
+    }
   }
 
-  async function createWebhook() {
-    if (!bot || !normalizedWebhookName) return;
+  async function createWebhook(name: string): Promise<string | null> {
+    if (!bot) return null;
     const mutationTarget = targetKey;
-    createWebhookLoading = true;
     try {
-      const created = await botAPI().createBotIncomingWebhook(bot.id, normalizedWebhookName);
-      if (!isCurrentTarget(mutationTarget)) return;
-      createWebhookVisible = false;
-      webhookURL = created.webhookUrl;
-      webhookURLVisible = true;
+      const created = await botAPI().createBotIncomingWebhook(bot.id, name);
+      if (!isCurrentTarget(mutationTarget)) return null;
       refreshBot();
       toast.success(m('settings.bots.webhook_created'));
+      return created.webhookUrl;
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
         toast.error(
           error instanceof Error ? error.message : m('settings.bots.webhook_create_failed')
         );
       }
-    } finally {
-      if (isCurrentTarget(mutationTarget)) createWebhookLoading = false;
+      return null;
     }
   }
 
-  function openRevokeWebhook(webhookId: string) {
-    revokeWebhookId = webhookId;
-    revokeWebhookVisible = true;
-  }
-
-  async function revokeWebhook() {
-    if (!bot || !revokeWebhookId) return;
+  async function revokeWebhook(webhookId: string): Promise<boolean> {
+    if (!bot) return false;
     const mutationTarget = targetKey;
-    revokeWebhookLoading = true;
     try {
-      const updated = await botAPI().revokeBotIncomingWebhook(bot.id, revokeWebhookId);
-      if (!isCurrentTarget(mutationTarget)) return;
+      const updated = await botAPI().revokeBotIncomingWebhook(bot.id, webhookId);
+      if (!isCurrentTarget(mutationTarget)) return false;
       cacheBot(updated);
-      revokeWebhookVisible = false;
       toast.success(m('settings.bots.webhook_revoked'));
+      return true;
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
         toast.error(
           error instanceof Error ? error.message : m('settings.bots.webhook_revoke_failed')
         );
       }
-    } finally {
-      if (isCurrentTarget(mutationTarget)) revokeWebhookLoading = false;
+      return false;
     }
   }
 
@@ -277,15 +266,44 @@
     return value ? formatDateTime(value, timeSettings, activeLocale) : '—';
   }
 
-  function formatWebhookLastUsed(webhook: Bot['incomingWebhooks'][number]): string {
-    if (webhook.lastUsedState === 'unavailable') {
-      return m('settings.bots.webhook_last_used_unavailable');
+  function formatLastUsed(
+    credential: Pick<Bot['apiKeys'][number], 'lastUsedState' | 'lastUsedAt'>,
+    unavailable: string,
+    noUseRecorded: string
+  ): string {
+    if (credential.lastUsedState === 'unavailable') {
+      return unavailable;
     }
-    if (webhook.lastUsedState === 'no_use_recorded' || !webhook.lastUsedAt) {
-      return m('settings.bots.webhook_no_use_recorded');
+    if (credential.lastUsedState === 'no_use_recorded' || !credential.lastUsedAt) {
+      return noUseRecorded;
     }
-    return formatDate(webhook.lastUsedAt);
+    return formatDate(credential.lastUsedAt);
   }
+
+  const apiKeyItems = $derived<BotCredentialSectionItem[]>(
+    (bot?.apiKeys ?? []).map((key) => ({
+      id: key.id,
+      name: key.name,
+      createdAt: formatDate(key.createdAt),
+      lastUsed: formatLastUsed(
+        key,
+        m('settings.bots.key_last_used_unavailable'),
+        m('settings.bots.key_no_use_recorded')
+      )
+    }))
+  );
+  const webhookItems = $derived<BotCredentialSectionItem[]>(
+    (bot?.incomingWebhooks ?? []).map((webhook) => ({
+      id: webhook.id,
+      name: webhook.name || m('settings.bots.webhook_title'),
+      createdAt: formatDate(webhook.createdAt),
+      lastUsed: formatLastUsed(
+        webhook,
+        m('settings.bots.webhook_last_used_unavailable'),
+        m('settings.bots.webhook_no_use_recorded')
+      )
+    }))
+  );
 </script>
 
 <PageTitle
@@ -309,10 +327,6 @@
     <div class="flex flex-col gap-6">
       <Panel title={bot.displayName} subtitle={`@${bot.login}`}>
         {#snippet actions()}
-          <Button size="sm" variant="warning" onclick={() => (rotateVisible = true)}>
-            <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
-            {m('settings.bots.rotate_key')}
-          </Button>
           {#if canReassignOwner && supportsOwnerReassignment}
             <Button size="sm" variant="secondary" onclick={openReassignOwner}>
               <span class="iconify icon-[uil--exchange]" aria-hidden="true"></span>
@@ -345,77 +359,68 @@
               {/if}
             </dd>
           </div>
-          <div>
-            <dt class="text-muted">{m('settings.bots.key_created')}</dt>
-            <dd class="mt-1">{formatDate(bot.apiKeyCreatedAt)}</dd>
-          </div>
-          <div>
-            <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
-            <dd class="mt-1">{formatDate(bot.apiKeyRotatedAt)}</dd>
-          </div>
+          {#if !supportsMultipleAPIKeys}
+            <div>
+              <dt class="text-muted">{m('settings.bots.key_created')}</dt>
+              <dd class="mt-1">{formatDate(bot.apiKeyCreatedAt)}</dd>
+            </div>
+          {/if}
         </dl>
       </Panel>
 
-      {#if supportsIncomingWebhooks}
-        <Panel
-          title={m('settings.bots.webhook_title')}
-          subtitle={m('settings.bots.webhook_description')}
-          noPadding
-        >
-          {#snippet actions()}
-            <Button
-              size="sm"
-              disabled={bot.incomingWebhooks.length >= 20}
-              onclick={openCreateWebhook}
-            >
-              <span class="iconify icon-[uil--link-add]" aria-hidden="true"></span>
-              {m('settings.bots.webhook_create')}
-            </Button>
-          {/snippet}
-          {#if bot.incomingWebhooks.length > 0}
-            <div class="selectable-list" data-testid="bot-incoming-webhooks">
-              {#each bot.incomingWebhooks as webhook (webhook.id)}
-                <div
-                  class="flex flex-col gap-4 selectable-list-item px-5 py-4 sm:flex-row sm:items-center"
-                >
-                  <div class="min-w-0 flex-1">
-                    <div class="font-medium text-text-top">
-                      <bdi>{webhook.name || m('settings.bots.webhook_title')}</bdi>
-                    </div>
-                    <dl class="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-                      <div>
-                        <dt class="text-muted">{m('settings.bots.webhook_created_at')}</dt>
-                        <dd>{formatDate(webhook.createdAt)}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-muted">{m('settings.bots.webhook_last_used')}</dt>
-                        <dd>{formatWebhookLastUsed(webhook)}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                  <div class="flex shrink-0 justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="danger-secondary"
-                      onclick={() => openRevokeWebhook(webhook.id)}
-                    >
-                      <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
-                      {m('settings.bots.webhook_revoke')}
-                    </Button>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          {:else}
-            <div class="p-5 text-muted">{m('settings.bots.webhook_empty_description')}</div>
-          {/if}
-          {#if bot.incomingWebhooks.length >= 20}
-            <div class="border-t border-border px-5 py-3 text-muted">
-              {m('settings.bots.webhook_limit_reached')}
-            </div>
-          {/if}
-        </Panel>
-      {/if}
+      {#key targetKey}
+        {#if supportsMultipleAPIKeys}
+          <BotCredentialSection
+            idPrefix="bot-api-key"
+            testId="bot-api-keys"
+            items={apiKeyItems}
+            createIcon="iconify icon-[uil--key-skeleton]"
+            labels={{
+              title: m('settings.bots.key_title'),
+              description: m('settings.bots.key_description'),
+              create: m('settings.bots.key_create'),
+              name: m('settings.bots.key_name'),
+              createdAt: m('settings.bots.key_created_at'),
+              lastUsed: m('settings.bots.key_last_used'),
+              empty: m('settings.bots.key_empty_description'),
+              limitReached: m('settings.bots.key_limit_reached'),
+              revoke: m('settings.bots.key_revoke'),
+              revokeWarning: m('settings.bots.key_revoke_warning'),
+              issuedTitle: m('settings.bots.api_key_title'),
+              issuedWarning: m('settings.bots.api_key_warning'),
+              copied: m('settings.bots.key_copied')
+            }}
+            oncreate={createAPIKey}
+            onrevoke={revokeAPIKey}
+          />
+        {/if}
+
+        {#if supportsIncomingWebhooks}
+          <BotCredentialSection
+            idPrefix="bot-webhook"
+            testId="bot-incoming-webhooks"
+            items={webhookItems}
+            createIcon="iconify icon-[uil--link-add]"
+            labels={{
+              title: m('settings.bots.webhook_title'),
+              description: m('settings.bots.webhook_description'),
+              create: m('settings.bots.webhook_create'),
+              name: m('settings.bots.webhook_name'),
+              createdAt: m('settings.bots.webhook_created_at'),
+              lastUsed: m('settings.bots.webhook_last_used'),
+              empty: m('settings.bots.webhook_empty_description'),
+              limitReached: m('settings.bots.webhook_limit_reached'),
+              revoke: m('settings.bots.webhook_revoke'),
+              revokeWarning: m('settings.bots.webhook_revoke_warning'),
+              issuedTitle: m('settings.bots.webhook_url_title'),
+              issuedWarning: m('settings.bots.webhook_url_warning'),
+              copied: m('settings.bots.webhook_url_copied')
+            }}
+            oncreate={createWebhook}
+            onrevoke={revokeWebhook}
+          />
+        {/if}
+      {/key}
 
       <UserPermissionsMatrix
         userId={bot.id}
@@ -448,66 +453,6 @@
     bind:text={reassignOwnerText}
   />
 </FormDialog>
-
-<FormDialog
-  bind:visible={createWebhookVisible}
-  title={m('settings.bots.webhook_create')}
-  submitLabel={m('settings.bots.webhook_create')}
-  loading={createWebhookLoading}
-  disabled={!normalizedWebhookName}
-  onsubmit={createWebhook}
-  onclose={() => (createWebhookVisible = false)}
->
-  <TextInput
-    id="create-bot-webhook-name"
-    label={m('settings.bots.webhook_name')}
-    maxlength={64}
-    required
-    bind:value={createWebhookName}
-  />
-</FormDialog>
-
-<ShowOnceCredentialDialog
-  bind:visible={apiKeyVisible}
-  bind:value={apiKey}
-  pending={rotateLoading}
-  title={m('settings.bots.api_key_title')}
-  warning={m('settings.bots.api_key_warning')}
-  copiedMessage={m('settings.bots.key_copied')}
-/>
-
-<ShowOnceCredentialDialog
-  bind:visible={webhookURLVisible}
-  bind:value={webhookURL}
-  pending={createWebhookLoading}
-  title={m('settings.bots.webhook_url_title')}
-  warning={m('settings.bots.webhook_url_warning')}
-  copiedMessage={m('settings.bots.webhook_url_copied')}
-/>
-
-<ConfirmDialog
-  bind:visible={rotateVisible}
-  title={m('settings.bots.rotate_title')}
-  tone="warning"
-  actionLabel={m('settings.bots.rotate_key')}
-  actionIcon="iconify icon-[uil--refresh]"
-  loading={rotateLoading}
-  onconfirm={rotateKey}
-  onclose={() => (rotateVisible = false)}
->
-  {m('settings.bots.rotate_warning')}
-</ConfirmDialog>
-
-<ConfirmDialog
-  bind:visible={revokeWebhookVisible}
-  title={m('settings.bots.webhook_revoke')}
-  actionLabel={m('settings.bots.webhook_revoke')}
-  loading={revokeWebhookLoading}
-  onconfirm={revokeWebhook}
-  onclose={() => (revokeWebhookVisible = false)}
->
-  {m('settings.bots.webhook_revoke_warning')}
-</ConfirmDialog>
 
 <ConfirmDialog
   bind:visible={deleteVisible}

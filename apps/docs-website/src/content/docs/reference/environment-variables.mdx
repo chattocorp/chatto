@@ -133,6 +133,12 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Timeout for one S3 bucket-size refresh.
 </EnvVar>
 
+## Model Context Protocol
+
+<EnvVar name="CHATTO_MCP_ENABLED" toml="mcp.enabled" default="false">
+  Expose the experimental MCP routes on the public Chatto HTTP server. The canonical endpoint is the `webserver.url` origin with the `/mcp` path.
+</EnvVar>
+
 ## Shields
 
 <EnvVar name="CHATTO_WEBSERVER_SHIELDS_ENABLED" toml="webserver.shields.enabled" default="false">

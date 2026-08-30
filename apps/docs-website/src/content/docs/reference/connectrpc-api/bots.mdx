@@ -141,6 +141,7 @@ Request creation of a bot owned by the authenticated human caller.
 | --- | --- | --- |
 | `login` | `string` | Bot login. Must end in `_bot`. |
 | `display_name` | `string` | Public display name. |
+| `api_key_name` | `optional string` | Optional name for the initial API key. Defaults to "Default key". |
 
 
 <a id="chatto-api-v1-CreateBotResponse"></a>
@@ -153,13 +154,14 @@ Result of creating a bot. api_key is shown once and cannot be retrieved.
 | --- | --- | --- |
 | `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Created bot. |
 | `api_key` | `string` | Newly issued API key. |
+| `api_key_metadata` | [`BotApiKey`](/reference/connectrpc-api/types/#chatto-api-v1-BotApiKey) | Safe metadata for the newly issued API key. |
 
 
 <a id="chatto-api-v1-BotService-DeleteBot"></a>
 
 ### DeleteBot
 
-Deletes a bot and invalidates its API key.
+Deletes a bot and invalidates all of its API keys.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/DeleteBot
@@ -187,38 +189,73 @@ Result of deleting a bot account.
 | `deleted` | `bool` | True when the bot was deleted. |
 
 
-<a id="chatto-api-v1-BotService-RotateBotApiKey"></a>
+<a id="chatto-api-v1-BotService-CreateBotApiKey"></a>
 
-### RotateBotApiKey
+### CreateBotApiKey
 
-Rotates the bot's sole API key and immediately invalidates the old key.
+Creates one named API key. A bot can have at most 20 active API keys.
 
 ```http
-POST /api/connect/chatto.api.v1.BotService/RotateBotApiKey
+POST /api/connect/chatto.api.v1.BotService/CreateBotApiKey
 ```
 
-<a id="chatto-api-v1-RotateBotApiKeyRequest"></a>
+<a id="chatto-api-v1-CreateBotApiKeyRequest"></a>
 
-#### Input: RotateBotApiKeyRequest
+#### Input: CreateBotApiKeyRequest
 
-Request rotation of a bot's sole API key.
+Request creation of one named API key for a bot.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required bot user ID. |
+| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
 
 
-<a id="chatto-api-v1-RotateBotApiKeyResponse"></a>
+<a id="chatto-api-v1-CreateBotApiKeyResponse"></a>
 
-#### Result: RotateBotApiKeyResponse
+#### Result: CreateBotApiKeyResponse
 
-Result of rotating a bot API key. api_key is shown once and cannot be
+Result of creating one API key. api_key is shown once and cannot be
 retrieved later.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
 | `api_key` | `string` | Newly issued API key. |
+| `api_key_metadata` | [`BotApiKey`](/reference/connectrpc-api/types/#chatto-api-v1-BotApiKey) | Safe metadata for the newly issued API key. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotApiKey"></a>
+
+### RevokeBotApiKey
+
+Revokes one API key without changing other active keys.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotApiKey
+```
+
+<a id="chatto-api-v1-RevokeBotApiKeyRequest"></a>
+
+#### Input: RevokeBotApiKeyRequest
+
+Request irreversible revocation of one bot API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `key_id` | `string` | Required API-key credential ID. |
+
+
+<a id="chatto-api-v1-RevokeBotApiKeyResponse"></a>
+
+#### Result: RevokeBotApiKeyResponse
+
+Result of revoking one bot API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
 
 
 <a id="chatto-api-v1-BotService-CreateBotIncomingWebhook"></a>
@@ -295,7 +332,7 @@ Result of revoking an incoming webhook.
 ### ReassignBotOwner
 
 Reassigns a bot to another active human owner. Requires bot.manage. The
-current API key and configured permission allowlist remain unchanged,
+current API keys and configured permission allowlist remain unchanged,
 while effective permissions immediately use the new owner's ceiling.
 
 ```http
@@ -318,7 +355,7 @@ Request an administrative reassignment of a bot to another human owner.
 
 #### Result: ReassignBotOwnerResponse
 
-Result of reassigning a bot owner. The bot's API key and configured
+Result of reassigning a bot owner. The bot's API keys and configured
 permission allowlist are unchanged.
 
 | Field | Type | Description |

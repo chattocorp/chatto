@@ -16,14 +16,15 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
-`chatto run` composes optional runtime units from a validated catalogue. Each
-registration supplies the same `runtimeunit.Unit` used by its standalone
-command plus a config predicate controlling whether it starts in the main
-process. The exporter, bundled search provider, and asset-processing worker are
-registered units. An embedded unit failure is logged and degrades that optional
-capability without stopping the core server. The catalogue supervisor restarts
-it with exponential backoff capped at 30 seconds, while the same failure still
-exits a standalone unit for its process supervisor.
+`chatto run` composes optional runtime units from a validated catalogue. A
+registration supplies a `runtimeunit.Unit` plus a config predicate that
+controls whether it starts in the main process. Standalone-capable units also
+use the same implementation in a standalone command. The exporter, bundled
+search provider, and asset-processing worker are registered units. An embedded
+unit failure is logged and degrades that optional capability without stopping
+the core server. The catalogue supervisor restarts it with exponential backoff
+capped at 30 seconds. A standalone-capable unit failure still exits for its
+process supervisor.
 Independently deployable providers use this catalogue rather than adding
 custom startup blocks.
 

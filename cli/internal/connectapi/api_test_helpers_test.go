@@ -134,7 +134,10 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 	t.Helper()
 
 	_, nc := testutil.StartSharedNATS(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Keep one bounded context for the complete integration-test lifecycle.
+	// Allow a delayed durable-worker acknowledgement without expiring the
+	// shared context before the test can run its later assertions.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
 	c, err := core.NewChattoCore(ctx, nc, config.CoreConfig{

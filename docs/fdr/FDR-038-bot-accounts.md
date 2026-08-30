@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -16,7 +16,7 @@ exercise more authority than its human owner currently possesses.
   owner.
 - Server Admin's Bots page lists the bots visible to the caller and creates new
   bots. Selecting a bot opens its own detail page for login and display-name
-  editing, key rotation, deletion, metadata, and permissions. Bot avatar,
+  editing, API-key management, deletion, metadata, and permissions. Bot avatar,
   custom-status, and personal-settings management are not supported in this
   slice.
 - On a fresh RBAC bootstrap, `everyone` receives `bot.create`, while `admin`
@@ -35,8 +35,16 @@ exercise more authority than its human owner currently possesses.
   messages, profiles, directories, mentions, direct messages, and member
   management. User identity displays mark them as bots with an accessible
   visual indicator.
-- A bot has one active API key. The key is returned only when the bot is
-  created or the key is rotated; it cannot be retrieved later.
+- A bot can have at most 20 active API keys. Each key has a manager-defined
+  name, and names do not need to be unique. Chatto shows the raw key only when
+  it creates the key. The raw key cannot be retrieved later.
+- A manager can create a replacement key before the manager moves an
+  integration. The manager can then revoke only the old key. A bot can remain
+  active without an API key when it uses only incoming webhooks.
+- The bot detail page shows when each API key was created and approximately
+  when Chatto recorded its last use. A missing observation does not prove that
+  the key was not used. The page shows a separate unavailable state when Chatto
+  cannot read this optional telemetry.
 - The bundled frontend stops in-app navigation while it requests a show-once
   bot credential and while it shows that credential. It asks for confirmation
   before the browser unloads the page. Navigation becomes available after the
@@ -60,10 +68,11 @@ exercise more authority than its human owner currently possesses.
   or find a DM, and it cannot create a thread in a DM.
 - Newly issued keys use a 128-bit random secret to remain compact enough for
   copy-and-paste workflows. Previously issued 256-bit keys remain valid until
-  they are rotated.
-- API keys do not expire through inactivity. Rotating a key immediately
-  invalidates the previous key and terminates realtime connections established
-  with it. Deleting the bot or its owner also invalidates the key.
+  a manager revokes them.
+- API keys do not expire through inactivity. Revoking one key immediately
+  invalidates that key and terminates realtime connections established with
+  it. Other keys stay active. Deleting the bot or its owner invalidates all
+  keys.
 - A bot API key authenticates normal public API and realtime requests as that
   bot. The bot can otherwise participate like a user wherever its explicit
   permissions allow.
@@ -109,9 +118,9 @@ exercise more authority than its human owner currently possesses.
   bot grant that is currently ineffective because of the owner's permission
   ceiling remains visibly enabled, but is shown as unavailable and distinct
   from both active grants and unconfigured permissions.
-- A bot owner can view, update, rotate the key for, configure permissions for,
-  and delete their own bots. Losing `bot.create` does not remove management of
-  bots they already own.
+- A bot owner can view, update, create and revoke API keys for, configure
+  permissions for, and delete their own bots. Losing `bot.create` does not
+  remove management of bots they already own.
 - The permission matrix exposes room scopes only when they are visible through
   the normal room-directory policy to both the bot owner and the managing
   caller. It exposes the complete directory group layout, including empty
@@ -122,7 +131,7 @@ exercise more authority than its human owner currently possesses.
   account. Ownership alone does not authorize reassignment, and the recipient
   does not need to accept it or hold `bot.create`.
 - Reassignment preserves the bot's configured permission allowlist and active
-  API key. Effective permissions immediately use the new owner's permission
+  API keys. Effective permissions immediately use the new owner's permission
   ceiling. The previous owner loses owner-derived management access, while the
   new owner gains it; either person may still have independent `bot.manage`.
 - Bot accounts cannot create, own, or manage other bots, even if a
@@ -201,43 +210,43 @@ owners receive `bot.manage` through the normal virtual owner override. Bots do
 not inherit `everyone` and cannot exercise either capability themselves.
 **Why:** Every human member can create automation for their own use, while
 global recovery and moderation remain administrative. Creators must not lose
-access to rotate or delete an existing bot just because their ability to create
-more bots is revoked.
+access to revoke keys or delete an existing bot just because their ability to
+create more bots is revoked.
 **Tradeoff:** Servers that want bot creation to be restricted must change the
 fresh default, and existing servers are not backfilled when defaults change.
 Bot-management authorization also has an ownership path alongside the
 permission path used by global managers.
 
-### 6. One long-lived, show-once API key
+### 6. Multiple named, show-once API keys
 
-**Decision:** Each bot has one non-expiring API key. Chatto shows the raw key
-only at creation or rotation, and rotation immediately replaces the prior key.
-New keys contain 128 bits of random secret; the verifier accepts the earlier
-256-bit format so shortening issuance does not revoke existing integrations.
-**Why:** A stable bearer credential makes unattended API integrations simple,
-while a single active key gives owners a clear revocation and recovery model.
-Not retaining a retrievable raw key reduces secret exposure.
-**Tradeoff:** Losing the key requires rotation, and rotation requires every
-consumer of that bot to update at once. Multiple independently rotatable keys
-per bot are deferred. Established realtime connections retain only a
-non-secret verifier generation and close when the durable rotation reaches the
-local authentication projection.
+**Decision:** Each bot can have at most 20 non-expiring API keys. Each key has
+a name and an independent revocation lifecycle. Names are labels and do not
+need to be unique. Chatto shows a raw key only when it creates that key. The
+new keys contain 128 bits of random secret. The verifier accepts the earlier
+256-bit format so existing integrations continue to work.
+**Why:** Each integration can have its own credential. A manager can move one
+integration to a replacement key and revoke the old key without an outage for
+other integrations. Show-once delivery limits later secret exposure.
+**Tradeoff:** Managers must identify keys by stable ID when names are the same.
+Last-use data is optional and approximate. Established realtime connections
+retain only the accepted non-secret verifier and close when Chatto projects a
+revocation for that key.
 
 ### 7. Administrative reassignment preserves running integrations
 
 **Decision:** A human with `bot.manage` can reassign a bot directly to another
 active human account. Reassignment keeps the configured permission allowlist
-and active API key, while immediately applying the new owner's permission
+and active API keys, while immediately applying the new owner's permission
 ceiling. Deleting a human still cascades to bots they own at deletion time.
 **Why:** Operational handoffs need a recovery path before an owner leaves, but
-do not require a two-party invitation protocol. Keeping credential rotation a
-separate explicit action avoids unnecessary integration downtime; an operator
-can still rotate immediately when credential custody is in doubt.
+do not require a two-party invitation protocol. Keeping credential revocation
+separate avoids unnecessary integration downtime; an operator can create a
+replacement and revoke the affected key when credential custody is in doubt.
 **Tradeoff:** Chatto relies on the administrator to verify that the recipient
 requested or accepts the handoff. A permission may become active or inactive
 as soon as the owner changes, so the UI warns about the new ceiling. Existing
-credential holders retain access until an administrator separately rotates the
-key.
+credential holders retain access until an administrator separately revokes
+their keys.
 
 ### 8. Bot identity is visible on canonical user surfaces
 
@@ -331,18 +340,32 @@ override, but bots themselves cannot exercise bot-management operations.
 
 ## API Compatibility
 
-Bot identity, management, reassignment, permission ceilings, and credentials
-are additive in Chatto 0.5. Historical users remain human accounts when bot
-identity is absent. Older clients can still render bot accounts as ordinary
-users, and the bundled client does not call bot-management operations on an
-older server.
+Bot identity, management, reassignment, permission ceilings, and named
+credentials are additive in Chatto 0.5. The removal of the experimental
+replace-all key operation is a breaking public API change. Historical users
+remain human accounts when bot identity is absent. Older clients can still
+render bot accounts as ordinary users, and the bundled client does not call
+bot-management operations on an older server.
 
-Operators must replace all replicas before they create or rotate bot
+Operators must replace all replicas before they create or revoke bot
 credentials, reassign bot ownership, or depend on the rule that bots cannot
 start DMs. An older replica can omit newer bot facts or accept the earlier DM
 behavior. Updated servers continue to accept the first longer bot-key format
 while issuing the current shorter format. Exact field, method, event, and
 version-gate details belong in the public schema and API compatibility guide.
+
+Named API-key methods, metadata, and lifecycle facts are additive. Existing
+bot API keys project as a named legacy key and stay valid after upgrade. Older
+replicas ignore added named keys, so clients cannot use a new named key on
+every replica until the rollout is complete. A targeted revocation of an
+older key also writes a compatibility fence that prevents an older binary from
+restoring that key after rollback. Chatto 0.5 removes the experimental
+`RotateBotApiKey` public method and the legacy rotation timestamp field. Older
+clients receive an unimplemented-method error if they call that method against
+a current server. They must create a named key, move the integration, and
+revoke the old key. The bundled current client does not expose key management
+when it connects to an older server that lacks the named-key methods. The
+bundled client enables named-key management for Chatto 0.5.0-alpha.4 or later.
 
 Incoming webhook management methods, metadata, and lifecycle facts are
 additive. The create response shows the URL one time. Older clients ignore the
@@ -360,19 +383,16 @@ they do not write it.
   runtime credentials), ADR-051 (resumable client projection), ADR-052
   (subject-specific RBAC), ADR-076 (deterministic notification occurrences),
   ADR-077 (persistent notification list), ADR-080 (explicit message-read
-  permissions), ADR-083 (action-limited bot incoming webhooks)
+  permissions), ADR-083 (action-limited bot incoming webhooks), ADR-085
+  (user-scoped MCP integration)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
   (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018
   (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &
   Sessions), FDR-025 (User Search & Member Directory), FDR-039 (Message Access
-  & Interactions)
+  & Interactions), FDR-043 (Model Context Protocol Integration)
 
 ## Open Questions
 
-- Multiple named bot API keys, independent revocation, last-use telemetry, and
-  key expiry are deferred. A future design should
-  reuse the incoming-webhook credential lifecycle and usage-recording patterns
-  where they apply. It must also define compatibility for the current
-  two-part bot API key format.
+- API-key expiry is deferred.
 - Define durable webhook registration, signing, retry, and delivery status for
   the same bot activation occurrences.

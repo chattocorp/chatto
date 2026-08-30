@@ -1,4 +1,4 @@
-# ADR-085: Commit Room-Layout Structural Mutations Atomically
+# ADR-086: Commit Room-Layout Structural Mutations Atomically
 
 **Status:** Accepted
 **Date:** 2026-08-30

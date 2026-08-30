@@ -30,6 +30,8 @@ type PendingOAuthAuthorize struct {
 	ClientID            string    `json:"client_id,omitempty"`
 	ClientName          string    `json:"client_name,omitempty"`
 	ClientURI           string    `json:"client_uri,omitempty"`
+	Resource            string    `json:"resource,omitempty"`
+	Scopes              []string  `json:"scopes,omitempty"`
 	CreatedAt           time.Time `json:"created_at"`
 }
 

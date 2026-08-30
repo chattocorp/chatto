@@ -181,6 +181,8 @@ func isUserAuthEvent(event *evtv1.Event) bool {
 	case *evtv1.Event_UserAccountCreated,
 		*evtv1.Event_BotApiKeyCreated,
 		*evtv1.Event_BotApiKeyRotated,
+		*evtv1.Event_BotApiKeyAdded,
+		*evtv1.Event_BotApiKeyRevoked,
 		*evtv1.Event_BotOwnerReassigned,
 		*evtv1.Event_UserPasswordHashChanged,
 		*evtv1.Event_UserOidcSubjectLinked,

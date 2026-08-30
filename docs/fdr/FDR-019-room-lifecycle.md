@@ -135,5 +135,5 @@ operations. This follows the authoritative realtime pattern in ADR-051.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-085 (atomic room-layout structural mutations)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-086 (atomic room-layout structural mutations)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-017 (Room Groups & Sidebar Layout)

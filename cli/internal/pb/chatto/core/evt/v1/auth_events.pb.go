@@ -986,6 +986,211 @@ func (x *OAuthConsentDeniedEvent) GetClientUri() string {
 	return ""
 }
 
+// OAuthScopedConsentGrantedEvent records one exact resource and scope grant.
+// This separate event prevents an older projector from treating a scoped grant
+// as legacy broad OAuth consent.
+type OAuthScopedConsentGrantedEvent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RedirectOrigin string                 `protobuf:"bytes,2,opt,name=redirect_origin,json=redirectOrigin,proto3" json:"redirect_origin,omitempty"`
+	Request        *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	ClientId       string                 `protobuf:"bytes,4,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientName     string                 `protobuf:"bytes,5,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
+	ClientUri      string                 `protobuf:"bytes,6,opt,name=client_uri,json=clientUri,proto3" json:"client_uri,omitempty"`
+	Resource       string                 `protobuf:"bytes,7,opt,name=resource,proto3" json:"resource,omitempty"`
+	Scopes         []string               `protobuf:"bytes,8,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *OAuthScopedConsentGrantedEvent) Reset() {
+	*x = OAuthScopedConsentGrantedEvent{}
+	mi := &file_chatto_core_evt_v1_auth_events_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OAuthScopedConsentGrantedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OAuthScopedConsentGrantedEvent) ProtoMessage() {}
+
+func (x *OAuthScopedConsentGrantedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_auth_events_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OAuthScopedConsentGrantedEvent.ProtoReflect.Descriptor instead.
+func (*OAuthScopedConsentGrantedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_auth_events_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *OAuthScopedConsentGrantedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentGrantedEvent) GetRedirectOrigin() string {
+	if x != nil {
+		return x.RedirectOrigin
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentGrantedEvent) GetRequest() *AuditRequestMetadata {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *OAuthScopedConsentGrantedEvent) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentGrantedEvent) GetClientName() string {
+	if x != nil {
+		return x.ClientName
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentGrantedEvent) GetClientUri() string {
+	if x != nil {
+		return x.ClientUri
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentGrantedEvent) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentGrantedEvent) GetScopes() []string {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+// OAuthScopedConsentDeniedEvent records denial of one exact resource and scope
+// grant without changing the approved grant set.
+type OAuthScopedConsentDeniedEvent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RedirectOrigin string                 `protobuf:"bytes,2,opt,name=redirect_origin,json=redirectOrigin,proto3" json:"redirect_origin,omitempty"`
+	Request        *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	ClientId       string                 `protobuf:"bytes,4,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientName     string                 `protobuf:"bytes,5,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
+	ClientUri      string                 `protobuf:"bytes,6,opt,name=client_uri,json=clientUri,proto3" json:"client_uri,omitempty"`
+	Resource       string                 `protobuf:"bytes,7,opt,name=resource,proto3" json:"resource,omitempty"`
+	Scopes         []string               `protobuf:"bytes,8,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *OAuthScopedConsentDeniedEvent) Reset() {
+	*x = OAuthScopedConsentDeniedEvent{}
+	mi := &file_chatto_core_evt_v1_auth_events_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OAuthScopedConsentDeniedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OAuthScopedConsentDeniedEvent) ProtoMessage() {}
+
+func (x *OAuthScopedConsentDeniedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_auth_events_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OAuthScopedConsentDeniedEvent.ProtoReflect.Descriptor instead.
+func (*OAuthScopedConsentDeniedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_auth_events_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *OAuthScopedConsentDeniedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentDeniedEvent) GetRedirectOrigin() string {
+	if x != nil {
+		return x.RedirectOrigin
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentDeniedEvent) GetRequest() *AuditRequestMetadata {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *OAuthScopedConsentDeniedEvent) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentDeniedEvent) GetClientName() string {
+	if x != nil {
+		return x.ClientName
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentDeniedEvent) GetClientUri() string {
+	if x != nil {
+		return x.ClientUri
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentDeniedEvent) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *OAuthScopedConsentDeniedEvent) GetScopes() []string {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
 var File_chatto_core_evt_v1_auth_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_auth_events_proto_rawDesc = "" +
@@ -1071,7 +1276,29 @@ const file_chatto_core_evt_v1_auth_events_proto_rawDesc = "" +
 	"\vclient_name\x18\x05 \x01(\tR\n" +
 	"clientName\x12\x1d\n" +
 	"\n" +
-	"client_uri\x18\x06 \x01(\tR\tclientUriB\xca\x01\n" +
+	"client_uri\x18\x06 \x01(\tR\tclientUri\"\xb7\x02\n" +
+	"\x1eOAuthScopedConsentGrantedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
+	"\x0fredirect_origin\x18\x02 \x01(\tR\x0eredirectOrigin\x12B\n" +
+	"\arequest\x18\x03 \x01(\v2(.chatto.core.evt.v1.AuditRequestMetadataR\arequest\x12\x1b\n" +
+	"\tclient_id\x18\x04 \x01(\tR\bclientId\x12\x1f\n" +
+	"\vclient_name\x18\x05 \x01(\tR\n" +
+	"clientName\x12\x1d\n" +
+	"\n" +
+	"client_uri\x18\x06 \x01(\tR\tclientUri\x12\x1a\n" +
+	"\bresource\x18\a \x01(\tR\bresource\x12\x16\n" +
+	"\x06scopes\x18\b \x03(\tR\x06scopes\"\xb6\x02\n" +
+	"\x1dOAuthScopedConsentDeniedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
+	"\x0fredirect_origin\x18\x02 \x01(\tR\x0eredirectOrigin\x12B\n" +
+	"\arequest\x18\x03 \x01(\v2(.chatto.core.evt.v1.AuditRequestMetadataR\arequest\x12\x1b\n" +
+	"\tclient_id\x18\x04 \x01(\tR\bclientId\x12\x1f\n" +
+	"\vclient_name\x18\x05 \x01(\tR\n" +
+	"clientName\x12\x1d\n" +
+	"\n" +
+	"client_uri\x18\x06 \x01(\tR\tclientUri\x12\x1a\n" +
+	"\bresource\x18\a \x01(\tR\bresource\x12\x16\n" +
+	"\x06scopes\x18\b \x03(\tR\x06scopesB\xca\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x0fAuthEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
@@ -1086,7 +1313,7 @@ func file_chatto_core_evt_v1_auth_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_evt_v1_auth_events_proto_rawDescData
 }
 
-var file_chatto_core_evt_v1_auth_events_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_chatto_core_evt_v1_auth_events_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_chatto_core_evt_v1_auth_events_proto_goTypes = []any{
 	(*RegistrationVerificationCodeIssuedEvent)(nil), // 0: chatto.core.evt.v1.RegistrationVerificationCodeIssuedEvent
 	(*EmailVerificationCodeIssuedEvent)(nil),        // 1: chatto.core.evt.v1.EmailVerificationCodeIssuedEvent
@@ -1103,36 +1330,40 @@ var file_chatto_core_evt_v1_auth_events_proto_goTypes = []any{
 	(*BearerTokenRevokedEvent)(nil),                 // 12: chatto.core.evt.v1.BearerTokenRevokedEvent
 	(*OAuthConsentGrantedEvent)(nil),                // 13: chatto.core.evt.v1.OAuthConsentGrantedEvent
 	(*OAuthConsentDeniedEvent)(nil),                 // 14: chatto.core.evt.v1.OAuthConsentDeniedEvent
-	(*timestamppb.Timestamp)(nil),                   // 15: google.protobuf.Timestamp
-	(*AuditRequestMetadata)(nil),                    // 16: chatto.core.evt.v1.AuditRequestMetadata
+	(*OAuthScopedConsentGrantedEvent)(nil),          // 15: chatto.core.evt.v1.OAuthScopedConsentGrantedEvent
+	(*OAuthScopedConsentDeniedEvent)(nil),           // 16: chatto.core.evt.v1.OAuthScopedConsentDeniedEvent
+	(*timestamppb.Timestamp)(nil),                   // 17: google.protobuf.Timestamp
+	(*AuditRequestMetadata)(nil),                    // 18: chatto.core.evt.v1.AuditRequestMetadata
 }
 var file_chatto_core_evt_v1_auth_events_proto_depIdxs = []int32{
-	15, // 0: chatto.core.evt.v1.RegistrationVerificationCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	16, // 1: chatto.core.evt.v1.RegistrationVerificationCodeIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	15, // 2: chatto.core.evt.v1.EmailVerificationCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	16, // 3: chatto.core.evt.v1.EmailVerificationCodeIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	15, // 4: chatto.core.evt.v1.PasswordResetLinkIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	16, // 5: chatto.core.evt.v1.PasswordResetLinkIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	15, // 6: chatto.core.evt.v1.AccountDeletionConfirmationIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	16, // 7: chatto.core.evt.v1.AccountDeletionConfirmationIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 8: chatto.core.evt.v1.PasswordResetCompletedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 9: chatto.core.evt.v1.LoginSucceededEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 10: chatto.core.evt.v1.LoginFailedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 11: chatto.core.evt.v1.LogoutSucceededEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	15, // 12: chatto.core.evt.v1.AuthCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	16, // 13: chatto.core.evt.v1.AuthCodeIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 14: chatto.core.evt.v1.AuthCodeExchangeSucceededEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 15: chatto.core.evt.v1.AuthCodeExchangeFailedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	15, // 16: chatto.core.evt.v1.BearerTokenIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
-	16, // 17: chatto.core.evt.v1.BearerTokenIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 18: chatto.core.evt.v1.BearerTokenRevokedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 19: chatto.core.evt.v1.OAuthConsentGrantedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	16, // 20: chatto.core.evt.v1.OAuthConsentDeniedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	17, // 0: chatto.core.evt.v1.RegistrationVerificationCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	18, // 1: chatto.core.evt.v1.RegistrationVerificationCodeIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	17, // 2: chatto.core.evt.v1.EmailVerificationCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	18, // 3: chatto.core.evt.v1.EmailVerificationCodeIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	17, // 4: chatto.core.evt.v1.PasswordResetLinkIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	18, // 5: chatto.core.evt.v1.PasswordResetLinkIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	17, // 6: chatto.core.evt.v1.AccountDeletionConfirmationIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	18, // 7: chatto.core.evt.v1.AccountDeletionConfirmationIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 8: chatto.core.evt.v1.PasswordResetCompletedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 9: chatto.core.evt.v1.LoginSucceededEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 10: chatto.core.evt.v1.LoginFailedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 11: chatto.core.evt.v1.LogoutSucceededEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	17, // 12: chatto.core.evt.v1.AuthCodeIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	18, // 13: chatto.core.evt.v1.AuthCodeIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 14: chatto.core.evt.v1.AuthCodeExchangeSucceededEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 15: chatto.core.evt.v1.AuthCodeExchangeFailedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	17, // 16: chatto.core.evt.v1.BearerTokenIssuedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	18, // 17: chatto.core.evt.v1.BearerTokenIssuedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 18: chatto.core.evt.v1.BearerTokenRevokedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 19: chatto.core.evt.v1.OAuthConsentGrantedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 20: chatto.core.evt.v1.OAuthConsentDeniedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 21: chatto.core.evt.v1.OAuthScopedConsentGrantedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	18, // 22: chatto.core.evt.v1.OAuthScopedConsentDeniedEvent.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_evt_v1_auth_events_proto_init() }
@@ -1147,7 +1378,7 @@ func file_chatto_core_evt_v1_auth_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_auth_events_proto_rawDesc), len(file_chatto_core_evt_v1_auth_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

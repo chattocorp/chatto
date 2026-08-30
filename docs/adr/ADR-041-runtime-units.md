@@ -26,7 +26,7 @@ boot path legitimately performs boot-time mutations and repair work.
 
 Introduce **runtime units** as the convention for optional Chatto processes.
 
-A runtime unit:
+A standalone-capable runtime unit:
 
 - can run standalone as `chatto <unit>`
 - can run embedded in `chatto run` when its provider or unit config section has
@@ -36,6 +36,12 @@ A runtime unit:
   runtime environment
 - decides explicitly which existing resources or domain services it opens
 - does not start embedded NATS when running standalone
+
+A **main-app auxiliary unit** is the documented exception. It owns an
+optional listener, worker, or lifecycle under `chatto run`, but it can use the
+main app's in-process operation layer. It does not need a standalone command.
+This exception is suitable only when a separate process would need a new
+private service contract with the main app and would not improve isolation.
 
 Standalone units connect to an existing NATS server as clients. For default
 single-process embedded-NATS installs, operators either enable the embedded TCP
@@ -69,6 +75,10 @@ Runtime units are classified by behavior:
   owning service or `evtstream.Publisher`, such as future media processing.
 - **Main app:** the ConnectRPC/web/realtime-delivery process that owns
   `ChattoCore` boot and HTTP compatibility facades.
+- **Main-app auxiliary:** an optional, separately supervised capability that
+  uses the main app's operation layer and cannot run standalone. A route on
+  the existing public HTTP server is part of the main app, not an auxiliary
+  runtime unit.
 
 Durable domain facts still go through `EVT`, and any unit that writes them must
 use the same multi-replica-safe OCC and service-boundary rules as the main
@@ -78,6 +88,10 @@ process.
 
 Standalone workers and embedded single-process deployments can share one unit
 implementation instead of maintaining separate boot paths.
+
+A main-app auxiliary still gets explicit configuration, registration,
+supervision, and lifecycle ownership. It does not claim independent deployment
+or require a private network API only to satisfy the runtime-unit convention.
 
 An embedded optional capability can recover from missing executables,
 projection failures, deleted durable consumers, and other unit-local failures

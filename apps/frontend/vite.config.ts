@@ -256,12 +256,23 @@ export default defineConfig(async ({ command }) => {
         interval: 300
       },
       proxy: {
+        '/mcp': {
+          target: backendTarget,
+          // The MCP server validates its configured public origin. Preserve
+          // Vite's public Host so resource and token audiences stay aligned.
+          changeOrigin: false
+        },
         '/oauth': {
           target: backendTarget,
           // Cookie authentication compares the browser Origin with the
           // request target. Preserve Vite's public Host so both values match.
           changeOrigin: false,
           cookieDomainRewrite: { '*': '' }
+        },
+        '/.well-known/oauth-': {
+          target: backendTarget,
+          // OAuth metadata contains URLs for the public development origin.
+          changeOrigin: false
         },
         '/api': {
           target: backendTarget,

@@ -107,6 +107,44 @@ type ExporterConfig struct {
 	S3Timeout         Duration `toml:"s3_timeout,commented" env:"CHATTO_EXPORTER_S3_TIMEOUT" comment:"Timeout for one S3 bucket-size refresh. Default: 30s."`
 }
 
+// MCPConfig controls the experimental MCP routes on the public HTTP server.
+type MCPConfig struct {
+	Enabled bool `toml:"enabled" env:"CHATTO_MCP_ENABLED" comment:"Expose the experimental MCP routes on the public HTTP server. Default: false."`
+}
+
+const (
+	// MCPMessagesReadScope grants bounded message reads through MCP.
+	MCPMessagesReadScope = "chatto:messages:read"
+	// MCPMessagesWriteScope grants message creation through MCP.
+	MCPMessagesWriteScope = "chatto:messages:write"
+	// MCPRoomsReadScope grants bounded room-directory reads through MCP.
+	MCPRoomsReadScope = "chatto:rooms:read"
+	// MCPRoomsWriteScope grants room membership changes through MCP.
+	MCPRoomsWriteScope = "chatto:rooms:write"
+)
+
+// MCPOAuthScopes returns the complete sorted scope set for the experimental
+// MCP tool catalog. Callers can safely modify the returned slice.
+func MCPOAuthScopes() []string {
+	return []string{
+		MCPMessagesReadScope,
+		MCPMessagesWriteScope,
+		MCPRoomsReadScope,
+		MCPRoomsWriteScope,
+	}
+}
+
+// MCPResourceURL returns the canonical MCP endpoint and OAuth resource. MCP is
+// mounted on the public HTTP server, so it always shares the webserver.url
+// origin.
+func (c ChattoConfig) MCPResourceURL() string {
+	publicURL, err := url.Parse(strings.TrimSpace(c.Webserver.URL))
+	if err != nil || publicURL.Scheme == "" || publicURL.Host == "" {
+		return ""
+	}
+	return (&url.URL{Scheme: publicURL.Scheme, Host: publicURL.Host, Path: "/mcp"}).String()
+}
+
 // SearchConfig controls Chatto's consumer-facing search API and UI.
 type SearchConfig struct {
 	Enabled bool `toml:"enabled" env:"CHATTO_SEARCH_ENABLED" comment:"Enable consumer-facing message search queries. Default: false."`

@@ -187,6 +187,69 @@ func TestChattoCore_ExchangeAuthCodeBindsClientID(t *testing.T) {
 	}
 }
 
+func TestChattoCore_ExchangeAuthCodeCarriesResourceAndScopesIntoRefreshSession(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, "", "resource-bound-code", "Resource Bound Code", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	generation, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const clientID = "https://agent.example/client.json"
+	const redirectURI = "https://agent.example/callback"
+	const resource = "https://chat.example/mcp"
+	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	scopes := []string{"chatto:rooms:read"}
+	code, err := core.CreateAuthCodeForClientGrantGeneration(ctx, user.Id, clientID, resource, scopes, redirectURI, GenerateCodeChallenge(verifier), "S256", generation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	credentials, _, err := core.ExchangeAuthCodeForClientResourceSession(ctx, code, verifier, redirectURI, clientID, resource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	accessRecord := readAuthTokenData(t, core, credentials.AccessToken)
+	if accessRecord.Presentation != AuthTokenPresentationResourceBearer {
+		t.Fatalf("resource access presentation = %q, want %q", accessRecord.Presentation, AuthTokenPresentationResourceBearer)
+	}
+	if strings.HasPrefix(credentials.RefreshToken, refreshTokenPrefix) {
+		t.Fatalf("resource refresh token uses legacy bearer prefix %q", refreshTokenPrefix)
+	}
+	validated, err := core.ValidatePresentedRuntimeCredential(ctx, credentials.AccessToken, AuthTokenPresentationResourceBearer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validated.Resource != resource || len(validated.Scopes) != 1 || validated.Scopes[0] != scopes[0] {
+		t.Fatalf("validated grant = resource %q scopes %v", validated.Resource, validated.Scopes)
+	}
+	if _, err := core.ValidateAuthToken(ctx, credentials.AccessToken); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("resource-bound token used as public API authority: %v", err)
+	}
+	session, _, err := core.loadRenewableSession(ctx, validated.RenewableSessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.Resource != resource || len(session.Scopes) != 1 || session.Scopes[0] != scopes[0] {
+		t.Fatalf("renewable grant = resource %q scopes %v", session.Resource, session.Scopes)
+	}
+	refreshed, err := core.RefreshBearerSession(ctx, credentials.RefreshToken, testRefreshRequestIDA, clientID)
+	if err != nil {
+		t.Fatalf("refresh resource-bound session: %v", err)
+	}
+	if strings.HasPrefix(refreshed.RefreshToken, refreshTokenPrefix) {
+		t.Fatalf("refreshed resource token uses legacy bearer prefix %q", refreshTokenPrefix)
+	}
+	if _, err := core.ValidatePresentedRuntimeCredential(ctx, refreshed.AccessToken, AuthTokenPresentationResourceBearer); err != nil {
+		t.Fatalf("validate refreshed resource access token: %v", err)
+	}
+	if _, err := core.ValidatePresentedRuntimeCredential(ctx, refreshed.AccessToken, AuthTokenPresentationBearer); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("refreshed resource token used as legacy bearer: %v", err)
+	}
+}
+
 func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

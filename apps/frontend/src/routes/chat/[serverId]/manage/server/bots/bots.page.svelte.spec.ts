@@ -74,6 +74,16 @@ describe('Bot administration page', () => {
     );
   });
 
+  it('does not ask for the initial API key name', () => {
+    mocks.canCreateBots = true;
+    const { container } = render(BotsPage);
+
+    createButton(container)?.click();
+
+    expect(container.querySelector('#bot-api-key-name')).toBeNull();
+    expect(container.textContent).not.toContain('Key name');
+  });
+
   it('renders bot and owner identities with avatars and display names', async () => {
     mocks.listBots.mockResolvedValue({
       bots: [
@@ -87,7 +97,7 @@ describe('Bot administration page', () => {
           ownerUserId: 'owner-user-id',
           createdAt: null,
           apiKeyCreatedAt: null,
-          apiKeyRotatedAt: null,
+          apiKeys: [],
           incomingWebhooks: []
         }
       ],
