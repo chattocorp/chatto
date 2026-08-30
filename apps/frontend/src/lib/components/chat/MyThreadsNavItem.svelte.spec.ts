@@ -10,10 +10,7 @@ const mocks = vi.hoisted(() => ({
     threadRootId: string | null;
     attentionLevel: number;
   }>,
-  threadViewerStates: new Map<
-    string,
-    { isFollowing?: boolean; hasUnreadReplies?: boolean; attentionLevel?: number }
-  >()
+  threadViewerStates: new Map<string, { isFollowing?: boolean; hasUnreadReplies?: boolean }>()
 }));
 
 vi.mock('$app/paths', () => ({
@@ -56,19 +53,6 @@ describe('MyThreadsNavItem', () => {
 
     const dot = container.querySelector('[data-testid="my-threads-unread-dot"]');
     expect(dot?.classList).toContain('bg-neutral-action');
-  });
-
-  it('uses notification orange for projected Important attention', () => {
-    mocks.threadViewerStates.set('room-1\u0000root-1', {
-      isFollowing: true,
-      hasUnreadReplies: false,
-      attentionLevel: 2
-    });
-
-    const { container } = render(MyThreadsNavItem, { props: { active: false } });
-
-    const dot = container.querySelector('[data-testid="my-threads-unread-dot"]');
-    expect(dot?.classList).toContain('bg-attention');
   });
 
   it('uses notification orange when a notification occurrence also exists', () => {
@@ -130,7 +114,7 @@ describe('MyThreadsNavItem', () => {
     expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
   });
 
-  it('ignores Badge state for a thread that is not followed', () => {
+  it('ignores unread reply state for a thread that is not followed', () => {
     mocks.threadViewerStates.set('room-1\u0000root-1', {
       isFollowing: false,
       hasUnreadReplies: true

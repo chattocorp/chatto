@@ -168,11 +168,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   catalog now needs the room and message read/write MCP scopes. A token that
   has only `chatto:rooms:read` cannot use the expanded catalog.
 - Regenerate custom clients that read `ThreadViewerState`. The
-  `has_unread` field is now `has_unread_replies`, and the new
-  `attention_level` field reports notification attention separately. Protobuf
-  tag `2` keeps its Boolean wire type, but the source and ProtoJSON names
-  change. Deploy 0.5 clients and servers together. Stored thread follows, read
-  cursors, and notification state need no migration.
+  `has_unread` field is now `has_unread_replies`. Protobuf tag `2` keeps its
+  Boolean wire type, but the source and ProtoJSON names change. The field now
+  reports only replies after the thread read cursor. Deploy 0.5 clients and
+  servers together. Stored thread follows and read cursors need no migration.
 
 - Custom clients must remove the testimonial fields from
   `chatto.admin.v1` and use `ListNeighborsResponse.origins` from

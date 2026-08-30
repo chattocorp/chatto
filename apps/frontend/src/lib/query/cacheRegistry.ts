@@ -6,7 +6,6 @@ type AdminRoomQueryReconciler = (serverId: string, roomId: string, removed: bool
 type AdminRoomGroupQueryReconciler = (serverId: string, visibleGroupIds: readonly string[]) => void;
 type FollowedThreadViewerState = {
   hasUnreadReplies?: boolean;
-  attentionLevel?: number;
 };
 type FollowedThreadSummary = {
   roomId: string;
@@ -14,7 +13,6 @@ type FollowedThreadSummary = {
   replyCount: number;
   lastReplyAt: string | null;
   hasUnreadReplies?: boolean;
-  attentionLevel?: number;
 };
 type FollowedThreadCache = {
   reset(serverId: string): void;

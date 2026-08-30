@@ -28,19 +28,14 @@
   const hasUnread = $derived(
     hasNotification ||
       [...serverScope.store.projection.threadViewerStates.values()].some(
-        (state) =>
-          state.isFollowing &&
-          (state.hasUnreadReplies || state.attentionLevel !== 0)
+        (state) => state.isFollowing && state.hasUnreadReplies
       )
   );
 
   const hasImportantAttention = $derived(
     threadNotifications.some(
       (notification) => notification.attentionLevel === NotificationAttentionLevel.IMPORTANT
-    ) ||
-      [...serverScope.store.projection.threadViewerStates.values()].some(
-        (state) => state.isFollowing && state.attentionLevel === 2
-      )
+    )
   );
 </script>
 

@@ -27,16 +27,6 @@ type ThreadMetadata struct {
 	ParticipantIDs     []string
 }
 
-// ThreadAttentionLevel describes notification attention independently from a
-// thread's reply read cursor.
-type ThreadAttentionLevel int
-
-const (
-	ThreadAttentionLevelNone ThreadAttentionLevel = iota
-	ThreadAttentionLevelAmbient
-	ThreadAttentionLevelImportant
-)
-
 // FollowedThread represents a thread the user is following, enriched with metadata for display.
 type FollowedThread struct {
 	SpaceID            string
@@ -49,7 +39,6 @@ type FollowedThread struct {
 	ParticipantIDs     []string
 	LatestReplyEventID string
 	HasUnreadReplies   bool
-	AttentionLevel     ThreadAttentionLevel
 }
 
 // FollowedThreadsPage is a paginated set of followed threads with the total
@@ -849,9 +838,6 @@ func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID 
 			HasUnreadReplies: hasUnreadReplies,
 		})
 	}
-	if err := c.hydrateFollowedThreadAttention(ctx, userID, result); err != nil {
-		return nil, err
-	}
 	return result, nil
 }
 
@@ -867,36 +853,11 @@ func (c *ChattoCore) hydrateFollowedThreadViewerStates(ctx context.Context, user
 		}
 		thread.HasUnreadReplies = lastOpened.IsZero() || thread.LastReplyAt.After(lastOpened)
 	}
-	return c.hydrateFollowedThreadAttention(ctx, userID, threads)
-}
-
-func (c *ChattoCore) hydrateFollowedThreadAttention(ctx context.Context, userID string, threads []*FollowedThread) error {
-	scopes := make([]notificationReadBoundaryScope, 0, len(threads))
-	for _, thread := range threads {
-		if thread == nil {
-			continue
-		}
-		scopes = append(scopes, notificationReadBoundaryScope{
-			userID: userID, roomID: thread.RoomID, threadRootEventID: thread.ThreadRootEventID,
-		})
-	}
-	levels, err := c.notificationOccurrences.threadAttentionLevels(ctx, userID, scopes)
-	if err != nil {
-		return fmt.Errorf("read followed thread attention states: %w", err)
-	}
-	for _, thread := range threads {
-		if thread == nil {
-			continue
-		}
-		thread.AttentionLevel = levels[notificationReadBoundaryScope{
-			userID: userID, roomID: thread.RoomID, threadRootEventID: thread.ThreadRootEventID,
-		}]
-	}
 	return nil
 }
 
 // HasUnreadFollowedThreads reports whether any followed thread has unread
-// replies or notification attention without materializing the public result.
+// replies without materializing the public result.
 func (c *ChattoCore) HasUnreadFollowedThreads(ctx context.Context, userID string, spaceIDs []string) (bool, error) {
 	for _, spaceID := range spaceIDs {
 		threads, err := c.listFollowedThreadsInSpace(ctx, userID, RoomKindFromLegacySpaceID(spaceID))
@@ -908,7 +869,7 @@ func (c *ChattoCore) HasUnreadFollowedThreads(ctx context.Context, userID string
 			return false, err
 		}
 		for _, thread := range threads {
-			if thread.HasUnreadReplies || thread.AttentionLevel != ThreadAttentionLevelNone {
+			if thread.HasUnreadReplies {
 				return true, nil
 			}
 		}

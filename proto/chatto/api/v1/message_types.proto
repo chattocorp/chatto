@@ -114,26 +114,16 @@ message MessageReaction {
   repeated string preview_user_ids = 4;
 }
 
-// Visual attention that one thread needs from the current user.
-enum ThreadAttentionLevel {
-  // The thread does not have notification attention.
-  THREAD_ATTENTION_LEVEL_UNSPECIFIED = 0;
-  // The thread has neutral notification or Badge attention.
-  THREAD_ATTENTION_LEVEL_AMBIENT = 1;
-  // The thread has unread notification attention.
-  THREAD_ATTENTION_LEVEL_IMPORTANT = 2;
-}
-
-// Viewer-specific state for one message thread. Reply unread state and
-// notification attention have independent sources and can differ.
+// Viewer-specific follow and reply-read state for one message thread.
 message ThreadViewerState {
+  reserved 3;
+  reserved "attention_level";
+
   // Whether the current user follows this message's thread, when known.
   optional bool is_following = 1;
   // True when the thread contains replies after the current user's read
   // cursor, when known.
   optional bool has_unread_replies = 2;
-  // Current notification attention for this thread.
-  ThreadAttentionLevel attention_level = 3;
 }
 
 // Aggregated state for one message thread.

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { NotificationStore, notificationTarget } from './notifications.svelte';
+import {
+  NotificationStore,
+  notificationAttentionForThread,
+  notificationTarget
+} from './notifications.svelte';
 import {
   NotificationAttentionLevel,
   NotificationSignalKind,
@@ -109,6 +113,35 @@ const mention = (id: string): NotificationOccurrenceItem => ({
   attentionLevel: NotificationAttentionLevel.IMPORTANT,
   unread: true,
   reactionEmoji: null
+});
+
+describe('notificationAttentionForThread', () => {
+  it('returns the strongest unread occurrence for the exact thread', () => {
+    const ambient = {
+      ...mention('ambient'),
+      threadRootId: 'root-1',
+      attentionLevel: NotificationAttentionLevel.AMBIENT
+    };
+    const important = {
+      ...mention('important'),
+      threadRootId: 'root-1',
+      attentionLevel: NotificationAttentionLevel.IMPORTANT
+    };
+    const read = { ...important, id: 'read', unread: false };
+
+    expect(notificationAttentionForThread([ambient, important], 'r1', 'root-1')).toBe(
+      NotificationAttentionLevel.IMPORTANT
+    );
+    expect(notificationAttentionForThread([ambient], 'r1', 'root-1')).toBe(
+      NotificationAttentionLevel.AMBIENT
+    );
+    expect(notificationAttentionForThread([read], 'r1', 'root-1')).toBe(
+      NotificationAttentionLevel.UNSPECIFIED
+    );
+    expect(notificationAttentionForThread([important], 'r1', 'root-2')).toBe(
+      NotificationAttentionLevel.UNSPECIFIED
+    );
+  });
 });
 
 describe('NotificationStore', () => {

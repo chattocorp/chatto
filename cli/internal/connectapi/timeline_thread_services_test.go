@@ -1038,9 +1038,6 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	if thread.GetThread().GetReplyCount() != 1 || !thread.GetThread().GetViewerState().GetHasUnreadReplies() || thread.GetThread().GetLastReplyAt() == nil {
 		t.Fatalf("followed thread metadata = replies %d unread %v lastReplyAt %v, want replies 1 unread true lastReplyAt set", thread.GetThread().GetReplyCount(), thread.GetThread().GetViewerState().GetHasUnreadReplies(), thread.GetThread().GetLastReplyAt())
 	}
-	if got := thread.GetThread().GetViewerState().GetAttentionLevel(); got != apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_IMPORTANT {
-		t.Fatalf("followed thread attention = %v, want Important", got)
-	}
 	rootMessage := thread.GetRootMessage()
 	if rootMessage == nil || rootMessage.GetId() != root.Id {
 		t.Fatalf("root message = %+v, want hydrated message %s", rootMessage, root.Id)

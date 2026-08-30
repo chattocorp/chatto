@@ -402,7 +402,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.config.server_updated`                        | Public server profile/config changed (name/MOTD/welcome/logo/banner/description) |
 | `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
 | `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; triggers an authoritative occurrence/count replacement and can carry a best-effort local-sound candidate |
-| `live.sync.user.{userId}.notification_unread`            | Badge attention changed; triggers authoritative room viewer-state replacement and, for a thread marker, complete followed-thread viewer-state replacement |
+| `live.sync.user.{userId}.notification_unread`            | Badge attention changed; triggers authoritative room viewer-state replacement. A thread marker contributes to its parent room state |
 | `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
 | `live.sync.user.{userId}.settings_updated`               | Private user preferences, including the stored time zone and its sharing setting, changed |
 | `live.sync.user.{userId}.room_read`                      | Room marked as read          |

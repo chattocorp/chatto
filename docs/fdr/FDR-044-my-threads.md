@@ -17,15 +17,15 @@ that they have not read.
   last activity, reply count, and a participant preview.
 - The Unread filter includes only threads with replies after the user's thread
   read cursor.
-- Notification attention is separate from reply unread state. Important
-  attention uses notification orange. Ambient attention uses a neutral marker.
+- A row with a matching unread notification uses notification orange for
+  Important attention and a neutral marker for Ambient attention. The client
+  reads this decoration from its current Notifications view.
 - A user can mark a thread with unread replies as read, or stop following any
   displayed thread, from its row.
 - Opening a thread uses the normal thread read behavior. This advances the read
   cursor and clears notification attention that the displayed content covers.
-- A thread can remain in My Threads after all replies and notification
-  attention are read. It remains until the user stops following it or loses
-  access.
+- A thread can remain in My Threads after all replies and notifications are
+  read. It remains until the user stops following it or loses access.
 - Thread activity can change the live sort order. The bundled client restarts
   loaded offset pages after a reply update before it continues pagination.
 
@@ -33,18 +33,20 @@ that they have not read.
 
 ### 1. My Threads composes existing state
 
-**Decision:** Follow state selects rows, the thread read cursor determines
-unread replies, and notification state determines attention. My Threads does
-not own another unread or notification state.
+**Decision:** Follow state selects rows, and the thread read cursor determines
+unread replies. The client can decorate a followed-thread row from matching
+unread notification occurrences that it already has. Thread viewer state does
+not contain notification attention.
 **Why:** One authority for each fact prevents contradictory badges and keeps
 Mark read consistent with an open thread and the Notifications view.
-**Tradeoff:** A row can have unread replies without notification attention, or
-notification attention without an unread reply.
+**Tradeoff:** A row can have unread replies without a notification, or a
+notification without an unread reply. Badge-only activity does not decorate a
+thread row because it does not create a notification occurrence.
 
 ### 2. Unread means unread replies
 
-**Decision:** The Unread filter uses only the thread read cursor. Notification
-attention does not put a read thread in this filter.
+**Decision:** The Unread filter uses only the thread read cursor. A notification
+does not put a read thread in this filter.
 **Why:** Users can predict the filter from the conversation content that they
 have read. Notification policy remains an independent way to prioritize work.
 **Tradeoff:** A thread with important attention can appear only in All after
@@ -66,16 +68,17 @@ must restart offset pagination after activity changes the live order.
 ### 4. The navigation indicator covers followed threads
 
 **Decision:** The My Threads navigation indicator summarizes unread replies
-and notification attention only for followed threads. Important attention
-takes visual priority over the neutral indicator.
+and loaded unread notifications only for followed threads. Important
+notification attention takes visual priority over the neutral indicator.
 **Why:** The indicator must lead to a row that the user can find in My Threads.
 **Tradeoff:** A notification for an unfollowed thread can still appear in
 Notifications without lighting the My Threads indicator.
 
 ### 5. Chatto 0.5 uses the explicit viewer-state contract
 
-**Decision:** The 0.5 client and server use separate reply unread and attention
-fields. They do not preserve the ambiguous pre-0.5 client field.
+**Decision:** The 0.5 client and server use an explicit reply-unread field.
+They do not preserve the ambiguous pre-0.5 client field or add notification
+state to the thread contract.
 **Why:** Chatto 0.5 already has a breaking client and server boundary. Keeping
 the ambiguous field would make it easy for new clients to rebuild the same
 second unread model that this feature removes.

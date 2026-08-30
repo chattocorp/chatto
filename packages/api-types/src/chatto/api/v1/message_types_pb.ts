@@ -50,40 +50,6 @@ proto3.util.setEnumType(MessageVideoProcessingStatus, "chatto.api.v1.MessageVide
 ]);
 
 /**
- * Visual attention that one thread needs from the current user.
- *
- * @generated from enum chatto.api.v1.ThreadAttentionLevel
- */
-export enum ThreadAttentionLevel {
-  /**
-   * The thread does not have notification attention.
-   *
-   * @generated from enum value: THREAD_ATTENTION_LEVEL_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * The thread has neutral notification or Badge attention.
-   *
-   * @generated from enum value: THREAD_ATTENTION_LEVEL_AMBIENT = 1;
-   */
-  AMBIENT = 1,
-
-  /**
-   * The thread has unread notification attention.
-   *
-   * @generated from enum value: THREAD_ATTENTION_LEVEL_IMPORTANT = 2;
-   */
-  IMPORTANT = 2,
-}
-// Retrieve enum metadata with: proto3.getEnumType(ThreadAttentionLevel)
-proto3.util.setEnumType(ThreadAttentionLevel, "chatto.api.v1.ThreadAttentionLevel", [
-  { no: 0, name: "THREAD_ATTENTION_LEVEL_UNSPECIFIED" },
-  { no: 1, name: "THREAD_ATTENTION_LEVEL_AMBIENT" },
-  { no: 2, name: "THREAD_ATTENTION_LEVEL_IMPORTANT" },
-]);
-
-/**
  * Time-limited URL for an asset attached to a message.
  *
  * Clients should expect these URLs to expire and refresh the asset through
@@ -529,8 +495,7 @@ export class MessageReaction extends Message$1<MessageReaction> {
 }
 
 /**
- * Viewer-specific state for one message thread. Reply unread state and
- * notification attention have independent sources and can differ.
+ * Viewer-specific follow and reply-read state for one message thread.
  *
  * @generated from message chatto.api.v1.ThreadViewerState
  */
@@ -550,13 +515,6 @@ export class ThreadViewerState extends Message$1<ThreadViewerState> {
    */
   hasUnreadReplies?: boolean;
 
-  /**
-   * Current notification attention for this thread.
-   *
-   * @generated from field: chatto.api.v1.ThreadAttentionLevel attention_level = 3;
-   */
-  attentionLevel = ThreadAttentionLevel.UNSPECIFIED;
-
   constructor(data?: PartialMessage<ThreadViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -567,7 +525,6 @@ export class ThreadViewerState extends Message$1<ThreadViewerState> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "is_following", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "has_unread_replies", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
-    { no: 3, name: "attention_level", kind: "enum", T: proto3.getEnumType(ThreadAttentionLevel) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadViewerState {

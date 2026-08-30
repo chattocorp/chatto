@@ -538,8 +538,7 @@ export class ServerStateStore {
               threadRootEventId: update.event.id,
               replyCount: threadSummary.replyCount,
               lastReplyAt: threadSummary.lastReplyAt?.toDate().toISOString() ?? null,
-              hasUnreadReplies: threadSummary.viewerState?.hasUnreadReplies,
-              attentionLevel: threadSummary.viewerState?.attentionLevel
+              hasUnreadReplies: threadSummary.viewerState?.hasUnreadReplies
             });
           }
           if (update.event && !update.reactionChange) {
@@ -587,7 +586,6 @@ export class ServerStateStore {
               mapNotificationOccurrencePage(replacement.occurrences)
             );
           }
-          refreshRegisteredFollowedThreadQueries(this.serverId);
           break;
         }
         case 'roomViewerStateReplace': {

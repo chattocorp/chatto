@@ -106,8 +106,7 @@ describe('ServerProjectionStore', () => {
                 threadRootEventId: 'ROOT',
                 viewerState: new ThreadViewerState({
                   isFollowing: true,
-                  hasUnreadReplies: true,
-                  attentionLevel: 2
+                  hasUnreadReplies: true
                 })
               })
             ]
@@ -124,7 +123,6 @@ describe('ServerProjectionStore', () => {
     };
     expect(viewerState()?.isFollowing).toBe(true);
     expect(viewerState()?.hasUnreadReplies).toBe(true);
-    expect(viewerState()?.attentionLevel).toBe(2);
     expect(store.threadViewerStates.get('R1\u0000ROOT')?.hasUnreadReplies).toBe(true);
 
     store.apply(

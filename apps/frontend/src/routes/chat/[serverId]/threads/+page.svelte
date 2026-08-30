@@ -37,6 +37,8 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import { NotificationAttentionLevel } from '$lib/api-client/notifications';
+  import { notificationAttentionForThread } from '$lib/state/server/notifications.svelte';
 
   const serverScope = useServerScope();
   const serverStore = $derived(serverScope.store);
@@ -141,13 +143,12 @@
       threadRootEventId: thread.threadRootEventId,
       replyCount: summary.replyCount,
       lastReplyAt: summary.lastReplyAt?.toDate().toISOString() ?? null,
-      hasUnreadReplies: summary.viewerState?.hasUnreadReplies,
-      attentionLevel: summary.viewerState?.attentionLevel
+      hasUnreadReplies: summary.viewerState?.hasUnreadReplies
     });
   }
 
   function reconcileCachedProjection(
-    states: ReadonlyMap<string, { hasUnreadReplies?: boolean; attentionLevel?: number }>,
+    states: ReadonlyMap<string, { hasUnreadReplies?: boolean }>,
     refetchUnknown: boolean
   ) {
     const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
@@ -220,8 +221,7 @@
           threadRootEventId: thread.threadRootEventId,
           replyCount: thread.replyCount,
           lastReplyAt: thread.lastReplyAt,
-          hasUnreadReplies: false,
-          attentionLevel: 0
+          hasUnreadReplies: false
         })
       );
     } catch {
@@ -350,24 +350,37 @@
             {#each section.items as thread (thread.threadRootEventId)}
               {@const actors = rowActors(thread)}
               {@const primary = primaryEvent(thread)}
+              {@const attention = notificationAttentionForThread(
+                serverStore.notifications.unreadOccurrences,
+                thread.roomId,
+                thread.threadRootEventId
+              )}
               <ActivityListRow
                 pending={actionThreadId === thread.threadRootEventId}
                 disabled={actionThreadId === thread.threadRootEventId}
-                dimmed={!thread.hasUnreadReplies && thread.attention === 'none'}
-                important={thread.attention === 'important'}
+                dimmed={!thread.hasUnreadReplies &&
+                  attention === NotificationAttentionLevel.UNSPECIFIED}
+                important={attention === NotificationAttentionLevel.IMPORTANT}
                 onclick={() => navigateToThread(thread)}
                 rowAttributes={{
                   'data-testid': 'my-thread-item',
                   'data-thread-state': thread.hasUnreadReplies ? 'unread' : 'read',
-                  'data-thread-attention': thread.attention
+                  'data-thread-attention':
+                    attention === NotificationAttentionLevel.IMPORTANT
+                      ? 'important'
+                      : attention === NotificationAttentionLevel.AMBIENT
+                        ? 'ambient'
+                        : 'none'
                 }}
               >
                 {#snippet leading()}
                   <span class="relative flex shrink-0" aria-hidden="true">
                     <UserAvatarStack users={actors} />
-                    {#if thread.attention !== 'none'}
+                    {#if attention !== NotificationAttentionLevel.UNSPECIFIED}
                       <UnreadDot
-                        color={thread.attention === 'important' ? 'warning' : 'ambient'}
+                        color={attention === NotificationAttentionLevel.IMPORTANT
+                          ? 'warning'
+                          : 'ambient'}
                         overlay
                         class="absolute -end-1 -top-1"
                         testid="thread-attention-dot"
@@ -379,7 +392,7 @@
                 {#if thread.hasUnreadReplies}<span class="sr-only"
                     >{m('chat.threads.filter_unread')}</span
                   >{/if}
-                {#if thread.attention !== 'none'}<span class="sr-only"
+                {#if attention !== NotificationAttentionLevel.UNSPECIFIED}<span class="sr-only"
                     >{m('room_list.notifications', { count: 1 })}</span
                   >{/if}
                 <span class="min-w-0 flex-1" data-testid="thread-content">
@@ -388,8 +401,7 @@
                       {#if actorName(primary)}
                         <span class="font-medium"
                           >{actorName(primary)}:
-                          <span class="font-normal">{messageExcerpt(primary)}</span
-                          ></span
+                          <span class="font-normal">{messageExcerpt(primary)}</span></span
                         >
                       {:else}
                         <span>{messageExcerpt(primary)}</span>

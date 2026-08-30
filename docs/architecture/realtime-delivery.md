@@ -512,8 +512,8 @@ attention do not use separate transient hint frames. Notification occurrence
 create, update, and delete signals assemble an authoritative
 `notification_occurrences_replace` that contains occurrences plus exact total
 and Important counts. Human connections and bot API-key connections receive
-this same viewer-scoped replacement. The browser also refreshes a mounted My
-Threads feed because its public attention level derives from these occurrences.
+this same viewer-scoped replacement. The browser can decorate followed-thread
+rows directly from matching unread occurrences in this replacement.
 A live replacement can carry transition metadata for one-shot presentation
 effects, while replay and finite reconciliation omit it.
 
@@ -528,14 +528,11 @@ bounds count staleness if a best-effort Core NATS invalidation is lost while a
 tab remains connected.
 
 Badge marker changes use a separate content-free user invalidation. The server
-maps it to an authoritative `room_viewer_state_replace` and, for thread Badge
-attention, a complete `thread_viewer_states_replace`. The public thread
-projection reports reply unread state and notification attention as separate
-fields. The Message Read Cursor determines `has_unread_replies`. Notification
-occurrences and Badge markers determine the attention level. Clients do not
-receive either internal storage coordinate. Thread attention rolls up into the
-parent room, and notification orange takes visual priority over the neutral
-unread dot.
+maps it to an authoritative `room_viewer_state_replace`. The public thread
+projection reports follow and reply-unread state only. The Message Read Cursor
+determines `has_unread_replies`. Clients do not receive either internal storage
+coordinate. A thread Badge rolls up into the parent room, and notification
+orange takes visual priority over the neutral room dot.
 
 Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection

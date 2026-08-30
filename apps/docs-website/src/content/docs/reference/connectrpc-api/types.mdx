@@ -451,14 +451,12 @@ Aggregated state for one message thread.
 
 ### ThreadViewerState
 
-Viewer-specific state for one message thread. Reply unread state and
-notification attention have independent sources and can differ.
+Viewer-specific follow and reply-read state for one message thread.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `has_unread_replies` | `optional bool` | True when the thread contains replies after the current user's read cursor, when known. |
-| `attention_level` | [`ThreadAttentionLevel`](#chatto-api-v1-ThreadAttentionLevel) | Current notification attention for this thread. |
 
 <a id="chatto-api-v1-Asset"></a>
 
@@ -1759,18 +1757,6 @@ Processing state for a video attachment.
 | `MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING` | `1` | Video processing is still running. |
 | `MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
 | `MESSAGE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
-
-<a id="chatto-api-v1-ThreadAttentionLevel"></a>
-
-### ThreadAttentionLevel
-
-Visual attention that one thread needs from the current user.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `THREAD_ATTENTION_LEVEL_UNSPECIFIED` | `0` | The thread does not have notification attention. |
-| `THREAD_ATTENTION_LEVEL_AMBIENT` | `1` | The thread has neutral notification or Badge attention. |
-| `THREAD_ATTENTION_LEVEL_IMPORTANT` | `2` | The thread has unread notification attention. |
 
 <a id="chatto-api-v1-AssetUploadStatus"></a>
 

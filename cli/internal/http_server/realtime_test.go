@@ -2364,22 +2364,20 @@ func TestRealtimeProjectionBadgeReplacesRoomThreadAndRetainedRoot(t *testing.T) 
 	if !handled {
 		t.Fatal("Badge unread invalidation was not handled")
 	}
-	var roomUnread, threadAttention, rootAttention bool
+	var roomUnread, hasThreadReplacement, hasRootUpsert bool
 	for _, operation := range frame.GetProjectionEvent().GetOperations() {
 		if replacement := operation.GetRoomViewerStateReplace(); replacement != nil {
 			roomUnread = replacement.GetViewerState().GetHasUnread()
 		}
 		if replacement := operation.GetThreadViewerStatesReplace(); replacement != nil {
-			for _, state := range replacement.GetStates() {
-				threadAttention = threadAttention || state.GetThreadRootEventId() == root.Id && state.GetViewerState().GetAttentionLevel() == apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_AMBIENT
-			}
+			hasThreadReplacement = true
 		}
 		if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil && upsert.GetEvent().GetId() == root.Id {
-			rootAttention = upsert.GetEvent().GetMessagePosted().GetMessage().GetThread().GetViewerState().GetAttentionLevel() == apiv1.ThreadAttentionLevel_THREAD_ATTENTION_LEVEL_AMBIENT
+			hasRootUpsert = true
 		}
 	}
-	if !roomUnread || !threadAttention || !rootAttention {
-		t.Fatalf("Badge projection room/thread/root attention = %v/%v/%v; frame=%+v", roomUnread, threadAttention, rootAttention, frame)
+	if !roomUnread || hasThreadReplacement || hasRootUpsert {
+		t.Fatalf("Badge projection room unread/thread replacement/root upsert = %v/%v/%v; frame=%+v", roomUnread, hasThreadReplacement, hasRootUpsert, frame)
 	}
 }
 

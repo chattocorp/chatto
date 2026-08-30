@@ -365,29 +365,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 					RoomId: roomID, ViewerState: viewerState,
 				},
 			}})
-			if invalidation.GetThreadRootEventId() != "" {
-				threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
-				if err != nil {
-					return nil, false, err
-				}
-				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
-					ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
-				}})
-				if retainsTimeline(roomID) {
-					timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, roomID, invalidation.GetThreadRootEventId())
-					if err != nil {
-						if errors.Is(err, core.ErrPermissionDenied) {
-							return realtimeProjectionServerFrame(projection), true, nil
-						}
-						return nil, false, err
-					}
-					appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventUpsert{
-						RoomTimelineEventUpsert: &realtimev1.RealtimeProjectionRoomTimelineEventUpsert{
-							RoomId: roomID, Event: timelineEvent, Includes: includes, EventCursor: eventCursor,
-						},
-					}})
-				}
-			}
 		case *livev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
 			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)

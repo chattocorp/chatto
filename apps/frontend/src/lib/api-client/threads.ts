@@ -8,10 +8,7 @@ import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { messageToTimelineEvent } from './roomTimeline.js';
-import { ThreadAttentionLevel } from '@chatto/api-types/api/v1/message_types_pb';
 import type { UserAvatarUserView } from '$lib/render/users';
-
-export type FollowedThreadAttention = 'none' | 'ambient' | 'important';
 
 export type FollowedThread = {
   roomId: string;
@@ -24,7 +21,6 @@ export type FollowedThread = {
   participants: UserAvatarUserView[];
   participantCount: number;
   hasUnreadReplies: boolean;
-  attention: FollowedThreadAttention;
 };
 
 export type FollowedThreadsPage = {
@@ -84,8 +80,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
                   ? rootMessage.event.threadParticipants
                   : [],
               participantCount: thread.thread?.participantCount ?? 0,
-              hasUnreadReplies: thread.thread?.viewerState?.hasUnreadReplies ?? false,
-              attention: mapThreadAttention(thread.thread?.viewerState?.attentionLevel)
+              hasUnreadReplies: thread.thread?.viewerState?.hasUnreadReplies ?? false
             };
           }),
           totalCount: Number(response.page?.totalCount ?? 0),
@@ -130,17 +125,6 @@ export function createThreadAPI(config: ConnectAPIConfig) {
       }
     }
   };
-}
-
-function mapThreadAttention(level: ThreadAttentionLevel | undefined): FollowedThreadAttention {
-  switch (level) {
-    case ThreadAttentionLevel.IMPORTANT:
-      return 'important';
-    case ThreadAttentionLevel.AMBIENT:
-      return 'ambient';
-    default:
-      return 'none';
-  }
 }
 
 function mapThreadFollowState(state: {

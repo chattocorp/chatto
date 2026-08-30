@@ -32,7 +32,6 @@ function thread(
     participants: [],
     participantCount: 0,
     hasUnreadReplies: false,
-    attention: 'none',
     ...overrides
   };
 }
@@ -68,9 +67,7 @@ describe('followed thread query helpers', () => {
       totalCount: 2,
       hasMore: false
     });
-    const states = new Map([
-      [followedThreadKey('room-1', 'retained'), { hasUnreadReplies: true }]
-    ]);
+    const states = new Map([[followedThreadKey('room-1', 'retained'), { hasUnreadReplies: true }]]);
 
     const reconciled = reconcileFollowedThreadViewerStates(current, states);
 
@@ -136,35 +133,19 @@ describe('followed thread query helpers', () => {
       threadRootEventId: 'root-1',
       replyCount: 3,
       lastReplyAt: '2026-08-02T10:00:00.000Z',
-      hasUnreadReplies: true,
-      attentionLevel: 2
+      hasUnreadReplies: true
     });
     const result = flattenFollowedThreads(updated)[0];
 
     expect(result).toMatchObject({
       replyCount: 3,
-      hasUnreadReplies: true,
-      attention: 'important'
+      hasUnreadReplies: true
     });
     expect(result?.rootMessage?.event).toMatchObject({
       kind: 'messagePosted',
       replyCount: 3,
       lastReplyAt: '2026-08-02T10:00:00.000Z'
     });
-  });
-
-  it('updates attention when the reply summary is unchanged', () => {
-    const current = data({ threads: [thread('root-1')], totalCount: 1, hasMore: false });
-
-    const updated = updateFollowedThreadSummary(current, {
-      roomId: 'room-1',
-      threadRootEventId: 'root-1',
-      replyCount: 1,
-      lastReplyAt: '2026-08-01T10:00:00.000Z',
-      attentionLevel: 2
-    });
-
-    expect(flattenFollowedThreads(updated)[0]?.attention).toBe('important');
   });
 
   it('reconciles every cached session from the process-wide projection owner', () => {

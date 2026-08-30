@@ -53,6 +53,27 @@ export function notificationTarget(n: NotificationOccurrenceItem): NotificationT
   };
 }
 
+/** Return the strongest unread notification attention for one exact thread. */
+export function notificationAttentionForThread(
+  notifications: readonly NotificationOccurrenceItem[],
+  roomId: string,
+  threadRootId: string
+): NotificationAttentionLevel {
+  let strongest = NotificationAttentionLevel.UNSPECIFIED;
+  for (const notification of notifications) {
+    if (!notification.unread) continue;
+    const target = notificationTarget(notification);
+    if (target.roomId !== roomId || target.threadRootId !== threadRootId) continue;
+    if (notification.attentionLevel === NotificationAttentionLevel.IMPORTANT) {
+      return NotificationAttentionLevel.IMPORTANT;
+    }
+    if (notification.attentionLevel === NotificationAttentionLevel.AMBIENT) {
+      strongest = NotificationAttentionLevel.AMBIENT;
+    }
+  }
+  return strongest;
+}
+
 /**
  * Notification state store.
  * Manages notifications for the current user with real-time sync.

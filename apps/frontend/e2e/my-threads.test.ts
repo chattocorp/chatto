@@ -211,6 +211,7 @@ test.describe('My Threads', () => {
     await expect(markReadButton).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
+    await expect(threadItem).toHaveAttribute('data-thread-attention', 'important');
   });
 
   test('sidebar unread dot appears when another user replies', async ({
