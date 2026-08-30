@@ -339,8 +339,8 @@ func (x *BotIncomingWebhook) GetLastUsedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Request bots visible to the caller. Owners see their own bots; callers with
-// bot.manage see every bot.
+// Request bots visible to the caller. Owners see their own bots. Callers with
+// bot.manage or user.manage-accounts see every bot.
 type ListBotsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional case-insensitive login or display-name search.

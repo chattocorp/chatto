@@ -141,6 +141,15 @@ used `StartDM` must stop that call and use its room state or realtime events.
 During a mixed-replica rollout, an older replica can still accept the call.
 Upgrade all replicas before you depend on this boundary.
 
+Chatto 0.5.0-alpha.6 moves avatar upload and deletion from
+`MyAccountService` to `UserService`. The two methods now require a target user
+ID. There are no compatibility aliases. An old client gets `Unimplemented`
+from a new server because it calls the removed service paths. A new client gets
+`Unimplemented` from an old server because it calls the new paths. Regenerate
+your client, change the service, and send the caller's own user ID for a
+self-avatar change. The bundled client hides all avatar editors on servers
+earlier than 0.5.0-alpha.6.
+
 This breaking realtime migration does not retire the `chatto.api.v1`
 ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
 API. Do not replace explicit resource reads, pagination, mutation responses, or

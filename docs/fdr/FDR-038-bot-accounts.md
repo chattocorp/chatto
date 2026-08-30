@@ -16,9 +16,10 @@ exercise more authority than its human owner currently possesses.
   owner.
 - Server Admin's Bots page lists the bots visible to the caller and creates new
   bots. Selecting a bot opens its own detail page for login and display-name
-  editing, API-key management, deletion, metadata, and permissions. Bot avatar,
-  custom-status, and personal-settings management are not supported in this
-  slice.
+  editing, avatar management, API-key management, deletion, metadata, and
+  permissions. An account manager who does not manage bots can see all bots and
+  can manage their avatars, but cannot manage their credentials or lifecycle.
+  Bot custom-status and personal-settings management are not supported.
 - On a fresh RBAC bootstrap, `everyone` receives `bot.create`, while `admin`
   and `owner` have `bot.manage`. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission
@@ -139,8 +140,11 @@ exercise more authority than its human owner currently possesses.
 - Bots cannot have passwords, verified emails, external identities, browser
   sessions, OAuth access tokens, password-reset flows, or other human sign-in
   methods. A bot API key can update its own public profile through
-  `MyAccountService.UpdateProfile`, but cannot change ownership, permissions,
-  or API keys.
+  `MyAccountService.UpdateProfile` and can manage its own avatar through
+  `UserService`. It cannot change ownership, permissions, or API keys.
+- A bot owner, a human with `bot.manage`, or a human with
+  `user.manage-accounts` can upload or delete a bot's avatar. A bot cannot
+  target another account.
 - Bots cannot request their own deletion. Only their owner or a human user with
   `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding
@@ -374,6 +378,14 @@ create or revoke a webhook. An older replica cannot project multiple webhook
 credentials correctly after replay and cannot authenticate the new URL format.
 Current servers read the rotation fact from the unreleased implementation, but
 they do not write it.
+
+Avatar upload and deletion move from `MyAccountService` to target-aware
+`UserService` methods in Chatto 0.5.0-alpha.6. This is an intentional pre-1.0
+breaking change. Old clients receive an unimplemented-method error from new
+servers. New clients receive the same error from old servers. The bundled
+client hides avatar editors when the server version is earlier than
+0.5.0-alpha.6. Custom clients must regenerate their bindings, change the
+service, and send the target user ID.
 
 ## Related
 

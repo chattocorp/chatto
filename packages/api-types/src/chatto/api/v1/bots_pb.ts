@@ -281,8 +281,8 @@ export class BotIncomingWebhook extends Message<BotIncomingWebhook> {
 }
 
 /**
- * Request bots visible to the caller. Owners see their own bots; callers with
- * bot.manage see every bot.
+ * Request bots visible to the caller. Owners see their own bots. Callers with
+ * bot.manage or user.manage-accounts see every bot.
  *
  * @generated from message chatto.api.v1.ListBotsRequest
  */

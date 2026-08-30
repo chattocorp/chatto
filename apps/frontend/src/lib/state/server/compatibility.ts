@@ -15,7 +15,8 @@ const serverFeatureMinimumVersions = {
   realtimeProjection: '0.5.0-0',
   roomManagement: '0.5.0-0',
   relativeSidebarMoves: '0.5.0-alpha.4',
-  serverInvitations: '0.5.0-0'
+  serverInvitations: '0.5.0-0',
+  userAvatars: '0.5.0-alpha.6'
 } as const;
 
 export type ServerFeature = keyof typeof serverFeatureMinimumVersions;

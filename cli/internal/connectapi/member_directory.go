@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sort"
@@ -113,6 +114,48 @@ func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[ap
 		members = append(members, member)
 	}
 	return connect.NewResponse(&apiv1.BatchGetUsersResponse{Users: members}), nil
+}
+
+func (s *userService) UploadAvatar(ctx context.Context, req *connect.Request[apiv1.UploadAvatarRequest]) (*connect.Response[apiv1.UploadAvatarResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.Msg.GetUserId() == "" {
+		return nil, invalidArgument("user_id is required")
+	}
+	image := req.Msg.GetImage()
+	if image == nil || len(image.GetImage()) == 0 {
+		return nil, invalidArgument("image is required")
+	}
+	user, err := s.api.core.UpdateUserAvatar(ctx, caller.UserID, req.Msg.GetUserId(), bytes.NewReader(image.GetImage()))
+	if err != nil {
+		return nil, connectError(err)
+	}
+	responseUser, err := requiredUserSummary(ctx, s.api, user)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.UploadAvatarResponse{User: responseUser}), nil
+}
+
+func (s *userService) DeleteAvatar(ctx context.Context, req *connect.Request[apiv1.DeleteAvatarRequest]) (*connect.Response[apiv1.DeleteAvatarResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.Msg.GetUserId() == "" {
+		return nil, invalidArgument("user_id is required")
+	}
+	user, err := s.api.core.ClearUserAvatar(ctx, caller.UserID, req.Msg.GetUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	responseUser, err := requiredUserSummary(ctx, s.api, user)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.DeleteAvatarResponse{User: responseUser}), nil
 }
 
 func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListRoomMembersRequest]) (*connect.Response[apiv1.ListRoomMembersResponse], error) {

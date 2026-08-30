@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/common.proto";
 import "chatto/api/v1/external_identities.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
@@ -29,30 +28,6 @@ message UpdateProfileRequest {
 
 // Result of a profile update.
 message UpdateProfileResponse {
-  // Updated user profile.
-  User user = 1;
-}
-
-// Request to upload and set the authenticated user's avatar.
-message UploadAvatarRequest {
-  reserved 1 to 3;
-  reserved "filename", "content_type";
-
-  // Image payload. The server validates, resizes, and stores a WebP avatar.
-  ImageUpload image = 4;
-}
-
-// Result of uploading the authenticated user's avatar.
-message UploadAvatarResponse {
-  // Updated user profile.
-  User user = 1;
-}
-
-// Request to delete the authenticated user's avatar.
-message DeleteAvatarRequest {}
-
-// Result of deleting the authenticated user's avatar.
-message DeleteAvatarResponse {
   // Updated user profile.
   User user = 1;
 }
@@ -115,18 +90,12 @@ message DeleteMyAccountResponse {
   bool deleted = 1;
 }
 
-// Self-service account, profile, avatar, display preference, presence,
+// Self-service account, profile, display preference, presence,
 // custom-status, external identity, and account lifecycle commands for the
 // authenticated user.
 service MyAccountService {
   // Updates the authenticated user's login, display name, and/or bio.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
-  // Uploads and sets the authenticated user's avatar.
-  rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
-  // Deletes the authenticated user's avatar. The call is idempotent.
-  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse) {
-    option idempotency_level = IDEMPOTENT;
-  }
   // Updates or adds the authenticated user's password.
   rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
   // Updates the authenticated user's display preferences.

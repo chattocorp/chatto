@@ -43,7 +43,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     the local time that a user chooses to share. Stored time zones are private by default. You
     can use your time zone for date formatting without publishing it on your profile. Bios can
     contain up to 1,000 characters. Local times use your preferred 12-hour or 24-hour format.
-    Bots use the same self-profile API when authenticated with their API key.
+    Bots use the same self-profile API when authenticated with their API key. Bot owners and
+    authorized account or bot managers can also upload or remove a bot avatar.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Notifications that stay useful after you read them">
@@ -163,6 +164,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 </ReleaseFeatureGrid>
 
 ## Upgrade Notes
+
+- Regenerate custom API clients for Chatto 0.5.0-alpha.6. Avatar upload and
+  deletion moved from `MyAccountService` to `UserService`, and each request now
+  requires the target user ID. There are no compatibility aliases. Old clients
+  receive `Unimplemented` from new servers, and new clients receive
+  `Unimplemented` from old servers. The bundled client disables avatar editors
+  on servers earlier than 0.5.0-alpha.6.
 
 - Existing experimental MCP connections must authorize again. The tester tool
   catalog now needs the room and message read/write MCP scopes. A token that

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   updateProfile: vi.fn(),
   uploadAvatar: vi.fn(),
   deleteAvatar: vi.fn(),
+  supportsUserAvatars: true,
   currentUser: {
     user: {
       id: 'user-1',
@@ -34,7 +35,10 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
     store: {
-      currentUser: mocks.currentUser
+      currentUser: mocks.currentUser,
+      serverInfo: {
+        supportsFeature: (feature: string) => feature !== 'userAvatars' || mocks.supportsUserAvatars
+      }
     },
     connection: {
       isConnected: true,
@@ -54,7 +58,12 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 
 vi.mock('$lib/api-client/account', () => ({
   createAccountAPI: () => ({
-    updateProfile: mocks.updateProfile,
+    updateProfile: mocks.updateProfile
+  })
+}));
+
+vi.mock('$lib/api-client/users', () => ({
+  createUserAPI: () => ({
     uploadAvatar: mocks.uploadAvatar,
     deleteAvatar: mocks.deleteAvatar
   })
@@ -84,6 +93,7 @@ describe('Profile settings page', () => {
       lastLoginChange: null
     };
     mocks.query.mockReset();
+    mocks.supportsUserAvatars = true;
     mocks.mutation.mockReset();
     mocks.updateProfile.mockReset();
     mocks.updateProfile.mockImplementation((input) =>
@@ -124,6 +134,15 @@ describe('Profile settings page', () => {
     await expect.element(usernameInput).toHaveValue('alice');
     await expect.element(saveButton).toBeDisabled();
     expect(uploadButton).toHaveClass('btn-action');
+  });
+
+  it('hides the avatar editor when the server does not support targeted avatars', async () => {
+    mocks.supportsUserAvatars = false;
+    const { container } = render(ProfilePage);
+    await settle();
+
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(1);
   });
 
   it('submits a valid display name through the account API', async () => {
@@ -230,7 +249,7 @@ describe('Profile settings page', () => {
     });
   });
 
-  it('uploads an avatar through the account API', async () => {
+  it('uploads an avatar through the targeted user API', async () => {
     const { container } = render(ProfilePage);
     await settle();
 
@@ -245,7 +264,7 @@ describe('Profile settings page', () => {
     input.dispatchEvent(new Event('change', { bubbles: true }));
 
     await vi.waitFor(() => {
-      expect(mocks.uploadAvatar).toHaveBeenCalledWith(file);
+      expect(mocks.uploadAvatar).toHaveBeenCalledWith('user-1', file);
     });
     expect(mocks.currentUser.user?.avatarUrl).toBe(avatarDataUrl);
     await vi.waitFor(() => {

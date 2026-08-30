@@ -89,7 +89,7 @@ const categories = [
         name: 'MyAccountService',
         slug: 'account',
         title: 'My Account',
-        description: 'Self-service account, profile, avatar, presence, status, external identity, and settings RPCs for the authenticated user.'
+        description: 'Self-service account, profile, presence, status, external identity, and settings RPCs for the authenticated user.'
       },
       {
         name: 'NotificationService',

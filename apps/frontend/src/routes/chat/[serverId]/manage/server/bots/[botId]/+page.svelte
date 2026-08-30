@@ -12,6 +12,7 @@
   import BotCredentialSection, {
     type BotCredentialSectionItem
   } from '$lib/components/bots/BotCredentialSection.svelte';
+  import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
@@ -40,12 +41,16 @@
   const supportsOwnerReassignment = $derived(
     serverScope.store.serverInfo.supportsFeature('botOwnerReassignment')
   );
-  const canReassignOwner = $derived.by(() => {
+  const supportsUserAvatars = $derived(
+    serverScope.store.serverInfo.supportsFeature('userAvatars')
+  );
+  const viewerState = $derived.by(() => {
     const viewer = serverScope.store.projection.viewer;
-    return viewer
-      ? (viewerResponseToState(viewer).viewerPermissions['bot.manage'] ?? false)
-      : false;
+    return viewer ? viewerResponseToState(viewer) : null;
   });
+  const canManageBots = $derived(viewerState?.viewerPermissions['bot.manage'] ?? false);
+  const canManageAccounts = $derived(serverScope.store.permissions.canAdminManageAccounts);
+  const canReassignOwner = $derived(canManageBots);
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/bots', {
       serverId: serverIdToSegment(serverScope.serverId)
@@ -81,6 +86,10 @@
     () => queryClient
   );
   const owner = $derived(ownerQuery.data?.[0] ?? null);
+  const canOperateBot = $derived(
+    !!bot && (bot.ownerUserId === viewerState?.user.id || canManageBots)
+  );
+  const canEditAvatar = $derived(canOperateBot || canManageAccounts);
   const targetKey = $derived(
     `${serverScope.serverId}:${serverScope.connection.queryScope}:${botId}`
   );
@@ -106,6 +115,10 @@
     return serverScope.connection.getAPI(createBotAPI);
   }
 
+  function userAPI() {
+    return serverScope.connection.getAPI(createUserAPI);
+  }
+
   function isCurrentTarget(mutationTarget: string): boolean {
     return componentActive && serverScope.isCurrent() && mutationTarget === targetKey;
   }
@@ -124,6 +137,24 @@
     void queryClient.invalidateQueries({
       queryKey: settingsQueryKeys.botsRoot(serverScope.serverId, serverScope.connection)
     });
+  }
+
+  async function uploadAvatar(file: File): Promise<boolean> {
+    if (!bot) return false;
+    const mutationTarget = targetKey;
+    const updated = await userAPI().uploadAvatar(bot.id, file);
+    if (!isCurrentTarget(mutationTarget) || !bot) return false;
+    cacheBot({ ...bot, avatarUrl: updated.avatarUrl });
+    return true;
+  }
+
+  async function deleteAvatar(): Promise<boolean> {
+    if (!bot) return false;
+    const mutationTarget = targetKey;
+    const updated = await userAPI().deleteAvatar(bot.id);
+    if (!isCurrentTarget(mutationTarget) || !bot) return false;
+    cacheBot({ ...bot, avatarUrl: updated.avatarUrl });
+    return true;
   }
 
   async function createAPIKey(name: string): Promise<string | null> {
@@ -333,10 +364,12 @@
               {m('settings.bots.reassign_owner')}
             </Button>
           {/if}
-          <Button size="sm" variant="danger-secondary" onclick={() => (deleteVisible = true)}>
-            <span class="iconify icon-[uil--trash]" aria-hidden="true"></span>
-            {m('common.delete')}
-          </Button>
+          {#if canOperateBot}
+            <Button size="sm" variant="danger-secondary" onclick={() => (deleteVisible = true)}>
+              <span class="iconify icon-[uil--trash]" aria-hidden="true"></span>
+              {m('common.delete')}
+            </Button>
+          {/if}
         {/snippet}
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -368,9 +401,16 @@
         </dl>
       </Panel>
 
-      {#key targetKey}
-        {#if supportsMultipleAPIKeys}
-          <BotCredentialSection
+      {#if supportsUserAvatars && canEditAvatar}
+        {#key targetKey}
+          <AvatarEditor user={{ ...bot, isBot: true }} onupload={uploadAvatar} ondelete={deleteAvatar} />
+        {/key}
+      {/if}
+
+      {#if canOperateBot}
+        {#key targetKey}
+          {#if supportsMultipleAPIKeys}
+            <BotCredentialSection
             idPrefix="bot-api-key"
             testId="bot-api-keys"
             items={apiKeyItems}
@@ -392,11 +432,11 @@
             }}
             oncreate={createAPIKey}
             onrevoke={revokeAPIKey}
-          />
-        {/if}
+            />
+          {/if}
 
-        {#if supportsIncomingWebhooks}
-          <BotCredentialSection
+          {#if supportsIncomingWebhooks}
+            <BotCredentialSection
             idPrefix="bot-webhook"
             testId="bot-incoming-webhooks"
             items={webhookItems}
@@ -418,16 +458,17 @@
             }}
             oncreate={createWebhook}
             onrevoke={revokeWebhook}
-          />
-        {/if}
-      {/key}
+            />
+          {/if}
+        {/key}
 
-      <UserPermissionsMatrix
-        userId={bot.id}
-        subjectKind={m('settings.bots.singular')}
-        ownerCapped
-        decisionMode="binary"
-      />
+        <UserPermissionsMatrix
+          userId={bot.id}
+          subjectKind={m('settings.bots.singular')}
+          ownerCapped
+          decisionMode="binary"
+        />
+      {/if}
     </div>
   {/if}
 </PaneContent>

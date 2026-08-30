@@ -7,10 +7,6 @@
   import ProfileDetailsSettings from '../ProfileDetailsSettings.svelte';
 
   const serverScope = useServerScope();
-
-  function accountAPI() {
-    return serverScope.connection.getAPI(createAccountAPI);
-  }
 </script>
 
 <PaneHeader
@@ -21,7 +17,11 @@
 
 <PaneContent>
   <div class="flex flex-col gap-6">
-    <AvatarSettings getAccountAPI={accountAPI} />
-    <ProfileDetailsSettings getAccountAPI={accountAPI} />
+    {#if serverScope.store.serverInfo.supportsFeature('userAvatars')}
+      <AvatarSettings />
+    {/if}
+    <ProfileDetailsSettings
+      getAccountAPI={() => serverScope.connection.getAPI(createAccountAPI)}
+    />
   </div>
 </PaneContent>

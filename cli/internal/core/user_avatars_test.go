@@ -2,12 +2,141 @@ package core
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
 	"testing"
+	"time"
+
+	"hmans.de/chatto/internal/evtstream"
 )
+
+func TestRequireCanManageUserAvatarAuthorizationMatrix(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "avatarowner", "Avatar Owner", "")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	otherHuman, err := c.CreateUser(ctx, SystemActorID, "avatarhuman", "Avatar Human", "")
+	if err != nil {
+		t.Fatalf("CreateUser other human: %v", err)
+	}
+	unrelated, err := c.CreateUser(ctx, SystemActorID, "avatarunrelated", "Avatar Unrelated", "")
+	if err != nil {
+		t.Fatalf("CreateUser unrelated: %v", err)
+	}
+	accountManager, err := c.CreateUser(ctx, SystemActorID, "avataraccountmanager", "Avatar Account Manager", "")
+	if err != nil {
+		t.Fatalf("CreateUser account manager: %v", err)
+	}
+	botManager, err := c.CreateUser(ctx, SystemActorID, "avatarbotmanager", "Avatar Bot Manager", "")
+	if err != nil {
+		t.Fatalf("CreateUser bot manager: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "avatar_helper_bot", "Avatar Helper Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.GetId(), PermUserManageAccounts); err != nil {
+		t.Fatalf("grant user.manage-accounts: %v", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, botManager.GetId(), PermBotManage); err != nil {
+		t.Fatalf("grant bot.manage: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		actorID  string
+		targetID string
+		wantErr  error
+	}{
+		{name: "human self", actorID: owner.GetId(), targetID: owner.GetId()},
+		{name: "bot self", actorID: bot.User.GetId(), targetID: bot.User.GetId()},
+		{name: "bot owner", actorID: owner.GetId(), targetID: bot.User.GetId()},
+		{name: "account manager human", actorID: accountManager.GetId(), targetID: otherHuman.GetId()},
+		{name: "account manager bot", actorID: accountManager.GetId(), targetID: bot.User.GetId()},
+		{name: "bot manager bot", actorID: botManager.GetId(), targetID: bot.User.GetId()},
+		{name: "unrelated human", actorID: unrelated.GetId(), targetID: otherHuman.GetId(), wantErr: ErrPermissionDenied},
+		{name: "unrelated bot", actorID: unrelated.GetId(), targetID: bot.User.GetId(), wantErr: ErrPermissionDenied},
+		{name: "bot targets human", actorID: bot.User.GetId(), targetID: otherHuman.GetId(), wantErr: ErrPermissionDenied},
+		{name: "missing target", actorID: owner.GetId(), targetID: NewUserID(), wantErr: ErrNotFound},
+		{name: "malformed target", actorID: owner.GetId(), targetID: "not-a-user-id", wantErr: ErrInvalidArgument},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := c.requireCanManageUserAvatar(ctx, test.actorID, test.targetID)
+			if !errors.Is(err, test.wantErr) {
+				t.Fatalf("requireCanManageUserAvatar() error = %v, want %v", err, test.wantErr)
+			}
+		})
+	}
+
+	if _, err := c.GetBot(ctx, accountManager.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("account manager GetBot: %v", err)
+	}
+	visibleBots, err := c.ListBots(ctx, accountManager.GetId())
+	if err != nil || len(visibleBots) != 1 || visibleBots[0].User.GetId() != bot.User.GetId() {
+		t.Fatalf("account manager ListBots = %+v, %v; want target bot", visibleBots, err)
+	}
+	if _, err := c.CreateBotAPIKey(ctx, accountManager.GetId(), bot.User.GetId(), "Not allowed"); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("account manager CreateBotAPIKey err = %v, want permission denied", err)
+	}
+}
+
+func TestManagedBotAvatarUsesCanonicalProjectionAndIdempotentClear(t *testing.T) {
+	c, nc := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "managedavatarowner", "Managed Avatar Owner", "")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "managed_avatar_bot", "Managed Avatar Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	sub, err := nc.SubscribeSync("live.sync.user." + bot.User.GetId() + ".profile_updated")
+	if err != nil {
+		t.Fatalf("SubscribeSync: %v", err)
+	}
+
+	updated, err := c.UpdateUserAvatar(ctx, owner.GetId(), bot.User.GetId(), createTestImage(100, 100))
+	if err != nil {
+		t.Fatalf("UpdateUserAvatar: %v", err)
+	}
+	if updated.GetId() != bot.User.GetId() {
+		t.Fatalf("updated user ID = %q, want %q", updated.GetId(), bot.User.GetId())
+	}
+	if avatar, _ := c.GetUserAvatar(ctx, bot.User.GetId()); avatar == nil {
+		t.Fatal("bot avatar was not projected")
+	}
+	if _, err := sub.NextMsg(time.Second); err != nil {
+		t.Fatalf("profile update after upload: %v", err)
+	}
+	uploadEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventAssetCreated))
+	if err != nil || len(uploadEvents) != 1 || uploadEvents[0].GetActorId() != owner.GetId() {
+		t.Fatalf("avatar upload events = %+v, %v; want one event by owner", uploadEvents, err)
+	}
+
+	if _, err := c.ClearUserAvatar(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("ClearUserAvatar: %v", err)
+	}
+	if _, err := sub.NextMsg(time.Second); err != nil {
+		t.Fatalf("profile update after clear: %v", err)
+	}
+	if _, err := c.ClearUserAvatar(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("idempotent ClearUserAvatar: %v", err)
+	}
+	if avatar, _ := c.GetUserAvatar(ctx, bot.User.GetId()); avatar != nil {
+		t.Fatalf("avatar after clear = %+v, want nil", avatar)
+	}
+	clearEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventUserAvatarCleared))
+	if err != nil || len(clearEvents) != 1 || clearEvents[0].GetActorId() != owner.GetId() {
+		t.Fatalf("avatar clear events = %+v, %v; want one event by owner", clearEvents, err)
+	}
+}
 
 // createTestImage creates a test PNG image with the specified dimensions.
 func createTestImage(width, height int) io.Reader {

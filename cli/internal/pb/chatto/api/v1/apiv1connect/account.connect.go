@@ -36,12 +36,6 @@ const (
 	// MyAccountServiceUpdateProfileProcedure is the fully-qualified name of the MyAccountService's
 	// UpdateProfile RPC.
 	MyAccountServiceUpdateProfileProcedure = "/chatto.api.v1.MyAccountService/UpdateProfile"
-	// MyAccountServiceUploadAvatarProcedure is the fully-qualified name of the MyAccountService's
-	// UploadAvatar RPC.
-	MyAccountServiceUploadAvatarProcedure = "/chatto.api.v1.MyAccountService/UploadAvatar"
-	// MyAccountServiceDeleteAvatarProcedure is the fully-qualified name of the MyAccountService's
-	// DeleteAvatar RPC.
-	MyAccountServiceDeleteAvatarProcedure = "/chatto.api.v1.MyAccountService/DeleteAvatar"
 	// MyAccountServiceUpdatePasswordProcedure is the fully-qualified name of the MyAccountService's
 	// UpdatePassword RPC.
 	MyAccountServiceUpdatePasswordProcedure = "/chatto.api.v1.MyAccountService/UpdatePassword"
@@ -78,10 +72,6 @@ const (
 type MyAccountServiceClient interface {
 	// Updates the authenticated user's login, display name, and/or bio.
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
-	// Uploads and sets the authenticated user's avatar.
-	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
-	// Deletes the authenticated user's avatar. The call is idempotent.
-	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 	// Updates or adds the authenticated user's password.
 	UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error)
 	// Updates the authenticated user's display preferences.
@@ -128,19 +118,6 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+MyAccountServiceUpdateProfileProcedure,
 			connect.WithSchema(myAccountServiceMethods.ByName("UpdateProfile")),
-			connect.WithClientOptions(opts...),
-		),
-		uploadAvatar: connect.NewClient[v1.UploadAvatarRequest, v1.UploadAvatarResponse](
-			httpClient,
-			baseURL+MyAccountServiceUploadAvatarProcedure,
-			connect.WithSchema(myAccountServiceMethods.ByName("UploadAvatar")),
-			connect.WithClientOptions(opts...),
-		),
-		deleteAvatar: connect.NewClient[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse](
-			httpClient,
-			baseURL+MyAccountServiceDeleteAvatarProcedure,
-			connect.WithSchema(myAccountServiceMethods.ByName("DeleteAvatar")),
-			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
 		updatePassword: connect.NewClient[v1.UpdatePasswordRequest, v1.UpdatePasswordResponse](
@@ -210,8 +187,6 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 // myAccountServiceClient implements MyAccountServiceClient.
 type myAccountServiceClient struct {
 	updateProfile              *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
-	uploadAvatar               *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
-	deleteAvatar               *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
 	updatePassword             *connect.Client[v1.UpdatePasswordRequest, v1.UpdatePasswordResponse]
 	updateSettings             *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
 	listExternalIdentities     *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
@@ -227,16 +202,6 @@ type myAccountServiceClient struct {
 // UpdateProfile calls chatto.api.v1.MyAccountService.UpdateProfile.
 func (c *myAccountServiceClient) UpdateProfile(ctx context.Context, req *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
 	return c.updateProfile.CallUnary(ctx, req)
-}
-
-// UploadAvatar calls chatto.api.v1.MyAccountService.UploadAvatar.
-func (c *myAccountServiceClient) UploadAvatar(ctx context.Context, req *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
-	return c.uploadAvatar.CallUnary(ctx, req)
-}
-
-// DeleteAvatar calls chatto.api.v1.MyAccountService.DeleteAvatar.
-func (c *myAccountServiceClient) DeleteAvatar(ctx context.Context, req *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
-	return c.deleteAvatar.CallUnary(ctx, req)
 }
 
 // UpdatePassword calls chatto.api.v1.MyAccountService.UpdatePassword.
@@ -293,10 +258,6 @@ func (c *myAccountServiceClient) DeleteMyAccount(ctx context.Context, req *conne
 type MyAccountServiceHandler interface {
 	// Updates the authenticated user's login, display name, and/or bio.
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
-	// Uploads and sets the authenticated user's avatar.
-	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
-	// Deletes the authenticated user's avatar. The call is idempotent.
-	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 	// Updates or adds the authenticated user's password.
 	UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error)
 	// Updates the authenticated user's display preferences.
@@ -339,19 +300,6 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		MyAccountServiceUpdateProfileProcedure,
 		svc.UpdateProfile,
 		connect.WithSchema(myAccountServiceMethods.ByName("UpdateProfile")),
-		connect.WithHandlerOptions(opts...),
-	)
-	myAccountServiceUploadAvatarHandler := connect.NewUnaryHandler(
-		MyAccountServiceUploadAvatarProcedure,
-		svc.UploadAvatar,
-		connect.WithSchema(myAccountServiceMethods.ByName("UploadAvatar")),
-		connect.WithHandlerOptions(opts...),
-	)
-	myAccountServiceDeleteAvatarHandler := connect.NewUnaryHandler(
-		MyAccountServiceDeleteAvatarProcedure,
-		svc.DeleteAvatar,
-		connect.WithSchema(myAccountServiceMethods.ByName("DeleteAvatar")),
-		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
 	myAccountServiceUpdatePasswordHandler := connect.NewUnaryHandler(
@@ -419,10 +367,6 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case MyAccountServiceUpdateProfileProcedure:
 			myAccountServiceUpdateProfileHandler.ServeHTTP(w, r)
-		case MyAccountServiceUploadAvatarProcedure:
-			myAccountServiceUploadAvatarHandler.ServeHTTP(w, r)
-		case MyAccountServiceDeleteAvatarProcedure:
-			myAccountServiceDeleteAvatarHandler.ServeHTTP(w, r)
 		case MyAccountServiceUpdatePasswordProcedure:
 			myAccountServiceUpdatePasswordHandler.ServeHTTP(w, r)
 		case MyAccountServiceUpdateSettingsProcedure:
@@ -454,14 +398,6 @@ type UnimplementedMyAccountServiceHandler struct{}
 
 func (UnimplementedMyAccountServiceHandler) UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdateProfile is not implemented"))
-}
-
-func (UnimplementedMyAccountServiceHandler) UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UploadAvatar is not implemented"))
-}
-
-func (UnimplementedMyAccountServiceHandler) DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.DeleteAvatar is not implemented"))
 }
 
 func (UnimplementedMyAccountServiceHandler) UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error) {

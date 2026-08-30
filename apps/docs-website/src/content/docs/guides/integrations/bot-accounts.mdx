@@ -190,9 +190,11 @@ The canonical `User.is_bot` field identifies bot authors to API clients;
 the bundled client also shows a robot marker on their avatars.
 
 A bot API key can update its own login, display name, and bio through
-`MyAccountService.UpdateProfile`. It cannot create or manage bots, revoke keys
-itself, or enrol a password, browser session, OAuth token, verified email, or
-external login identity.
+`MyAccountService.UpdateProfile`. It can upload or delete its own avatar through
+`UserService.UploadAvatar` and `UserService.DeleteAvatar` when it sends its own
+user ID as the target. It cannot target another account, create or manage bots,
+revoke keys itself, or enrol a password, browser session, OAuth token, verified
+email, or external login identity.
 
 ## Create and revoke API keys
 
@@ -222,8 +224,10 @@ deleting that account.
 for multiple named API keys, and independent management for multiple named
 incoming webhook credentials. The bot can use
 `MyAccountService.UpdateProfile` with its API key for self-profile
-changes. A raw key appears only in `CreateBot` and `CreateBotApiKey` responses.
+changes. Avatar mutations use the target-aware `UserService` methods. A raw key
+appears only in `CreateBot` and `CreateBotApiKey` responses.
 Bot permissions use the same `AdminPermissionService` user-permission RPCs as
 human accounts, with the bot's user ID as the target. See the
-[BotService reference](/reference/connectrpc-api/bots/) and
+[BotService reference](/reference/connectrpc-api/bots/),
+[UserService reference](/reference/connectrpc-api/users/), and
 [AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).

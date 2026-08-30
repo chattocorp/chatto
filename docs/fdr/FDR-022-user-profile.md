@@ -1,18 +1,18 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-08-29
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
-A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Human accounts support the complete profile. Bot accounts support self-service login, display-name, and bio changes (FDR-038). The login is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate human-account needs. The profile does not contain App Preferences, such as appearance, thread presentation, language, editor, and send-key behavior. The app applies these choices to its registered servers.
+A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Human accounts support the complete profile. Bot accounts support self-service login, display-name, bio, and avatar changes (FDR-038). The login is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate human-account needs. The profile does not contain App Preferences, such as appearance, thread presentation, language, editor, and send-key behavior. The app applies these choices to its registered servers.
 
 ## Behavior
 
 - **Display name** — freely editable by a human or bot account. Shown in messages, member lists, mention autocomplete, etc.
 - **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Bot logins must end in `_bot`. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
-- **Avatar** — human users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
+- **Avatar** — human and bot users can upload an image. The server resizes it to 256×256 maximum and stores it as lossless WebP. The old avatar is deleted after the new avatar is committed. Users can also delete their avatar and use the initial-letter placeholder. A human with `user.manage-accounts` can manage another human's avatar. A bot owner, a human with `bot.manage`, or a human with `user.manage-accounts` can manage a bot's avatar.
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
@@ -22,8 +22,8 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Profile View** — “View profile” opens or returns to a one-to-one direct message with that user, then opens their complete public profile in that conversation's Room Sidebar. It stays available when the viewer can open an existing DM but cannot create a new one. If no such DM exists, the action is disabled. The Profile View shows the avatar, display name, login, custom status, bio, bot marker, and local time. The direct-message header has an information button that opens the same view again, including in a self-DM. Closing it returns to the prior room-extras panel, or hides the Room Sidebar when no panel was open. The same Profile View follows the responsive Room Sidebar layout when the viewport changes.
 - **App Preferences** — users can select System, Light, or Dark appearance, overlay or side-by-side thread presentation, a language, a message editor, and send-key behavior. System appearance follows the browser or OS colour-scheme preference. Overlay thread presentation is the default. The app applies these choices to every registered server. The Application Header gear opens Appearance for the active authenticated server. The unified Settings sidebar puts Appearance, Language, and Composer in an App preferences group. If no authenticated server is available, the same pages use a separate App Preferences sidebar. App Preferences do not sync to another browser or device.
 - **Profile Card** — opening a user's Profile Card as a popover or bottom sheet shows their public identity, bio snippet, live local time in their shared zone, and available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
-- **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
-- **Bot identity management** — an API-key-authenticated bot updates its own login, display name, and bio through `MyAccountService.UpdateProfile`. Human owners manage bot lifecycle, ownership, permissions, and API keys, but do not edit the bot's self-authored profile. Bot avatar, custom-status, and personal-settings management are not supported in this slice.
+- **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and manage an avatar.
+- **Bot identity management** — an API-key-authenticated bot updates its own login, display name, and bio through `MyAccountService.UpdateProfile`. It manages its avatar through `UserService`. Human owners manage bot lifecycle, ownership, permissions, API keys, and avatars. A human with `bot.manage` or `user.manage-accounts` can also manage a bot's avatar. Bot custom-status and personal-settings management are not supported.
 
 ## Design Decisions
 
@@ -65,9 +65,9 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 7. Cross-user edits gated by `user.manage-accounts`
 
-**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human and bot self-edits use `MyAccountService.UpdateProfile` and bypass that permission because they are privilege-neutral identity edits. Bot lifecycle and credential management remain separate owner-authorized operations in `BotService`.
+**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human and bot self-edits use `MyAccountService.UpdateProfile` and bypass that permission because they are privilege-neutral identity edits. Avatar upload and deletion use the target-aware `UserService` methods. A cross-user human target requires `user.manage-accounts`. A cross-user bot target permits its owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target another account. Bot lifecycle and credential management remain separate owner-authorized operations in `BotService`.
 **Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
-**Tradeoff:** A human owner cannot edit a bot's profile without using the bot's API key. This keeps profile authorship bound to the authenticated identity and keeps delegated bot management out of the general profile API.
+**Tradeoff:** Avatar authority differs from authority for other profile fields. Clients must use the target-aware avatar methods and must not infer authority from access to other profile operations.
 
 ### 8. Custom status is durable profile metadata, not presence
 
@@ -105,12 +105,20 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** A profile is context for a person-to-person conversation, not a room-extras category. The message timeline stays visible beside the profile and the header has one stable place to reopen it. Reusing a DM does not create a new conversation. The pattern also gives channel rooms a clear future home for room information without making two unrelated sidebar modes look alike.
 **Tradeoff:** Viewing a profile can navigate away from the current room and can create a direct message when permission allows it. A direct profile URL is not available. Closing the profile preserves the selected sidebar panel in the direct message.
 
+### 14. Avatar mutations use one target-aware user API
+
+**Decision:** `UserService.UploadAvatar` and `UserService.DeleteAvatar` each take a target user ID. The core checks the caller, the target account kind, bot ownership, and current permissions at the domain boundary. The durable fact records the authenticated caller as its actor. The write uses optimistic concurrency control for the target user aggregate and the authorization fence. The response waits for the user projection and then publishes the existing profile-update snapshot. Delete is idempotent.
+**Why:** One command path gives human and bot avatars the same validation, storage, projection, cleanup, and realtime behavior. The authorization fence prevents a concurrent permission, ownership, target deletion, or avatar change from using stale authority.
+**Tradeoff:** This is an intentional pre-1.0 API break. Clients that used `MyAccountService.UploadAvatar` or `MyAccountService.DeleteAvatar` must move to `UserService` and send the authenticated user's ID when they manage their own avatar.
+
 ## Permissions
 
-- Human self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
+- Human or bot self-edit of an avatar — no explicit permission; only authentication.
+- Human self-edit of display name, custom status, settings, and own login subject to cooldown — no explicit permission; only authentication.
 - Cross-human-user edit — `user.manage-accounts`.
 - Clear another user's login cooldown — same gate.
-- Bot login and display-name edit — bot ownership or `bot.manage`; bot avatar, custom-status, and personal-settings edits are not supported.
+- Bot avatar edit by another human — bot ownership, `user.manage-accounts`, or `bot.manage`.
+- Bot login and display-name edit — the authenticated bot through `MyAccountService.UpdateProfile`; bot custom-status and personal-settings edits are not supported.
 
 ## Related
 

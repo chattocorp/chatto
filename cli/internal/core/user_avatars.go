@@ -3,16 +3,185 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/assets"
+	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
+
+// UpdateUserAvatar uploads and sets an avatar for targetUserID after applying
+// the target-aware user and bot management authorization policy.
+func (c *ChattoCore) UpdateUserAvatar(ctx context.Context, actorID, targetUserID string, reader io.Reader) (*evtv1.User, error) {
+	if _, err := c.requireCanManageUserAvatar(ctx, actorID, targetUserID); err != nil {
+		return nil, err
+	}
+
+	asset, err := c.storeUserAvatarAsset(ctx, targetUserID, reader)
+	if err != nil {
+		return nil, err
+	}
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_AssetCreated{
+		AssetCreated: &evtv1.AssetCreatedEvent{
+			Asset:                   asset,
+			OriginalBinaryAvailable: true,
+			UserId:                  targetUserID,
+		},
+	}})
+	previous, committed, err := c.appendManagedAvatarEvent(ctx, actorID, targetUserID, event, false)
+	if err != nil {
+		if !committed {
+			c.CleanupAsset(ctx, DeprecatedAssetFromAsset(asset))
+		} else if previous != nil && previous.GetId() != asset.GetId() {
+			c.deleteAsset(ctx, assetStorageFromAsset(previous), "avatar", targetUserID)
+		}
+		return nil, fmt.Errorf("failed to store avatar: %w", err)
+	}
+	if previous != nil && previous.GetId() != asset.GetId() {
+		c.deleteAsset(ctx, assetStorageFromAsset(previous), "avatar", targetUserID)
+	}
+
+	c.logger.Info("Updated user avatar", "actor_id", actorID, "user_id", targetUserID)
+	c.publishUserProfileUpdate(ctx, targetUserID)
+	return c.GetUser(ctx, targetUserID)
+}
+
+// ClearUserAvatar removes the target user's avatar after applying the same
+// authorization policy as UpdateUserAvatar. The operation is idempotent.
+func (c *ChattoCore) ClearUserAvatar(ctx context.Context, actorID, targetUserID string) (*evtv1.User, error) {
+	if _, err := c.requireCanManageUserAvatar(ctx, actorID, targetUserID); err != nil {
+		return nil, err
+	}
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserAvatarCleared{
+		UserAvatarCleared: &evtv1.UserAvatarClearedEvent{UserId: targetUserID},
+	}})
+	previous, committed, err := c.appendManagedAvatarEvent(ctx, actorID, targetUserID, event, true)
+	if err != nil {
+		if committed && previous != nil {
+			c.deleteAsset(ctx, assetStorageFromAsset(previous), "avatar", targetUserID)
+		}
+		return nil, fmt.Errorf("failed to delete avatar reference: %w", err)
+	}
+	if previous == nil {
+		return c.GetUser(ctx, targetUserID)
+	}
+	c.deleteAsset(ctx, assetStorageFromAsset(previous), "avatar", targetUserID)
+	c.logger.Info("Deleted user avatar", "actor_id", actorID, "user_id", targetUserID)
+	c.publishUserProfileUpdate(ctx, targetUserID)
+	return c.GetUser(ctx, targetUserID)
+}
+
+func (c *ChattoCore) requireCanManageUserAvatar(ctx context.Context, actorID, targetUserID string) (*evtv1.User, error) {
+	if actorID == "" {
+		return nil, ErrNotAuthenticated
+	}
+	if targetUserID == "" {
+		return nil, invalidArgument("target user ID is required")
+	}
+	if !isCanonicalUserID(targetUserID) {
+		return nil, invalidArgument("target user ID is invalid")
+	}
+	target, err := c.GetUser(ctx, targetUserID)
+	if err != nil {
+		return nil, err
+	}
+	if actorID == targetUserID {
+		return target, nil
+	}
+	actor, err := c.GetUser(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if actor.GetIsBot() {
+		return nil, ErrPermissionDenied
+	}
+	canManageAccounts, err := c.CanManageUserAccounts(ctx, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("check user.manage-accounts: %w", err)
+	}
+	if !target.GetIsBot() {
+		if !canManageAccounts {
+			return nil, ErrPermissionDenied
+		}
+		return target, nil
+	}
+	if target.GetBotOwnerUserId() == actorID || canManageAccounts {
+		return target, nil
+	}
+	canManageBots, err := c.CanManageBots(ctx, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("check bot.manage: %w", err)
+	}
+	if !canManageBots {
+		return nil, ErrPermissionDenied
+	}
+	return target, nil
+}
+
+// appendManagedAvatarEvent commits one avatar fact against the target user and
+// the global authorization fence. It returns the avatar that was current at
+// the successful OCC attempt. When skipIfMissing is true, an absent avatar is
+// an authorized no-op and no event is appended.
+func (c *ChattoCore) appendManagedAvatarEvent(ctx context.Context, actorID, targetUserID string, event *evtv1.Event, skipIfMissing bool) (*evtv1.AssetRecord, bool, error) {
+	filter := evtstream.UserAggregate(targetUserID).AllEventsFilter()
+	subject := evtstream.UserAggregate(targetUserID).SubjectFor(event)
+	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return nil, false, fmt.Errorf("read authorization fence seq: %w", err)
+		}
+		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return nil, false, fmt.Errorf("read user OCC filter seq: %w", err)
+		}
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
+			return nil, false, fmt.Errorf("wait for user projection: %w", err)
+		}
+		if err := c.userModel.waitForUserAuthCurrent(ctx, "avatar mutation"); err != nil {
+			return nil, false, fmt.Errorf("wait for user auth projection: %w", err)
+		}
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
+		if err != nil {
+			return nil, false, fmt.Errorf("read RBAC projection position: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(evtstream.RBACSubjectFilter(), rbacSeq)); err != nil {
+			return nil, false, fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+		if _, err := c.requireCanManageUserAvatar(ctx, actorID, targetUserID); err != nil {
+			return nil, false, err
+		}
+		previous, _ := c.GetUserAvatar(ctx, targetUserID)
+		if skipIfMissing && previous == nil {
+			return nil, false, nil
+		}
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
+		}}, authorizationSeq)
+		if err == nil {
+			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
+				return previous, true, fmt.Errorf("wait for user projection: %w", err)
+			}
+			return previous, true, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return nil, false, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return nil, false, fmt.Errorf("avatar mutation OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
+}
 
 // UploadUserAvatar processes an image (resizes to 256x256 max, converts to WebP),
 // uploads it to the object store (NATS or S3), and returns the asset reference.
@@ -25,6 +194,23 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 	// Capture old avatar reference for cleanup after successful upload
 	oldAvatar, _ := c.GetUserAvatar(ctx, userID)
 
+	asset, err := c.storeUserAvatarAsset(ctx, userID, reader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Preserve the legacy two-step helper's replacement cleanup behavior.
+	if oldAvatar != nil {
+		c.deleteAsset(ctx, assetStorageFromAsset(oldAvatar), "avatar", userID)
+	}
+
+	return asset, nil
+}
+
+func (c *ChattoCore) storeUserAvatarAsset(ctx context.Context, userID string, reader io.Reader) (*evtv1.AssetRecord, error) {
+	if _, err := c.GetUser(ctx, userID); err != nil {
+		return nil, err
+	}
 	// Process image: resize and convert to WebP
 	webpReader, err := assets.ProcessAvatarImageWithConfig(reader, c.AssetsConfig())
 	if err != nil {
@@ -81,11 +267,6 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 			},
 		}
 		c.logger.Info("Uploaded avatar", "user_id", userID, "size", info.Size)
-	}
-
-	// Delete old avatar now that new one is successfully uploaded
-	if oldAvatar != nil {
-		c.deleteAsset(ctx, assetStorageFromAsset(oldAvatar), "avatar", userID)
 	}
 
 	return asset, nil

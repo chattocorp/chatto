@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetUsersRequest, BatchGetUsersResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse } from "./member_directory_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { BatchGetUsersRequest, BatchGetUsersResponse, DeleteAvatarRequest, DeleteAvatarResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, UploadAvatarRequest, UploadAvatarResponse } from "./member_directory_pb.js";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads the authenticated server-wide user directory.
+ * Reads users and manages public user avatars.
  *
  * @generated from service chatto.api.v1.UserService
  */
@@ -49,6 +49,35 @@ export const UserService = {
       I: BatchGetUsersRequest,
       O: BatchGetUsersResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Uploads and sets an avatar for the target user. Users can update
+     * themselves. Updating another human requires user.manage-accounts.
+     * Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+     * A bot cannot target another account. Unknown or deleted targets return
+     * NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
+     *
+     * @generated from rpc chatto.api.v1.UserService.UploadAvatar
+     */
+    uploadAvatar: {
+      name: "UploadAvatar",
+      I: UploadAvatarRequest,
+      O: UploadAvatarResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deletes the target user's avatar. Authorization matches UploadAvatar. The
+     * call is idempotent. Unknown or deleted targets return NOT_FOUND. An
+     * invalid ID returns INVALID_ARGUMENT.
+     *
+     * @generated from rpc chatto.api.v1.UserService.DeleteAvatar
+     */
+    deleteAvatar: {
+      name: "DeleteAvatar",
+      I: DeleteAvatarRequest,
+      O: DeleteAvatarResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
   }
 } as const;

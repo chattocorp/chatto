@@ -40,6 +40,12 @@ const (
 	// UserServiceBatchGetUsersProcedure is the fully-qualified name of the UserService's BatchGetUsers
 	// RPC.
 	UserServiceBatchGetUsersProcedure = "/chatto.api.v1.UserService/BatchGetUsers"
+	// UserServiceUploadAvatarProcedure is the fully-qualified name of the UserService's UploadAvatar
+	// RPC.
+	UserServiceUploadAvatarProcedure = "/chatto.api.v1.UserService/UploadAvatar"
+	// UserServiceDeleteAvatarProcedure is the fully-qualified name of the UserService's DeleteAvatar
+	// RPC.
+	UserServiceDeleteAvatarProcedure = "/chatto.api.v1.UserService/DeleteAvatar"
 )
 
 // UserServiceClient is a client for the chatto.api.v1.UserService service.
@@ -53,6 +59,16 @@ type UserServiceClient interface {
 	// Gets visible user rows for multiple stable user IDs. Unknown IDs are
 	// omitted from the response.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
+	// Uploads and sets an avatar for the target user. Users can update
+	// themselves. Updating another human requires user.manage-accounts.
+	// Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+	// A bot cannot target another account. Unknown or deleted targets return
+	// NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
+	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
+	// Deletes the target user's avatar. Authorization matches UploadAvatar. The
+	// call is idempotent. Unknown or deleted targets return NOT_FOUND. An
+	// invalid ID returns INVALID_ARGUMENT.
+	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 }
 
 // NewUserServiceClient constructs a client for the chatto.api.v1.UserService service. By default,
@@ -84,6 +100,19 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("BatchGetUsers")),
 			connect.WithClientOptions(opts...),
 		),
+		uploadAvatar: connect.NewClient[v1.UploadAvatarRequest, v1.UploadAvatarResponse](
+			httpClient,
+			baseURL+UserServiceUploadAvatarProcedure,
+			connect.WithSchema(userServiceMethods.ByName("UploadAvatar")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteAvatar: connect.NewClient[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse](
+			httpClient,
+			baseURL+UserServiceDeleteAvatarProcedure,
+			connect.WithSchema(userServiceMethods.ByName("DeleteAvatar")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -92,6 +121,8 @@ type userServiceClient struct {
 	listUsers     *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
 	getUser       *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
 	batchGetUsers *connect.Client[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse]
+	uploadAvatar  *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
+	deleteAvatar  *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
 }
 
 // ListUsers calls chatto.api.v1.UserService.ListUsers.
@@ -109,6 +140,16 @@ func (c *userServiceClient) BatchGetUsers(ctx context.Context, req *connect.Requ
 	return c.batchGetUsers.CallUnary(ctx, req)
 }
 
+// UploadAvatar calls chatto.api.v1.UserService.UploadAvatar.
+func (c *userServiceClient) UploadAvatar(ctx context.Context, req *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
+	return c.uploadAvatar.CallUnary(ctx, req)
+}
+
+// DeleteAvatar calls chatto.api.v1.UserService.DeleteAvatar.
+func (c *userServiceClient) DeleteAvatar(ctx context.Context, req *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
+	return c.deleteAvatar.CallUnary(ctx, req)
+}
+
 // UserServiceHandler is an implementation of the chatto.api.v1.UserService service.
 type UserServiceHandler interface {
 	// Lists users visible to the authenticated user. Admin-sensitive account
@@ -120,6 +161,16 @@ type UserServiceHandler interface {
 	// Gets visible user rows for multiple stable user IDs. Unknown IDs are
 	// omitted from the response.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
+	// Uploads and sets an avatar for the target user. Users can update
+	// themselves. Updating another human requires user.manage-accounts.
+	// Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+	// A bot cannot target another account. Unknown or deleted targets return
+	// NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
+	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
+	// Deletes the target user's avatar. Authorization matches UploadAvatar. The
+	// call is idempotent. Unknown or deleted targets return NOT_FOUND. An
+	// invalid ID returns INVALID_ARGUMENT.
+	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 }
 
 // NewUserServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -147,6 +198,19 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceMethods.ByName("BatchGetUsers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	userServiceUploadAvatarHandler := connect.NewUnaryHandler(
+		UserServiceUploadAvatarProcedure,
+		svc.UploadAvatar,
+		connect.WithSchema(userServiceMethods.ByName("UploadAvatar")),
+		connect.WithHandlerOptions(opts...),
+	)
+	userServiceDeleteAvatarHandler := connect.NewUnaryHandler(
+		UserServiceDeleteAvatarProcedure,
+		svc.DeleteAvatar,
+		connect.WithSchema(userServiceMethods.ByName("DeleteAvatar")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case UserServiceListUsersProcedure:
@@ -155,6 +219,10 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 			userServiceGetUserHandler.ServeHTTP(w, r)
 		case UserServiceBatchGetUsersProcedure:
 			userServiceBatchGetUsersHandler.ServeHTTP(w, r)
+		case UserServiceUploadAvatarProcedure:
+			userServiceUploadAvatarHandler.ServeHTTP(w, r)
+		case UserServiceDeleteAvatarProcedure:
+			userServiceDeleteAvatarHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -174,4 +242,12 @@ func (UnimplementedUserServiceHandler) GetUser(context.Context, *connect.Request
 
 func (UnimplementedUserServiceHandler) BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserService.BatchGetUsers is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserService.UploadAvatar is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserService.DeleteAvatar is not implemented"))
 }

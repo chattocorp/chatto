@@ -1,6 +1,6 @@
 ---
 title: MyAccountService
-description: Self-service account, profile, avatar, presence, status, external identity, and settings RPCs for the authenticated user.
+description: Self-service account, profile, presence, status, external identity, and settings RPCs for the authenticated user.
 editUrl: false
 ---
 
@@ -18,7 +18,7 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## MyAccountService
 
-Self-service account, profile, avatar, display preference, presence,
+Self-service account, profile, display preference, presence,
 custom-status, external identity, and account lifecycle commands for the
 authenticated user.
 
@@ -51,66 +51,6 @@ use this same self-service operation. At least one field must be present.
 #### Result: UpdateProfileResponse
 
 Result of a profile update.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Updated user profile. |
-
-
-<a id="chatto-api-v1-MyAccountService-UploadAvatar"></a>
-
-### UploadAvatar
-
-Uploads and sets the authenticated user's avatar.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UploadAvatar
-```
-
-<a id="chatto-api-v1-UploadAvatarRequest"></a>
-
-#### Input: UploadAvatarRequest
-
-Request to upload and set the authenticated user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `image` | [`ImageUpload`](/reference/connectrpc-api/types/#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP avatar. |
-
-
-<a id="chatto-api-v1-UploadAvatarResponse"></a>
-
-#### Result: UploadAvatarResponse
-
-Result of uploading the authenticated user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Updated user profile. |
-
-
-<a id="chatto-api-v1-MyAccountService-DeleteAvatar"></a>
-
-### DeleteAvatar
-
-Deletes the authenticated user's avatar. The call is idempotent.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/DeleteAvatar
-```
-
-<a id="chatto-api-v1-DeleteAvatarRequest"></a>
-
-#### Input: DeleteAvatarRequest
-
-Request to delete the authenticated user's avatar.
-
-
-<a id="chatto-api-v1-DeleteAvatarResponse"></a>
-
-#### Result: DeleteAvatarResponse
-
-Result of deleting the authenticated user's avatar.
 
 | Field | Type | Description |
 | --- | --- | --- |

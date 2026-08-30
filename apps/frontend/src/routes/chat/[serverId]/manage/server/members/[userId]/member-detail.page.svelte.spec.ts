@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => ({
   updateUserPassword: vi.fn(),
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
+  uploadAvatar: vi.fn(),
+  deleteAvatar: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   scopeCurrent: true,
@@ -48,12 +50,15 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
             clearUsernameCooldown: mocks.clearUsernameCooldown,
             updateUserPassword: mocks.updateUserPassword,
             assignRole: mocks.assignRole,
-            revokeRole: mocks.revokeRole
+            revokeRole: mocks.revokeRole,
+            uploadAvatar: mocks.uploadAvatar,
+            deleteAvatar: mocks.deleteAvatar
           }) as unknown as AdminUserManagementAPI
       };
     },
     get store() {
       return {
+        serverInfo: { supportsFeature: () => true },
         currentUser: { user: { id: 'viewer', settings: null } },
         permissions: {
           canAdminViewUsers: true,
@@ -193,6 +198,12 @@ describe('server member detail queries', () => {
       } satisfies AdminRoleMutationResult)
     );
     mocks.revokeRole.mockResolvedValue({ changed: true, member: null });
+    mocks.uploadAvatar.mockImplementation((userId: string) =>
+      Promise.resolve({ id: userId, avatarUrl: '/avatar.webp' })
+    );
+    mocks.deleteAvatar.mockImplementation((userId: string) =>
+      Promise.resolve({ id: userId, avatarUrl: null })
+    );
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
@@ -307,6 +318,24 @@ describe('server member detail queries', () => {
       adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice')
     );
     expect(cached?.member?.login).toBe('renamed');
+  });
+
+  it('uploads the selected member avatar and updates the detail cache', async () => {
+    const rendered = render(MemberDetailPage);
+    await settle();
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'member.png', {
+      type: 'image/png'
+    });
+    const input = rendered.container.querySelector('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => expect(mocks.uploadAvatar).toHaveBeenCalledWith('alice', file));
+    await settle();
+    const cached = queryClient.getQueryData<AdminMemberDetails>(
+      adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice')
+    );
+    expect(cached?.member?.avatarUrl).toBe('/avatar.webp');
   });
 
   it('sets a password and clears the username cooldown through mutations', async () => {

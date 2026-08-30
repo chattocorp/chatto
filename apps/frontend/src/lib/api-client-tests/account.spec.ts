@@ -6,8 +6,6 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   updateProfile: vi.fn(),
-  uploadAvatar: vi.fn(),
-  deleteAvatar: vi.fn(),
   updatePassword: vi.fn(),
   updateSettings: vi.fn(),
   requestAccountDeletion: vi.fn(),
@@ -31,8 +29,6 @@ describe('createAccountAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.updateProfile.mockReset();
-    mocks.uploadAvatar.mockReset();
-    mocks.deleteAvatar.mockReset();
     mocks.updatePassword.mockReset();
     mocks.updateSettings.mockReset();
     mocks.requestAccountDeletion.mockReset();
@@ -40,8 +36,6 @@ describe('createAccountAPI', () => {
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       updateProfile: mocks.updateProfile,
-      uploadAvatar: mocks.uploadAvatar,
-      deleteAvatar: mocks.deleteAvatar,
       updatePassword: mocks.updatePassword,
       updateSettings: mocks.updateSettings,
       requestAccountDeletion: mocks.requestAccountDeletion,
@@ -49,7 +43,7 @@ describe('createAccountAPI', () => {
     });
   });
 
-  it('updates profile and avatar with bearer auth', async () => {
+  it('updates a profile with bearer auth', async () => {
     mocks.updateProfile.mockResolvedValue({
       user: {
         id: 'U1',
@@ -58,22 +52,6 @@ describe('createAccountAPI', () => {
         avatarUrl: 'https://cdn/avatar.webp'
       }
     });
-    mocks.deleteAvatar.mockResolvedValue({
-      user: {
-        id: 'U1',
-        login: 'alice2',
-        displayName: 'Alice Two'
-      }
-    });
-    mocks.uploadAvatar.mockResolvedValue({
-      user: {
-        id: 'U1',
-        login: 'alice2',
-        displayName: 'Alice Two',
-        avatarUrl: 'https://cdn/new-avatar.webp'
-      }
-    });
-
     const api = createAccountAPI({
       baseUrl: 'https://origin.test/api/connect',
       bearerToken: 'token'
@@ -88,43 +66,12 @@ describe('createAccountAPI', () => {
         bio: null
       }
     );
-    await expect(api.deleteAvatar()).resolves.toEqual({
-      id: 'U1',
-      login: 'alice2',
-      displayName: 'Alice Two',
-      avatarUrl: null,
-      bio: null
-    });
-    await expect(
-      api.uploadAvatar(new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' }))
-    ).resolves.toEqual({
-      id: 'U1',
-      login: 'alice2',
-      displayName: 'Alice Two',
-      avatarUrl: 'https://cdn/new-avatar.webp',
-      bio: null
-    });
-
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
       baseUrl: 'https://origin.test/api/connect',
       useBinaryFormat: true
     });
     expect(mocks.updateProfile).toHaveBeenCalledWith(
       { displayName: 'Alice Two', login: 'alice2' },
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.deleteAvatar).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.uploadAvatar).toHaveBeenCalledWith(
-      {
-        image: {
-          image: new Uint8Array([1, 2, 3]),
-          filename: 'avatar.png',
-          contentType: 'image/png'
-        }
-      },
       { headers: { Authorization: 'Bearer token' } }
     );
   });

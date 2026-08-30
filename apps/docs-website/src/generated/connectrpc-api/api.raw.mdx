@@ -56,7 +56,7 @@ Authenticated viewer snapshot needed by application shells.
 
 ## MyAccountService
 
-Self-service account, profile, avatar, display preference, presence,
+Self-service account, profile, display preference, presence,
 custom-status, external identity, and account lifecycle commands for the
 authenticated user.
 
@@ -89,66 +89,6 @@ use this same self-service operation. At least one field must be present.
 #### Result: UpdateProfileResponse
 
 Result of a profile update.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
-
-
-<a id="chatto-api-v1-MyAccountService-UploadAvatar"></a>
-
-### UploadAvatar
-
-Uploads and sets the authenticated user's avatar.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UploadAvatar
-```
-
-<a id="chatto-api-v1-UploadAvatarRequest"></a>
-
-#### Input: UploadAvatarRequest
-
-Request to upload and set the authenticated user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `image` | [`ImageUpload`](#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP avatar. |
-
-
-<a id="chatto-api-v1-UploadAvatarResponse"></a>
-
-#### Result: UploadAvatarResponse
-
-Result of uploading the authenticated user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
-
-
-<a id="chatto-api-v1-MyAccountService-DeleteAvatar"></a>
-
-### DeleteAvatar
-
-Deletes the authenticated user's avatar. The call is idempotent.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/DeleteAvatar
-```
-
-<a id="chatto-api-v1-DeleteAvatarRequest"></a>
-
-#### Input: DeleteAvatarRequest
-
-Request to delete the authenticated user's avatar.
-
-
-<a id="chatto-api-v1-DeleteAvatarResponse"></a>
-
-#### Result: DeleteAvatarResponse
-
-Result of deleting the authenticated user's avatar.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -762,8 +702,8 @@ POST /api/connect/chatto.api.v1.BotService/ListBots
 
 #### Input: ListBotsRequest
 
-Request bots visible to the caller. Owners see their own bots; callers with
-bot.manage see every bot.
+Request bots visible to the caller. Owners see their own bots. Callers with
+bot.manage or user.manage-accounts see every bot.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -787,8 +727,9 @@ Page of visible bots.
 
 ### GetBot
 
-Gets one visible bot. Returns NOT_FOUND for an unknown bot and
-PERMISSION_DENIED for a bot managed by another user.
+Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns
+PERMISSION_DENIED when the caller is not the owner and has neither
+bot.manage nor user.manage-accounts.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/GetBot
@@ -1094,7 +1035,7 @@ permission allowlist are unchanged.
 
 ## UserService
 
-Reads the authenticated server-wide user directory.
+Reads users and manages public user avatars.
 
 <a id="chatto-api-v1-UserService-ListUsers"></a>
 
@@ -1196,6 +1137,77 @@ Batch user directory response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
+
+
+<a id="chatto-api-v1-UserService-UploadAvatar"></a>
+
+### UploadAvatar
+
+Uploads and sets an avatar for the target user. Users can update
+themselves. Updating another human requires user.manage-accounts.
+Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+A bot cannot target another account. Unknown or deleted targets return
+NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/UploadAvatar
+```
+
+<a id="chatto-api-v1-UploadAvatarRequest"></a>
+
+#### Input: UploadAvatarRequest
+
+Request to upload and set one user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `image` | [`ImageUpload`](#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP avatar. |
+| `user_id` | `string` | Required target user ID. Self-updates are allowed. Updating another user requires the applicable account-management or bot-management authority. |
+
+
+<a id="chatto-api-v1-UploadAvatarResponse"></a>
+
+#### Result: UploadAvatarResponse
+
+Result of uploading one user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+
+
+<a id="chatto-api-v1-UserService-DeleteAvatar"></a>
+
+### DeleteAvatar
+
+Deletes the target user's avatar. Authorization matches UploadAvatar. The
+call is idempotent. Unknown or deleted targets return NOT_FOUND. An
+invalid ID returns INVALID_ARGUMENT.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/DeleteAvatar
+```
+
+<a id="chatto-api-v1-DeleteAvatarRequest"></a>
+
+#### Input: DeleteAvatarRequest
+
+Request to delete one user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required target user ID. Self-updates are allowed. Updating another user requires the applicable account-management or bot-management authority. |
+
+
+<a id="chatto-api-v1-DeleteAvatarResponse"></a>
+
+#### Result: DeleteAvatarResponse
+
+Result of deleting one user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
 
 
 <a id="chatto-api-v1-MessageSearchService"></a>

@@ -68,12 +68,22 @@ methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors
 returns canonical origins without a session or an ordering contract. The
 server does not contact the advertised origins.
 
+`UserService` provides user reads and the canonical target-aware avatar upload
+and delete operations. Self-targeting is available to human and bot callers. A
+cross-human target requires `user.manage-accounts`. A cross-bot target permits
+the bot owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target
+another account. These operations use the target user aggregate and the global
+authorization fence, then return the ready user projection.
+
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
 and create and revoke operations for as many as 20 named API keys and 20 named
 incoming webhooks for each bot. Bot
 permission reads and writes use `AdminPermissionService`'s canonical user
 permission operations with the bot's user ID as the target. Human owners can
-manage their own bots; `bot.manage` allows global management.
+manage their own bots; `bot.manage` allows global management. A human with
+`user.manage-accounts` can list and read all bots for avatar administration,
+but this visibility does not grant bot credential, permission, ownership, or
+lifecycle authority.
 
 Matrix room metadata is limited to rooms visible to both the bot owner and the
 managing caller; group metadata follows the room directory's complete group
