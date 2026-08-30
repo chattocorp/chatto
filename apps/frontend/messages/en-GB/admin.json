@@ -204,6 +204,7 @@
       "drag_hint": "Drag rooms between groups to organise them. Drag group headers to reorder groups. Archived rooms stay in their set but are hidden from members.",
       "drag_group": "Drag to reorder group",
       "drag_room": "Drag to reorder room",
+      "drag_link": "Drag to reorder link",
       "new_room": "New Room",
       "new_link": "New Link",
       "new_group": "New Group",

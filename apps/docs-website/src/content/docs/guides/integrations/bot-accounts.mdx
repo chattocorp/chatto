@@ -20,7 +20,8 @@ login forms.
 <Steps>
 
 1. Open **Server Admin → Bots** and choose **Create Bot**.
-2. Enter a username ending in `_bot` and a display name.
+2. Enter a username ending in `_bot`, a display name, and a name for the first
+   API key.
 3. Copy the API key before closing the dialog. Chatto cannot show this raw key
    again. Chatto stops in-app navigation until you acknowledge the key. Your
    browser asks for confirmation if you try to unload the page.
@@ -37,9 +38,9 @@ the creator can always manage bots they already own.
 A person with `bot.manage` can also choose **Reassign owner** on a bot's detail
 page and select another active human account. Reassignment does not require the
 recipient to accept it or hold `bot.create`. It keeps the configured bot
-permissions and API key, but effective permissions immediately follow the new
-owner's permission ceiling. Rotate the key separately if its previous custody
-is a concern.
+permissions and API keys, but effective permissions immediately follow the new
+owner's permission ceiling. If previous custody is a concern, create a new key,
+move the integration to it, and revoke the affected key.
 
 Bots do not inherit `everyone`, named roles, or the owner's roles. The bot
 matrix exposes a simple enabled/disabled allowlist. A configured permission is
@@ -186,30 +187,40 @@ The canonical `User.is_bot` field identifies bot authors to API clients;
 the bundled client also shows a robot marker on their avatars.
 
 A bot API key can update its own login, display name, and bio through
-`MyAccountService.UpdateProfile`. It cannot create or manage bots, rotate
+`MyAccountService.UpdateProfile`. It cannot create or manage bots, revoke keys
 itself, or enrol a password, browser session, OAuth token, verified email, or
 external login identity.
 
-## Rotate or revoke a key
+## Create and revoke API keys
 
-Choose **Rotate Key** on the bot's settings page when a key is lost or may have
-been exposed. Rotation immediately invalidates the previous key and shows the
-replacement once. Realtime connections authenticated with the previous key are
-also closed. Update every consumer before dismissing it.
+A bot can have at most 20 active API keys. Create a named key for each
+integration. Names do not need to be unique, but a clear name helps you select
+the correct key later. Chatto shows each raw key only once. The bundled client
+enables named-key management for Chatto 0.5.0-alpha.4 or later.
 
-Deleting a bot invalidates its key and permanently deletes the account through
-the normal account-deletion process. Deleting the human owner also deletes all
-bots they still own, so reassign long-lived integrations before deleting that
-account.
+To replace one key, create a new key, move the integration to it, and revoke
+the old key. Revocation immediately invalidates only the selected key. Realtime
+connections that used that key also close. Other API keys and their realtime
+connections stay active.
+
+The detail page shows when each key was created and approximately when Chatto
+recorded its last use. **No use recorded** does not prove that the key was not
+used. Chatto shows **Temporarily unavailable** if it cannot read this optional
+telemetry.
+
+Deleting a bot invalidates all of its keys and permanently deletes the account
+through the normal account-deletion process. Deleting the human owner also
+deletes all bots they still own, so reassign long-lived integrations before
+deleting that account.
 
 ## API reference
 
-`BotService` exposes bot lifecycle, owner reassignment, key rotation, and
-independent management for multiple named incoming webhook credentials. The bot
-can use `MyAccountService.UpdateProfile` with its API key for self-profile
-changes. The raw key appears only in `CreateBot` and `RotateBotApiKey`
-responses. Bot
-permissions use the same `AdminPermissionService` user-permission RPCs as human
-accounts, with the bot's user ID as the target. See the
+`BotService` exposes bot lifecycle, owner reassignment, independent management
+for multiple named API keys, and independent management for multiple named
+incoming webhook credentials. The bot can use
+`MyAccountService.UpdateProfile` with its API key for self-profile
+changes. A raw key appears only in `CreateBot` and `CreateBotApiKey` responses.
+Bot permissions use the same `AdminPermissionService` user-permission RPCs as
+human accounts, with the bot's user ID as the target. See the
 [BotService reference](/reference/connectrpc-api/bots/) and
 [AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).

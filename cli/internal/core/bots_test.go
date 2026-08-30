@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -72,6 +71,42 @@ func TestParseBotAPIKeyRejectsNonCanonicalUserIDs(t *testing.T) {
 	}
 }
 
+func TestUserAuthProjectionReplaysHistoricalSoleBotAPIKeyEvents(t *testing.T) {
+	projection := newUserAuthProjection()
+	userID := NewUserID()
+	if err := projection.Apply(&evtv1.Event{Event: &evtv1.Event_UserAccountCreated{
+		UserAccountCreated: &evtv1.UserAccountCreatedEvent{UserId: userID, IsBot: true, BotOwnerUserId: NewUserID()},
+	}}, 1); err != nil {
+		t.Fatalf("apply account creation: %v", err)
+	}
+	createdVerifier := []byte("historical-created-verifier")
+	if err := projection.Apply(&evtv1.Event{Event: &evtv1.Event_BotApiKeyCreated{
+		BotApiKeyCreated: &evtv1.BotApiKeyCreatedEvent{UserId: userID, Verifier: createdVerifier},
+	}}, 2); err != nil {
+		t.Fatalf("apply historical key creation: %v", err)
+	}
+	credentials := projection.BotAPIKeyCredentials(userID)
+	if len(credentials) != 1 || credentials[0].ID != legacyBotAPIKeyID || credentials[0].Name != defaultBotAPIKeyName || !credentials[0].RollbackVisible {
+		t.Fatalf("historical created credentials = %+v", credentials)
+	}
+	if matched, ok := projection.MatchBotAPIKeyCredential(userID, createdVerifier); !ok || matched.ID != legacyBotAPIKeyID {
+		t.Fatalf("historical created match = %+v, %v", matched, ok)
+	}
+
+	rotatedVerifier := []byte("historical-rotated-verifier")
+	if err := projection.Apply(&evtv1.Event{Event: &evtv1.Event_BotApiKeyRotated{
+		BotApiKeyRotated: &evtv1.BotApiKeyRotatedEvent{UserId: userID, Verifier: rotatedVerifier},
+	}}, 3); err != nil {
+		t.Fatalf("apply historical key rotation: %v", err)
+	}
+	if _, ok := projection.MatchBotAPIKeyCredential(userID, createdVerifier); ok {
+		t.Fatal("historical created verifier survived rotation")
+	}
+	if matched, ok := projection.MatchBotAPIKeyCredential(userID, rotatedVerifier); !ok || matched.ID != legacyBotAPIKeyID {
+		t.Fatalf("historical rotated match = %+v, %v", matched, ok)
+	}
+}
+
 func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -135,26 +170,183 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 		t.Fatalf("bot bio events after no-op = %d, want 1", len(bioEvents))
 	}
 
-	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
-	if err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
-	}
-	if rotated.APIKey == bot.APIKey || rotated.APIKeyRotatedAt.IsZero() {
-		t.Fatal("rotation did not return a distinct key and rotation timestamp")
-	}
-	if _, err := c.ValidateBotAPIKey(ctx, bot.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
-		t.Fatalf("old key err = %v, want ErrAuthTokenNotFound", err)
-	}
-	if _, err := c.ValidateBotAPIKey(ctx, rotated.APIKey); err != nil {
-		t.Fatalf("rotated key: %v", err)
-	}
-
 	deleted, err := c.DeleteBot(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil || !deleted {
 		t.Fatalf("DeleteBot = %v, %v", deleted, err)
 	}
-	if _, err := c.ValidateBotAPIKey(ctx, rotated.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
+	if _, err := c.ValidateBotAPIKey(ctx, bot.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("deleted key err = %v, want ErrAuthTokenNotFound", err)
+	}
+}
+
+func TestBotAPIKeysAreNamedAndIndependentlyRevocable(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "multi-key-owner", "Multi-key Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBotWithAPIKeyName(ctx, owner.GetId(), "multi_key_bot", "Multi-key Bot", "Primary")
+	if err != nil {
+		t.Fatalf("CreateBotWithAPIKeyName: %v", err)
+	}
+	if len(bot.APIKeys) != 1 || bot.APIKeys[0].ID != legacyBotAPIKeyID || bot.APIKeys[0].Name != "Primary" {
+		t.Fatalf("initial API keys = %+v", bot.APIKeys)
+	}
+
+	first, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Production")
+	if err != nil {
+		t.Fatalf("CreateBotAPIKey first: %v", err)
+	}
+	second, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Production")
+	if err != nil {
+		t.Fatalf("CreateBotAPIKey second: %v", err)
+	}
+	if first.KeyID == second.KeyID || first.Credential == second.Credential || len(second.Bot.APIKeys) != 3 {
+		t.Fatalf("issued keys = first %+v second %+v", first, second)
+	}
+	for label, key := range map[string]string{"initial": bot.APIKey, "first": first.Credential, "second": second.Credential} {
+		if authenticated, err := c.ValidateBotAPIKey(ctx, key); err != nil || authenticated.GetId() != bot.User.GetId() {
+			t.Fatalf("ValidateBotAPIKey %s = %+v, %v", label, authenticated, err)
+		}
+	}
+
+	_, firstVerifier, err := c.ValidateBotAPIKeyCredential(ctx, first.Credential)
+	if err != nil {
+		t.Fatalf("ValidateBotAPIKeyCredential first: %v", err)
+	}
+	firstInvalidated, stopFirst := c.WatchBotAPIKeyInvalidated(bot.User.GetId(), firstVerifier)
+	defer stopFirst()
+	_, secondVerifier, err := c.ValidateBotAPIKeyCredential(ctx, second.Credential)
+	if err != nil {
+		t.Fatalf("ValidateBotAPIKeyCredential second: %v", err)
+	}
+	secondInvalidated, stopSecond := c.WatchBotAPIKeyInvalidated(bot.User.GetId(), secondVerifier)
+	defer stopSecond()
+
+	updated, err := c.RevokeBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), first.KeyID)
+	if err != nil {
+		t.Fatalf("RevokeBotAPIKey first: %v", err)
+	}
+	if len(updated.APIKeys) != 2 {
+		t.Fatalf("API keys after first revoke = %+v", updated.APIKeys)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, first.Credential); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("revoked first key err = %v", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, bot.APIKey); err != nil {
+		t.Fatalf("initial key after first revoke: %v", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, second.Credential); err != nil {
+		t.Fatalf("second key after first revoke: %v", err)
+	}
+	select {
+	case <-firstInvalidated:
+	default:
+		t.Fatal("revoked key watcher remained open")
+	}
+	select {
+	case <-secondInvalidated:
+		t.Fatal("unrelated key watcher closed")
+	default:
+	}
+
+	updated, err = c.RevokeBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), legacyBotAPIKeyID)
+	if err != nil {
+		t.Fatalf("RevokeBotAPIKey legacy: %v", err)
+	}
+	if len(updated.APIKeys) != 1 || updated.APIKeys[0].ID != second.KeyID {
+		t.Fatalf("API keys after legacy revoke = %+v", updated.APIKeys)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, bot.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("revoked legacy key err = %v", err)
+	}
+	if _, err := c.ValidateBotAPIKey(ctx, second.Credential); err != nil {
+		t.Fatalf("second key after legacy revoke: %v", err)
+	}
+
+	updated, err = c.RevokeBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), second.KeyID)
+	if err != nil || len(updated.APIKeys) != 0 {
+		t.Fatalf("revoke final key = %+v, %v", updated, err)
+	}
+	if updated, err = c.RevokeBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), second.KeyID); err != nil || len(updated.APIKeys) != 0 {
+		t.Fatalf("idempotent revoke = %+v, %v", updated, err)
+	}
+	if _, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("GetBot without active keys: %v", err)
+	}
+}
+
+func TestBotAPIKeyLimitAndNameValidation(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "key-limit-owner", "Key-limit Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "key_limit_bot", "Key-limit Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if _, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "   "); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("blank key name err = %v, want invalid argument", err)
+	}
+	for i := 1; i < maxBotAPIKeys; i++ {
+		if _, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Worker"); err != nil {
+			t.Fatalf("CreateBotAPIKey %d: %v", i, err)
+		}
+	}
+	if _, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "One too many"); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("over-limit key err = %v, want invalid argument", err)
+	}
+}
+
+func TestConcurrentBotAPIKeyCreationCannotExceedActiveLimit(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "api-key-create-race-owner", "API-key Create Race Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "api_key_create_race_bot", "API-key Create Race Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	for i := 1; i < maxBotAPIKeys-1; i++ {
+		if _, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Existing"); err != nil {
+			t.Fatalf("CreateBotAPIKey %d: %v", i, err)
+		}
+	}
+
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for range 2 {
+		go func() {
+			<-start
+			_, err := c.CreateBotAPIKey(ctx, owner.GetId(), bot.User.GetId(), "Concurrent")
+			results <- err
+		}()
+	}
+	close(start)
+	successes := 0
+	rejections := 0
+	for range 2 {
+		err := <-results
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, events.ErrConflict), errors.Is(err, ErrInvalidArgument):
+			rejections++
+		default:
+			t.Fatalf("concurrent create: %v", err)
+		}
+	}
+	managed, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("GetBot: %v", err)
+	}
+	if successes != 1 || rejections != 1 || len(managed.APIKeys) != maxBotAPIKeys {
+		t.Fatalf("successes=%d rejections=%d API keys=%d", successes, rejections, len(managed.APIKeys))
 	}
 }
 
@@ -528,34 +720,6 @@ func TestReassignBotOwnerIsRaceSafeWithOwnerDeletion(t *testing.T) {
 				t.Fatalf("successful reassignment to deleted owner left bot active: %+v, %v", current, getErr)
 			}
 		})
-	}
-}
-
-func TestBotAPIKeyInvalidationWatchFollowsDurableRotation(t *testing.T) {
-	c, _ := setupTestCore(t)
-	ctx := testContext(t)
-	owner, err := c.CreateUser(ctx, SystemActorID, "watch-owner", "Watch Owner", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	bot, err := c.CreateBot(ctx, owner.GetId(), "watch_bot", "Watch Bot")
-	if err != nil {
-		t.Fatalf("CreateBot: %v", err)
-	}
-	_, verifier, err := c.ValidateBotAPIKeyCredential(ctx, bot.APIKey)
-	if err != nil {
-		t.Fatalf("ValidateBotAPIKeyCredential: %v", err)
-	}
-	invalidated, stop := c.WatchBotAPIKeyInvalidated(bot.User.GetId(), verifier)
-	defer stop()
-
-	if _, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId()); err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
-	}
-	select {
-	case <-invalidated:
-	case <-time.After(5 * time.Second):
-		t.Fatal("bot key watcher remained open after durable rotation reached the projection")
 	}
 }
 

@@ -38,6 +38,7 @@ export function isNavigationVisibleRoom(room: RoomsListItem): boolean {
 export type RoomsListGroup = {
   id: string;
   name: string;
+  viewerCanCreateRoom?: boolean;
   viewerCanManageGroup: boolean;
   roomIds: string[];
   items?: RoomsListGroupItem[];
@@ -129,6 +130,7 @@ export class NavigationStore {
       return {
         id: mapped.id,
         name: mapped.name,
+        viewerCanCreateRoom: mapped.canCreateRoom,
         viewerCanManageGroup: mapped.canManageGroup,
         roomIds: mapped.roomIds,
         items: mapped.items.map((item) =>

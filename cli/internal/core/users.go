@@ -45,6 +45,7 @@ type userCreationOptions struct {
 	isBot         bool
 	botOwnerID    string
 	botAPIKeyOut  *string
+	botAPIKeyName string
 	authorize     func() error
 }
 
@@ -121,6 +122,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	var botAPIKey string
 	var botAPIKeyVerifier []byte
 	if isBot {
+		options.botAPIKeyName = normalizedBotAPIKeyName(options.botAPIKeyName)
 		var err error
 		botAPIKey, err = NewBotAPIKey(userID)
 		if err != nil {
@@ -200,7 +202,10 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}}
 	if isBot {
 		keyCreated := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_BotApiKeyCreated{
-			BotApiKeyCreated: &evtv1.BotApiKeyCreatedEvent{UserId: userID, Verifier: botAPIKeyVerifier},
+			BotApiKeyCreated: &evtv1.BotApiKeyCreatedEvent{
+				UserId: userID, Verifier: botAPIKeyVerifier,
+				KeyId: legacyBotAPIKeyID, Name: options.botAPIKeyName,
+			},
 		}})
 		keyCreated.CreatedAt = now
 		entries = append(entries, evtstream.BatchEntry{

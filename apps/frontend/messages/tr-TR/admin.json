@@ -204,6 +204,7 @@
       "drag_hint": "Organize etmek için odaları gruplar arasında sürükleyin. Grupları yeniden sıralamak için grup başlıklarını sürükleyin. Arşivlenen odalar kendi setlerinde kalır ancak üyelerden gizlenir.",
       "drag_group": "Grubu yeniden sıralamak için sürükleyin",
       "drag_room": "Odayı yeniden sıralamak için sürükleyin",
+      "drag_link": "Bağlantıyı yeniden sıralamak için sürükleyin",
       "new_room": "Yeni Oda",
       "new_link": "Yeni Bağlantı",
       "new_group": "Yeni Grup",

@@ -29,6 +29,9 @@
     </MenuItem>
     <MenuItem dataTestid="text-button">Text-only action</MenuItem>
     <MenuItem href="/settings" dataTestid="link-item">Open settings</MenuItem>
+    <MenuItem disabled dataTestid="disabled-button" onclick={() => (clickCount += 1)}>
+      Unavailable action
+    </MenuItem>
     <MenuItem
       href="/blocked"
       disabled

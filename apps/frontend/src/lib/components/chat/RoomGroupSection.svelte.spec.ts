@@ -1,5 +1,5 @@
 import { render } from 'vitest-browser-svelte';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { q, testSnippet } from '$lib/test-utils';
 import RoomGroupSection from './RoomGroupSection.svelte';
 
@@ -65,5 +65,23 @@ describe('RoomGroupSection', () => {
     expect(icon?.classList).toContain('icon-[uil--angle-right-b]');
     expect(icon?.classList).toContain('rtl:-scale-x-100');
     expect(icon?.classList).not.toContain('rotate-90');
+  });
+
+  it('renders an attached drop target for an expanded empty group', async () => {
+    const itemsAttachment = vi.fn();
+    const { container } = render(RoomGroupSection, {
+      props: {
+        label: 'Empty',
+        items: [],
+        item: testSnippet('<span>Room</span>'),
+        persistKey: 'test:room-group-section:empty-drop-target',
+        itemsAttachment
+      }
+    });
+
+    const dropzone = q(container, '[data-testid="room-group-items-dropzone"]');
+    await expect.element(dropzone).toBeInTheDocument();
+    expect(dropzone?.classList).toContain('min-h-8');
+    expect(itemsAttachment).toHaveBeenCalledOnce();
   });
 });

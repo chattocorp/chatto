@@ -204,6 +204,7 @@
       "drag_hint": "Místnosti mezi skupinami uspořádáte přetažením. Přetažením záhlaví skupin změníte pořadí skupin. Archivované místnosti zůstávají ve své sadě, ale jsou před členy skryté.",
       "drag_group": "Přetažením změníte pořadí skupiny",
       "drag_room": "Přetažením změníte pořadí místnosti",
+      "drag_link": "Přetažením změníte pořadí odkazu",
       "new_room": "Nový pokoj",
       "new_link": "Nový odkaz",
       "new_group": "Nová skupina",

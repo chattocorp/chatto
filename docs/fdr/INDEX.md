@@ -26,9 +26,9 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
 | [FDR-015](FDR-015-quick-switcher.md) | Quick Switcher (Cmd-K) | Active | 2026-08-27 |
 | [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-08-20 |
-| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-08-22 |
+| [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-08-29 |
 | [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-08-28 |
-| [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-08-27 |
+| [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-08-29 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-08-27 |
 | [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-08-27 |
 | [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-08-29 |
@@ -47,7 +47,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-035](FDR-035-slow-mode.md) | Slow Mode | Active | 2026-08-11 |
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
 | [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-08-25 |
-| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-08-29 |
+| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-08-30 |
 | [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-08-28 |
 | [FDR-040](FDR-040-backup-and-restore.md) | Backup and Restore | Active | 2026-08-27 |
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |

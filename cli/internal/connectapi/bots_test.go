@@ -25,6 +25,9 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if created.Msg.GetApiKey() == "" {
 		t.Fatal("CreateBot API key is empty")
 	}
+	if metadata := created.Msg.GetApiKeyMetadata(); metadata.GetId() == "" || metadata.GetName() != "Default key" || len(bot.GetApiKeys()) != 1 {
+		t.Fatalf("created API-key metadata = %+v; keys = %+v", metadata, bot.GetApiKeys())
+	}
 
 	listed, err := service.ListBots(ctx, connect.NewRequest(&apiv1.ListBotsRequest{}))
 	if err != nil || len(listed.Msg.GetBots()) != 1 || listed.Msg.GetPage().GetTotalCount() != 1 {
@@ -33,6 +36,30 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	got, err := service.GetBot(ctx, connect.NewRequest(&apiv1.GetBotRequest{BotUserId: bot.GetUser().GetId()}))
 	if err != nil || got.Msg.GetBot().GetUser().GetLogin() != "connect_bot" {
 		t.Fatalf("GetBot = %+v, %v", got, err)
+	}
+	firstKey, err := service.CreateBotApiKey(ctx, connect.NewRequest(&apiv1.CreateBotApiKeyRequest{
+		BotUserId: bot.GetUser().GetId(), Name: "CI",
+	}))
+	if err != nil || firstKey.Msg.GetApiKey() == "" || firstKey.Msg.GetApiKeyMetadata().GetName() != "CI" || len(firstKey.Msg.GetBot().GetApiKeys()) != 2 {
+		t.Fatalf("CreateBotApiKey first = %+v, %v", firstKey, err)
+	}
+	secondKey, err := service.CreateBotApiKey(ctx, connect.NewRequest(&apiv1.CreateBotApiKeyRequest{
+		BotUserId: bot.GetUser().GetId(), Name: "CI",
+	}))
+	if err != nil || secondKey.Msg.GetApiKey() == "" || secondKey.Msg.GetApiKeyMetadata().GetId() == firstKey.Msg.GetApiKeyMetadata().GetId() || len(secondKey.Msg.GetBot().GetApiKeys()) != 3 {
+		t.Fatalf("CreateBotApiKey second = %+v, %v", secondKey, err)
+	}
+	revokedKey, err := service.RevokeBotApiKey(ctx, connect.NewRequest(&apiv1.RevokeBotApiKeyRequest{
+		BotUserId: bot.GetUser().GetId(), KeyId: firstKey.Msg.GetApiKeyMetadata().GetId(),
+	}))
+	if err != nil || len(revokedKey.Msg.GetBot().GetApiKeys()) != 2 {
+		t.Fatalf("RevokeBotApiKey = %+v, %v", revokedKey, err)
+	}
+	if _, err := env.core.ValidateBotAPIKey(env.ctx, firstKey.Msg.GetApiKey()); err == nil {
+		t.Fatal("revoked named API key still authenticates")
+	}
+	if _, err := env.core.ValidateBotAPIKey(env.ctx, secondKey.Msg.GetApiKey()); err != nil {
+		t.Fatalf("unrelated named API key: %v", err)
 	}
 	env.api.config.Webserver.URL = "https://configured.example"
 	webhookCtx := WithRequestBaseURL(ctx, "https://spoofed.example")
@@ -142,14 +169,6 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	}
 	if apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityDMStart) {
 		t.Fatal("bot unexpectedly granted dm.start capability")
-	}
-
-	rotated, err := service.RotateBotApiKey(ctx, connect.NewRequest(&apiv1.RotateBotApiKeyRequest{BotUserId: bot.GetUser().GetId()}))
-	if err != nil || rotated.Msg.GetApiKey() == "" || rotated.Msg.GetApiKey() == created.Msg.GetApiKey() {
-		t.Fatalf("RotateBotApiKey = %+v, %v", rotated, err)
-	}
-	if state := rotated.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); state != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED {
-		t.Fatalf("rotated bot unhydrated webhook state = %v, want unspecified", state)
 	}
 
 	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {

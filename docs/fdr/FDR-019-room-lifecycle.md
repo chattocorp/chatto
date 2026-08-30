@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-29
 
 ## Overview
 
@@ -9,9 +9,9 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ## Behavior
 
-- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a visible 1–30-code-point Unicode name, an optional description, a room group, and the desired Threading Mode, with Enabled as the default. They may also enable Universal. Names are unique across the server after Unicode compatibility normalization and full case folding.
+- **Create** — server admins (or anyone with `room.create` in the target group) can start room creation from that group in the sidebar. They give the channel a visible 1–30-code-point Unicode name, an optional description, a room group, and the desired Threading Mode, with Enabled as the default. They may also enable Universal. Names are unique across the server after Unicode compatibility normalization and full case folding.
 - **Edit** — `room.manage` holders can change the name, description, group, Universal setting, Threading Mode, and explicit member set of an existing channel room.
-- **Settings access** — a joined room's context menu links `room.manage` holders directly to that room's management page. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
+- **Settings access** — a visible room's sidebar action menu links `room.manage` holders directly to that room's management page and lets them start the archive flow. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
 - **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.

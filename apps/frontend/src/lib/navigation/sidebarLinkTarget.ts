@@ -29,11 +29,26 @@ function parseServerBaseURL(serverBaseURL: string | null | undefined): URL | nul
   }
 }
 
+const explicitSchemePattern = /^[a-z][a-z\d+.-]*:/i;
+const hostnameWithPortPattern = /^(?:\[[\da-f:.]+\]|[^/?#\s:]+):\d+(?:[/?#]|$)/i;
+
+/**
+ * Adds HTTPS to a hostname entered without a scheme. Server-local paths and
+ * explicit URI schemes remain unchanged so the target validator can apply its
+ * existing protocol and path rules.
+ */
+export function normalizeSidebarLinkURL(rawURL: string): string {
+  const value = rawURL.trim();
+  if (!value || value.startsWith('/') || value.includes('\\')) return value;
+  if (explicitSchemePattern.test(value) && !hostnameWithPortPattern.test(value)) return value;
+  return `https://${value}`;
+}
+
 export function sidebarLinkTarget(
   rawURL: string,
   serverBaseURL: string | null | undefined
 ): SidebarLinkTarget {
-  const value = rawURL.trim();
+  const value = normalizeSidebarLinkURL(rawURL);
   if (!value) return invalidSidebarLinkTarget();
 
   const serverURL = parseServerBaseURL(serverBaseURL);

@@ -103,6 +103,16 @@ func (c *ChattoCore) AdminReorderRoomGroups(ctx context.Context, actorID string,
 	return c.reorderRoomGroups(ctx, actorID, orderedGroupIDs, c.anyRoomAuthorityCheck(ctx, actorID))
 }
 
+// AdminMoveRoomGroup places one group before another group, or last when
+// beforeGroupID is empty. The server recomputes the complete order on an OCC
+// conflict so callers can submit relative intent from a filtered UI.
+func (c *ChattoCore) AdminMoveRoomGroup(ctx context.Context, actorID, groupID, beforeGroupID string) error {
+	if err := c.requireCanManageAnyRoom(ctx, actorID); err != nil {
+		return err
+	}
+	return c.placeRoomGroup(ctx, actorID, groupID, beforeGroupID, c.anyRoomAuthorityCheck(ctx, actorID))
+}
+
 func (c *ChattoCore) AdminMoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) (*evtv1.Room, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
@@ -141,6 +151,22 @@ func (c *ChattoCore) AdminReorderSidebarItemsInGroup(ctx context.Context, actorI
 		return nil, err
 	}
 	return c.GetRoomGroup(ctx, groupID)
+}
+
+// AdminMoveSidebarItem places one room or sidebar link in a destination group.
+// Both source and destination authorization decisions are fenced through the
+// complete OCC retry.
+func (c *ChattoCore) AdminMoveSidebarItem(ctx context.Context, actorID string, item *evtv1.SidebarGroupEntry, targetGroupID string, before *evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	authorize := func(sourceGroupID, destinationGroupID string) error {
+		return c.roomGroupAuthorityCheck(ctx, actorID, sourceGroupID, destinationGroupID)()
+	}
+	if err := c.placeSidebarItem(ctx, actorID, item, targetGroupID, before, authorize); err != nil {
+		return nil, err
+	}
+	return c.GetRoomGroup(ctx, targetGroupID)
 }
 
 func (c *ChattoCore) AdminCreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*evtv1.SidebarLink, error) {

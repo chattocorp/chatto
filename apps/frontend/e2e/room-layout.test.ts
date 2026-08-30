@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser, loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
@@ -369,6 +369,38 @@ async function waitForSidebarSets(page: Page, expectedCount: number): Promise<st
   return names;
 }
 
+function sidebarGroup(page: Page, name: string) {
+  return page.locator('[data-testid="room-group-section"]', {
+    has: page.locator('button[aria-expanded]', { hasText: name })
+  });
+}
+
+async function dragWithPointer(
+  page: Page,
+  source: Locator,
+  target: Locator,
+  targetYRatio = 0.5
+): Promise<void> {
+  const sourceBox = await source.boundingBox();
+  if (!sourceBox) throw new Error('Expected a visible drag source');
+
+  const startX = sourceBox.x + sourceBox.width / 2;
+  const startY = sourceBox.y + sourceBox.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 8, startY + 8, { steps: 2 });
+  await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
+
+  // Starting the drag inserts a shadow and can move the destination. Resolve
+  // its live position only after the drag has crossed the start threshold.
+  const targetBox = await target.boundingBox();
+  if (!targetBox) throw new Error('Expected a visible drag target');
+  const targetX = targetBox.x + targetBox.width / 2;
+  const targetY = targetBox.y + targetBox.height * targetYRatio;
+  await page.mouse.move(targetX, targetY, { steps: 12 });
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -518,6 +550,181 @@ test.describe('Room Layout', () => {
       // Click to expand again
       await page.locator('.room-list button.uppercase', { hasText: 'Main' }).click();
       await expect(page.locator('.room-list a .truncate', { hasText: 'general' })).toBeVisible();
+    });
+  });
+
+  test.describe('Sidebar Management', () => {
+    test('admin can move a room between groups without losing sidebar content', async ({
+      page
+    }) => {
+      await loginAsAdminAndUsePrimaryServer(page);
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const bravoId = await createRoomViaAPI(page, 'bravo');
+      const seedSetId = await getSeedSetId(page);
+      await updateRoomLayoutViaAPI(page, [
+        {
+          id: seedSetId,
+          name: 'Main',
+          roomIds: [announcementsId, generalId, alphaId]
+        },
+        { id: 'sidebar-projects', name: 'Projects', roomIds: [bravoId] }
+      ]);
+      await navigateToSpace(page);
+
+      const alphaRow = page.locator('.room-list a.sidebar-item', { hasText: 'alpha' });
+      await alphaRow.hover();
+      const handle = alphaRow.getByTestId('room-drag-handle');
+      await expect(handle).toHaveCSS('opacity', '1');
+      await expect(alphaRow.getByTestId('room-actions-button')).toHaveCount(0);
+
+      await dragWithPointer(
+        page,
+        handle,
+        sidebarGroup(page, 'Projects').getByTestId('room-group-items-dropzone'),
+        0.8
+      );
+
+      await expect(
+        sidebarGroup(page, 'Projects').getByTestId('room-group-items-dropzone')
+      ).toHaveCSS('outline-style', 'dashed');
+      await expect(
+        sidebarGroup(page, 'Projects').locator('[data-is-dnd-shadow-item-hint="true"]')
+      ).toHaveCount(1);
+      await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
+      await expect(sidebarGroup(page, 'Main')).toBeVisible();
+      await expect(sidebarGroup(page, 'Projects')).toBeVisible();
+      await page.mouse.up();
+
+      await expect(async () => {
+        const layout = await getAdminRoomLayoutViaAPI(page);
+        const projects = layout?.groups.find((group) => group.name === 'Projects');
+        expect(projects?.rooms.map((room) => room.id)).toContain(alphaId);
+      }).toPass({ timeout: TIMEOUTS.SERVER_MUTATION_SYNC, intervals: [100, 250, 500] });
+
+      await page.reload();
+      await expect(sidebarGroup(page, 'Main')).toBeVisible();
+      const projects = sidebarGroup(page, 'Projects');
+      await expect(projects).toBeVisible();
+      await expect(projects.locator('a.sidebar-item', { hasText: 'alpha' })).toBeVisible();
+      await expect(
+        page
+          .getByTestId('room-groups-dropzone')
+          .locator(':scope > [data-testid="room-group-section"]')
+      ).toHaveCount(2);
+    });
+
+    test('admin can create and move a sidebar link from its icon drag handle', async ({ page }) => {
+      await loginAsAdminAndUsePrimaryServer(page);
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const seedSetId = await getSeedSetId(page);
+      await updateRoomLayoutViaAPI(page, [
+        { id: seedSetId, name: 'Main', roomIds: [announcementsId, generalId] },
+        { id: 'sidebar-projects', name: 'Projects', roomIds: [alphaId] }
+      ]);
+      await navigateToSpace(page);
+
+      const main = sidebarGroup(page, 'Main');
+      const projects = sidebarGroup(page, 'Projects');
+      await main.locator('button[aria-expanded]').click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'New Link', exact: true }).click();
+
+      const dialog = page.getByRole('dialog', { name: 'Create Link' });
+      await dialog.getByLabel('Label').fill('Docs');
+      await dialog.getByLabel('URL').fill('docs.example.test/guide');
+      await dialog.getByRole('button', { name: 'Create Link', exact: true }).click();
+
+      const linkRow = main.locator('a.sidebar-item', { hasText: 'Docs' });
+      await expect(linkRow).toHaveAttribute('href', 'https://docs.example.test/guide');
+      await linkRow.hover();
+      const handle = linkRow.getByTestId('sidebar-link-drag-handle');
+      await expect(handle).toHaveCSS('opacity', '1');
+      await expect(
+        linkRow.getByTestId('sidebar-link-leading-icon').locator(':scope > span.iconify')
+      ).toHaveCSS('opacity', '0');
+      await expect(linkRow.getByTestId('sidebar-link-actions-button')).toHaveCount(0);
+
+      await dragWithPointer(page, handle, projects.getByTestId('room-group-items-dropzone'), 0.8);
+      await expect(projects.getByTestId('room-group-items-dropzone')).toHaveCSS(
+        'outline-style',
+        'dashed'
+      );
+      await expect(projects.locator('[data-is-dnd-shadow-item-hint="true"]')).toHaveCount(1);
+      await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
+      await page.mouse.up();
+
+      await expect(projects.locator('a.sidebar-item', { hasText: 'Docs' })).toBeVisible();
+      await expect(main.locator('a.sidebar-item', { hasText: 'Docs' })).toHaveCount(0);
+
+      await page.reload();
+      await expect(
+        sidebarGroup(page, 'Projects').locator('a.sidebar-item', { hasText: 'Docs' })
+      ).toHaveAttribute('href', 'https://docs.example.test/guide');
+      await expect(
+        sidebarGroup(page, 'Main').locator('a.sidebar-item', { hasText: 'Docs' })
+      ).toHaveCount(0);
+    });
+
+    test('admin can reorder room groups with a visible landing indicator', async ({ page }) => {
+      await loginAsAdminAndUsePrimaryServer(page);
+      const { generalId, announcementsId } = await getDefaultRoomIds(page);
+      const alphaId = await createRoomViaAPI(page, 'alpha');
+      const seedSetId = await getSeedSetId(page);
+      await updateRoomLayoutViaAPI(page, [
+        { id: seedSetId, name: 'Main', roomIds: [announcementsId, generalId] },
+        { id: 'sidebar-projects', name: 'Projects', roomIds: [alphaId] }
+      ]);
+      await navigateToSpace(page);
+
+      const main = sidebarGroup(page, 'Main');
+      const projects = sidebarGroup(page, 'Projects');
+      const disclosureIcon = projects.getByTestId('room-group-disclosure-icon');
+      await expect(disclosureIcon).toHaveCSS('opacity', '1');
+      await projects.locator('button[aria-expanded]').hover();
+      await expect(projects.getByTestId('room-group-drag-handle')).toHaveCSS('opacity', '1');
+      await expect(disclosureIcon).toHaveCSS('opacity', '0');
+      await expect(projects.getByTestId('room-group-actions-button')).toHaveCount(0);
+
+      const newGroupControl = page.getByTestId('create-room-group-control');
+      await expect(newGroupControl).toBeVisible();
+      expect(
+        await newGroupControl.evaluate((element) =>
+          element.previousElementSibling?.getAttribute('data-testid')
+        )
+      ).toBe('room-groups-dropzone');
+
+      const landingIndicator = page.getByTestId('room-groups-dropzone');
+      await dragWithPointer(
+        page,
+        projects.getByTestId('room-group-drag-handle'),
+        landingIndicator,
+        0.01
+      );
+
+      await expect(landingIndicator).toHaveCSS('outline-style', 'dashed');
+      await expect(
+        landingIndicator.locator(':scope > [data-is-dnd-shadow-item-hint="true"]')
+      ).toHaveCount(1);
+      await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
+      await expect(main).toBeVisible();
+      await expect(
+        landingIndicator.locator(':scope > [data-testid="room-group-section"]')
+      ).toHaveCount(2);
+      await expect(landingIndicator.locator(':scope > :first-child')).toHaveAttribute(
+        'data-is-dnd-shadow-item-hint',
+        'true'
+      );
+      await page.mouse.up();
+
+      await expect(async () => {
+        const layout = await getAdminRoomLayoutViaAPI(page);
+        expect(layout?.groups.map((group) => group.name)).toEqual(['Projects', 'Main']);
+      }).toPass({ timeout: TIMEOUTS.SERVER_MUTATION_SYNC, intervals: [100, 250, 500] });
+
+      await page.reload();
+      expect(await waitForSidebarSets(page, 2)).toEqual(['Projects', 'Main']);
+      await expect(page.locator('[data-testid="room-group-section"]')).toHaveCount(2);
     });
   });
 

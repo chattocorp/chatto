@@ -868,6 +868,7 @@ Request creation of a bot owned by the authenticated human caller.
 | --- | --- | --- |
 | `login` | `string` | Bot login. Must end in `_bot`. |
 | `display_name` | `string` | Public display name. |
+| `api_key_name` | `optional string` | Optional name for the initial API key. Defaults to "Default key". |
 
 
 <a id="chatto-api-v1-CreateBotResponse"></a>
@@ -880,13 +881,14 @@ Result of creating a bot. api_key is shown once and cannot be retrieved.
 | --- | --- | --- |
 | `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
 | `api_key` | `string` | Newly issued API key. |
+| `api_key_metadata` | [`BotApiKey`](#chatto-api-v1-BotApiKey) | Safe metadata for the newly issued API key. |
 
 
 <a id="chatto-api-v1-BotService-DeleteBot"></a>
 
 ### DeleteBot
 
-Deletes a bot and invalidates its API key.
+Deletes a bot and invalidates all of its API keys.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/DeleteBot
@@ -914,38 +916,73 @@ Result of deleting a bot account.
 | `deleted` | `bool` | True when the bot was deleted. |
 
 
-<a id="chatto-api-v1-BotService-RotateBotApiKey"></a>
+<a id="chatto-api-v1-BotService-CreateBotApiKey"></a>
 
-### RotateBotApiKey
+### CreateBotApiKey
 
-Rotates the bot's sole API key and immediately invalidates the old key.
+Creates one named API key. A bot can have at most 20 active API keys.
 
 ```http
-POST /api/connect/chatto.api.v1.BotService/RotateBotApiKey
+POST /api/connect/chatto.api.v1.BotService/CreateBotApiKey
 ```
 
-<a id="chatto-api-v1-RotateBotApiKeyRequest"></a>
+<a id="chatto-api-v1-CreateBotApiKeyRequest"></a>
 
-#### Input: RotateBotApiKeyRequest
+#### Input: CreateBotApiKeyRequest
 
-Request rotation of a bot's sole API key.
+Request creation of one named API key for a bot.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required bot user ID. |
+| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
 
 
-<a id="chatto-api-v1-RotateBotApiKeyResponse"></a>
+<a id="chatto-api-v1-CreateBotApiKeyResponse"></a>
 
-#### Result: RotateBotApiKeyResponse
+#### Result: CreateBotApiKeyResponse
 
-Result of rotating a bot API key. api_key is shown once and cannot be
+Result of creating one API key. api_key is shown once and cannot be
 retrieved later.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
 | `api_key` | `string` | Newly issued API key. |
+| `api_key_metadata` | [`BotApiKey`](#chatto-api-v1-BotApiKey) | Safe metadata for the newly issued API key. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotApiKey"></a>
+
+### RevokeBotApiKey
+
+Revokes one API key without changing other active keys.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotApiKey
+```
+
+<a id="chatto-api-v1-RevokeBotApiKeyRequest"></a>
+
+#### Input: RevokeBotApiKeyRequest
+
+Request irreversible revocation of one bot API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `key_id` | `string` | Required API-key credential ID. |
+
+
+<a id="chatto-api-v1-RevokeBotApiKeyResponse"></a>
+
+#### Result: RevokeBotApiKeyResponse
+
+Result of revoking one bot API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
 
 
 <a id="chatto-api-v1-BotService-CreateBotIncomingWebhook"></a>
@@ -1022,7 +1059,7 @@ Result of revoking an incoming webhook.
 ### ReassignBotOwner
 
 Reassigns a bot to another active human owner. Requires bot.manage. The
-current API key and configured permission allowlist remain unchanged,
+current API keys and configured permission allowlist remain unchanged,
 while effective permissions immediately use the new owner's ceiling.
 
 ```http
@@ -1045,7 +1082,7 @@ Request an administrative reassignment of a bot to another human owner.
 
 #### Result: ReassignBotOwnerResponse
 
-Result of reassigning a bot owner. The bot's API key and configured
+Result of reassigning a bot owner. The bot's API keys and configured
 permission allowlist are unchanged.
 
 | Field | Type | Description |
@@ -4540,17 +4577,34 @@ for simple list browsing.
 
 ### Bot
 
-A managed bot account. The API key itself is returned only by creation and
-rotation responses.
+A managed bot account. Raw API keys are returned only when Chatto issues
+them.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `user` | [`User`](#chatto-api-v1-User) | Canonical public bot identity. |
 | `owner_user_id` | `string` | Stable human owner user ID. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time. |
-| `api_key_created_at` | `google.protobuf.Timestamp` | Time the initial API key was created. |
-| `api_key_rotated_at` | `optional google.protobuf.Timestamp` | Most recent API-key rotation time, when it has been rotated. |
+| `api_key_created_at` | `google.protobuf.Timestamp` | Legacy time for the initial API key. Use api_keys for active credentials. |
 | `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
+| `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
+
+
+
+<a id="chatto-api-v1-BotApiKey"></a>
+
+### BotApiKey
+
+Safe metadata for one active bot API key. The raw key is returned only when
+Chatto creates it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable API-key credential ID. |
+| `name` | `string` | Manager-defined name. |
+| `created_at` | `google.protobuf.Timestamp` | Time the API key was created. |
+| `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
+| `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
 
 
 

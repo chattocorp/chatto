@@ -90,6 +90,83 @@ func TestRoomLayout_LiveEventOnCreateGroup(t *testing.T) {
 	expectRoomGroupsUpdated(t, ch, "actor")
 }
 
+func TestRoomLayout_NotificationWaitsForProjectionCatchUp(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	groupLayout := NewRoomGroupLayoutProjection()
+	groupLayoutProjector := harness.projector(groupLayout)
+	core := &ChattoCore{
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
+	}
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+
+	projectedGroups := make(chan []string, 1)
+	subject := subjects.LiveSyncConfigEvent("room_groups_updated")
+	sub, err := harness.nc.Subscribe(subject, func(_ *nats.Msg) {
+		groups := core.roomModel.roomGroups()
+		ids := make([]string, 0, len(groups))
+		for _, group := range groups {
+			ids = append(ids, group.GetId())
+		}
+		projectedGroups <- ids
+	})
+	if err != nil {
+		t.Fatalf("Subscribe(%s): %v", subject, err)
+	}
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
+	if err := harness.nc.Flush(); err != nil {
+		t.Fatalf("flush subscription: %v", err)
+	}
+
+	created := newEvent("actor", groupCreatedEvent("G-engineering", "Engineering", ""))
+	createdSubject := evtstream.GroupAggregate("G-engineering").SubjectFor(created)
+	if _, err := harness.publisher.AppendEventually(ctx, createdSubject, created); err != nil {
+		t.Fatalf("append group mutation: %v", err)
+	}
+
+	notificationFinished := make(chan struct{})
+	go func() {
+		core.notifyRoomLayoutChanged(ctx, "actor", "test")
+		close(notificationFinished)
+	}()
+	if err := harness.nc.Flush(); err != nil {
+		t.Fatalf("flush while projection is stopped: %v", err)
+	}
+
+	select {
+	case groups := <-projectedGroups:
+		t.Fatalf("received room-layout invalidation before projection catch-up (groups %v)", groups)
+	case <-time.After(25 * time.Millisecond):
+	}
+	select {
+	case <-notificationFinished:
+		t.Fatal("room-layout notification finished before projection catch-up")
+	default:
+	}
+
+	startTestProjector(t, groupLayoutProjector)
+	select {
+	case <-notificationFinished:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for notification after projection catch-up")
+	}
+	if err := harness.nc.Flush(); err != nil {
+		t.Fatalf("flush notification: %v", err)
+	}
+
+	select {
+	case groups := <-projectedGroups:
+		if !equalStrings(groups, []string{"G-engineering"}) {
+			t.Errorf("projected groups when notification arrived = %v, want [G-engineering]", groups)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for RoomGroupsUpdatedEvent")
+	}
+}
+
 func TestRoomLayout_LiveEventOnUpdateGroup(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)

@@ -330,10 +330,16 @@ serialization cannot reach authentication state.
 Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the current owner-to-bot index used for
 management, reassignment, and cascade deletion. `UserAuthProjection` replays
-the latest bot API-key verifier and creation/rotation timestamps from EVT. When
-it observes a durable API-key rotation, it closes process-local realtime
-watchers that use the superseded verifier generation. It also replays the
-active incoming webhook IDs, names, verifiers, and creation times. A
+the active bot API-key IDs, names, verifiers, and creation times from EVT.
+Historical create and rotation events without key metadata project as the
+synthetic `legacy` default key. A historical rotation replaces every active
+verifier during replay. Current commands do not write replace-all rotations.
+A revocation removes only the selected verifier. When either fact takes effect,
+the projection closes process-local realtime watchers that used a removed
+verifier. A rollback-visible key uses a rotation-shaped revocation fence so an
+older binary cannot restore the raw revoked key after rollback. The projection
+also replays the active incoming webhook IDs, names, verifiers, and creation
+times. A
 historical verifier-replacement fact from the unreleased
 implementation replaces only the selected verifier during replay. Current
 commands do not write this fact. Revocation removes only the selected webhook.

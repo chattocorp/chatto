@@ -70,22 +70,24 @@ session or an ordering contract. It also returns the legacy origin list for
 older clients. The server does not contact the advertised origins.
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
-show-once API-key rotation, and create and revoke operations for as many as 20
-named incoming webhooks for each bot. Bot
+and create and revoke operations for as many as 20 named API keys and 20 named
+incoming webhooks for each bot. Bot
 permission reads and writes use `AdminPermissionService`'s canonical user
 permission operations with the bot's user ID as the target. Human owners can
 manage their own bots; `bot.manage` allows global management.
 
 Matrix room metadata is limited to rooms visible to both the bot owner and the
 managing caller; group metadata follows the room directory's complete group
-layout so empty groups remain configurable. Bot API keys authenticate the
+layout so empty groups remain configurable. Each bot API key authenticates the
 normal public and realtime surfaces, but cannot call bot-management or human
 account-security operations. Reassignment requires `bot.manage`, preserves the
-active key and configured allowlist, and immediately changes the owner
+active keys and configured allowlist, and immediately changes the owner
 permission ceiling.
 
-Rotation closes established realtime connections authenticated by the
-superseded verifier generation.
+API-key creation returns the raw key once. Safe metadata includes its stable
+ID, manager-defined name, creation time, and best-effort last-use telemetry.
+Revocation closes only established realtime connections that used the selected
+key.
 Incoming webhook creation returns the complete URL once. A manager replaces a
 webhook when the manager creates a new credential, moves the caller, and
 revokes the old credential. Each webhook can be revoked without a change to

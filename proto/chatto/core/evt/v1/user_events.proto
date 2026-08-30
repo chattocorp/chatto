@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 // USER EVENTS
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-725: durable user aggregate events on evt.user.{userId}.*
+//   - 700-727: durable user aggregate events on evt.user.{userId}.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -41,13 +41,44 @@ message UserAccountCreatedEvent {
 message BotApiKeyCreatedEvent {
   string user_id = 1;
   bytes verifier = 2;
+  // Stable credential ID. Empty historical values identify the default key.
+  string key_id = 3;
+  // Manager-defined name. Empty historical values use the default key name.
+  string name = 4;
 }
 
-// BotApiKeyRotatedEvent replaces the verifier for a bot's sole active API key.
-// Historical verifiers remain audit history but are never accepted.
+// BotApiKeyRotatedEvent preserves historical replace-all facts and supports
+// rollback-safe revocation of keys that older binaries can read. Current
+// servers do not expose a replace-all command.
 message BotApiKeyRotatedEvent {
   string user_id = 1;
   bytes verifier = 2;
+  // Stable replacement credential ID. Empty historical values identify the
+  // default key.
+  string key_id = 3;
+  // Manager-defined replacement name. Empty historical values use the default
+  // key name.
+  string name = 4;
+  // When set, current servers revoke only this migrated key and treat verifier
+  // as an unissued rollback fence. Older servers install that verifier as their
+  // sole key, so the revoked raw key cannot become valid after rollback.
+  string revoked_key_id = 5;
+}
+
+// BotApiKeyAddedEvent records one additional named API-key verifier. The raw
+// bearer credential is returned once and is never persisted.
+message BotApiKeyAddedEvent {
+  string user_id = 1;
+  string key_id = 2;
+  string name = 3;
+  bytes verifier = 4;
+}
+
+// BotApiKeyRevokedEvent invalidates one named API key without changing other
+// active keys.
+message BotApiKeyRevokedEvent {
+  string user_id = 1;
+  string key_id = 2;
 }
 
 // BotOwnerReassignedEvent records an administrative change to the human

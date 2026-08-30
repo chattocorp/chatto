@@ -7,12 +7,14 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
 import { settingsQueryKeys } from '$lib/query/settings';
 import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+import { botDetailPageTestState, botDetailTestPage } from './BotDetailPageTestState.svelte';
 
 const mocks = vi.hoisted(() => ({
   getBot: vi.fn(),
   batchGetUsers: vi.fn(),
   listUsers: vi.fn(),
-  rotateBotAPIKey: vi.fn(),
+  createBotAPIKey: vi.fn(),
+  revokeBotAPIKey: vi.fn(),
   reassignBotOwner: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
@@ -20,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   settings: null as { timezone: string; timeFormat: TimeFormat } | null,
   canManageBots: true,
+  supportsMultipleAPIKeys: true,
   bot: {
     id: 'bot-user-id',
     login: 'helper_bot',
@@ -30,18 +33,29 @@ const mocks = vi.hoisted(() => ({
     ownerUserId: 'owner-user-id',
     createdAt: null,
     apiKeyCreatedAt: new Date('2026-08-21T12:00:00Z'),
-    apiKeyRotatedAt: null,
+    apiKeys: [
+      {
+        id: 'legacy',
+        name: 'Default key',
+        createdAt: new Date('2026-08-21T12:00:00Z'),
+        lastUsedState: 'no_use_recorded' as const,
+        lastUsedAt: null
+      }
+    ],
     incomingWebhooks: []
   }
 }));
 
-vi.mock('$app/state', () => ({ page: { params: { botId: 'bot-user-id' } } }));
+vi.mock('$app/state', () => ({ page: botDetailTestPage }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'server-1',
     store: {
-      serverInfo: { supportsFeature: () => true },
+      serverInfo: {
+        supportsFeature: (feature: string) =>
+          feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
+      },
       currentUser: { user: { settings: mocks.settings } },
       projection: {
         viewer: {
@@ -58,7 +72,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         getBot: mocks.getBot,
         batchGetUsers: mocks.batchGetUsers,
         listUsers: mocks.listUsers,
-        rotateBotAPIKey: mocks.rotateBotAPIKey,
+        createBotAPIKey: mocks.createBotAPIKey,
+        revokeBotAPIKey: mocks.revokeBotAPIKey,
         reassignBotOwner: mocks.reassignBotOwner,
         createBotIncomingWebhook: mocks.createBotIncomingWebhook,
         revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook
@@ -101,15 +116,33 @@ describe('Bot detail page', () => {
   beforeEach(async () => {
     queryClient.clear();
     vi.clearAllMocks();
+    botDetailPageTestState.reset();
     mocks.settings = null;
     mocks.canManageBots = true;
+    mocks.supportsMultipleAPIKeys = true;
     mocks.getBot.mockResolvedValue(mocks.bot);
     mocks.batchGetUsers.mockResolvedValue([]);
     mocks.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
     mocks.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
       Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
     );
-    mocks.rotateBotAPIKey.mockResolvedValue({ bot: mocks.bot, apiKey: 'rotated-secret' });
+    mocks.createBotAPIKey.mockResolvedValue({
+      bot: {
+        ...mocks.bot,
+        apiKeys: [
+          ...mocks.bot.apiKeys,
+          {
+            id: 'K-production',
+            name: 'Production',
+            createdAt: new Date(),
+            lastUsedState: 'no_use_recorded' as const,
+            lastUsedAt: null
+          }
+        ]
+      },
+      apiKey: 'created-secret'
+    });
+    mocks.revokeBotAPIKey.mockResolvedValue({ ...mocks.bot, apiKeys: [] });
     mocks.createBotIncomingWebhook.mockResolvedValue({
       bot: {
         ...mocks.bot,
@@ -144,10 +177,60 @@ describe('Bot detail page', () => {
     await vi.waitFor(() =>
       expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith('bot-user-id', 'Production')
     );
-    flushSync();
-
-    expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret');
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret')
+    );
     expect(container.textContent).toContain('This URL is shown only once');
+  });
+
+  it('creates and revokes API keys independently', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    buttonByText(container, 'Create API key').click();
+    flushSync();
+    setInput(container.querySelector('#create-bot-api-key-name') as HTMLInputElement, 'Production');
+    const createButtons = [...container.querySelectorAll('button')].filter(
+      (button) => button.textContent?.trim() === 'Create API key'
+    );
+    createButtons.at(-1)?.click();
+    await vi.waitFor(() =>
+      expect(mocks.createBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'Production')
+    );
+    await vi.waitFor(() => expect(container.textContent).toContain('created-secret'));
+
+    buttonByText(container, 'Revoke key').click();
+    flushSync();
+    const revokeButtons = [...document.querySelectorAll('button')].filter(
+      (button) => button.textContent?.trim() === 'Revoke key'
+    );
+    revokeButtons.at(-1)?.click();
+    await vi.waitFor(() =>
+      expect(mocks.revokeBotAPIKey).toHaveBeenCalledWith('bot-user-id', 'legacy')
+    );
+  });
+
+  it('closes a pending credential revocation when the route reuses the page for another bot', async () => {
+    mocks.getBot.mockImplementation((botId: string) =>
+      Promise.resolve({ ...mocks.bot, id: botId })
+    );
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    buttonByText(container, 'Revoke key').click();
+    flushSync();
+    expect(container.querySelector('dialog[open]')).not.toBeNull();
+
+    queryClient.setQueryData(
+      settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-b'),
+      { ...mocks.bot, id: 'bot-b' }
+    );
+    botDetailPageTestState.botId = 'bot-b';
+    await vi.waitFor(() => expect(container.textContent).toContain('bot-b'));
+    await settle();
+
+    expect(container.querySelector('dialog[open]')).toBeNull();
+    expect(mocks.revokeBotAPIKey).not.toHaveBeenCalled();
   });
 
   it('keeps hydrated webhook telemetry while it refetches after credential issuance', async () => {
@@ -270,6 +353,7 @@ describe('Bot detail page', () => {
   });
 
   it("formats API key timestamps with the viewer's timezone and time format", async () => {
+    mocks.supportsMultipleAPIKeys = false;
     mocks.settings = {
       timezone: 'America/New_York',
       timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
@@ -283,6 +367,9 @@ describe('Bot detail page', () => {
       'en-GB'
     );
     expect(container.textContent).toContain(expected);
+    expect(container.textContent).not.toContain('Create API key');
+    expect(container.textContent).not.toContain('Revoke key');
+    expect(container.textContent).not.toContain('Replace all keys');
   });
 
   it('shows owner reassignment only to bot managers', async () => {

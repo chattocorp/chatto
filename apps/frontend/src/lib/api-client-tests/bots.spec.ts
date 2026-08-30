@@ -9,7 +9,8 @@ const mocks = vi.hoisted(() => ({
   listBots: vi.fn(),
   getBot: vi.fn(),
   createBot: vi.fn(),
-  rotateBotApiKey: vi.fn(),
+  createBotApiKey: vi.fn(),
+  revokeBotApiKey: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
   reassignBotOwner: vi.fn()
@@ -32,7 +33,8 @@ describe('createBotAPI', () => {
       listBots: mocks.listBots,
       getBot: mocks.getBot,
       createBot: mocks.createBot,
-      rotateBotApiKey: mocks.rotateBotApiKey,
+      createBotApiKey: mocks.createBotApiKey,
+      revokeBotApiKey: mocks.revokeBotApiKey,
       createBotIncomingWebhook: mocks.createBotIncomingWebhook,
       revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
       reassignBotOwner: mocks.reassignBotOwner
@@ -75,7 +77,7 @@ describe('createBotAPI', () => {
           ownerUserId: 'U-owner',
           createdAt,
           apiKeyCreatedAt: createdAt,
-          apiKeyRotatedAt: null,
+          apiKeys: [],
           incomingWebhooks: []
         }
       ],
@@ -85,6 +87,49 @@ describe('createBotAPI', () => {
     expect(mocks.listBots).toHaveBeenCalledWith(
       { search: 'helper', page: { limit: 20, offset: 40 } },
       { headers: { Authorization: 'Bearer token' }, signal }
+    );
+  });
+
+  it('creates and revokes named API keys with safe usage metadata', async () => {
+    const createdAt = new Date('2026-08-30T10:00:00Z');
+    const apiBot = {
+      user: { id: 'one', login: 'one_bot', displayName: 'One' },
+      ownerUserId: 'U-owner',
+      apiKeys: [
+        {
+          id: 'K-one',
+          name: 'Production',
+          createdAt: Timestamp.fromDate(createdAt),
+          lastUsedState: CredentialLastUsedState.NO_USE_RECORDED
+        }
+      ]
+    };
+    mocks.createBotApiKey.mockResolvedValue({ bot: apiBot, apiKey: 'show-once-secret' });
+    mocks.revokeBotApiKey.mockResolvedValue({ bot: { ...apiBot, apiKeys: [] } });
+    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    await expect(api.createBotAPIKey('one', 'Production')).resolves.toMatchObject({
+      bot: {
+        apiKeys: [
+          {
+            id: 'K-one',
+            name: 'Production',
+            createdAt,
+            lastUsedState: 'no_use_recorded',
+            lastUsedAt: null
+          }
+        ]
+      },
+      apiKey: 'show-once-secret'
+    });
+    expect(mocks.createBotApiKey).toHaveBeenCalledWith(
+      { botUserId: 'one', name: 'Production' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    await expect(api.revokeBotAPIKey('one', 'K-one')).resolves.toMatchObject({ apiKeys: [] });
+    expect(mocks.revokeBotApiKey).toHaveBeenCalledWith(
+      { botUserId: 'one', keyId: 'K-one' },
+      { headers: { Authorization: 'Bearer token' } }
     );
   });
 

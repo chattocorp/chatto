@@ -204,6 +204,7 @@
       "drag_hint": "Przeciągnij pokoje pomiędzy grupami, aby je uporządkować. Przeciągnij nagłówki grup, aby zmienić kolejność grup. Zarchiwizowane pokoje pozostają w swoim zestawie, ale są ukryte przed członkami.",
       "drag_group": "Przeciągnij, aby zmienić kolejność grupy",
       "drag_room": "Przeciągnij, aby zmienić kolejność pokoju",
+      "drag_link": "Przeciągnij, aby zmienić kolejność linku",
       "new_room": "Nowy pokój",
       "new_link": "Nowy link",
       "new_group": "Nowa grupa",

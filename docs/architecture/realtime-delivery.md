@@ -61,12 +61,14 @@ lost. A temporary storage error leaves the connection open until the next
 check.
 
 Bot API-key connections similarly retain only the non-secret HMAC verifier
-generation accepted during the hello. Each connection registers atomically
-with the durable user-auth projection. When a key-rotation fact reaches a
-replica, that projection closes watchers for the superseded generation; the
-handler cancels authorized work, sends a terminal `authentication_required`
-close when possible, and tears down the socket. The raw API key is not retained
-in request or connection context.
+accepted during the hello. Each connection registers atomically with the
+durable user-auth projection. When an individual revocation or a historical
+replace-all fact reaches a replica, that projection closes watchers for each
+removed verifier.
+Connections that use other API keys stay open. The handler cancels authorized
+work, sends a terminal `authentication_required` close when possible, and
+tears down the selected sockets. The raw API key is not retained in request or
+connection context.
 
 The `chatto.realtime.v1` package name is the protobuf namespace, not the
 behavioural protocol version. Protocol 2 is the server-scoped projection

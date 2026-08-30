@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sidebarLinkTarget } from './sidebarLinkTarget';
+import { normalizeSidebarLinkURL, sidebarLinkTarget } from './sidebarLinkTarget';
 
 describe('sidebarLinkTarget', () => {
   it('resolves server-local paths against the active server base URL', () => {
@@ -40,19 +40,35 @@ describe('sidebarLinkTarget', () => {
     });
   });
 
+  it('adds HTTPS to hostnames entered without a scheme', () => {
+    expect(normalizeSidebarLinkURL('docs.example.test/guide')).toBe(
+      'https://docs.example.test/guide'
+    );
+    expect(normalizeSidebarLinkURL('localhost:4173/status')).toBe('https://localhost:4173/status');
+    expect(sidebarLinkTarget('docs.example.test/guide', 'https://remote.example.test')).toEqual({
+      valid: true,
+      href: 'https://docs.example.test/guide',
+      target: '_blank',
+      rel: 'noopener noreferrer'
+    });
+  });
+
+  it('does not rewrite local paths or explicit URI schemes', () => {
+    expect(normalizeSidebarLinkURL('/docs')).toBe('/docs');
+    expect(normalizeSidebarLinkURL('https://docs.example.test')).toBe('https://docs.example.test');
+    expect(normalizeSidebarLinkURL('javascript:alert(1)')).toBe('javascript:alert(1)');
+  });
+
   it.each([
-    'docs',
+    'not a host',
     '//evil.example',
     '/\\evil.example/path',
     'javascript:alert(1)',
     'mailto:hello@example.test'
-  ])(
-    'treats %s as invalid',
-    (rawURL) => {
-      expect(sidebarLinkTarget(rawURL, 'https://remote.example.test')).toEqual({
-        valid: false,
-        href: '#'
-      });
-    }
-  );
+  ])('treats %s as invalid', (rawURL) => {
+    expect(sidebarLinkTarget(rawURL, 'https://remote.example.test')).toEqual({
+      valid: false,
+      href: '#'
+    });
+  });
 });

@@ -138,7 +138,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     Bot integrations can use the same ConnectRPC API and realtime subscription as human
     clients. Direct messages, direct mentions, replies, and followed-thread activity arrive
     as exact notification occurrences. A direct mention in a root or reply follows that
-    thread for later activity when notification policy permits it.
+    thread for later activity when notification policy permits it. Each bot can also have up
+    to 20 named API keys. Managers can replace one integration key without stopping the others.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Visible cleanup health" size="small">
@@ -205,6 +206,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   cause only one action. During a mixed-replica rollout, an older replica can
   omit the follow created by a direct root mention. Complete the rollout before
   you depend on later followed-thread activations.
+- Existing bot API keys stay valid after upgrade and appear as the default
+  named key. Complete the replica rollout before an integration uses a newly
+  added named key because older replicas do not recognize it. The experimental
+  `RotateBotApiKey` method is removed. Create a named key, move the integration,
+  and revoke the old key instead.
 - Remove `webserver.oauth_redirect_origins` or its environment-variable
   equivalent. Add an exact `webserver.allowed_origins` entry when a reverse
   proxy serves the bundled frontend from an additional origin. The entry lets

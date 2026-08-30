@@ -202,6 +202,8 @@ message Event {
     BotIncomingWebhookRotatedEvent bot_incoming_webhook_rotated = 723;
     BotIncomingWebhookRevokedEvent bot_incoming_webhook_revoked = 724;
     BotIncomingWebhookCreatedEvent bot_incoming_webhook_created = 725;
+    BotApiKeyAddedEvent bot_api_key_added = 726;
+    BotApiKeyRevokedEvent bot_api_key_revoked = 727;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

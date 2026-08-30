@@ -204,6 +204,7 @@
       "drag_hint": "Arraste salas entre grupos para organizá-los. Arraste os cabeçalhos dos grupos para reordenar os grupos. As salas arquivadas permanecem em seu conjunto, mas ficam ocultas dos membros.",
       "drag_group": "Arraste para reordenar o grupo",
       "drag_room": "Arraste para reordenar a sala",
+      "drag_link": "Arraste para reordenar o link",
       "new_room": "Nova Sala",
       "new_link": "Novo link",
       "new_group": "Novo grupo",

@@ -545,17 +545,32 @@ for simple list browsing.
 
 ### Bot
 
-A managed bot account. The API key itself is returned only by creation and
-rotation responses.
+A managed bot account. Raw API keys are returned only when Chatto issues
+them.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `user` | [`User`](#chatto-api-v1-User) | Canonical public bot identity. |
 | `owner_user_id` | `string` | Stable human owner user ID. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time. |
-| `api_key_created_at` | `google.protobuf.Timestamp` | Time the initial API key was created. |
-| `api_key_rotated_at` | `optional google.protobuf.Timestamp` | Most recent API-key rotation time, when it has been rotated. |
+| `api_key_created_at` | `google.protobuf.Timestamp` | Legacy time for the initial API key. Use api_keys for active credentials. |
 | `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
+| `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
+
+<a id="chatto-api-v1-BotApiKey"></a>
+
+### BotApiKey
+
+Safe metadata for one active bot API key. The raw key is returned only when
+Chatto creates it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable API-key credential ID. |
+| `name` | `string` | Manager-defined name. |
+| `created_at` | `google.protobuf.Timestamp` | Time the API key was created. |
+| `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
+| `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
 
 <a id="chatto-api-v1-BotIncomingWebhook"></a>
 

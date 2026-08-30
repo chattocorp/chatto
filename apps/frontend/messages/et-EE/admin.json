@@ -204,6 +204,7 @@
       "drag_hint": "Nende korraldamiseks lohistage ruume rühmade vahel. Rühmade ümberjärjestamiseks lohistage rühmapäised. Arhiivitud ruumid jäävad oma komplekti, kuid on liikmete eest peidetud.",
       "drag_group": "Lohistage rühma ümberkorraldamiseks",
       "drag_room": "Lohistage ruumi ümberjärjestamiseks",
+      "drag_link": "Lohistage lingi ümberjärjestamiseks",
       "new_room": "Uus tuba",
       "new_link": "Uus link",
       "new_group": "Uus grupp",

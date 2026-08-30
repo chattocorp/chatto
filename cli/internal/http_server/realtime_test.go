@@ -696,41 +696,45 @@ func TestRealtimeWebSocketRequestsReconnectAtBearerAccessExpiry(t *testing.T) {
 	}
 }
 
-func TestRealtimeWebSocketClosesWhenBotAPIKeyRotates(t *testing.T) {
+func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
 	env := setupWebSocketTestServer(t)
-	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-bot-owner", "RT Bot Owner", "password123")
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-multi-key-owner", "RT Multi-key Owner", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	bot, err := env.core.CreateBot(env.ctx, owner.GetId(), "realtime_bot", "Realtime Bot")
+	bot, err := env.core.CreateBot(env.ctx, owner.GetId(), "rt_multi_key_bot", "RT Multi-key Bot")
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-
-	conn := env.connectRealtime(t)
-	subscribeRealtime(t, conn, bot.APIKey)
-	rotated, err := env.core.RotateBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId())
+	first, err := env.core.CreateBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), "First worker")
 	if err != nil {
-		t.Fatalf("RotateBotAPIKey: %v", err)
+		t.Fatalf("CreateBotAPIKey first: %v", err)
+	}
+	second, err := env.core.CreateBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), "Second worker")
+	if err != nil {
+		t.Fatalf("CreateBotAPIKey second: %v", err)
 	}
 
-	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	firstConn := env.connectRealtime(t)
+	subscribeRealtime(t, firstConn, first.Credential)
+	secondConn := env.connectRealtime(t)
+	subscribeRealtime(t, secondConn, second.Credential)
+
+	if _, err := env.core.RevokeBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), first.KeyID); err != nil {
+		t.Fatalf("RevokeBotAPIKey first: %v", err)
+	}
+	frame, ok := readRealtimeServerFrame(t, firstConn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetMessage() != "the bot API key is no longer valid" || frame.GetClose().GetReconnect() {
+		t.Fatalf("first revoked socket frame = %+v", frame)
+	}
+
+	if _, err := env.core.RevokeBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), second.KeyID); err != nil {
+		t.Fatalf("RevokeBotAPIKey second: %v", err)
+	}
+	frame, ok = readRealtimeServerFrame(t, secondConn, 5*time.Second)
 	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
-		t.Fatalf("rotated bot socket frame = %+v, want terminal authentication_required", frame)
+		t.Fatalf("second revoked socket frame = %+v", frame)
 	}
-
-	staleConn := env.connectRealtime(t)
-	sendRealtimeClientFrame(t, staleConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
-		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(bot.APIKey)},
-	}})
-	rejected, ok := readRealtimeServerFrame(t, staleConn, 5*time.Second)
-	if !ok || rejected.GetError().GetCode() != "authentication_required" {
-		t.Fatalf("rotated bot key reconnect = %+v, want authentication_required", rejected)
-	}
-
-	freshConn := env.connectRealtime(t)
-	defer freshConn.Close()
-	subscribeRealtime(t, freshConn, rotated.APIKey)
 }
 
 func TestRealtimeBotReceivesNotificationActivations(t *testing.T) {

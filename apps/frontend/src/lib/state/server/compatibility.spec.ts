@@ -78,8 +78,13 @@ describe('server compatibility evaluation', () => {
     expect(supportsServerFeature('0.5.0', 'neighbors')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'botOwnerReassignment')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'botIncomingWebhooks')).toBe(true);
+    expect(supportsServerFeature('0.5.0', 'botMultipleApiKeys')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.4', 'botMultipleApiKeys')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.3', 'botMultipleApiKeys')).toBe(false);
     expect(supportsServerFeature('0.5.0', 'roomManagement')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'serverInvitations')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.4', 'relativeSidebarMoves')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.3', 'relativeSidebarMoves')).toBe(false);
     expect(supportsServerFeature('0.4.19', 'messageSearch')).toBe(false);
     expect(supportsServerFeature('custom-build', 'adminApi')).toBe(false);
   });

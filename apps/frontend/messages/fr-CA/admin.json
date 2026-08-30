@@ -204,6 +204,7 @@
       "drag_hint": "Faites glisser les salles entre les groupes pour les organiser. Faites glisser les en-têtes de groupe pour réorganiser les groupes. Les salles archivées restent dans leur ensemble, mais sont cachées aux membres.",
       "drag_group": "Faites glisser pour réorganiser le groupe",
       "drag_room": "Faites glisser pour réorganiser le salon",
+      "drag_link": "Faites glisser pour réorganiser le lien",
       "new_room": "Nouvelle salle",
       "new_link": "Nouveau lien",
       "new_group": "Nouveau groupe",

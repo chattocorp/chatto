@@ -17,6 +17,20 @@ const { mocks } = vi.hoisted(() => ({
     markNavigationRoomAsRead: vi.fn().mockResolvedValue(true),
     pushState: vi.fn(),
     goto: vi.fn(),
+    layoutAPI: {
+      createRoomGroup: vi.fn().mockResolvedValue(null),
+      updateRoomGroup: vi.fn().mockResolvedValue(null),
+      deleteRoomGroup: vi.fn().mockResolvedValue(true),
+      createSidebarLink: vi.fn().mockResolvedValue(null),
+      updateSidebarLink: vi.fn().mockResolvedValue(null),
+      deleteSidebarLink: vi.fn().mockResolvedValue(true),
+      moveRoomGroup: vi.fn().mockResolvedValue([]),
+      moveSidebarItem: vi.fn().mockResolvedValue(null)
+    },
+    roomCommandAPI: {
+      createRoom: vi.fn().mockResolvedValue(null),
+      archiveRoom: vi.fn().mockResolvedValue(null)
+    },
     appUi: {
       disableRoomCallWideFor: vi.fn(),
       requestRoomSidebarPanel: vi.fn()
@@ -60,7 +74,8 @@ const { mocks } = vi.hoisted(() => ({
         handleCallEndedEvent: vi.fn()
       },
       serverInfo: {
-        livekitUrl: null
+        livekitUrl: null,
+        supportsFeature: vi.fn().mockReturnValue(true)
       },
       navigation: {
         rooms: [],
@@ -112,6 +127,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
     store: mocks.store,
+    connection: {
+      getAPI: vi.fn((factory: { name?: string }) =>
+        factory.name === 'createAdminRoomLayoutAPI' ? mocks.layoutAPI : mocks.roomCommandAPI
+      )
+    },
     isCurrent: () => true
   })
 }));
@@ -137,8 +157,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
@@ -268,6 +288,7 @@ beforeEach(() => {
   mocks.store.navigation.roomGroups = [];
   mocks.store.navigation.isInitialLoading = false;
   mocks.store.navigation.currentUserId = 'me';
+  mocks.store.serverInfo.supportsFeature.mockReturnValue(true);
   setRooms();
   vi.clearAllMocks();
   Object.defineProperty(navigator, 'clipboard', {
@@ -628,6 +649,29 @@ describe('RoomList', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/rooms/channel-1');
   });
 
+  it('archives a managed room through the lazily loaded sidebar confirmation', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Archive Room'));
+
+    const archiveMenuItem = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Archive Room'
+    );
+    archiveMenuItem!.click();
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain('Are you sure you want to archive #general?');
+    });
+    const archiveButtons = Array.from(document.querySelectorAll('button')).filter(
+      (button) => button.textContent?.trim() === 'Archive Room'
+    );
+    archiveButtons.at(-1)!.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.roomCommandAPI.archiveRoom).toHaveBeenCalledWith('channel-1');
+    });
+  });
+
   it('hides room settings without room.manage', async () => {
     const rooms = mocks.store.navigation.rooms as Array<{
       id: string;
@@ -665,7 +709,6 @@ describe('RoomList', () => {
     const dmRow = q(container, '[href="/chat/-/dm-with-participants"]');
     const icon = dmRow?.querySelector('[data-testid="room-call-icon"]');
     const pulseIcon = icon?.querySelector('[data-testid="active-call-pulse-icon"]');
-    const children = Array.from(dmRow?.children ?? []);
     expect(icon).not.toBeNull();
     expect(icon?.classList.contains('text-action')).toBe(true);
     expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
@@ -674,10 +717,10 @@ describe('RoomList', () => {
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
     expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
     expect(dmRow?.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
-    expect(children.indexOf(dmRow!.querySelector('[data-testid="room-call-participants"]')!)).toBe(
-      children.indexOf(icon!) - 1
+    expect(dmRow!.querySelector('[data-testid="room-call-participants"]')?.nextElementSibling).toBe(
+      icon
     );
-    expect(children[0]?.querySelector('[data-testid="room-call-icon"]')).toBeNull();
+    expect(dmRow?.firstElementChild?.querySelector('[data-testid="room-call-icon"]')).toBeNull();
   });
 
   it('renders the active-call phone icon when participants are not loaded', async () => {
@@ -712,7 +755,6 @@ describe('RoomList', () => {
     const icon = channelRow?.querySelector('[data-testid="room-call-icon"]');
     const pulseIcon = icon?.querySelector('[data-testid="active-call-pulse-icon"]');
     const leadingIcon = channelRow?.querySelector('.sidebar-icon');
-    const children = Array.from(channelRow?.children ?? []);
     expect(icon).not.toBeNull();
     expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
@@ -724,8 +766,8 @@ describe('RoomList', () => {
       channelRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')
     ).toHaveLength(1);
     expect(
-      children.indexOf(channelRow!.querySelector('[data-testid="room-call-participants"]')!)
-    ).toBe(children.indexOf(icon!) - 1);
+      channelRow!.querySelector('[data-testid="room-call-participants"]')?.nextElementSibling
+    ).toBe(icon);
   });
 
   it('renders a compact overflow count for larger active calls', async () => {
@@ -833,10 +875,8 @@ describe('RoomList', () => {
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
 
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
-    const wasNotCanceled = row.dispatchEvent(event);
-
-    expect(wasNotCanceled).toBe(true);
+    expect(row.getAttribute('href')).toBe('/chat/-/joinable-channel');
+    expect(row.getAttribute('aria-disabled')).toBeNull();
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
@@ -850,10 +890,8 @@ describe('RoomList', () => {
     expect(icon?.classList.contains('icon-[uil--lock]')).toBe(true);
     expect(row.querySelectorAll('[class~="icon-[uil--lock]"]')).toHaveLength(1);
 
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
-    const wasNotCanceled = row.dispatchEvent(event);
-
-    expect(wasNotCanceled).toBe(true);
+    expect(row.getAttribute('href')).toBe('/chat/-/restricted-channel');
+    expect(row.getAttribute('aria-disabled')).toBeNull();
     expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
@@ -945,6 +983,59 @@ describe('RoomList', () => {
     expect(link.getAttribute('rel')).toBeNull();
   });
 
+  it('adds HTTPS when a new sidebar link uses a hostname without a scheme', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'resources',
+        name: 'Resources',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+
+    const { container } = render(RoomList);
+    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Resources')
+    );
+    groupHeader!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+
+    await vi.waitFor(() =>
+      expect(
+        document.querySelector('[role="menu"][aria-label="Settings for Resources"]')
+      ).not.toBeNull()
+    );
+    const newLink = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'New Link'
+    );
+    newLink!.click();
+
+    await vi.waitFor(() => expect(document.querySelector('#sidebar-link-url')).not.toBeNull());
+    const label = document.querySelector<HTMLInputElement>('#sidebar-link-label')!;
+    const url = document.querySelector<HTMLInputElement>('#sidebar-link-url')!;
+    label.value = 'Docs';
+    label.dispatchEvent(new Event('input', { bubbles: true }));
+    url.value = 'docs.example.test/guide';
+    url.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const submit = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+      (button) => button.type === 'submit' && button.textContent?.trim() === 'Create Link'
+    );
+    await expect.element(submit ?? null).toBeEnabled();
+    submit!.click();
+
+    await vi.waitFor(() =>
+      expect(mocks.layoutAPI.createSidebarLink).toHaveBeenCalledWith({
+        groupId: 'resources',
+        label: 'Docs',
+        url: 'https://docs.example.test/guide'
+      })
+    );
+  });
+
   it('keeps an empty manageable group visible and opens its settings from a context menu', async () => {
     mocks.store.navigation.rooms = [];
     mocks.store.navigation.roomGroups = [
@@ -969,16 +1060,429 @@ describe('RoomList', () => {
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
     );
     await vi.waitFor(() =>
-      expect(document.body.textContent).toContain('Settings for Private Group')
+      expect(
+        document.querySelector('[role="menu"][aria-label="Settings for Private Group"]')
+      ).not.toBeNull()
     );
 
     const settings = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Settings for Private Group'
+      (button) => button.textContent?.trim() === 'Settings'
     );
     await expect.element(settings ?? null).toBeInTheDocument();
+    await expect
+      .element(
+        Array.from(document.querySelectorAll('button')).find(
+          (button) => button.textContent?.trim() === 'Delete Group'
+        ) ?? null
+      )
+      .toBeInTheDocument();
 
     settings!.click();
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/room-groups/private-group');
+  });
+
+  it('disables deletion for a room group that contains a sidebar link', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'resources',
+        name: 'Resources',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: [
+          {
+            id: 'link:docs',
+            type: 'link',
+            link: { id: 'docs', label: 'Docs', url: '/docs' }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList);
+    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Resources')
+    );
+    groupHeader!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+
+    await vi.waitFor(() =>
+      expect(
+        document.querySelector('[role="menu"][aria-label="Settings for Resources"]')
+      ).not.toBeNull()
+    );
+    const deleteGroup = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Delete Group'
+    );
+    await expect.element(deleteGroup ?? null).toBeDisabled();
+    deleteGroup!.click();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('disables deletion for a room group that contains a legacy room entry', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'private-rooms',
+        name: 'Private Rooms',
+        viewerCanManageGroup: true,
+        roomIds: ['hidden-room']
+      }
+    ];
+
+    const { container } = render(RoomList);
+    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Private Rooms')
+    );
+    groupHeader!.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
+    );
+
+    await vi.waitFor(() =>
+      expect(
+        document.querySelector('[role="menu"][aria-label="Settings for Private Rooms"]')
+      ).not.toBeNull()
+    );
+    const deleteGroup = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Delete Group'
+    );
+    await expect.element(deleteGroup ?? null).toBeDisabled();
+  });
+
+  it('shows permission-gated drag and creation controls without room or group menu buttons', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        viewerCanCreateRoom: true,
+        roomIds: ['channel-1'],
+        items: [
+          { id: 'room:channel-1', type: 'room', roomId: 'channel-1' },
+          {
+            id: 'link:docs',
+            type: 'link',
+            link: { id: 'docs', label: 'Docs', url: '/docs' }
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+
+    await expect.element(q(container, '[data-testid="create-room-button"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-group-drag-handle"]'))
+      .toBeInTheDocument();
+    expect(container.querySelector('[data-testid="room-group-actions-button"]')).toBeNull();
+    await expect.element(q(container, '[data-testid="room-drag-handle"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
+    await expect
+      .element(q(container, '[data-testid="sidebar-link-drag-handle"]'))
+      .toBeInTheDocument();
+    expect(container.querySelector('[data-testid="sidebar-link-actions-button"]')).toBeNull();
+    const linkLeadingIcon = q(container, '[data-testid="sidebar-link-leading-icon"]');
+    expect(q(container, '[data-testid="sidebar-link-drag-handle"]')?.parentElement).toBe(
+      linkLeadingIcon
+    );
+  });
+
+  it('places the new-group control directly after managed groups and before direct messages', () => {
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        viewerCanCreateRoom: true,
+        roomIds: ['channel-1'],
+        items: [{ id: 'room:channel-1', type: 'room', roomId: 'channel-1' }]
+      }
+    ];
+
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const control = q(container, '[data-testid="create-room-group-control"]');
+    if (!control) throw new Error('Expected the new-group control');
+
+    expect(control.previousElementSibling?.getAttribute('data-testid')).toBe(
+      'room-groups-dropzone'
+    );
+    expect(control.nextElementSibling?.getAttribute('data-testid')).toBe('room-group-section');
+  });
+
+  it('starts room-group dragging only from the group drag handle', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      },
+      {
+        id: 'operations',
+        name: 'Operations',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const header = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
+    ).find((button) => button.textContent?.trim() === 'Projects');
+    const title = header?.querySelector(':scope > span:last-child');
+    expect(title).not.toBeNull();
+
+    title!.dispatchEvent(
+      new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 20,
+        clientY: 20
+      })
+    );
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 50,
+        clientY: 50
+      })
+    );
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    expect(document.querySelector('#dnd-action-dragged-el')).toBeNull();
+    window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
+  });
+
+  it('keeps room groups mounted while a room drag updates its drop zones', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        roomIds: ['channel-1'],
+        items: [{ id: 'room:channel-1', type: 'room', roomId: 'channel-1' }]
+      },
+      {
+        id: 'operations',
+        name: 'Operations',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const handle = q(container, '[data-testid="room-drag-handle"]') as HTMLButtonElement;
+    const target = handle.querySelector('span') ?? handle;
+
+    target.dispatchEvent(
+      new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 20,
+        clientY: 20
+      })
+    );
+    window.dispatchEvent(
+      new MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 50,
+        clientY: 50
+      })
+    );
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    expect(document.querySelector('#dnd-action-dragged-el')).not.toBeNull();
+    expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(2);
+    expect(container.textContent).toContain('Projects');
+    expect(container.textContent).toContain('Operations');
+
+    window.dispatchEvent(
+      new MouseEvent('mouseup', { bubbles: true, button: 0, clientX: 50, clientY: 50 })
+    );
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  });
+
+  it('does not treat bubbling room drag events as room-group drag events', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    const roomItem = { id: 'room:channel-1', type: 'room' as const, roomId: 'channel-1' };
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        roomIds: ['channel-1'],
+        items: [roomItem]
+      },
+      {
+        id: 'operations',
+        name: 'Operations',
+        viewerCanManageGroup: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const itemDropzone = q(container, '[data-testid="room-group-items-dropzone"]') as HTMLElement;
+
+    itemDropzone.dispatchEvent(
+      new CustomEvent('consider', {
+        bubbles: true,
+        detail: { items: [roomItem], info: { id: roomItem.id } }
+      })
+    );
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(2);
+    expect(container.textContent).toContain('Projects');
+    expect(container.textContent).toContain('Operations');
+  });
+
+  it('keeps an empty group visible when the viewer can create rooms in it', async () => {
+    mocks.store.navigation.rooms = [];
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: false,
+        viewerCanCreateRoom: true,
+        roomIds: [],
+        items: []
+      }
+    ];
+
+    const { container } = render(RoomList);
+
+    await expect.element(q(container, '[data-testid="room-group-section"]')).toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="create-room-button"]')).toBeInTheDocument();
+  });
+
+  it('keeps context-menu attachments but hides drag handles for a server without relative moves', () => {
+    mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        viewerCanCreateRoom: true,
+        roomIds: ['channel-1']
+      }
+    ];
+
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+
+    expect(container.querySelector('[data-testid="room-group-drag-handle"]')).toBeNull();
+    expect(container.querySelector('[data-testid="room-drag-handle"]')).toBeNull();
+    expect(container.querySelector('[data-testid="room-group-actions-button"]')).toBeNull();
+    expect(container.querySelector('[data-testid="room-actions-button"]')).toBeNull();
+  });
+
+  it('persists a relative sidebar-item placement after a handled drop', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    const roomItem = { id: 'room:channel-1', type: 'room' as const, roomId: 'channel-1' };
+    const linkItem = {
+      id: 'link:docs',
+      type: 'link' as const,
+      link: { id: 'docs', label: 'Docs', url: '/docs' }
+    };
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: true,
+        roomIds: ['channel-1'],
+        items: [roomItem, linkItem]
+      }
+    ];
+    const { container } = render(RoomList);
+    const dropzone = q(container, '[data-testid="room-group-items-dropzone"]') as HTMLElement;
+
+    dropzone.dispatchEvent(
+      new CustomEvent('finalize', {
+        detail: { items: [linkItem, roomItem], info: { id: linkItem.id } }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.layoutAPI.moveSidebarItem).toHaveBeenCalledWith({
+        item: { kind: 'link', id: 'docs' },
+        groupId: 'projects',
+        before: { kind: 'room', id: 'channel-1' }
+      });
+    });
+  });
+
+  it('persists a relative room-group placement after a handled drop', async () => {
+    mocks.store.navigation.rooms = [];
+    const first = {
+      id: 'first',
+      name: 'First',
+      viewerCanManageGroup: true,
+      roomIds: [],
+      items: []
+    };
+    const second = {
+      id: 'second',
+      name: 'Second',
+      viewerCanManageGroup: true,
+      roomIds: [],
+      items: []
+    };
+    mocks.store.navigation.roomGroups = [first, second];
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const dropzone = q(container, '[data-testid="room-groups-dropzone"]') as HTMLElement;
+    const keepVisibleWhenCollapsed = () => false;
+    const movedSection = {
+      id: 'group:second',
+      label: second.name,
+      items: [],
+      persistKey: 'second',
+      keepVisibleWhenCollapsed,
+      group: second
+    };
+    const nextSection = {
+      id: 'group:first',
+      label: first.name,
+      items: [],
+      persistKey: 'first',
+      keepVisibleWhenCollapsed,
+      group: first
+    };
+
+    dropzone.dispatchEvent(
+      new CustomEvent('finalize', {
+        detail: { items: [movedSection, nextSection], info: { id: movedSection.id } }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.layoutAPI.moveRoomGroup).toHaveBeenCalledWith({
+        groupId: 'second',
+        beforeGroupId: 'first'
+      });
+    });
   });
 
   it('renders active-server host sidebar links as same-tab anchors', async () => {

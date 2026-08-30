@@ -204,6 +204,7 @@
       "drag_hint": "Ziehe Räume zwischen Gruppen, um sie zu organisieren. Ziehe Gruppenüberschriften, um Gruppen neu anzuordnen. Archivierte Räume bleiben in ihrem Set, sind aber für Mitglieder ausgeblendet.",
       "drag_group": "Gruppe per Ziehen neu anordnen",
       "drag_room": "Raum per Ziehen neu anordnen",
+      "drag_link": "Link per Ziehen neu anordnen",
       "new_room": "Neuer Raum",
       "new_link": "Neuer Link",
       "new_group": "Neue Gruppe",

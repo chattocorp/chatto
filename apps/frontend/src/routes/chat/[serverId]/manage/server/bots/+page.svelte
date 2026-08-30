@@ -137,13 +137,6 @@
     await botsQuery.fetchNextPage();
   }
 
-  function botHref(botId: string) {
-    return resolve('/chat/[serverId]/manage/server/bots/[botId]', {
-      serverId: serverIdToSegment(serverScope.serverId),
-      botId
-    });
-  }
-
   function openCreate() {
     if (!canCreateBots) return;
     createLogin = '';
@@ -248,7 +241,13 @@
           loadingMore={botsQuery.isFetchingNextPage}
           onLoadMore={loadMore}
           loadMoreRoot={scrollContainer}
-          onRowClick={(bot) => goto(botHref(bot.id))}
+          onRowClick={(bot) =>
+            goto(
+              resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                serverId: serverIdToSegment(serverScope.serverId),
+                botId: bot.id
+              })
+            )}
         >
           {#snippet header()}
             <th class="table-header-cell">{m('settings.bots.singular')}</th>
@@ -275,7 +274,10 @@
             <td class="px-4 py-3">
               <a
                 class="link text-muted"
-                href={botHref(bot.id)}
+                href={resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                  serverId: serverIdToSegment(serverScope.serverId),
+                  botId: bot.id
+                })}
                 onclick={(event) => event.stopPropagation()}>@{bot.login}</a
               >
             </td>

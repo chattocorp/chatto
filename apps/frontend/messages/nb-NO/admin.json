@@ -204,6 +204,7 @@
       "drag_hint": "Dra rom mellom grupper for å organisere dem. Dra gruppeoverskrifter for å omorganisere grupper. Arkiverte rom forblir i settet, men er skjult for medlemmene.",
       "drag_group": "Dra for å omorganisere gruppen",
       "drag_room": "Dra for å omorganisere rommet",
+      "drag_link": "Dra for å omorganisere lenken",
       "new_room": "Nytt rom",
       "new_link": "Ny lenke",
       "new_group": "Ny gruppe",

@@ -43,9 +43,7 @@
 
   // Server preferences and permission-gated server administration share one
   // settings shell, regardless of which route family owns the content page.
-  const settingsPrefix = $derived(
-    resolve(SERVER_SETTINGS_ROOT_ROUTE, { serverId: serverSegment })
-  );
+  const settingsPrefix = $derived(resolve(SERVER_SETTINGS_ROOT_ROUTE, { serverId: serverSegment }));
   const isSettingsMode = $derived(page.url.pathname.startsWith(settingsPrefix));
   const isServerSettingsMode = $derived(isSettingsMode || isManageMode);
 
@@ -295,7 +293,7 @@
       <hr class="border-border" />
 
       <!-- Room List - always visible to server members (shows rooms user has joined) -->
-      <RoomList />
+      <RoomList canReorderGroups={serverData.canManageRooms} />
     </ScrollFader>
   {/if}
 </ServerSidebar>

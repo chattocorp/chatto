@@ -8,8 +8,8 @@ import "chatto/api/v1/users.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 
-// A managed bot account. The API key itself is returned only by creation and
-// rotation responses.
+// A managed bot account. Raw API keys are returned only when Chatto issues
+// them.
 message Bot {
   // Canonical public bot identity.
   User user = 1;
@@ -17,12 +17,14 @@ message Bot {
   string owner_user_id = 2;
   // Account creation time.
   google.protobuf.Timestamp created_at = 3;
-  // Time the initial API key was created.
+  // Legacy time for the initial API key. Use api_keys for active credentials.
   google.protobuf.Timestamp api_key_created_at = 4;
-  // Most recent API-key rotation time, when it has been rotated.
-  optional google.protobuf.Timestamp api_key_rotated_at = 5;
+  reserved 5;
+  reserved "api_key_rotated_at";
   // Active incoming webhook credentials, ordered by creation time.
   repeated BotIncomingWebhook incoming_webhooks = 6;
+  // Active API keys, ordered by creation time.
+  repeated BotApiKey api_keys = 7;
 }
 
 // Availability of best-effort credential last-use telemetry.
@@ -35,6 +37,21 @@ enum CredentialLastUsedState {
   CREDENTIAL_LAST_USED_STATE_RECORDED = 2;
   // Last-use telemetry is temporarily unavailable.
   CREDENTIAL_LAST_USED_STATE_UNAVAILABLE = 3;
+}
+
+// Safe metadata for one active bot API key. The raw key is returned only when
+// Chatto creates it.
+message BotApiKey {
+  // Stable API-key credential ID.
+  string id = 1;
+  // Manager-defined name.
+  string name = 2;
+  // Time the API key was created.
+  google.protobuf.Timestamp created_at = 3;
+  // Availability of best-effort last-use telemetry.
+  CredentialLastUsedState last_used_state = 4;
+  // Most recent recorded successful authentication time.
+  optional google.protobuf.Timestamp last_used_at = 5;
 }
 
 // Safe metadata for one active bot incoming webhook. The webhook URL is
@@ -106,6 +123,8 @@ message CreateBotRequest {
   string login = 1 [(buf.validate.field).string = {min_len: 2, max_len: 32}];
   // Public display name.
   string display_name = 2 [(buf.validate.field).string.max_len = 32];
+  // Optional name for the initial API key. Defaults to "Default key".
+  optional string api_key_name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
 }
 
 // Result of creating a bot. api_key is shown once and cannot be retrieved.
@@ -114,6 +133,8 @@ message CreateBotResponse {
   Bot bot = 1;
   // Newly issued API key.
   string api_key = 2;
+  // Safe metadata for the newly issued API key.
+  BotApiKey api_key_metadata = 3;
 }
 
 // Request deletion of a bot account.
@@ -128,19 +149,37 @@ message DeleteBotResponse {
   bool deleted = 1;
 }
 
-// Request rotation of a bot's sole API key.
-message RotateBotApiKeyRequest {
+// Request creation of one named API key for a bot.
+message CreateBotApiKeyRequest {
   // Required bot user ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required manager-defined name. Names do not need to be unique.
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
 }
 
-// Result of rotating a bot API key. api_key is shown once and cannot be
+// Result of creating one API key. api_key is shown once and cannot be
 // retrieved later.
-message RotateBotApiKeyResponse {
+message CreateBotApiKeyResponse {
   // Updated bot metadata.
   Bot bot = 1;
   // Newly issued API key.
   string api_key = 2;
+  // Safe metadata for the newly issued API key.
+  BotApiKey api_key_metadata = 3;
+}
+
+// Request irreversible revocation of one bot API key.
+message RevokeBotApiKeyRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required API-key credential ID.
+  string key_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of revoking one bot API key.
+message RevokeBotApiKeyResponse {
+  // Updated bot metadata.
+  Bot bot = 1;
 }
 
 // Request creation of one named incoming webhook for a bot.
@@ -182,7 +221,7 @@ message ReassignBotOwnerRequest {
   string owner_user_id = 2 [(buf.validate.field).string.min_len = 1];
 }
 
-// Result of reassigning a bot owner. The bot's API key and configured
+// Result of reassigning a bot owner. The bot's API keys and configured
 // permission allowlist are unchanged.
 message ReassignBotOwnerResponse {
   // Reassigned bot.
@@ -201,12 +240,16 @@ service BotService {
   rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
   // Creates a bot owned by the authenticated human caller. Requires bot.create.
   rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
-  // Deletes a bot and invalidates its API key.
+  // Deletes a bot and invalidates all of its API keys.
   rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse) {
     option idempotency_level = IDEMPOTENT;
   }
-  // Rotates the bot's sole API key and immediately invalidates the old key.
-  rpc RotateBotApiKey(RotateBotApiKeyRequest) returns (RotateBotApiKeyResponse);
+  // Creates one named API key. A bot can have at most 20 active API keys.
+  rpc CreateBotApiKey(CreateBotApiKeyRequest) returns (CreateBotApiKeyResponse);
+  // Revokes one API key without changing other active keys.
+  rpc RevokeBotApiKey(RevokeBotApiKeyRequest) returns (RevokeBotApiKeyResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
   // Creates a named incoming webhook. A bot can have at most 20 active
   // incoming webhooks.
   rpc CreateBotIncomingWebhook(CreateBotIncomingWebhookRequest) returns (CreateBotIncomingWebhookResponse);
@@ -215,7 +258,7 @@ service BotService {
     option idempotency_level = IDEMPOTENT;
   }
   // Reassigns a bot to another active human owner. Requires bot.manage. The
-  // current API key and configured permission allowlist remain unchanged,
+  // current API keys and configured permission allowlist remain unchanged,
   // while effective permissions immediately use the new owner's ceiling.
   rpc ReassignBotOwner(ReassignBotOwnerRequest) returns (ReassignBotOwnerResponse) {
     option idempotency_level = IDEMPOTENT;
