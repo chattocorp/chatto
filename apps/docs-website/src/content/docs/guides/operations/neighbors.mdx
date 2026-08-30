@@ -42,15 +42,24 @@ as a rank or preference.
 ## Use the Server Directory
 
 Select **Add Server** in the Server Gutter to open the Server Directory. The
-client combines the direct Neighbors advertised by every server that is
-registered on the device. It removes duplicate origins, but it does not sort or
-rank the results. Each result shows the registered servers that recommend it.
-When more than two servers recommend the same result, the card shows two server
-names and the number of other recommendations. Each available testimonial has
-a review card under the server profile. The review card shows the device-local
-name and icon of the source server. Different sources can publish different
-testimonials for the same server. Cards use a tapestry layout so that cards
-with different text lengths fit together.
+client starts from every server that is registered on the device. It shows each
+direct recommendation after its public profile loads. Direct recommendations
+do not need reciprocal confirmation.
+
+The client reads a recommended server's directory before it uses that server as
+a recursive source. It expands the server only when the source and target
+currently advertise each other. It follows at most two mutual hops from a
+registered server.
+
+A later result does not move a card that is already visible. The client removes
+duplicate origins, but it does not sort or rank the results. Each result shows
+the servers whose recommendations are displayed. When more than two servers
+recommend the same result, the card shows two server names and the number of
+other recommendations. Each available testimonial has a review card under the
+server profile. The review card shows the known name and icon of the source
+server. Different sources can publish different testimonials for the same
+server. Cards use a tapestry layout so that cards with different text lengths
+fit together.
 
 The client requests each advertised server's public profile. A result can show
 the server name, description, logo, and banner. If a server is offline or does
@@ -58,6 +67,20 @@ not return a valid public profile, the Server Directory omits it. The Neighbors
 administration page keeps the failed server visible so that an administrator
 can review or remove it. A failed server does not prevent the client from
 showing other results.
+
+The client starts one automatic batch of 12 candidate-directory requests. Use
+**Load more** to start each later batch of 12. One page session permits at most:
+
+- 48 directory requests;
+- 24 profile requests;
+- 72 discovery requests in total; and
+- 120 queued canonical candidates.
+
+The client uses no more than six active discovery requests. Each request has a
+ten-second timeout. It requests one directory and one profile at most for one
+canonical origin. It does not retry a failed request in the same page session.
+A hidden page does not start queued requests. Leaving the page cancels active
+and queued work.
 
 Servers that are already registered remain in the directory and have a
 **Joined** label. A compatible unregistered server has a **Join** action. If
@@ -76,12 +99,17 @@ Neighbor. It does not verify that:
 - the remote administrator approves the listing; or
 - the two servers trust each other.
 
-Reciprocal confirmation is future work. Describe current Neighbors as
-advertised or recommended servers, not as verified partners.
+The client can observe a mutual recommendation when two public directories
+advertise each other. It uses this observation only to expand recursive
+discovery. Direct recommendations can remain one-sided. Neither case is
+authenticated consent, a durable relationship, compatibility, or trust.
 
 Opening the Neighbors administration page or the Server Directory makes the
-client contact advertised origins and load their public images. The
-server-side Neighbor configuration remains passive.
+client contact advertised origins and load their public images. Public
+discovery requests contain no reusable user credential and do not follow
+redirects. A failed cross-origin request can still send an unauthenticated CORS
+preflight. The session limits bound this request effect. The server-side
+Neighbor configuration remains passive.
 
 ## Use the API
 

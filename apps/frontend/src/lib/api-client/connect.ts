@@ -99,10 +99,17 @@ export function createPublicChattoClient<T extends ServiceType>(
 ): Client<T> {
   return createClient(
     service,
-    createChattoTransport(
-      { baseUrl: connectEndpoint(baseUrl) },
-      { useBinaryFormat: false },
-    ),
+    createConnectTransport({
+      baseUrl: connectEndpoint(baseUrl),
+      useBinaryFormat: false,
+      fetch: (input, init) =>
+        fetch(input, {
+          ...init,
+          credentials: "omit",
+          redirect: "error",
+          referrerPolicy: "no-referrer",
+        }),
+    }),
   );
 }
 

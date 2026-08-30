@@ -2,7 +2,7 @@ import { flushSync } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
-import { queryClient } from '$lib/query/client';
+import type { ServerDirectorySnapshot } from '$lib/serverDirectory';
 
 const mocks = vi.hoisted(() => ({
   servers: [] as Array<{
@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   }>,
   authenticated: new Set<string>(),
   loadServerDirectory: vi.fn(),
+  loadMoreDirectory: vi.fn(),
   getPublicServerInfo: vi.fn(),
   startServerOAuthFlow: vi.fn(),
   startRemoteReauthentication: vi.fn(),
@@ -35,7 +36,60 @@ vi.mock('$lib/api-client/server', async (importOriginal) => {
 });
 vi.mock('$lib/serverDirectory', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/serverDirectory')>();
-  return { ...actual, loadServerDirectory: mocks.loadServerDirectory };
+  return {
+    ...actual,
+    createServerDirectoryDiscovery: (origins: readonly string[]) => {
+      let listener: ((snapshot: ServerDirectorySnapshot) => void) | undefined;
+      let cancelled = false;
+      const snapshot = (value: Partial<ServerDirectorySnapshot> = {}): ServerDirectorySnapshot => ({
+        entries: [],
+        failedSourceCount: 0,
+        failedCandidateCount: 0,
+        nonMutualCandidateCount: 0,
+        sourceCount: origins.length,
+        activeRequestCount: 0,
+        queuedCandidateCount: 0,
+        directoryRequestCount: origins.length,
+        profileRequestCount: 0,
+        totalRequestCount: origins.length,
+        isStarted: true,
+        isLoading: false,
+        isInitialLoading: false,
+        isPaused: false,
+        canLoadMore: false,
+        sessionLimitReached: false,
+        ...value
+      });
+      const publish = async (
+        loader: (values: readonly string[]) => Promise<Partial<ServerDirectorySnapshot>>
+      ) => {
+        const value = await loader(origins);
+        if (!cancelled) listener?.(snapshot(value));
+      };
+      return {
+        subscribe(callback: (value: ServerDirectorySnapshot) => void) {
+          listener = callback;
+          callback(snapshot({ isStarted: false, isLoading: true, isInitialLoading: true }));
+          return () => {
+            listener = undefined;
+          };
+        },
+        start() {
+          void publish(mocks.loadServerDirectory);
+        },
+        loadMore() {
+          if (mocks.loadMoreDirectory.getMockImplementation()) {
+            void publish(mocks.loadMoreDirectory);
+          }
+        },
+        setVisible: vi.fn(),
+        cancel() {
+          cancelled = true;
+        },
+        whenIdle: vi.fn(async () => undefined)
+      };
+    }
+  };
 });
 vi.mock('$lib/auth/reauth', () => ({
   startServerOAuthFlow: mocks.startServerOAuthFlow,
@@ -90,7 +144,6 @@ function recommendation(
 
 describe('Server Directory page', () => {
   beforeEach(() => {
-    queryClient.clear();
     mocks.servers = [
       {
         id: 'joined',
@@ -109,6 +162,7 @@ describe('Server Directory page', () => {
     ];
     mocks.authenticated = new Set(['joined']);
     mocks.loadServerDirectory.mockReset();
+    mocks.loadMoreDirectory.mockReset();
     mocks.getPublicServerInfo.mockReset();
     mocks.startServerOAuthFlow.mockReset();
     mocks.startServerOAuthFlow.mockResolvedValue(undefined);
@@ -491,5 +545,128 @@ describe('Server Directory page', () => {
     expect(profileCard.contains(section)).toBe(false);
     expect(profileCard.nextElementSibling).toBe(section);
     expect(container.querySelector('.columns-1')).not.toBeNull();
+  });
+
+  it('shows verified entries while discovery is still active', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://ready.example',
+          profile: profile('Ready'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2,
+      isLoading: true,
+      isInitialLoading: false,
+      activeRequestCount: 1
+    });
+
+    const { container } = render(Page);
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Ready description');
+      expect(container.textContent).toContain('Discovering more servers');
+    });
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+
+  it('loads one additional discovery batch without removing existing entries', async () => {
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      failedSourceCount: 0,
+      sourceCount: 2,
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({
+      entries: [
+        first,
+        {
+          origin: 'https://second.example',
+          profile: profile('Second'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Load more')).toBeDefined());
+    button(container, 'Load more')?.click();
+
+    await vi.waitFor(() => {
+      const entries = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-testid="server-directory-entry"]')
+      );
+      expect(entries.map(({ dataset }) => dataset.origin)).toEqual([
+        'https://first.example',
+        'https://second.example'
+      ]);
+    });
+  });
+
+  it('uses discovered source profiles for recursive testimonial attribution', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://neighbor.example',
+          profile: profile('Neighbor source', {
+            iconUrl: 'https://cdn.example/neighbor-source.webp'
+          }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        },
+        {
+          origin: 'https://second-hop.example',
+          profile: profile('Second hop'),
+          sourceOrigins: ['https://neighbor.example'],
+          recommendations: [recommendation('https://neighbor.example', 'A mutual second hop.')]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(container.textContent).toContain('A mutual second hop.'));
+
+    const secondHop = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-testid="server-directory-entry"]')
+    ).find(({ dataset }) => dataset.origin === 'https://second-hop.example')!;
+    const testimonial = secondHop.parentElement?.querySelector<HTMLElement>(
+      '[data-testid="server-testimonial"]'
+    );
+    expect(testimonial?.textContent).toContain('Neighbor source');
+    expect(testimonial?.querySelector<HTMLImageElement>('img')?.src).toBe(
+      'https://cdn.example/neighbor-source.webp'
+    );
+  });
+
+  it('explains when the page-session discovery limit is reached', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [],
+      failedSourceCount: 0,
+      sourceCount: 2,
+      sessionLimitReached: true
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain(
+        'The discovery limit for this session has been reached'
+      );
+    });
+    expect(button(container, 'Load more')).toBeUndefined();
   });
 });

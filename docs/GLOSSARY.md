@@ -60,7 +60,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Neighbor** — Chatto server that another server advertises in its public directory. A Neighbor has a canonical origin and can have a public testimonial. It is a recommendation, not a trust or reciprocal relationship. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
-**Server Directory** — Client page that combines the direct Neighbors advertised by registered servers. It shows Neighbors whose public server profiles load successfully, keeps registered results visible as joined, shows source testimonials in a tapestry layout, and also accepts a direct server address. It does not rank its results. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
+**Server Directory** — Client page that shows direct Neighbor recommendations from registered servers and follows bounded mutual recommendations recursively. It adds a direct server after its public profile loads, expands a remote server only after mutuality is observed, keeps registered results visible as joined, shows source testimonials in a tapestry layout, and also accepts a direct server address. It does not rank its results. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
 **Testimonial** — Optional public text in a Neighbor that explains why one server recommends another server. A testimonial belongs to the directed recommendation that supplied it. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 

@@ -32,7 +32,10 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "給 {server} 的推薦語"
+      "testimonials_for": "給 {server} 的推薦語",
+      "discovering": "正在探索更多伺服器…",
+      "load_more": "載入更多",
+      "session_limit_reached": "已達到本次工作階段的探索上限。"
     }
   }
 }

@@ -22,18 +22,36 @@ recommendation, not a trust or reciprocal relationship.
   or an exact `webserver.allowed_origins` alias.
 - The directory has no ordering contract.
 - Any caller can list the advertised origins through the public discovery API.
-- The Server Directory page combines the direct Neighbors from all servers
-  registered in the client. It removes duplicate canonical origins but does
-  not rank or sort the results. Each result identifies the registered servers
-  that recommend it. It preserves each source's testimonial.
+- The Server Directory starts with all servers registered in the client. It
+  shows their direct recommendations after it loads each public profile. A
+  direct recommendation does not need reciprocal confirmation.
+- The client expands a recommended server only when the source and target
+  public directories currently advertise each other. It follows at most two
+  such mutual hops from a registered server.
+- The client adds results as public profiles load and does not move results
+  that are already visible.
+- The client removes duplicate canonical origins but does not rank or sort the
+  results. Each result identifies all sources whose recommendations are shown.
+  It preserves each source's testimonial.
 - The Server Directory uses a tapestry layout. It shows each testimonial in a
-  review card below the server profile. The review card shows the device-local
-  name and icon of the registered server that supplied it.
-- The Server Directory and Neighbor administration page load each advertised
+  review card below the server profile. The review card shows the known name
+  and icon of the server that supplied it.
+- The Server Directory and Neighbor administration page load each applicable
   server's public name, description, logo, and banner. The Server Directory
-  omits a server when its public profile does not load. The administration page
-  keeps that server visible so that an administrator can review or remove it.
-  A failed request does not hide profiles that loaded successfully.
+  omits a direct recommendation when its public profile does not load. It omits
+  a recursive recommendation when mutuality is not verified or its public
+  profile does not load. The administration page keeps an advertised server
+  visible so that an administrator can review or remove it. A failed request
+  does not hide profiles that loaded successfully.
+- The Server Directory starts one automatic batch of 12 candidate-directory
+  requests. **Load more** starts another batch of 12. One page session permits
+  at most 48 directory requests, 24 profile requests, and 72 discovery requests
+  in total. It queues at most 120 canonical candidates.
+- The client uses at most six active discovery requests. Each request has a
+  ten-second timeout. It requests one directory and one profile at most for one
+  canonical origin. It does not retry a failed request in the same page session.
+- A hidden page does not start queued requests. Active requests can finish.
+  Leaving the page cancels active work and removes queued work.
 - An advertised server that is already registered remains visible and is
   marked as joined.
 - An unregistered server has a join action only when its discovered version is
@@ -65,16 +83,21 @@ unrelated directory state.
 **Tradeoff:** The server maintains resource IDs and revisions in addition to
 origins.
 
-### 2. The directory is unilateral
+### 2. Direct recommendations remain unilateral
 
-**Decision:** A server can advertise another server without a reciprocal
-confirmation.
+**Decision:** The Server Directory shows a direct recommendation from a
+registered server without reciprocal confirmation. It expands that remote
+server only when the client observes that both public directories advertise
+each other.
 
-**Why:** The first iteration is a small directory feature. It does not require
-server-to-server communication, queues, or a request lifecycle.
+**Why:** Direct recommendations keep the directory useful for old servers and
+for registered servers that are not publicly reachable. Client-observed
+mutuality prevents one unilateral recommendation from amplifying the recursive
+crawl.
 
-**Tradeoff:** An advertised server has not confirmed the relationship.
-Administrators and clients must not present a Neighbor as trusted or mutual.
+**Tradeoff:** A direct result can remain one-sided. Two matching public
+responses are not durable consent or an authenticated relationship. The
+observation can change between requests.
 
 ### 3. The server stays passive and the client loads public profiles
 
@@ -129,13 +152,13 @@ join.
 ### 7. Deduplication preserves recommendation sources
 
 **Decision:** One server appears once in the Server Directory. The result also
-identifies each registered server that advertises it.
+identifies each source server whose recommendation is shown.
 
 **Why:** A user can see where a recommendation comes from without seeing
 duplicate server cards.
 
-**Tradeoff:** The source names depend on the server catalogue on the user's
-device.
+**Tradeoff:** A source name can come from the device-local catalogue or from a
+public profile that the current discovery session loaded.
 
 ### 8. A testimonial belongs to one recommendation
 
@@ -192,11 +215,25 @@ support.
 **Tradeoff:** A server with a missing or non-standard version cannot use the
 direct join flow, even when it might work with the client.
 
+### 12. Recursive discovery has a page-session budget
+
+**Decision:** The client shows direct recommendations and follows at most two
+verified mutual hops. It uses one shared six-request scheduler and fixed
+candidate, directory, profile, and total request limits. The first candidate
+batch starts automatically. Later batches require **Load more**.
+
+**Why:** Progressive discovery can find servers beyond a direct recommendation,
+but one malicious or cyclic directory must not start unbounded browser work.
+Fixed limits make the maximum request effect testable.
+
+**Tradeoff:** A page session can stop before it explores every recommendation.
+Discovery order reflects completion and bounded scheduling, not quality.
+
 ## Non-goals
 
-- Reciprocal requests, approval, rejection, or revocation
+- Authenticated reciprocal requests, approval, rejection, or revocation
 - Server-to-server authentication or trust
-- Recursive Neighbor discovery
+- Unbounded recursive Neighbor discovery
 - Directory ranking or sorting
 - Remote-server moderation or blocking
 - Server-side reachability or compatibility checks
@@ -207,4 +244,5 @@ direct join flow, even when it might work with the client.
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-020 (Server Branding &
   Configuration), FDR-031 (Client–Server Compatibility Discovery)
 - **Issues:** [#1669](https://github.com/chattocorp/chatto/issues/1669),
-  [#2208](https://github.com/chattocorp/chatto/issues/2208)
+  [#2208](https://github.com/chattocorp/chatto/issues/2208),
+  [#2207](https://github.com/chattocorp/chatto/issues/2207)

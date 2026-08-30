@@ -32,7 +32,10 @@
       "unavailable_body": "The joined servers could not provide their recommendations. You can still connect directly.",
       "empty_title": "No recommended servers yet",
       "empty_body": "You can still connect directly with a server address.",
-      "testimonials_for": "Serveri {server} iseloomustused"
+      "testimonials_for": "Serveri {server} iseloomustused",
+      "discovering": "Otsime veel servereid…",
+      "load_more": "Laadi veel",
+      "session_limit_reached": "Selle seansi otsingulimiit on täis."
     }
   }
 }
