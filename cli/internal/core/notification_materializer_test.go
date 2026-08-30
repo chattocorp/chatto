@@ -252,6 +252,71 @@ func TestBadgeMarkerRejectsAnOlderReplicaWrite(t *testing.T) {
 	}
 }
 
+func TestActiveBadgeMarkerAdvanceDoesNotRequestAnotherInvalidation(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-stable-recipient", "Badge Stable Recipient", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-stable-author", "Badge Stable Author", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "badge-stable-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{recipient.Id, author.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
+		ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+	); err != nil {
+		t.Fatalf("disable automatic room Badge: %v", err)
+	}
+
+	post := func(body string) (*evtv1.Event, uint64) {
+		t.Helper()
+		posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, body, nil, "", "", nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entry, exists := chattoCore.roomModel.timelineEntry(posted.Id)
+		if !exists || entry.StreamSeq == 0 {
+			t.Fatalf("source timeline entry = (%+v, %v)", entry, exists)
+		}
+		return posted, entry.StreamSeq
+	}
+	input := func(posted *evtv1.Event, sequence uint64) CreateNotificationOccurrenceInput {
+		return CreateNotificationOccurrenceInput{
+			RecipientID: recipient.Id, SourceEventID: posted.Id, ActorID: author.Id,
+			SourceCreated:        posted.GetCreatedAt().AsTime(),
+			Signal:               testNotificationSignal(notificationTestSignalRoomMessage, room.Id, posted.Id),
+			Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+			SourceStreamSequence: sequence,
+		}
+	}
+
+	first, firstSequence := post("first Badge source")
+	firstWrite, err := chattoCore.notificationOccurrences.writeNotificationUnreadMarker(ctx, input(first, firstSequence))
+	if err != nil || !firstWrite.changed || !firstWrite.notify {
+		t.Fatalf("first Badge write = (%+v, %v), want changed and notify", firstWrite, err)
+	}
+	if err := chattoCore.notificationBoundaries.waitForRevision(ctx, firstWrite.key, firstWrite.revision); err != nil {
+		t.Fatal(err)
+	}
+
+	second, secondSequence := post("second Badge source")
+	secondWrite, err := chattoCore.notificationOccurrences.writeNotificationUnreadMarker(ctx, input(second, secondSequence))
+	if err != nil || !secondWrite.changed || secondWrite.notify {
+		t.Fatalf("active Badge advance = (%+v, %v), want changed without notify", secondWrite, err)
+	}
+}
+
 func TestBadgeMaterializationPipelinesHighFanoutMarkers(t *testing.T) {
 	chattoCore, nc := setupTestCore(t)
 	ctx := testContext(t)

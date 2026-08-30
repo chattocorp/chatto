@@ -464,25 +464,26 @@ Message and asset facts are delivered only when the viewer is a member. A
 channel-room viewer also needs broad `message.read`, or
 `message.read-interactions` with a relationship to the canonical thread root.
 DM membership authorizes DM delivery. The hub and public projection mapper
-both check this boundary. Authorized facts carry lightweight replacements of
-the affected room summary and viewer state alongside timeline mutations. Root
-messages also carry a content-free `room_activity` operation. Notification
-counts converge through notification signals and the finite resume
-replacement. Message delivery does not reassemble or retransmit complete
-channel membership. Echo tombstone upserts distinguish canonical-reply
-deletion from direct echo removal.
+both check this boundary.
+
+Message facts do not carry room summaries or room viewer state. Root messages
+carry a content-free `room_activity` operation for room order and first-message
+visibility. Notification counts converge through notification signals and the
+finite resume replacement. Message delivery does not reassemble or retransmit
+room permissions or complete channel membership. Echo tombstone upserts
+distinguish canonical-reply deletion from direct echo removal.
 
 Typing is transient rather than durable, but it follows the same read boundary.
 The hub and public projection mapper suppress typing events unless the viewer
 is a member. Main-room typing needs broad `message.read`. Thread typing also
 permits `message.read-interactions` with a relationship to that thread.
 
-Room-read signals emit a `RoomViewerStateReplace` for the affected room and a
-finite `NotificationsReplace`. This keeps the retained canonical room row,
-notification occurrence state, and both sidebar indicators in step, so a later
-mutation cannot restore stale unread or mention state. Root-message activity
-operations advance the affected room even when its timeline is not retained;
-later viewer-state replacements therefore cannot undo DM sorting.
+Room-read signals emit a focused room viewer activity replacement and a finite
+notification replacement. The focused operation contains only unread and Slow
+Mode state. It does not contain membership or permission decisions.
+Root-message activity operations advance the affected room even when its
+timeline is not retained. A later viewer activity replacement therefore cannot
+undo DM sorting.
 
 A durable projection hydration or mapping failure closes the session
 without advancing its cursor. Reconnect retries that EVT sequence or selects a
@@ -528,11 +529,14 @@ bounds count staleness if a best-effort Core NATS invalidation is lost while a
 tab remains connected.
 
 Badge marker changes use a separate content-free user invalidation. The server
-maps it to an authoritative `room_viewer_state_replace`. The public thread
-projection reports follow and reply-unread state only. The Message Read Cursor
-determines `has_unread_replies`. Clients do not receive either internal storage
-coordinate. A thread Badge rolls up into the parent room, and notification
-orange takes visual priority over the neutral room dot.
+maps a new or previously inactive marker to an authoritative room viewer
+activity replacement. A later source can advance the same active Badge marker
+without another public invalidation because the visible unread value did not
+change. The public thread projection reports follow and reply-unread state
+only. The Message Read Cursor determines `has_unread_replies`. Clients do not
+receive either internal storage coordinate. A thread Badge rolls up into the
+parent room, and notification orange takes visual priority over the neutral
+room dot.
 
 A reply post, edit, or retraction also emits a
 `thread_viewer_states_replace` for a viewer who follows the affected thread.

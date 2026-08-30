@@ -829,6 +829,15 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
      */
     value: RealtimeProjectionNotificationOccurrencesReplace;
     case: "notificationOccurrencesReplace";
+  } | {
+    /**
+     * Replaces one room's volatile viewer activity without retransmitting
+     * membership or permission decisions.
+     *
+     * @generated from field: chatto.realtime.v1.RealtimeProjectionRoomViewerActivityReplace room_viewer_activity_replace = 20;
+     */
+    value: RealtimeProjectionRoomViewerActivityReplace;
+    case: "roomViewerActivityReplace";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeProjectionOperation>) {
@@ -857,6 +866,7 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     { no: 17, name: "thread_viewer_states_replace", kind: "message", T: RealtimeProjectionThreadViewerStatesReplace, oneof: "operation" },
     { no: 18, name: "room_activity", kind: "message", T: RealtimeProjectionRoomActivity, oneof: "operation" },
     { no: 19, name: "notification_occurrences_replace", kind: "message", T: RealtimeProjectionNotificationOccurrencesReplace, oneof: "operation" },
+    { no: 20, name: "room_viewer_activity_replace", kind: "message", T: RealtimeProjectionRoomViewerActivityReplace, oneof: "operation" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionOperation {
@@ -1665,6 +1675,64 @@ export class RealtimeProjectionRoomViewerStateReplace extends Message<RealtimePr
 
   static equals(a: RealtimeProjectionRoomViewerStateReplace | PlainMessage<RealtimeProjectionRoomViewerStateReplace> | undefined, b: RealtimeProjectionRoomViewerStateReplace | PlainMessage<RealtimeProjectionRoomViewerStateReplace> | undefined): boolean {
     return proto3.util.equals(RealtimeProjectionRoomViewerStateReplace, a, b);
+  }
+}
+
+/**
+ * Volatile activity state for one projected room.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeProjectionRoomViewerActivityReplace
+ */
+export class RealtimeProjectionRoomViewerActivityReplace extends Message<RealtimeProjectionRoomViewerActivityReplace> {
+  /**
+   * Room whose viewer activity state is replaced.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * True when the room has neutral Badge attention for the current user.
+   *
+   * @generated from field: bool has_unread = 2;
+   */
+  hasUnread = false;
+
+  /**
+   * Earliest time the current user may create another message. Absent when
+   * Slow Mode is disabled, expired, or bypassed by moderation permissions.
+   *
+   * @generated from field: google.protobuf.Timestamp slow_mode_next_post_at = 3;
+   */
+  slowModeNextPostAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RealtimeProjectionRoomViewerActivityReplace>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionRoomViewerActivityReplace";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "slow_mode_next_post_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionRoomViewerActivityReplace {
+    return new RealtimeProjectionRoomViewerActivityReplace().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionRoomViewerActivityReplace {
+    return new RealtimeProjectionRoomViewerActivityReplace().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionRoomViewerActivityReplace {
+    return new RealtimeProjectionRoomViewerActivityReplace().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeProjectionRoomViewerActivityReplace | PlainMessage<RealtimeProjectionRoomViewerActivityReplace> | undefined, b: RealtimeProjectionRoomViewerActivityReplace | PlainMessage<RealtimeProjectionRoomViewerActivityReplace> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionRoomViewerActivityReplace, a, b);
   }
 }
 

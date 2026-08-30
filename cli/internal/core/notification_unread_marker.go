@@ -20,6 +20,7 @@ const notificationUnreadMarkerKeyPrefix = "notification_unread_marker."
 
 type notificationUnreadMarkerWrite struct {
 	changed  bool
+	notify   bool
 	key      string
 	revision uint64
 }
@@ -84,7 +85,7 @@ func (m *NotificationOccurrenceModel) writeNotificationUnreadMarker(ctx context.
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			revision, createErr := m.kv.Create(ctx, key, value, jetstream.KeyTTL(expiresAt.Sub(now)))
 			if createErr == nil {
-				return notificationUnreadMarkerWrite{changed: true, key: key, revision: revision}, nil
+				return notificationUnreadMarkerWrite{changed: true, notify: true, key: key, revision: revision}, nil
 			}
 			if !jetstreamutil.IsSequenceConflict(createErr) {
 				return notificationUnreadMarkerWrite{}, fmt.Errorf("create notification unread marker: %w", createErr)
@@ -101,9 +102,13 @@ func (m *NotificationOccurrenceModel) writeNotificationUnreadMarker(ctx context.
 		if previous.GetSourceStreamSequence() >= marker.GetSourceStreamSequence() {
 			return notificationUnreadMarkerWrite{key: key, revision: current.Revision()}, nil
 		}
+		previousActive, err := m.notificationUnreadMarkerActive(ctx, input.RecipientID, &previous)
+		if err != nil {
+			return notificationUnreadMarkerWrite{}, fmt.Errorf("resolve previous notification unread marker: %w", err)
+		}
 		revision, updateErr := m.core.updateRuntimeStateUntil(ctx, key, value, current.Revision(), expiresAt, now)
 		if updateErr == nil {
-			return notificationUnreadMarkerWrite{changed: true, key: key, revision: revision}, nil
+			return notificationUnreadMarkerWrite{changed: true, notify: !previousActive, key: key, revision: revision}, nil
 		}
 		if !jetstreamutil.IsSequenceConflict(updateErr) {
 			return notificationUnreadMarkerWrite{}, fmt.Errorf("update notification unread marker: %w", updateErr)

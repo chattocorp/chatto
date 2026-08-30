@@ -233,12 +233,15 @@ success.
 
 **Decision:** Realtime notification updates tell clients to replace their
 finite notification view from authoritative server state. Badge updates tell
-clients to replace the affected room state. My Threads can decorate a followed
-thread from matching unread occurrences in the finite notification view. The
-thread read cursor remains the only source of reply-unread state. Unread totals
-remain exact even when rows are grouped. The client also performs quiet
-periodic reconciliation so a lost transient update cannot leave counts stale
-indefinitely.
+clients to replace only unread and Slow Mode activity for the affected room.
+This update does not repeat room membership or permission decisions. An active
+Badge marker can advance to a newer source in the same scope without another
+realtime update because its public unread value stays true. My Threads can
+decorate a followed thread from matching unread occurrences in the finite
+notification view. The thread read cursor remains the only source of
+reply-unread state. Unread totals remain exact even when rows are grouped. The
+client also performs quiet periodic reconciliation so a lost transient update
+cannot leave counts stale indefinitely.
 
 **Why:** A transient notification invalidation is not durable notification
 state. Rebuilding the finite projection avoids exposing internal storage

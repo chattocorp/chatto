@@ -3,7 +3,11 @@ import { RoomTimelineIncludes, RoomTimelinePage } from '@chatto/api-types/api/v1
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { ThreadViewerState } from '@chatto/api-types/api/v1/message_types_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { RoomWithViewerState, type RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  RoomViewerState,
+  RoomWithViewerState,
+  type RoomGroup
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
@@ -48,6 +52,7 @@ export class ServerProjectionStore {
         case 'roomTimelineEventRemove':
         case 'notificationOccurrencesReplace':
         case 'roomViewerStateReplace':
+        case 'roomViewerActivityReplace':
         case 'activeCallsReplace':
         case 'presencesReplace':
         case 'threadViewerStatesReplace':
@@ -157,6 +162,27 @@ export class ServerProjectionStore {
             this.removeActiveCallRoom(replacement.roomId);
           } else if (replacement.viewerState?.isMember === true) {
             this.revokedRoomIds.delete(replacement.roomId);
+          }
+          break;
+        }
+        case 'roomViewerActivityReplace': {
+          const replacement = operation.operation.value;
+          const current = this.rooms.get(replacement.roomId);
+          if (current) {
+            const viewerState = current.room?.viewerState?.clone() ?? new RoomViewerState();
+            viewerState.hasUnread = replacement.hasUnread;
+            viewerState.slowModeNextPostAt = replacement.slowModeNextPostAt;
+            this.rooms.set(
+              replacement.roomId,
+              new RealtimeProjectionRoom({
+                room: new RoomWithViewerState({
+                  room: current.room?.room,
+                  viewerState
+                }),
+                memberUserIds: [...current.memberUserIds],
+                hasMessageHistory: current.hasMessageHistory
+              })
+            );
           }
           break;
         }

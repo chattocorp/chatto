@@ -2,6 +2,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { describe, expect, it } from 'vitest';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import {
   Message,
   ThreadSummary,
@@ -34,6 +35,7 @@ import {
   RealtimeProjectionRoom,
   RealtimeProjectionRoomActivity,
   RealtimeProjectionRoomGroupsReplace,
+  RealtimeProjectionRoomViewerActivityReplace,
   RealtimeProjectionRoomViewerStateReplace,
   RealtimeProjectionRoomRemove,
   RealtimeProjectionRoomTimelineEventRemove,
@@ -68,6 +70,55 @@ function timelineEvent(id: string, at: string): RoomTimelineEvent {
 }
 
 describe('ServerProjectionStore', () => {
+  it('updates room activity without replacing membership or permissions', () => {
+    const store = new ServerProjectionStore();
+    const firstDeadline = Timestamp.fromDate(new Date('2026-01-01T00:00:00Z'));
+    const nextDeadline = Timestamp.fromDate(new Date('2026-01-01T00:01:00Z'));
+    store.apply(
+      event(
+        operation({
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({
+              room: new Room({ id: 'R1' }),
+              viewerState: new RoomViewerState({
+                isMember: true,
+                hasUnread: false,
+                permissions: [new PermissionGrant({ permission: 'message.post', granted: true })],
+                slowModeNextPostAt: firstDeadline
+              })
+            }),
+            memberUserIds: ['U1'],
+            hasMessageHistory: true
+          })
+        })
+      )
+    );
+
+    store.apply(
+      event(
+        operation({
+          case: 'roomViewerActivityReplace',
+          value: new RealtimeProjectionRoomViewerActivityReplace({
+            roomId: 'R1',
+            hasUnread: true,
+            slowModeNextPostAt: nextDeadline
+          })
+        })
+      )
+    );
+
+    const room = store.rooms.get('R1');
+    expect(room?.room?.viewerState?.hasUnread).toBe(true);
+    expect(room?.room?.viewerState?.slowModeNextPostAt).toEqual(nextDeadline);
+    expect(room?.room?.viewerState?.isMember).toBe(true);
+    expect(room?.room?.viewerState?.permissions).toEqual([
+      new PermissionGrant({ permission: 'message.post', granted: true })
+    ]);
+    expect(room?.memberUserIds).toEqual(['U1']);
+    expect(room?.hasMessageHistory).toBe(true);
+  });
+
   it('reconciles followed-thread state and clears entries absent from the replacement', () => {
     const store = new ServerProjectionStore();
     const root = new RoomTimelineEvent({

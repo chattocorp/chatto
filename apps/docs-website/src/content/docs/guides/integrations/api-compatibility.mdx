@@ -42,6 +42,9 @@ unsupported and asks the operator to upgrade them. A 0.5 server accepts only
 realtime protocol 2; older clients must migrate to the server-scoped projection
 stream.
 
+Protocol 2 uses `room_viewer_activity_replace` for room unread and Slow Mode
+changes. This operation does not repeat room membership and permission state.
+
 The 0.5 authentication boundary also replaces sliding human bearer tokens with
 short-lived access tokens and rotating refresh credentials. A 0.5 server
 rejects bearer records issued before that change, so affected users sign in

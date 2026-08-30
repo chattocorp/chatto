@@ -85,6 +85,14 @@ func realtimeProjectionServerFrame(event *realtimev1.RealtimeProjectionEvent) *r
 	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_ProjectionEvent{ProjectionEvent: event}}
 }
 
+func realtimeProjectionRoomViewerOperation(roomID string, viewerState *apiv1.RoomViewerState) *realtimev1.RealtimeProjectionOperation {
+	return &realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerActivityReplace{
+		RoomViewerActivityReplace: &realtimev1.RealtimeProjectionRoomViewerActivityReplace{
+			RoomId: roomID, HasUnread: viewerState.GetHasUnread(), SlowModeNextPostAt: viewerState.GetSlowModeNextPostAt(),
+		},
+	}}
+}
+
 func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, viewerID, roomID string) (*realtimev1.RealtimeServerFrame, error) {
 	room, err := s.connectAPI.BuildRealtimeProjectionRoom(ctx, viewerID, roomID)
 	if err != nil {
@@ -164,11 +172,7 @@ func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, 
 		ViewerUpsert: viewer,
 	}})
 	for _, state := range roomStates {
-		operations = append(operations, &realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
-			RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{
-				RoomId: state.RoomID, ViewerState: state.ViewerState,
-			},
-		}})
+		operations = append(operations, realtimeProjectionRoomViewerOperation(state.RoomID, state.ViewerState))
 	}
 	operations = append(operations,
 		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
@@ -338,11 +342,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if err != nil {
 				return nil, false, err
 			}
-			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
-				RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{
-					RoomId: roomID, ViewerState: viewerState,
-				},
-			}})
+			appendOperation(realtimeProjectionRoomViewerOperation(roomID, viewerState))
 			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
@@ -360,11 +360,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				}
 				return nil, false, err
 			}
-			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
-				RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{
-					RoomId: roomID, ViewerState: viewerState,
-				},
-			}})
+			appendOperation(realtimeProjectionRoomViewerOperation(roomID, viewerState))
 		case *livev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
 			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
@@ -445,18 +441,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			Action: action, RoomId: roomID, MessageEventId: messageEventID,
 		}
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ServerStateUpsert{ServerStateUpsert: serverState}})
-	}
-	appendRoomViewerState := func(roomID string) error {
-		viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
-		if err != nil {
-			return err
-		}
-		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
-			RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{
-				RoomId: roomID, ViewerState: viewerState,
-			},
-		}})
-		return nil
 	}
 	appendFollowedThreadRefresh := func(roomID string) error {
 		rootID, ok := s.core.MessageEventThreadRoot(roomID, evt)
@@ -587,16 +571,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	switch payload := evt.GetEvent().(type) {
 	case *evtv1.Event_MessagePosted:
 		roomID := payload.MessagePosted.GetRoomId()
-		// Refresh lightweight room state when no timeline is retained. Retained
-		// rooms already carry their activity through the timeline mutation.
-		if !retainsTimeline(roomID) {
-			if err := appendRoom(roomID); err != nil {
-				return nil, false, err
-			}
-		}
-		if err := appendRoomViewerState(roomID); err != nil {
-			return nil, false, err
-		}
 		if payload.MessagePosted.GetInThread() == "" {
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomActivity{
 				RoomActivity: &realtimev1.RealtimeProjectionRoomActivity{RoomId: roomID},

@@ -213,6 +213,9 @@ message RealtimeProjectionOperation {
     // unread occurrence counts. This uses a new top-level operation tag rather
     // than reinterpreting the released Notifications 1.0 replacement.
     RealtimeProjectionNotificationOccurrencesReplace notification_occurrences_replace = 19;
+    // Replaces one room's volatile viewer activity without retransmitting
+    // membership or permission decisions.
+    RealtimeProjectionRoomViewerActivityReplace room_viewer_activity_replace = 20;
   }
 }
 
@@ -362,6 +365,17 @@ message RealtimeProjectionNotificationOccurrencesReplace {
 message RealtimeProjectionRoomViewerStateReplace {
   string room_id = 1;
   chatto.api.v1.RoomViewerState viewer_state = 2;
+}
+
+// Volatile activity state for one projected room.
+message RealtimeProjectionRoomViewerActivityReplace {
+  // Room whose viewer activity state is replaced.
+  string room_id = 1;
+  // True when the room has neutral Badge attention for the current user.
+  bool has_unread = 2;
+  // Earliest time the current user may create another message. Absent when
+  // Slow Mode is disabled, expired, or bypassed by moderation permissions.
+  google.protobuf.Timestamp slow_mode_next_post_at = 3;
 }
 
 // Finite current active-call state visible to the caller.

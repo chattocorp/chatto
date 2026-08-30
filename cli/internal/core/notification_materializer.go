@@ -819,7 +819,7 @@ func (m *NotificationMaterializer) materializeInputs(ctx context.Context, inputs
 	}
 	invalidations := make([]notificationUnreadInvalidation, 0, len(writes))
 	for index, write := range writes {
-		if write.changed {
+		if write.notify {
 			input := badgeInputs[index]
 			message := notificationSignalMessage(input.Signal)
 			invalidations = append(invalidations, notificationUnreadInvalidation{

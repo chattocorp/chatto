@@ -262,6 +262,7 @@ One mutation of a server-scoped client projection.
 | `operation.thread_viewer_states_replace` | [`RealtimeProjectionThreadViewerStatesReplace`](#chatto-realtime-v1-RealtimeProjectionThreadViewerStatesReplace) | Replaces viewer-specific follow and unread state for every followed thread. Missing entries authoritatively mean not followed and not unread for retained thread roots. |
 | `operation.room_activity` | [`RealtimeProjectionRoomActivity`](#chatto-realtime-v1-RealtimeProjectionRoomActivity) | Signals root-message activity for lightweight room ordering even when that room's timeline is not retained. |
 | `operation.notification_occurrences_replace` | [`RealtimeProjectionNotificationOccurrencesReplace`](#chatto-realtime-v1-RealtimeProjectionNotificationOccurrencesReplace) | Replaces the viewer's current notification-occurrence page and exact unread occurrence counts. This uses a new top-level operation tag rather than reinterpreting the released Notifications 1.0 replacement. |
+| `operation.room_viewer_activity_replace` | [`RealtimeProjectionRoomViewerActivityReplace`](#chatto-realtime-v1-RealtimeProjectionRoomViewerActivityReplace) | Replaces one room's volatile viewer activity without retransmitting membership or permission decisions. |
 
 
 
@@ -413,6 +414,20 @@ Complete retained recent timeline window for one room.
 | `room_id` | `string` | Room whose retained window is replaced. |
 | `page` | `chatto.api.v1.RoomTimelinePage` | Renderable current timeline state. Deleted and crypto-shredded message bodies are absent and represented by their normal tombstone fields. |
 | `event_cursors` | map&lt;`string`, `string`&gt; | Opaque cursor for every retained row, keyed by timeline event ID. |
+
+
+
+<a id="chatto-realtime-v1-RealtimeProjectionRoomViewerActivityReplace"></a>
+
+### RealtimeProjectionRoomViewerActivityReplace
+
+Volatile activity state for one projected room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose viewer activity state is replaced. |
+| `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when Slow Mode is disabled, expired, or bypassed by moderation permissions. |
 
 
 

@@ -611,6 +611,11 @@ export class ServerStateStore {
           }
           break;
         }
+        case 'roomViewerActivityReplace': {
+          const replacement = operation.operation.value;
+          this.roomUnread.acknowledgeRoomProjection(replacement.roomId, replacement.hasUnread);
+          break;
+        }
         case 'activeCallsReplace': {
           const calls = operation.operation.value.calls;
           this.reconcileActiveCallTransition(event, calls);
