@@ -769,7 +769,20 @@ func isLoopbackOAuthRedirectHost(host string) bool {
 	case "localhost", "127.0.0.1", "::1":
 		return true
 	}
-	return strings.HasSuffix(host, ".localhost") && len(host) > len(".localhost")
+	if !strings.HasSuffix(host, ".localhost") {
+		return false
+	}
+	for label := range strings.SplitSeq(strings.TrimSuffix(host, ".localhost"), ".") {
+		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, character := range label {
+			if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '-' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func isLiteralLoopbackOAuthRedirectHost(host string) bool {

@@ -107,7 +107,7 @@
         hostname === '127.0.0.1' ||
         hostname === '::1' ||
         hostname === '[::1]' ||
-        hostname.endsWith('.localhost')
+        (hostname.endsWith('.localhost') && hostname.length > '.localhost'.length)
       );
     } catch {
       return false;

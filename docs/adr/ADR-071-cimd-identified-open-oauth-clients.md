@@ -59,13 +59,14 @@ The authorization server retrieves a CIMD document itself and validates that:
 A native client can register an HTTP callback on `127.0.0.1`, `[::1]`,
 `localhost`, or one concrete hostname below `.localhost`, even when Chatto is
 not on a local host. Named localhost callbacks keep an exact port. Literal IP
-callbacks can select an available port at run time as required by RFC 8252.
+callbacks can select an available runtime port as required by RFC 8252.
 The authorization code and token exchange remain bound to the callback that
 the client selected for that authorization.
 
 CIMD retrieval is an unauthenticated network boundary. Chatto disables proxy
-inheritance and redirects, limits concurrency, the complete resolution/fetch
-time and body size, requires a JSON media type, rejects special-use destination addresses, pins
+inheritance and redirects, limits concurrency, the complete resolution and
+fetch time, and the body size. It requires a JSON media type, rejects
+special-use destination addresses, pins
 the validated destination through dialing to resist DNS rebinding, and caches
 only valid metadata for at most five minutes in a bounded cache. The retrieval
 concurrency limit covers destination resolution as well as HTTP. Loopback

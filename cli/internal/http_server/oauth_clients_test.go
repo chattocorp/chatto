@@ -172,6 +172,8 @@ func TestValidateOAuthClientMetadataRestrictsHTTPLoopbackRedirects(t *testing.T)
 		{name: "public HTTP host", applicationType: "native", redirectURI: "http://client.example/callback"},
 		{name: "localhost lookalike", applicationType: "native", redirectURI: "http://localhost.example/callback"},
 		{name: "wildcard localhost", applicationType: "native", redirectURI: "http://*.localhost:3000/callback"},
+		{name: "empty localhost label", applicationType: "native", redirectURI: "http://tool..localhost:3000/callback"},
+		{name: "invalid localhost label", applicationType: "native", redirectURI: "http://tool_name.localhost:3000/callback"},
 		{name: "wildcard HTTPS", applicationType: "web", redirectURI: "https://*.example/callback"},
 	}
 	for _, tt := range tests {

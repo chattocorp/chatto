@@ -97,7 +97,7 @@ When a Chatto frontend connects to another Chatto server, it opens that server's
 The frontend identifies itself with the URL of its published CIMD document.
 Chatto retrieves that document and accepts only a registered callback. Native
 clients can use a local HTTP callback. Literal loopback IP callbacks can select
-a run-time port; named localhost callbacks stay exact. The user approves the
+a runtime port; named localhost callbacks stay exact. The user approves the
 identified client. Chatto remembers consent by user and stable client ID for a
 non-local callback. A local callback shows its origin and requires consent for
 each authorization:
@@ -240,9 +240,10 @@ origin without enabling credentialed CORS. When a request carries a foreign
 `Origin`, the server ignores ambient session cookies and requires a bearer
 token. Same-origin browser requests can still use the HTTP-only session cookie.
 
-OAuth callback trust is separate from CORS: Chatto accepts only an exact
+OAuth callback trust is separate from CORS. Chatto accepts only a registered
 callback from the validated client's CIMD document or a built-in registration
-such as Chatto Desktop. See [Connections From Other Chatto Clients](/guides/operations/cross-server-connections/).
+such as Chatto Desktop. A registered literal loopback IP callback can use a
+different port. See [Connections From Other Chatto Clients](/guides/operations/cross-server-connections/).
 
 ## HTTP security headers
 
