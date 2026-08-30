@@ -3,6 +3,36 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.4](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.3...v0.5.0-alpha.4) (2026-08-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **bots:** support multiple named API keys ([#2244](https://github.com/chattocorp/chatto/issues/2244))
+
+### Features
+
+* **bots:** support multiple named API keys ([#2244](https://github.com/chattocorp/chatto/issues/2244)) ([1ca3a9e](https://github.com/chattocorp/chatto/commit/1ca3a9e33ce360b4be5611bb4ebfe07362812f51))
+* **frontend:** add bounded recursive neighbor discovery ([#2230](https://github.com/chattocorp/chatto/issues/2230)) ([46c3045](https://github.com/chattocorp/chatto/commit/46c304521868d83c662c2f9e7944f660127a2fe5))
+* **frontend:** add user menu action icons ([#2222](https://github.com/chattocorp/chatto/issues/2222)) ([98a4a4c](https://github.com/chattocorp/chatto/commit/98a4a4c0a90fa9ebb65f2a650fe11c41e623f867))
+* **frontend:** finish the progressive Neighbor tapestry ([#2234](https://github.com/chattocorp/chatto/issues/2234)) ([ba864c5](https://github.com/chattocorp/chatto/commit/ba864c566e33800c6e23a58e89daaf57a39ee677))
+* **frontend:** simplify push notification activation ([#2228](https://github.com/chattocorp/chatto/issues/2228)) ([482fcf3](https://github.com/chattocorp/chatto/commit/482fcf3b971d9905e597226bfd84b7181db66a1b))
+* manage rooms from the server sidebar ([#2219](https://github.com/chattocorp/chatto/issues/2219)) ([eb81244](https://github.com/chattocorp/chatto/commit/eb812440d812b884f73a4b164e708edc4b9f7f52))
+* **mcp:** add authenticated network integration ([#2225](https://github.com/chattocorp/chatto/issues/2225)) ([45eaece](https://github.com/chattocorp/chatto/commit/45eaece641aff4921152fc3606fdbbba772f9683))
+* **neighbors:** add public testimonials ([#2223](https://github.com/chattocorp/chatto/issues/2223)) ([a9f611c](https://github.com/chattocorp/chatto/commit/a9f611c200016d3dfc4b501f75c2c0816b32f0ff))
+* **neighbors:** show recommendation sources ([#2202](https://github.com/chattocorp/chatto/issues/2202)) ([4c2a9fb](https://github.com/chattocorp/chatto/commit/4c2a9fb612931df7f02ee2ad7603bc37e76855da))
+
+
+### Bug Fixes
+
+* **ci:** update only affected release PRs ([#2203](https://github.com/chattocorp/chatto/issues/2203)) ([1ea5e54](https://github.com/chattocorp/chatto/commit/1ea5e54e867b3c0b1645a00f454b979b87357e59))
+* **frontend:** layer jump button above scroll fade ([#2209](https://github.com/chattocorp/chatto/issues/2209)) ([5ebd2d6](https://github.com/chattocorp/chatto/commit/5ebd2d6570975906d608edd76e2bb3ac71169db5))
+* **frontend:** make notification dismissal safer ([#2204](https://github.com/chattocorp/chatto/issues/2204)) ([19d99ba](https://github.com/chattocorp/chatto/commit/19d99bab4d3f86e4fd7000f31413677b9170d4bd))
+* **frontend:** recover unread markers after app resume ([#2229](https://github.com/chattocorp/chatto/issues/2229)) ([36fa5ea](https://github.com/chattocorp/chatto/commit/36fa5ea9c15f236424f765134d574ef3f4b8ec67))
+* **frontend:** standardize settings form actions ([#2201](https://github.com/chattocorp/chatto/issues/2201)) ([e2ce334](https://github.com/chattocorp/chatto/commit/e2ce3340cae51252fa8592221f55680e161a4101))
+* **neighbors:** hand incompatible servers off to their client ([#2227](https://github.com/chattocorp/chatto/issues/2227)) ([4b951ea](https://github.com/chattocorp/chatto/commit/4b951eadab952c163f6bbfea52a3c46ec9a5daf9))
+* **neighbors:** reject server origins ([#2210](https://github.com/chattocorp/chatto/issues/2210)) ([69db917](https://github.com/chattocorp/chatto/commit/69db917847e31269be85ff996c099a471eda93f7))
+
 ## [0.5.0-alpha.3](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.2...v0.5.0-alpha.3) (2026-08-29)
 
 
